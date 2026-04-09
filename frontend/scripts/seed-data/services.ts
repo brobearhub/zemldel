@@ -1,9 +1,12 @@
 import type { ServiceRecordRequestDto } from "../../entities/service/ServiceRecordRequest.dto";
 
+const MAIN_CATEGORY_ID = "11111111-1111-1111-1111-111111111111";
+const LEGAL_CATEGORY_ID = "22222222-2222-2222-2222-222222222222";
+
 export const SERVICES_SEED: ServiceRecordRequestDto[] = [
   // --- Main services ---
   {
-    category: "main",
+    categoryId: MAIN_CATEGORY_ID,
     title:
       "Перераспределение земельного участка. Увеличение площади за счёт прилегающей территории.",
     description:
@@ -20,7 +23,7 @@ export const SERVICES_SEED: ServiceRecordRequestDto[] = [
     icon: "map",
   },
   {
-    category: "main",
+    categoryId: MAIN_CATEGORY_ID,
     title:
       "Подключение электричества. Подача заявок для физлиц и юрлиц, льготное подключение.",
     description:
@@ -38,7 +41,7 @@ export const SERVICES_SEED: ServiceRecordRequestDto[] = [
     icon: "electric",
   },
   {
-    category: "main",
+    categoryId: MAIN_CATEGORY_ID,
     title:
       "Кадастровые работы: межевание, техпланы, постановка на учёт и внесение изменений в ЕГРН.",
     description:
@@ -71,7 +74,7 @@ export const SERVICES_SEED: ServiceRecordRequestDto[] = [
     { title: "Юридическая проверка недвижимости", price: "от 18 000 ₽" },
     { title: "Раздел имущества", price: "от 42 000 ₽" },
   ].map((item, i) => ({
-    category: "legal" as const,
+    categoryId: LEGAL_CATEGORY_ID,
     title: item.title,
     price: item.price,
     image: "/hero-bg-house_static.jpg",

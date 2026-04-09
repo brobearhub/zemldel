@@ -42,9 +42,9 @@ export function LegalServicesPaper() {
         if (!res.ok) throw new Error("Failed to fetch services");
         return res.json();
       })
-      .then((services: Array<{ category: string; title: string }>) =>
+      .then((services: Array<{ category?: { slug?: string }; title: string }>) =>
         services
-          .filter((s) => s.category === "legal")
+          .filter((s) => s.category?.slug === "legal")
           .map((s) => s.title)
       )
       .then(setTitles)

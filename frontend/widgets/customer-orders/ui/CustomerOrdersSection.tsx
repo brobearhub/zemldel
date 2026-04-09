@@ -13,11 +13,9 @@ import {
   type OrderStatus,
   type OrderStatusFilter,
 } from "@/entities/order";
-import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import { ChatThreadLinkButton } from "@/widgets/chat/ui/ChatThreadLinkButton";
 
 export function CustomerOrdersSection() {
-  const { refreshUnreadByLeads } = useChatSocket();
   const [orders, setOrders] = useState<OrderDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,14 +81,6 @@ export function CustomerOrdersSection() {
     void loadOrders();
   }, []);
 
-  useEffect(() => {
-    const ids = orders.map((order) => order.serviceLeadId);
-    if (ids.length === 0) {
-      return;
-    }
-    void refreshUnreadByLeads(ids);
-  }, [orders, refreshUnreadByLeads]);
-
   return (
     <Stack spacing={3}>
       <Box>
@@ -144,7 +134,7 @@ export function CustomerOrdersSection() {
               key={order.id}
               order={order}
               leftMeta={
-                <ChatThreadLinkButton href={`/orders/${order.id}`} serviceLeadId={order.serviceLeadId} label="Открыть" />
+                <ChatThreadLinkButton href={`/orders/${order.id}`} serviceRequestId={order.id} label="Открыть" />
               }
               partyChip={
                 <Chip

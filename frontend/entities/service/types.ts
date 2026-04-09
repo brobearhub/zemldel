@@ -7,6 +7,16 @@ export type ServiceCardItem = {
   stockBadge?: string | null;
   /** Price or cost label, e.g. "1004 ₽" or "от 15 000 ₽" */
   price: string;
+  provider: {
+    id: string;
+    name: string;
+    city: {
+      id: string;
+      name: string;
+      regionCode: string;
+      regionName: string;
+    } | null;
+  };
   /** 1–5 */
   rating?: number | null;
   /** Review count for label "N отзыв(ов)" */
@@ -14,6 +24,19 @@ export type ServiceCardItem = {
   /** CTA button text, e.g. "3 марта" or "Записаться" */
   ctaText: string;
   ctaHref?: string | null;
+};
+
+export type ServiceCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  parentId: string | null;
+  sortOrder: number | null;
+};
+
+export type ServiceTemplateRef = {
+  id: string;
+  title: string;
 };
 
 export type ServicePaletteColor =
@@ -29,7 +52,11 @@ export type ServiceIconKey = "map" | "electric" | "architecture";
 
 /** Full service record — single source of truth for API and pages */
 export type ServiceRecord = ServiceCardItem & {
-  category: "main" | "legal";
+  categoryId: string;
+  category: ServiceCategory;
+  templateId: string | null;
+  template: ServiceTemplateRef | null;
+  status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   /** For main services: full description (about page) */
   description?: string | null;
   /** Substring to highlight in description */

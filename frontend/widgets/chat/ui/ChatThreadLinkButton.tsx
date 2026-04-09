@@ -7,7 +7,7 @@ import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 
 type Props = {
   href: string;
-  serviceLeadId: string;
+  serviceRequestId: string;
   label?: string;
   disabled?: boolean;
   tooltip?: string;
@@ -16,14 +16,14 @@ type Props = {
 
 export function ChatThreadLinkButton({
   href,
-  serviceLeadId,
+  serviceRequestId,
   label = "Открыть",
   disabled,
   tooltip,
   size = "small",
 }: Props) {
-  const { unreadByLeadId } = useChatSocket();
-  const count = unreadByLeadId[serviceLeadId] ?? 0;
+  const { unreadByRequestId } = useChatSocket();
+  const count = unreadByRequestId[serviceRequestId] ?? 0;
 
   const button = (
     <Badge color="error" badgeContent={count} max={99} invisible={count === 0}>

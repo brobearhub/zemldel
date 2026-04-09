@@ -18,7 +18,9 @@ export type ChatMessageDto = {
 
 export type ChatUnreadHintPayload = {
   conversationId: string;
-  serviceLeadId: string;
+  subjectType: "request";
+  subjectId: string;
+  serviceRequestId?: string;
   lastMessageAt: string;
   senderUserId: string;
   bodySnippet?: string;

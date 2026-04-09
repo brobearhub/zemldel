@@ -30,6 +30,7 @@ export function SessionSync() {
           image: user.image ?? null,
           systemRole: user.systemRole,
           activeProviderId: user.activeProviderId,
+          customerCity: user.customerCity ?? null,
           memberships: user.memberships,
         })
       );

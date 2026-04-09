@@ -1,0 +1,85 @@
+"use client";
+
+import { useState } from "react";
+import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
+import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
+import { Box, Container, IconButton, Stack, Tooltip } from "@mui/material";
+
+import type { ServiceDto } from "@/entities/service";
+import { PublicUnlinkedRequestForm } from "@/widgets/public-service/ui/PublicUnlinkedRequestForm";
+import { HydrateService } from "@/widgets/services/ui/HydrateService";
+import { Services } from "@/widgets/services/ui/Services";
+import { ServiceTemplatesSection, type ServiceTemplateRow } from "@/widgets/service-templates/ui/ServiceTemplatesSection";
+
+type Props = {
+  isAuthenticated: boolean;
+  templates: ServiceTemplateRow[];
+  initialServices: ServiceDto[];
+};
+
+export function HomeStickyRequestLayout({ isAuthenticated, templates, initialServices }: Props) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  return (
+    <Box
+      component="main"
+      sx={{
+        py: { xs: 3, md: 4 },
+        pt: { xs: 12, sm: 14, md: 16 },
+      }}
+    >
+      <Container maxWidth="xl">
+        <Box
+          sx={{
+            display: "grid",
+            gap: { xs: 2, md: 3 },
+            alignItems: "start",
+            gridTemplateColumns: {
+              xs: "1fr",
+              md: collapsed ? "minmax(0, 1fr) 52px" : "minmax(0, 1fr) 420px",
+            },
+          }}
+        >
+          <Box sx={{ minWidth: 0, order: { xs: 2, md: 0 } }}>
+            <ServiceTemplatesSection templates={templates} embedded />
+            <HydrateService initialServices={initialServices} />
+            <Services embedded />
+          </Box>
+
+          <Box
+            sx={{
+              order: { xs: 1, md: 1 },
+              alignSelf: "start",
+              position: { md: "sticky" },
+              top: { md: 96 },
+            }}
+          >
+            {collapsed ? (
+              <Tooltip title="Показать форму заявки">
+                <IconButton
+                  onClick={() => setCollapsed(false)}
+                  aria-label="Показать форму заявки"
+                  sx={{ border: 1, borderColor: "divider", bgcolor: "background.paper" }}
+                >
+                  <ChevronLeftRoundedIcon />
+                </IconButton>
+              </Tooltip>
+            ) : (
+              <Stack spacing={1.5}>
+                <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                  <Tooltip title="Свернуть форму">
+                    <IconButton onClick={() => setCollapsed(true)} aria-label="Свернуть форму" size="small">
+                      <ChevronRightRoundedIcon />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+                <PublicUnlinkedRequestForm isAuthenticated={isAuthenticated} />
+              </Stack>
+            )}
+          </Box>
+        </Box>
+      </Container>
+    </Box>
+  );
+}
+

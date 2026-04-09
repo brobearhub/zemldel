@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsEnum, IsString, Matches, MinLength } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsUUID, Matches, MinLength } from 'class-validator';
 
 export class CreateProviderDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
@@ -17,4 +17,8 @@ export class CreateProviderDto {
 
   @IsEnum(['SELF_EMPLOYED', 'COMPANY'])
   type!: 'SELF_EMPLOYED' | 'COMPANY';
+
+  @IsOptional()
+  @IsUUID()
+  cityId?: string;
 }

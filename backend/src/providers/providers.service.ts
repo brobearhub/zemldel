@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -15,6 +16,7 @@ const providerSelect = {
   slug: true,
   type: true,
   ownerUserId: true,
+  cityId: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -64,6 +66,12 @@ export class ProvidersService {
     return membership;
   }
 
+  private isUuid(value: string) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value,
+    );
+  }
+
   private async ensureProviderOwner(userId: string, providerId: string) {
     const membership = await this.getActiveMembership(userId, providerId);
 
@@ -74,9 +82,36 @@ export class ProvidersService {
     return membership;
   }
 
+  private async ensureProviderManagerOrOwner(userId: string, providerId: string) {
+    const membership = await this.getActiveMembership(userId, providerId);
+
+    if (membership.role !== 'OWNER' && membership.role !== 'MANAGER') {
+      throw new ForbiddenException('Provider access denied');
+    }
+
+    return membership;
+  }
+
   async createProvider(userId: string, body: CreateProviderDto) {
     const name = body.name.trim();
     const slug = body.slug.trim().toLowerCase();
+    const cityId = body.cityId ?? null;
+
+    if (cityId) {
+      const city = await this.prisma.city.findUnique({
+        where: { id: cityId },
+        select: { id: true, typeName: true, level: true },
+      });
+      if (!city) {
+        throw new NotFoundException('City not found');
+      }
+      const ok =
+        (city.typeName === 'г' && (city.level === 5 || city.level === 1)) ||
+        (city.typeName === 'г.о.' && city.level === 3);
+      if (!ok) {
+        throw new BadRequestException('Invalid city');
+      }
+    }
 
     const existingBySlug = await this.prisma.provider.findUnique({
       where: { slug },
@@ -109,6 +144,7 @@ export class ProvidersService {
           slug,
           type: body.type,
           ownerUserId: userId,
+          cityId,
         },
         select: providerSelect,
       });
@@ -137,6 +173,79 @@ export class ProvidersService {
     return {
       provider,
       authContext,
+    };
+  }
+
+  async updateProviderCity(
+    userId: string,
+    providerId: string,
+    input: { cityId?: string | null },
+  ) {
+    if (!providerId) {
+      throw new BadRequestException('providerId is required');
+    }
+
+    let nextCityId: string | null | undefined = input.cityId;
+
+    if (nextCityId !== undefined && nextCityId !== null && typeof nextCityId !== 'string') {
+      throw new BadRequestException('Invalid cityId');
+    }
+
+    if (typeof nextCityId === 'string') {
+      nextCityId = nextCityId.trim();
+      if (nextCityId.length === 0) nextCityId = null;
+    }
+
+    if (nextCityId === undefined) {
+      throw new BadRequestException('cityId is required');
+    }
+
+    await this.ensureProviderManagerOrOwner(userId, providerId);
+
+    if (nextCityId !== null) {
+      if (!this.isUuid(nextCityId)) {
+        throw new BadRequestException('Invalid cityId');
+      }
+      const exists = await this.prisma.city.findUnique({
+        where: { id: nextCityId },
+        select: { id: true, typeName: true, level: true },
+      });
+      if (!exists) {
+        throw new NotFoundException('City not found');
+      }
+      const ok =
+        (exists.typeName === 'г' && (exists.level === 5 || exists.level === 1)) ||
+        (exists.typeName === 'г.о.' && exists.level === 3);
+      if (!ok) {
+        throw new BadRequestException('Invalid city');
+      }
+    }
+
+    const updated = await this.prisma.provider.update({
+      where: { id: providerId },
+      data: {
+        cityId: nextCityId,
+      },
+      select: {
+        id: true,
+        cityId: true,
+        city: {
+          select: {
+            id: true,
+            name: true,
+            regionCode: true,
+            regionName: true,
+          },
+        },
+        updatedAt: true,
+      },
+    });
+
+    return {
+      id: updated.id,
+      cityId: updated.cityId,
+      city: updated.city,
+      updatedAt: updated.updatedAt.toISOString(),
     };
   }
 

@@ -5,7 +5,7 @@ import { Box, Container, Paper, Stack, Typography } from "@mui/material";
 import type { ServiceDto } from "@/entities/service";
 import { BackendApiError, fetchBackendJson } from "@/lib/backend-api";
 import { getServerAuthSession } from "@/lib/auth";
-import { PublicServiceLeadForm } from "@/widgets/public-service/ui/PublicServiceLeadForm";
+import { PublicServiceRequestForm } from "@/widgets/public-service/ui/PublicServiceRequestForm";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -49,7 +49,7 @@ export default async function ServicePage({ params }: Props) {
 
   const shortDescription =
     service.description ??
-    (service.category === "main" ? service.title : `${service.title}. ${service.price}.`);
+    (service.category?.slug === "main" ? service.title : `${service.title}. ${service.price}.`);
 
   return (
     <main>
@@ -156,7 +156,7 @@ export default async function ServicePage({ params }: Props) {
                   >
                     {service.price}
                   </Typography>
-                  <PublicServiceLeadForm
+                  <PublicServiceRequestForm
                     serviceId={service.id}
                     ctaText={service.ctaText}
                     ctaHref={service.ctaHref}

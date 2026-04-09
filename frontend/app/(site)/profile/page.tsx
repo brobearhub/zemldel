@@ -2,8 +2,10 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   Avatar,
+  Alert,
   Badge,
   Box,
   Button,
@@ -24,9 +26,11 @@ import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
 import { useAppSelector } from "@/core/store/hooks";
 import type { AuthMembership } from "@/core/auth/authorization";
-import { CustomerLeadsSection } from "@/widgets/customer-leads/ui/CustomerLeadsSection";
 import { CustomerOrdersSection } from "@/widgets/customer-orders/ui/CustomerOrdersSection";
+import { CustomerRequestsSection } from "@/widgets/customer-requests/ui/CustomerRequestsSection";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
+import type { CitySuggestItemDto } from "@/entities/city";
+import { CityAutocomplete } from "@/shared/ui/CityAutocomplete";
 
 function getInitials(name: string | null | undefined): string {
   if (!name) return "U";
@@ -41,10 +45,10 @@ function providerRoleLabel(role: AuthMembership["role"]) {
   return role === "OWNER" ? "владелец" : "менеджер";
 }
 
-type ProfileSection = "profile" | "orders" | "leads";
+type ProfileSection = "profile" | "orders" | "requests";
 
 function resolveProfileSection(value: string | null): ProfileSection {
-  if (value === "profile" || value === "leads") {
+  if (value === "profile" || value === "requests") {
     return value;
   }
 
@@ -57,8 +61,11 @@ interface ProfileSidebarProps {
 }
 
 function ProfileSidebar({ selectedSection, onSelectSection }: ProfileSidebarProps) {
-  const { unreadByLeadId } = useChatSocket();
-  const unreadTotal = useMemo(() => Object.values(unreadByLeadId).reduce((acc, value) => acc + value, 0), [unreadByLeadId]);
+  const { unreadByRequestId } = useChatSocket();
+  const unreadRequestsTotal = useMemo(
+    () => Object.values(unreadByRequestId).reduce((acc, value) => acc + value, 0),
+    [unreadByRequestId]
+  );
   return (
     <Paper
       variant="outlined"
@@ -92,7 +99,7 @@ function ProfileSidebar({ selectedSection, onSelectSection }: ProfileSidebarProp
           onClick={() => onSelectSection("orders")}
         >
           <ListItemIcon sx={{ minWidth: 36 }}>
-            <Badge color="error" badgeContent={unreadTotal} max={99} invisible={unreadTotal === 0}>
+            <Badge color="error" badgeContent={unreadRequestsTotal} max={99} invisible={unreadRequestsTotal === 0}>
               <ReceiptLongOutlinedIcon />
             </Badge>
           </ListItemIcon>
@@ -102,8 +109,9 @@ function ProfileSidebar({ selectedSection, onSelectSection }: ProfileSidebarProp
             primaryTypographyProps={{ fontWeight: selectedSection === "orders" ? 700 : 600 }}
           />
         </ListItemButton>
+
         <ListItemButton
-          selected={selectedSection === "leads"}
+          selected={selectedSection === "requests"}
           sx={{
             px: 2.5,
             py: 1.5,
@@ -112,17 +120,17 @@ function ProfileSidebar({ selectedSection, onSelectSection }: ProfileSidebarProp
               "&:hover": { bgcolor: "action.selected" },
             },
           }}
-          onClick={() => onSelectSection("leads")}
+          onClick={() => onSelectSection("requests")}
         >
           <ListItemIcon sx={{ minWidth: 36 }}>
-            <Badge color="error" badgeContent={unreadTotal} max={99} invisible={unreadTotal === 0}>
+            <Badge color="error" badgeContent={unreadRequestsTotal} max={99} invisible={unreadRequestsTotal === 0}>
               <AssignmentTurnedInOutlinedIcon />
             </Badge>
           </ListItemIcon>
           <ListItemText
             primary="Заявки"
-            secondary="Отклики по услугам"
-            primaryTypographyProps={{ fontWeight: selectedSection === "leads" ? 700 : 600 }}
+            secondary="Все ваши заявки"
+            primaryTypographyProps={{ fontWeight: selectedSection === "requests" ? 700 : 600 }}
           />
         </ListItemButton>
         <ListItemButton
@@ -155,21 +163,99 @@ interface ProfileOverviewProps {
   name: string | null | undefined;
   email: string | null | undefined;
   image: string | null | undefined;
+  customerCity: { id: string; name: string; regionCode: string; regionName: string } | null | undefined;
   memberships: AuthMembership[];
   activeMembership: AuthMembership | null;
   onOpenProfessionalArea: () => void;
   onCreateProvider: () => void;
+  onCityUpdated: () => void;
 }
 
 function ProfileOverview({
   name,
   email,
   image,
+  customerCity,
   memberships,
   activeMembership,
   onOpenProfessionalArea,
   onCreateProvider,
+  onCityUpdated,
 }: ProfileOverviewProps) {
+  const { update: updateSession } = useSession();
+  const [busy, setBusy] = useState(false);
+  const [cityError, setCityError] = useState<string | null>(null);
+  const [providerCityError, setProviderCityError] = useState<string | null>(null);
+  const customerCityValue = useMemo<CitySuggestItemDto | null>(() => {
+    if (!customerCity) return null;
+    return {
+      id: customerCity.id,
+      name: customerCity.name,
+      regionCode: customerCity.regionCode,
+      regionName: customerCity.regionName,
+      displayName: `г ${customerCity.name}, ${customerCity.regionName}`,
+    };
+  }, [customerCity]);
+
+  async function updateCustomerCity(next: CitySuggestItemDto | null) {
+    setBusy(true);
+    setCityError(null);
+    try {
+      const res = await fetch("/api/users/me", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ customerCityId: next?.id ?? null }),
+      });
+      if (!res.ok) {
+        const payload = (await res.json().catch(() => ({}))) as { error?: string };
+        setCityError(payload.error ?? "Не удалось обновить город");
+        return;
+      }
+      await updateSession();
+      onCityUpdated();
+    } catch {
+      setCityError("Не удалось обновить город");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const providerCityValue = useMemo<CitySuggestItemDto | null>(() => {
+    const city = activeMembership?.providerCity ?? null;
+    if (!city) return null;
+    return {
+      id: city.id,
+      name: city.name,
+      regionCode: city.regionCode,
+      regionName: city.regionName,
+      displayName: `г ${city.name}, ${city.regionName}`,
+    };
+  }, [activeMembership?.providerCity]);
+
+  async function updateProviderCity(next: CitySuggestItemDto | null) {
+    if (!activeMembership?.providerId) return;
+    setBusy(true);
+    setProviderCityError(null);
+    try {
+      const res = await fetch(`/api/providers/${activeMembership.providerId}/city`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ cityId: next?.id ?? null }),
+      });
+      if (!res.ok) {
+        const payload = (await res.json().catch(() => ({}))) as { error?: string };
+        setProviderCityError(payload.error ?? "Не удалось обновить город провайдера");
+        return;
+      }
+      await updateSession();
+      onCityUpdated();
+    } catch {
+      setProviderCityError("Не удалось обновить город провайдера");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <Stack spacing={3}>
       <Box sx={{ display: "flex", gap: 3, alignItems: "center" }}>
@@ -221,6 +307,33 @@ function ProfileOverview({
           <Typography variant="body2" color="text.secondary">
             Профессиональных профилей: {memberships.length}
           </Typography>
+
+          {cityError ? <Alert severity="error">{cityError}</Alert> : null}
+
+          <Box sx={{ pt: 1 }}>
+            <CityAutocomplete
+              label="Ваш город"
+              value={customerCityValue}
+              onChange={updateCustomerCity}
+              disabled={busy}
+              placeholder="Начните вводить (минимум 2 символа)"
+            />
+          </Box>
+
+          {activeMembership ? (
+            <>
+              {providerCityError ? <Alert severity="error">{providerCityError}</Alert> : null}
+              <Box sx={{ pt: 1 }}>
+                <CityAutocomplete
+                  label="Город провайдера"
+                  value={providerCityValue}
+                  onChange={updateProviderCity}
+                  disabled={busy}
+                  placeholder="Начните вводить (минимум 2 символа)"
+                />
+              </Box>
+            </>
+          ) : null}
         </Stack>
       </Paper>
 
@@ -326,11 +439,8 @@ function ProfilePageContent() {
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.set("section", section);
 
-    if (section !== "leads") {
-      nextParams.delete("notice");
-      nextParams.delete("resume");
-      nextParams.delete("leadResume");
-    }
+    // reset resume-flags for other flows
+    if (section !== "requests") nextParams.delete("requestResume");
 
     const nextQuery = nextParams.toString();
     router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
@@ -356,10 +466,12 @@ function ProfilePageContent() {
               name={user?.name}
               email={user?.email}
               image={user?.image}
+              customerCity={user?.customerCity}
               memberships={memberships}
               activeMembership={activeMembership}
               onOpenProfessionalArea={() => router.push("/pro")}
               onCreateProvider={() => router.push("/providers/new")}
+              onCityUpdated={() => router.refresh()}
             />
           ) : null}
 
@@ -367,13 +479,7 @@ function ProfilePageContent() {
             <CustomerOrdersSection />
           ) : null}
 
-          {selectedSection === "leads" ? (
-            <CustomerLeadsSection
-              autoResumeEnabled={searchParams.get("leadResume") === "1"}
-              noticeKey={searchParams.get("notice")}
-              resumeState={searchParams.get("resume")}
-            />
-          ) : null}
+          {selectedSection === "requests" ? <CustomerRequestsSection autoResumeEnabled={searchParams.get("requestResume") === "1"} /> : null}
         </Paper>
       </Stack>
     </Container>

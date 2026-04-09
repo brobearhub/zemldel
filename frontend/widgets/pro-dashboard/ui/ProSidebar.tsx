@@ -15,37 +15,31 @@ import {
   Paper,
   Typography,
 } from "@mui/material";
-import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
+import DynamicFeedOutlinedIcon from "@mui/icons-material/DynamicFeedOutlined";
 import BuildOutlinedIcon from "@mui/icons-material/BuildOutlined";
 import PeopleOutlineOutlinedIcon from "@mui/icons-material/PeopleOutlineOutlined";
-import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import Groups2OutlinedIcon from "@mui/icons-material/Groups2Outlined";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
+import ViewModuleOutlinedIcon from "@mui/icons-material/ViewModuleOutlined";
 import { useMemo, useState } from "react";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 
 const NAV_ITEMS = [
   {
     href: "/pro",
-    label: "Обзор",
-    description: "Рабочее пространство",
-    icon: <DashboardOutlinedIcon />,
+    label: "Лента",
+    description: "Поток заявок клиентов",
+    icon: <DynamicFeedOutlinedIcon />,
   },
   {
     href: "/pro/team",
     label: "Команда",
     description: "Участники компании и роли",
     icon: <PeopleOutlineOutlinedIcon />,
-  },
-  {
-    href: "/pro/leads",
-    label: "Заявки",
-    description: "Входящие отклики по услугам",
-    icon: <AssignmentTurnedInOutlinedIcon />,
   },
   {
     href: "/pro/orders",
@@ -73,6 +67,11 @@ const SERVICES_GROUP = {
       icon: <FormatListBulletedIcon />,
     },
     {
+      href: "/pro/services/templates",
+      label: "Шаблоны",
+      icon: <ViewModuleOutlinedIcon />,
+    },
+    {
       href: "/pro/services/create",
       label: "Создать",
       icon: <AddCircleOutlineIcon />,
@@ -82,13 +81,16 @@ const SERVICES_GROUP = {
 
 export function ProSidebar() {
   const pathname = usePathname();
-  const { unreadByLeadId } = useChatSocket();
+  const { unreadByRequestId } = useChatSocket();
   const isServicesRoute = useMemo(
     () => pathname === SERVICES_GROUP.hrefPrefix || pathname.startsWith(`${SERVICES_GROUP.hrefPrefix}/`),
     [pathname]
   );
   const [servicesOpen, setServicesOpen] = useState<boolean>(true);
-  const unreadTotal = useMemo(() => Object.values(unreadByLeadId).reduce((acc, value) => acc + value, 0), [unreadByLeadId]);
+  const unreadTotal = useMemo(
+    () => Object.values(unreadByRequestId).reduce((acc, value) => acc + value, 0),
+    [unreadByRequestId]
+  );
 
   return (
     <Paper
@@ -112,7 +114,7 @@ export function ProSidebar() {
       <List dense disablePadding>
         {NAV_ITEMS.map((item, index) => {
           const selected = pathname === item.href;
-          const badgeEnabled = item.href === "/pro/leads" || item.href === "/pro/orders";
+          const badgeEnabled = item.href === "/pro" || item.href === "/pro/orders";
           const icon = badgeEnabled ? (
             <Badge color="error" badgeContent={unreadTotal} max={99} invisible={unreadTotal === 0}>
               {item.icon}

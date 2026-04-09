@@ -14,24 +14,17 @@ import {
   Typography,
 } from "@mui/material";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { ServiceDto } from "@/entities/service";
 
-type ServiceRow = {
+type ServiceRow = ServiceDto;
+
+type ServiceCategoryRow = {
   id: string;
-  category: "main" | "legal";
-  title: string;
-  price: string;
-  ctaText: string;
-  ctaHref: string | null;
-  image: string | null;
-  description: string | null;
-  highlight: string | null;
-  badge: string | null;
-  stockBadge: string | null;
-  paletteColor: string | null;
-  icon: string | null;
-  rating: number | null;
-  reviewCount: number | null;
+  name: string;
+  slug: string;
+  parentId: string | null;
+  sortOrder: number | null;
 };
 
 type Props = {
@@ -44,32 +37,67 @@ function normalizeNullableString(v: string): string | null {
   return s.length ? s : null;
 }
 
+function normalizePaletteColor(v: string): ServiceDto["paletteColor"] {
+  const s = normalizeNullableString(v);
+  if (!s) return null;
+  const allowed = ["primary", "secondary", "info", "success", "warning", "error"] as const;
+  return (allowed as readonly string[]).includes(s) ? (s as ServiceDto["paletteColor"]) : null;
+}
+
+function normalizeIcon(v: string): ServiceDto["icon"] {
+  const s = normalizeNullableString(v);
+  if (!s) return null;
+  const allowed = ["map", "electric", "architecture"] as const;
+  return (allowed as readonly string[]).includes(s) ? (s as ServiceDto["icon"]) : null;
+}
+
 export function ServicesAdminClient({ mode, initialServices }: Props) {
   const router = useRouter();
   const [services, setServices] = useState<ServiceRow[]>(initialServices ?? []);
+  const [categories, setCategories] = useState<ServiceCategoryRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const [createForm, setCreateForm] = useState<{
-    category: "main" | "legal";
+    categoryId: string;
     title: string;
     price: string;
     ctaText: string;
     ctaHref: string;
   }>({
-    category: "main",
+    categoryId: "",
     title: "",
     price: "",
     ctaText: "Записаться",
     ctaHref: "#contacts",
   });
 
+  useEffect(() => {
+    fetch("/api/admin/service-categories")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch categories");
+        return res.json() as Promise<ServiceCategoryRow[]>;
+      })
+      .then((data) => setCategories(data))
+      .catch(() => setCategories([]));
+  }, []);
+
+  useEffect(() => {
+    if (categories && !createForm.categoryId) {
+      const main = categories.find((c) => c.slug === "main") ?? null;
+      const fallback = main ?? categories[0] ?? null;
+      if (fallback) {
+        setCreateForm((s) => ({ ...s, categoryId: fallback.id }));
+      }
+    }
+  }, [categories, createForm.categoryId]);
+
   const [editOpen, setEditOpen] = useState(false);
   const [editDraft, setEditDraft] = useState<ServiceRow | null>(null);
 
   const grouped = useMemo(() => {
-    const main = services.filter((s) => s.category === "main");
-    const legal = services.filter((s) => s.category === "legal");
+    const main = services.filter((s) => s.category?.slug === "main");
+    const legal = services.filter((s) => s.category?.slug === "legal");
     return { main, legal };
   }, [services]);
 
@@ -125,7 +153,7 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          category: editDraft.category,
+          categoryId: editDraft.categoryId,
           title: editDraft.title,
           price: editDraft.price,
           ctaText: editDraft.ctaText,
@@ -182,18 +210,21 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
           <TextField
             select
             label="category"
-            value={createForm.category}
+            value={createForm.categoryId}
             onChange={(e) =>
               setCreateForm((s) => ({
                 ...s,
-                category: e.target.value as "main" | "legal",
+                categoryId: e.target.value,
               }))
             }
             size="small"
             sx={{ minWidth: 160 }}
           >
-            <MenuItem value="main">main</MenuItem>
-            <MenuItem value="legal">legal</MenuItem>
+            {(categories ?? []).map((c) => (
+              <MenuItem key={c.id} value={c.id}>
+                {c.name} ({c.slug})
+              </MenuItem>
+            ))}
           </TextField>
           <TextField
             label="title"
@@ -325,14 +356,17 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
               <TextField
                 select
                 label="category"
-                value={editDraft.category}
+                value={editDraft.categoryId}
                 onChange={(e) =>
-                  setEditDraft((s) => (s ? { ...s, category: e.target.value as "main" | "legal" } : s))
+                  setEditDraft((s) => (s ? { ...s, categoryId: e.target.value } : s))
                 }
                 size="small"
               >
-                <MenuItem value="main">main</MenuItem>
-                <MenuItem value="legal">legal</MenuItem>
+                {(categories ?? []).map((c) => (
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.name} ({c.slug})
+                  </MenuItem>
+                ))}
               </TextField>
               <TextField
                 label="title"
@@ -429,7 +463,7 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
                   value={editDraft.paletteColor ?? ""}
                   onChange={(e) =>
                     setEditDraft((s) =>
-                      s ? { ...s, paletteColor: normalizeNullableString(e.target.value) } : s
+                      s ? { ...s, paletteColor: normalizePaletteColor(e.target.value) } : s
                     )
                   }
                   size="small"
@@ -439,7 +473,7 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
                   label="icon (null = empty)"
                   value={editDraft.icon ?? ""}
                   onChange={(e) =>
-                    setEditDraft((s) => (s ? { ...s, icon: normalizeNullableString(e.target.value) } : s))
+                    setEditDraft((s) => (s ? { ...s, icon: normalizeIcon(e.target.value) } : s))
                   }
                   size="small"
                   fullWidth

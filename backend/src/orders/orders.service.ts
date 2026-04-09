@@ -10,15 +10,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import {
-  orderDbRowToDtoPlain,
-  type OrderDbRow,
   type OrderDto,
 } from './dto/order.dto';
 import type { OrderManagementAction } from '../auth/authorization';
 
-const orderSelect = {
+const orderRequestSelect = {
   id: true,
-  serviceLeadId: true,
   serviceId: true,
   providerId: true,
   customerUserId: true,
@@ -41,11 +38,33 @@ const orderSelect = {
       email: true,
     },
   },
-} satisfies Prisma.OrderSelect;
+} satisfies Prisma.ServiceRequestSelect;
 
 type OrderScope = {
   providerId?: string | null;
 };
+
+function normalizeOrderStatus(value: unknown): 'ACTIVE' | 'COMPLETED' | 'CANCELLED' {
+  if (value === 'COMPLETED') return 'COMPLETED';
+  if (value === 'CANCELLED') return 'CANCELLED';
+  return 'ACTIVE';
+}
+
+function requestRowToOrderDto(row: Prisma.ServiceRequestGetPayload<{ select: typeof orderRequestSelect }>): OrderDto {
+  return {
+    id: row.id,
+    serviceId: row.serviceId!,
+    providerId: row.providerId!,
+    customerUserId: row.customerUserId!,
+    status: normalizeOrderStatus(row.status),
+    serviceTitle: row.service?.title ?? '',
+    providerName: row.provider?.name ?? '',
+    customerName: row.customerUser?.name ?? null,
+    customerEmail: row.customerUser?.email ?? null,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
 
 @Injectable()
 export class OrdersService {
@@ -56,49 +75,67 @@ export class OrdersService {
   ) {}
 
   async getCustomerOrders(customerUserId: string): Promise<OrderDto[]> {
-    const rows = await this.prisma.order.findMany({
-      where: { customerUserId },
-      select: orderSelect,
+    const rows = await this.prisma.serviceRequest.findMany({
+      where: {
+        customerUserId,
+        status: { in: ['ACTIVE', 'COMPLETED', 'CANCELLED'] },
+      },
+      select: orderRequestSelect,
       orderBy: [{ createdAt: 'desc' }],
     });
 
-    return rows.map((row) => orderDbRowToDtoPlain(row as OrderDbRow));
+    return rows.map((row) => requestRowToOrderDto(row as any));
   }
 
   async getCustomerOrderById(customerUserId: string, id: string): Promise<OrderDto> {
-    const row = await this.prisma.order.findFirst({
-      where: { id, customerUserId },
-      select: orderSelect,
+    const row = await this.prisma.serviceRequest.findFirst({
+      where: {
+        id,
+        customerUserId,
+        status: { in: ['ACTIVE', 'COMPLETED', 'CANCELLED'] },
+      },
+      select: orderRequestSelect,
     });
 
     if (!row) {
       throw new NotFoundException('Order not found');
     }
 
-    return orderDbRowToDtoPlain(row as OrderDbRow);
+    return requestRowToOrderDto(row as any);
   }
 
   async getOrders(scope?: OrderScope): Promise<OrderDto[]> {
-    const rows = await this.prisma.order.findMany({
-      where: scope?.providerId ? { providerId: scope.providerId } : undefined,
-      select: orderSelect,
+    const rows = await this.prisma.serviceRequest.findMany({
+      where: scope?.providerId
+        ? {
+            providerId: scope.providerId,
+            status: { in: ['ACTIVE', 'COMPLETED', 'CANCELLED'] },
+          }
+        : { status: { in: ['ACTIVE', 'COMPLETED', 'CANCELLED'] } },
+      select: orderRequestSelect,
       orderBy: [{ createdAt: 'desc' }],
     });
 
-    return rows.map((row) => orderDbRowToDtoPlain(row as OrderDbRow));
+    return rows.map((row) => requestRowToOrderDto(row as any));
   }
 
   async getOrderById(id: string, scope?: OrderScope): Promise<OrderDto> {
-    const row = await this.prisma.order.findFirst({
-      where: scope?.providerId ? { id, providerId: scope.providerId } : { id },
-      select: orderSelect,
+    const row = await this.prisma.serviceRequest.findFirst({
+      where: scope?.providerId
+        ? {
+            id,
+            providerId: scope.providerId,
+            status: { in: ['ACTIVE', 'COMPLETED', 'CANCELLED'] },
+          }
+        : { id, status: { in: ['ACTIVE', 'COMPLETED', 'CANCELLED'] } },
+      select: orderRequestSelect,
     });
 
     if (!row) {
       throw new NotFoundException('Order not found');
     }
 
-    return orderDbRowToDtoPlain(row as OrderDbRow);
+    return requestRowToOrderDto(row as any);
   }
 
   async getManagementContext(request: Request, action: OrderManagementAction) {

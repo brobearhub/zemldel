@@ -16,10 +16,10 @@ import { useRouter } from "next/navigation";
 import { useAppSelector } from "@/core/store/hooks";
 import type { ServiceCardItem } from "../types";
 import {
-  SERVICE_LEADS_PROFILE_RESUME_URL,
-  buildServiceLeadAuthHref,
-  savePendingServiceLeadDraft,
-} from "@/entities/service-lead";
+  SERVICE_REQUESTS_PROFILE_RESUME_URL,
+  buildServiceRequestAuthHref,
+  savePendingServiceRequestDraft,
+} from "@/entities/service-request";
 
 type Props = {
   item: ServiceCardItem;
@@ -34,6 +34,10 @@ function formatReviews(count: number): string {
 export function ServiceCard({ item }: Props) {
   const router = useRouter();
   const { status } = useAppSelector((state) => state.auth);
+
+  const providerName = item.provider?.name ?? null;
+  const cityName = item.provider?.city?.name ?? null;
+  const providerLine = [providerName, cityName].filter(Boolean).join(" • ");
 
   return (
     <Paper
@@ -146,21 +150,35 @@ export function ServiceCard({ item }: Props) {
           {item.price}
         </Typography>
 
-        <Typography
-          sx={{
-            fontSize: 14,
-            color: "text.primary",
-            lineHeight: 1.35,
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-            flex: 1,
-            mb: 1,
-          }}
-        >
-          {item.title}
-        </Typography>
+        <Box sx={{ flex: 1, minHeight: 0, mb: 1 }}>
+          <Typography
+            sx={{
+              fontSize: 14,
+              color: "text.primary",
+              lineHeight: 1.35,
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+              mb: 0.5,
+            }}
+          >
+            {item.title}
+          </Typography>
+          {providerLine ? (
+            <Typography
+              sx={{
+                fontSize: 12,
+                color: "text.secondary",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {providerLine}
+            </Typography>
+          ) : null}
+        </Box>
 
         {(item.rating != null || (item.reviewCount != null && item.reviewCount > 0)) && (
           <Box
@@ -201,16 +219,21 @@ export function ServiceCard({ item }: Props) {
             event.preventDefault();
             event.stopPropagation();
 
-            savePendingServiceLeadDraft({
+            savePendingServiceRequestDraft({
+              kind: "SERVICE",
               serviceId: item.id,
+              customerName: null,
+              customerEmail: null,
+              customerPhone: null,
+              message: null,
             });
 
             if (status === "authenticated") {
-              router.push(SERVICE_LEADS_PROFILE_RESUME_URL);
+              router.push(SERVICE_REQUESTS_PROFILE_RESUME_URL);
               return;
             }
 
-            router.push(buildServiceLeadAuthHref("signup", item.id));
+            router.push(buildServiceRequestAuthHref("signup", { kind: "SERVICE", serviceId: item.id }));
           }}
           sx={{
             py: 1.25,

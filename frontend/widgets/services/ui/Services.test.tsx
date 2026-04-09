@@ -6,6 +6,10 @@ import { setServices } from "@/widgets/services/model/service.slice";
 import { legalService, mainService } from "../../../tests/fixtures/services";
 import type { ServiceRecord } from "@/entities/service";
 
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: jest.fn() }),
+}));
+
 jest.mock("next/link", () => ({
   __esModule: true,
   default: ({ href, children, ...props }: { href: string; children: React.ReactNode }) => (

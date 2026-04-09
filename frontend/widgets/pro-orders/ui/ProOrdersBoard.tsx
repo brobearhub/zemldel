@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
-import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
+import { Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
 import {
   OrderCard,
   OrderOverviewPanel,
@@ -13,15 +13,14 @@ import {
   type OrderStatus,
   type OrderStatusFilter,
 } from "@/entities/order";
-import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import { ChatThreadLinkButton } from "@/widgets/chat/ui/ChatThreadLinkButton";
+import Link from "next/link";
 
 type Props = {
   initialOrders: OrderDto[];
 };
 
 export function ProOrdersBoard({ initialOrders }: Props) {
-  const { refreshUnreadByLeads } = useChatSocket();
   const [orders] = useState(initialOrders);
   const [filter, setFilter] = useState<OrderStatusFilter>("ALL");
   const [search, setSearch] = useState("");
@@ -55,14 +54,6 @@ export function ProOrdersBoard({ initialOrders }: Props) {
       return byStatus && bySearch;
     });
   }, [filter, orders, search]);
-
-  useEffect(() => {
-    const ids = orders.map((order) => order.serviceLeadId);
-    if (ids.length === 0) {
-      return;
-    }
-    void refreshUnreadByLeads(ids);
-  }, [orders, refreshUnreadByLeads]);
 
   return (
     <Stack spacing={3}>
@@ -99,7 +90,7 @@ export function ProOrdersBoard({ initialOrders }: Props) {
             key={order.id}
             order={order}
             leftMeta={
-              <ChatThreadLinkButton href={`/pro/orders/${order.id}`} serviceLeadId={order.serviceLeadId} label="Открыть" />
+              <ChatThreadLinkButton href={`/pro/orders/${order.id}`} serviceRequestId={order.id} label="Открыть" />
             }
             partyChip={
               <Chip

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -21,7 +22,7 @@ import type { ServiceManagementAction } from '../auth/authorization';
 
 const serviceSelect = {
   id: true,
-  category: true,
+  categoryId: true,
   status: true,
   title: true,
   image: true,
@@ -36,6 +37,36 @@ const serviceSelect = {
   badge: true,
   paletteColor: true,
   icon: true,
+  templateId: true,
+  provider: {
+    select: {
+      id: true,
+      name: true,
+      city: {
+        select: {
+          id: true,
+          name: true,
+          regionCode: true,
+          regionName: true,
+        },
+      },
+    },
+  },
+  template: {
+    select: {
+      id: true,
+      title: true,
+    },
+  },
+  category: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      parentId: true,
+      sortOrder: true,
+    },
+  },
 } satisfies Prisma.ServiceSelect;
 
 type ServiceScope = {
@@ -79,7 +110,7 @@ export class ServicesService {
         ? { providerId: scope.providerId }
         : { status: 'PUBLISHED' },
       select: serviceSelect,
-      orderBy: [{ category: 'asc' }, { title: 'asc' }],
+      orderBy: [{ category: { slug: 'asc' } }, { title: 'asc' }],
     });
 
     return rows.map((row) => serviceDbRowToDtoPlain(row));
@@ -104,9 +135,42 @@ export class ServicesService {
     scope: { providerId: string; actorUserId?: string },
   ): Promise<ServiceDto> {
     const nextStatus: ServiceStatus = service.status ?? 'DRAFT';
+    const template = service.templateId
+      ? await this.prisma.serviceTemplate.findUnique({
+          where: { id: service.templateId },
+          select: { categoryId: true, title: true, description: true },
+        })
+      : null;
+
+    const resolvedCategoryId = service.categoryId ?? template?.categoryId ?? null;
+
+    if (!resolvedCategoryId) {
+      throw new BadRequestException('categoryId is required (or provide templateId)');
+    }
+
+    const resolvedTitle = service.title ?? template?.title ?? null;
+    if (!resolvedTitle) {
+      throw new BadRequestException('title is required (or provide templateId)');
+    }
+
+    const resolvedPrice = service.price ?? (service.templateId ? 'По договоренности' : null);
+    if (!resolvedPrice) {
+      throw new BadRequestException('price is required');
+    }
+
+    const resolvedCtaText = service.ctaText ?? (service.templateId ? 'Записаться' : null);
+    if (!resolvedCtaText) {
+      throw new BadRequestException('ctaText is required');
+    }
+
     const row = await this.prisma.service.create({
       data: {
         ...service,
+        categoryId: resolvedCategoryId,
+        title: resolvedTitle,
+        price: resolvedPrice,
+        ctaText: resolvedCtaText,
+        description: service.description ?? template?.description ?? service.description,
         status: nextStatus,
         publishedAt: nextStatus === 'PUBLISHED' ? new Date() : null,
         providerId: scope.providerId,

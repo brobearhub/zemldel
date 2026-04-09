@@ -5,10 +5,9 @@ import { createContext, useContext } from "react";
 export type ChatSocketContextValue = {
   socket: Socket | null;
   socketConnected: boolean;
-  unreadByLeadId: Record<string, number>;
+  unreadByRequestId: Record<string, number>;
   setOpenConversationId: (conversationId: string | null) => void;
-  refreshUnreadByLeads: (leadIds: string[]) => Promise<void>;
-  clearUnreadForLead: (leadId: string) => void;
+  clearUnreadForRequest: (requestId: string) => void;
   joinConversationRoom: (conversationId: string) => Promise<boolean>;
 };
 

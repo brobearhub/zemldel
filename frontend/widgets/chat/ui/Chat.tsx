@@ -3,17 +3,18 @@
 import ReplyOutlinedIcon from "@mui/icons-material/ReplyOutlined";
 import CloseIcon from "@mui/icons-material/Close";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import Image from "next/image";
 import {
   Box,
   Button,
   CircularProgress,
-  Divider,
   IconButton,
   Paper,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import type { ChatMessageDto } from "@/entities/chat/dto/chat.dto";
 
 export type ChatReplyTarget = {
@@ -224,49 +225,136 @@ export function Chat({
         })}
       </Box>
 
-      <Divider />
+      <Box
+        sx={{
+          px: { xs: 0.25, sm: 0.5 },
+          pb: { xs: 0.25, sm: 0.5 },
+        }}
+      >
+        {pendingReply ? (
+          <Paper
+            variant="outlined"
+            sx={{
+              px: 1.5,
+              py: 1,
+              mb: 1.25,
+              bgcolor: "transparent",
+              borderColor: "divider",
+            }}
+          >
+            <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Ответ на
+                </Typography>
+                <Typography variant="body2" fontWeight={800} noWrap>
+                  {pendingReply.senderLabel}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{ display: "block", wordBreak: "break-word" }}
+                  color="text.secondary"
+                >
+                  {pendingReply.bodySnippet}
+                </Typography>
+              </Box>
+              <IconButton size="small" aria-label="Отменить ответ" onClick={() => onPendingReplyChange(null)}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Stack>
+          </Paper>
+        ) : null}
 
-      {pendingReply ? (
-        <Paper variant="outlined" sx={{ px: 1.5, py: 1 }}>
-          <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="caption" color="text.secondary">
-                Ответ на
-              </Typography>
-              <Typography variant="body2" fontWeight={600} noWrap>
-                {pendingReply.senderLabel}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", wordBreak: "break-word" }}>
-                {pendingReply.bodySnippet}
-              </Typography>
-            </Box>
-            <IconButton size="small" aria-label="Отменить ответ" onClick={() => onPendingReplyChange(null)}>
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          </Stack>
-        </Paper>
-      ) : null}
+        <Stack direction="row" spacing={1.25} alignItems="flex-end">
+          <TextField
+            value={draft}
+            onChange={(e) => onDraftChange(e.target.value)}
+            fullWidth
+            multiline
+            minRows={1}
+            maxRows={4}
+            placeholder="Введите сообщение…"
+            disabled={disabled}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                onSend();
+              }
+            }}
+            sx={(theme) => ({
+              "& .MuiOutlinedInput-root": {
+                borderRadius: 999,
+                bgcolor: theme.palette.mode === "dark" ? alpha("#FFFFFF", 0.06) : "#FFFFFF",
+                color: theme.palette.text.primary,
+                boxShadow:
+                  theme.palette.mode === "dark"
+                    ? `0 6px 16px ${alpha("#000000", 0.35)}`
+                    : `0 6px 16px ${alpha("#000000", 0.08)}`,
+                "& fieldset": {
+                  borderColor:
+                    theme.palette.mode === "dark"
+                      ? alpha("#FFFFFF", 0.14)
+                      : alpha(theme.palette.text.primary, 0.10),
+                },
+                "&:hover fieldset": {
+                  borderColor:
+                    theme.palette.mode === "dark"
+                      ? alpha("#FFFFFF", 0.22)
+                      : alpha(theme.palette.text.primary, 0.14),
+                },
+                "&.Mui-focused fieldset": {
+                  borderColor: alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.65 : 0.55),
+                },
+              },
+              "& .MuiOutlinedInput-input": {
+                py: { xs: 1.55, sm: 1.75 },
+                pl: { xs: 2, sm: 2.25 },
+                pr: { xs: 2, sm: 2.25 },
+              },
+              "& .MuiOutlinedInput-input::placeholder": {
+                opacity: 1,
+                color:
+                  theme.palette.mode === "dark"
+                    ? alpha("#FFFFFF", 0.55)
+                    : alpha(theme.palette.text.primary, 0.45),
+              },
+            })}
+          />
 
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "flex-end" }}>
-        <TextField
-          label="Сообщение"
-          value={draft}
-          onChange={(e) => onDraftChange(e.target.value)}
-          fullWidth
-          multiline
-          minRows={2}
-          disabled={disabled}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              onSend();
-            }
-          }}
-        />
-        <Button variant="contained" disabled={disabled || sending} onClick={onSend} sx={{ flexShrink: 0 }}>
-          {sending ? "…" : "Отправить"}
-        </Button>
-      </Stack>
+          <IconButton
+            aria-label="Отправить"
+            onClick={onSend}
+            disabled={disabled || sending || draft.trim().length === 0}
+            sx={(theme) => ({
+              width: { xs: 56, sm: 60 },
+              height: { xs: 56, sm: 60 },
+              borderRadius: 16,
+              bgcolor: theme.palette.primary.main,
+              boxShadow:
+                theme.palette.mode === "dark"
+                  ? `0 8px 18px ${alpha("#000000", 0.45)}`
+                  : `0 8px 18px ${alpha("#000000", 0.18)}`,
+              "&:hover": {
+                bgcolor: alpha(theme.palette.primary.main, 0.90),
+              },
+              "&.Mui-disabled": {
+                bgcolor: theme.palette.action.disabledBackground,
+              },
+            })}
+          >
+            <Image
+              src="/logo.svg"
+              alt=""
+              width={28}
+              height={28}
+              style={{
+                objectFit: "contain",
+                filter: "brightness(0) invert(1)",
+              }}
+            />
+          </IconButton>
+        </Stack>
+      </Box>
     </Stack>
   );
 }

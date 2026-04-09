@@ -52,16 +52,17 @@
   - `providerId`: владелец услуги (критично для ограничения доступа)
   - `status`: `DRAFT | PUBLISHED | ARCHIVED`
   - `createdByUserId` / `updatedByUserId`: аудит
-- **`ServiceLead`**
-  - `providerId`: владелец заявки
-  - `serviceId`: услуга-источник заявки
-  - `status`: `NEW | IN_PROGRESS | CONVERTED_TO_ORDER | CLOSED`
-- **`Order`**
-  - `providerId`: владелец заказа
-  - `serviceLeadId`: исходная заявка
-  - `serviceId`: услуга-источник
-  - `customerUserId`: заказчик
-  - `status`: `ACTIVE | COMPLETED | CANCELLED`
+- **`ServiceRequest`**
+  - единая сущность для “заявок/объявлений/заказов”
+  - `kind`: `UNLINKED | TEMPLATE | SERVICE`
+  - `status`: `NEW | DISCUSSING | LOCKED | ACTIVE | COMPLETED | CANCELLED | CLOSED`
+  - `providerId`: заполняется при взятии в работу (или сразу для `SERVICE`)
+  - `serviceId` / `templateId`: привязка к услуге или шаблону (опционально)
+  - `customerUserId`: заказчик (для чата обязателен)
+
+- **`Conversation`** (чат)
+  - единственная связь: `serviceRequestId`
+  - уникальность треда: `@@unique([serviceRequestId, providerId])`
 
 ## Где живёт авторизация (права)
 
@@ -195,15 +196,14 @@ BFF для услуг (оба проксируют на backend `.../admin/servi
 
 Там есть scoped-логика, чтобы нельзя было обновлять/удалять чужую запись по одному `id`.
 
-## Как защищены заявки и заказы
+## Как защищены заявки и “заказы” (как фаза заявки)
 
 Маршруты заявок и заказов должны следовать тем же принципам:
 
-- provider читает только записи своего активного `providerId`
+- provider читает только записи своего активного `providerId` (и только те `ServiceRequest`, к которым у него есть доступ по `kind`)
 - customer читает только свои записи по `customerUserId`
-- при конверсии `ServiceLead -> Order` сервер сам определяет `providerId`, `serviceId` и `customerUserId`
-- одна заявка не должна порождать более одного заказа
-- UI-кнопка "Перевести в заказ" не считается достаточной защитой без серверной проверки
+- при “переводе в заказ” сервер сам проверяет, что текущий provider имеет право (взял заявку / владелец `SERVICE`) и выставляет `status = ACTIVE`
+- UI-кнопка не считается достаточной защитой без серверной проверки
 
 ## Инструкция для разработчика
 

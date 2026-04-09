@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   Alert,
@@ -26,7 +26,7 @@ type Props = {
 type EditableServiceStatus = ServiceStatus;
 
 type ServiceFormState = {
-  category: "main" | "legal";
+  categoryId: string;
   status: EditableServiceStatus;
   title: string;
   price: string;
@@ -83,7 +83,7 @@ const ICON_OPTIONS = [
 
 function createInitialState(service?: ServiceDto): ServiceFormState {
   return {
-    category: service?.category ?? "main",
+    categoryId: service?.categoryId ?? "",
     status: service?.status ?? "DRAFT",
     title: service?.title ?? "",
     price: service?.price ?? "",
@@ -101,12 +101,73 @@ function createInitialState(service?: ServiceDto): ServiceFormState {
   };
 }
 
+type ServiceCategoryRow = {
+  id: string;
+  name: string;
+  slug: string;
+  parentId: string | null;
+  sortOrder: number | null;
+};
+
+function buildCategoryTree(categories: ServiceCategoryRow[]) {
+  const byParent = new Map<string | null, ServiceCategoryRow[]>();
+  for (const c of categories) {
+    const key = c.parentId ?? null;
+    const arr = byParent.get(key) ?? [];
+    arr.push(c);
+    byParent.set(key, arr);
+  }
+  for (const arr of byParent.values()) {
+    arr.sort((a, b) => {
+      const soA = a.sortOrder ?? 0;
+      const soB = b.sortOrder ?? 0;
+      if (soA !== soB) return soA - soB;
+      return a.name.localeCompare(b.name);
+    });
+  }
+  const out: Array<{ node: ServiceCategoryRow; depth: number }> = [];
+  const walk = (parentId: string | null, depth: number) => {
+    const children = byParent.get(parentId) ?? [];
+    for (const child of children) {
+      out.push({ node: child, depth });
+      walk(child.id, depth + 1);
+    }
+  };
+  walk(null, 0);
+  return out;
+}
+
 export function ProServiceEditor({ mode, initialService }: Props) {
   const router = useRouter();
   const { user } = useAppSelector((state) => state.auth);
   const [form, setForm] = useState<ServiceFormState>(() => createInitialState(initialService));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [categories, setCategories] = useState<ServiceCategoryRow[] | null>(null);
+
+  useEffect(() => {
+    fetch("/api/service-categories")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch categories");
+        return res.json() as Promise<ServiceCategoryRow[]>;
+      })
+      .then((data) => {
+        setCategories(data);
+      })
+      .catch(() => {
+        setCategories([]);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (categories && !form.categoryId) {
+      const main = categories.find((c) => c.slug === "main") ?? null;
+      const fallback = main ?? categories[0] ?? null;
+      if (fallback) {
+        setForm((current) => ({ ...current, categoryId: fallback.id }));
+      }
+    }
+  }, [categories, form.categoryId]);
 
   const activeMembership =
     user?.memberships.find((membership) => membership.providerId === user.activeProviderId) ??
@@ -124,7 +185,7 @@ export function ProServiceEditor({ mode, initialService }: Props) {
     const reviewCount = form.reviewCount.trim();
 
     return {
-      category: form.category,
+      categoryId: form.categoryId,
       title: form.title,
       price: form.price,
       ctaText: form.ctaText,
@@ -299,18 +360,21 @@ export function ProServiceEditor({ mode, initialService }: Props) {
                 <TextField
                   select
                   label="Категория"
-                  value={form.category}
+                  value={form.categoryId}
                   onChange={(event) =>
                     setForm((current) => ({
                       ...current,
-                      category: event.target.value as "main" | "legal",
+                      categoryId: event.target.value,
                     }))
                   }
                   disabled={busy}
                   fullWidth
                 >
-                  <MenuItem value="main">Основная услуга</MenuItem>
-                  <MenuItem value="legal">Юридическая услуга</MenuItem>
+                  {buildCategoryTree(categories ?? []).map(({ node, depth }) => (
+                    <MenuItem key={node.id} value={node.id}>
+                      {"—".repeat(depth)} {node.name} ({node.slug})
+                    </MenuItem>
+                  ))}
                 </TextField>
 
                 <TextField

@@ -50,6 +50,7 @@ export class ChatService {
       select: {
         id: true,
         systemRole: true,
+        activeProviderId: true,
         providerMemberships: {
           where: { status: 'ACTIVE' },
           select: { providerId: true },
@@ -62,15 +63,49 @@ export class ChatService {
     return user;
   }
 
-  private assertLeadChatEligible(lead: { customerUserId: string | null }) {
-    if (!lead.customerUserId) {
-      throw new ForbiddenException('Chat is available only for leads linked to a customer account');
+  private assertRequestChatEligible(req: { customerUserId: string | null }) {
+    if (!req.customerUserId) {
+      throw new ForbiddenException('Chat is available only for requests linked to a customer account');
     }
   }
 
-  private async assertCanAccessLead(
+
+  private async assertProviderEligibleForTemplate(providerId: string, templateId: string) {
+    const eligible = await this.prisma.service.findFirst({
+      where: { providerId, status: 'PUBLISHED', templateId },
+      select: { id: true },
+    });
+    if (!eligible) {
+      throw new ForbiddenException('Forbidden');
+    }
+  }
+
+  private async getRequestForChat(serviceRequestId: string) {
+    const req = await this.prisma.serviceRequest.findUnique({
+      where: { id: serviceRequestId },
+      select: {
+        id: true,
+        kind: true,
+        status: true,
+        templateId: true,
+        serviceId: true,
+        providerId: true,
+        customerUserId: true,
+      },
+    });
+    if (!req) {
+      throw new NotFoundException('Service request not found');
+    }
+    return req;
+  }
+
+  private isLockedStatus(status: string) {
+    return status === 'LOCKED' || status === 'ACTIVE' || status === 'COMPLETED' || status === 'CANCELLED';
+  }
+
+  private async assertCanAccessRequestConversation(
     userId: string,
-    lead: { id: string; customerUserId: string | null; providerId: string },
+    subject: { requestId: string; conversationProviderId: string },
     systemRole: string,
     activeMemberProviderIds: string[],
   ) {
@@ -78,11 +113,44 @@ export class ChatService {
       throw new ForbiddenException('Platform admin cannot access customer-provider chats');
     }
 
-    if (lead.customerUserId === userId) {
+    const req = await this.getRequestForChat(subject.requestId);
+    this.assertRequestChatEligible({ customerUserId: req.customerUserId });
+
+    if (req.status === 'CLOSED') {
+      throw new ForbiddenException('Request is closed');
+    }
+
+    if (req.kind === 'SERVICE') {
+      if (!req.providerId) {
+        throw new ForbiddenException('Request has no provider');
+      }
+      // Access: customer or provider members of the request's provider.
+      if (req.customerUserId === userId) {
+        return;
+      }
+      if (activeMemberProviderIds.includes(req.providerId)) {
+        return;
+      }
+      throw new ForbiddenException('Forbidden');
+    }
+
+    // TEMPLATE / UNLINKED: access is based on the conversation's providerId
+    const locked = this.isLockedStatus(String(req.status)) && Boolean(req.providerId) && req.providerId !== subject.conversationProviderId;
+    if (locked) {
+      throw new ForbiddenException('Request is locked');
+    }
+
+    if (req.customerUserId === userId) {
       return;
     }
 
-    if (activeMemberProviderIds.includes(lead.providerId)) {
+    if (activeMemberProviderIds.includes(subject.conversationProviderId)) {
+      if (req.kind === 'TEMPLATE') {
+        if (!req.templateId) {
+          throw new ForbiddenException('Request has no template');
+        }
+        await this.assertProviderEligibleForTemplate(subject.conversationProviderId, req.templateId);
+      }
       return;
     }
 
@@ -94,7 +162,7 @@ export class ChatService {
       where: { id: conversationId },
       select: {
         id: true,
-        serviceLeadId: true,
+        serviceRequestId: true,
         providerId: true,
         customerUserId: true,
       },
@@ -107,52 +175,142 @@ export class ChatService {
     const user = await this.loadUserChatActor(userId);
     const memberIds = user.providerMemberships.map((m) => m.providerId);
 
-    await this.assertCanAccessLead(
+    await this.assertCanAccessRequestConversation(
       userId,
-      {
-        id: conv.serviceLeadId,
-        customerUserId: conv.customerUserId,
-        providerId: conv.providerId,
-      },
+      { requestId: conv.serviceRequestId, conversationProviderId: conv.providerId },
       user.systemRole,
       memberIds,
     );
   }
 
-  private async getLeadForChat(serviceLeadId: string) {
-    const lead = await this.prisma.serviceLead.findUnique({
-      where: { id: serviceLeadId },
-      select: {
-        id: true,
-        customerUserId: true,
-        providerId: true,
-      },
-    });
-    if (!lead) {
-      throw new NotFoundException('Service lead not found');
+  private pickActorProviderId(user: { activeProviderId: string | null; providerMemberships: Array<{ providerId: string }> }) {
+    const memberIds = user.providerMemberships.map((m) => m.providerId);
+    if (user.activeProviderId && memberIds.includes(user.activeProviderId)) {
+      return user.activeProviderId;
     }
-    return lead;
+    return memberIds[0] ?? null;
   }
 
-  async ensureConversation(actorUserId: string, serviceLeadId: string) {
-    const lead = await this.getLeadForChat(serviceLeadId);
-    this.assertLeadChatEligible(lead);
+  async ensureServiceRequestConversation(actorUserId: string, serviceRequestId: string) {
+    const req = await this.getRequestForChat(serviceRequestId);
+    this.assertRequestChatEligible({ customerUserId: req.customerUserId });
+
+    if (req.status === 'CLOSED') {
+      throw new ForbiddenException('Request is closed');
+    }
 
     const user = await this.loadUserChatActor(actorUserId);
     const memberIds = user.providerMemberships.map((m) => m.providerId);
-    await this.assertCanAccessLead(actorUserId, lead, user.systemRole, memberIds);
+
+    // SERVICE request: single deterministic provider thread.
+    if (req.kind === 'SERVICE') {
+      if (!req.providerId) {
+        throw new NotFoundException('Request provider not found');
+      }
+
+      if (user.systemRole === 'PLATFORM_ADMIN') {
+        throw new ForbiddenException('Platform admin cannot access customer-provider chats');
+      }
+
+      if (req.customerUserId !== actorUserId && !memberIds.includes(req.providerId)) {
+        throw new ForbiddenException('Forbidden');
+      }
+
+      const conversation = await this.prisma.conversation.upsert({
+        where: {
+          serviceRequestId_providerId: {
+            serviceRequestId: req.id,
+            providerId: req.providerId,
+          },
+        },
+        create: {
+          id: randomUUID(),
+          serviceRequestId: req.id,
+          providerId: req.providerId,
+          customerUserId: req.customerUserId!,
+        },
+        update: {},
+        select: { id: true },
+      });
+
+      return { conversationId: conversation.id, messages: [] as ChatMessageDto[] };
+    }
+
+    // TEMPLATE / UNLINKED
+    if (req.customerUserId === actorUserId) {
+      // Customer can chat only after provider "takes" the request.
+      if (!req.providerId) {
+        throw new ForbiddenException('Chat is available after a provider takes the request');
+      }
+
+      const conversation = await this.prisma.conversation.upsert({
+        where: {
+          serviceRequestId_providerId: {
+            serviceRequestId: req.id,
+            providerId: req.providerId,
+          },
+        },
+        create: {
+          id: randomUUID(),
+          serviceRequestId: req.id,
+          providerId: req.providerId,
+          customerUserId: req.customerUserId!,
+        },
+        update: {},
+        select: { id: true },
+      });
+
+      return { conversationId: conversation.id, messages: [] as ChatMessageDto[] };
+    }
+
+    if (user.systemRole === 'PLATFORM_ADMIN') {
+      throw new ForbiddenException('Platform admin cannot access customer-provider chats');
+    }
+
+    const providerId = this.pickActorProviderId(user);
+    if (!providerId) {
+      throw new ForbiddenException('Active provider is required');
+    }
+    if (!memberIds.includes(providerId)) {
+      throw new ForbiddenException('Forbidden');
+    }
+
+    if (req.kind === 'TEMPLATE') {
+      if (!req.templateId) {
+        throw new ForbiddenException('Forbidden');
+      }
+      await this.assertProviderEligibleForTemplate(providerId, req.templateId);
+    }
+
+    const locked =
+      this.isLockedStatus(String(req.status)) && Boolean(req.providerId) && req.providerId !== providerId;
+    if (locked) {
+      throw new ForbiddenException('Request is locked');
+    }
 
     const conversation = await this.prisma.conversation.upsert({
-      where: { serviceLeadId: lead.id },
+      where: {
+        serviceRequestId_providerId: {
+          serviceRequestId: req.id,
+          providerId,
+        },
+      },
       create: {
         id: randomUUID(),
-        serviceLeadId: lead.id,
-        providerId: lead.providerId,
-        customerUserId: lead.customerUserId!,
+        serviceRequestId: req.id,
+        providerId,
+        customerUserId: req.customerUserId!,
       },
       update: {},
       select: { id: true },
     });
+
+    if (req.status === 'NEW') {
+      await this.prisma.serviceRequest.update({
+        where: { id: req.id },
+        data: { status: 'DISCUSSING' },
+      });
+    }
 
     return { conversationId: conversation.id, messages: [] as ChatMessageDto[] };
   }
@@ -344,20 +502,24 @@ export class ChatService {
       const participants = await this.getParticipantUserIds(conversationId);
       const convRow = await this.prisma.conversation.findUnique({
         where: { id: conversationId },
-        select: { serviceLeadId: true },
+        select: { serviceRequestId: true },
       });
 
-      const fullHint = {
-        conversationId,
-        serviceLeadId: convRow!.serviceLeadId,
-        lastMessageAt: created.createdAt.toISOString(),
-        senderUserId: actorUserId,
-        bodySnippet: body.length > SNIPPET_LEN ? `${body.slice(0, SNIPPET_LEN)}…` : body,
-      };
-
-      for (const uid of participants) {
-        if (uid !== actorUserId) {
-          this.gateway.emitUnreadHint(uid, fullHint);
+      if (convRow?.serviceRequestId) {
+        const bodySnippet = body.length > SNIPPET_LEN ? `${body.slice(0, SNIPPET_LEN)}…` : body;
+        const fullHint = {
+          conversationId,
+          subjectType: 'request' as const,
+          subjectId: convRow.serviceRequestId,
+          serviceRequestId: convRow.serviceRequestId,
+          lastMessageAt: created.createdAt.toISOString(),
+          senderUserId: actorUserId,
+          bodySnippet,
+        };
+        for (const uid of participants) {
+          if (uid !== actorUserId) {
+            this.gateway.emitUnreadHint(uid, fullHint);
+          }
         }
       }
 
@@ -386,54 +548,4 @@ export class ChatService {
     }
   }
 
-  async getUnreadByLeadIds(actorUserId: string, leadIds: string[]): Promise<Record<string, number>> {
-    const user = await this.loadUserChatActor(actorUserId);
-    const memberIds = user.providerMemberships.map((m) => m.providerId);
-
-    const result: Record<string, number> = {};
-    for (const leadId of leadIds) {
-      const lead = await this.getLeadForChat(leadId);
-      try {
-        await this.assertCanAccessLead(actorUserId, lead, user.systemRole, memberIds);
-      } catch {
-        result[leadId] = 0;
-        continue;
-      }
-
-      if (!lead.customerUserId) {
-        result[leadId] = 0;
-        continue;
-      }
-
-      const conv = await this.prisma.conversation.findUnique({
-        where: { serviceLeadId: leadId },
-        select: { id: true },
-      });
-      if (!conv) {
-        result[leadId] = 0;
-        continue;
-      }
-
-      const read = await this.prisma.conversationReadState.findUnique({
-        where: {
-          conversationId_userId: { conversationId: conv.id, userId: actorUserId },
-        },
-        select: { lastReadAt: true },
-      });
-
-      const since = read?.lastReadAt ?? new Date(0);
-
-      const count = await this.prisma.message.count({
-        where: {
-          conversationId: conv.id,
-          senderUserId: { not: actorUserId },
-          createdAt: { gt: since },
-        },
-      });
-
-      result[leadId] = count;
-    }
-
-    return result;
-  }
 }

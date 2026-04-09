@@ -17,10 +17,6 @@ export class OrderDto {
 
   @Expose()
   @IsString()
-  serviceLeadId!: string;
-
-  @Expose()
-  @IsString()
   serviceId!: string;
 
   @Expose()
@@ -65,7 +61,6 @@ export class OrderDto {
 
 export type OrderDbRow = {
   id: string;
-  serviceLeadId: string;
   serviceId: string;
   providerId: string;
   customerUserId: string;

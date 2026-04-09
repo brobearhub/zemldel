@@ -4,6 +4,7 @@ import { AppBar, Box, Toolbar } from "@mui/material";
 import { HeaderLogo } from "./HeaderLogo";
 import { HeaderSearch } from "./HeaderSearch";
 import { HeaderNav } from "./HeaderNav";
+import { HeaderCity } from "./HeaderCity";
 
 export const Header = () => {
   return (
@@ -63,9 +64,14 @@ export const Header = () => {
             alignItems: "center",
           }}
         >
-          <HeaderNav />
+          <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1, sm: 1.5 } }}>
+            <HeaderCity />
+            <HeaderNav />
+          </Box>
         </Box>
       </Toolbar>
     </AppBar>
   );
 };
+
+export { HeaderCity } from "./HeaderCity";

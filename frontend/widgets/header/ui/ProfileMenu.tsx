@@ -15,6 +15,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import LoginIcon from "@mui/icons-material/Login";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import WorkOutlineOutlinedIcon from "@mui/icons-material/WorkOutlineOutlined";
+import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import { signOut } from "next-auth/react";
 import { useAppSelector } from "@/core/store/hooks";
 
@@ -34,6 +35,7 @@ export const ProfileMenu = () => {
   const open = Boolean(anchorEl);
   const isAuthenticated = status === "authenticated";
   const hasProfessionalProfile = (user?.memberships?.length ?? 0) > 0;
+  const isPlatformAdmin = user?.systemRole === "PLATFORM_ADMIN";
   const initials = getInitials(user?.name) || user?.email?.charAt(0)?.toUpperCase() || "U";
 
   const handleMouseEnter = (event: MouseEvent<HTMLElement>) => {
@@ -71,6 +73,11 @@ export const ProfileMenu = () => {
   const handleProDashboard = () => {
     handleClose();
     router.push("/pro");
+  };
+
+  const handleAdmin = () => {
+    handleClose();
+    router.push("/admin");
   };
 
   return (
@@ -202,6 +209,12 @@ export const ProfileMenu = () => {
               <MenuItem onClick={handleProDashboard} sx={{ py: 1.5 }}>
                 <WorkOutlineOutlinedIcon sx={{ mr: 1.5, fontSize: 20 }} />
                 Кабинет профессионала
+              </MenuItem>
+            ) : null}
+            {isPlatformAdmin ? (
+              <MenuItem onClick={handleAdmin} sx={{ py: 1.5 }}>
+                <AdminPanelSettingsOutlinedIcon sx={{ mr: 1.5, fontSize: 20 }} />
+                Админка
               </MenuItem>
             ) : null}
             <MenuItem onClick={handleSignOut} sx={{ py: 1.5, color: "error.main" }}>

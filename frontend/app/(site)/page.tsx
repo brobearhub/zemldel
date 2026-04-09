@@ -1,18 +1,16 @@
 import type { Metadata } from "next";
-import { Services } from "@/widgets/services/ui/Services";
 import type { ServiceDto } from "@/entities/service";
 import { fetchBackendJson } from "@/lib/backend-api";
-import { HydrateService } from "@/widgets/services/ui/HydrateService";
+import type { ServiceTemplateRow } from "@/widgets/service-templates/ui/ServiceTemplatesSection";
+import { getServerAuthSession } from "@/lib/auth";
+import { HomeStickyRequestLayout } from "@/app/(site)/HomeStickyRequestLayout";
 
 export default async function IndexPage() {
+  const session = await getServerAuthSession();
   const services = await fetchBackendJson<ServiceDto[]>("/services");
+  const templates = await fetchBackendJson<ServiceTemplateRow[]>("/service-templates");
   
-  return (
-    <main>
-      <HydrateService initialServices={services} />
-      <Services />
-    </main>
-  );
+  return <HomeStickyRequestLayout isAuthenticated={Boolean(session?.user?.id)} templates={templates} initialServices={services} />;
 }
 
 export const metadata: Metadata = {

@@ -15,7 +15,7 @@ import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 
-export type ProfileNavSection = "profile" | "orders" | "leads";
+export type ProfileNavSection = "profile" | "orders" | "requests";
 
 type Props = {
   selected: ProfileNavSection;
@@ -71,8 +71,8 @@ export function ProfileSidebarNav({ selected }: Props) {
 
         <ListItemButton
           component={Link}
-          href={buildHref("leads")}
-          selected={selected === "leads"}
+          href={buildHref("requests")}
+          selected={selected === "requests"}
           sx={{
             px: 2.5,
             py: 1.5,
@@ -87,8 +87,8 @@ export function ProfileSidebarNav({ selected }: Props) {
           </ListItemIcon>
           <ListItemText
             primary="Заявки"
-            secondary="Отклики по услугам"
-            primaryTypographyProps={{ fontWeight: selected === "leads" ? 700 : 600 }}
+            secondary="Все ваши заявки"
+            primaryTypographyProps={{ fontWeight: selected === "requests" ? 700 : 600 }}
           />
         </ListItemButton>
 

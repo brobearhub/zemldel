@@ -9,12 +9,11 @@ import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   type AuthMembership,
+  type AuthCity,
   canManageOrders,
   type AuthorizedUser,
   type OrderManagementAction,
-  canManageServiceLeads,
   canManageServices,
-  type ServiceLeadManagementAction,
   type ServiceManagementAction,
 } from './authorization';
 
@@ -25,6 +24,14 @@ const userAuthSelect = {
   image: true,
   systemRole: true,
   activeProviderId: true,
+  customerCity: {
+    select: {
+      id: true,
+      name: true,
+      regionCode: true,
+      regionName: true,
+    },
+  },
   passwordHash: true,
   providerMemberships: {
     where: { status: 'ACTIVE' as const },
@@ -37,6 +44,14 @@ const userAuthSelect = {
           name: true,
           slug: true,
           type: true,
+          city: {
+            select: {
+              id: true,
+              name: true,
+              regionCode: true,
+              regionName: true,
+            },
+          },
         },
       },
     },
@@ -58,6 +73,7 @@ export class AuthService {
         name: string;
         slug: string;
       type: AuthMembership['providerType'];
+        city: AuthCity | null;
       };
     }>,
   ): AuthMembership[] {
@@ -66,6 +82,7 @@ export class AuthService {
       providerName: membership.provider.name,
       providerSlug: membership.provider.slug,
       providerType: membership.provider.type,
+      providerCity: membership.provider.city,
       role: membership.role,
       status: membership.status,
     }));
@@ -102,6 +119,7 @@ export class AuthService {
         user.activeProviderId,
         memberships,
       ),
+      customerCity: user.customerCity,
       memberships,
     };
   }
@@ -176,23 +194,6 @@ export class AuthService {
     }
 
     const context = canManageServices(user, action);
-    if (!context) {
-      throw new ForbiddenException('Forbidden');
-    }
-
-    return context;
-  }
-
-  async getServiceLeadManagementContext(
-    userId: string,
-    action: ServiceLeadManagementAction,
-  ) {
-    const user = await this.getUserAuthContext(userId);
-    if (!user) {
-      throw new UnauthorizedException('Unauthorized');
-    }
-
-    const context = canManageServiceLeads(user, action);
     if (!context) {
       throw new ForbiddenException('Forbidden');
     }

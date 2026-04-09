@@ -10,12 +10,7 @@ import {
 import { Expose, Transform, instanceToPlain, plainToInstance } from 'class-transformer';
 import type { ServiceIconKey, ServicePaletteColor } from '../service.types';
 
-export type ServiceCategory = 'main' | 'legal';
 export type ServiceStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
-
-function normalizeCategory(value: unknown): ServiceCategory {
-  return value === 'legal' ? 'legal' : 'main';
-}
 
 function normalizeStatus(value: unknown): ServiceStatus {
   if (value === 'PUBLISHED') return 'PUBLISHED';
@@ -50,15 +45,83 @@ function trimOrNull(value: unknown): string | null | undefined {
   return normalized.length > 0 ? normalized : null;
 }
 
+export class ServiceCategoryDto {
+  @Expose()
+  @IsString()
+  id!: string;
+
+  @Expose()
+  @IsString()
+  name!: string;
+
+  @Expose()
+  @IsString()
+  slug!: string;
+
+  @Expose()
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  @IsString()
+  parentId!: string | null;
+
+  @Expose()
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  @IsInt()
+  sortOrder!: number | null;
+}
+
+export class ServiceTemplateRefDto {
+  @Expose()
+  @IsString()
+  id!: string;
+
+  @Expose()
+  @IsString()
+  title!: string;
+}
+
+export class CityRefDto {
+  @Expose()
+  @IsString()
+  id!: string;
+
+  @Expose()
+  @IsString()
+  name!: string;
+
+  @Expose()
+  @IsString()
+  regionCode!: string;
+
+  @Expose()
+  @IsString()
+  regionName!: string;
+}
+
+export class ServiceProviderRefDto {
+  @Expose()
+  @IsString()
+  id!: string;
+
+  @Expose()
+  @IsString()
+  name!: string;
+
+  @Expose()
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  city!: CityRefDto | null;
+}
+
 export class ServiceDto {
   @Expose()
   @IsString()
   id!: string;
 
   @Expose()
-  @Transform(({ value }) => normalizeCategory(value), { toClassOnly: true })
-  @IsEnum(['main', 'legal'])
-  category!: ServiceCategory;
+  @IsString()
+  categoryId!: string;
+
+  @Expose()
+  category!: ServiceCategoryDto;
 
   @Expose()
   @Transform(({ value }) => normalizeStatus(value), { toClassOnly: true })
@@ -128,11 +191,29 @@ export class ServiceDto {
   @IsEnum(ICON_KEYS)
   @Transform(({ value }) => (isIconKey(value) ? value : null), { toClassOnly: true })
   icon!: ServiceIconKey | null;
+
+  @Expose()
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  @IsString()
+  templateId!: string | null;
+
+  @Expose()
+  template!: ServiceTemplateRefDto | null;
+
+  @Expose()
+  provider!: ServiceProviderRefDto;
 }
 
 export type ServiceDbRow = {
   id: string;
-  category: string;
+  categoryId: string;
+  category: {
+    id: string;
+    name: string;
+    slug: string;
+    parentId: string | null;
+    sortOrder: number | null;
+  };
   status: ServiceStatus;
   title: string;
   image: string | null;
@@ -147,6 +228,13 @@ export type ServiceDbRow = {
   badge: string | null;
   paletteColor: string | null;
   icon: string | null;
+  templateId: string | null;
+  template: { id: string; title: string } | null;
+  provider: {
+    id: string;
+    name: string;
+    city: { id: string; name: string; regionCode: string; regionName: string } | null;
+  };
 };
 
 export function serviceDbRowToDtoPlain(row: ServiceDbRow): ServiceDto {
@@ -159,9 +247,18 @@ export function serviceDbRowToDtoPlain(row: ServiceDbRow): ServiceDto {
 
 export class ServiceCreateDto {
   @Expose()
+  @IsOptional()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value), { toClassOnly: true })
-  @IsEnum(['main', 'legal'])
-  category!: ServiceCategory;
+  @IsString()
+  @MinLength(1)
+  categoryId?: string;
+
+  @Expose()
+  @IsOptional()
+  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  @IsString()
+  templateId?: string | null;
 
   @Expose()
   @IsOptional()
@@ -170,22 +267,28 @@ export class ServiceCreateDto {
   status?: Extract<ServiceStatus, 'DRAFT' | 'PUBLISHED'>;
 
   @Expose()
+  @IsOptional()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value), { toClassOnly: true })
+  @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   @MinLength(1)
-  title!: string;
+  title?: string;
 
   @Expose()
+  @IsOptional()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value), { toClassOnly: true })
+  @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   @MinLength(1)
-  price!: string;
+  price?: string;
 
   @Expose()
+  @IsOptional()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value), { toClassOnly: true })
+  @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   @MinLength(1)
-  ctaText!: string;
+  ctaText?: string;
 
   @Expose()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
@@ -252,8 +355,16 @@ export class ServicePatchDto {
   @Expose()
   @IsOptional()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value), { toClassOnly: true })
-  @IsEnum(['main', 'legal'])
-  category?: ServiceCategory;
+  @IsString()
+  @MinLength(1)
+  categoryId?: string;
+
+  @Expose()
+  @IsOptional()
+  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  @IsString()
+  templateId?: string | null;
 
   @Expose()
   @IsOptional()

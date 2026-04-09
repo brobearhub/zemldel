@@ -25,8 +25,15 @@ export class ChatController {
     if (issues.length > 0) {
       throw new UnprocessableEntityException({ error: 'Validation failed', issues });
     }
+    const hasRequest = typeof dto.serviceRequestId === 'string' && dto.serviceRequestId.length > 0;
+    if (!hasRequest) {
+      throw new UnprocessableEntityException({
+        error: 'Validation failed',
+        issues: [{ path: ['serviceRequestId'], message: 'serviceRequestId is required' }],
+      });
+    }
     const userId = this.chat.getRequiredActorUserId(request);
-    return this.chat.ensureConversation(userId, dto.serviceLeadId);
+    return this.chat.ensureServiceRequestConversation(userId, dto.serviceRequestId!);
   }
 
   @Get('chat/conversations/:conversationId/messages')
@@ -72,17 +79,4 @@ export class ChatController {
     return this.chat.markRead(userId, conversationId);
   }
 
-  @Get('chat/unread-by-lead')
-  async unreadByLead(@Req() request: Request, @Query('leadIds') leadIdsRaw?: string) {
-    const userId = this.chat.getRequiredActorUserId(request);
-    const leadIds =
-      leadIdsRaw
-        ?.split(',')
-        .map((id) => id.trim())
-        .filter(Boolean) ?? [];
-    if (leadIds.length > 200) {
-      throw new UnprocessableEntityException({ error: 'Too many leadIds' });
-    }
-    return this.chat.getUnreadByLeadIds(userId, leadIds);
-  }
 }

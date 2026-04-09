@@ -27,12 +27,38 @@ async function seedServices() {
       select: { id: true },
     });
 
+    const mainCategory = await prisma.serviceCategory.upsert({
+      where: { slug: 'main' },
+      update: { name: 'Основные услуги', sortOrder: 1 },
+      create: {
+        id: '11111111-1111-1111-1111-111111111111',
+        name: 'Основные услуги',
+        slug: 'main',
+        sortOrder: 1,
+      },
+      select: { id: true },
+    });
+
+    const legalCategory = await prisma.serviceCategory.upsert({
+      where: { slug: 'legal' },
+      update: { name: 'Юридические услуги', sortOrder: 2 },
+      create: {
+        id: '22222222-2222-2222-2222-222222222222',
+        name: 'Юридические услуги',
+        slug: 'legal',
+        sortOrder: 2,
+      },
+      select: { id: true },
+    });
+
     await prisma.service.deleteMany();
 
     for (const service of SERVICES_SEED) {
+      const { category, ...rest } = service;
       await prisma.service.create({
         data: {
-          ...service,
+          ...rest,
+          categoryId: category === 'legal' ? legalCategory.id : mainCategory.id,
           providerId: defaultProvider.id,
         },
       });

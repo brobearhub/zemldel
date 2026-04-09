@@ -41,8 +41,10 @@ function normalizeNullableString(value: string | null | undefined): string | nul
 
 function sortServices(list: ServiceDto[]) {
   return [...list].sort((left, right) => {
-    if (left.category !== right.category) {
-      return left.category.localeCompare(right.category);
+    const leftSlug = left.category?.slug ?? "";
+    const rightSlug = right.category?.slug ?? "";
+    if (leftSlug !== rightSlug) {
+      return leftSlug.localeCompare(rightSlug);
     }
     return left.title.localeCompare(right.title, "ru");
   });
@@ -56,7 +58,8 @@ function noticeFromQuery(value: string | null) {
 
 function buildDuplicatePayload(service: ServiceDto): ServiceCreateDto {
   return {
-    category: service.category,
+    categoryId: service.categoryId,
+    templateId: service.templateId,
     status: "DRAFT",
     title: `${service.title} (копия)`,
     price: service.price,
@@ -350,7 +353,7 @@ export function ProServicesListClient({ initialServices }: Props) {
                     />
                   </Stack>
                   <Typography color="text.secondary">
-                    {service.price} · {service.category === "main" ? "основная услуга" : "юридическая услуга"}
+                    {service.price} · {service.category?.name ?? service.category?.slug ?? "категория"}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     CTA: {service.ctaText}

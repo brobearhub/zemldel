@@ -13,6 +13,8 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import type { CitySuggestItemDto } from "@/entities/city";
+import { CityAutocomplete } from "@/shared/ui/CityAutocomplete";
 
 type ProviderType = "SELF_EMPLOYED" | "COMPANY";
 
@@ -30,6 +32,7 @@ export function ProviderOnboardingForm() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [type, setType] = useState<ProviderType>("SELF_EMPLOYED");
+  const [city, setCity] = useState<CitySuggestItemDto | null>(null);
   const [slugTouched, setSlugTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -67,6 +70,7 @@ export function ProviderOnboardingForm() {
           name,
           slug,
           type,
+          cityId: city?.id ?? null,
         }),
       });
 
@@ -133,6 +137,14 @@ export function ProviderOnboardingForm() {
                   fullWidth
                   required
                   helperText={helperText}
+                />
+
+                <CityAutocomplete
+                  label="Город"
+                  value={city}
+                  onChange={setCity}
+                  disabled={loading}
+                  placeholder="Начните вводить (минимум 2 символа)"
                 />
 
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>

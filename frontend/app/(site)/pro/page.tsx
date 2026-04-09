@@ -2,12 +2,13 @@ import { notFound, redirect } from "next/navigation";
 import { Stack } from "@mui/material";
 import { getActiveMembership } from "@/core/auth/authorization";
 import type { OrderDto } from "@/entities/order";
-import type { ServiceLeadDto } from "@/entities/service-lead";
 import type { ServiceDto } from "@/entities/service";
+import type { ServiceRequestProDto } from "@/entities/service-request";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/lib/backend-api";
 import { getServerAuthSession } from "@/lib/auth";
 import { ProOverviewDashboard } from "@/widgets/pro-dashboard/ui/ProOverviewDashboard";
 import { ProfessionalWorkspacePanel } from "@/widgets/pro-dashboard/ui/ProfessionalWorkspacePanel";
+import { ProRequestsFeed } from "@/widgets/pro-requests/ui/ProRequestsFeed";
 
 export default async function ProDashboardPage() {
   const session = await getServerAuthSession();
@@ -27,10 +28,10 @@ export default async function ProDashboardPage() {
   }
 
   try {
-    const [services, leads, orders] = await Promise.all([
+    const [services, orders, feed] = await Promise.all([
       fetchBackendJsonAsUser<ServiceDto[]>("/pro/services", session.user.id),
-      fetchBackendJsonAsUser<ServiceLeadDto[]>("/pro/service-leads", session.user.id),
       fetchBackendJsonAsUser<OrderDto[]>("/pro/orders", session.user.id),
+      fetchBackendJsonAsUser<ServiceRequestProDto[]>("/pro/service-requests/feed", session.user.id),
     ]);
 
     const sortByRecent = <T extends { updatedAt: string; createdAt?: string }>(items: T[]) =>
@@ -42,10 +43,11 @@ export default async function ProDashboardPage() {
 
     return (
       <Stack spacing={3}>
+        <ProRequestsFeed initialItems={feed} />
         <ProOverviewDashboard
           provider={activeMembership}
           services={services}
-          leads={sortByRecent(leads)}
+          requests={sortByRecent(feed)}
           orders={sortByRecent(orders)}
         />
       </Stack>

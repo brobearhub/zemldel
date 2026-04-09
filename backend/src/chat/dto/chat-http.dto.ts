@@ -1,8 +1,9 @@
 import { IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
 
 export class ChatEnsureBodyDto {
+  @IsOptional()
   @IsUUID()
-  serviceLeadId!: string;
+  serviceRequestId?: string;
 }
 
 export class ChatPostMessageBodyDto {

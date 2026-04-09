@@ -6,7 +6,7 @@ import { Box, Button, Paper, Stack, TextField, Typography } from "@mui/material"
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useState } from "react";
-import { SERVICE_LEAD_INTENT } from "@/entities/service-lead";
+import { SERVICE_REQUEST_INTENT } from "@/entities/service-request";
 
 export default function SignInPage() {
   return (
@@ -74,7 +74,7 @@ function SignInPageContent() {
       }
 
       const nextPath =
-        intent === SERVICE_LEAD_INTENT && returnTo
+        intent === SERVICE_REQUEST_INTENT && returnTo
           ? returnTo
           : "/";
 

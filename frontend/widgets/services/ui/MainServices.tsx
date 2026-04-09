@@ -35,7 +35,7 @@ export const MainServices = () => {
       })
       .then((services) =>
         services
-          .filter((s) => s.category === "main")
+          .filter((s) => s.category?.slug === "main")
           .map(recordToMainItem)
       )
       .then(setItems)

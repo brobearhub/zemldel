@@ -21,7 +21,7 @@ export default async function ProServicesEditPage({ params }: Props) {
   let service: ServiceDto;
 
   try {
-    service = await fetchBackendJsonAsUser<ServiceDto>(`/admin/services/${id}`, session.user.id);
+    service = await fetchBackendJsonAsUser<ServiceDto>(`/pro/services/${id}`, session.user.id);
   } catch (error) {
     if (error instanceof BackendApiError && (error.status === 401 || error.status === 403 || error.status === 404)) {
       notFound();

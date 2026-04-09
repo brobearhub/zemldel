@@ -10,11 +10,19 @@ export type ProviderMemberRole = (typeof PROVIDER_MEMBER_ROLES)[number];
 export type ProviderMemberStatus = (typeof PROVIDER_MEMBER_STATUSES)[number];
 export type ProviderType = (typeof PROVIDER_TYPES)[number];
 
+export type AuthCity = {
+  id: string;
+  name: string;
+  regionCode: string;
+  regionName: string;
+};
+
 export type AuthMembership = {
   providerId: string;
   providerName: string;
   providerSlug: string;
   providerType: ProviderType;
+  providerCity: AuthCity | null;
   role: ProviderMemberRole;
   status: ProviderMemberStatus;
 };
@@ -26,6 +34,7 @@ export type AuthorizedUser = {
   image?: string | null;
   systemRole: SystemRole;
   activeProviderId: string | null;
+  customerCity: AuthCity | null;
   memberships: AuthMembership[];
 };
 

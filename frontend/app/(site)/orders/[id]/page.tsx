@@ -3,8 +3,8 @@ import { Box, Paper, Stack, Typography } from "@mui/material";
 import type { OrderDto } from "@/entities/order";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/lib/backend-api";
 import { getServerAuthSession } from "@/lib/auth";
-import { ServiceLeadChatPanel } from "@/widgets/chat/ui/ServiceLeadChatPanel";
 import { ChatThreeColumnLayout } from "@/widgets/chat/ui/ChatThreeColumnLayout";
+import { ServiceRequestChatPanel } from "@/widgets/chat/ui/ServiceRequestChatPanel";
 import { ProfileSidebarNav } from "@/widgets/profile/ui/ProfileSidebarNav";
 
 type Props = {
@@ -50,7 +50,9 @@ export default async function CustomerOrderDetailPage({ params }: Props) {
             </Paper>
           </Stack>
         }
-        right={<ServiceLeadChatPanel serviceLeadId={order.serviceLeadId} title="Чат" subtitle={order.serviceTitle} />}
+        right={
+          <ServiceRequestChatPanel serviceRequestId={order.id} title="Чат" subtitle={order.serviceTitle} />
+        }
       />
     </main>
   );

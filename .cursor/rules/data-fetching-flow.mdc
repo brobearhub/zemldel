@@ -1,70 +1,346 @@
 ---
-description: General data fetching + state storage flow (UI → hooks → data layer → transport)
+
+description: Universal data fetching + state management flow (UI → hooks → data layer → transport → backend)
 globs: frontend/**/*.{ts,tsx}
-alwaysApply: false
+alwaysApply: true
+-----------------
+
+# Data Fetching & State Management Flow
+
+## PURPOSE
+
+Define a consistent, scalable, and secure approach to:
+
+* fetching data
+* managing state
+* interacting with backend services
+
+This document is framework-agnostic and reusable across projects.
+
 ---
 
-# Data fetching & state storage flow (template)
+# LAYERING (Separation of Concerns)
 
-## Layering (separation of concerns)
+System must follow strict layering:
 
-- **UI components**: render-only. Receive data + callbacks via props. No direct network calls.
-- **Screen/container hook**: orchestrates data needs (reads route params, composes requests, triggers queries/mutations, maps to view-model).
-- **Data access layer**: defines `query/mutation` functions (or RTK/React-Query endpoints). Exposes typed hooks/functions.
-- **Transport boundary**: the only place that knows base URLs, auth tokens, cookies, and server-only secrets.
-  - **BFF/proxy only**: client calls `/api/...` and server-side route handlers/services call backends.
-  - **BFF handlers live in** `app/api/**` (route handlers).
-  - **Direct-to-backend from client is forbidden** (no exceptions): no base URLs, tokens, or backend hosts in client bundles.
-  - **Minimum defaults (BFF)**:
-    - **Timeout**: every backend call must have a bounded timeout (pick a sensible default; override per endpoint when needed).
-    - **Correlation id**: propagate a request/correlation id from inbound request to outbound backend call and logs (e.g., `x-request-id`).
-- **Backend client**: typed HTTP client (OpenAPI/Swagger generated or hand-written) used only behind the transport boundary.
+UI → Hook/Container → Data Layer → Transport → Backend Client
 
-## Where the response is stored (pick intentionally)
+---
 
-- **Server-state cache (preferred for fetched data)**: store response in a query cache (RTK Query / React Query).
-  - UI reads via hooks/selectors; avoid copying the whole response into a separate slice “just in case”.
-  - Use cache keys that include *all* inputs (filters, paging, user scope).
-- **Client-state store (for app-owned state)**: store only what the app owns and mutates locally:
-  - selected IDs, form drafts, optimistic updates, UI preferences
-  - normalized entities when multiple screens mutate/merge the same records offline or via websockets
+## 1. UI COMPONENTS
 
-## Rules of thumb
+Responsibilities:
 
-- **Don’t mix concerns**: UI ↔ hook ↔ data layer ↔ transport ↔ backend. Each layer depends only “downwards”.
-- **Typed boundaries**: request/response types live at the data layer boundary; avoid `any` crossing layers.
-- **Stable keying**: derive a deterministic key for “same request” (e.g., sort arrays, normalize empty/null).
-- **Invalidation strategy**: mutations must invalidate/refetch the affected queries (or update cached data deterministically).
-- **Error/loading model**: expose `{data, isLoading, isError, error}` (or equivalent) consistently; no silent catch unless UX explicitly wants it.
-- **Auth safety**: tokens/secret base URLs never appear in client components; only transport boundary may access them.
-- **Derived state**: don’t store derived data in global state (or duplicate it across cache + store).
-  - Store only source-of-truth data (query results or normalized entities) + minimal UI state (filters/sort/page/selectedId).
-  - Derive the rest via selectors/memoization (filtered/sorted lists, counts, “active entity” from selectedId).
-  - Exception: persist derived results only if they’re expensive to compute or needed for offline/audit, and document why.
+* render data
+* handle user interactions (events)
+* receive data and callbacks via props
 
-## Stable keying (how)
+Rules:
 
-Goal: the *same logical request* must map to the *same cache key* (avoid duplicate cache entries and redundant refetches).
+* NO direct API calls
+* NO business logic
+* NO knowledge of transport/backend
+* must remain pure and reusable
 
-- Normalize inputs **before** calling the query/mutation (prefer: in the data access layer, not in UI):
-  - **Arrays**: if order is not semantically important, sort deterministically.
-  - **Strings**: `trim()`, apply casing rules if needed.
-  - **Empty vs null vs undefined**: pick one representation and coerce to it.
-  - **Numbers**: coerce `"10"`/`10` to a single type.
-  - **Objects**: build keys from an explicit, deterministic subset of fields (don’t rely on object identity).
-  - **Scope**: include user/tenant/role scope in the key when it affects results.
+---
 
-## Definition of done (checklist)
+## 2. SCREEN / CONTAINER HOOK
 
-- [ ] **BFF-only enforced**: client calls only `/api/...`; no direct-to-backend calls from UI/client modules.
-- [ ] **BFF handler location**: endpoint implemented under `app/api/**` and proxies to backend from server-side code only.
-- [ ] **Typed contract**: request/response types defined; no `any` crossing layer boundaries.
-- [ ] **Transport boundary complete**: base URLs, auth/cookies, and backend client usage live only in server-side transport/BFF.
-- [ ] **Input normalization/validation**: request params/body are validated or normalized before calling backend.
-- [ ] **Error mapping**: backend errors map to stable `{status, message, details?}` without leaking internals.
-- [ ] **Timeout policy**: backend call has a defined timeout (and retry policy if applicable).
-- [ ] **Observability**: logs/trace include endpoint + correlation/request id + bounded key inputs; correlation id is propagated to backend calls.
-- [ ] **State storage decision**: response stored in query cache OR normalized store with explicit reason.
-- [ ] **Cache key correctness**: key includes all inputs (filters/paging/scope) and uses normalized values.
-- [ ] **Mutation invalidation**: affected queries are invalidated/refetched or cache is updated deterministically.
-- [ ] **UX states handled**: loading/empty/error states implemented consistently for the screen.
+Responsibilities:
+
+* orchestrate data flow
+* read route params / inputs
+* trigger queries and mutations
+* map raw data → view model
+
+Rules:
+
+* may combine multiple data sources
+* may transform data for UI
+* must NOT call transport directly
+
+---
+
+## 3. DATA ACCESS LAYER
+
+Responsibilities:
+
+* define queries and mutations
+* provide typed interfaces
+* normalize inputs
+* define cache behavior
+
+Examples:
+
+* React Query hooks
+* RTK Query endpoints
+* custom API hooks
+
+Rules:
+
+* all data fetching starts here
+* no UI logic
+* no direct DOM interaction
+* must be fully typed
+
+---
+
+## 4. TRANSPORT BOUNDARY (CRITICAL)
+
+The ONLY layer allowed to:
+
+* know backend base URLs
+* handle authentication (tokens/cookies)
+* access server-side secrets
+
+---
+
+### BFF / PROXY MODEL (REQUIRED)
+
+Client must call:
+
+/api/...
+
+Server-side handlers:
+
+* call backend services
+* inject auth
+* enforce security
+
+---
+
+### STRICT RULE
+
+❌ Direct-to-backend calls from client are forbidden
+(no exceptions)
+
+---
+
+### MINIMUM REQUIREMENTS
+
+* timeout must be set for every request
+* correlation/request ID must be propagated
+* all outbound calls must be logged (at least minimally)
+
+---
+
+## 5. BACKEND CLIENT
+
+Responsibilities:
+
+* typed HTTP communication
+* request/response shaping
+
+Examples:
+
+* OpenAPI generated client
+* Axios wrapper
+* fetch wrapper
+
+Rules:
+
+* used only behind transport boundary
+* must be typed
+* must not leak transport concerns
+
+---
+
+# STATE MANAGEMENT STRATEGY
+
+## SERVER STATE (Preferred for fetched data)
+
+Use query cache (React Query / RTK Query):
+
+* store API responses
+* reuse cached data
+* avoid duplication
+
+Rules:
+
+* do NOT copy server data into global store unnecessarily
+* cache key must include ALL inputs
+
+---
+
+## CLIENT STATE (App-owned state)
+
+Store only what belongs to UI/app:
+
+* selected IDs
+* filters
+* form drafts
+* UI preferences
+* optimistic updates
+
+---
+
+## DERIVED STATE
+
+Rules:
+
+* do NOT store derived data
+* compute via selectors/memoization
+
+Examples:
+
+* filtered lists
+* sorted lists
+* counts
+* active entity
+
+---
+
+### EXCEPTION
+
+Derived state may be stored only if:
+
+* computation is expensive
+* needed for offline mode
+* needed for audit/logging
+
+---
+
+# FETCH STRATEGY
+
+* Fetch data at screen/container level
+* Avoid fetching in leaf components
+* Avoid duplicate requests for same data
+* Prefer cached data over refetching
+
+---
+
+# STABLE KEYING (CRITICAL)
+
+Same logical request → same cache key
+
+---
+
+## NORMALIZATION RULES
+
+* Arrays → sort if order doesn't matter
+* Strings → trim / normalize casing
+* Empty/null/undefined → unify representation
+* Numbers → enforce consistent type
+* Objects → use deterministic subset of fields
+* Scope → include user/tenant context
+
+---
+
+# MUTATIONS & INVALIDATION
+
+Rules:
+
+* mutations must invalidate or update related queries
+* keep cache consistent
+* avoid stale data
+
+---
+
+## STRATEGIES
+
+* refetch after mutation
+* manual cache update
+* optimistic updates
+
+---
+
+# OPTIMISTIC UPDATES
+
+* apply changes immediately in UI
+* rollback on failure
+* keep UX responsive
+
+---
+
+# ERROR & LOADING MODEL
+
+Expose consistent state:
+
+* data
+* isLoading
+* isError
+* error
+
+---
+
+## RULES
+
+* do NOT swallow errors silently
+* map backend errors → user-safe format
+* avoid leaking internal details
+
+---
+
+# TYPE SAFETY
+
+* all boundaries must be typed
+* no `any` across layers
+* validate incoming data when needed
+
+---
+
+# AI INTEGRATION RULES
+
+If system uses AI:
+
+* AI calls must go through data layer
+* never call AI directly from UI
+* validate and parse AI responses
+* do NOT expose raw AI output to UI
+
+---
+
+# SECURITY RULES
+
+* tokens must never reach client components
+* backend URLs must never be exposed
+* secrets only in transport/server layer
+
+---
+
+# PERFORMANCE RULES
+
+* avoid unnecessary network calls
+* generate/fetch only what is needed
+* lazy-load heavy data when possible
+
+---
+
+# OBSERVABILITY
+
+* include correlation/request ID
+* log key request parameters
+* track failures and latency
+
+---
+
+# DEFINITION OF DONE (CHECKLIST)
+
+* [ ] No direct API calls from UI
+* [ ] Data layer handles all requests
+* [ ] Transport boundary isolates backend logic
+* [ ] Types defined across all layers
+* [ ] Cache key includes all inputs
+* [ ] Inputs normalized
+* [ ] Mutation invalidation handled
+* [ ] Error/loading states implemented
+* [ ] Timeout configured
+* [ ] Correlation ID propagated
+* [ ] No secrets in client code
+
+---
+
+# FINAL PRINCIPLE
+
+Data flow must be:
+
+* predictable
+* secure
+* scalable
+* easy to reason about
+
+If unsure:
+
+→ choose the simplest correct approach
+→ keep layers clean
+→ avoid shortcuts that break architecture

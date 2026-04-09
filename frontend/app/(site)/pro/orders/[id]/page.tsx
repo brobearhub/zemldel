@@ -4,7 +4,7 @@ import type { OrderDto } from "@/entities/order";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/lib/backend-api";
 import { getServerAuthSession } from "@/lib/auth";
 import { ChatBodyWithSidePanelLayout } from "@/widgets/chat/ui/ChatBodyWithSidePanelLayout";
-import { ServiceLeadChatPanel } from "@/widgets/chat/ui/ServiceLeadChatPanel";
+import { ServiceRequestChatPanel } from "@/widgets/chat/ui/ServiceRequestChatPanel";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -55,7 +55,9 @@ export default async function ProOrderDetailPage({ params }: Props) {
             </Stack>
           </Paper>
         }
-        right={<ServiceLeadChatPanel serviceLeadId={order.serviceLeadId} title="Чат" subtitle={order.serviceTitle} />}
+        right={
+          <ServiceRequestChatPanel serviceRequestId={order.id} title="Чат" subtitle={order.serviceTitle} />
+        }
       />
     </Stack>
   );

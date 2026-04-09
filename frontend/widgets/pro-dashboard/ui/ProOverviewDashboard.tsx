@@ -10,17 +10,16 @@ import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 import { Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import type { ReactNode } from "react";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import type { AuthMembership } from "@/core/auth/authorization";
 import type { OrderDto } from "@/entities/order";
-import type { ServiceLeadDto } from "@/entities/service-lead";
 import type { ServiceDto } from "@/entities/service";
-import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
+import type { ServiceRequestProDto } from "@/entities/service-request";
 
 type Props = {
   provider: Pick<AuthMembership, "providerName" | "providerType" | "role">;
   services: ServiceDto[];
-  leads: ServiceLeadDto[];
+  requests: ServiceRequestProDto[];
   orders: OrderDto[];
 };
 
@@ -123,27 +122,7 @@ function MetricRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function ProOverviewDashboard({ provider, services, leads, orders }: Props) {
-  const { refreshUnreadByLeads } = useChatSocket();
-  const unreadLeadIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const lead of leads) {
-      if (lead.customerUserId) {
-        ids.add(lead.id);
-      }
-    }
-    for (const order of orders) {
-      ids.add(order.serviceLeadId);
-    }
-    return [...ids];
-  }, [leads, orders]);
-
-  useEffect(() => {
-    if (unreadLeadIds.length === 0) {
-      return;
-    }
-    void refreshUnreadByLeads(unreadLeadIds);
-  }, [refreshUnreadByLeads, unreadLeadIds]);
+export function ProOverviewDashboard({ provider, services, requests, orders }: Props) {
 
   const servicesStats = services.reduce(
     (acc, service) => {
@@ -159,19 +138,23 @@ export function ProOverviewDashboard({ provider, services, leads, orders }: Prop
     }
   );
 
-  const leadsStats = leads.reduce(
-    (acc, lead) => {
+  const requestStats = requests.reduce(
+    (acc, req) => {
+      if (req.kind !== "SERVICE") return acc;
       acc.total += 1;
-      acc[lead.status] += 1;
+      acc[req.status] += 1;
       return acc;
     },
     {
       total: 0,
       NEW: 0,
-      IN_PROGRESS: 0,
-      CONVERTED_TO_ORDER: 0,
+      DISCUSSING: 0,
+      LOCKED: 0,
+      ACTIVE: 0,
+      COMPLETED: 0,
+      CANCELLED: 0,
       CLOSED: 0,
-    }
+    } as Record<string, number>
   );
 
   const ordersStats = orders.reduce(
@@ -214,11 +197,11 @@ export function ProOverviewDashboard({ provider, services, leads, orders }: Prop
     { total: 0, repeat: 0 }
   );
 
-  const latestActivityAt = [leads[0]?.updatedAt ?? null, orders[0]?.updatedAt ?? null]
+  const latestActivityAt = [requests[0]?.updatedAt ?? null, orders[0]?.updatedAt ?? null]
     .filter(Boolean)
     .sort((left, right) => new Date(String(right)).getTime() - new Date(String(left)).getTime())[0] ?? null;
 
-  const leadsInWork = leadsStats.NEW + leadsStats.IN_PROGRESS;
+  const requestsInWork = requestStats.NEW + requestStats.DISCUSSING + requestStats.LOCKED;
 
   return (
     <Stack spacing={3}>
@@ -290,7 +273,7 @@ export function ProOverviewDashboard({ provider, services, leads, orders }: Prop
                   >
                     К услугам
                   </Button>
-                  <Button component={Link} href="/pro/leads" variant="outlined" fullWidth>
+                  <Button component={Link} href="/pro" variant="outlined" fullWidth>
                     Заявки
                   </Button>
                   <Button component={Link} href="/pro/orders" variant="outlined" fullWidth>
@@ -316,8 +299,8 @@ export function ProOverviewDashboard({ provider, services, leads, orders }: Prop
             />
             <OverviewStatCard
               label="Заявки в работе"
-              value={leadsInWork}
-              caption={`${leadsStats.NEW} новых и ${leadsStats.IN_PROGRESS} на согласовании`}
+              value={requestsInWork}
+              caption={`${requestStats.NEW} новых и ${requestStats.LOCKED} в работе`}
               icon={<AssignmentTurnedInOutlinedIcon fontSize="small" />}
             />
             <OverviewStatCard
@@ -373,11 +356,11 @@ export function ProOverviewDashboard({ provider, services, leads, orders }: Prop
             <Typography color="text.secondary">
               Воронка первых откликов: от новых обращений до перевода в заказ или закрытия без сделки.
             </Typography>
-            <MetricRow label="Всего заявок" value={String(leadsStats.total)} />
-            <MetricRow label="Новые" value={String(leadsStats.NEW)} />
-            <MetricRow label="На согласовании" value={String(leadsStats.IN_PROGRESS)} />
-            <MetricRow label="Переведены в заказ" value={String(leadsStats.CONVERTED_TO_ORDER)} />
-            <MetricRow label="Конверсия в заказ" value={formatPercent(leadsStats.CONVERTED_TO_ORDER, leadsStats.total)} />
+            <MetricRow label="Всего заявок" value={String(requestStats.total)} />
+            <MetricRow label="Новые" value={String(requestStats.NEW)} />
+            <MetricRow label="В работе" value={String(requestStats.LOCKED)} />
+            <MetricRow label="Заказы (активные)" value={String(requestStats.ACTIVE)} />
+            <MetricRow label="Закрыто" value={String(requestStats.CLOSED)} />
           </Stack>
         </Paper>
 
@@ -425,7 +408,7 @@ export function ProOverviewDashboard({ provider, services, leads, orders }: Prop
                   Входящий поток
                 </Typography>
                 <Typography variant="h5" fontWeight={800}>
-                  {leadsStats.NEW}
+                  {requestStats.NEW}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Новых обращений ожидают первичной реакции.

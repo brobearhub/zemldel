@@ -37,12 +37,12 @@ export const Footer = () => {
   const mainServices = useMemo(
     () =>
       (services ?? [])
-        .filter((s) => s.category === "main")
-        .map((s) => ({ title: s.title })),
+        .filter((s) => s.category?.slug === "main")
+        .map((s) => ({ title: s.title, id: s.id })),
     [services]
   );
   const legalServiceTitles = useMemo(
-    () => (services ?? []).filter((s) => s.category === "legal").map((s) => s.title),
+    () => (services ?? []).filter((s) => s.category?.slug === "legal").map((s) => s.title),
     [services]
   );
 
@@ -152,7 +152,7 @@ export const Footer = () => {
               ) : (
                 <List dense disablePadding sx={{ listStyle: "none" }}>
                   {mainServices.map((item) => (
-                    <ListItem key={item.title} disableGutters sx={{ py: 0.25 }}>
+                    <ListItem key={item.id} disableGutters sx={{ py: 0.25 }}>
                       <ListItemText
                         primary={item.title}
                         primaryTypographyProps={{

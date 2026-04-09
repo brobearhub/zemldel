@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import { ProvidersService } from './providers.service';
@@ -50,5 +50,18 @@ export class ProvidersController {
   ) {
     const userId = this.internalAuthService.getUserIdFromRequest(request);
     return this.providersService.addProviderManager(userId, providerId, body);
+  }
+
+  @Patch(':providerId/city')
+  updateProviderCity(
+    @Req() request: Request,
+    @Param('providerId') providerId: string,
+    @Body() body: unknown,
+  ) {
+    const userId = this.internalAuthService.getUserIdFromRequest(request);
+    const payload = body as { cityId?: string | null } | null;
+    return this.providersService.updateProviderCity(userId, providerId, {
+      cityId: payload?.cityId,
+    });
   }
 }

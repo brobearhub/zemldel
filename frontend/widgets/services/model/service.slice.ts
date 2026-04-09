@@ -25,11 +25,14 @@ export const { setServices } = serviceSlice.actions;
 const selectServiceState = (state: RootState): ServiceState => state.service;
 
 export const getServices = createSelector([selectServiceState], (state) => state.services);
-export const getMainServices = createSelector([getServices], (services) =>
-  services.filter((service) => service.category === "main")
-);
-export const getLegalServices = createSelector([getServices], (services) =>
-  services.filter((service) => service.category === "legal")
-);
+
+export const getServicesByCategorySlug = (slug: string) =>
+  createSelector([getServices], (services) =>
+    services.filter((service) => service.category?.slug === slug)
+  );
+
+// Backward-compatible selectors for current homepage sections.
+export const getMainServices = getServicesByCategorySlug("main");
+export const getLegalServices = getServicesByCategorySlug("legal");
 
 export default serviceSlice.reducer;

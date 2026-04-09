@@ -18,10 +18,9 @@ function useInertValue(): ChatSocketContextValue {
   return {
     socket: null,
     socketConnected: false,
-    unreadByLeadId: {},
+    unreadByRequestId: {},
     setOpenConversationId: () => {},
-    refreshUnreadByLeads: async () => {},
-    clearUnreadForLead: () => {},
+    clearUnreadForRequest: () => {},
     joinConversationRoom: async () => false,
   };
 }
@@ -33,7 +32,7 @@ export function ChatSocketProvider({ children }: Props) {
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [socketConnected, setSocketConnected] = useState(false);
-  const [unreadByLeadId, setUnreadByLeadId] = useState<Record<string, number>>({});
+  const [unreadByRequestId, setUnreadByRequestId] = useState<Record<string, number>>({});
 
   const openConversationIdRef = useRef<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -43,30 +42,19 @@ export function ChatSocketProvider({ children }: Props) {
     openConversationIdRef.current = conversationId;
   }, []);
 
-  const refreshUnreadByLeads = useCallback(async (leadIds: string[]) => {
-    if (leadIds.length === 0) {
-      return;
-    }
-    const params = new URLSearchParams({ leadIds: leadIds.join(",") });
-    const response = await fetch(`/api/chat/unread-by-lead?${params}`, { cache: "no-store" });
-    const payload = (await response.json().catch(() => null)) as Record<string, number> | { error?: string } | null;
-    if (!response.ok || !payload || typeof payload !== "object" || "error" in payload) {
-      return;
-    }
-    setUnreadByLeadId((prev) => ({ ...prev, ...(payload as Record<string, number>) }));
-  }, []);
-
-  const clearUnreadForLead = useCallback((leadId: string) => {
-    setUnreadByLeadId((prev) => ({ ...prev, [leadId]: 0 }));
+  const clearUnreadForRequest = useCallback((requestId: string) => {
+    setUnreadByRequestId((prev) => ({ ...prev, [requestId]: 0 }));
   }, []);
 
   const applyUnreadHint = useCallback((hint: ChatUnreadHintPayload) => {
     if (hint.conversationId === openConversationIdRef.current) {
       return;
     }
-    setUnreadByLeadId((prev) => ({
+    const id = hint.serviceRequestId ?? hint.subjectId;
+    if (!id) return;
+    setUnreadByRequestId((prev) => ({
       ...prev,
-      [hint.serviceLeadId]: (prev[hint.serviceLeadId] ?? 0) + 1,
+      [id]: (prev[id] ?? 0) + 1,
     }));
   }, []);
 
@@ -181,10 +169,9 @@ export function ChatSocketProvider({ children }: Props) {
   const value: ChatSocketContextValue = {
     socket,
     socketConnected,
-    unreadByLeadId,
+    unreadByRequestId,
     setOpenConversationId,
-    refreshUnreadByLeads,
-    clearUnreadForLead,
+    clearUnreadForRequest,
     joinConversationRoom,
   };
 

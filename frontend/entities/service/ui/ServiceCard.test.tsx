@@ -1,6 +1,14 @@
 import { render, screen } from "@testing-library/react";
 import { ServiceCard } from "./ServiceCard";
 
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: jest.fn() }),
+}));
+
+jest.mock("@/core/store/hooks", () => ({
+  useAppSelector: jest.fn(() => ({ status: "unauthenticated" })),
+}));
+
 jest.mock("next/link", () => ({
   __esModule: true,
   default: ({ href, children, ...props }: { href: string; children: React.ReactNode }) => (
@@ -18,6 +26,7 @@ describe("ServiceCard", () => {
           id: "svc-1",
           title: "Услуга 1",
           price: "1000 ₽",
+          provider: { id: "prov-1", name: "Провайдер 1", city: null },
           ctaText: "Записаться",
           rating: 4.8,
           reviewCount: 1,
@@ -36,6 +45,7 @@ describe("ServiceCard", () => {
           id: "svc-2",
           title: "Услуга 2",
           price: "2000 ₽",
+          provider: { id: "prov-2", name: "Провайдер 2", city: null },
           ctaText: "Записаться",
           reviewCount: 3,
         }}
@@ -50,6 +60,7 @@ describe("ServiceCard", () => {
           id: "svc-3",
           title: "Услуга 3",
           price: "3000 ₽",
+          provider: { id: "prov-3", name: "Провайдер 3", city: null },
           ctaText: "Записаться",
           reviewCount: 7,
         }}
