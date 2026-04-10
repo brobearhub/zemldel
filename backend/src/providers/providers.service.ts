@@ -82,7 +82,10 @@ export class ProvidersService {
     return membership;
   }
 
-  private async ensureProviderManagerOrOwner(userId: string, providerId: string) {
+  private async ensureProviderManagerOrOwner(
+    userId: string,
+    providerId: string,
+  ) {
     const membership = await this.getActiveMembership(userId, providerId);
 
     if (membership.role !== 'OWNER' && membership.role !== 'MANAGER') {
@@ -187,7 +190,11 @@ export class ProvidersService {
 
     let nextCityId: string | null | undefined = input.cityId;
 
-    if (nextCityId !== undefined && nextCityId !== null && typeof nextCityId !== 'string') {
+    if (
+      nextCityId !== undefined &&
+      nextCityId !== null &&
+      typeof nextCityId !== 'string'
+    ) {
       throw new BadRequestException('Invalid cityId');
     }
 
@@ -214,7 +221,8 @@ export class ProvidersService {
         throw new NotFoundException('City not found');
       }
       const ok =
-        (exists.typeName === 'г' && (exists.level === 5 || exists.level === 1)) ||
+        (exists.typeName === 'г' &&
+          (exists.level === 5 || exists.level === 1)) ||
         (exists.typeName === 'г.о.' && exists.level === 3);
       if (!ok) {
         throw new BadRequestException('Invalid city');

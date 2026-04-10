@@ -1,6 +1,10 @@
 export const SYSTEM_ROLES = ['PLATFORM_ADMIN', 'CUSTOMER'] as const;
 export const PROVIDER_MEMBER_ROLES = ['OWNER', 'MANAGER'] as const;
-export const PROVIDER_MEMBER_STATUSES = ['INVITED', 'ACTIVE', 'SUSPENDED'] as const;
+export const PROVIDER_MEMBER_STATUSES = [
+  'INVITED',
+  'ACTIVE',
+  'SUSPENDED',
+] as const;
 export const PROVIDER_TYPES = ['SELF_EMPLOYED', 'COMPANY'] as const;
 
 export type SystemRole = (typeof SYSTEM_ROLES)[number];
@@ -56,7 +60,9 @@ export type OrderManagementContext = {
   providerRole: ProviderMemberRole | null;
 };
 
-export function getActiveMembership(user: Pick<AuthorizedUser, 'activeProviderId' | 'memberships'> | null) {
+export function getActiveMembership(
+  user: Pick<AuthorizedUser, 'activeProviderId' | 'memberships'> | null,
+) {
   if (!user) return null;
 
   if (user.activeProviderId) {
@@ -88,7 +94,10 @@ export function canManageServices(
   const membership = getActiveMembership(user);
   if (!membership) return null;
 
-  if (action === 'read' && (membership.role === 'OWNER' || membership.role === 'MANAGER')) {
+  if (
+    action === 'read' &&
+    (membership.role === 'OWNER' || membership.role === 'MANAGER')
+  ) {
     return {
       actorUserId: user.id,
       providerId: membership.providerId,
@@ -100,7 +109,10 @@ export function canManageServices(
     };
   }
 
-  if ((action === 'create' || action === 'update') && (membership.role === 'OWNER' || membership.role === 'MANAGER')) {
+  if (
+    (action === 'create' || action === 'update') &&
+    (membership.role === 'OWNER' || membership.role === 'MANAGER')
+  ) {
     return {
       actorUserId: user.id,
       providerId: membership.providerId,
@@ -143,7 +155,10 @@ export function canManageOrders(
   const membership = getActiveMembership(user);
   if (!membership) return null;
 
-  if (action === 'read' && (membership.role === 'OWNER' || membership.role === 'MANAGER')) {
+  if (
+    action === 'read' &&
+    (membership.role === 'OWNER' || membership.role === 'MANAGER')
+  ) {
     return {
       actorUserId: user.id,
       providerId: membership.providerId,

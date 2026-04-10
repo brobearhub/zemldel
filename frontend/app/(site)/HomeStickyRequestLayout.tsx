@@ -9,15 +9,15 @@ import type { ServiceDto } from "@/entities/service";
 import { PublicUnlinkedRequestForm } from "@/widgets/public-service/ui/PublicUnlinkedRequestForm";
 import { HydrateService } from "@/widgets/services/ui/HydrateService";
 import { Services } from "@/widgets/services/ui/Services";
-import { ServiceTemplatesSection, type ServiceTemplateRow } from "@/widgets/service-templates/ui/ServiceTemplatesSection";
+import { ServiceCategoriesSection, type ServiceCategoryRow } from "@/widgets/service-categories/ui/ServiceCategoriesSection";
 
 type Props = {
   isAuthenticated: boolean;
-  templates: ServiceTemplateRow[];
+  categories: ServiceCategoryRow[];
   initialServices: ServiceDto[];
 };
 
-export function HomeStickyRequestLayout({ isAuthenticated, templates, initialServices }: Props) {
+export function HomeStickyRequestLayout({ isAuthenticated, categories, initialServices }: Props) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -41,7 +41,7 @@ export function HomeStickyRequestLayout({ isAuthenticated, templates, initialSer
           }}
         >
           <Box sx={{ minWidth: 0, order: { xs: 2, md: 0 } }}>
-            <ServiceTemplatesSection templates={templates} embedded />
+            <ServiceCategoriesSection categories={categories} embedded />
             <HydrateService initialServices={initialServices} />
             <Services embedded />
           </Box>
@@ -73,7 +73,10 @@ export function HomeStickyRequestLayout({ isAuthenticated, templates, initialSer
                     </IconButton>
                   </Tooltip>
                 </Box>
-                <PublicUnlinkedRequestForm isAuthenticated={isAuthenticated} />
+                <PublicUnlinkedRequestForm
+                  isAuthenticated={isAuthenticated}
+                  categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+                />
               </Stack>
             )}
           </Box>

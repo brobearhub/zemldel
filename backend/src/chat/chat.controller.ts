@@ -18,22 +18,50 @@ import { ChatEnsureBodyDto, ChatPostMessageBodyDto } from './dto/chat-http.dto';
 export class ChatController {
   constructor(private readonly chat: ChatService) {}
 
+  @Get('chat/service-requests/:id/conversations')
+  async listRequestConversations(
+    @Req() request: Request,
+    @Param('id') serviceRequestId: string,
+  ) {
+    const userId = this.chat.getRequiredActorUserId(request);
+    return this.chat.listServiceRequestConversationsForCustomer(
+      userId,
+      serviceRequestId,
+    );
+  }
+
   @Post('chat/ensure')
   async ensure(@Req() request: Request, @Body() body: unknown) {
     const dto = plainToInstance(ChatEnsureBodyDto, body);
-    const issues = validateSync(dto, { whitelist: true, forbidNonWhitelisted: true });
+    const issues = validateSync(dto, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
     if (issues.length > 0) {
-      throw new UnprocessableEntityException({ error: 'Validation failed', issues });
+      throw new UnprocessableEntityException({
+        error: 'Validation failed',
+        issues,
+      });
     }
-    const hasRequest = typeof dto.serviceRequestId === 'string' && dto.serviceRequestId.length > 0;
+    const hasRequest =
+      typeof dto.serviceRequestId === 'string' &&
+      dto.serviceRequestId.length > 0;
     if (!hasRequest) {
       throw new UnprocessableEntityException({
         error: 'Validation failed',
-        issues: [{ path: ['serviceRequestId'], message: 'serviceRequestId is required' }],
+        issues: [
+          {
+            path: ['serviceRequestId'],
+            message: 'serviceRequestId is required',
+          },
+        ],
       });
     }
     const userId = this.chat.getRequiredActorUserId(request);
-    return this.chat.ensureServiceRequestConversation(userId, dto.serviceRequestId!);
+    return this.chat.ensureServiceRequestConversation(
+      userId,
+      dto.serviceRequestId!,
+    );
   }
 
   @Get('chat/conversations/:conversationId/messages')
@@ -60,23 +88,35 @@ export class ChatController {
     @Body() body: unknown,
   ) {
     const dto = plainToInstance(ChatPostMessageBodyDto, body);
-    const issues = validateSync(dto, { whitelist: true, forbidNonWhitelisted: true });
+    const issues = validateSync(dto, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
     if (issues.length > 0) {
-      throw new UnprocessableEntityException({ error: 'Validation failed', issues });
+      throw new UnprocessableEntityException({
+        error: 'Validation failed',
+        issues,
+      });
     }
     const userId = this.chat.getRequiredActorUserId(request);
-    const { message, alreadyExisted } = await this.chat.createMessage(userId, conversationId, {
-      body: dto.body,
-      clientMessageId: dto.clientMessageId,
-      replyToMessageId: dto.replyToMessageId,
-    });
+    const { message, alreadyExisted } = await this.chat.createMessage(
+      userId,
+      conversationId,
+      {
+        body: dto.body,
+        clientMessageId: dto.clientMessageId,
+        replyToMessageId: dto.replyToMessageId,
+      },
+    );
     return { message, alreadyExisted };
   }
 
   @Post('chat/conversations/:conversationId/read')
-  async markRead(@Req() request: Request, @Param('conversationId') conversationId: string) {
+  async markRead(
+    @Req() request: Request,
+    @Param('conversationId') conversationId: string,
+  ) {
     const userId = this.chat.getRequiredActorUserId(request);
     return this.chat.markRead(userId, conversationId);
   }
-
 }

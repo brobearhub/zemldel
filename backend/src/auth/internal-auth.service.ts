@@ -24,13 +24,17 @@ export class InternalAuthService {
   private getSecret() {
     const secret = process.env.INTERNAL_API_SECRET;
     if (!secret) {
-      throw new InternalServerErrorException('INTERNAL_API_SECRET is not configured');
+      throw new InternalServerErrorException(
+        'INTERNAL_API_SECRET is not configured',
+      );
     }
     return secret;
   }
 
   private sign(encodedPayload: string) {
-    return createHmac('sha256', this.getSecret()).update(encodedPayload).digest('hex');
+    return createHmac('sha256', this.getSecret())
+      .update(encodedPayload)
+      .digest('hex');
   }
 
   verifyToken(token: string | undefined): InternalAuthPayload {
@@ -54,7 +58,9 @@ export class InternalAuthService {
       throw new ForbiddenException('Invalid internal auth token');
     }
 
-    const payload = JSON.parse(fromBase64Url(encodedPayload)) as Partial<InternalAuthPayload>;
+    const payload = JSON.parse(
+      fromBase64Url(encodedPayload),
+    ) as Partial<InternalAuthPayload>;
     if (typeof payload.userId !== 'string' || payload.userId.length === 0) {
       throw new UnauthorizedException('Internal auth token is missing userId');
     }
@@ -78,7 +84,9 @@ export class InternalAuthService {
 
   static createTokenForUserId(userId: string, secret: string) {
     const payload = toBase64Url(JSON.stringify({ userId }));
-    const signature = createHmac('sha256', secret).update(payload).digest('hex');
+    const signature = createHmac('sha256', secret)
+      .update(payload)
+      .digest('hex');
     return `${payload}.${signature}`;
   }
 }

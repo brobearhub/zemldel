@@ -140,7 +140,7 @@ export function ProOverviewDashboard({ provider, services, requests, orders }: P
 
   const requestStats = requests.reduce(
     (acc, req) => {
-      if (req.kind !== "SERVICE") return acc;
+      if (req.subjectType !== "SERVICE") return acc;
       acc.total += 1;
       acc[req.status] += 1;
       return acc;

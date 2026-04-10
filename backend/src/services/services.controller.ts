@@ -34,7 +34,10 @@ export class ServicesController {
 
   @Get('admin/services')
   async getAdminServices(@Req() request: Request) {
-    const context = await this.servicesService.getManagementContext(request, 'read');
+    const context = await this.servicesService.getManagementContext(
+      request,
+      'read',
+    );
     if (!context.isPlatformAdmin) {
       throw new ForbiddenException('Forbidden');
     }
@@ -43,7 +46,10 @@ export class ServicesController {
 
   @Get('admin/services/:id')
   async getAdminServiceById(@Req() request: Request, @Param('id') id: string) {
-    const context = await this.servicesService.getManagementContext(request, 'read');
+    const context = await this.servicesService.getManagementContext(
+      request,
+      'read',
+    );
     if (!context.isPlatformAdmin) {
       throw new ForbiddenException('Forbidden');
     }
@@ -58,7 +64,10 @@ export class ServicesController {
 
   @Get('pro/services')
   async getProServices(@Req() request: Request) {
-    const context = await this.servicesService.getManagementContext(request, 'read');
+    const context = await this.servicesService.getManagementContext(
+      request,
+      'read',
+    );
     if (context.isPlatformAdmin) {
       throw new ForbiddenException('Forbidden');
     }
@@ -67,11 +76,16 @@ export class ServicesController {
 
   @Get('pro/services/:id')
   async getProServiceById(@Req() request: Request, @Param('id') id: string) {
-    const context = await this.servicesService.getManagementContext(request, 'read');
+    const context = await this.servicesService.getManagementContext(
+      request,
+      'read',
+    );
     if (context.isPlatformAdmin) {
       throw new ForbiddenException('Forbidden');
     }
-    const service = await this.servicesService.getServiceById(id, { providerId: context.providerId });
+    const service = await this.servicesService.getServiceById(id, {
+      providerId: context.providerId,
+    });
     if (!service) {
       throw new NotFoundException('Service not found');
     }
@@ -79,14 +93,22 @@ export class ServicesController {
   }
 
   @Post('pro/services')
-  async createProService(@Req() request: Request, @Body() body: ServiceCreateDto) {
-    const context = await this.servicesService.getManagementContext(request, 'create');
+  async createProService(
+    @Req() request: Request,
+    @Body() body: ServiceCreateDto,
+  ) {
+    const context = await this.servicesService.getManagementContext(
+      request,
+      'create',
+    );
     if (context.isPlatformAdmin) {
       throw new ForbiddenException('Forbidden');
     }
 
     if (!context.providerId) {
-      throw new NotFoundException('Active provider is required to create services');
+      throw new NotFoundException(
+        'Active provider is required to create services',
+      );
     }
 
     return this.servicesService.createService(body, {
@@ -101,7 +123,10 @@ export class ServicesController {
     @Param('id') id: string,
     @Body() body: ServicePatchDto,
   ) {
-    const context = await this.servicesService.getManagementContext(request, 'update');
+    const context = await this.servicesService.getManagementContext(
+      request,
+      'update',
+    );
     if (context.isPlatformAdmin) {
       throw new ForbiddenException('Forbidden');
     }
@@ -116,7 +141,10 @@ export class ServicesController {
 
   @Delete('pro/services/:id')
   async deleteProService(@Req() request: Request, @Param('id') id: string) {
-    const context = await this.servicesService.getManagementContext(request, 'delete');
+    const context = await this.servicesService.getManagementContext(
+      request,
+      'delete',
+    );
     if (context.isPlatformAdmin) {
       throw new ForbiddenException('Forbidden');
     }
@@ -129,14 +157,22 @@ export class ServicesController {
   }
 
   @Post('admin/services')
-  async createAdminService(@Req() request: Request, @Body() body: ServiceCreateDto) {
-    const context = await this.servicesService.getManagementContext(request, 'create');
+  async createAdminService(
+    @Req() request: Request,
+    @Body() body: ServiceCreateDto,
+  ) {
+    const context = await this.servicesService.getManagementContext(
+      request,
+      'create',
+    );
     if (!context.isPlatformAdmin) {
       throw new ForbiddenException('Forbidden');
     }
 
     if (!context.providerId) {
-      throw new NotFoundException('Active provider is required to create services');
+      throw new NotFoundException(
+        'Active provider is required to create services',
+      );
     }
 
     return this.servicesService.createService(body, {
@@ -146,8 +182,15 @@ export class ServicesController {
   }
 
   @Patch('admin/services/:id')
-  async updateAdminService(@Req() request: Request, @Param('id') id: string, @Body() body: ServicePatchDto) {
-    const context = await this.servicesService.getManagementContext(request, 'update');
+  async updateAdminService(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Body() body: ServicePatchDto,
+  ) {
+    const context = await this.servicesService.getManagementContext(
+      request,
+      'update',
+    );
     if (!context.isPlatformAdmin) {
       throw new ForbiddenException('Forbidden');
     }
@@ -162,7 +205,10 @@ export class ServicesController {
 
   @Delete('admin/services/:id')
   async deleteAdminService(@Req() request: Request, @Param('id') id: string) {
-    const context = await this.servicesService.getManagementContext(request, 'delete');
+    const context = await this.servicesService.getManagementContext(
+      request,
+      'delete',
+    );
     if (!context.isPlatformAdmin) {
       throw new ForbiddenException('Forbidden');
     }

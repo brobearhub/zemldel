@@ -37,7 +37,6 @@ const serviceSelect = {
   badge: true,
   paletteColor: true,
   icon: true,
-  templateId: true,
   provider: {
     select: {
       id: true,
@@ -50,12 +49,6 @@ const serviceSelect = {
           regionName: true,
         },
       },
-    },
-  },
-  template: {
-    select: {
-      id: true,
-      title: true,
     },
   },
   category: {
@@ -104,7 +97,9 @@ export class ServicesService {
     return row.id;
   }
 
-  async getServices(scope?: Pick<ServiceScope, 'providerId'>): Promise<ServiceDto[]> {
+  async getServices(
+    scope?: Pick<ServiceScope, 'providerId'>,
+  ): Promise<ServiceDto[]> {
     const rows: ServiceDbRow[] = await this.prisma.service.findMany({
       where: scope?.providerId
         ? { providerId: scope.providerId }
@@ -116,7 +111,10 @@ export class ServicesService {
     return rows.map((row) => serviceDbRowToDtoPlain(row));
   }
 
-  async getServiceById(id: string, scope?: Pick<ServiceScope, 'providerId'>): Promise<ServiceDto | null> {
+  async getServiceById(
+    id: string,
+    scope?: Pick<ServiceScope, 'providerId'>,
+  ): Promise<ServiceDto | null> {
     const row = scope?.providerId
       ? await this.prisma.service.findFirst({
           where: { id, providerId: scope.providerId },
@@ -135,33 +133,18 @@ export class ServicesService {
     scope: { providerId: string; actorUserId?: string },
   ): Promise<ServiceDto> {
     const nextStatus: ServiceStatus = service.status ?? 'DRAFT';
-    const template = service.templateId
-      ? await this.prisma.serviceTemplate.findUnique({
-          where: { id: service.templateId },
-          select: { categoryId: true, title: true, description: true },
-        })
-      : null;
+    const resolvedCategoryId = service.categoryId ?? null;
+    if (!resolvedCategoryId)
+      throw new BadRequestException('categoryId is required');
 
-    const resolvedCategoryId = service.categoryId ?? template?.categoryId ?? null;
+    const resolvedTitle = service.title ?? null;
+    if (!resolvedTitle) throw new BadRequestException('title is required');
 
-    if (!resolvedCategoryId) {
-      throw new BadRequestException('categoryId is required (or provide templateId)');
-    }
+    const resolvedPrice = service.price ?? null;
+    if (!resolvedPrice) throw new BadRequestException('price is required');
 
-    const resolvedTitle = service.title ?? template?.title ?? null;
-    if (!resolvedTitle) {
-      throw new BadRequestException('title is required (or provide templateId)');
-    }
-
-    const resolvedPrice = service.price ?? (service.templateId ? 'По договоренности' : null);
-    if (!resolvedPrice) {
-      throw new BadRequestException('price is required');
-    }
-
-    const resolvedCtaText = service.ctaText ?? (service.templateId ? 'Записаться' : null);
-    if (!resolvedCtaText) {
-      throw new BadRequestException('ctaText is required');
-    }
+    const resolvedCtaText = service.ctaText ?? null;
+    if (!resolvedCtaText) throw new BadRequestException('ctaText is required');
 
     const row = await this.prisma.service.create({
       data: {
@@ -170,7 +153,7 @@ export class ServicesService {
         title: resolvedTitle,
         price: resolvedPrice,
         ctaText: resolvedCtaText,
-        description: service.description ?? template?.description ?? service.description,
+        description: service.description ?? null,
         status: nextStatus,
         publishedAt: nextStatus === 'PUBLISHED' ? new Date() : null,
         providerId: scope.providerId,
@@ -183,11 +166,18 @@ export class ServicesService {
     return serviceDbRowToDtoPlain(row as ServiceDbRow);
   }
 
-  async updateService(id: string, service: ServicePatchDto, scope?: ServiceScope): Promise<ServiceDto> {
+  async updateService(
+    id: string,
+    service: ServicePatchDto,
+    scope?: ServiceScope,
+  ): Promise<ServiceDto> {
     const serviceId = await this.resolveScopedServiceId(id, scope?.providerId);
     const nextStatus = service.status;
 
-    if ((nextStatus === 'PUBLISHED' || nextStatus === 'DRAFT') && scope?.canPublish === false) {
+    if (
+      (nextStatus === 'PUBLISHED' || nextStatus === 'DRAFT') &&
+      scope?.canPublish === false
+    ) {
       throw new ForbiddenException('Publishing services is not allowed');
     }
 
@@ -221,12 +211,18 @@ export class ServicesService {
     });
   }
 
-  async getManagementContext(request: Request, action: ServiceManagementAction) {
+  async getManagementContext(
+    request: Request,
+    action: ServiceManagementAction,
+  ) {
     const userId = this.internalAuthService.getUserIdFromRequest(request);
     try {
       return await this.authService.getServiceManagementContext(userId, action);
     } catch (error) {
-      if (error instanceof UnauthorizedException || error instanceof ForbiddenException) {
+      if (
+        error instanceof UnauthorizedException ||
+        error instanceof ForbiddenException
+      ) {
         throw error;
       }
       throw error;

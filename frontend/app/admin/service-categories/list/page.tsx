@@ -10,6 +10,7 @@ export type ServiceCategoryRow = {
   slug: string;
   parentId: string | null;
   sortOrder: number | null;
+  placements: Array<"HOME">;
 };
 
 export default async function AdminServiceCategoriesListPage() {

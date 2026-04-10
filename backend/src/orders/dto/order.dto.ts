@@ -1,5 +1,10 @@
 import 'reflect-metadata';
-import { Expose, instanceToPlain, plainToInstance, Transform } from 'class-transformer';
+import {
+  Expose,
+  instanceToPlain,
+  plainToInstance,
+  Transform,
+} from 'class-transformer';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
 
 export type OrderStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED';

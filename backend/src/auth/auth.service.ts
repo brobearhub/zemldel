@@ -68,11 +68,11 @@ export class AuthService {
     memberships: Array<{
       role: AuthMembership['role'];
       status: AuthMembership['status'];
-    provider: {
+      provider: {
         id: string;
         name: string;
         slug: string;
-      type: AuthMembership['providerType'];
+        type: AuthMembership['providerType'];
         city: AuthCity | null;
       };
     }>,
@@ -94,7 +94,9 @@ export class AuthService {
   ) {
     if (
       activeProviderId &&
-      memberships.some((membership) => membership.providerId === activeProviderId)
+      memberships.some(
+        (membership) => membership.providerId === activeProviderId,
+      )
     ) {
       return activeProviderId;
     }
@@ -102,9 +104,7 @@ export class AuthService {
     return memberships[0]?.providerId ?? null;
   }
 
-  private mapAuthorizedUser(
-    user: UserAuthRow | null,
-  ): AuthorizedUser | null {
+  private mapAuthorizedUser(user: UserAuthRow | null): AuthorizedUser | null {
     if (!user) return null;
 
     const memberships = this.normalizeMemberships(user.providerMemberships);

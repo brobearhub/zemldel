@@ -16,6 +16,7 @@ import {
   Typography,
 } from "@mui/material";
 import DynamicFeedOutlinedIcon from "@mui/icons-material/DynamicFeedOutlined";
+import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import BuildOutlinedIcon from "@mui/icons-material/BuildOutlined";
 import PeopleOutlineOutlinedIcon from "@mui/icons-material/PeopleOutlineOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
@@ -24,7 +25,6 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
-import ViewModuleOutlinedIcon from "@mui/icons-material/ViewModuleOutlined";
 import { useMemo, useState } from "react";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 
@@ -34,6 +34,12 @@ const NAV_ITEMS = [
     label: "Лента",
     description: "Поток заявок клиентов",
     icon: <DynamicFeedOutlinedIcon />,
+  },
+  {
+    href: "/pro/overview",
+    label: "Обзор",
+    description: "Показатели и быстрые действия",
+    icon: <DashboardOutlinedIcon />,
   },
   {
     href: "/pro/team",
@@ -65,11 +71,6 @@ const SERVICES_GROUP = {
       href: "/pro/services/list",
       label: "Список",
       icon: <FormatListBulletedIcon />,
-    },
-    {
-      href: "/pro/services/templates",
-      label: "Шаблоны",
-      icon: <ViewModuleOutlinedIcon />,
     },
     {
       href: "/pro/services/create",
@@ -113,7 +114,10 @@ export function ProSidebar() {
 
       <List dense disablePadding>
         {NAV_ITEMS.map((item, index) => {
-          const selected = pathname === item.href;
+          const selected =
+            pathname === item.href ||
+            (item.href === "/pro" && pathname.startsWith("/pro/requests/")) ||
+            (item.href === "/pro/orders" && pathname.startsWith("/pro/orders/"));
           const badgeEnabled = item.href === "/pro" || item.href === "/pro/orders";
           const icon = badgeEnabled ? (
             <Badge color="error" badgeContent={unreadTotal} max={99} invisible={unreadTotal === 0}>

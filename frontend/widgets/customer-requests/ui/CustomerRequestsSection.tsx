@@ -33,10 +33,10 @@ export function CustomerRequestsSection({ autoResumeEnabled = false }: Props) {
   const [loading, setLoading] = useState(true);
 
   const byKind = useMemo(() => {
-    const unlinked = items.filter((i) => i.kind === "UNLINKED");
-    const template = items.filter((i) => i.kind === "TEMPLATE");
-    const service = items.filter((i) => i.kind === "SERVICE");
-    return { unlinked, template, service };
+    const freeform = items.filter((i) => i.subjectType === "FREEFORM");
+    const category = items.filter((i) => i.subjectType === "CATEGORY");
+    const service = items.filter((i) => i.subjectType === "SERVICE");
+    return { freeform, category, service };
   }, [items]);
 
   async function load() {
@@ -79,7 +79,10 @@ export function CustomerRequestsSection({ autoResumeEnabled = false }: Props) {
         const url =
           draft.kind === "SERVICE"
             ? `/api/services/${draft.serviceId}/requests`
-            : `/api/service-templates/${draft.templateId}/requests`;
+            : draft.kind === "CATEGORY"
+              ? `/api/service-categories/${draft.categoryId}/requests`
+              : "/api/service-requests";
+
         const body =
           draft.kind === "SERVICE"
             ? {
@@ -87,8 +90,11 @@ export function CustomerRequestsSection({ autoResumeEnabled = false }: Props) {
                 customerEmail: draft.customerEmail,
                 customerPhone: draft.customerPhone,
                 message: draft.message,
+                requestCityId: draft.requestCityId,
               }
-            : { message: draft.message };
+            : draft.kind === "CATEGORY"
+              ? { message: draft.message, requestCityId: draft.requestCityId }
+              : { message: draft.message, requestCityId: draft.requestCityId };
 
         const res = await fetch(url, {
           method: "POST",
@@ -127,7 +133,7 @@ export function CustomerRequestsSection({ autoResumeEnabled = false }: Props) {
             Заявки
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Ваши заявки: свободные, по шаблонам и по услугам провайдеров.
+              Ваши заявки: свободные, по категориям и по услугам провайдеров.
           </Typography>
         </Stack>
         <Button variant="outlined" onClick={() => void load()} disabled={loading} sx={{ whiteSpace: "nowrap" }}>
@@ -151,14 +157,33 @@ export function CustomerRequestsSection({ autoResumeEnabled = false }: Props) {
         </Paper>
       ) : (
         <Stack spacing={2}>
-          {[...byKind.unlinked, ...byKind.template, ...byKind.service].map((item) => (
+          {[...byKind.freeform, ...byKind.category, ...byKind.service].map((item) => (
             <Paper key={item.id} variant="outlined" sx={{ p: 2.5 }}>
               <Stack spacing={1}>
                 <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} justifyContent="space-between" alignItems={{ md: "center" }}>
-                  <Typography fontWeight={800}>
-                    {item.kind === "UNLINKED" ? "Свободная заявка" : item.kind === "TEMPLATE" ? "Заявка по шаблону" : "Заявка по услуге"}
-                  </Typography>
-                  <Chip size="small" label={getServiceRequestStatusLabel(item.status)} />
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }} justifyContent="space-between" sx={{ width: "100%" }}>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
+                      <Typography fontWeight={800}>
+                        {item.subjectType === "FREEFORM"
+                          ? "Свободная заявка"
+                          : item.subjectType === "CATEGORY"
+                            ? "Заявка по категории"
+                            : "Заявка по услуге"}
+                      </Typography>
+                      <Chip size="small" label={getServiceRequestStatusLabel(item.status)} />
+                    </Stack>
+
+                    <Button
+                      component={Link}
+                      href={`/profile/requests/${item.id}`}
+                      size="small"
+                      variant="outlined"
+                      disabled={item.status === "CLOSED"}
+                      sx={{ whiteSpace: "nowrap" }}
+                    >
+                      Обсуждение
+                    </Button>
+                  </Stack>
                 </Stack>
                 <Typography variant="body2" color="text.secondary">
                   Создано: {formatDate(item.createdAt)}

@@ -54,10 +54,10 @@
   - `createdByUserId` / `updatedByUserId`: аудит
 - **`ServiceRequest`**
   - единая сущность для “заявок/объявлений/заказов”
-  - `kind`: `UNLINKED | TEMPLATE | SERVICE`
   - `status`: `NEW | DISCUSSING | LOCKED | ACTIVE | COMPLETED | CANCELLED | CLOSED`
-  - `providerId`: заполняется при взятии в работу (или сразу для `SERVICE`)
-  - `serviceId` / `templateId`: привязка к услуге или шаблону (опционально)
+  - `providerId`: назначенный провайдер (заполняется при взятии в работу или сразу для заявки по услуге)
+  - `serviceId` / `categoryId`: привязка к услуге или категории (опционально)
+  - `requestCityId`: город заявки (если не задан — берём `User.customerCityId`), матчинг в ленте идёт по региону/области
   - `customerUserId`: заказчик (для чата обязателен)
 
 - **`Conversation`** (чат)

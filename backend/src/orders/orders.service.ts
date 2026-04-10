@@ -9,9 +9,7 @@ import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { InternalAuthService } from '../auth/internal-auth.service';
-import {
-  type OrderDto,
-} from './dto/order.dto';
+import { type OrderDto } from './dto/order.dto';
 import type { OrderManagementAction } from '../auth/authorization';
 
 const orderRequestSelect = {
@@ -44,13 +42,17 @@ type OrderScope = {
   providerId?: string | null;
 };
 
-function normalizeOrderStatus(value: unknown): 'ACTIVE' | 'COMPLETED' | 'CANCELLED' {
+function normalizeOrderStatus(
+  value: unknown,
+): 'ACTIVE' | 'COMPLETED' | 'CANCELLED' {
   if (value === 'COMPLETED') return 'COMPLETED';
   if (value === 'CANCELLED') return 'CANCELLED';
   return 'ACTIVE';
 }
 
-function requestRowToOrderDto(row: Prisma.ServiceRequestGetPayload<{ select: typeof orderRequestSelect }>): OrderDto {
+function requestRowToOrderDto(
+  row: Prisma.ServiceRequestGetPayload<{ select: typeof orderRequestSelect }>,
+): OrderDto {
   return {
     id: row.id,
     serviceId: row.serviceId!,
@@ -75,7 +77,9 @@ export class OrdersService {
   ) {}
 
   async getCustomerOrders(customerUserId: string): Promise<OrderDto[]> {
-    const rows = await this.prisma.serviceRequest.findMany({
+    const rows: Prisma.ServiceRequestGetPayload<{
+      select: typeof orderRequestSelect;
+    }>[] = await this.prisma.serviceRequest.findMany({
       where: {
         customerUserId,
         status: { in: ['ACTIVE', 'COMPLETED', 'CANCELLED'] },
@@ -84,11 +88,16 @@ export class OrdersService {
       orderBy: [{ createdAt: 'desc' }],
     });
 
-    return rows.map((row) => requestRowToOrderDto(row as any));
+    return rows.map((row) => requestRowToOrderDto(row));
   }
 
-  async getCustomerOrderById(customerUserId: string, id: string): Promise<OrderDto> {
-    const row = await this.prisma.serviceRequest.findFirst({
+  async getCustomerOrderById(
+    customerUserId: string,
+    id: string,
+  ): Promise<OrderDto> {
+    const row: Prisma.ServiceRequestGetPayload<{
+      select: typeof orderRequestSelect;
+    }> | null = await this.prisma.serviceRequest.findFirst({
       where: {
         id,
         customerUserId,
@@ -101,11 +110,13 @@ export class OrdersService {
       throw new NotFoundException('Order not found');
     }
 
-    return requestRowToOrderDto(row as any);
+    return requestRowToOrderDto(row);
   }
 
   async getOrders(scope?: OrderScope): Promise<OrderDto[]> {
-    const rows = await this.prisma.serviceRequest.findMany({
+    const rows: Prisma.ServiceRequestGetPayload<{
+      select: typeof orderRequestSelect;
+    }>[] = await this.prisma.serviceRequest.findMany({
       where: scope?.providerId
         ? {
             providerId: scope.providerId,
@@ -116,11 +127,13 @@ export class OrdersService {
       orderBy: [{ createdAt: 'desc' }],
     });
 
-    return rows.map((row) => requestRowToOrderDto(row as any));
+    return rows.map((row) => requestRowToOrderDto(row));
   }
 
   async getOrderById(id: string, scope?: OrderScope): Promise<OrderDto> {
-    const row = await this.prisma.serviceRequest.findFirst({
+    const row: Prisma.ServiceRequestGetPayload<{
+      select: typeof orderRequestSelect;
+    }> | null = await this.prisma.serviceRequest.findFirst({
       where: scope?.providerId
         ? {
             id,
@@ -135,7 +148,7 @@ export class OrdersService {
       throw new NotFoundException('Order not found');
     }
 
-    return requestRowToOrderDto(row as any);
+    return requestRowToOrderDto(row);
   }
 
   async getManagementContext(request: Request, action: OrderManagementAction) {
@@ -143,7 +156,10 @@ export class OrdersService {
     try {
       return await this.authService.getOrderManagementContext(userId, action);
     } catch (error) {
-      if (error instanceof UnauthorizedException || error instanceof ForbiddenException) {
+      if (
+        error instanceof UnauthorizedException ||
+        error instanceof ForbiddenException
+      ) {
         throw error;
       }
 

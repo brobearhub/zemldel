@@ -80,7 +80,9 @@ export class CitiesService {
       }
     }
 
-    const deduped = [...byKey.values()].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+    const deduped = [...byKey.values()].sort((a, b) =>
+      a.name.localeCompare(b.name, 'ru'),
+    );
     return deduped.slice(0, limit).map((row) => ({
       id: row.id,
       name: row.name,
@@ -97,4 +99,3 @@ export class CitiesService {
     }));
   }
 }
-

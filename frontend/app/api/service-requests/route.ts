@@ -12,6 +12,9 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => null);
     const response = await fetchBackendAsUser("/service-requests", session.user.id, {
       method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
       body: body ? JSON.stringify(body) : "{}",
     });
     const payload = await response.json().catch(() => ({ error: "Failed to create request" }));

@@ -9,7 +9,6 @@ import { UsersModule } from './users/users.module';
 import { ProvidersModule } from './providers/providers.module';
 import { ChatModule } from './chat/chat.module';
 import { ServiceCategoriesModule } from './service-categories/service-categories.module';
-import { ServiceTemplatesModule } from './service-templates/service-templates.module';
 import { ServiceRequestsModule } from './service-requests/service-requests.module';
 import { CitiesModule } from './cities/cities.module';
 
@@ -19,7 +18,6 @@ import { CitiesModule } from './cities/cities.module';
     AuthModule,
     ServicesModule,
     ServiceCategoriesModule,
-    ServiceTemplatesModule,
     ServiceRequestsModule,
     OrdersModule,
     UsersModule,

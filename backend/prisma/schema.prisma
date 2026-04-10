@@ -33,12 +33,6 @@ enum ServiceStatus {
   ARCHIVED
 }
 
-enum ServiceRequestKind {
-  UNLINKED
-  TEMPLATE
-  SERVICE
-}
-
 enum ServiceRequestStatus {
   NEW
   DISCUSSING
@@ -47,6 +41,15 @@ enum ServiceRequestStatus {
   COMPLETED
   CANCELLED
   CLOSED
+}
+
+enum ServiceRequestPendingInitiator {
+  CUSTOMER
+  PROVIDER
+}
+
+enum ServiceCategoryPlacement {
+  HOME
 }
 
 enum ConversationStatus {
@@ -66,6 +69,7 @@ model City {
 
   customerUsers User[]    @relation("UserCustomerCity")
   providers     Provider[] @relation("ProviderCity")
+  serviceRequests ServiceRequest[] @relation("ServiceRequestCity")
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -82,11 +86,13 @@ model User {
   image            String?
   systemRole       SystemRole       @default(CUSTOMER)
   passwordHash     String?
+  phone            String?
   activeProviderId String?          @db.Uuid
   customerCityId   String?          @db.Uuid
   accounts         Account[]
   sessions         Session[]
   providerMemberships ProviderMember[]
+  providerUserSettings ProviderUserSettings[]
   ownedProviders   Provider[]       @relation("ProviderOwner")
   createdServices  Service[]        @relation("ServiceCreatedBy")
   updatedServices  Service[]        @relation("ServiceUpdatedBy")
@@ -150,9 +156,11 @@ model Provider {
   cityId      String?        @db.Uuid
   ownerUser   User?          @relation("ProviderOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
   members     ProviderMember[]
+  userSettings ProviderUserSettings[]
   services    Service[]
   conversations Conversation[]
   serviceRequests ServiceRequest[]
+  pendingServiceRequests ServiceRequest[] @relation("ServiceRequestPendingProvider")
   activeUsers User[]         @relation("ActiveProvider")
   city        City?          @relation("ProviderCity", fields: [cityId], references: [id], onDelete: SetNull)
   createdAt   DateTime       @default(now())
@@ -179,18 +187,34 @@ model ProviderMember {
   @@index([providerId, role, status])
 }
 
+model ProviderUserSettings {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  providerId     String   @db.Uuid
+  proInboxFilters Json?
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider       Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, providerId])
+  @@index([userId])
+  @@index([providerId])
+}
+
 model ServiceCategory {
   id        String            @id @default(uuid()) @db.Uuid
   name      String
   slug      String            @unique
   parentId  String?           @db.Uuid
   sortOrder Int?
+  placements ServiceCategoryPlacement[] @default([])
 
   parent    ServiceCategory?  @relation("ServiceCategoryParent", fields: [parentId], references: [id], onDelete: SetNull)
   children  ServiceCategory[] @relation("ServiceCategoryParent")
 
-  templates ServiceTemplate[]
   services  Service[]
+  serviceRequests ServiceRequest[]
 
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
@@ -199,33 +223,18 @@ model ServiceCategory {
   @@index([slug])
 }
 
-model ServiceTemplate {
-  id           String          @id @default(uuid()) @db.Uuid
-  categoryId   String          @db.Uuid
-  title        String
-  description  String?
-  paletteColor String?
-  icon         String?
-
-  category     ServiceCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  services     Service[]
-  serviceRequests ServiceRequest[]
-
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-
-  @@index([categoryId])
-}
-
 model ServiceRequest {
   id             String              @id @default(uuid()) @db.Uuid
-  kind           ServiceRequestKind
   status         ServiceRequestStatus @default(NEW)
 
   serviceId      String?             @db.Uuid
-  templateId     String?             @db.Uuid
+  categoryId     String?             @db.Uuid
   providerId     String?             @db.Uuid
+  pendingProviderId String?          @db.Uuid
+  pendingInitiator  ServiceRequestPendingInitiator?
+  pendingAt         DateTime?
   customerUserId String?             @db.Uuid
+  requestCityId  String?             @db.Uuid
 
   customerName   String?
   customerEmail  String?
@@ -236,19 +245,22 @@ model ServiceRequest {
   lockedAt       DateTime?
 
   service        Service?            @relation(fields: [serviceId], references: [id], onDelete: SetNull)
-  template       ServiceTemplate?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  category       ServiceCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   provider       Provider?            @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  pendingProvider Provider?          @relation("ServiceRequestPendingProvider", fields: [pendingProviderId], references: [id], onDelete: SetNull)
   customerUser   User?               @relation(fields: [customerUserId], references: [id], onDelete: SetNull)
+  requestCity    City?               @relation("ServiceRequestCity", fields: [requestCityId], references: [id], onDelete: SetNull)
   conversations  Conversation[]
 
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
 
-  @@index([kind, status])
   @@index([customerUserId, status])
   @@index([providerId, status])
-  @@index([templateId, status])
+  @@index([categoryId, status])
   @@index([serviceId, status])
+  @@index([pendingProviderId, status])
+  @@index([requestCityId, status])
 }
 
 model Service {
@@ -268,14 +280,12 @@ model Service {
   badge           String?
   paletteColor    String?
   icon            String?
-  templateId      String?   @db.Uuid
   providerId      String    @db.Uuid
   createdByUserId String?   @db.Uuid
   updatedByUserId String?   @db.Uuid
   publishedAt     DateTime?
   provider        Provider  @relation(fields: [providerId], references: [id], onDelete: Cascade)
   category        ServiceCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  template        ServiceTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   createdByUser   User?     @relation("ServiceCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
   updatedByUser   User?     @relation("ServiceUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
   serviceRequests ServiceRequest[]
@@ -283,7 +293,6 @@ model Service {
   updatedAt       DateTime  @updatedAt
 
   @@index([categoryId])
-  @@index([templateId])
   @@index([providerId])
   @@index([status])
   @@index([providerId, status])

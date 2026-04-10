@@ -1,4 +1,4 @@
-export type ServiceRequestKind = "UNLINKED" | "TEMPLATE" | "SERVICE";
+export type ServiceRequestSubjectType = "FREEFORM" | "CATEGORY" | "SERVICE";
 export type ServiceRequestStatus =
   | "NEW"
   | "DISCUSSING"
@@ -8,13 +8,21 @@ export type ServiceRequestStatus =
   | "CANCELLED"
   | "CLOSED";
 
+export type ServiceRequestPendingInitiator = "CUSTOMER" | "PROVIDER";
+
 export type ServiceRequestCustomerDto = {
   id: string;
-  kind: ServiceRequestKind;
+  subjectType: ServiceRequestSubjectType;
   status: ServiceRequestStatus;
+  serviceId: string | null;
+  categoryId: string | null;
   message: string | null;
   location: string | null;
   providerId: string | null;
+  pendingProviderId: string | null;
+  pendingInitiator: ServiceRequestPendingInitiator | null;
+  pendingAt: string | null;
+  requestCityId: string | null;
   lockedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -22,15 +30,19 @@ export type ServiceRequestCustomerDto = {
 
 export type ServiceRequestProDto = {
   id: string;
-  kind: ServiceRequestKind;
-  templateId: string | null;
-  templateTitle: string | null;
+  subjectType: ServiceRequestSubjectType;
   serviceId: string | null;
   serviceTitle: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
   message: string | null;
   location: string | null;
   status: ServiceRequestStatus;
   providerId: string | null;
+  pendingProviderId: string | null;
+  pendingInitiator: ServiceRequestPendingInitiator | null;
+  pendingAt: string | null;
+  requestCityId: string | null;
   lockedAt: string | null;
   conversationsCount: number;
   isLocked: boolean;

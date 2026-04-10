@@ -145,11 +145,17 @@ export function Chat({
   loading,
 }: Props) {
   return (
-    <Stack spacing={1.5} sx={{ height: "100%", minHeight: 360 }}>
+    <Stack
+      spacing={1.5}
+      sx={{
+        height: "100%",
+        minHeight: 0,
+      }}
+    >
       <Box
         sx={{
           flex: 1,
-          minHeight: 200,
+          minHeight: 0,
           overflow: "auto",
           px: 0.5,
           display: "flex",

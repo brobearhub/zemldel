@@ -12,8 +12,8 @@ type Props = {
 };
 
 function pickSubtitle(item: ServiceRequestProDto) {
-  if (item.kind === "SERVICE") return item.serviceTitle ?? "Заявка по услуге";
-  if (item.kind === "TEMPLATE") return item.templateTitle ?? "Заявка по шаблону";
+  if (item.subjectType === "SERVICE") return item.serviceTitle ?? "Заявка по услуге";
+  if (item.subjectType === "CATEGORY") return item.categoryName ? `Категория: ${item.categoryName}` : "Заявка по категории";
   return item.location ? `Локация: ${item.location}` : "Свободная заявка";
 }
 
@@ -51,11 +51,7 @@ export default async function ProRequestDetailPage({ params }: Props) {
       <ChatBodyWithSidePanelLayout
         middle={<ProRequestDetails initialRequest={req} />}
         right={
-          req.isLocked ? (
-            <Box>
-              <Typography color="text.secondary">Заявка уже взята в работу. Чат недоступен.</Typography>
-            </Box>
-          ) : req.status === "CLOSED" ? (
+          req.status === "CLOSED" ? (
             <Box>
               <Typography color="text.secondary">Заявка закрыта клиентом. Чат недоступен.</Typography>
             </Box>

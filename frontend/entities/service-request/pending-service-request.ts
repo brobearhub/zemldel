@@ -15,14 +15,24 @@ export type PendingServiceRequestDraft =
       customerEmail: string | null;
       customerPhone: string | null;
       message: string | null;
+      requestCityId: string | null;
       state: "pending" | "submitting";
       updatedAt: number;
       lastError: string | null;
     }
   | {
-      kind: "TEMPLATE";
-      templateId: string;
+      kind: "CATEGORY";
+      categoryId: string;
       message: string | null;
+      requestCityId: string | null;
+      state: "pending" | "submitting";
+      updatedAt: number;
+      lastError: string | null;
+    }
+  | {
+      kind: "FREEFORM";
+      message: string | null;
+      requestCityId: string | null;
       state: "pending" | "submitting";
       updatedAt: number;
       lastError: string | null;
@@ -52,17 +62,29 @@ export function readPendingServiceRequestDraft(): PendingServiceRequestDraft | n
         customerEmail: normalizeNullableString((parsed as any).customerEmail ?? null),
         customerPhone: normalizeNullableString((parsed as any).customerPhone ?? null),
         message: normalizeNullableString((parsed as any).message ?? null),
+        requestCityId: normalizeNullableString((parsed as any).requestCityId ?? null),
         state: (parsed as any).state === "submitting" ? "submitting" : "pending",
         updatedAt: typeof (parsed as any).updatedAt === "number" ? (parsed as any).updatedAt : Date.now(),
         lastError: normalizeNullableString((parsed as any).lastError ?? null),
       };
     }
-    if (parsed.kind === "TEMPLATE") {
-      if (typeof (parsed as any).templateId !== "string" || !(parsed as any).templateId) return null;
+    if (parsed.kind === "CATEGORY") {
+      if (typeof (parsed as any).categoryId !== "string" || !(parsed as any).categoryId) return null;
       return {
-        kind: "TEMPLATE",
-        templateId: String((parsed as any).templateId),
+        kind: "CATEGORY",
+        categoryId: String((parsed as any).categoryId),
         message: normalizeNullableString((parsed as any).message ?? null),
+        requestCityId: normalizeNullableString((parsed as any).requestCityId ?? null),
+        state: (parsed as any).state === "submitting" ? "submitting" : "pending",
+        updatedAt: typeof (parsed as any).updatedAt === "number" ? (parsed as any).updatedAt : Date.now(),
+        lastError: normalizeNullableString((parsed as any).lastError ?? null),
+      };
+    }
+    if (parsed.kind === "FREEFORM") {
+      return {
+        kind: "FREEFORM",
+        message: normalizeNullableString((parsed as any).message ?? null),
+        requestCityId: normalizeNullableString((parsed as any).requestCityId ?? null),
         state: (parsed as any).state === "submitting" ? "submitting" : "pending",
         updatedAt: typeof (parsed as any).updatedAt === "number" ? (parsed as any).updatedAt : Date.now(),
         lastError: normalizeNullableString((parsed as any).lastError ?? null),
@@ -91,7 +113,11 @@ export function savePendingServiceRequestDraft(
         "state" | "updatedAt" | "lastError"
       >
     | Omit<
-        Extract<PendingServiceRequestDraft, { kind: "TEMPLATE" }>,
+        Extract<PendingServiceRequestDraft, { kind: "CATEGORY" }>,
+        "state" | "updatedAt" | "lastError"
+      >
+    | Omit<
+        Extract<PendingServiceRequestDraft, { kind: "FREEFORM" }>,
         "state" | "updatedAt" | "lastError"
       >
 ) {
@@ -103,6 +129,16 @@ export function savePendingServiceRequestDraft(
       customerEmail: normalizeNullableString(draft.customerEmail),
       customerPhone: normalizeNullableString(draft.customerPhone),
       message: normalizeNullableString(draft.message),
+      requestCityId: normalizeNullableString(draft.requestCityId),
+      state: "pending",
+      updatedAt: Date.now(),
+      lastError: null,
+    };
+  } else if (draft.kind === "CATEGORY") {
+    nextDraft = {
+      ...draft,
+      message: normalizeNullableString(draft.message),
+      requestCityId: normalizeNullableString(draft.requestCityId),
       state: "pending",
       updatedAt: Date.now(),
       lastError: null,
@@ -111,6 +147,7 @@ export function savePendingServiceRequestDraft(
     nextDraft = {
       ...draft,
       message: normalizeNullableString(draft.message),
+      requestCityId: normalizeNullableString(draft.requestCityId),
       state: "pending",
       updatedAt: Date.now(),
       lastError: null,
@@ -142,15 +179,23 @@ export function isPendingServiceRequestSubmitting(draft: PendingServiceRequestDr
   return Date.now() - draft.updatedAt < SUBMITTING_TTL_MS;
 }
 
-export function buildServiceRequestAuthHref(mode: "signin" | "signup", subject: { kind: "SERVICE"; serviceId: string } | { kind: "TEMPLATE"; templateId: string }) {
+export function buildServiceRequestAuthHref(
+  mode: "signin" | "signup",
+  subject:
+    | { kind: "SERVICE"; serviceId: string }
+    | { kind: "CATEGORY"; categoryId: string }
+    | { kind: "FREEFORM" }
+) {
   const url = new URL(mode === "signin" ? "/signin" : "/signup", "http://local");
   url.searchParams.set("intent", SERVICE_REQUEST_INTENT);
   if (subject.kind === "SERVICE") {
     url.searchParams.set("kind", "SERVICE");
     url.searchParams.set("serviceId", subject.serviceId);
+  } else if (subject.kind === "CATEGORY") {
+    url.searchParams.set("kind", "CATEGORY");
+    url.searchParams.set("categoryId", subject.categoryId);
   } else {
-    url.searchParams.set("kind", "TEMPLATE");
-    url.searchParams.set("templateId", subject.templateId);
+    url.searchParams.set("kind", "FREEFORM");
   }
   url.searchParams.set("returnTo", SERVICE_REQUESTS_PROFILE_RESUME_URL);
   return `${url.pathname}${url.search}`;

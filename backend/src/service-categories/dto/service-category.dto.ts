@@ -1,5 +1,14 @@
 import { Expose, Transform } from 'class-transformer';
-import { IsInt, IsOptional, IsString, MinLength, ValidateIf } from 'class-validator';
+import {
+  IsArray,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  MinLength,
+  ValidateIf,
+} from 'class-validator';
+import type { ServiceCategoryPlacement } from '@prisma/client';
 
 function trimOrNull(value: unknown): string | null | undefined {
   if (value === undefined) return undefined;
@@ -7,6 +16,10 @@ function trimOrNull(value: unknown): string | null | undefined {
   if (typeof value !== 'string') return undefined;
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : null;
+}
+
+function trimOrSame(value: unknown): unknown {
+  return typeof value === 'string' ? value.trim() : value;
 }
 
 export class ServiceCategoryDto {
@@ -31,17 +44,26 @@ export class ServiceCategoryDto {
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsInt()
   sortOrder!: number | null;
+
+  @Expose()
+  @IsArray()
+  @IsEnum(['HOME'], { each: true })
+  placements!: ServiceCategoryPlacement[];
 }
 
 export class ServiceCategoryCreateDto {
   @Expose()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value), { toClassOnly: true })
+  @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
+    toClassOnly: true,
+  })
   @IsString()
   @MinLength(1)
   name!: string;
 
   @Expose()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value), { toClassOnly: true })
+  @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
+    toClassOnly: true,
+  })
   @IsString()
   @MinLength(1)
   slug!: string;
@@ -55,23 +77,38 @@ export class ServiceCategoryCreateDto {
 
   @Expose()
   @IsOptional()
-  @Transform(({ value }) => (value === null ? null : value), { toClassOnly: true })
+  @Transform(
+    ({ value }: { value: unknown }) => (value === null ? null : value),
+    {
+      toClassOnly: true,
+    },
+  )
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsInt()
   sortOrder?: number | null;
+
+  @Expose()
+  @IsOptional()
+  @IsArray()
+  @IsEnum(['HOME'], { each: true })
+  placements?: ServiceCategoryPlacement[];
 }
 
 export class ServiceCategoryPatchDto {
   @Expose()
   @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value), { toClassOnly: true })
+  @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
+    toClassOnly: true,
+  })
   @IsString()
   @MinLength(1)
   name?: string;
 
   @Expose()
   @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value), { toClassOnly: true })
+  @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
+    toClassOnly: true,
+  })
   @IsString()
   @MinLength(1)
   slug?: string;
@@ -85,9 +122,19 @@ export class ServiceCategoryPatchDto {
 
   @Expose()
   @IsOptional()
-  @Transform(({ value }) => (value === null ? null : value), { toClassOnly: true })
+  @Transform(
+    ({ value }: { value: unknown }) => (value === null ? null : value),
+    {
+      toClassOnly: true,
+    },
+  )
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsInt()
   sortOrder?: number | null;
-}
 
+  @Expose()
+  @IsOptional()
+  @IsArray()
+  @IsEnum(['HOME'], { each: true })
+  placements?: ServiceCategoryPlacement[];
+}

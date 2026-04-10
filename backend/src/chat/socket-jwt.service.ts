@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import * as jwt from 'jsonwebtoken';
 
 export type SocketJwtPayload = {
@@ -10,7 +14,9 @@ export class SocketJwtService {
   private getSecret() {
     const secret = process.env.SOCKET_JWT_SECRET;
     if (!secret) {
-      throw new InternalServerErrorException('SOCKET_JWT_SECRET is not configured');
+      throw new InternalServerErrorException(
+        'SOCKET_JWT_SECRET is not configured',
+      );
     }
     return secret;
   }

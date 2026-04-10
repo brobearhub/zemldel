@@ -1,12 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { Stack } from "@mui/material";
 import { getActiveMembership } from "@/core/auth/authorization";
-import type { OrderDto } from "@/entities/order";
-import type { ServiceDto } from "@/entities/service";
 import type { ServiceRequestProDto } from "@/entities/service-request";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/lib/backend-api";
 import { getServerAuthSession } from "@/lib/auth";
-import { ProOverviewDashboard } from "@/widgets/pro-dashboard/ui/ProOverviewDashboard";
 import { ProfessionalWorkspacePanel } from "@/widgets/pro-dashboard/ui/ProfessionalWorkspacePanel";
 import { ProRequestsFeed } from "@/widgets/pro-requests/ui/ProRequestsFeed";
 
@@ -28,28 +25,14 @@ export default async function ProDashboardPage() {
   }
 
   try {
-    const [services, orders, feed] = await Promise.all([
-      fetchBackendJsonAsUser<ServiceDto[]>("/pro/services", session.user.id),
-      fetchBackendJsonAsUser<OrderDto[]>("/pro/orders", session.user.id),
-      fetchBackendJsonAsUser<ServiceRequestProDto[]>("/pro/service-requests/feed", session.user.id),
-    ]);
-
-    const sortByRecent = <T extends { updatedAt: string; createdAt?: string }>(items: T[]) =>
-      [...items].sort((left, right) => {
-        const leftValue = new Date(left.updatedAt ?? left.createdAt).getTime();
-        const rightValue = new Date(right.updatedAt ?? right.createdAt).getTime();
-        return rightValue - leftValue;
-      });
+    const feed = await fetchBackendJsonAsUser<ServiceRequestProDto[]>(
+      "/pro/service-requests/inbox?status=NEW&categoryId=null",
+      session.user.id
+    );
 
     return (
       <Stack spacing={3}>
         <ProRequestsFeed initialItems={feed} />
-        <ProOverviewDashboard
-          provider={activeMembership}
-          services={services}
-          requests={sortByRecent(feed)}
-          orders={sortByRecent(orders)}
-        />
       </Stack>
     );
   } catch (error) {

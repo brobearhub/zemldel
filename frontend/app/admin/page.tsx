@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Box, Container, Paper, Stack, Typography } from "@mui/material";
 import BuildIcon from "@mui/icons-material/Build";
 import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
-import ViewModuleOutlinedIcon from "@mui/icons-material/ViewModuleOutlined";
 
 export default function AdminIndexPage() {
   return (
@@ -67,29 +66,6 @@ export default function AdminIndexPage() {
                   <Typography sx={{ fontWeight: 900 }}>Категории</Typography>
                   <Typography variant="body2" sx={{ color: "text.secondary" }}>
                     Дерево категорий услуг
-                  </Typography>
-                </Box>
-              </Paper>
-            </Link>
-
-            <Link href="/admin/service-templates/list" style={{ textDecoration: "none" }}>
-              <Paper
-                variant="outlined"
-                sx={{
-                  p: 2.5,
-                  borderRadius: 2,
-                  color: "inherit",
-                  display: "flex",
-                  gap: 2,
-                  alignItems: "center",
-                  "&:hover": { bgcolor: "action.hover" },
-                }}
-              >
-                <ViewModuleOutlinedIcon color="primary" />
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontWeight: 900 }}>Шаблонные услуги</Typography>
-                  <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                    Каталог платформенных шаблонов
                   </Typography>
                 </Box>
               </Paper>

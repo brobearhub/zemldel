@@ -8,7 +8,9 @@ export class CitiesController {
   @Get('suggest')
   async suggest(@Query('q') q = '', @Query('limit') limit = '10') {
     const limitNumber = Number(limit);
-    return this.citiesService.suggest(String(q ?? ''), Number.isFinite(limitNumber) ? limitNumber : 10);
+    return this.citiesService.suggest(
+      String(q ?? ''),
+      Number.isFinite(limitNumber) ? limitNumber : 10,
+    );
   }
 }
-

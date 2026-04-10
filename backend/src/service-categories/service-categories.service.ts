@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import type { ServiceCategoryCreateDto, ServiceCategoryPatchDto } from './dto/service-category.dto';
+import type {
+  ServiceCategoryCreateDto,
+  ServiceCategoryPatchDto,
+} from './dto/service-category.dto';
 
 const select = {
   id: true,
@@ -9,14 +12,18 @@ const select = {
   slug: true,
   parentId: true,
   sortOrder: true,
+  placements: true,
 } satisfies Prisma.ServiceCategorySelect;
 
 @Injectable()
 export class ServiceCategoriesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  list() {
+  list(filter?: { placement?: 'HOME' }) {
     return this.prisma.serviceCategory.findMany({
+      where: filter?.placement
+        ? { placements: { has: filter.placement } }
+        : undefined,
       select,
       orderBy: [{ parentId: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }],
     });
@@ -33,6 +40,7 @@ export class ServiceCategoriesService {
         slug: input.slug,
         parentId: input.parentId ?? null,
         sortOrder: input.sortOrder ?? null,
+        placements: input.placements ?? [],
       },
       select,
     });
@@ -45,7 +53,12 @@ export class ServiceCategoriesService {
         ...(input.name !== undefined ? { name: input.name } : null),
         ...(input.slug !== undefined ? { slug: input.slug } : null),
         ...(input.parentId !== undefined ? { parentId: input.parentId } : null),
-        ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : null),
+        ...(input.sortOrder !== undefined
+          ? { sortOrder: input.sortOrder }
+          : null),
+        ...(input.placements !== undefined
+          ? { placements: input.placements }
+          : null),
       },
       select,
     });
@@ -55,4 +68,3 @@ export class ServiceCategoriesService {
     await this.prisma.serviceCategory.delete({ where: { id } });
   }
 }
-

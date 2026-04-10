@@ -45,7 +45,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           ? client.handshake.auth.token
           : undefined;
       const { sub: userId } = this.socketJwt.verify(token);
-      client.data.userId = userId;
+      const data = client.data as unknown as { userId?: string };
+      data.userId = userId;
       void client.join(`${USER_PREFIX}${userId}`);
     } catch (error) {
       this.logger.warn(`Socket connection rejected: ${error}`);
@@ -54,7 +55,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   handleDisconnect(client: Socket) {
-    client.data.userId = undefined;
+    const data = client.data as unknown as { userId?: string };
+    data.userId = undefined;
   }
 
   @SubscribeMessage('joinConversation')
@@ -62,7 +64,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
     @MessageBody() body: JoinConversationPayload,
   ) {
-    const userId = client.data.userId as string | undefined;
+    const data = client.data as unknown as { userId?: string };
+    const userId = data.userId;
     if (!userId) {
       return { ok: false, error: 'Unauthorized' };
     }
@@ -89,7 +92,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   emitMessageCreated(conversationId: string, payload: unknown) {
-    this.server.to(`${CONVERSATION_PREFIX}${conversationId}`).emit('message.created', payload);
+    this.server
+      .to(`${CONVERSATION_PREFIX}${conversationId}`)
+      .emit('message.created', payload);
   }
 
   emitUnreadHint(userId: string, payload: unknown) {

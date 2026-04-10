@@ -4,10 +4,13 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   MenuItem,
   Stack,
   TextField,
@@ -21,6 +24,7 @@ export type ServiceCategoryRow = {
   slug: string;
   parentId: string | null;
   sortOrder: number | null;
+  placements: Array<"HOME">;
 };
 
 function normalizeNullableString(v: string): string | null {
@@ -79,17 +83,20 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
     slug: string;
     parentId: string;
     sortOrder: string;
+    showOnHome: boolean;
   }>({
     name: "",
     slug: "",
     parentId: "",
     sortOrder: "",
+    showOnHome: false,
   });
 
   const [editOpen, setEditOpen] = useState(false);
   const [editDraft, setEditDraft] = useState<ServiceCategoryRow | null>(null);
   const [editParentDraft, setEditParentDraft] = useState<string>("");
   const [editSortOrderDraft, setEditSortOrderDraft] = useState<string>("");
+  const [editShowOnHomeDraft, setEditShowOnHomeDraft] = useState<boolean>(false);
 
   const flatTree = useMemo(() => buildTree(categories), [categories]);
   const categoriesById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
@@ -113,13 +120,14 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
           slug: createForm.slug,
           parentId: normalizeNullableString(createForm.parentId),
           sortOrder: normalizeNullableInt(createForm.sortOrder),
+          placements: createForm.showOnHome ? ["HOME"] : [],
         }),
       });
       if (!res.ok) {
         const payload = (await res.json().catch(() => null)) as { error?: string } | null;
         throw new Error(payload?.error || "Failed to create category");
       }
-      setCreateForm({ name: "", slug: "", parentId: "", sortOrder: "" });
+      setCreateForm({ name: "", slug: "", parentId: "", sortOrder: "", showOnHome: false });
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Ошибка");
@@ -132,6 +140,7 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
     setEditDraft({ ...row });
     setEditParentDraft(row.parentId ?? "");
     setEditSortOrderDraft(row.sortOrder === null ? "" : String(row.sortOrder));
+    setEditShowOnHomeDraft(row.placements.includes("HOME"));
     setEditOpen(true);
   }
 
@@ -148,6 +157,7 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
           slug: editDraft.slug,
           parentId: normalizeNullableString(editParentDraft),
           sortOrder: normalizeNullableInt(editSortOrderDraft),
+          placements: editShowOnHomeDraft ? ["HOME"] : [],
         }),
       });
       if (!res.ok) {
@@ -225,6 +235,16 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
             size="small"
             sx={{ minWidth: 160 }}
           />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={createForm.showOnHome}
+                onChange={(e) => setCreateForm((s) => ({ ...s, showOnHome: e.target.checked }))}
+              />
+            }
+            label="Показывать на главной"
+            sx={{ mt: { xs: 0, md: 0.5 } }}
+          />
           <Button
             variant="contained"
             onClick={onCreate}
@@ -263,6 +283,11 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
                     {parent ? ` · parent: ${parent.slug}` : ""}
                     {node.sortOrder !== null ? ` · sort: ${node.sortOrder}` : ""}
                   </Typography>
+                  {node.placements.includes("HOME") ? (
+                    <Box sx={{ mt: 1 }}>
+                      <Chip size="small" label="HOME" color="primary" variant="outlined" />
+                    </Box>
+                  ) : null}
                 </Box>
                 <Stack direction="row" spacing={1}>
                   <Button size="small" variant="outlined" onClick={() => openEdit(node)} disabled={busy}>
@@ -323,6 +348,10 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
                 value={editSortOrderDraft}
                 onChange={(e) => setEditSortOrderDraft(e.target.value)}
                 size="small"
+              />
+              <FormControlLabel
+                control={<Checkbox checked={editShowOnHomeDraft} onChange={(e) => setEditShowOnHomeDraft(e.target.checked)} />}
+                label="Показывать на главной"
               />
             </Stack>
           ) : null}

@@ -6,7 +6,6 @@ export type {
   ServiceCardItem,
   ServiceRecord,
   ServiceCategory,
-  ServiceTemplateRef,
   ServiceIconKey,
   ServicePaletteColor,
 } from "./types";

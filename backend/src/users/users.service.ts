@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 
@@ -70,7 +74,8 @@ export class UsersService {
         throw new NotFoundException('City not found');
       }
       const ok =
-        (exists.typeName === 'г' && (exists.level === 5 || exists.level === 1)) ||
+        (exists.typeName === 'г' &&
+          (exists.level === 5 || exists.level === 1)) ||
         (exists.typeName === 'г.о.' && exists.level === 3);
       if (!ok) {
         throw new BadRequestException('Invalid city');

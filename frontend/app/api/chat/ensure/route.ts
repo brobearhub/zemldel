@@ -15,8 +15,31 @@ export async function POST(request: Request) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body ?? {}),
     });
-    const payload = await response.json().catch(() => ({ error: "Failed to ensure chat" }));
-    return NextResponse.json(payload, { status: response.status });
+    const payload = (await response.json().catch(() => null)) as
+      | { error?: unknown; message?: unknown }
+      | null;
+
+    if (response.ok) {
+      return NextResponse.json(payload ?? {}, { status: response.status });
+    }
+
+    const payloadError =
+      payload && typeof payload === "object" && "error" in payload ? payload.error : undefined;
+    const payloadMessage =
+      payload && typeof payload === "object" && "message" in payload ? payload.message : undefined;
+
+    const derived =
+      typeof payloadError === "string" && payloadError && payloadError !== "Forbidden"
+        ? payloadError
+        : typeof payloadMessage === "string" && payloadMessage
+          ? payloadMessage
+          : Array.isArray(payloadMessage) && payloadMessage.length > 0
+            ? String(payloadMessage[0])
+            : typeof payloadError === "string" && payloadError
+              ? payloadError
+              : "Чат недоступен";
+
+    return NextResponse.json({ error: derived }, { status: response.status });
   } catch (error) {
     console.error("Error ensuring chat:", error);
     return NextResponse.json({ error: "Failed to ensure chat" }, { status: 500 });

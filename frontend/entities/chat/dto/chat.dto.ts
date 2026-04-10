@@ -31,6 +31,14 @@ export type ChatEnsureResponse = {
   messages: ChatMessageDto[];
 };
 
+export type ChatServiceRequestConversationListItemDto = {
+  conversationId: string;
+  providerId: string;
+  providerName: string;
+  lastMessageAt: string | null;
+  lastSnippet: string | null;
+};
+
 export type ChatPostMessageResponse = {
   message: ChatMessageDto;
   alreadyExisted: boolean;

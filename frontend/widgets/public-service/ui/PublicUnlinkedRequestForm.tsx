@@ -1,18 +1,41 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Alert, Button, Paper, Stack, TextField, Typography } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Alert,
+  Autocomplete,
+  Button,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
+import type { CitySuggestItemDto } from "@/entities/city";
+import { CityAutocomplete } from "@/shared/ui/CityAutocomplete";
+import { useAppSelector } from "@/core/store/hooks";
+import {
+  SERVICE_REQUESTS_PROFILE_RESUME_URL,
+  buildServiceRequestAuthHref,
+  savePendingServiceRequestDraft,
+} from "@/entities/service-request";
 
 type Props = {
   isAuthenticated: boolean;
+  categories?: Array<{ id: string; name: string }>;
+  initialCategory?: { id: string; name: string } | null;
+  variant?: "card" | "bare";
 };
 
 type FormState = {
   message: string;
-  location: string;
   cadastralBlock: string;
+  city: CitySuggestItemDto | null;
+  category: { id: string; name: string } | null;
 };
 
 function normalizeNullableString(value: string) {
@@ -33,35 +56,75 @@ function buildCadastralNumber(raw: string): string | null {
   return normalized.length > 0 ? normalized : null;
 }
 
-function composeMessage(message: string, cadastralNumber: string | null) {
+function composeMessage(message: string, extras: { cadastralNumber?: string | null }) {
   const msg = message.trim();
   const parts: string[] = [];
   if (msg) parts.push(msg);
-  if (cadastralNumber) parts.push(`Кадастровый номер: ${cadastralNumber}`);
+  if (extras.cadastralNumber) parts.push(`Кадастровый номер: ${extras.cadastralNumber}`);
   return parts.join("\n\n");
 }
 
-export function PublicUnlinkedRequestForm({ isAuthenticated }: Props) {
+function mapCustomerCityToSuggest(
+  city: { id: string; name: string; regionCode: string; regionName: string } | null | undefined
+): CitySuggestItemDto | null {
+  if (!city) return null;
+  return {
+    id: city.id,
+    name: city.name,
+    regionCode: city.regionCode,
+    regionName: city.regionName,
+    displayName: `г ${city.name}, ${city.regionName}`,
+  };
+}
+
+export function PublicUnlinkedRequestForm({
+  isAuthenticated,
+  categories = [],
+  initialCategory = null,
+  variant = "card",
+}: Props) {
   const router = useRouter();
-  const [form, setForm] = useState<FormState>({ message: "", location: "", cadastralBlock: "" });
+
+  const { status, user } = useAppSelector((s) => s.auth);
+  const customerCity = useMemo(() => mapCustomerCityToSuggest(user?.customerCity), [user?.customerCity]);
+  const didInitCity = useRef(false);
+
+  const [form, setForm] = useState<FormState>(() => ({
+    message: "",
+    cadastralBlock: "",
+    city: null,
+    category: initialCategory,
+  }));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [optionalExpanded, setOptionalExpanded] = useState(false);
+
+  useEffect(() => {
+    if (didInitCity.current) return;
+    if (!customerCity) return;
+    setForm((prev) => (prev.city ? prev : { ...prev, city: customerCity }));
+    didInitCity.current = true;
+  }, [customerCity]);
 
   const validationError = useMemo(() => {
-    if (form.message.trim().length > 0 && form.message.trim().length < 10) {
-      return "Опишите задачу чуть подробнее (минимум 10 символов).";
+    if (!form.city) {
+      return "Укажите город.";
     }
-    if (form.location.trim().length > 0 && form.location.trim().length < 2) {
-      return "Укажите локацию (минимум 2 символа).";
+    const msg = form.message.trim();
+    if (!msg) {
+      return "Сообщение обязательно.";
+    }
+    const minLen = form.category ? 3 : 10;
+    if (msg.length < minLen) {
+      return minLen === 3
+        ? "Опишите задачу чуть подробнее (минимум 3 символа)."
+        : "Опишите задачу чуть подробнее (минимум 10 символов).";
     }
     return null;
-  }, [form.location, form.message]);
+  }, [form.category, form.city, form.message]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isAuthenticated) {
-      return;
-    }
     if (validationError) {
       setError(validationError);
       return;
@@ -70,21 +133,39 @@ export function PublicUnlinkedRequestForm({ isAuthenticated }: Props) {
     setError(null);
     try {
       const cadastralNumber = buildCadastralNumber(form.cadastralBlock);
-      const composedMessage = composeMessage(form.message, cadastralNumber);
+      const requestCityId = form.city?.id ?? null;
 
-      const response = await fetch("/api/service-requests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const category = form.category;
+      if (category) {
+        const composedMessage = composeMessage(form.message, { cadastralNumber });
+
+        savePendingServiceRequestDraft({
+          kind: "CATEGORY",
+          categoryId: category.id,
           message: normalizeNullableString(composedMessage),
-          location: normalizeNullableString(form.location),
-        }),
-      });
-      const payload = (await response.json().catch(() => null)) as { id?: string; error?: string } | null;
-      if (!response.ok) {
-        throw new Error(payload?.error ?? "Не удалось создать заявку");
+          requestCityId,
+        });
+
+        if (!isAuthenticated) {
+          router.push(buildServiceRequestAuthHref("signup", { kind: "CATEGORY", categoryId: category.id }));
+        } else {
+          router.push(SERVICE_REQUESTS_PROFILE_RESUME_URL);
+        }
+        return;
       }
-      router.push("/profile");
+
+      const composedMessage = composeMessage(form.message, { cadastralNumber });
+      savePendingServiceRequestDraft({
+        kind: "FREEFORM",
+        message: normalizeNullableString(composedMessage),
+        requestCityId,
+      });
+
+      if (!isAuthenticated) {
+        router.push(buildServiceRequestAuthHref("signup", { kind: "FREEFORM" }));
+      } else {
+        router.push(SERVICE_REQUESTS_PROFILE_RESUME_URL);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось создать заявку");
     } finally {
@@ -92,62 +173,112 @@ export function PublicUnlinkedRequestForm({ isAuthenticated }: Props) {
     }
   }
 
-  return (
-    <Paper variant="outlined" sx={{ p: 3 }}>
-      <Stack spacing={2} component="form" onSubmit={handleSubmit}>
+  const content = (
+    <Stack spacing={2} component="form" onSubmit={handleSubmit}>
+      {variant === "card" ? (
         <Stack spacing={0.5}>
           <Typography variant="h5" fontWeight={900}>
             Нужна помощь? Создайте заявку
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Заявка появится в ленте у провайдеров. Вы сможете обсудить детали в чате и выбрать исполнителя.
+            {isAuthenticated
+              ? "Специалисты свяжутся с вами в ближайшее время."
+              : "Чтобы создать заявку, нужно зарегистрироваться или войти. После этого система продолжит оформление автоматически."}
           </Typography>
         </Stack>
+      ) : (
+        <Typography variant="body2" color="text.secondary">
+          {isAuthenticated
+            ? "Специалисты свяжутся с вами в ближайшее время."
+            : "Чтобы создать заявку, нужно зарегистрироваться или войти. После этого система продолжит оформление автоматически."}
+        </Typography>
+      )}
 
-        {validationError && !error ? <Alert severity="info">{validationError}</Alert> : null}
-        {error ? <Alert severity="error">{error}</Alert> : null}
+      {validationError && !error ? <Alert severity="info">{validationError}</Alert> : null}
+      {error ? <Alert severity="error">{error}</Alert> : null}
 
-        <TextField
-          label="Что нужно сделать?"
-          value={form.message}
-          onChange={(event) => setForm((prev) => ({ ...prev, message: event.target.value }))}
-          disabled={busy}
-          fullWidth
-          size="small"
-          multiline
-          minRows={3}
-        />
+      <CityAutocomplete
+        label="Город"
+        value={form.city}
+        onChange={(next) => setForm((prev) => ({ ...prev, city: next }))}
+        disabled={busy}
+        placeholder="Начните вводить (минимум 2 символа)"
+      />
 
-        <TextField
-          label="Где вы находитесь?"
-          value={form.location}
-          onChange={(event) => setForm((prev) => ({ ...prev, location: event.target.value }))}
-          disabled={busy}
-          fullWidth
-          size="small"
-          placeholder="Город / район"
-        />
+      <TextField
+        label="Что нужно сделать?"
+        value={form.message}
+        onChange={(event) => setForm((prev) => ({ ...prev, message: event.target.value }))}
+        disabled={busy}
+        fullWidth
+        size="small"
+        multiline
+        minRows={3}
+        required
+      />
 
-        <TextField
-          label="Кадастровый номер (опционально)"
-          value={form.cadastralBlock}
-          onChange={(event) => setForm((prev) => ({ ...prev, cadastralBlock: event.target.value }))}
-          disabled={busy}
-          fullWidth
-          size="small"
-          placeholder="xx:xx:xxxxxxx:xx"
-        />
+      <Accordion
+        expanded={optionalExpanded}
+        onChange={(_, next) => setOptionalExpanded(next)}
+        disableGutters
+        elevation={0}
+        sx={{ border: 1, borderColor: "divider", borderRadius: 1.5, "&:before": { display: "none" } }}
+      >
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Typography fontWeight={800}>Опционально</Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Stack spacing={2}>
+            <Autocomplete
+              options={categories}
+              value={form.category}
+              onChange={(_, next) => setForm((prev) => ({ ...prev, category: next }))}
+              getOptionLabel={(o) => o.name}
+              isOptionEqualToValue={(a, b) => a.id === b.id}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Категория (опционально)"
+                  size="small"
+                  placeholder="Можно оставить пустым"
+                />
+              )}
+              disabled={busy}
+              clearOnEscape
+            />
 
-        {isAuthenticated ? (
-          <Button type="submit" variant="contained" size="large" disabled={busy || Boolean(validationError)} sx={{ fontWeight: 800, textTransform: "none" }}>
-            Создать заявку
-          </Button>
-        ) : (
-          <Button component={Link} href="/signin" variant="contained" size="large" sx={{ fontWeight: 800, textTransform: "none" }}>
-            Войти, чтобы создать заявку
-          </Button>
-        )}
-      </Stack>
+            <TextField
+              label="Кадастровый номер (опционально)"
+              value={form.cadastralBlock}
+              onChange={(event) => setForm((prev) => ({ ...prev, cadastralBlock: event.target.value }))}
+              disabled={busy}
+              fullWidth
+              size="small"
+              placeholder="укажите номер или улицу"
+            />
+          </Stack>
+        </AccordionDetails>
+      </Accordion>
+
+      <Button
+        type="submit"
+        variant="contained"
+        size="large"
+        disabled={busy || Boolean(validationError)}
+        sx={{ fontWeight: 800, textTransform: "none" }}
+      >
+        {isAuthenticated ? "Создать заявку" : "Продолжить"}
+      </Button>
+    </Stack>
+  );
+
+  if (variant === "bare") {
+    return content;
+  }
+
+  return (
+    <Paper variant="outlined" sx={{ p: 3 }}>
+      {content}
     </Paper>
   );
 }

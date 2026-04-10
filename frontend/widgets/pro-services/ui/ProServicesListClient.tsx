@@ -59,7 +59,6 @@ function noticeFromQuery(value: string | null) {
 function buildDuplicatePayload(service: ServiceDto): ServiceCreateDto {
   return {
     categoryId: service.categoryId,
-    templateId: service.templateId,
     status: "DRAFT",
     title: `${service.title} (копия)`,
     price: service.price,

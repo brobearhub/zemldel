@@ -34,7 +34,7 @@ export const Header = () => {
       >
         <Box
           sx={{
-            flex: 1,
+            flex: "0 0 auto",
             minWidth: 0,
             display: "flex",
             justifyContent: "flex-start",
@@ -42,10 +42,11 @@ export const Header = () => {
           }}
         >
           <HeaderLogo />
+          <HeaderCity />
         </Box>
         <Box
           sx={{
-            flex: 1,
+            flex: "1 1 auto",
             minWidth: 0,
             display: "flex",
             justifyContent: "center",
@@ -57,7 +58,7 @@ export const Header = () => {
         </Box>
         <Box
           sx={{
-            flex: 1,
+            flex: "0 0 auto",
             minWidth: 0,
             display: "flex",
             justifyContent: "flex-end",
@@ -65,7 +66,6 @@ export const Header = () => {
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1, sm: 1.5 } }}>
-            <HeaderCity />
             <HeaderNav />
           </Box>
         </Box>

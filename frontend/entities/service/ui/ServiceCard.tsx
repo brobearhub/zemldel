@@ -226,6 +226,7 @@ export function ServiceCard({ item }: Props) {
               customerEmail: null,
               customerPhone: null,
               message: null,
+              requestCityId: null,
             });
 
             if (status === "authenticated") {

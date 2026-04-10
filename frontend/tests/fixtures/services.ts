@@ -46,8 +46,6 @@ export const mainService: ServiceDto = {
   icon: "map",
   rating: 4.7,
   reviewCount: 18,
-  templateId: null,
-  template: null,
 };
 
 export const legalService: ServiceDto = {
@@ -69,6 +67,4 @@ export const legalService: ServiceDto = {
   icon: null,
   rating: null,
   reviewCount: null,
-  templateId: null,
-  template: null,
 };

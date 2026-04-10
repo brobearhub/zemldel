@@ -12,7 +12,7 @@ export default function AdminServiceCategoriesPage() {
               Категории услуг
             </Typography>
             <Typography variant="body2" sx={{ color: "text.secondary" }}>
-              Управление деревом категорий, используемым для шаблонов и услуг провайдеров.
+              Управление деревом категорий, используемым для услуг провайдеров.
             </Typography>
           </Stack>
 

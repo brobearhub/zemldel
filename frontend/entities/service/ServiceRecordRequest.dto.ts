@@ -6,7 +6,6 @@ import type { ServiceIconKey, ServicePaletteColor } from "./types";
  */
 export type ServiceRecordRequestDto = {
   categoryId?: string;
-  templateId?: string | null;
   status?: "DRAFT" | "PUBLISHED";
   title?: string;
   price?: string;

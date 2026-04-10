@@ -7,7 +7,12 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
-import { Expose, Transform, instanceToPlain, plainToInstance } from 'class-transformer';
+import {
+  Expose,
+  Transform,
+  instanceToPlain,
+  plainToInstance,
+} from 'class-transformer';
 import type { ServiceIconKey, ServicePaletteColor } from '../service.types';
 
 export type ServiceStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
@@ -27,14 +32,24 @@ const PALETTE_COLORS: readonly ServicePaletteColor[] = [
   'error',
 ] as const;
 
-const ICON_KEYS: readonly ServiceIconKey[] = ['map', 'electric', 'architecture'] as const;
+const ICON_KEYS: readonly ServiceIconKey[] = [
+  'map',
+  'electric',
+  'architecture',
+] as const;
 
 function isPaletteColor(value: unknown): value is ServicePaletteColor {
-  return typeof value === 'string' && (PALETTE_COLORS as readonly string[]).includes(value);
+  return (
+    typeof value === 'string' &&
+    (PALETTE_COLORS as readonly string[]).includes(value)
+  );
 }
 
 function isIconKey(value: unknown): value is ServiceIconKey {
-  return typeof value === 'string' && (ICON_KEYS as readonly string[]).includes(value);
+  return (
+    typeof value === 'string' &&
+    (ICON_KEYS as readonly string[]).includes(value)
+  );
 }
 
 function trimOrNull(value: unknown): string | null | undefined {
@@ -43,6 +58,10 @@ function trimOrNull(value: unknown): string | null | undefined {
   if (typeof value !== 'string') return undefined;
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : null;
+}
+
+function trimOrSame(value: unknown): unknown {
+  return typeof value === 'string' ? value.trim() : value;
 }
 
 export class ServiceCategoryDto {
@@ -67,16 +86,6 @@ export class ServiceCategoryDto {
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsInt()
   sortOrder!: number | null;
-}
-
-export class ServiceTemplateRefDto {
-  @Expose()
-  @IsString()
-  id!: string;
-
-  @Expose()
-  @IsString()
-  title!: string;
 }
 
 export class CityRefDto {
@@ -183,22 +192,18 @@ export class ServiceDto {
   @Expose()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsEnum(PALETTE_COLORS)
-  @Transform(({ value }) => (isPaletteColor(value) ? value : null), { toClassOnly: true })
+  @Transform(({ value }) => (isPaletteColor(value) ? value : null), {
+    toClassOnly: true,
+  })
   paletteColor!: ServicePaletteColor | null;
 
   @Expose()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsEnum(ICON_KEYS)
-  @Transform(({ value }) => (isIconKey(value) ? value : null), { toClassOnly: true })
+  @Transform(({ value }) => (isIconKey(value) ? value : null), {
+    toClassOnly: true,
+  })
   icon!: ServiceIconKey | null;
-
-  @Expose()
-  @ValidateIf((_, value) => value !== null && value !== undefined)
-  @IsString()
-  templateId!: string | null;
-
-  @Expose()
-  template!: ServiceTemplateRefDto | null;
 
   @Expose()
   provider!: ServiceProviderRefDto;
@@ -228,12 +233,15 @@ export type ServiceDbRow = {
   badge: string | null;
   paletteColor: string | null;
   icon: string | null;
-  templateId: string | null;
-  template: { id: string; title: string } | null;
   provider: {
     id: string;
     name: string;
-    city: { id: string; name: string; regionCode: string; regionName: string } | null;
+    city: {
+      id: string;
+      name: string;
+      regionCode: string;
+      regionName: string;
+    } | null;
   };
 };
 
@@ -248,27 +256,26 @@ export function serviceDbRowToDtoPlain(row: ServiceDbRow): ServiceDto {
 export class ServiceCreateDto {
   @Expose()
   @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value), { toClassOnly: true })
+  @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
+    toClassOnly: true,
+  })
   @IsString()
   @MinLength(1)
   categoryId?: string;
 
   @Expose()
   @IsOptional()
-  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
-  @ValidateIf((_, value) => value !== null && value !== undefined)
-  @IsString()
-  templateId?: string | null;
-
-  @Expose()
-  @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value), { toClassOnly: true })
+  @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
+    toClassOnly: true,
+  })
   @IsEnum(['DRAFT', 'PUBLISHED'])
   status?: Extract<ServiceStatus, 'DRAFT' | 'PUBLISHED'>;
 
   @Expose()
   @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value), { toClassOnly: true })
+  @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
+    toClassOnly: true,
+  })
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   @MinLength(1)
@@ -276,7 +283,9 @@ export class ServiceCreateDto {
 
   @Expose()
   @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value), { toClassOnly: true })
+  @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
+    toClassOnly: true,
+  })
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   @MinLength(1)
@@ -284,7 +293,9 @@ export class ServiceCreateDto {
 
   @Expose()
   @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value), { toClassOnly: true })
+  @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
+    toClassOnly: true,
+  })
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   @MinLength(1)
@@ -354,41 +365,44 @@ export class ServiceCreateDto {
 export class ServicePatchDto {
   @Expose()
   @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value), { toClassOnly: true })
+  @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
+    toClassOnly: true,
+  })
   @IsString()
   @MinLength(1)
   categoryId?: string;
 
   @Expose()
   @IsOptional()
-  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
-  @ValidateIf((_, value) => value !== null && value !== undefined)
-  @IsString()
-  templateId?: string | null;
-
-  @Expose()
-  @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value), { toClassOnly: true })
+  @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
+    toClassOnly: true,
+  })
   @IsEnum(['DRAFT', 'PUBLISHED', 'ARCHIVED'])
   status?: ServiceStatus;
 
   @Expose()
   @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value), { toClassOnly: true })
+  @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
+    toClassOnly: true,
+  })
   @IsString()
   @MinLength(1)
   title?: string;
 
   @Expose()
   @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value), { toClassOnly: true })
+  @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
+    toClassOnly: true,
+  })
   @IsString()
   @MinLength(1)
   price?: string;
 
   @Expose()
   @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value), { toClassOnly: true })
+  @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
+    toClassOnly: true,
+  })
   @IsString()
   @MinLength(1)
   ctaText?: string;

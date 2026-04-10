@@ -9,4 +9,3 @@ import { CitiesService } from './cities.service';
   providers: [CitiesService],
 })
 export class CitiesModule {}
-

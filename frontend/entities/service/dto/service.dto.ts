@@ -72,16 +72,6 @@ export class ServiceCategoryDto {
   sortOrder!: number | null;
 }
 
-export class ServiceTemplateRefDto {
-  @Expose()
-  @IsString()
-  id!: string;
-
-  @Expose()
-  @IsString()
-  title!: string;
-}
-
 export class CityRefDto {
   @Expose()
   @IsString()
@@ -197,14 +187,6 @@ export class ServiceDto {
   icon!: ServiceIconKey | null;
 
   @Expose()
-  @ValidateIf((_, v) => v !== null && v !== undefined)
-  @IsString()
-  templateId!: string | null;
-
-  @Expose()
-  template!: ServiceTemplateRefDto | null;
-
-  @Expose()
   provider!: ServiceProviderRefDto;
 }
 
@@ -232,8 +214,6 @@ export type ServiceDbRow = {
   badge: string | null;
   paletteColor: string | null;
   icon: string | null;
-  templateId: string | null;
-  template: { id: string; title: string } | null;
   provider: {
     id: string;
     name: string;
@@ -257,13 +237,6 @@ export class ServiceCreateDto {
   @IsString()
   @MinLength(1)
   categoryId?: string;
-
-  @Expose()
-  @IsOptional()
-  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
-  @ValidateIf((_, v) => v !== null && v !== undefined)
-  @IsString()
-  templateId?: string | null;
 
   @Expose()
   @IsOptional()
@@ -363,13 +336,6 @@ export class ServicePatchDto {
   @IsString()
   @MinLength(1)
   categoryId?: string;
-
-  @Expose()
-  @IsOptional()
-  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
-  @ValidateIf((_, v) => v !== null && v !== undefined)
-  @IsString()
-  templateId?: string | null;
 
   @Expose()
   @IsOptional()

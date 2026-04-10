@@ -73,6 +73,7 @@ export function PublicServiceRequestForm({
         customerEmail: normalizeNullableString(form.customerEmail),
         customerPhone: normalizeNullableString(form.customerPhone),
         message: normalizeNullableString(form.message),
+        requestCityId: null,
       });
 
       if (!isAuthenticated) {

@@ -34,11 +34,6 @@ export type ServiceCategory = {
   sortOrder: number | null;
 };
 
-export type ServiceTemplateRef = {
-  id: string;
-  title: string;
-};
-
 export type ServicePaletteColor =
   | "primary"
   | "secondary"
@@ -54,8 +49,6 @@ export type ServiceIconKey = "map" | "electric" | "architecture";
 export type ServiceRecord = ServiceCardItem & {
   categoryId: string;
   category: ServiceCategory;
-  templateId: string | null;
-  template: ServiceTemplateRef | null;
   status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   /** For main services: full description (about page) */
   description?: string | null;
