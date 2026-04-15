@@ -3,74 +3,60 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Alert, Button, Paper, Stack, Typography } from "@mui/material";
-import { useSession } from "next-auth/react";
 import { getServiceRequestStatusLabel, type ServiceRequestProDto } from "@/entities/service-request";
 
 type Props = {
   initialRequest: ServiceRequestProDto;
 };
 
-type NextAction = { action: "initiate" | "confirm"; label: string };
+type NextAction = { action: "confirm" | "decline"; label: string };
 
-function getNextActions(input: {
-  req: ServiceRequestProDto;
-  activeProviderId: string | null;
-}): NextAction[] {
-  const { req, activeProviderId } = input;
+function getNextActions(req: ServiceRequestProDto): NextAction[] {
   if (req.status === "CLOSED") return [];
   if (req.status === "ACTIVE" || req.status === "COMPLETED" || req.status === "CANCELLED") return [];
   if (req.isLocked) return [];
 
-  const isPendingForMe = Boolean(activeProviderId) && req.pendingProviderId === activeProviderId;
-  if (req.pendingProviderId && !isPendingForMe) return [];
-
-  if (req.pendingInitiator === "CUSTOMER" && isPendingForMe) {
-    return [{ action: "confirm", label: "Начать работу" }];
-  }
-  if (!req.pendingProviderId && !req.pendingInitiator) {
-    return [{ action: "initiate", label: "Взять заказ" }];
+  if (req.offerStatus === "SELECTED") {
+    return [
+      { action: "confirm", label: "Начать работу с клиентом" },
+      { action: "decline", label: "Отказать" },
+    ];
   }
   return [];
 }
 
 export function ProRequestDetails({ initialRequest }: Props) {
-  const { data: session } = useSession();
-  const activeProviderId = session?.user?.activeProviderId ?? null;
-
   const [req, setReq] = useState(initialRequest);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
 
-  const nextActions = useMemo(() => getNextActions({ req, activeProviderId }), [req, activeProviderId]);
-  const isPendingForMe = Boolean(activeProviderId) && req.pendingProviderId === activeProviderId;
+  const nextActions = useMemo(() => getNextActions(req), [req]);
   const pendingInfo =
-    req.pendingProviderId && req.pendingAt
-      ? req.pendingInitiator === "PROVIDER"
-        ? "Вы предложили заказ. Ожидаем подтверждения клиента."
-        : req.pendingInitiator === "CUSTOMER"
-          ? "Клиент запросил заказ. Можно подтвердить."
-          : null
-      : null;
+    req.offerStatus === "SELECTED"
+      ? "Клиент выбрал вас исполнителем. Можно начать работу."
+      : req.offerStatus === "DECLINED"
+        ? "Вы отказались от предложения."
+        : null;
 
-  async function runAction(action: "initiate" | "confirm") {
+  async function runAction(action: "confirm" | "decline") {
     setBusy(true);
     setError(null);
     setNotice(null);
     try {
-      if (action === "initiate") {
-        const res = await fetch(`/api/pro/service-requests/${req.id}/initiate-order`, { method: "POST" });
+      if (action === "decline") {
+        const res = await fetch(`/api/pro/service-requests/${req.id}/decline-offer`, { method: "POST" });
         const payload = (await res.json().catch(() => null)) as { error?: string } | ServiceRequestProDto | null;
         if (!res.ok) {
           throw new Error(
             payload && typeof payload === "object" && "error" in payload
-              ? payload.error ?? "Не удалось взять заказ"
-              : "Не удалось взять заказ"
+              ? payload.error ?? "Не удалось отказать"
+              : "Не удалось отказать"
           );
         }
         setReq(payload as ServiceRequestProDto);
-        setNotice("Запрос на заказ отправлен клиенту.");
+        setNotice("Вы отказались от предложения.");
         return;
       }
 
@@ -82,14 +68,14 @@ export function ProRequestDetails({ initialRequest }: Props) {
       if (!res.ok) {
         throw new Error(
           payload && typeof payload === "object" && "error" in payload
-            ? payload.error ?? "Не удалось подтвердить заказ"
-            : "Не удалось подтвердить заказ"
+            ? payload.error ?? "Не удалось начать работу"
+            : "Не удалось начать работу"
         );
       }
       const data = payload as { orderId: string; request: ServiceRequestProDto };
       setOrderId(data.orderId);
       setReq(data.request);
-      setNotice("Заказ подтверждён.");
+      setNotice("Работа начата.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось выполнить действие");
     } finally {
@@ -139,8 +125,8 @@ export function ProRequestDetails({ initialRequest }: Props) {
           {nextActions.map((a) => (
             <Button
               key={a.action}
-              variant={a.action === "initiate" ? "contained" : "contained"}
-              color={a.action === "confirm" ? "success" : "primary"}
+              variant="contained"
+              color={a.action === "confirm" ? "success" : "secondary"}
               disabled={busy}
               onClick={() => void runAction(a.action)}
             >

@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { Stack } from "@mui/material";
 import { getActiveMembership } from "@/core/auth/authorization";
+import type { OrderDto } from "@/entities/order";
 import type { ServiceRequestProDto } from "@/entities/service-request";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/lib/backend-api";
 import { getServerAuthSession } from "@/lib/auth";
@@ -25,14 +26,18 @@ export default async function ProDashboardPage() {
   }
 
   try {
-    const feed = await fetchBackendJsonAsUser<ServiceRequestProDto[]>(
-      "/pro/service-requests/inbox?status=NEW&categoryId=null",
-      session.user.id
-    );
+    const [feed, orders] = await Promise.all([
+      fetchBackendJsonAsUser<ServiceRequestProDto[]>(
+        "/pro/service-requests/inbox?status=NEW&categoryId=null",
+        session.user.id
+      ),
+      fetchBackendJsonAsUser<OrderDto[]>("/pro/orders", session.user.id),
+    ]);
+    const activeOrders = (orders ?? []).filter((o) => o.status === "ACTIVE");
 
     return (
       <Stack spacing={3}>
-        <ProRequestsFeed initialItems={feed} />
+        <ProRequestsFeed initialItems={feed} initialActiveOrders={activeOrders} />
       </Stack>
     );
   } catch (error) {

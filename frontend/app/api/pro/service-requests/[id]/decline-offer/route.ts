@@ -10,15 +10,15 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const response = await fetchBackendAsUser(`/pro/service-requests/${id}/initiate-order`, session.user.id, {
+    const response = await fetchBackendAsUser(`/pro/service-requests/${id}/decline-offer`, session.user.id, {
       method: "POST",
       body: "{}",
     });
-    const payload = await response.json().catch(() => ({ error: "Failed to initiate order" }));
+    const payload = await response.json().catch(() => ({ error: "Failed to decline offer" }));
     return NextResponse.json(payload, { status: response.status });
   } catch (error) {
-    console.error("Error initiating order (pro):", error);
-    return NextResponse.json({ error: "Failed to initiate order" }, { status: 500 });
+    console.error("Error declining offer (pro):", error);
+    return NextResponse.json({ error: "Failed to decline offer" }, { status: 500 });
   }
 }
 
