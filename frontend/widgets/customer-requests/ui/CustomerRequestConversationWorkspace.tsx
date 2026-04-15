@@ -100,20 +100,13 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     }
   }, [conversations, selectedConversationId]);
 
-  const selectedProviderId = selectedConversation?.providerId ?? null;
-
-  const isOrderStatus = req.status === "ACTIVE" || req.status === "COMPLETED" || req.status === "CANCELLED";
+  const isOrderStatus =
+    req.status === "ACTIVE" || req.status === "COMPLETED" || req.status === "CANCELLED" || req.status === "CONVERTED_TO_ORDER";
 
   function canInitiateOrderFor(providerId: string) {
     if (isOrderStatus || req.status === "CLOSED") return false;
-    if (req.pendingProviderId !== null && req.pendingProviderId !== providerId) return false;
-    if (req.pendingInitiator !== null && req.pendingInitiator !== "CUSTOMER") return false;
+    if ((req.selectedProviderIds ?? []).includes(providerId)) return false;
     return true;
-  }
-
-  function canConfirmOrderFor(providerId: string) {
-    if (isOrderStatus || req.status === "CLOSED") return false;
-    return req.pendingInitiator === "PROVIDER" && Boolean(req.pendingProviderId) && req.pendingProviderId === providerId;
   }
 
   async function initiateOrder(conversationId: string) {
@@ -145,38 +138,12 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     }
   }
 
-  async function confirmOrder() {
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-    try {
-      const res = await fetch(`/api/service-requests/${req.id}/confirm-order`, { method: "POST" });
-      const payload = (await res.json().catch(() => null)) as { error?: string } | { orderId: string; request: ServiceRequestCustomerDto } | null;
-      if (!res.ok) {
-        throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось подтвердить заказ" : "Не удалось подтвердить заказ");
-      }
-      const data = payload as { orderId: string; request: ServiceRequestCustomerDto };
-      setReq(data.request);
-      setNotice("Заказ подтверждён.");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось подтвердить заказ");
-    } finally {
-      setBusy(false);
-      try {
-        await refreshRequest();
-      } catch {
-        // ignore
-      }
-    }
-  }
-
+  const selectedCount = req.selectedProviderIds?.length ?? 0;
   const pendingInfo =
-    req.pendingProviderId && req.pendingAt
-      ? req.pendingInitiator === "PROVIDER"
-        ? `Компания предлагает заказ · ${formatDate(req.pendingAt)}`
-        : req.pendingInitiator === "CUSTOMER"
-          ? `Вы запросили заказ · ${formatDate(req.pendingAt)}`
-          : null
+    !isOrderStatus && selectedCount > 0 && req.lastSelectionAt
+      ? selectedCount === 1
+        ? `Вы выбрали исполнителя · ${formatDate(req.lastSelectionAt)}`
+        : `Вы выбрали исполнителей: ${selectedCount} · ${formatDate(req.lastSelectionAt)}`
       : null;
 
   return (
@@ -231,10 +198,8 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
               <List dense disablePadding>
                 {conversations.map((c) => {
                   const rowCanInitiate = canInitiateOrderFor(c.providerId);
-                  const rowCanConfirm = canConfirmOrderFor(c.providerId);
-                  const pendingForRow = req.pendingProviderId === c.providerId && Boolean(req.pendingInitiator);
-                  const requestedByCustomer = pendingForRow && req.pendingInitiator === "CUSTOMER";
-                  const requestedByProvider = pendingForRow && req.pendingInitiator === "PROVIDER";
+                  const isSelected = (req.selectedProviderIds ?? []).includes(c.providerId);
+                  const isDeclined = (req.declinedProviderIds ?? []).includes(c.providerId);
 
                   return (
                     <ListItem
@@ -247,27 +212,14 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                               color="secondary"
                               size="small"
                               variant="contained"
-                              disabled={!rowCanInitiate || busy || requestedByCustomer}
+                              disabled={!rowCanInitiate || busy}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 void initiateOrder(c.conversationId);
                               }}
                               sx={{ whiteSpace: "nowrap" }}
                             >
-                              Начать работу
-                            </Button>
-                            <Button
-                              size="small"
-                              variant="contained"
-                              color="success"
-                              disabled={!rowCanConfirm || busy}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void confirmOrder();
-                              }}
-                              sx={{ whiteSpace: "nowrap" }}
-                            >
-                              Подтвердить
+                              {isDeclined ? "Выбрать снова" : "Выбрать исполнителя"}
                             </Button>
                           </Stack>
                         )
@@ -287,8 +239,8 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                               <Typography component="span" fontWeight={c.conversationId === selectedConversationId ? 800 : 700}>
                                 {c.providerName}
                               </Typography>
-                              {requestedByCustomer ? <Chip size="small" label="Запрос отправлен" /> : null}
-                              {requestedByProvider ? <Chip size="small" color="success" label="Ждёт подтверждения" /> : null}
+                              {isSelected ? <Chip size="small" label="Выбрано" /> : null}
+                              {!isSelected && isDeclined ? <Chip size="small" variant="outlined" label="Отказ" /> : null}
                             </Stack>
                           }
                           secondary={c.lastSnippet ?? "—"}

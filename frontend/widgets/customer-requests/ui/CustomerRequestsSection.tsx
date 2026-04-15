@@ -32,12 +32,23 @@ export function CustomerRequestsSection({ autoResumeEnabled = false }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const byKind = useMemo(() => {
-    const freeform = items.filter((i) => i.subjectType === "FREEFORM");
-    const category = items.filter((i) => i.subjectType === "CATEGORY");
-    const service = items.filter((i) => i.subjectType === "SERVICE");
-    return { freeform, category, service };
+  const visibleItems = useMemo(() => {
+    // "Заявки" — только до конверсии в заказ. Заказные статусы показываются в разделе "Заказы".
+    return items.filter(
+      (i) =>
+        i.status !== "ACTIVE" &&
+        i.status !== "COMPLETED" &&
+        i.status !== "CANCELLED" &&
+        i.status !== "CONVERTED_TO_ORDER"
+    );
   }, [items]);
+
+  const byKind = useMemo(() => {
+    const freeform = visibleItems.filter((i) => i.subjectType === "FREEFORM");
+    const category = visibleItems.filter((i) => i.subjectType === "CATEGORY");
+    const service = visibleItems.filter((i) => i.subjectType === "SERVICE");
+    return { freeform, category, service };
+  }, [visibleItems]);
 
   async function load() {
     setError(null);
@@ -143,7 +154,7 @@ export function CustomerRequestsSection({ autoResumeEnabled = false }: Props) {
 
       {error ? <Alert severity="error">{error}</Alert> : null}
 
-      {items.length === 0 ? (
+      {visibleItems.length === 0 ? (
         <Paper variant="outlined" sx={{ p: 3 }}>
           <Typography fontWeight={800} gutterBottom>
             Пока нет заявок

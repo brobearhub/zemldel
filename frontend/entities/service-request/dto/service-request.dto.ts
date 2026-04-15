@@ -3,12 +3,13 @@ export type ServiceRequestStatus =
   | "NEW"
   | "DISCUSSING"
   | "LOCKED"
+  | "CONVERTED_TO_ORDER"
   | "ACTIVE"
   | "COMPLETED"
   | "CANCELLED"
   | "CLOSED";
 
-export type ServiceRequestPendingInitiator = "CUSTOMER" | "PROVIDER";
+export type ServiceRequestProviderOfferStatus = "SELECTED" | "DECLINED";
 
 export type ServiceRequestCustomerDto = {
   id: string;
@@ -19,9 +20,9 @@ export type ServiceRequestCustomerDto = {
   message: string | null;
   location: string | null;
   providerId: string | null;
-  pendingProviderId: string | null;
-  pendingInitiator: ServiceRequestPendingInitiator | null;
-  pendingAt: string | null;
+  selectedProviderIds: string[];
+  declinedProviderIds: string[];
+  lastSelectionAt: string | null;
   requestCityId: string | null;
   lockedAt: string | null;
   createdAt: string;
@@ -39,9 +40,9 @@ export type ServiceRequestProDto = {
   location: string | null;
   status: ServiceRequestStatus;
   providerId: string | null;
-  pendingProviderId: string | null;
-  pendingInitiator: ServiceRequestPendingInitiator | null;
-  pendingAt: string | null;
+  offerStatus: ServiceRequestProviderOfferStatus | null;
+  offerSelectedAt: string | null;
+  offerDeclinedAt: string | null;
   requestCityId: string | null;
   lockedAt: string | null;
   conversationsCount: number;
@@ -58,6 +59,8 @@ export function getServiceRequestStatusLabel(status: ServiceRequestStatus): stri
       return "Обсуждение";
     case "LOCKED":
       return "Взято в работу";
+    case "CONVERTED_TO_ORDER":
+      return "Передано в заказ";
     case "ACTIVE":
       return "Заказ (активный)";
     case "COMPLETED":
