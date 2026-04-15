@@ -31,6 +31,12 @@ export type ChatEnsureResponse = {
   messages: ChatMessageDto[];
 };
 
+export type ChatConversationAccessDto = {
+  canRead: true;
+  canWrite: boolean;
+  reason?: string;
+};
+
 export type ChatServiceRequestConversationListItemDto = {
   conversationId: string;
   providerId: string;

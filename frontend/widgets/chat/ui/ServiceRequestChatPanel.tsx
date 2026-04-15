@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Box, Paper, Stack, Typography } from "@mui/material";
-import type { ChatEnsureResponse, ChatMessageDto, ChatPostMessageResponse } from "@/entities/chat/dto/chat.dto";
+import { Alert, Box, Paper, Stack, Typography } from "@mui/material";
+import type { ChatConversationAccessDto, ChatEnsureResponse, ChatMessageDto, ChatPostMessageResponse } from "@/entities/chat/dto/chat.dto";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import { Chat, type ChatRenderableRow, type ChatReplyTarget } from "./Chat";
 
@@ -52,6 +52,8 @@ export function ServiceRequestChatPanel({ serviceRequestId, conversationId: forc
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
+  const [canWrite, setCanWrite] = useState(true);
+  const [readOnlyReason, setReadOnlyReason] = useState<string | null>(null);
 
   const serverMessagesRef = useRef<ChatMessageDto[]>([]);
   useEffect(() => {
@@ -130,14 +132,26 @@ export function ServiceRequestChatPanel({ serviceRequestId, conversationId: forc
     setDraft("");
     setPendingReply(null);
     setBootError(null);
+    setCanWrite(true);
+    setReadOnlyReason(null);
     setLoading(true);
 
     (async () => {
       try {
+        async function loadAccess(convId: string) {
+          const response = await fetch(`/api/chat/conversations/${convId}/access`, { cache: "no-store" }).catch(() => null);
+          if (!response?.ok) return;
+          const payload = (await response.json().catch(() => null)) as ChatConversationAccessDto | null;
+          if (!payload || typeof payload !== "object") return;
+          setCanWrite(Boolean(payload.canWrite));
+          setReadOnlyReason(!payload.canWrite ? (payload.reason ? String(payload.reason) : "Отправка сообщений недоступна") : null);
+        }
+
         if (forcedConversationId) {
           if (cancelled) return;
           setConversationId(forcedConversationId);
           setOpenConversationId(forcedConversationId);
+          void loadAccess(forcedConversationId);
           await loadMessages(forcedConversationId, "initial");
           if (cancelled) return;
           await markRead(forcedConversationId);
@@ -167,6 +181,7 @@ export function ServiceRequestChatPanel({ serviceRequestId, conversationId: forc
 
         setConversationId(convId);
         setOpenConversationId(convId);
+        void loadAccess(convId);
 
         await loadMessages(convId, "initial");
         if (cancelled) return;
@@ -239,7 +254,7 @@ export function ServiceRequestChatPanel({ serviceRequestId, conversationId: forc
 
   const handleSend = useCallback(async () => {
     const trimmed = draft.trim();
-    if (!trimmed || !conversationId || sending) {
+    if (!trimmed || !conversationId || sending || !canWrite) {
       return;
     }
     const clientMessageId = crypto.randomUUID();
@@ -281,7 +296,7 @@ export function ServiceRequestChatPanel({ serviceRequestId, conversationId: forc
     } finally {
       setSending(false);
     }
-  }, [conversationId, draft, pendingReply, postOutbound, sending]);
+  }, [conversationId, draft, pendingReply, postOutbound, sending, canWrite]);
 
   const handleRetry = useCallback(
     async (clientMessageId: string) => {
@@ -334,7 +349,10 @@ export function ServiceRequestChatPanel({ serviceRequestId, conversationId: forc
   }, []);
 
   return (
-    <Paper variant="outlined" sx={{ height: "100%", minHeight: 420, display: "flex", flexDirection: "column" }}>
+    <Paper
+      variant="outlined"
+      sx={{ height: "100%", minHeight: 420, display: "flex", flexDirection: "column", overflow: "hidden" }}
+    >
       <Box sx={{ px: 2, py: 1.5, borderBottom: "1px solid", borderBottomColor: "divider" }}>
         <Typography variant="h6" fontWeight={800}>
           {title}
@@ -346,7 +364,15 @@ export function ServiceRequestChatPanel({ serviceRequestId, conversationId: forc
         ) : null}
       </Box>
 
-      <Box sx={{ flex: 1, p: 2, minHeight: 0 }}>
+      {!bootError && !canWrite ? (
+        <Box sx={{ px: 2, py: 1.25, borderBottom: "1px solid", borderBottomColor: "divider" }}>
+          <Alert severity="info" variant="outlined">
+            {readOnlyReason ?? "Этот диалог доступен только для просмотра."}
+          </Alert>
+        </Box>
+      ) : null}
+
+      <Box sx={{ flex: 1, minHeight: 0 }}>
         {bootError ? (
           <Typography color="error" variant="body2">
             {bootError}
@@ -362,9 +388,10 @@ export function ServiceRequestChatPanel({ serviceRequestId, conversationId: forc
             onSend={() => void handleSend()}
             onRetry={(id) => void handleRetry(id)}
             onReplyToMessage={handleReplyToMessage}
-            disabled={!conversationId}
+            disabled={!conversationId || !canWrite}
             sending={sending}
             loading={loading}
+            readOnly={!canWrite}
           />
         )}
       </Box>

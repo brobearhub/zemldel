@@ -1,9 +1,9 @@
-"use client";
+ "use client";
 
 import ReplyOutlinedIcon from "@mui/icons-material/ReplyOutlined";
 import CloseIcon from "@mui/icons-material/Close";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import Image from "next/image";
+import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import {
   Box,
   Button,
@@ -52,6 +52,7 @@ type Props = {
   disabled?: boolean;
   sending?: boolean;
   loading?: boolean;
+  readOnly?: boolean;
 };
 
 function ReplyPreviewBlock({
@@ -86,10 +87,12 @@ function MessageBubble({
   message,
   mine,
   onReply,
+  readOnly,
 }: {
   message: ChatMessageDto;
   mine: boolean;
   onReply: () => void;
+  readOnly?: boolean;
 }) {
   const align = mine ? "flex-end" : "flex-start";
   const bg = mine ? "secondary.main" : "action.hover";
@@ -121,9 +124,11 @@ function MessageBubble({
             {message.senderName ?? "Без имени"} ·{" "}
             {new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" }).format(new Date(message.createdAt))}
           </Typography>
-          <IconButton size="small" onClick={onReply} aria-label="Ответить" sx={{ color: "inherit" }}>
-            <ReplyOutlinedIcon fontSize="inherit" />
-          </IconButton>
+          {!readOnly ? (
+            <IconButton size="small" onClick={onReply} aria-label="Ответить" sx={{ color: "inherit" }}>
+              <ReplyOutlinedIcon fontSize="inherit" />
+            </IconButton>
+          ) : null}
         </Stack>
       </Paper>
     </Box>
@@ -143,10 +148,11 @@ export function Chat({
   disabled,
   sending,
   loading,
+  readOnly,
 }: Props) {
   return (
     <Stack
-      spacing={1.5}
+      spacing={0}
       sx={{
         height: "100%",
         minHeight: 0,
@@ -157,7 +163,9 @@ export function Chat({
           flex: 1,
           minHeight: 0,
           overflow: "auto",
-          px: 0.5,
+          px: { xs: 1.5, sm: 2 },
+          pt: { xs: 1.5, sm: 2 },
+          pb: { xs: 1, sm: 1.25 },
           display: "flex",
           flexDirection: "column",
           gap: 1.25,
@@ -181,6 +189,7 @@ export function Chat({
                 key={row.message.id}
                 message={row.message}
                 mine={mine}
+                readOnly={readOnly}
                 onReply={() =>
                   onReplyToMessage(row.message)
                 }
@@ -232,46 +241,57 @@ export function Chat({
       </Box>
 
       <Box
-        sx={{
-          px: { xs: 0.25, sm: 0.5 },
-          pb: { xs: 0.25, sm: 0.5 },
-        }}
+        sx={(theme) => ({
+          flexShrink: 0,
+          borderTop: `1px solid ${alpha(theme.palette.text.primary, theme.palette.mode === "dark" ? 0.08 : 0.08)}`,
+          bgcolor: alpha("#FFFFFF", theme.palette.mode === "dark" ? 0.02 : 0.72),
+          backdropFilter: "blur(8px)",
+        })}
       >
         {pendingReply ? (
-          <Paper
-            variant="outlined"
-            sx={{
-              px: 1.5,
-              py: 1,
-              mb: 1.25,
-              bgcolor: "transparent",
-              borderColor: "divider",
-            }}
-          >
-            <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Ответ на
-                </Typography>
-                <Typography variant="body2" fontWeight={800} noWrap>
-                  {pendingReply.senderLabel}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  sx={{ display: "block", wordBreak: "break-word" }}
-                  color="text.secondary"
-                >
-                  {pendingReply.bodySnippet}
-                </Typography>
-              </Box>
-              <IconButton size="small" aria-label="Отменить ответ" onClick={() => onPendingReplyChange(null)}>
-                <CloseIcon fontSize="small" />
-              </IconButton>
-            </Stack>
-          </Paper>
+          <Box sx={{ px: { xs: 1.5, sm: 2 }, pt: { xs: 0.75, sm: 1 }, pb: { xs: 0.75, sm: 1 } }}>
+            <Paper
+              variant="outlined"
+              sx={{
+                px: 1.5,
+                py: 1,
+                bgcolor: "transparent",
+                borderColor: "divider",
+              }}
+            >
+              <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Ответ на
+                  </Typography>
+                  <Typography variant="body2" fontWeight={800} noWrap>
+                    {pendingReply.senderLabel}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{ display: "block", wordBreak: "break-word" }}
+                    color="text.secondary"
+                  >
+                    {pendingReply.bodySnippet}
+                  </Typography>
+                </Box>
+                <IconButton size="small" aria-label="Отменить ответ" onClick={() => onPendingReplyChange(null)}>
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </Stack>
+            </Paper>
+          </Box>
         ) : null}
 
-        <Stack direction="row" spacing={1.25} alignItems="flex-end">
+        <Stack
+          direction="row"
+          spacing={1.5}
+          alignItems="center"
+          sx={{
+            px: { xs: 1.5, sm: 2 },
+            py: { xs: 1.25, sm: 1.5 },
+          }}
+        >
           <TextField
             value={draft}
             onChange={(e) => onDraftChange(e.target.value)}
@@ -289,40 +309,39 @@ export function Chat({
             }}
             sx={(theme) => ({
               "& .MuiOutlinedInput-root": {
-                borderRadius: 999,
-                bgcolor: theme.palette.mode === "dark" ? alpha("#FFFFFF", 0.06) : "#FFFFFF",
+                borderRadius: 1,
+                bgcolor: "#FFFFFF",
                 color: theme.palette.text.primary,
                 boxShadow:
                   theme.palette.mode === "dark"
-                    ? `0 6px 16px ${alpha("#000000", 0.35)}`
-                    : `0 6px 16px ${alpha("#000000", 0.08)}`,
+                    ? `inset 0 8px 20px ${alpha("#000000", 0.28)}`
+                    : `inset 0 8px 20px ${alpha("#A79B8D", 0.18)}`,
                 "& fieldset": {
-                  borderColor:
-                    theme.palette.mode === "dark"
-                      ? alpha("#FFFFFF", 0.14)
-                      : alpha(theme.palette.text.primary, 0.10),
+                  borderColor: alpha(theme.palette.text.primary, theme.palette.mode === "dark" ? 0.10 : 0.08),
                 },
                 "&:hover fieldset": {
-                  borderColor:
-                    theme.palette.mode === "dark"
-                      ? alpha("#FFFFFF", 0.22)
-                      : alpha(theme.palette.text.primary, 0.14),
+                  borderColor: alpha(theme.palette.text.primary, theme.palette.mode === "dark" ? 0.14 : 0.12),
                 },
                 "&.Mui-focused fieldset": {
-                  borderColor: alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.65 : 0.55),
+                  borderColor: alpha(theme.palette.primary.main, 0.24),
                 },
               },
               "& .MuiOutlinedInput-input": {
-                py: { xs: 1.55, sm: 1.75 },
+                py: { xs: 1.15, sm: 1.25 },
                 pl: { xs: 2, sm: 2.25 },
                 pr: { xs: 2, sm: 2.25 },
+                minHeight: 24,
+              },
+              "& .MuiInputBase-inputMultiline": {
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+              },
+              "& .MuiInputBase-inputMultiline::-webkit-scrollbar": {
+                display: "none",
               },
               "& .MuiOutlinedInput-input::placeholder": {
                 opacity: 1,
-                color:
-                  theme.palette.mode === "dark"
-                    ? alpha("#FFFFFF", 0.55)
-                    : alpha(theme.palette.text.primary, 0.45),
+                color: alpha("#000000", 0.40),
               },
             })}
           />
@@ -332,32 +351,26 @@ export function Chat({
             onClick={onSend}
             disabled={disabled || sending || draft.trim().length === 0}
             sx={(theme) => ({
-              width: { xs: 56, sm: 60 },
-              height: { xs: 56, sm: 60 },
-              borderRadius: 16,
+              width: { xs: 52, sm: 56 },
+              height: { xs: 52, sm: 56 },
+              flexShrink: 0,
+              borderRadius: 2.5,
               bgcolor: theme.palette.primary.main,
+              color: "#FFFFFF",
               boxShadow:
                 theme.palette.mode === "dark"
-                  ? `0 8px 18px ${alpha("#000000", 0.45)}`
-                  : `0 8px 18px ${alpha("#000000", 0.18)}`,
+                  ? `0 10px 22px ${alpha(theme.palette.primary.main, 0.32)}`
+                  : `0 10px 22px ${alpha(theme.palette.primary.main, 0.26)}`,
               "&:hover": {
-                bgcolor: alpha(theme.palette.primary.main, 0.90),
+                bgcolor: alpha(theme.palette.primary.main, 0.92),
               },
               "&.Mui-disabled": {
-                bgcolor: theme.palette.action.disabledBackground,
+                bgcolor: alpha(theme.palette.primary.main, 0.35),
+                color: alpha("#FFFFFF", 0.7),
               },
             })}
           >
-            <Image
-              src="/logo.svg"
-              alt=""
-              width={28}
-              height={28}
-              style={{
-                objectFit: "contain",
-                filter: "brightness(0) invert(1)",
-              }}
-            />
+            <SendRoundedIcon sx={{ fontSize: 22, transform: "translateX(1px) rotate(-18deg)" }} />
           </IconButton>
         </Stack>
       </Box>

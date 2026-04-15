@@ -5,8 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { FC } from "react";
 
-const LOGO_TEXT = "Новые горизонты";
-const LOGO_LEFT_TEXT = "Новые";
+const LOGO_TEXT = "Земледел";
+const LOGO_LEFT_TEXT = "Ptvkt";
 const LOGO_RIGHT_TEXT = "горизонты";
 
 type Props = {
