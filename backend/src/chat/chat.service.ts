@@ -14,6 +14,12 @@ import { InternalAuthService } from '../auth/internal-auth.service';
 import { ChatGateway } from './chat.gateway';
 
 const SNIPPET_LEN = 160;
+type ChatAccessAction = 'read' | 'write';
+export type ChatConversationAccessDto = {
+  canRead: true;
+  canWrite: boolean;
+  reason?: string;
+};
 
 export type ChatMessageDto = {
   id: string;
@@ -163,6 +169,7 @@ export class ChatService {
   private async assertCanAccessRequestConversation(
     userId: string,
     subject: { requestId: string; conversationProviderId: string },
+    action: ChatAccessAction,
     systemRole: string,
     activeMemberProviderIds: string[],
   ) {
@@ -177,6 +184,31 @@ export class ChatService {
 
     if (req.status === 'CLOSED') {
       throw new ForbiddenException('Request is closed');
+    }
+
+    const lockedToOtherProvider =
+      this.isLockedStatus(String(req.status)) &&
+      Boolean(req.providerId) &&
+      req.providerId !== subject.conversationProviderId;
+
+    // Archive rule (applies even when serviceId is set after conversion):
+    // - customer: forbidden (only chosen provider thread remains)
+    // - provider (member of the conversation provider): read allowed, write forbidden
+    if (lockedToOtherProvider) {
+      const isCustomer = req.customerUserId === userId;
+      const isProviderMember = activeMemberProviderIds.includes(
+        subject.conversationProviderId,
+      );
+      if (isCustomer) {
+        throw new ForbiddenException('Request is locked');
+      }
+      if (!isProviderMember) {
+        throw new ForbiddenException('Forbidden');
+      }
+      if (action === 'write') {
+        throw new ForbiddenException('Request is locked');
+      }
+      return;
     }
 
     const isServiceRequest = Boolean(req.serviceId);
@@ -198,34 +230,31 @@ export class ChatService {
     }
 
     // FREEFORM / CATEGORY: access is based on the conversation's providerId
-    const locked =
-      this.isLockedStatus(String(req.status)) &&
-      Boolean(req.providerId) &&
-      req.providerId !== subject.conversationProviderId;
-    if (locked) {
-      throw new ForbiddenException('Request is locked');
-    }
+    const isCustomer = req.customerUserId === userId;
+    const isProviderMember = activeMemberProviderIds.includes(
+      subject.conversationProviderId,
+    );
 
-    if (req.customerUserId === userId) {
-      return;
-    }
-
-    if (activeMemberProviderIds.includes(subject.conversationProviderId)) {
-      await this.assertProviderEligibleForRequest(
-        subject.conversationProviderId,
-        {
-          categoryId: req.categoryId ?? null,
-          requestCityId: req.requestCityId ?? null,
-          customerCityId: req.customerUser?.customerCityId ?? null,
-        },
-      );
+    if (isCustomer) return;
+    if (isProviderMember) {
+      // Before the request is locked to another provider, providers must still be eligible
+      // (region/category matching) to access the conversation.
+      await this.assertProviderEligibleForRequest(subject.conversationProviderId, {
+        categoryId: req.categoryId ?? null,
+        requestCityId: req.requestCityId ?? null,
+        customerCityId: req.customerUser?.customerCityId ?? null,
+      });
       return;
     }
 
     throw new ForbiddenException('Forbidden');
   }
 
-  async assertConversationAccess(userId: string, conversationId: string) {
+  async assertConversationAccess(
+    userId: string,
+    conversationId: string,
+    action: ChatAccessAction,
+  ) {
     const conv = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
       select: {
@@ -249,6 +278,7 @@ export class ChatService {
         requestId: conv.serviceRequestId,
         conversationProviderId: conv.providerId,
       },
+      action,
       user.systemRole,
       memberIds,
     );
@@ -265,6 +295,15 @@ export class ChatService {
     return memberIds[0] ?? null;
   }
 
+  private isPrismaP2002(error: unknown) {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: unknown }).code === 'P2002'
+    );
+  }
+
   async ensureServiceRequestConversation(
     actorUserId: string,
     serviceRequestId: string,
@@ -279,16 +318,38 @@ export class ChatService {
     const user = await this.loadUserChatActor(actorUserId);
     const memberIds = user.providerMemberships.map((m) => m.providerId);
 
+    if (user.systemRole === 'PLATFORM_ADMIN') {
+      throw new ForbiddenException(
+        'Platform admin cannot access customer-provider chats',
+      );
+    }
+
+    // Provider archive flow: allow opening an existing thread even after the request is converted
+    // (serviceId may be assigned during conversion for FREEFORM/CATEGORY requests).
+    if (
+      req.customerUserId !== actorUserId &&
+      this.isLockedStatus(String(req.status)) &&
+      Boolean(req.providerId) &&
+      req.providerId !== this.pickActorProviderId(user)
+    ) {
+      const existing = await this.prisma.conversation.findFirst({
+        where: {
+          serviceRequestId: req.id,
+          providerId: { in: memberIds },
+          messages: { some: {} },
+        },
+        orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
+        select: { id: true },
+      });
+      if (existing) {
+        return { conversationId: existing.id, messages: [] as ChatMessageDto[] };
+      }
+    }
+
     // SERVICE request: single deterministic provider thread.
     if (req.serviceId) {
       if (!req.providerId) {
         throw new NotFoundException('Request provider not found');
-      }
-
-      if (user.systemRole === 'PLATFORM_ADMIN') {
-        throw new ForbiddenException(
-          'Platform admin cannot access customer-provider chats',
-        );
       }
 
       if (
@@ -298,22 +359,34 @@ export class ChatService {
         throw new ForbiddenException('Forbidden');
       }
 
-      const conversation = await this.prisma.conversation.upsert({
-        where: {
-          serviceRequestId_providerId: {
-            serviceRequestId: req.id,
-            providerId: req.providerId,
-          },
-        },
-        create: {
-          id: randomUUID(),
+      const where = {
+        serviceRequestId_providerId: {
           serviceRequestId: req.id,
           providerId: req.providerId,
-          customerUserId: req.customerUserId!,
         },
-        update: {},
-        select: { id: true },
-      });
+      } as const;
+
+      let conversation: { id: string } | null = null;
+      try {
+        conversation = await this.prisma.conversation.upsert({
+          where,
+          create: {
+            id: randomUUID(),
+            serviceRequestId: req.id,
+            providerId: req.providerId,
+            customerUserId: req.customerUserId!,
+          },
+          update: {},
+          select: { id: true },
+        });
+      } catch (error) {
+        if (!this.isPrismaP2002(error)) throw error;
+        conversation = await this.prisma.conversation.findUnique({
+          where,
+          select: { id: true },
+        });
+        if (!conversation) throw error;
+      }
 
       return {
         conversationId: conversation.id,
@@ -367,12 +440,6 @@ export class ChatService {
       };
     }
 
-    if (user.systemRole === 'PLATFORM_ADMIN') {
-      throw new ForbiddenException(
-        'Platform admin cannot access customer-provider chats',
-      );
-    }
-
     const providerId = this.pickActorProviderId(user);
     if (!providerId) {
       throw new ForbiddenException('Active provider is required');
@@ -381,36 +448,69 @@ export class ChatService {
       throw new ForbiddenException('Forbidden');
     }
 
+    const lockedToOtherProvider =
+      this.isLockedStatus(String(req.status)) &&
+      Boolean(req.providerId) &&
+      req.providerId !== providerId;
+
+    if (lockedToOtherProvider) {
+      // For archived provider threads, allow opening ONLY if a conversation already exists (with messages).
+      // If activeProviderId isn't set or doesn't match, fall back to any provider membership that has a thread.
+      const existing = await this.prisma.conversation.findFirst({
+        where: {
+          serviceRequestId: req.id,
+          providerId: { in: memberIds },
+          messages: { some: {} },
+        },
+        orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
+        select: { id: true, providerId: true },
+      });
+      if (!existing) {
+        throw new ForbiddenException('Request is locked');
+      }
+
+      // If we found an existing thread under a different provider membership, we still return it
+      // (it reflects the provider context in which the user actually communicated).
+      return {
+        conversationId: existing.id,
+        messages: [] as ChatMessageDto[],
+      };
+    }
+
     await this.assertProviderEligibleForRequest(providerId, {
       categoryId: req.categoryId ?? null,
       requestCityId: req.requestCityId ?? null,
       customerCityId: req.customerUser?.customerCityId ?? null,
     });
 
-    const locked =
-      this.isLockedStatus(String(req.status)) &&
-      Boolean(req.providerId) &&
-      req.providerId !== providerId;
-    if (locked) {
-      throw new ForbiddenException('Request is locked');
-    }
-
-    const conversation = await this.prisma.conversation.upsert({
-      where: {
-        serviceRequestId_providerId: {
-          serviceRequestId: req.id,
-          providerId,
-        },
-      },
-      create: {
-        id: randomUUID(),
+    const where = {
+      serviceRequestId_providerId: {
         serviceRequestId: req.id,
         providerId,
-        customerUserId: req.customerUserId!,
       },
-      update: {},
-      select: { id: true },
-    });
+    } as const;
+
+    let conversation: { id: string } | null = null;
+    try {
+      conversation = await this.prisma.conversation.upsert({
+        where,
+        create: {
+          id: randomUUID(),
+          serviceRequestId: req.id,
+          providerId,
+          customerUserId: req.customerUserId!,
+        },
+        update: {},
+        select: { id: true },
+      });
+    } catch (error) {
+      if (!this.isPrismaP2002(error)) throw error;
+      conversation = await this.prisma.conversation.findUnique({
+        where,
+        select: { id: true },
+      });
+      if (!conversation) throw error;
+    }
 
     return {
       conversationId: conversation.id,
@@ -533,7 +633,7 @@ export class ChatService {
     conversationId: string,
     query: { before?: string; after?: string; limit?: number },
   ): Promise<ChatMessageDto[]> {
-    await this.assertConversationAccess(actorUserId, conversationId);
+    await this.assertConversationAccess(actorUserId, conversationId, 'read');
 
     const limit = Math.min(Math.max(query.limit ?? 50, 1), 100);
     const where: Prisma.MessageWhereInput = { conversationId };
@@ -575,7 +675,7 @@ export class ChatService {
   }
 
   async markRead(actorUserId: string, conversationId: string) {
-    await this.assertConversationAccess(actorUserId, conversationId);
+    await this.assertConversationAccess(actorUserId, conversationId, 'read');
 
     const now = new Date();
     await this.prisma.conversationReadState.upsert({
@@ -591,6 +691,24 @@ export class ChatService {
     });
 
     return { ok: true as const, lastReadAt: now.toISOString() };
+  }
+
+  async getConversationAccess(
+    actorUserId: string,
+    conversationId: string,
+  ): Promise<ChatConversationAccessDto> {
+    await this.assertConversationAccess(actorUserId, conversationId, 'read');
+
+    try {
+      await this.assertConversationAccess(actorUserId, conversationId, 'write');
+      return { canRead: true as const, canWrite: true };
+    } catch (error) {
+      const reason =
+        error instanceof ForbiddenException || error instanceof BadRequestException
+          ? error.message
+          : 'Forbidden';
+      return { canRead: true as const, canWrite: false, reason };
+    }
   }
 
   private async getParticipantUserIds(
@@ -628,7 +746,7 @@ export class ChatService {
       replyToMessageId?: string | null;
     },
   ): Promise<{ message: ChatMessageDto; alreadyExisted: boolean }> {
-    await this.assertConversationAccess(actorUserId, conversationId);
+    await this.assertConversationAccess(actorUserId, conversationId, 'write');
 
     const body = input.body.trim();
     if (!body) {

@@ -81,6 +81,15 @@ export class ChatController {
     });
   }
 
+  @Get('chat/conversations/:conversationId/access')
+  async getConversationAccess(
+    @Req() request: Request,
+    @Param('conversationId') conversationId: string,
+  ) {
+    const userId = this.chat.getRequiredActorUserId(request);
+    return this.chat.getConversationAccess(userId, conversationId);
+  }
+
   @Post('chat/conversations/:conversationId/messages')
   async postMessage(
     @Req() request: Request,

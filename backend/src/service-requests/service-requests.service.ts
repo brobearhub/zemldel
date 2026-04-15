@@ -26,9 +26,6 @@ const select = {
   serviceId: true,
   categoryId: true,
   providerId: true,
-  pendingProviderId: true,
-  pendingInitiator: true,
-  pendingAt: true,
   customerUserId: true,
   requestCityId: true,
   customerName: true,
@@ -42,10 +39,19 @@ const select = {
   service: { select: { title: true, providerId: true } },
   category: { select: { name: true } },
   customerUser: { select: { customerCityId: true } },
+  providerOffers: {
+    select: {
+      providerId: true,
+      status: true,
+      selectedAt: true,
+      declinedAt: true,
+    },
+  },
 } satisfies Prisma.ServiceRequestSelect;
 
 type SubjectType = 'SERVICE' | 'CATEGORY' | 'FREEFORM';
 type InboxStatus = 'NEW' | 'DISCUSSING';
+type DialogScope = 'ACTIVE' | 'ARCHIVE';
 
 function subjectTypeOf(
   row: Pick<ServiceRequestDbRow, 'serviceId' | 'categoryId'>,
@@ -442,12 +448,19 @@ export class ServiceRequestsService {
 
   async listProInbox(
     actorProviderId: string,
-    input: { status?: InboxStatus; categoryId?: string | null },
+    input: {
+      status?: InboxStatus;
+      categoryId?: string | null;
+      dialogScope?: DialogScope;
+    },
   ): Promise<ServiceRequestProDto[]> {
     const status: InboxStatus = input.status ?? 'NEW';
     if (status !== 'NEW' && status !== 'DISCUSSING') {
       throw new BadRequestException('Invalid status');
     }
+
+    const dialogScope: DialogScope =
+      input.dialogScope === 'ARCHIVE' ? 'ARCHIVE' : 'ACTIVE';
 
     let categoryId: string | null | undefined = input.categoryId;
     if (typeof categoryId === 'string') {
@@ -456,6 +469,37 @@ export class ServiceRequestsService {
     }
     if (categoryId !== undefined && categoryId !== null && !this.isUuid(categoryId)) {
       throw new BadRequestException('Invalid categoryId');
+    }
+
+    if (status === 'DISCUSSING' && dialogScope === 'ARCHIVE') {
+      const archiveWhere: Prisma.ServiceRequestWhereInput = {
+        status: { in: ['ACTIVE', 'COMPLETED', 'CANCELLED'] },
+        AND: [
+          { providerId: { not: null } },
+          { providerId: { not: actorProviderId } },
+        ],
+        conversations: {
+          some: { providerId: actorProviderId, messages: { some: {} } },
+        },
+        ...(categoryId === undefined
+          ? {}
+          : categoryId === null
+            ? { categoryId: null }
+            : { categoryId }),
+      };
+
+      const rows = await this.prisma.serviceRequest.findMany({
+        where: archiveWhere,
+        select,
+        orderBy: [{ createdAt: 'desc' }],
+        take: 200,
+      });
+
+      const ids = (rows as unknown as ServiceRequestDbRow[]).map((r) => r.id);
+      const counts = await this.getConversationCounts(ids);
+      return (rows as unknown as ServiceRequestDbRow[]).map((r) =>
+        serviceRequestRowToProDtoPlain(r, counts.get(r.id) ?? 0, actorProviderId),
+      );
     }
 
     const [providerRegionCode, eligibleCategoryIds] = await Promise.all([
@@ -549,7 +593,7 @@ export class ServiceRequestsService {
   async getProInboxSettings(
     actorUserId: string,
     actorProviderId: string,
-  ): Promise<{ status: InboxStatus; categoryId: string | null }> {
+  ): Promise<{ status: InboxStatus; categoryId: string | null; dialogScope: DialogScope }> {
     const row = await this.prisma.providerUserSettings.findUnique({
       where: {
         userId_providerId: {
@@ -561,13 +605,14 @@ export class ServiceRequestsService {
     });
 
     if (!row?.proInboxFilters) {
-      return { status: 'NEW', categoryId: null };
+      return { status: 'NEW', categoryId: null, dialogScope: 'ACTIVE' };
     }
 
     try {
       const parsed = row.proInboxFilters as Partial<{
         status: unknown;
         categoryId: unknown;
+        dialogScope: unknown;
       }>;
       const status =
         parsed.status === 'DISCUSSING'
@@ -582,21 +627,30 @@ export class ServiceRequestsService {
               this.isUuid(parsed.categoryId.trim())
             ? parsed.categoryId.trim()
             : null;
-      return { status, categoryId };
+      const dialogScope: DialogScope =
+        parsed.dialogScope === 'ARCHIVE' ? 'ARCHIVE' : 'ACTIVE';
+      return { status, categoryId, dialogScope };
     } catch {
-      return { status: 'NEW', categoryId: null };
+      return { status: 'NEW', categoryId: null, dialogScope: 'ACTIVE' };
     }
   }
 
   async setProInboxSettings(
     actorUserId: string,
     actorProviderId: string,
-    input: { status?: InboxStatus; categoryId?: string | null },
-  ): Promise<{ status: InboxStatus; categoryId: string | null }> {
+    input: {
+      status?: InboxStatus;
+      categoryId?: string | null;
+      dialogScope?: DialogScope;
+    },
+  ): Promise<{ status: InboxStatus; categoryId: string | null; dialogScope: DialogScope }> {
     const status: InboxStatus = input.status ?? 'NEW';
     if (status !== 'NEW' && status !== 'DISCUSSING') {
       throw new BadRequestException('Invalid status');
     }
+
+    const dialogScope: DialogScope =
+      input.dialogScope === 'ARCHIVE' ? 'ARCHIVE' : 'ACTIVE';
 
     let categoryId: string | null | undefined = input.categoryId;
     if (typeof categoryId === 'string') {
@@ -607,7 +661,7 @@ export class ServiceRequestsService {
       throw new BadRequestException('Invalid categoryId');
     }
 
-    const normalized = { status, categoryId: categoryId ?? null };
+    const normalized = { status, categoryId: categoryId ?? null, dialogScope };
     await this.prisma.providerUserSettings.upsert({
       where: {
         userId_providerId: {
@@ -734,42 +788,54 @@ export class ServiceRequestsService {
     const req = row as unknown as ServiceRequestDbRow;
     this.assertRequestShape(req);
 
-    const type = subjectTypeOf(req);
-    if (type === 'SERVICE') {
-      if (!req.providerId || req.providerId !== actorProviderId) {
-        throw new ForbiddenException('Forbidden');
-      }
-    } else {
-      const locked =
-        (req.status === 'ACTIVE' ||
-          req.status === 'COMPLETED' ||
-          req.status === 'CANCELLED') &&
-        Boolean(req.providerId) &&
-        req.providerId !== actorProviderId;
-      if (locked) {
+    const lockedToOtherProvider =
+      (req.status === 'ACTIVE' ||
+        req.status === 'COMPLETED' ||
+        req.status === 'CANCELLED') &&
+      Boolean(req.providerId) &&
+      req.providerId !== actorProviderId;
+
+    if (lockedToOtherProvider) {
+      const existing = await this.prisma.conversation.findFirst({
+        where: {
+          serviceRequestId: req.id,
+          providerId: actorProviderId,
+          messages: { some: {} },
+        },
+        select: { id: true },
+      });
+      if (!existing) {
         throw new ForbiddenException('Request is locked');
       }
+    } else {
+      const type = subjectTypeOf(req);
+      if (type === 'SERVICE') {
+        if (!req.providerId || req.providerId !== actorProviderId) {
+          throw new ForbiddenException('Forbidden');
+        }
+      } else {
+        const regionById = await this.resolveRequestsRegionCodes([
+          {
+            id: req.id,
+            requestCityId: req.requestCityId,
+            customerUser: req.customerUser ?? null,
+          },
+        ]);
+        this.assertProviderEligibleForUnassignedRequest(
+          actorProviderId,
+          {
+            id: req.id,
+            serviceId: req.serviceId,
+            categoryId: req.categoryId,
+            requestCityId: req.requestCityId,
+            customerUser: req.customerUser ?? null,
+          },
+          providerRegionCode,
+          eligibleCategoryIds,
+          regionById,
+        );
+      }
 
-      const regionById = await this.resolveRequestsRegionCodes([
-        {
-          id: req.id,
-          requestCityId: req.requestCityId,
-          customerUser: req.customerUser ?? null,
-        },
-      ]);
-      this.assertProviderEligibleForUnassignedRequest(
-        actorProviderId,
-        {
-          id: req.id,
-          serviceId: req.serviceId,
-          categoryId: req.categoryId,
-          requestCityId: req.requestCityId,
-          customerUser: req.customerUser ?? null,
-        },
-        providerRegionCode,
-        eligibleCategoryIds,
-        regionById,
-      );
     }
 
     const counts = await this.getConversationCounts([req.id]);
@@ -897,94 +963,6 @@ export class ServiceRequestsService {
     };
   }
 
-  async initiateOrderByProvider(
-    actorProviderId: string,
-    requestId: string,
-  ): Promise<ServiceRequestProDto> {
-    const [providerRegionCode, eligibleCategoryIds] = await Promise.all([
-      this.getProviderRegionCode(actorProviderId),
-      this.getProviderEligibleCategoryIds(actorProviderId),
-    ]);
-
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const current = await tx.serviceRequest.findUnique({
-        where: { id: requestId },
-        select,
-      });
-      if (!current) throw new NotFoundException('Request not found');
-      const req = current as unknown as ServiceRequestDbRow;
-      this.assertRequestShape(req);
-
-      if (
-        req.status === 'ACTIVE' ||
-        req.status === 'COMPLETED' ||
-        req.status === 'CANCELLED'
-      ) {
-        throw new ConflictException('Request already converted to order');
-      }
-      if (req.status === 'CLOSED') {
-        throw new ConflictException('Request is closed');
-      }
-
-      const type = subjectTypeOf(req);
-      if (type === 'SERVICE') {
-        if (!req.providerId || req.providerId !== actorProviderId) {
-          throw new ForbiddenException('Forbidden');
-        }
-      } else {
-        if (req.providerId && req.providerId !== actorProviderId) {
-          throw new ConflictException('Request is already in work');
-        }
-
-        const regionById = await this.resolveRequestsRegionCodes([
-          {
-            id: req.id,
-            requestCityId: req.requestCityId,
-            customerUser: req.customerUser ?? null,
-          },
-        ]);
-        this.assertProviderEligibleForUnassignedRequest(
-          actorProviderId,
-          {
-            id: req.id,
-            serviceId: req.serviceId,
-            categoryId: req.categoryId,
-            requestCityId: req.requestCityId,
-            customerUser: req.customerUser ?? null,
-          },
-          providerRegionCode,
-          eligibleCategoryIds,
-          regionById,
-        );
-      }
-
-      const now = new Date();
-      const canUpdatePending =
-        req.pendingProviderId === null ||
-        req.pendingProviderId === actorProviderId;
-      if (!canUpdatePending) {
-        throw new ConflictException('Another provider is pending for this request');
-      }
-
-      return tx.serviceRequest.update({
-        where: { id: req.id },
-        data: {
-          pendingProviderId: actorProviderId,
-          pendingInitiator: 'PROVIDER',
-          pendingAt: now,
-        },
-        select,
-      });
-    });
-
-    const counts = await this.getConversationCounts([updated.id]);
-    return serviceRequestRowToProDtoPlain(
-      updated as unknown as ServiceRequestDbRow,
-      counts.get(updated.id) ?? 0,
-      actorProviderId,
-    );
-  }
-
   async initiateOrderByCustomer(
     actorUserId: string,
     requestId: string,
@@ -1024,22 +1002,33 @@ export class ServiceRequestsService {
       }
 
       const providerId = conv.providerId;
-      const canUpdatePending =
-        req.pendingProviderId === null || req.pendingProviderId === providerId;
-      if (!canUpdatePending) {
-        throw new ConflictException('Another provider is pending for this request');
-      }
-
       const now = new Date();
-      return tx.serviceRequest.update({
-        where: { id: req.id },
-        data: {
-          pendingProviderId: providerId,
-          pendingInitiator: 'CUSTOMER',
-          pendingAt: now,
+
+      await tx.serviceRequestProviderOffer.upsert({
+        where: {
+          serviceRequestId_providerId: { serviceRequestId: req.id, providerId },
         },
+        create: {
+          serviceRequestId: req.id,
+          providerId,
+          status: 'SELECTED',
+          selectedAt: now,
+          declinedAt: null,
+        },
+        update: {
+          status: 'SELECTED',
+          selectedAt: now,
+          declinedAt: null,
+        },
+        select: { id: true },
+      });
+
+      const refreshed = await tx.serviceRequest.findUnique({
+        where: { id: req.id },
         select,
       });
+      if (!refreshed) throw new NotFoundException('Request not found');
+      return refreshed;
     });
 
     return serviceRequestRowToCustomerDtoPlain(
@@ -1114,11 +1103,17 @@ export class ServiceRequestsService {
         throw new ConflictException('Request is closed');
       }
 
-      if (req.pendingInitiator !== 'CUSTOMER') {
-        throw new BadRequestException('Request is not pending customer confirmation');
-      }
-      if (!req.pendingProviderId || req.pendingProviderId !== actorProviderId) {
-        throw new ForbiddenException('Forbidden');
+      const offer = await tx.serviceRequestProviderOffer.findUnique({
+        where: {
+          serviceRequestId_providerId: {
+            serviceRequestId: req.id,
+            providerId: actorProviderId,
+          },
+        },
+        select: { status: true },
+      });
+      if (!offer || offer.status !== 'SELECTED') {
+        throw new BadRequestException('Request is not selected by customer');
       }
 
       const serviceId = await this.resolveServiceIdForOrder(
@@ -1136,9 +1131,6 @@ export class ServiceRequestsService {
           providerId: actorProviderId,
           serviceId,
           lockedAt: req.lockedAt ?? now,
-          pendingProviderId: null,
-          pendingInitiator: null,
-          pendingAt: null,
         },
         select,
       });
@@ -1155,73 +1147,64 @@ export class ServiceRequestsService {
     };
   }
 
-  async confirmOrderByCustomer(
-    actorUserId: string,
+  async declineOfferByProvider(
+    actorProviderId: string,
     requestId: string,
-  ): Promise<{ orderId: string; request: ServiceRequestCustomerDto }> {
+  ): Promise<ServiceRequestProDto> {
     const updated = await this.prisma.$transaction(async (tx) => {
       const current = await tx.serviceRequest.findUnique({
         where: { id: requestId },
         select,
       });
       if (!current) throw new NotFoundException('Request not found');
+
       const req = current as unknown as ServiceRequestDbRow;
       this.assertRequestShape(req);
-
-      if (req.customerUserId !== actorUserId) {
-        throw new ForbiddenException('Forbidden');
-      }
 
       if (
         req.status === 'ACTIVE' ||
         req.status === 'COMPLETED' ||
         req.status === 'CANCELLED'
       ) {
-        return current;
+        throw new ConflictException('Request already converted to order');
       }
       if (req.status === 'CLOSED') {
         throw new ConflictException('Request is closed');
       }
 
-      if (req.pendingInitiator !== 'PROVIDER') {
-        throw new BadRequestException('Request is not pending provider confirmation');
+      const offer = await tx.serviceRequestProviderOffer.findUnique({
+        where: {
+          serviceRequestId_providerId: {
+            serviceRequestId: req.id,
+            providerId: actorProviderId,
+          },
+        },
+        select: { id: true, status: true },
+      });
+      if (!offer || offer.status !== 'SELECTED') {
+        throw new BadRequestException('No active offer to decline');
       }
-      if (!req.pendingProviderId) {
-        throw new BadRequestException('pendingProviderId missing');
-      }
-
-      const providerId = req.pendingProviderId;
-      const eligibleCategoryIds =
-        await this.getProviderEligibleCategoryIds(providerId);
-
-      const serviceId = await this.resolveServiceIdForOrder(
-        tx,
-        providerId,
-        req,
-        eligibleCategoryIds,
-      );
 
       const now = new Date();
-      return tx.serviceRequest.update({
+      await tx.serviceRequestProviderOffer.update({
+        where: { id: offer.id },
+        data: { status: 'DECLINED', declinedAt: now },
+        select: { id: true },
+      });
+
+      const refreshed = await tx.serviceRequest.findUnique({
         where: { id: req.id },
-        data: {
-          status: 'ACTIVE',
-          providerId,
-          serviceId,
-          lockedAt: req.lockedAt ?? now,
-          pendingProviderId: null,
-          pendingInitiator: null,
-          pendingAt: null,
-        },
         select,
       });
+      if (!refreshed) throw new NotFoundException('Request not found');
+      return refreshed;
     });
 
-    return {
-      orderId: updated.id,
-      request: serviceRequestRowToCustomerDtoPlain(
-        updated as unknown as ServiceRequestDbRow,
-      ),
-    };
+    const counts = await this.getConversationCounts([updated.id]);
+    return serviceRequestRowToProDtoPlain(
+      updated as unknown as ServiceRequestDbRow,
+      counts.get(updated.id) ?? 0,
+      actorProviderId,
+    );
   }
 }

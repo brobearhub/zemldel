@@ -27,7 +27,7 @@ export type ServiceRequestStatus =
 
 export type ServiceRequestSubjectType = 'FREEFORM' | 'CATEGORY' | 'SERVICE';
 
-export type ServiceRequestPendingInitiator = 'CUSTOMER' | 'PROVIDER';
+export type ServiceRequestProviderOfferStatus = 'SELECTED' | 'DECLINED';
 
 function normalizeStatus(value: unknown): ServiceRequestStatus {
   if (value === 'DISCUSSING') return 'DISCUSSING';
@@ -242,19 +242,15 @@ export class ServiceRequestCustomerDto {
   providerId!: string | null;
 
   @Expose()
-  @IsOptional()
-  @IsUUID()
-  pendingProviderId!: string | null;
+  selectedProviderIds!: string[];
 
   @Expose()
-  @IsOptional()
-  @IsEnum(['CUSTOMER', 'PROVIDER'])
-  pendingInitiator!: ServiceRequestPendingInitiator | null;
+  declinedProviderIds!: string[];
 
   @Expose()
   @IsOptional()
   @IsString()
-  pendingAt!: string | null;
+  lastSelectionAt!: string | null;
 
   @Expose()
   @IsOptional()
@@ -334,18 +330,18 @@ export class ServiceRequestProDto {
 
   @Expose()
   @IsOptional()
-  @IsUUID()
-  pendingProviderId!: string | null;
-
-  @Expose()
-  @IsOptional()
-  @IsEnum(['CUSTOMER', 'PROVIDER'])
-  pendingInitiator!: ServiceRequestPendingInitiator | null;
+  @IsEnum(['SELECTED', 'DECLINED'])
+  offerStatus!: ServiceRequestProviderOfferStatus | null;
 
   @Expose()
   @IsOptional()
   @IsString()
-  pendingAt!: string | null;
+  offerSelectedAt!: string | null;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  offerDeclinedAt!: string | null;
 
   @Expose()
   @IsOptional()
@@ -388,9 +384,6 @@ export type ServiceRequestDbRow = {
   serviceId: string | null;
   categoryId: string | null;
   providerId: string | null;
-  pendingProviderId: string | null;
-  pendingInitiator: ServiceRequestPendingInitiator | null;
-  pendingAt: Date | null;
   customerUserId: string | null;
   requestCityId: string | null;
   message: string | null;
@@ -401,11 +394,28 @@ export type ServiceRequestDbRow = {
   service?: { title: string } | null;
   category?: { name: string } | null;
   customerUser?: { customerCityId: string | null } | null;
+  providerOffers?: Array<{
+    providerId: string;
+    status: ServiceRequestProviderOfferStatus;
+    selectedAt: Date;
+    declinedAt: Date | null;
+  }>;
 };
 
 export function serviceRequestRowToCustomerDtoPlain(
   row: ServiceRequestDbRow,
 ): ServiceRequestCustomerDto {
+  const offers = row.providerOffers ?? [];
+  const selected = offers.filter((o) => o.status === 'SELECTED');
+  const declined = offers.filter((o) => o.status === 'DECLINED');
+  const lastSelectionAt =
+    selected.length === 0
+      ? null
+      : selected
+          .map((o) => o.selectedAt)
+          .reduce((max, dt) => (dt.getTime() > max.getTime() ? dt : max))
+          .toISOString();
+
   const inst = plainToInstance(
     ServiceRequestCustomerDto,
     {
@@ -415,9 +425,9 @@ export function serviceRequestRowToCustomerDtoPlain(
       serviceId: row.serviceId,
       categoryId: row.categoryId,
       providerId: row.providerId,
-      pendingProviderId: row.pendingProviderId,
-      pendingInitiator: row.pendingInitiator,
-      pendingAt: row.pendingAt ? row.pendingAt.toISOString() : null,
+      selectedProviderIds: selected.map((o) => o.providerId),
+      declinedProviderIds: declined.map((o) => o.providerId),
+      lastSelectionAt,
       requestCityId: row.requestCityId,
       message: row.message,
       location: row.location,
@@ -442,20 +452,29 @@ export function serviceRequestRowToProDtoPlain(
     Boolean(row.providerId) &&
     row.providerId !== actorProviderId;
 
+  const offers = row.providerOffers ?? [];
+  const myOffer = offers.find((o) => o.providerId === actorProviderId) ?? null;
+
+  const subjectType = locked
+    ? row.categoryId
+      ? ('CATEGORY' as const)
+      : ('FREEFORM' as const)
+    : toSubjectType(row);
+
   const inst = plainToInstance(
     ServiceRequestProDto,
     {
       id: row.id,
-      subjectType: toSubjectType(row),
+      subjectType,
       status: row.status,
-      serviceId: row.serviceId,
-      serviceTitle: row.service?.title ?? null,
+      serviceId: locked ? null : row.serviceId,
+      serviceTitle: locked ? null : row.service?.title ?? null,
       categoryId: row.categoryId,
       categoryName: row.category?.name ?? null,
-      providerId: row.providerId,
-      pendingProviderId: row.pendingProviderId,
-      pendingInitiator: row.pendingInitiator,
-      pendingAt: row.pendingAt ? row.pendingAt.toISOString() : null,
+      providerId: locked ? null : row.providerId,
+      offerStatus: myOffer?.status ?? null,
+      offerSelectedAt: myOffer?.selectedAt ? myOffer.selectedAt.toISOString() : null,
+      offerDeclinedAt: myOffer?.declinedAt ? myOffer.declinedAt.toISOString() : null,
       requestCityId: row.requestCityId,
       message: locked ? null : row.message,
       location: locked ? null : row.location,

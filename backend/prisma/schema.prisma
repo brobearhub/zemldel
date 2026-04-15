@@ -43,9 +43,9 @@ enum ServiceRequestStatus {
   CLOSED
 }
 
-enum ServiceRequestPendingInitiator {
-  CUSTOMER
-  PROVIDER
+enum ServiceRequestProviderOfferStatus {
+  SELECTED
+  DECLINED
 }
 
 enum ServiceCategoryPlacement {
@@ -160,7 +160,7 @@ model Provider {
   services    Service[]
   conversations Conversation[]
   serviceRequests ServiceRequest[]
-  pendingServiceRequests ServiceRequest[] @relation("ServiceRequestPendingProvider")
+  serviceRequestOffers ServiceRequestProviderOffer[]
   activeUsers User[]         @relation("ActiveProvider")
   city        City?          @relation("ProviderCity", fields: [cityId], references: [id], onDelete: SetNull)
   createdAt   DateTime       @default(now())
@@ -230,9 +230,6 @@ model ServiceRequest {
   serviceId      String?             @db.Uuid
   categoryId     String?             @db.Uuid
   providerId     String?             @db.Uuid
-  pendingProviderId String?          @db.Uuid
-  pendingInitiator  ServiceRequestPendingInitiator?
-  pendingAt         DateTime?
   customerUserId String?             @db.Uuid
   requestCityId  String?             @db.Uuid
 
@@ -247,10 +244,10 @@ model ServiceRequest {
   service        Service?            @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   category       ServiceCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   provider       Provider?            @relation(fields: [providerId], references: [id], onDelete: SetNull)
-  pendingProvider Provider?          @relation("ServiceRequestPendingProvider", fields: [pendingProviderId], references: [id], onDelete: SetNull)
   customerUser   User?               @relation(fields: [customerUserId], references: [id], onDelete: SetNull)
   requestCity    City?               @relation("ServiceRequestCity", fields: [requestCityId], references: [id], onDelete: SetNull)
   conversations  Conversation[]
+  providerOffers ServiceRequestProviderOffer[]
 
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
@@ -259,8 +256,26 @@ model ServiceRequest {
   @@index([providerId, status])
   @@index([categoryId, status])
   @@index([serviceId, status])
-  @@index([pendingProviderId, status])
   @@index([requestCityId, status])
+}
+
+model ServiceRequestProviderOffer {
+  id             String                           @id @default(uuid()) @db.Uuid
+  serviceRequestId String                         @db.Uuid
+  providerId     String                           @db.Uuid
+  status         ServiceRequestProviderOfferStatus @default(SELECTED)
+  selectedAt     DateTime                         @default(now())
+  declinedAt     DateTime?
+
+  serviceRequest ServiceRequest                   @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  provider       Provider                         @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime                         @default(now())
+  updatedAt      DateTime                         @updatedAt
+
+  @@unique([serviceRequestId, providerId])
+  @@index([serviceRequestId, status])
+  @@index([providerId, status])
 }
 
 model Service {

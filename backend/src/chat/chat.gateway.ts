@@ -76,7 +76,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     try {
-      await this.chatService.assertConversationAccess(userId, conversationId);
+      await this.chatService.assertConversationAccess(userId, conversationId, 'read');
     } catch {
       return { ok: false, error: 'Forbidden' };
     }

@@ -137,12 +137,6 @@ export class ServiceRequestsController {
     return this.requests.initiateOrderByCustomer(userId, id, { conversationId });
   }
 
-  @Post('service-requests/mine/:id/confirm-order')
-  async customerConfirmOrder(@Req() request: Request, @Param('id') id: string) {
-    const userId = this.getRequiredActorUserId(request);
-    return this.requests.confirmOrderByCustomer(userId, id);
-  }
-
   @Get('pro/service-requests/feed')
   async proFeed(@Req() request: Request) {
     const ctx = await this.requireProviderContext(request);
@@ -152,7 +146,8 @@ export class ServiceRequestsController {
   @Get('pro/service-requests/inbox')
   async proInbox(
     @Req() request: Request,
-    @Query() query: { status?: string; categoryId?: string },
+    @Query()
+    query: { status?: string; categoryId?: string; dialogScope?: string },
   ) {
     const ctx = await this.requireProviderContext(request);
     return this.requests.listProInbox(ctx.providerId, {
@@ -163,6 +158,7 @@ export class ServiceRequestsController {
             ? 'NEW'
             : (query.status as any),
       categoryId: query.categoryId ?? undefined,
+      dialogScope: query.dialogScope === 'ARCHIVE' ? 'ARCHIVE' : 'ACTIVE',
     });
   }
 
@@ -182,7 +178,7 @@ export class ServiceRequestsController {
   async setInboxSettings(@Req() request: Request, @Body() body: unknown) {
     const ctx = await this.requireProviderContext(request);
     const payload = body as
-      | { status?: unknown; categoryId?: unknown }
+      | { status?: unknown; categoryId?: unknown; dialogScope?: unknown }
       | null
       | undefined;
 
@@ -200,9 +196,17 @@ export class ServiceRequestsController {
           ? payload?.categoryId
           : (payload?.categoryId as any);
 
+    const dialogScope =
+      payload?.dialogScope === 'ARCHIVE'
+        ? 'ARCHIVE'
+        : payload?.dialogScope === 'ACTIVE' || payload?.dialogScope === undefined
+          ? 'ACTIVE'
+          : (payload?.dialogScope as any);
+
     return this.requests.setProInboxSettings(ctx.actorUserId, ctx.providerId, {
       status,
       categoryId,
+      dialogScope,
     });
   }
 
@@ -224,15 +228,15 @@ export class ServiceRequestsController {
     return this.requests.convertToOrder(ctx.providerId, id);
   }
 
-  @Post('pro/service-requests/:id/initiate-order')
-  async proInitiateOrder(@Req() request: Request, @Param('id') id: string) {
-    const ctx = await this.requireProviderContext(request);
-    return this.requests.initiateOrderByProvider(ctx.providerId, id);
-  }
-
   @Post('pro/service-requests/:id/confirm-order')
   async proConfirmOrder(@Req() request: Request, @Param('id') id: string) {
     const ctx = await this.requireProviderContext(request);
     return this.requests.confirmOrderByProvider(ctx.providerId, id);
+  }
+
+  @Post('pro/service-requests/:id/decline-offer')
+  async proDeclineOffer(@Req() request: Request, @Param('id') id: string) {
+    const ctx = await this.requireProviderContext(request);
+    return this.requests.declineOfferByProvider(ctx.providerId, id);
   }
 }
