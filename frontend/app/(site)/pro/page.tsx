@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { Stack } from "@mui/material";
 import { getActiveMembership } from "@/core/auth/authorization";
-import type { OrderDto } from "@/entities/order";
+import { isOpenOrderStatus, type OrderDto } from "@/entities/order";
 import type { ServiceRequestProDto } from "@/entities/service-request";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/lib/backend-api";
 import { getServerAuthSession } from "@/lib/auth";
@@ -33,7 +33,7 @@ export default async function ProDashboardPage() {
       ),
       fetchBackendJsonAsUser<OrderDto[]>("/pro/orders", session.user.id),
     ]);
-    const activeOrders = (orders ?? []).filter((o) => o.status === "ACTIVE");
+    const activeOrders = (orders ?? []).filter((o) => isOpenOrderStatus(o.status));
 
     return (
       <Stack spacing={3}>

@@ -1,38 +1,63 @@
 "use client";
 
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
-import { Box, Chip, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Box, Chip, Paper, Stack, Step, StepLabel, Stepper, TextField, Typography } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { ReactNode } from "react";
 import type { OrderDto, OrderStatus } from "../dto/order.dto";
+import {
+  buildOrderStatusFlowSteps,
+  formatOrderDate,
+  getOrderCardAccentColor,
+  getOrderFlowActiveStepId,
+  getOrderStatusColor,
+  getOrderStatusLabel,
+  isOpenOrderStatus,
+  type OrderStatusFilter,
+  type StatusProgressStep,
+} from "./order-status-flow";
 
-export type OrderStatusFilter = "ALL" | OrderStatus;
+type StatusProgressStepperProps = {
+  steps: StatusProgressStep[];
+  activeStepId: string;
+};
 
-export function getOrderStatusLabel(status: OrderStatus) {
-  if (status === "COMPLETED") return "Завершен";
-  if (status === "CANCELLED") return "Отменен";
-  return "Активен";
-}
+export function StatusProgressStepper({ steps, activeStepId }: StatusProgressStepperProps) {
+  const activeIndex = Math.max(
+    steps.findIndex((step) => step.id === activeStepId),
+    0
+  );
 
-export function getOrderStatusColor(status: OrderStatus): "default" | "info" | "success" | "warning" {
-  if (status === "COMPLETED") return "success";
-  if (status === "CANCELLED") return "default";
-  return "info";
-}
-
-export function formatOrderDate(value: string) {
-  return new Intl.DateTimeFormat("ru-RU", {
-    day: "2-digit",
-    month: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
-export function getOrderCardAccentColor(status: OrderStatus) {
-  if (status === "COMPLETED") return "success.main";
-  if (status === "CANCELLED") return "text.disabled";
-  return "info.main";
+  return (
+    <Stepper
+      alternativeLabel
+      activeStep={activeIndex}
+      sx={{
+        "& .MuiStepConnector-line": {
+          borderTopWidth: 3,
+          borderColor: "divider",
+        },
+        "& .MuiStepLabel-label": {
+          mt: 1,
+          fontSize: 12,
+          color: "text.secondary",
+        },
+        "& .MuiStepLabel-label.Mui-active": {
+          color: "text.primary",
+          fontWeight: 700,
+        },
+        "& .MuiStepLabel-label.Mui-completed": {
+          color: "text.primary",
+        },
+      }}
+    >
+      {steps.map((step) => (
+        <Step key={step.id} completed={step.completed}>
+          <StepLabel>{step.label}</StepLabel>
+        </Step>
+      ))}
+    </Stepper>
+  );
 }
 
 type OrderOverviewPanelProps = {
@@ -140,18 +165,21 @@ export function OrderSearchAndFilters({
       />
 
       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-        {(["ALL", "ACTIVE", "COMPLETED", "CANCELLED"] as const).map((status) => (
+        {(
+          [
+            "ALL",
+            "ACTIVE",
+            "SERVICE_RENDERED",
+            "PAYMENT_PENDING",
+            "PAYMENT_PROCESSING",
+            "PAID",
+            "COMPLETED",
+            "CANCELLED",
+          ] as const
+        ).map((status) => (
           <Chip
             key={status}
-            label={
-              status === "ALL"
-                ? "Все"
-                : status === "ACTIVE"
-                  ? "Активные"
-                  : status === "COMPLETED"
-                    ? "Завершенные"
-                    : "Отмененные"
-            }
+            label={status === "ALL" ? "Все" : getOrderStatusLabel(status)}
             color={filter === status ? "primary" : "default"}
             variant={filter === status ? "filled" : "outlined"}
             onClick={() => onFilterChange(status)}
@@ -222,6 +250,13 @@ export function OrderCard({
           </Stack>
 
           {leftMeta}
+
+          <Box sx={{ pt: 1 }}>
+            <StatusProgressStepper
+              steps={buildOrderStatusFlowSteps(order.status)}
+              activeStepId={getOrderFlowActiveStepId(order.status)}
+            />
+          </Box>
         </Stack>
 
         <Box

@@ -2,8 +2,9 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Alert, Button, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Button, CircularProgress, Stack, TextField, Typography } from "@mui/material";
 import {
+  SERVICE_REQUESTS_PROFILE_URL,
   SERVICE_REQUESTS_PROFILE_RESUME_URL,
   buildServiceRequestAuthHref,
   savePendingServiceRequestDraft,
@@ -72,6 +73,20 @@ export function PublicCategoryRequestForm({ categoryId, isAuthenticated }: Props
       const cadastralNumber = buildCadastralNumber(form.cadastralBlock);
       const composedMessage = composeMessage(form.message, cadastralNumber);
 
+      if (isAuthenticated) {
+        const res = await fetch(`/api/service-categories/${categoryId}/requests`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ message: normalizeNullableString(composedMessage), requestCityId: null }),
+        });
+        const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+        if (!res.ok) {
+          throw new Error(payload?.error ?? "Не удалось создать заявку");
+        }
+        router.push(SERVICE_REQUESTS_PROFILE_URL);
+        return;
+      }
+
       savePendingServiceRequestDraft({
         kind: "CATEGORY",
         categoryId,
@@ -128,6 +143,7 @@ export function PublicCategoryRequestForm({ categoryId, isAuthenticated }: Props
         variant="contained"
         size="large"
         disabled={busy || Boolean(validationError)}
+        startIcon={busy ? <CircularProgress size={18} color="inherit" /> : null}
         sx={{ fontWeight: 800, textTransform: "none", px: 3, py: 1.25 }}
       >
         Получить предложения

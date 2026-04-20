@@ -343,7 +343,7 @@ export function ProServiceEditor({ mode, initialService }: Props) {
                   variant={form.status === "ARCHIVED" ? "outlined" : "filled"}
                 />
                 {activeMembership ? (
-                  <Chip label={`Provider: ${activeMembership.providerName}`} variant="outlined" />
+                  <Chip label={`Исполнитель: ${activeMembership.providerName}`} variant="outlined" />
                 ) : null}
               </Stack>
 
@@ -437,6 +437,8 @@ export function ProServiceEditor({ mode, initialService }: Props) {
                   helperText='Например: "Оставить заявку" или "Записаться"'
                 />
               </Stack>
+
+              {/* advance-based workflow removed */}
 
               <TextField
                 label="Ссылка CTA"

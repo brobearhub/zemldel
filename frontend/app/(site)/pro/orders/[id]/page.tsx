@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { Box, Paper, Stack, Typography } from "@mui/material";
 import type { OrderDto } from "@/entities/order";
+import { StatusProgressStepper, buildOrderStatusFlowSteps, getOrderFlowActiveStepId, getOrderStatusLabel } from "@/entities/order";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/lib/backend-api";
 import { getServerAuthSession } from "@/lib/auth";
 import { ChatBodyWithSidePanelLayout } from "@/widgets/chat/ui/ChatBodyWithSidePanelLayout";
@@ -46,12 +47,16 @@ export default async function ProOrderDetailPage({ params }: Props) {
           <Paper variant="outlined" sx={{ p: 2.5 }}>
             <Stack spacing={1}>
               <Typography fontWeight={800}>Детали заказа</Typography>
+              <StatusProgressStepper
+                steps={buildOrderStatusFlowSteps(order.status)}
+                activeStepId={getOrderFlowActiveStepId(order.status)}
+              />
               <Typography color="text.secondary">Provider: {order.providerName}</Typography>
               <Typography color="text.secondary">
                 Клиент: {order.customerName ?? "Без имени"}
                 {order.customerEmail ? ` · ${order.customerEmail}` : ""}
               </Typography>
-              <Typography color="text.secondary">Статус: {order.status}</Typography>
+              <Typography color="text.secondary">Статус: {getOrderStatusLabel(order.status)}</Typography>
             </Stack>
           </Paper>
         }

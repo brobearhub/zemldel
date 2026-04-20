@@ -5,19 +5,19 @@ import { makeStore } from "@/core/store/store";
 import { setAuthenticated, setUnauthenticated } from "@/core/store/authSlice";
 import { ProfileMenu } from "./ProfileMenu";
 
-const mockPush = jest.fn();
+const mockPush = vi.fn();
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
 }));
 
-jest.mock("next-auth/react", () => ({
-  signOut: jest.fn(),
+vi.mock("next-auth/react", () => ({
+  signOut: vi.fn(),
 }));
 
 describe("ProfileMenu", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   function renderWithAuthState(state: "unauth" | "customer" | "platformAdmin") {

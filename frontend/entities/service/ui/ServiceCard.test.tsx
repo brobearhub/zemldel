@@ -1,15 +1,15 @@
 import { render, screen } from "@testing-library/react";
 import { ServiceCard } from "./ServiceCard";
 
-jest.mock("next/navigation", () => ({
-  useRouter: () => ({ push: jest.fn() }),
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
 }));
 
-jest.mock("@/core/store/hooks", () => ({
-  useAppSelector: jest.fn(() => ({ status: "unauthenticated" })),
+vi.mock("@/core/store/hooks", () => ({
+  useAppSelector: vi.fn(() => ({ status: "unauthenticated" })),
 }));
 
-jest.mock("next/link", () => ({
+vi.mock("next/link", () => ({
   __esModule: true,
   default: ({ href, children, ...props }: { href: string; children: React.ReactNode }) => (
     <a href={href} {...props}>

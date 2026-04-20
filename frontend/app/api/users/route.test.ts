@@ -1,20 +1,20 @@
-/** @jest-environment node */
+/** @vitest-environment node */
 
 import type { NextRequest } from "next/server";
 import { GET, POST } from "./route";
 
-jest.mock("@/lib/backend-api", () => ({
+vi.mock("@/lib/backend-api", () => ({
   __esModule: true,
-  fetchBackend: jest.fn(),
+  fetchBackend: vi.fn(),
 }));
 
 import { fetchBackend } from "@/lib/backend-api";
 
-const mockedFetchBackend = fetchBackend as jest.Mock;
+const mockedFetchBackend = vi.mocked(fetchBackend);
 
 describe("Users API /api/users", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("returns users list in GET", async () => {

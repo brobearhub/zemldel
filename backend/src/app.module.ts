@@ -11,6 +11,7 @@ import { ChatModule } from './chat/chat.module';
 import { ServiceCategoriesModule } from './service-categories/service-categories.module';
 import { ServiceRequestsModule } from './service-requests/service-requests.module';
 import { CitiesModule } from './cities/cities.module';
+import { PublicOfferModule } from './public-offer/public-offer.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { CitiesModule } from './cities/cities.module';
     ProvidersModule,
     ChatModule,
     CitiesModule,
+    PublicOfferModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Box, ListItem, ListItemButton, Stack, Typography } from "@mui/material";
+import { FEED_ROW_MIN_HEIGHT } from "@/widgets/pro-requests/ui/FeedList";
 
 type Props = {
   href?: string;
@@ -29,26 +30,30 @@ export function FeedListItem({ href, disabled, isLast, title, meta, preview }: P
         sx={{
           px: 2,
           py: 1.25,
-          minHeight: 86,
+          minHeight: FEED_ROW_MIN_HEIGHT,
           alignItems: "stretch",
         }}
       >
-        <Stack spacing={0.25} sx={{ width: "100%", minWidth: 0 }}>
-          <Typography fontWeight={800} noWrap>
-            {title}
-          </Typography>
-          {meta ? (
-            <Typography variant="body2" color="text.secondary" noWrap>
-              {meta}
+        <Stack spacing={0.5} sx={{ width: "100%", minWidth: 0 }}>
+          <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+            <Typography variant="caption" color="text.secondary" noWrap>
+              {title}
             </Typography>
-          ) : null}
+            {meta ? (
+              <Typography variant="caption" color="text.secondary" noWrap>
+                {meta}
+              </Typography>
+            ) : null}
+          </Stack>
+
           {preview ? (
             <Typography
               variant="body2"
-              color="text.secondary"
+              fontWeight={600}
+              color="text.primary"
               sx={{
                 display: "-webkit-box",
-                WebkitLineClamp: 1,
+                WebkitLineClamp: 3,
                 WebkitBoxOrient: "vertical",
                 overflow: "hidden",
               }}

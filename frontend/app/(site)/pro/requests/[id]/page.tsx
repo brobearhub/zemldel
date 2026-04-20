@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { Box, Stack, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import type { ServiceRequestProDto } from "@/entities/service-request";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/lib/backend-api";
 import { getServerAuthSession } from "@/lib/auth";
@@ -40,27 +40,18 @@ export default async function ProRequestDetailPage({ params }: Props) {
   }
 
   return (
-    <Stack spacing={3}>
-      <Box>
-        <Typography variant="h4" fontWeight={700} gutterBottom>
-          Заявка
-        </Typography>
-        <Typography color="text.secondary">{pickSubtitle(req)}</Typography>
-      </Box>
-
-      <ChatBodyWithSidePanelLayout
-        middle={<ProRequestDetails initialRequest={req} />}
-        right={
-          req.status === "CLOSED" ? (
-            <Box>
-              <Typography color="text.secondary">Заявка закрыта клиентом. Чат недоступен.</Typography>
-            </Box>
-          ) : (
-            <ServiceRequestChatPanel serviceRequestId={req.id} title="Чат" subtitle={pickSubtitle(req)} />
-          )
-        }
-      />
-    </Stack>
+    <ChatBodyWithSidePanelLayout
+      middle={<ProRequestDetails initialRequest={req} subtitle={pickSubtitle(req)} />}
+      right={
+        req.status === "CLOSED" ? (
+          <Box>
+            <Typography color="text.secondary">Заявка закрыта клиентом. Чат недоступен.</Typography>
+          </Box>
+        ) : (
+          <ServiceRequestChatPanel serviceRequestId={req.id} title="Чат" subtitle={pickSubtitle(req)} />
+        )
+      }
+    />
   );
 }
 

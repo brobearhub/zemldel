@@ -3,6 +3,8 @@ import { List, ListItem, Paper } from "@mui/material";
 
 type RenderRowArgs = { isLast: boolean };
 
+export const FEED_ROW_MIN_HEIGHT = 104;
+
 type Props<T> = {
   items: T[];
   getKey: (item: T) => string;
@@ -17,7 +19,7 @@ function FeedRowPlaceholder({ isLast }: { isLast: boolean }) {
       sx={{
         px: 2,
         py: 1.25,
-        minHeight: 86,
+        minHeight: FEED_ROW_MIN_HEIGHT,
         borderBottom: isLast ? "none" : "1px solid",
         borderBottomColor: "divider",
         bgcolor: "transparent",

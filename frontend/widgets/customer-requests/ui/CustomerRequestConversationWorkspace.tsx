@@ -6,18 +6,32 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControlLabel,
   List,
   ListItem,
   ListItemButton,
   ListItemText,
   Paper,
   Stack,
+  TextField,
   Typography,
 } from "@mui/material";
 import type { ChatServiceRequestConversationListItemDto } from "@/entities/chat/dto/chat.dto";
-import type { ServiceRequestCustomerDto } from "@/entities/service-request";
+import { StatusProgressStepper } from "@/entities/order/ui/order-ui";
+import {
+  buildServiceRequestFlowSteps,
+  getServiceRequestFlowActiveStepId,
+  getServiceRequestStatusLabel,
+  isServiceRequestOrderStatus,
+  type ServiceRequestCustomerDto,
+} from "@/entities/service-request";
 import { ChatBodyWithSidePanelLayout } from "@/widgets/chat/ui/ChatBodyWithSidePanelLayout";
 import { ServiceRequestChatPanel } from "@/widgets/chat/ui/ServiceRequestChatPanel";
 
@@ -47,6 +61,13 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [offerOpen, setOfferOpen] = useState(false);
+  const [offerBusy, setOfferBusy] = useState(false);
+  const [offerError, setOfferError] = useState<string | null>(null);
+  const [offerVersion, setOfferVersion] = useState<string | null>(null);
+  const [offerMarkdown, setOfferMarkdown] = useState<string | null>(null);
+  const [offerAccepted, setOfferAccepted] = useState(false);
+  const [remarks, setRemarks] = useState("");
 
   const selectedConversation = useMemo(
     () => conversations.find((c) => c.conversationId === selectedConversationId) ?? null,
@@ -100,8 +121,12 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     }
   }, [conversations, selectedConversationId]);
 
-  const isOrderStatus =
-    req.status === "ACTIVE" || req.status === "COMPLETED" || req.status === "CANCELLED" || req.status === "CONVERTED_TO_ORDER";
+  const activeOffer =
+    req.offers.find((offer) => offer.providerId === selectedConversation?.providerId) ??
+    req.offers.find((offer) => req.selectedProviderIds.includes(offer.providerId)) ??
+    null;
+
+  const isOrderStatus = isServiceRequestOrderStatus(req.status);
 
   function canInitiateOrderFor(providerId: string) {
     if (isOrderStatus || req.status === "CLOSED") return false;
@@ -138,6 +163,157 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     }
   }
 
+  async function loadOffer() {
+    setOfferBusy(true);
+    setOfferError(null);
+    try {
+      const res = await fetch(`/api/public-offer/current`, { cache: "no-store" });
+      const payload = (await res.json().catch(() => null)) as { error?: string } | { version: string; markdown: string } | null;
+      if (!res.ok) {
+        throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось загрузить оферту" : "Не удалось загрузить оферту");
+      }
+      const data = payload as { version: string; markdown: string };
+      setOfferVersion(data.version);
+      setOfferMarkdown(data.markdown);
+    } catch (e) {
+      setOfferError(e instanceof Error ? e.message : "Не удалось загрузить оферту");
+    } finally {
+      setOfferBusy(false);
+    }
+  }
+
+  async function acceptTerms() {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch(`/api/service-requests/${req.id}/accept-terms`, { method: "POST" });
+      const payload = (await res.json().catch(() => null)) as { error?: string } | ServiceRequestCustomerDto | null;
+      if (!res.ok) {
+        throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось согласовать условия" : "Не удалось согласовать условия");
+      }
+      setReq(payload as ServiceRequestCustomerDto);
+      setNotice("Условия согласованы.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось согласовать условия");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function selectProvider(providerId: string) {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch(`/api/service-requests/${req.id}/select-provider`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ providerId }),
+      });
+      const payload = (await res.json().catch(() => null)) as { error?: string } | ServiceRequestCustomerDto | null;
+      if (!res.ok) {
+        throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось выбрать исполнителя" : "Не удалось выбрать исполнителя");
+      }
+      setReq(payload as ServiceRequestCustomerDto);
+      setNotice("Исполнитель выбран.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось выбрать исполнителя");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function acceptContract() {
+    if (!offerVersion) {
+      setOfferError("Версия оферты не загружена");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch(`/api/service-requests/${req.id}/accept-contract`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ offerVersion }),
+      });
+      const payload = (await res.json().catch(() => null)) as { error?: string } | ServiceRequestCustomerDto | null;
+      if (!res.ok) {
+        throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось заключить договор" : "Не удалось заключить договор");
+      }
+      setReq(payload as ServiceRequestCustomerDto);
+      setNotice("Договор заключен.");
+      setOfferOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось заключить договор");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function payEscrow() {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch(`/api/service-requests/${req.id}/pay`, { method: "POST" });
+      const payload = (await res.json().catch(() => null)) as { error?: string } | ServiceRequestCustomerDto | null;
+      if (!res.ok) {
+        throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось оплатить" : "Не удалось оплатить");
+      }
+      setReq(payload as ServiceRequestCustomerDto);
+      setNotice("Средства зарезервированы (escrow).");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось оплатить");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function acceptResult() {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch(`/api/orders/mine/${req.id}/accept-result`, { method: "POST" });
+      const payload = (await res.json().catch(() => null)) as { error?: string } | unknown | null;
+      if (!res.ok) {
+        throw new Error(payload && typeof payload === "object" && payload && "error" in (payload as any) ? ((payload as any).error as string) : "Не удалось принять результат");
+      }
+      await refreshRequest();
+      setNotice("Результат принят.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось принять результат");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendRemarks() {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch(`/api/orders/mine/${req.id}/send-remarks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ remarks }),
+      });
+      const payload = (await res.json().catch(() => null)) as { error?: string } | unknown | null;
+      if (!res.ok) {
+        throw new Error(payload && typeof payload === "object" && payload && "error" in (payload as any) ? ((payload as any).error as string) : "Не удалось отправить замечания");
+      }
+      setRemarks("");
+      await refreshRequest();
+      setNotice("Замечания отправлены. Заказ возвращен в работу.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось отправить замечания");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const selectedCount = req.selectedProviderIds?.length ?? 0;
   const pendingInfo =
     !isOrderStatus && selectedCount > 0 && req.lastSelectionAt
@@ -150,12 +326,16 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     <ChatBodyWithSidePanelLayout
       middle={
         <Stack spacing={2}>
-          <Box>
-            <Typography variant="h4" fontWeight={700} gutterBottom>
-              Заявка
-            </Typography>
+          <Stack spacing={0.75}>
+            <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap>
+              <Typography variant="h4" fontWeight={700}>
+                Заявка
+              </Typography>
+              <Chip size="small" label={getServiceRequestStatusLabel(req.status)} />
+            </Stack>
             <Typography color="text.secondary">{pickTitle(req)}</Typography>
-          </Box>
+            {req.message ? <Typography sx={{ whiteSpace: "pre-wrap" }}>{req.message}</Typography> : null}
+          </Stack>
 
           {notice ? <Alert severity="success">{notice}</Alert> : null}
           {error ? <Alert severity="error">{error}</Alert> : null}
@@ -164,15 +344,80 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
             <Stack spacing={1}>
               <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap>
                 <Typography fontWeight={800}>Детали</Typography>
-                <Chip size="small" label={req.status} />
               </Stack>
+              <StatusProgressStepper
+                steps={buildServiceRequestFlowSteps(req.status, activeOffer)}
+                activeStepId={getServiceRequestFlowActiveStepId(req.status, activeOffer)}
+              />
               {pendingInfo ? (
                 <Typography variant="body2" color="text.secondary">
                   {pendingInfo}
                 </Typography>
               ) : null}
+              {!isOrderStatus && (req.status === "NEW" || req.status === "DISCUSSING") && req.dealTerms ? (
+                <Button
+                  variant="contained"
+                  color="success"
+                  disabled={busy}
+                  onClick={() => void acceptTerms()}
+                  sx={{ alignSelf: "flex-start" }}
+                >
+                  Согласовать условия
+                </Button>
+              ) : null}
+              {!isOrderStatus && req.status === "PROVIDER_SELECTED" ? (
+                <Button
+                  variant="contained"
+                  color="success"
+                  disabled={busy}
+                  onClick={() => {
+                    setOfferOpen(true);
+                    setOfferAccepted(false);
+                    if (!offerMarkdown && !offerBusy) void loadOffer();
+                  }}
+                  sx={{ alignSelf: "flex-start" }}
+                >
+                  Заключить договор и начать выполнение
+                </Button>
+              ) : null}
+              {!isOrderStatus && (req.status === "CONTRACT_ACCEPTED" || req.status === "PAYMENT_PENDING") ? (
+                <Button
+                  variant="contained"
+                  color="warning"
+                  disabled={busy}
+                  onClick={() => void payEscrow()}
+                  sx={{ alignSelf: "flex-start" }}
+                >
+                  Оплатить (средства будут зарезервированы)
+                </Button>
+              ) : null}
+              {req.status === "ACCEPTANCE_PENDING" ? (
+                <Stack spacing={1} sx={{ pt: 1 }}>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    <Button variant="contained" color="success" disabled={busy} onClick={() => void acceptResult()}>
+                      Принять результат
+                    </Button>
+                    <Button variant="outlined" color="warning" disabled={busy} onClick={() => void sendRemarks()}>
+                      Отправить замечания
+                    </Button>
+                  </Stack>
+                  <TextField
+                    label="Замечания"
+                    value={remarks}
+                    onChange={(e) => setRemarks(e.target.value)}
+                    minRows={3}
+                    multiline
+                    disabled={busy}
+                  />
+                  {req.autoAcceptAt ? (
+                    <Typography variant="body2" color="text.secondary">
+                      Автопринятие: {formatDate(req.autoAcceptAt)}
+                    </Typography>
+                  ) : null}
+                </Stack>
+              ) : null}
+              {/* advance flow removed */}
               {req.location ? <Typography color="text.secondary">Локация: {req.location}</Typography> : null}
-              {req.message ? <Typography color="text.secondary">{req.message}</Typography> : null}
 
               {isOrderStatus ? (
                 <Button component={Link} href={`/orders/${req.id}`} variant="contained" color="success" sx={{ mt: 1, alignSelf: "flex-start" }}>
@@ -197,9 +442,10 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
             ) : (
               <List dense disablePadding>
                 {conversations.map((c) => {
-                  const rowCanInitiate = canInitiateOrderFor(c.providerId);
                   const isSelected = (req.selectedProviderIds ?? []).includes(c.providerId);
                   const isDeclined = (req.declinedProviderIds ?? []).includes(c.providerId);
+                  const rowCanInitiate =
+                    req.status === "TERMS_AGREED" ? isSelected : canInitiateOrderFor(c.providerId);
 
                   return (
                     <ListItem
@@ -215,11 +461,19 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                               disabled={!rowCanInitiate || busy}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                void initiateOrder(c.conversationId);
+                                if (req.status === "TERMS_AGREED") {
+                                  void selectProvider(c.providerId);
+                                } else {
+                                  void initiateOrder(c.conversationId);
+                                }
                               }}
                               sx={{ whiteSpace: "nowrap" }}
                             >
-                              {isDeclined ? "Выбрать снова" : "Выбрать исполнителя"}
+                              {req.status === "TERMS_AGREED"
+                                ? "Подтвердить выбор"
+                                : isDeclined
+                                  ? "Выбрать снова"
+                                  : "Выбрать исполнителя"}
                             </Button>
                           </Stack>
                         )
@@ -253,6 +507,46 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
               </List>
             )}
           </Paper>
+
+          <Dialog
+            open={offerOpen}
+            onClose={() => {
+              if (!busy) setOfferOpen(false);
+            }}
+            fullWidth
+            maxWidth="md"
+          >
+            <DialogTitle>Публичная оферта</DialogTitle>
+            <DialogContent dividers>
+              {offerError ? <Alert severity="error">{offerError}</Alert> : null}
+              {offerBusy ? <Typography color="text.secondary">Загрузка…</Typography> : null}
+              {!offerBusy && offerMarkdown ? (
+                <Typography sx={{ whiteSpace: "pre-wrap" }}>{offerMarkdown}</Typography>
+              ) : null}
+              <FormControlLabel
+                control={<Checkbox checked={offerAccepted} onChange={(e) => setOfferAccepted(e.target.checked)} />}
+                label={
+                  offerVersion
+                    ? `Я согласен(на) с офертой версии ${offerVersion} и условиями сделки`
+                    : "Я согласен(на) с офертой и условиями сделки"
+                }
+                sx={{ mt: 2 }}
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button disabled={busy} onClick={() => setOfferOpen(false)}>
+                Отмена
+              </Button>
+              <Button
+                variant="contained"
+                color="success"
+                disabled={busy || offerBusy || !offerAccepted || !offerVersion}
+                onClick={() => void acceptContract()}
+              >
+                Подтвердить акцепт
+              </Button>
+            </DialogActions>
+          </Dialog>
         </Stack>
       }
       right={

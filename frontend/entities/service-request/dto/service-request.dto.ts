@@ -2,14 +2,44 @@ export type ServiceRequestSubjectType = "FREEFORM" | "CATEGORY" | "SERVICE";
 export type ServiceRequestStatus =
   | "NEW"
   | "DISCUSSING"
+  | "TERMS_AGREED"
+  | "PROVIDER_SELECTED"
+  | "CONTRACT_ACCEPTED"
   | "LOCKED"
-  | "CONVERTED_TO_ORDER"
+  | "ACCEPTANCE_PENDING"
+  | "ACCEPTED"
   | "ACTIVE"
+  | "SERVICE_RENDERED"
+  | "PAYMENT_PENDING"
+  | "PAYMENT_PROCESSING"
+  | "PAID"
   | "COMPLETED"
   | "CANCELLED"
   | "CLOSED";
 
+export const ORDER_PHASE_STATUSES = [
+  "CONTRACT_ACCEPTED",
+  "PAYMENT_PENDING",
+  "PAYMENT_PROCESSING",
+  "ACTIVE",
+  "SERVICE_RENDERED",
+  "ACCEPTANCE_PENDING",
+  "ACCEPTED",
+  "PAID",
+  "COMPLETED",
+  "CANCELLED",
+] as const satisfies readonly ServiceRequestStatus[];
+
+export function isServiceRequestOrderStatus(status: ServiceRequestStatus) {
+  return (ORDER_PHASE_STATUSES as readonly string[]).includes(status);
+}
+
 export type ServiceRequestProviderOfferStatus = "SELECTED" | "DECLINED";
+
+export type ServiceRequestCustomerOfferDto = {
+  providerId: string;
+  status: ServiceRequestProviderOfferStatus;
+};
 
 export type ServiceRequestCustomerDto = {
   id: string;
@@ -20,9 +50,16 @@ export type ServiceRequestCustomerDto = {
   message: string | null;
   location: string | null;
   providerId: string | null;
+  dealTerms: unknown | null;
+  offerVersion: string | null;
+  contractAcceptedAt: string | null;
+  acceptanceRequestedAt: string | null;
+  autoAcceptAt: string | null;
+  acceptedAt: string | null;
   selectedProviderIds: string[];
   declinedProviderIds: string[];
   lastSelectionAt: string | null;
+  offers: ServiceRequestCustomerOfferDto[];
   requestCityId: string | null;
   lockedAt: string | null;
   createdAt: string;
@@ -40,6 +77,12 @@ export type ServiceRequestProDto = {
   location: string | null;
   status: ServiceRequestStatus;
   providerId: string | null;
+  dealTerms: unknown | null;
+  offerVersion: string | null;
+  contractAcceptedAt: string | null;
+  acceptanceRequestedAt: string | null;
+  autoAcceptAt: string | null;
+  acceptedAt: string | null;
   offerStatus: ServiceRequestProviderOfferStatus | null;
   offerSelectedAt: string | null;
   offerDeclinedAt: string | null;
@@ -57,14 +100,30 @@ export function getServiceRequestStatusLabel(status: ServiceRequestStatus): stri
       return "Новая";
     case "DISCUSSING":
       return "Обсуждение";
+    case "TERMS_AGREED":
+      return "Условия согласованы";
+    case "PROVIDER_SELECTED":
+      return "Исполнитель выбран";
+    case "CONTRACT_ACCEPTED":
+      return "Договор заключен";
     case "LOCKED":
       return "Взято в работу";
-    case "CONVERTED_TO_ORDER":
-      return "Передано в заказ";
     case "ACTIVE":
-      return "Заказ (активный)";
+      return "В работе";
+    case "SERVICE_RENDERED":
+      return "Услуга оказана";
+    case "ACCEPTANCE_PENDING":
+      return "Ожидает принятия";
+    case "ACCEPTED":
+      return "Принято";
+    case "PAYMENT_PENDING":
+      return "Ожидает оплаты";
+    case "PAYMENT_PROCESSING":
+      return "Средства зарезервированы";
+    case "PAID":
+      return "Выплата исполнителю";
     case "COMPLETED":
-      return "Заказ (завершён)";
+      return "Заказ выполнен";
     case "CANCELLED":
       return "Заказ (отменён)";
     case "CLOSED":

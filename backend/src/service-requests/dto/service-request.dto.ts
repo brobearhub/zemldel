@@ -19,20 +19,68 @@ import {
 export type ServiceRequestStatus =
   | 'NEW'
   | 'DISCUSSING'
+  | 'TERMS_AGREED'
+  | 'PROVIDER_SELECTED'
+  | 'CONTRACT_ACCEPTED'
   | 'LOCKED'
+  | 'ACCEPTANCE_PENDING'
+  | 'ACCEPTED'
   | 'ACTIVE'
+  | 'SERVICE_RENDERED'
+  | 'PAYMENT_PENDING'
+  | 'PAYMENT_PROCESSING'
+  | 'PAID'
   | 'COMPLETED'
   | 'CANCELLED'
   | 'CLOSED';
+
+export const ORDER_PHASE_STATUSES = [
+  'PROVIDER_SELECTED',
+  'CONTRACT_ACCEPTED',
+  'PAYMENT_PENDING',
+  'PAYMENT_PROCESSING',
+  'ACTIVE',
+  'SERVICE_RENDERED',
+  'ACCEPTANCE_PENDING',
+  'ACCEPTED',
+  'PAID',
+  'COMPLETED',
+  'CANCELLED',
+] as const satisfies readonly ServiceRequestStatus[];
+
+export function isOrderPhaseStatus(
+  value: ServiceRequestStatus | string,
+): value is (typeof ORDER_PHASE_STATUSES)[number] {
+  return (ORDER_PHASE_STATUSES as readonly string[]).includes(value);
+}
 
 export type ServiceRequestSubjectType = 'FREEFORM' | 'CATEGORY' | 'SERVICE';
 
 export type ServiceRequestProviderOfferStatus = 'SELECTED' | 'DECLINED';
 
+export class ServiceRequestCustomerOfferDto {
+  @Expose()
+  @IsUUID()
+  providerId!: string;
+
+  @Expose()
+  @IsEnum(['SELECTED', 'DECLINED'])
+  status!: ServiceRequestProviderOfferStatus;
+}
+
 function normalizeStatus(value: unknown): ServiceRequestStatus {
   if (value === 'DISCUSSING') return 'DISCUSSING';
+  if (value === 'TERMS_AGREED') return 'TERMS_AGREED';
+  if (value === 'PROVIDER_SELECTED') return 'PROVIDER_SELECTED';
+  if (value === 'CONTRACT_ACCEPTED') return 'CONTRACT_ACCEPTED';
   if (value === 'LOCKED') return 'LOCKED';
+  if (value === 'ACCEPTANCE_PENDING') return 'ACCEPTANCE_PENDING';
+  if (value === 'ACCEPTED') return 'ACCEPTED';
   if (value === 'ACTIVE') return 'ACTIVE';
+  if (value === 'SERVICE_RENDERED') return 'SERVICE_RENDERED';
+  if (value === 'PAYMENT_PENDING') return 'PAYMENT_PENDING';
+  if (value === 'PAYMENT_PROCESSING') return 'PAYMENT_PROCESSING';
+  if (value === 'PAID') return 'PAID';
   if (value === 'COMPLETED') return 'COMPLETED';
   if (value === 'CANCELLED') return 'CANCELLED';
   if (value === 'CLOSED') return 'CLOSED';
@@ -218,8 +266,17 @@ export class ServiceRequestCustomerDto {
   @IsEnum([
     'NEW',
     'DISCUSSING',
+    'TERMS_AGREED',
+    'PROVIDER_SELECTED',
+    'CONTRACT_ACCEPTED',
     'LOCKED',
     'ACTIVE',
+    'SERVICE_RENDERED',
+    'PAYMENT_PENDING',
+    'PAYMENT_PROCESSING',
+    'ACCEPTANCE_PENDING',
+    'ACCEPTED',
+    'PAID',
     'COMPLETED',
     'CANCELLED',
     'CLOSED',
@@ -253,6 +310,9 @@ export class ServiceRequestCustomerDto {
   lastSelectionAt!: string | null;
 
   @Expose()
+  offers!: ServiceRequestCustomerOfferDto[];
+
+  @Expose()
   @IsOptional()
   @IsUUID()
   requestCityId!: string | null;
@@ -271,6 +331,34 @@ export class ServiceRequestCustomerDto {
   @IsOptional()
   @IsString()
   lockedAt!: string | null;
+
+  @Expose()
+  dealTerms!: unknown | null;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  offerVersion!: string | null;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  contractAcceptedAt!: string | null;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  acceptanceRequestedAt!: string | null;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  autoAcceptAt!: string | null;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  acceptedAt!: string | null;
 
   @Expose()
   @IsString()
@@ -295,8 +383,17 @@ export class ServiceRequestProDto {
   @IsEnum([
     'NEW',
     'DISCUSSING',
+    'TERMS_AGREED',
+    'PROVIDER_SELECTED',
+    'CONTRACT_ACCEPTED',
     'LOCKED',
     'ACTIVE',
+    'SERVICE_RENDERED',
+    'PAYMENT_PENDING',
+    'PAYMENT_PROCESSING',
+    'ACCEPTANCE_PENDING',
+    'ACCEPTED',
+    'PAID',
     'COMPLETED',
     'CANCELLED',
     'CLOSED',
@@ -364,6 +461,34 @@ export class ServiceRequestProDto {
   lockedAt!: string | null;
 
   @Expose()
+  dealTerms!: unknown | null;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  offerVersion!: string | null;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  contractAcceptedAt!: string | null;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  acceptanceRequestedAt!: string | null;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  autoAcceptAt!: string | null;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  acceptedAt!: string | null;
+
+  @Expose()
   conversationsCount!: number;
 
   @Expose()
@@ -389,6 +514,12 @@ export type ServiceRequestDbRow = {
   message: string | null;
   location: string | null;
   lockedAt: Date | null;
+  dealTerms?: unknown | null;
+  offerVersion?: string | null;
+  contractAcceptedAt?: Date | null;
+  acceptanceRequestedAt?: Date | null;
+  autoAcceptAt?: Date | null;
+  acceptedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   service?: { title: string } | null;
@@ -428,10 +559,24 @@ export function serviceRequestRowToCustomerDtoPlain(
       selectedProviderIds: selected.map((o) => o.providerId),
       declinedProviderIds: declined.map((o) => o.providerId),
       lastSelectionAt,
+      offers: offers.map((offer) => ({
+        providerId: offer.providerId,
+        status: offer.status,
+      })),
       requestCityId: row.requestCityId,
       message: row.message,
       location: row.location,
       lockedAt: row.lockedAt ? row.lockedAt.toISOString() : null,
+      dealTerms: row.dealTerms ?? null,
+      offerVersion: row.offerVersion ?? null,
+      contractAcceptedAt: row.contractAcceptedAt
+        ? row.contractAcceptedAt.toISOString()
+        : null,
+      acceptanceRequestedAt: row.acceptanceRequestedAt
+        ? row.acceptanceRequestedAt.toISOString()
+        : null,
+      autoAcceptAt: row.autoAcceptAt ? row.autoAcceptAt.toISOString() : null,
+      acceptedAt: row.acceptedAt ? row.acceptedAt.toISOString() : null,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     },
@@ -446,9 +591,7 @@ export function serviceRequestRowToProDtoPlain(
   actorProviderId: string,
 ): ServiceRequestProDto {
   const locked =
-    (row.status === 'ACTIVE' ||
-      row.status === 'COMPLETED' ||
-      row.status === 'CANCELLED') &&
+    isOrderPhaseStatus(row.status) &&
     Boolean(row.providerId) &&
     row.providerId !== actorProviderId;
 
@@ -479,6 +622,16 @@ export function serviceRequestRowToProDtoPlain(
       message: locked ? null : row.message,
       location: locked ? null : row.location,
       lockedAt: row.lockedAt ? row.lockedAt.toISOString() : null,
+      dealTerms: locked ? null : (row.dealTerms ?? null),
+      offerVersion: row.offerVersion ?? null,
+      contractAcceptedAt: row.contractAcceptedAt
+        ? row.contractAcceptedAt.toISOString()
+        : null,
+      acceptanceRequestedAt: row.acceptanceRequestedAt
+        ? row.acceptanceRequestedAt.toISOString()
+        : null,
+      autoAcceptAt: row.autoAcceptAt ? row.autoAcceptAt.toISOString() : null,
+      acceptedAt: row.acceptedAt ? row.acceptedAt.toISOString() : null,
       conversationsCount,
       isLocked: locked,
       createdAt: row.createdAt.toISOString(),

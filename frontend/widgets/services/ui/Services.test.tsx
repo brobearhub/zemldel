@@ -6,11 +6,11 @@ import { setServices } from "@/widgets/services/model/service.slice";
 import { legalService, mainService } from "../../../tests/fixtures/services";
 import type { ServiceRecord } from "@/entities/service";
 
-jest.mock("next/navigation", () => ({
-  useRouter: () => ({ push: jest.fn() }),
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
 }));
 
-jest.mock("next/link", () => ({
+vi.mock("next/link", () => ({
   __esModule: true,
   default: ({ href, children, ...props }: { href: string; children: React.ReactNode }) => (
     <a href={href} {...props}>
@@ -21,7 +21,7 @@ jest.mock("next/link", () => ({
 
 describe("Services widget", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   function renderWithStore(dtos: ServiceRecord[] = []) {

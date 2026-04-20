@@ -9,6 +9,7 @@ import {
   OrderSearchAndFilters,
   formatOrderDate,
   getOrderStatusLabel,
+  isOpenOrderStatus,
   type OrderDto,
   type OrderStatus,
   type OrderStatusFilter,
@@ -24,7 +25,7 @@ export function ProOrdersBoard({ initialOrders }: Props) {
   const [orders] = useState(initialOrders);
   const [filter, setFilter] = useState<OrderStatusFilter>("ALL");
   const [search, setSearch] = useState("");
-  const activeOrdersCount = useMemo(() => orders.filter((order) => order.status === "ACTIVE").length, [orders]);
+  const activeOrdersCount = useMemo(() => orders.filter((order) => isOpenOrderStatus(order.status)).length, [orders]);
 
   const stats = useMemo(() => {
     return orders.reduce(
@@ -35,7 +36,14 @@ export function ProOrdersBoard({ initialOrders }: Props) {
       },
       {
         ALL: 0,
+        CONTRACT_ACCEPTED: 0,
         ACTIVE: 0,
+        SERVICE_RENDERED: 0,
+        PAYMENT_PENDING: 0,
+        PAYMENT_PROCESSING: 0,
+        ACCEPTANCE_PENDING: 0,
+        ACCEPTED: 0,
+        PAID: 0,
         COMPLETED: 0,
         CANCELLED: 0,
       } satisfies Record<OrderStatusFilter, number>

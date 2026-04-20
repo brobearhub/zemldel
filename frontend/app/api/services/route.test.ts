@@ -1,20 +1,20 @@
-/** @jest-environment node */
+/** @vitest-environment node */
 
 import { GET } from "./route";
 
-jest.mock("@/lib/backend-api", () => ({
+vi.mock("@/lib/backend-api", () => ({
   __esModule: true,
-  fetchBackend: jest.fn(),
+  fetchBackend: vi.fn(),
 }));
 
 import { fetchBackend } from "@/lib/backend-api";
 import { legalService, mainService } from "@/tests/fixtures/services";
 
-const mockedFetchBackend = fetchBackend as jest.Mock;
+const mockedFetchBackend = vi.mocked(fetchBackend);
 
 describe("GET /api/services", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("returns services", async () => {

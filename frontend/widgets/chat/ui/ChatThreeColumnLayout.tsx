@@ -19,7 +19,7 @@ export function ChatThreeColumnLayout({
   stickyTop = 112,
 }: Props) {
   return (
-    <Container maxWidth="xl" sx={{ py: 4, pt: 14, pb: 10 }}>
+    <Container maxWidth="xl" sx={{ py: 4, pt: { xs: 10, lg: 14 }, pb: { xs: 6, lg: 10 } }}>
       <Stack spacing={2}>
         <Box
           sx={{
@@ -39,7 +39,11 @@ export function ChatThreeColumnLayout({
               minWidth: 0,
               position: { lg: "sticky" },
               top: { lg: stickyTop },
-              height: { lg: `calc(100dvh - ${stickyTop + 32}px)` },
+              // `dvh` is not consistently applied in all environments; `vh` keeps the chat full-height.
+              height: { lg: `calc(100vh - ${stickyTop + 32}px)` },
+              display: "flex",
+              flexDirection: "column",
+              minHeight: 0,
             }}
           >
             {right}

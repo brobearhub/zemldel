@@ -10,6 +10,7 @@ import {
   Alert,
   Autocomplete,
   Button,
+  CircularProgress,
   Paper,
   Stack,
   TextField,
@@ -19,6 +20,7 @@ import type { CitySuggestItemDto } from "@/entities/city";
 import { CityAutocomplete } from "@/shared/ui/CityAutocomplete";
 import { useAppSelector } from "@/core/store/hooks";
 import {
+  SERVICE_REQUESTS_PROFILE_URL,
   SERVICE_REQUESTS_PROFILE_RESUME_URL,
   buildServiceRequestAuthHref,
   savePendingServiceRequestDraft,
@@ -139,6 +141,20 @@ export function PublicUnlinkedRequestForm({
       if (category) {
         const composedMessage = composeMessage(form.message, { cadastralNumber });
 
+        if (isAuthenticated) {
+          const res = await fetch(`/api/service-categories/${category.id}/requests`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ message: normalizeNullableString(composedMessage), requestCityId }),
+          });
+          const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+          if (!res.ok) {
+            throw new Error(payload?.error ?? "Не удалось создать заявку");
+          }
+          router.push(SERVICE_REQUESTS_PROFILE_URL);
+          return;
+        }
+
         savePendingServiceRequestDraft({
           kind: "CATEGORY",
           categoryId: category.id,
@@ -155,6 +171,21 @@ export function PublicUnlinkedRequestForm({
       }
 
       const composedMessage = composeMessage(form.message, { cadastralNumber });
+
+      if (isAuthenticated) {
+        const res = await fetch("/api/service-requests", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ message: normalizeNullableString(composedMessage), requestCityId }),
+        });
+        const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+        if (!res.ok) {
+          throw new Error(payload?.error ?? "Не удалось создать заявку");
+        }
+        router.push(SERVICE_REQUESTS_PROFILE_URL);
+        return;
+      }
+
       savePendingServiceRequestDraft({
         kind: "FREEFORM",
         message: normalizeNullableString(composedMessage),
@@ -265,6 +296,7 @@ export function PublicUnlinkedRequestForm({
         variant="contained"
         size="large"
         disabled={busy || Boolean(validationError)}
+        startIcon={busy ? <CircularProgress size={18} color="inherit" /> : null}
         sx={{ fontWeight: 800, textTransform: "none" }}
       >
         {isAuthenticated ? "Создать заявку" : "Продолжить"}

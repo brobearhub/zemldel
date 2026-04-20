@@ -1,28 +1,28 @@
 import ServicesAdminListPage from "./page";
 
-const notFoundMock = jest.fn(() => {
+const notFoundMock = vi.fn(() => {
   throw new Error("NEXT_NOT_FOUND");
 });
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   notFound: () => notFoundMock(),
 }));
 
-jest.mock("@/lib/auth", () => ({
+vi.mock("@/lib/auth", () => ({
   __esModule: true,
-  getServerAuthSession: jest.fn(),
+  getServerAuthSession: vi.fn(),
 }));
 
-jest.mock("@/lib/backend-api", () => ({
+vi.mock("@/lib/backend-api", () => ({
   __esModule: true,
-  fetchBackendJsonAsUser: jest.fn(),
+  fetchBackendJsonAsUser: vi.fn(),
 }));
 
 import { fetchBackendJsonAsUser } from "@/lib/backend-api";
 import { getServerAuthSession } from "@/lib/auth";
 
-const mockedFetchBackendJsonAsUser = fetchBackendJsonAsUser as jest.Mock;
-const mockedGetServerAuthSession = getServerAuthSession as jest.Mock;
+const mockedFetchBackendJsonAsUser = vi.mocked(fetchBackendJsonAsUser);
+const mockedGetServerAuthSession = vi.mocked(getServerAuthSession);
 
 function setNodeEnv(value: "development" | "production" | "test") {
   process.env = { ...process.env, NODE_ENV: value } as NodeJS.ProcessEnv;
@@ -32,7 +32,7 @@ describe("Admin services list page", () => {
   const originalNodeEnv = process.env.NODE_ENV;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedGetServerAuthSession.mockResolvedValue({
       user: {
         id: "user-1",

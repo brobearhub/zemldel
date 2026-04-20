@@ -479,7 +479,17 @@ function ProfilePageContent() {
             <CustomerOrdersSection />
           ) : null}
 
-          {selectedSection === "requests" ? <CustomerRequestsSection autoResumeEnabled={searchParams.get("requestResume") === "1"} /> : null}
+          {selectedSection === "requests" ? (
+            <CustomerRequestsSection
+              autoResumeEnabled={searchParams.get("requestResume") === "1"}
+              onAutoResumeFinished={() => {
+                const nextParams = new URLSearchParams(searchParams.toString());
+                nextParams.delete("requestResume");
+                const nextQuery = nextParams.toString();
+                router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+              }}
+            />
+          ) : null}
         </Paper>
       </Stack>
     </Container>

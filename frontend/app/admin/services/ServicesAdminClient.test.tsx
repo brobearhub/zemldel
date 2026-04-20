@@ -3,9 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { ServicesAdminClient } from "./ServicesAdminClient";
 import { legalService, mainService } from "../../../tests/fixtures/services";
 
-const mockPush = jest.fn();
+const mockPush = vi.fn();
+let fetchMock: ReturnType<typeof vi.fn>;
+let confirmMock: ReturnType<typeof vi.fn>;
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
 }));
 
@@ -16,14 +18,16 @@ const categories = [
 
 describe("ServicesAdminClient", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    global.fetch = jest.fn();
-    global.confirm = jest.fn(() => true);
+    vi.clearAllMocks();
+    fetchMock = vi.fn();
+    confirmMock = vi.fn(() => true);
+    global.fetch = fetchMock as any;
+    global.confirm = confirmMock as any;
   });
 
   it("creates a service and redirects in create mode", async () => {
     const user = userEvent.setup();
-    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+    fetchMock.mockImplementation((url: string) => {
       if (url === "/api/admin/service-categories") {
         return Promise.resolve({ ok: true, json: async () => categories });
       }
@@ -43,7 +47,7 @@ describe("ServicesAdminClient", () => {
     await user.click(screen.getByRole("button", { name: "Создать" }));
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
-    const [, requestInit] = (global.fetch as jest.Mock).mock.calls[1];
+    const [, requestInit] = fetchMock.mock.calls[1];
     const payload = JSON.parse((requestInit as RequestInit).body as string) as {
       ctaHref: string | null;
       title: string;
@@ -60,7 +64,7 @@ describe("ServicesAdminClient", () => {
 
   it("deletes service in list mode and refreshes list", async () => {
     const user = userEvent.setup();
-    (global.fetch as jest.Mock)
+    fetchMock
       .mockResolvedValueOnce({ ok: true, json: async () => categories })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) })
       .mockResolvedValueOnce({
@@ -80,7 +84,7 @@ describe("ServicesAdminClient", () => {
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
 
-    const [deleteUrl, deleteInit] = (global.fetch as jest.Mock).mock.calls[1];
+    const [deleteUrl, deleteInit] = fetchMock.mock.calls[1];
     expect(deleteUrl).toBe(`/api/admin/services/${mainService.id}`);
     expect(deleteInit).toEqual({ method: "DELETE" });
     expect(global.confirm).toHaveBeenCalled();
@@ -88,7 +92,7 @@ describe("ServicesAdminClient", () => {
 
   it("deletes legal service row path", async () => {
     const user = userEvent.setup();
-    (global.fetch as jest.Mock)
+    fetchMock
       .mockResolvedValueOnce({ ok: true, json: async () => categories })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) })
       .mockResolvedValueOnce({
@@ -106,14 +110,14 @@ describe("ServicesAdminClient", () => {
     await user.click(screen.getAllByRole("button", { name: "Удалить" })[1]);
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
 
-    const [deleteUrl, deleteInit] = (global.fetch as jest.Mock).mock.calls[1];
+    const [deleteUrl, deleteInit] = fetchMock.mock.calls[1];
     expect(deleteUrl).toBe(`/api/admin/services/${legalService.id}`);
     expect(deleteInit).toEqual({ method: "DELETE" });
   });
 
   it("edits service and sends PATCH payload", async () => {
     const user = userEvent.setup();
-    (global.fetch as jest.Mock)
+    fetchMock
       .mockResolvedValueOnce({ ok: true, json: async () => categories })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ ...mainService }) })
       .mockResolvedValueOnce({
@@ -136,7 +140,7 @@ describe("ServicesAdminClient", () => {
     await user.click(within(dialog).getByRole("button", { name: "Сохранить" }));
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
-    const [url, patchInit] = (global.fetch as jest.Mock).mock.calls[1];
+    const [url, patchInit] = fetchMock.mock.calls[1];
 
     expect(url).toBe(`/api/admin/services/${mainService.id}`);
     expect((patchInit as RequestInit).method).toBe("PATCH");
@@ -149,7 +153,7 @@ describe("ServicesAdminClient", () => {
 
   it("shows API error when create fails", async () => {
     const user = userEvent.setup();
-    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+    fetchMock.mockImplementation((url: string) => {
       if (url === "/api/admin/service-categories") {
         return Promise.resolve({ ok: true, json: async () => categories });
       }
@@ -170,8 +174,8 @@ describe("ServicesAdminClient", () => {
 
   it("does not call delete API when user cancels confirm", async () => {
     const user = userEvent.setup();
-    global.confirm = jest.fn(() => false);
-    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+    confirmMock.mockReturnValue(false);
+    fetchMock.mockImplementation((url: string) => {
       if (url === "/api/admin/service-categories") {
         return Promise.resolve({ ok: true, json: async () => categories });
       }
@@ -188,12 +192,12 @@ describe("ServicesAdminClient", () => {
     await user.click(screen.getAllByRole("button", { name: "Удалить" })[0]);
 
     // The component fetches categories on mount; delete request should not be called.
-    expect((global.fetch as jest.Mock).mock.calls.some(([url]) => String(url).includes("/api/admin/services/"))).toBe(false);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/admin/services/"))).toBe(false);
   });
 
   it("shows delete error when delete request fails", async () => {
     const user = userEvent.setup();
-    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+    fetchMock.mockImplementation((url: string) => {
       if (url === "/api/admin/service-categories") {
         return Promise.resolve({ ok: true, json: async () => categories });
       }
@@ -214,7 +218,7 @@ describe("ServicesAdminClient", () => {
 
   it("sends normalized nullable and numeric fields from edit form", async () => {
     const user = userEvent.setup();
-    (global.fetch as jest.Mock)
+    fetchMock
       .mockResolvedValueOnce({ ok: true, json: async () => categories })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ ...mainService }) })
       .mockResolvedValueOnce({
@@ -246,7 +250,7 @@ describe("ServicesAdminClient", () => {
     await user.click(within(dialog).getByRole("button", { name: "Сохранить" }));
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
 
-    const [, patchInit] = (global.fetch as jest.Mock).mock.calls[1];
+    const [, patchInit] = fetchMock.mock.calls[1];
     const body = JSON.parse((patchInit as RequestInit).body as string) as {
       ctaHref: string | null;
       image: string | null;
@@ -262,7 +266,7 @@ describe("ServicesAdminClient", () => {
 
   it("shows API error when edit fails", async () => {
     const user = userEvent.setup();
-    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+    fetchMock.mockImplementation((url: string) => {
       if (url === "/api/admin/service-categories") {
         return Promise.resolve({ ok: true, json: async () => categories });
       }
@@ -288,7 +292,7 @@ describe("ServicesAdminClient", () => {
 
   it("supports extended legal edit fields and closes dialog on cancel", async () => {
     const user = userEvent.setup();
-    (global.fetch as jest.Mock).mockImplementation((url: string, init?: RequestInit) => {
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
       if (url === "/api/admin/service-categories") {
         return Promise.resolve({ ok: true, json: async () => categories });
       }
@@ -331,7 +335,7 @@ describe("ServicesAdminClient", () => {
     await user.click(within(dialog).getByRole("button", { name: "Сохранить" }));
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
 
-    const [, patchInit] = (global.fetch as jest.Mock).mock.calls[1];
+    const [, patchInit] = fetchMock.mock.calls[1];
     const body = JSON.parse((patchInit as RequestInit).body as string) as {
       categoryId: string;
       price: string;
@@ -358,7 +362,7 @@ describe("ServicesAdminClient", () => {
 
   it("closes edit dialog on cancel", async () => {
     const user = userEvent.setup();
-    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+    fetchMock.mockImplementation((url: string) => {
       if (url === "/api/admin/service-categories") {
         return Promise.resolve({ ok: true, json: async () => categories });
       }

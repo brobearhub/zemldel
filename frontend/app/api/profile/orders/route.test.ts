@@ -1,26 +1,26 @@
-/** @jest-environment node */
+/** @vitest-environment node */
 
 import { GET } from "./route";
 
-jest.mock("@/lib/backend-api", () => ({
+vi.mock("@/lib/backend-api", () => ({
   __esModule: true,
-  fetchBackendAsUser: jest.fn(),
+  fetchBackendAsUser: vi.fn(),
 }));
 
-jest.mock("@/lib/auth", () => ({
+vi.mock("@/lib/auth", () => ({
   __esModule: true,
-  getServerAuthSession: jest.fn(),
+  getServerAuthSession: vi.fn(),
 }));
 
 import { fetchBackendAsUser } from "@/lib/backend-api";
 import { getServerAuthSession } from "@/lib/auth";
 
-const mockedFetchBackendAsUser = fetchBackendAsUser as jest.Mock;
-const mockedGetServerAuthSession = getServerAuthSession as jest.Mock;
+const mockedFetchBackendAsUser = vi.mocked(fetchBackendAsUser);
+const mockedGetServerAuthSession = vi.mocked(getServerAuthSession);
 
 describe("GET /api/profile/orders", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("returns 401 without session", async () => {

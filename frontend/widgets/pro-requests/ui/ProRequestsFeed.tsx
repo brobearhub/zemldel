@@ -1,12 +1,13 @@
 "use client";
 
-import { Alert, Box, Chip, Stack, Tab, Tabs, Typography, useMediaQuery } from "@mui/material";
+import { Alert, Chip, Stack, Tab, Tabs, Typography, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { useEffect, useMemo, useState } from "react";
-import type { OrderDto } from "@/entities/order";
+import { isOpenOrderStatus, type OrderDto } from "@/entities/order";
 import type { ServiceRequestProDto } from "@/entities/service-request";
 import { useProRequestsFeed } from "@/widgets/pro-requests/model/useProRequestsFeed";
 import type { DialogScope } from "@/widgets/pro-requests/model/types";
+import { FeedColumn } from "@/widgets/pro-requests/ui/FeedColumn";
 import { ProRequestsFeedFilters } from "@/widgets/pro-requests/ui/ProRequestsFeedFilters";
 import { ProRequestsFeedHeader } from "@/widgets/pro-requests/ui/ProRequestsFeedHeader";
 import { OrderList } from "@/widgets/pro-requests/ui/OrderList";
@@ -30,7 +31,7 @@ async function fetchActiveOrders(): Promise<OrderDto[]> {
     );
   }
   const list = Array.isArray(payload) ? payload : [];
-  return list.filter((o) => o && typeof o === "object" && (o as any).status === "ACTIVE") as OrderDto[];
+  return list.filter((o) => o && typeof o === "object" && isOpenOrderStatus((o as OrderDto).status)) as OrderDto[];
 }
 
 export function ProRequestsFeed({ initialItems, initialActiveOrders }: Props) {
@@ -114,17 +115,20 @@ export function ProRequestsFeed({ initialItems, initialActiveOrders }: Props) {
 
       {isDesktop ? (
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="flex-start">
-          <Stack spacing={0} sx={{ flex: 1, minWidth: 0 }}>
-            <Box sx={{ minHeight: DESKTOP_COL_HEADER_HEIGHT, display: "flex", alignItems: "flex-end" }}>
+          <FeedColumn
+            headerMinHeight={DESKTOP_COL_HEADER_HEIGHT}
+            header={
               <Typography variant="h6" fontWeight={900}>
                 Новые
               </Typography>
-            </Box>
+            }
+          >
             <ServiceRequestList items={feed.itemsByStatus.NEW} minRows={desktopRows} />
-          </Stack>
+          </FeedColumn>
 
-          <Stack spacing={0} sx={{ flex: 1, minWidth: 0 }}>
-            <Box sx={{ minHeight: DESKTOP_COL_HEADER_HEIGHT, display: "flex", alignItems: "flex-end" }}>
+          <FeedColumn
+            headerMinHeight={DESKTOP_COL_HEADER_HEIGHT}
+            header={
               <Tabs
                 value={feed.settings.dialogScope}
                 onChange={(_, value) =>
@@ -140,28 +144,27 @@ export function ProRequestsFeed({ initialItems, initialActiveOrders }: Props) {
                   label="Активные диалоги"
                   sx={{ minHeight: DESKTOP_COL_HEADER_HEIGHT, fontWeight: 800, px: 1.25 }}
                 />
-                <Tab
-                  value="ARCHIVE"
-                  label="Архив"
-                  sx={{ minHeight: DESKTOP_COL_HEADER_HEIGHT, fontWeight: 800, px: 1.25 }}
-                />
+                <Tab value="ARCHIVE" label="Архив" sx={{ minHeight: DESKTOP_COL_HEADER_HEIGHT, fontWeight: 800, px: 1.25 }} />
               </Tabs>
-            </Box>
+            }
+          >
             <ServiceRequestList
               items={feed.itemsByStatus.DISCUSSING}
               minRows={desktopRows}
               allowLockedClick={feed.settings.dialogScope === "ARCHIVE"}
             />
-          </Stack>
+          </FeedColumn>
 
-          <Stack spacing={0} sx={{ flex: 1, minWidth: 0 }}>
-            <Box sx={{ minHeight: DESKTOP_COL_HEADER_HEIGHT, display: "flex", alignItems: "flex-end" }}>
+          <FeedColumn
+            headerMinHeight={DESKTOP_COL_HEADER_HEIGHT}
+            header={
               <Typography variant="h6" fontWeight={900}>
                 Заказы
               </Typography>
-            </Box>
+            }
+          >
             <OrderList items={activeOrders} minRows={desktopRows} />
-          </Stack>
+          </FeedColumn>
         </Stack>
       ) : (
         mobileTab === "ORDERS" ? (

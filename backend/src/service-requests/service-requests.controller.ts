@@ -137,6 +137,72 @@ export class ServiceRequestsController {
     return this.requests.initiateOrderByCustomer(userId, id, { conversationId });
   }
 
+  // Legacy pay-advance endpoint removed.
+
+  @Post('service-requests/mine/:id/accept-terms')
+  async customerAcceptTerms(@Req() request: Request, @Param('id') id: string) {
+    const userId = this.getRequiredActorUserId(request);
+    return this.requests.acceptTermsByCustomer(userId, id);
+  }
+
+  @Post('service-requests/mine/:id/select-provider')
+  async customerSelectProvider(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const userId = this.getRequiredActorUserId(request);
+    const payload = body as { providerId?: unknown } | null | undefined;
+    const providerId =
+      payload && typeof payload === 'object' && typeof payload.providerId === 'string'
+        ? payload.providerId
+        : null;
+    if (!providerId) {
+      throw new UnprocessableEntityException({
+        error: 'Validation failed',
+        issues: [
+          {
+            path: ['providerId'],
+            message: 'providerId is required',
+          },
+        ],
+      });
+    }
+    return this.requests.selectProviderByCustomer(userId, id, { providerId });
+  }
+
+  @Post('service-requests/mine/:id/accept-contract')
+  async customerAcceptContract(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const userId = this.getRequiredActorUserId(request);
+    const payload = body as { offerVersion?: unknown } | null | undefined;
+    const offerVersion =
+      payload && typeof payload === 'object' && typeof payload.offerVersion === 'string'
+        ? payload.offerVersion
+        : null;
+    if (!offerVersion) {
+      throw new UnprocessableEntityException({
+        error: 'Validation failed',
+        issues: [
+          {
+            path: ['offerVersion'],
+            message: 'offerVersion is required',
+          },
+        ],
+      });
+    }
+    return this.requests.acceptContractByCustomer(userId, id, { offerVersion });
+  }
+
+  @Post('service-requests/mine/:id/pay')
+  async customerPay(@Req() request: Request, @Param('id') id: string) {
+    const userId = this.getRequiredActorUserId(request);
+    return this.requests.payByCustomer(userId, id);
+  }
+
   @Get('pro/service-requests/feed')
   async proFeed(@Req() request: Request) {
     const ctx = await this.requireProviderContext(request);
@@ -216,22 +282,34 @@ export class ServiceRequestsController {
     return this.requests.getProById(ctx.providerId, id);
   }
 
-  @Post('pro/service-requests/:id/take')
-  async take(@Req() request: Request, @Param('id') id: string) {
-    const ctx = await this.requireProviderContext(request);
-    return this.requests.take(ctx.providerId, id);
-  }
+  // Legacy take/convert/confirm/propose-advance endpoints removed.
 
-  @Post('pro/service-requests/:id/convert-to-order')
-  async convertToOrder(@Req() request: Request, @Param('id') id: string) {
+  @Post('pro/service-requests/:id/set-terms')
+  async proSetTerms(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
     const ctx = await this.requireProviderContext(request);
-    return this.requests.convertToOrder(ctx.providerId, id);
-  }
-
-  @Post('pro/service-requests/:id/confirm-order')
-  async proConfirmOrder(@Req() request: Request, @Param('id') id: string) {
-    const ctx = await this.requireProviderContext(request);
-    return this.requests.confirmOrderByProvider(ctx.providerId, id);
+    const payload = body as { dealTerms?: unknown } | null | undefined;
+    const dealTerms =
+      payload && typeof payload === 'object' && payload.dealTerms !== undefined
+        ? payload.dealTerms
+        : null;
+    if (!dealTerms || typeof dealTerms !== 'object') {
+      throw new UnprocessableEntityException({
+        error: 'Validation failed',
+        issues: [
+          {
+            path: ['dealTerms'],
+            message: 'dealTerms is required',
+          },
+        ],
+      });
+    }
+    return this.requests.setTermsByProvider(ctx.providerId, id, {
+      dealTerms: dealTerms as any,
+    });
   }
 
   @Post('pro/service-requests/:id/decline-offer')

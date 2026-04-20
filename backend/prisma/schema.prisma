@@ -36,8 +36,17 @@ enum ServiceStatus {
 enum ServiceRequestStatus {
   NEW
   DISCUSSING
+  TERMS_AGREED
+  PROVIDER_SELECTED
+  CONTRACT_ACCEPTED
   LOCKED
+  PAYMENT_PENDING
+  PAYMENT_PROCESSING
   ACTIVE
+  SERVICE_RENDERED
+  ACCEPTANCE_PENDING
+  ACCEPTED
+  PAID
   COMPLETED
   CANCELLED
   CLOSED
@@ -238,8 +247,16 @@ model ServiceRequest {
   customerPhone  String?
   message        String?
   location       String?
-
   lockedAt       DateTime?
+
+  dealTerms      Json?
+  offerVersion   String?
+  contractAcceptedAt DateTime?
+  contractAcceptedByUserId String?   @db.Uuid
+  acceptanceRequestedAt DateTime?
+  autoAcceptAt   DateTime?
+  acceptedAt     DateTime?
+  acceptedByUserId String?          @db.Uuid
 
   service        Service?            @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   category       ServiceCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -248,6 +265,7 @@ model ServiceRequest {
   requestCity    City?               @relation("ServiceRequestCity", fields: [requestCityId], references: [id], onDelete: SetNull)
   conversations  Conversation[]
   providerOffers ServiceRequestProviderOffer[]
+  events         ServiceRequestEvent[]
 
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
@@ -257,6 +275,23 @@ model ServiceRequest {
   @@index([categoryId, status])
   @@index([serviceId, status])
   @@index([requestCityId, status])
+}
+
+model ServiceRequestEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  serviceRequestId String @db.Uuid
+  type           String
+  actorUserId    String?  @db.Uuid
+  actorProviderId String? @db.Uuid
+  payload        Json?
+  createdAt      DateTime @default(now())
+
+  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+
+  @@index([serviceRequestId, createdAt])
+  @@index([type, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([actorProviderId, createdAt])
 }
 
 model ServiceRequestProviderOffer {

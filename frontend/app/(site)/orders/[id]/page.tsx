@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { Box, Paper, Stack, Typography } from "@mui/material";
 import type { OrderDto } from "@/entities/order";
+import { StatusProgressStepper, buildOrderStatusFlowSteps, getOrderFlowActiveStepId, getOrderStatusLabel } from "@/entities/order";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/lib/backend-api";
 import { getServerAuthSession } from "@/lib/auth";
 import { ChatThreeColumnLayout } from "@/widgets/chat/ui/ChatThreeColumnLayout";
@@ -44,8 +45,12 @@ export default async function CustomerOrderDetailPage({ params }: Props) {
             <Paper variant="outlined" sx={{ p: 2.5 }}>
               <Stack spacing={1}>
                 <Typography fontWeight={800}>Детали</Typography>
-                <Typography color="text.secondary">Provider: {order.providerName}</Typography>
-                <Typography color="text.secondary">Статус: {order.status}</Typography>
+                <StatusProgressStepper
+                  steps={buildOrderStatusFlowSteps(order.status)}
+                  activeStepId={getOrderFlowActiveStepId(order.status)}
+                />
+                <Typography color="text.secondary">Исполнитель: {order.providerName}</Typography>
+                <Typography color="text.secondary">Статус: {getOrderStatusLabel(order.status)}</Typography>
               </Stack>
             </Paper>
           </Stack>

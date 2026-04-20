@@ -1,14 +1,14 @@
 import ServicePage, { generateMetadata } from "./page";
 
-const notFoundMock = jest.fn(() => {
+const notFoundMock = vi.fn(() => {
   throw new Error("NEXT_NOT_FOUND");
 });
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   notFound: () => notFoundMock(),
 }));
 
-jest.mock("@/lib/backend-api", () => {
+vi.mock("@/lib/backend-api", () => {
   class MockBackendApiError extends Error {
     status: number;
     body: unknown;
@@ -23,24 +23,24 @@ jest.mock("@/lib/backend-api", () => {
   return {
     __esModule: true,
     BackendApiError: MockBackendApiError,
-    fetchBackendJson: jest.fn(),
+    fetchBackendJson: vi.fn(),
   };
 });
 
-jest.mock("@/lib/auth", () => ({
+vi.mock("@/lib/auth", () => ({
   __esModule: true,
-  getServerAuthSession: jest.fn(),
+  getServerAuthSession: vi.fn(),
 }));
 
 import { BackendApiError, fetchBackendJson } from "@/lib/backend-api";
 import { getServerAuthSession } from "@/lib/auth";
 
-const mockedFetchBackendJson = fetchBackendJson as jest.Mock;
-const mockedGetServerAuthSession = getServerAuthSession as jest.Mock;
+const mockedFetchBackendJson = vi.mocked(fetchBackendJson);
+const mockedGetServerAuthSession = vi.mocked(getServerAuthSession);
 
 describe("Service details page", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedGetServerAuthSession.mockResolvedValue(null);
   });
 

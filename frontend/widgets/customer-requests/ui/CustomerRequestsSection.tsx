@@ -11,6 +11,7 @@ import {
   readPendingServiceRequestDraft,
   type PendingServiceRequestDraft,
   getServiceRequestStatusLabel,
+  isServiceRequestOrderStatus,
   type ServiceRequestCustomerDto,
 } from "@/entities/service-request";
 
@@ -25,22 +26,17 @@ function formatDate(value: string) {
 
 type Props = {
   autoResumeEnabled?: boolean;
+  onAutoResumeFinished?: () => void;
 };
 
-export function CustomerRequestsSection({ autoResumeEnabled = false }: Props) {
+export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResumeFinished }: Props) {
   const [items, setItems] = useState<ServiceRequestCustomerDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const visibleItems = useMemo(() => {
     // "Заявки" — только до конверсии в заказ. Заказные статусы показываются в разделе "Заказы".
-    return items.filter(
-      (i) =>
-        i.status !== "ACTIVE" &&
-        i.status !== "COMPLETED" &&
-        i.status !== "CANCELLED" &&
-        i.status !== "CONVERTED_TO_ORDER"
-    );
+    return items.filter((i) => !isServiceRequestOrderStatus(i.status));
   }, [items]);
 
   const byKind = useMemo(() => {
@@ -50,11 +46,11 @@ export function CustomerRequestsSection({ autoResumeEnabled = false }: Props) {
     return { freeform, category, service };
   }, [visibleItems]);
 
-  async function load() {
+  async function load(signal?: AbortSignal) {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/service-requests", { cache: "no-store" });
+      const res = await fetch("/api/service-requests", { cache: "no-store", signal });
       const payload = (await res.json().catch(() => null)) as ServiceRequestCustomerDto[] | { error?: string } | null;
       if (!res.ok) {
         throw new Error(
@@ -65,6 +61,9 @@ export function CustomerRequestsSection({ autoResumeEnabled = false }: Props) {
       }
       setItems(payload as ServiceRequestCustomerDto[]);
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") {
+        return;
+      }
       setError(e instanceof Error ? e.message : "Не удалось загрузить заявки");
     } finally {
       setLoading(false);
@@ -72,7 +71,9 @@ export function CustomerRequestsSection({ autoResumeEnabled = false }: Props) {
   }
 
   useEffect(() => {
-    void load();
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
@@ -82,6 +83,11 @@ export function CustomerRequestsSection({ autoResumeEnabled = false }: Props) {
 
     async function resume(draft: PendingServiceRequestDraft) {
       if (isPendingServiceRequestSubmitting(draft)) {
+        // Submission might already be in-flight (or effect was re-run). Still refresh list.
+        if (!cancelled) {
+          await load();
+          onAutoResumeFinished?.();
+        }
         return;
       }
       markPendingServiceRequestSubmitting();
@@ -118,7 +124,10 @@ export function CustomerRequestsSection({ autoResumeEnabled = false }: Props) {
         }
 
         clearPendingServiceRequestDraft();
-        if (!cancelled) await load();
+        if (!cancelled) {
+          await load();
+          onAutoResumeFinished?.();
+        }
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Не удалось создать заявку";
         markPendingServiceRequestFailed(msg);
@@ -134,7 +143,7 @@ export function CustomerRequestsSection({ autoResumeEnabled = false }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [autoResumeEnabled]);
+  }, [autoResumeEnabled, onAutoResumeFinished]);
 
   return (
     <Stack spacing={2}>
@@ -142,9 +151,6 @@ export function CustomerRequestsSection({ autoResumeEnabled = false }: Props) {
         <Stack spacing={0.25}>
           <Typography variant="h5" fontWeight={900}>
             Заявки
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-              Ваши заявки: свободные, по категориям и по услугам провайдеров.
           </Typography>
         </Stack>
         <Button variant="outlined" onClick={() => void load()} disabled={loading} sx={{ whiteSpace: "nowrap" }}>
@@ -174,7 +180,7 @@ export function CustomerRequestsSection({ autoResumeEnabled = false }: Props) {
                 <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} justifyContent="space-between" alignItems={{ md: "center" }}>
                   <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }} justifyContent="space-between" sx={{ width: "100%" }}>
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
-                      <Typography fontWeight={800}>
+                      <Typography variant="overline" color="text.secondary">
                         {item.subjectType === "FREEFORM"
                           ? "Свободная заявка"
                           : item.subjectType === "CATEGORY"
@@ -196,15 +202,16 @@ export function CustomerRequestsSection({ autoResumeEnabled = false }: Props) {
                     </Button>
                   </Stack>
                 </Stack>
-                <Typography variant="body2" color="text.secondary">
-                  Создано: {formatDate(item.createdAt)}
-                </Typography>
+                
                 {item.location ? (
                   <Typography variant="body2" color="text.secondary">
                     Локация: {item.location}
                   </Typography>
                 ) : null}
-                {item.message ? <Typography color="text.secondary">{item.message}</Typography> : null}
+                {item.message ? <Typography color="text.primary" fontWeight={600}>{item.message}</Typography> : null}
+                <Typography variant="caption" color="text.secondary">
+                  {formatDate(item.createdAt)}
+                </Typography>
               </Stack>
             </Paper>
           ))}

@@ -1,28 +1,28 @@
-/** @jest-environment node */
+/** @vitest-environment node */
 
 import type { NextRequest } from "next/server";
 import { GET } from "./route";
 
-jest.mock("@/lib/backend-api", () => ({
+vi.mock("@/lib/backend-api", () => ({
   __esModule: true,
-  fetchBackend: jest.fn(),
+  fetchBackend: vi.fn(),
 }));
 
-jest.mock("@/lib/auth", () => ({
+vi.mock("@/lib/auth", () => ({
   __esModule: true,
-  getServerAuthSession: jest.fn(),
+  getServerAuthSession: vi.fn(),
 }));
 
 import { fetchBackend } from "@/lib/backend-api";
 import { getServerAuthSession } from "@/lib/auth";
 import { mainService } from "@/tests/fixtures/services";
 
-const mockedFetchBackend = fetchBackend as jest.Mock;
-const mockedGetServerAuthSession = getServerAuthSession as jest.Mock;
+const mockedFetchBackend = vi.mocked(fetchBackend);
+const mockedGetServerAuthSession = vi.mocked(getServerAuthSession);
 
 describe("GET /api/services/[id]", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedGetServerAuthSession.mockResolvedValue(null);
   });
 

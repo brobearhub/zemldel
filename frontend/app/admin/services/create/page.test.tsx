@@ -1,21 +1,21 @@
 import ServicesAdminCreatePage from "./page";
 
-const notFoundMock = jest.fn(() => {
+const notFoundMock = vi.fn(() => {
   throw new Error("NEXT_NOT_FOUND");
 });
 
-jest.mock("next/navigation", () => ({
+vi.mock("next/navigation", () => ({
   notFound: () => notFoundMock(),
 }));
 
-jest.mock("@/core/auth/server-authorization", () => ({
+vi.mock("@/core/auth/server-authorization", () => ({
   __esModule: true,
-  getServiceManagementContext: jest.fn(),
+  getServiceManagementContext: vi.fn(),
 }));
 
 import { getServiceManagementContext } from "@/core/auth/server-authorization";
 
-const mockedGetServiceManagementContext = getServiceManagementContext as jest.Mock;
+const mockedGetServiceManagementContext = vi.mocked(getServiceManagementContext);
 
 function setNodeEnv(value: "development" | "production" | "test") {
   process.env = { ...process.env, NODE_ENV: value } as NodeJS.ProcessEnv;
@@ -25,7 +25,7 @@ describe("Admin services create page", () => {
   const originalNodeEnv = process.env.NODE_ENV;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockedGetServiceManagementContext.mockResolvedValue({
       context: {
         actorUserId: "user-1",

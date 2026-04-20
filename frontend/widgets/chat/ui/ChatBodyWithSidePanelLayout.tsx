@@ -24,7 +24,11 @@ export function ChatBodyWithSidePanelLayout({ middle, right, rightWidth = 420, s
           minWidth: 0,
           position: { lg: "sticky" },
           top: { lg: stickyTop },
-          height: { lg: `calc(100dvh - ${stickyTop + 32}px)` },
+          // `dvh` is not consistently applied in all environments; `vh` keeps the chat full-height.
+          height: { lg: `calc(100vh - ${stickyTop + 32}px)` },
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0,
         }}
       >
         {right}

@@ -1,7 +1,7 @@
 ---
 description: General data fetching + state storage flow (UI → hooks → data layer → transport) - OLD VERSION
 # globs: frontend/**/*.{ts,tsx}
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Data fetching & state storage flow (template)

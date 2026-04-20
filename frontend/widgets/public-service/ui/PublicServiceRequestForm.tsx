@@ -3,8 +3,13 @@
 import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Alert, Button, Stack, TextField, Typography } from "@mui/material";
-import { SERVICE_REQUESTS_PROFILE_RESUME_URL, buildServiceRequestAuthHref, savePendingServiceRequestDraft } from "@/entities/service-request";
+import { Alert, Button, CircularProgress, Stack, TextField, Typography } from "@mui/material";
+import {
+  SERVICE_REQUESTS_PROFILE_URL,
+  SERVICE_REQUESTS_PROFILE_RESUME_URL,
+  buildServiceRequestAuthHref,
+  savePendingServiceRequestDraft,
+} from "@/entities/service-request";
 
 type Props = {
   serviceId: string;
@@ -66,6 +71,26 @@ export function PublicServiceRequestForm({
     setError(null);
 
     try {
+      if (isAuthenticated) {
+        const res = await fetch(`/api/services/${serviceId}/requests`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            customerName: normalizeNullableString(form.customerName),
+            customerEmail: normalizeNullableString(form.customerEmail),
+            customerPhone: normalizeNullableString(form.customerPhone),
+            message: normalizeNullableString(form.message),
+            requestCityId: null,
+          }),
+        });
+        const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+        if (!res.ok) {
+          throw new Error(payload?.error ?? "Не удалось отправить заявку");
+        }
+        router.push(SERVICE_REQUESTS_PROFILE_URL);
+        return;
+      }
+
       savePendingServiceRequestDraft({
         kind: "SERVICE",
         serviceId,
@@ -143,6 +168,7 @@ export function PublicServiceRequestForm({
         variant="contained"
         size="large"
         disabled={busy || Boolean(validationError)}
+        startIcon={busy ? <CircularProgress size={18} color="inherit" /> : null}
         sx={{ fontWeight: 700, textTransform: "none", px: 3, py: 1.25 }}
       >
         {ctaText}

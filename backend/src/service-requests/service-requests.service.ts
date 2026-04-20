@@ -16,6 +16,8 @@ import type {
   ServiceRequestUnlinkedCreateDto,
 } from './dto/service-request.dto';
 import {
+  ORDER_PHASE_STATUSES,
+  isOrderPhaseStatus,
   serviceRequestRowToCustomerDtoPlain,
   serviceRequestRowToProDtoPlain,
 } from './dto/service-request.dto';
@@ -34,6 +36,12 @@ const select = {
   message: true,
   location: true,
   lockedAt: true,
+  dealTerms: true,
+  offerVersion: true,
+  contractAcceptedAt: true,
+  acceptanceRequestedAt: true,
+  autoAcceptAt: true,
+  acceptedAt: true,
   createdAt: true,
   updatedAt: true,
   service: { select: { title: true, providerId: true } },
@@ -64,6 +72,28 @@ function subjectTypeOf(
 @Injectable()
 export class ServiceRequestsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private async addEvent(
+    tx: Prisma.TransactionClient,
+    input: {
+      serviceRequestId: string;
+      type: string;
+      actorUserId?: string | null;
+      actorProviderId?: string | null;
+      payload?: Prisma.InputJsonValue | null;
+    },
+  ) {
+    await tx.serviceRequestEvent.create({
+      data: {
+        serviceRequestId: input.serviceRequestId,
+        type: input.type,
+        actorUserId: input.actorUserId ?? null,
+        actorProviderId: input.actorProviderId ?? null,
+        payload: input.payload ?? undefined,
+      },
+      select: { id: true },
+    });
+  }
 
   private isUuid(value: string) {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -271,6 +301,12 @@ export class ServiceRequestsService {
         serviceId: service.id,
         providerId: service.providerId,
         categoryId: null,
+        providerOffers: {
+          create: {
+            providerId: service.providerId,
+            status: 'SELECTED',
+          },
+        },
         customerUserId: actor?.id ?? null,
         requestCityId: input.requestCityId ?? actor?.customerCityId ?? null,
         customerName,
@@ -473,7 +509,7 @@ export class ServiceRequestsService {
 
     if (status === 'DISCUSSING' && dialogScope === 'ARCHIVE') {
       const archiveWhere: Prisma.ServiceRequestWhereInput = {
-        status: { in: ['ACTIVE', 'COMPLETED', 'CANCELLED'] },
+        status: { in: [...ORDER_PHASE_STATUSES] },
         AND: [
           { providerId: { not: null } },
           { providerId: { not: actorProviderId } },
@@ -683,90 +719,7 @@ export class ServiceRequestsService {
     return normalized;
   }
 
-  async take(
-    actorProviderId: string,
-    requestId: string,
-  ): Promise<ServiceRequestProDto> {
-    const [providerRegionCode, eligibleCategoryIds] = await Promise.all([
-      this.getProviderRegionCode(actorProviderId),
-      this.getProviderEligibleCategoryIds(actorProviderId),
-    ]);
-
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const current = await tx.serviceRequest.findUnique({
-        where: { id: requestId },
-        select,
-      });
-      if (!current) {
-        throw new NotFoundException('Request not found');
-      }
-
-      const row = current as unknown as ServiceRequestDbRow;
-      this.assertRequestShape(row);
-
-      if (
-        row.status === 'ACTIVE' ||
-        row.status === 'COMPLETED' ||
-        row.status === 'CANCELLED'
-      ) {
-        throw new ConflictException('Request already converted to order');
-      }
-      if (row.status === 'CLOSED') {
-        throw new ConflictException('Request is closed');
-      }
-
-      const type = subjectTypeOf(row);
-
-      if (type === 'SERVICE') {
-        if (!row.providerId || row.providerId !== actorProviderId) {
-          throw new ForbiddenException('Forbidden');
-        }
-      } else {
-        if (row.providerId && row.providerId !== actorProviderId) {
-          throw new ConflictException('Request is already taken');
-        }
-
-        const regionById = await this.resolveRequestsRegionCodes([
-          {
-            id: row.id,
-            requestCityId: row.requestCityId,
-            customerUser: row.customerUser ?? null,
-          },
-        ]);
-        this.assertProviderEligibleForUnassignedRequest(
-          actorProviderId,
-          {
-            id: row.id,
-            serviceId: row.serviceId,
-            categoryId: row.categoryId,
-            requestCityId: row.requestCityId,
-            customerUser: row.customerUser ?? null,
-          },
-          providerRegionCode,
-          eligibleCategoryIds,
-          regionById,
-        );
-      }
-
-      const now = new Date();
-      return tx.serviceRequest.update({
-        where: { id: requestId },
-        data: {
-          status: 'LOCKED',
-          providerId: row.providerId ?? actorProviderId,
-          lockedAt: row.lockedAt ?? now,
-        },
-        select,
-      });
-    });
-
-    const counts = await this.getConversationCounts([updated.id]);
-    return serviceRequestRowToProDtoPlain(
-      updated as unknown as ServiceRequestDbRow,
-      counts.get(updated.id) ?? 0,
-      actorProviderId,
-    );
-  }
+  // Legacy `take` flow removed.
 
   async getProById(
     actorProviderId: string,
@@ -789,9 +742,7 @@ export class ServiceRequestsService {
     this.assertRequestShape(req);
 
     const lockedToOtherProvider =
-      (req.status === 'ACTIVE' ||
-        req.status === 'COMPLETED' ||
-        req.status === 'CANCELLED') &&
+      isOrderPhaseStatus(req.status) &&
       Boolean(req.providerId) &&
       req.providerId !== actorProviderId;
 
@@ -846,122 +797,7 @@ export class ServiceRequestsService {
     );
   }
 
-  async convertToOrder(
-    actorProviderId: string,
-    requestId: string,
-  ): Promise<{ orderId: string; request: ServiceRequestProDto }> {
-    const eligibleCategoryIds =
-      await this.getProviderEligibleCategoryIds(actorProviderId);
-
-    const result = await this.prisma.$transaction(async (tx) => {
-      const current = await tx.serviceRequest.findUnique({
-        where: { id: requestId },
-        select,
-      });
-      if (!current) {
-        throw new NotFoundException('Request not found');
-      }
-
-      const req = current as unknown as ServiceRequestDbRow;
-      this.assertRequestShape(req);
-
-      if (
-        req.status === 'ACTIVE' ||
-        req.status === 'COMPLETED' ||
-        req.status === 'CANCELLED'
-      ) {
-        return { request: req, orderId: req.id };
-      }
-
-      const type = subjectTypeOf(req);
-
-      if (type === 'SERVICE') {
-        if (!req.providerId || req.providerId !== actorProviderId) {
-          throw new ForbiddenException('Forbidden');
-        }
-        if (!req.customerUserId) {
-          throw new ConflictException(
-            'Cannot convert request without customer account',
-          );
-        }
-        const updated = await tx.serviceRequest.update({
-          where: { id: req.id },
-          data: { status: 'ACTIVE' },
-          select,
-        });
-        return {
-          request: updated as unknown as ServiceRequestDbRow,
-          orderId: updated.id,
-        };
-      }
-
-      if (req.status !== 'LOCKED') {
-        throw new BadRequestException(
-          'Request must be taken before converting to order',
-        );
-      }
-      if (!req.providerId || req.providerId !== actorProviderId) {
-        throw new ForbiddenException(
-          'Only the provider who took the request can convert it',
-        );
-      }
-
-      let serviceId: string;
-      if (type === 'CATEGORY') {
-        if (!req.categoryId || !eligibleCategoryIds.has(req.categoryId)) {
-          throw new ForbiddenException('Forbidden');
-        }
-        const service = await tx.service.findFirst({
-          where: {
-            providerId: actorProviderId,
-            status: 'PUBLISHED',
-            categoryId: req.categoryId,
-          },
-          orderBy: [{ createdAt: 'asc' }],
-          select: { id: true },
-        });
-        if (!service) {
-          throw new ConflictException(
-            'No published service found for this category',
-          );
-        }
-        serviceId = service.id;
-      } else {
-        const service = await tx.service.findFirst({
-          where: { providerId: actorProviderId, status: 'PUBLISHED' },
-          orderBy: [{ createdAt: 'asc' }],
-          select: { id: true },
-        });
-        if (!service) {
-          throw new ConflictException(
-            'No published service found for this provider',
-          );
-        }
-        serviceId = service.id;
-      }
-
-      const updated = await tx.serviceRequest.update({
-        where: { id: req.id },
-        data: { status: 'ACTIVE', serviceId },
-        select,
-      });
-
-      return {
-        request: updated as unknown as ServiceRequestDbRow,
-        orderId: updated.id,
-      };
-    });
-
-    const counts = await this.getConversationCounts([result.request.id]);
-    return {
-      orderId: result.orderId,
-      request: serviceRequestRowToProDtoPlain(
-        result.request,
-        counts.get(result.request.id) ?? 0,
-        actorProviderId,
-      ),
-    };
-  }
+  // Legacy `convertToOrder` flow removed.
 
   async initiateOrderByCustomer(
     actorUserId: string,
@@ -982,11 +818,7 @@ export class ServiceRequestsService {
         throw new ForbiddenException('Forbidden');
       }
 
-      if (
-        req.status === 'ACTIVE' ||
-        req.status === 'COMPLETED' ||
-        req.status === 'CANCELLED'
-      ) {
+      if (isOrderPhaseStatus(req.status)) {
         throw new ConflictException('Request already converted to order');
       }
       if (req.status === 'CLOSED') {
@@ -1003,6 +835,7 @@ export class ServiceRequestsService {
 
       const providerId = conv.providerId;
       const now = new Date();
+      // Selecting a provider for negotiation does not imply payment/advance.
 
       await tx.serviceRequestProviderOffer.upsert({
         where: {
@@ -1036,116 +869,7 @@ export class ServiceRequestsService {
     );
   }
 
-  private async resolveServiceIdForOrder(
-    tx: Prisma.TransactionClient,
-    actorProviderId: string,
-    req: ServiceRequestDbRow,
-    eligibleCategoryIds: Set<string>,
-  ): Promise<string> {
-    if (req.serviceId) {
-      return req.serviceId;
-    }
-
-    if (req.categoryId) {
-      if (!eligibleCategoryIds.has(req.categoryId)) {
-        throw new ForbiddenException('Forbidden');
-      }
-      const service = await tx.service.findFirst({
-        where: {
-          providerId: actorProviderId,
-          status: 'PUBLISHED',
-          categoryId: req.categoryId,
-        },
-        orderBy: [{ createdAt: 'asc' }],
-        select: { id: true },
-      });
-      if (!service) {
-        throw new ConflictException('No published service found for this category');
-      }
-      return service.id;
-    }
-
-    const service = await tx.service.findFirst({
-      where: { providerId: actorProviderId, status: 'PUBLISHED' },
-      orderBy: [{ createdAt: 'asc' }],
-      select: { id: true },
-    });
-    if (!service) {
-      throw new ConflictException('No published service found for this provider');
-    }
-    return service.id;
-  }
-
-  async confirmOrderByProvider(
-    actorProviderId: string,
-    requestId: string,
-  ): Promise<{ orderId: string; request: ServiceRequestProDto }> {
-    const eligibleCategoryIds =
-      await this.getProviderEligibleCategoryIds(actorProviderId);
-
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const current = await tx.serviceRequest.findUnique({
-        where: { id: requestId },
-        select,
-      });
-      if (!current) throw new NotFoundException('Request not found');
-      const req = current as unknown as ServiceRequestDbRow;
-      this.assertRequestShape(req);
-
-      if (
-        req.status === 'ACTIVE' ||
-        req.status === 'COMPLETED' ||
-        req.status === 'CANCELLED'
-      ) {
-        return current;
-      }
-      if (req.status === 'CLOSED') {
-        throw new ConflictException('Request is closed');
-      }
-
-      const offer = await tx.serviceRequestProviderOffer.findUnique({
-        where: {
-          serviceRequestId_providerId: {
-            serviceRequestId: req.id,
-            providerId: actorProviderId,
-          },
-        },
-        select: { status: true },
-      });
-      if (!offer || offer.status !== 'SELECTED') {
-        throw new BadRequestException('Request is not selected by customer');
-      }
-
-      const serviceId = await this.resolveServiceIdForOrder(
-        tx,
-        actorProviderId,
-        req,
-        eligibleCategoryIds,
-      );
-
-      const now = new Date();
-      return tx.serviceRequest.update({
-        where: { id: req.id },
-        data: {
-          status: 'ACTIVE',
-          providerId: actorProviderId,
-          serviceId,
-          lockedAt: req.lockedAt ?? now,
-        },
-        select,
-      });
-    });
-
-    const counts = await this.getConversationCounts([updated.id]);
-    return {
-      orderId: updated.id,
-      request: serviceRequestRowToProDtoPlain(
-        updated as unknown as ServiceRequestDbRow,
-        counts.get(updated.id) ?? 0,
-        actorProviderId,
-      ),
-    };
-  }
+  // Advance-payment flow has been removed in favor of escrow + accepted-result payout.
 
   async declineOfferByProvider(
     actorProviderId: string,
@@ -1161,11 +885,7 @@ export class ServiceRequestsService {
       const req = current as unknown as ServiceRequestDbRow;
       this.assertRequestShape(req);
 
-      if (
-        req.status === 'ACTIVE' ||
-        req.status === 'COMPLETED' ||
-        req.status === 'CANCELLED'
-      ) {
+      if (isOrderPhaseStatus(req.status)) {
         throw new ConflictException('Request already converted to order');
       }
       if (req.status === 'CLOSED') {
@@ -1205,6 +925,280 @@ export class ServiceRequestsService {
       updated as unknown as ServiceRequestDbRow,
       counts.get(updated.id) ?? 0,
       actorProviderId,
+    );
+  }
+
+  async setTermsByProvider(
+    actorProviderId: string,
+    requestId: string,
+    input: { dealTerms: Prisma.InputJsonValue },
+  ): Promise<ServiceRequestProDto> {
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const current = await tx.serviceRequest.findUnique({
+        where: { id: requestId },
+        select,
+      });
+      if (!current) throw new NotFoundException('Request not found');
+
+      const req = current as unknown as ServiceRequestDbRow;
+      this.assertRequestShape(req);
+
+      const type = subjectTypeOf(req);
+      if (type === 'SERVICE') {
+        if (!req.providerId || req.providerId !== actorProviderId) {
+          throw new ForbiddenException('Forbidden');
+        }
+      } else {
+        const offer = await tx.serviceRequestProviderOffer.findUnique({
+          where: {
+            serviceRequestId_providerId: {
+              serviceRequestId: req.id,
+              providerId: actorProviderId,
+            },
+          },
+          select: { status: true },
+        });
+        if (!offer || offer.status !== 'SELECTED') {
+          throw new ForbiddenException('Provider is not selected for this request');
+        }
+      }
+
+      if (isOrderPhaseStatus(req.status) || req.status === 'CLOSED') {
+        throw new ConflictException('Request is not editable');
+      }
+
+      const next = await tx.serviceRequest.update({
+        where: { id: req.id },
+        data: {
+          dealTerms: input.dealTerms,
+        },
+        select,
+      });
+
+      await this.addEvent(tx, {
+        serviceRequestId: req.id,
+        type: 'TERMS_SET',
+        actorProviderId,
+        payload: input.dealTerms,
+      });
+
+      return next;
+    });
+
+    const counts = await this.getConversationCounts([updated.id]);
+    return serviceRequestRowToProDtoPlain(
+      updated as unknown as ServiceRequestDbRow,
+      counts.get(updated.id) ?? 0,
+      actorProviderId,
+    );
+  }
+
+  async acceptTermsByCustomer(
+    actorUserId: string,
+    requestId: string,
+  ): Promise<ServiceRequestCustomerDto> {
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const current = await tx.serviceRequest.findUnique({
+        where: { id: requestId },
+        select,
+      });
+      if (!current) throw new NotFoundException('Request not found');
+      const req = current as unknown as ServiceRequestDbRow;
+      this.assertRequestShape(req);
+
+      if (req.customerUserId !== actorUserId) {
+        throw new ForbiddenException('Forbidden');
+      }
+      if (isOrderPhaseStatus(req.status) || req.status === 'CLOSED') {
+        throw new ConflictException('Request is not editable');
+      }
+      if (!req.dealTerms) {
+        throw new BadRequestException('Deal terms are required');
+      }
+
+      const next = await tx.serviceRequest.update({
+        where: { id: req.id },
+        data: {
+          status: 'TERMS_AGREED',
+        },
+        select,
+      });
+
+      await this.addEvent(tx, {
+        serviceRequestId: req.id,
+        type: 'TERMS_ACCEPTED',
+        actorUserId,
+      });
+
+      return next;
+    });
+
+    return serviceRequestRowToCustomerDtoPlain(
+      updated as unknown as ServiceRequestDbRow,
+    );
+  }
+
+  async selectProviderByCustomer(
+    actorUserId: string,
+    requestId: string,
+    input: { providerId: string },
+  ): Promise<ServiceRequestCustomerDto> {
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const current = await tx.serviceRequest.findUnique({
+        where: { id: requestId },
+        select,
+      });
+      if (!current) throw new NotFoundException('Request not found');
+      const req = current as unknown as ServiceRequestDbRow;
+      this.assertRequestShape(req);
+
+      if (req.customerUserId !== actorUserId) {
+        throw new ForbiddenException('Forbidden');
+      }
+      if (isOrderPhaseStatus(req.status) || req.status === 'CLOSED') {
+        throw new ConflictException('Request is not editable');
+      }
+      if (req.status !== 'TERMS_AGREED') {
+        throw new BadRequestException('Terms must be agreed before selecting provider');
+      }
+
+      const offer = await tx.serviceRequestProviderOffer.findUnique({
+        where: {
+          serviceRequestId_providerId: {
+            serviceRequestId: req.id,
+            providerId: input.providerId,
+          },
+        },
+        select: { id: true },
+      });
+      if (!offer) {
+        throw new BadRequestException('Provider is not selected in this request');
+      }
+
+      const now = new Date();
+      await tx.serviceRequestProviderOffer.updateMany({
+        where: { serviceRequestId: req.id, providerId: { not: input.providerId } },
+        data: { status: 'DECLINED', declinedAt: now },
+      });
+
+      const next = await tx.serviceRequest.update({
+        where: { id: req.id },
+        data: {
+          status: 'PROVIDER_SELECTED',
+          providerId: input.providerId,
+          lockedAt: req.lockedAt ?? now,
+        },
+        select,
+      });
+
+      await this.addEvent(tx, {
+        serviceRequestId: req.id,
+        type: 'PROVIDER_SELECTED',
+        actorUserId,
+        payload: { providerId: input.providerId },
+      });
+
+      return next;
+    });
+
+    return serviceRequestRowToCustomerDtoPlain(
+      updated as unknown as ServiceRequestDbRow,
+    );
+  }
+
+  async acceptContractByCustomer(
+    actorUserId: string,
+    requestId: string,
+    input: { offerVersion: string },
+  ): Promise<ServiceRequestCustomerDto> {
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const current = await tx.serviceRequest.findUnique({
+        where: { id: requestId },
+        select,
+      });
+      if (!current) throw new NotFoundException('Request not found');
+      const req = current as unknown as ServiceRequestDbRow;
+      this.assertRequestShape(req);
+
+      if (req.customerUserId !== actorUserId) {
+        throw new ForbiddenException('Forbidden');
+      }
+      if (req.status !== 'PROVIDER_SELECTED') {
+        throw new BadRequestException('Provider must be selected before contract acceptance');
+      }
+      if (!req.providerId) {
+        throw new ConflictException('Provider is required');
+      }
+      if (!req.dealTerms) {
+        throw new ConflictException('Deal terms are required');
+      }
+
+      const now = new Date();
+      const next = await tx.serviceRequest.update({
+        where: { id: req.id },
+        data: {
+          status: 'CONTRACT_ACCEPTED',
+          offerVersion: input.offerVersion,
+          contractAcceptedAt: now,
+          contractAcceptedByUserId: actorUserId,
+        },
+        select,
+      });
+
+      await this.addEvent(tx, {
+        serviceRequestId: req.id,
+        type: 'CONTRACT_ACCEPTED',
+        actorUserId,
+        payload: { offerVersion: input.offerVersion },
+      });
+
+      return next;
+    });
+
+    return serviceRequestRowToCustomerDtoPlain(
+      updated as unknown as ServiceRequestDbRow,
+    );
+  }
+
+  async payByCustomer(
+    actorUserId: string,
+    requestId: string,
+  ): Promise<ServiceRequestCustomerDto> {
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const current = await tx.serviceRequest.findUnique({
+        where: { id: requestId },
+        select,
+      });
+      if (!current) throw new NotFoundException('Request not found');
+      const req = current as unknown as ServiceRequestDbRow;
+      this.assertRequestShape(req);
+
+      if (req.customerUserId !== actorUserId) {
+        throw new ForbiddenException('Forbidden');
+      }
+      if (req.status !== 'CONTRACT_ACCEPTED' && req.status !== 'PAYMENT_PENDING') {
+        throw new BadRequestException('Payment is not available for this status');
+      }
+
+      const next = await tx.serviceRequest.update({
+        where: { id: req.id },
+        data: {
+          status: 'PAYMENT_PROCESSING',
+        },
+        select,
+      });
+
+      await this.addEvent(tx, {
+        serviceRequestId: req.id,
+        type: 'ESCROW_RESERVED',
+        actorUserId,
+      });
+
+      return next;
+    });
+
+    return serviceRequestRowToCustomerDtoPlain(
+      updated as unknown as ServiceRequestDbRow,
     );
   }
 }

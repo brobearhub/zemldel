@@ -1,3 +1,8 @@
+---
+description: Enforce unified testing architecture for NestJS using Vitest
+alwaysApply: true
+---
+
 # ENGINEERING RULES
 
 ## PURPOSE

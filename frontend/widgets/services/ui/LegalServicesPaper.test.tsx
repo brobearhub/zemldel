@@ -3,13 +3,16 @@ import { LegalServicesPaper } from "./LegalServicesPaper";
 import { legalService, mainService } from "../../../tests/fixtures/services";
 
 describe("LegalServicesPaper", () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
-    jest.clearAllMocks();
-    global.fetch = jest.fn();
+    vi.clearAllMocks();
+    fetchMock = vi.fn();
+    global.fetch = fetchMock as any;
   });
 
   it("renders only legal service titles", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
+    fetchMock.mockResolvedValue({
       ok: true,
       json: async () => [mainService, legalService],
     });
@@ -24,7 +27,7 @@ describe("LegalServicesPaper", () => {
   });
 
   it("shows fallback error text on failed request", async () => {
-    (global.fetch as jest.Mock).mockRejectedValue("network issue");
+    fetchMock.mockRejectedValue("network issue");
 
     render(<LegalServicesPaper />);
 
@@ -34,7 +37,7 @@ describe("LegalServicesPaper", () => {
   });
 
   it("shows explicit error when response is not ok", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
+    fetchMock.mockResolvedValue({
       ok: false,
       json: async () => ({}),
     });

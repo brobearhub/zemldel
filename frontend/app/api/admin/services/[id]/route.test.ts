@@ -1,24 +1,24 @@
-/** @jest-environment node */
+/** @vitest-environment node */
 
 import type { NextRequest } from "next/server";
 import { DELETE, PATCH } from "./route";
 
-jest.mock("@/lib/auth", () => ({
+vi.mock("@/lib/auth", () => ({
   __esModule: true,
-  getServerAuthSession: jest.fn(),
+  getServerAuthSession: vi.fn(),
 }));
 
-jest.mock("@/lib/backend-api", () => ({
+vi.mock("@/lib/backend-api", () => ({
   __esModule: true,
-  fetchBackendAsUser: jest.fn(),
+  fetchBackendAsUser: vi.fn(),
 }));
 
 import { fetchBackendAsUser } from "@/lib/backend-api";
 import { getServerAuthSession } from "@/lib/auth";
 import { mainService } from "@/tests/fixtures/services";
 
-const mockedFetchBackendAsUser = fetchBackendAsUser as jest.Mock;
-const mockedGetServerAuthSession = getServerAuthSession as jest.Mock;
+const mockedFetchBackendAsUser = vi.mocked(fetchBackendAsUser);
+const mockedGetServerAuthSession = vi.mocked(getServerAuthSession);
 
 function setNodeEnv(value: "development" | "production" | "test") {
   process.env = { ...process.env, NODE_ENV: value } as NodeJS.ProcessEnv;
@@ -28,7 +28,7 @@ const originalNodeEnv = process.env.NODE_ENV;
 
 describe("Admin services API /api/admin/services/[id]", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     setNodeEnv("test");
     mockedGetServerAuthSession.mockResolvedValue({
       user: {

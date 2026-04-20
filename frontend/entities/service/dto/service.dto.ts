@@ -1,6 +1,7 @@
 import "@/core/server/reflect-metadata";
 import { Expose, Transform, instanceToPlain, plainToInstance } from "class-transformer";
 import {
+  IsBoolean,
   IsEnum,
   IsInt,
   IsNumber,
@@ -364,8 +365,6 @@ export class ServicePatchDto {
   @MinLength(1)
   ctaText?: string;
 
-  @Expose()
-  @IsOptional()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
   @ValidateIf((_, v) => v !== null && v !== undefined)
   @IsString()

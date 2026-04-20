@@ -3,13 +3,16 @@ import { MainServices } from "./MainServices";
 import { legalService, mainService } from "../../../tests/fixtures/services";
 
 describe("MainServices widget", () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
-    jest.clearAllMocks();
-    global.fetch = jest.fn();
+    vi.clearAllMocks();
+    fetchMock = vi.fn();
+    global.fetch = fetchMock as any;
   });
 
   it("shows error message on failed request", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
+    fetchMock.mockResolvedValue({
       ok: false,
       json: async () => ({}),
     });
@@ -22,7 +25,7 @@ describe("MainServices widget", () => {
   });
 
   it("renders only main category services", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
+    fetchMock.mockResolvedValue({
       ok: true,
       json: async () => [mainService, legalService],
     });
@@ -37,7 +40,7 @@ describe("MainServices widget", () => {
   });
 
   it("falls back to default icon for unknown icon key", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
+    fetchMock.mockResolvedValue({
       ok: true,
       json: async () => [{ ...mainService, icon: "unknown-icon" }],
     });

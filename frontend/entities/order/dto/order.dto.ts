@@ -1,4 +1,14 @@
-export type OrderStatus = "ACTIVE" | "COMPLETED" | "CANCELLED";
+export type OrderStatus =
+  | "CONTRACT_ACCEPTED"
+  | "PAYMENT_PENDING"
+  | "PAYMENT_PROCESSING"
+  | "ACTIVE"
+  | "SERVICE_RENDERED"
+  | "ACCEPTANCE_PENDING"
+  | "ACCEPTED"
+  | "PAID"
+  | "COMPLETED"
+  | "CANCELLED";
 
 export type OrderDto = {
   id: string;
@@ -12,4 +22,8 @@ export type OrderDto = {
   customerEmail: string | null;
   createdAt: string;
   updatedAt: string;
+  dealTerms: unknown | null;
+  acceptanceRequestedAt: string | null;
+  autoAcceptAt: string | null;
+  acceptedAt: string | null;
 };

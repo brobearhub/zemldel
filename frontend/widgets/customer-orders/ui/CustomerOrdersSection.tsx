@@ -9,6 +9,7 @@ import {
   OrderSearchAndFilters,
   formatOrderDate,
   getOrderStatusLabel,
+  isOpenOrderStatus,
   type OrderDto,
   type OrderStatus,
   type OrderStatusFilter,
@@ -31,7 +32,14 @@ export function CustomerOrdersSection() {
       },
       {
         ALL: 0,
+        CONTRACT_ACCEPTED: 0,
         ACTIVE: 0,
+        SERVICE_RENDERED: 0,
+        PAYMENT_PENDING: 0,
+        PAYMENT_PROCESSING: 0,
+        ACCEPTANCE_PENDING: 0,
+        ACCEPTED: 0,
+        PAID: 0,
         COMPLETED: 0,
         CANCELLED: 0,
       } satisfies Record<OrderStatusFilter, number>
@@ -88,20 +96,20 @@ export function CustomerOrdersSection() {
           Заказы
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Здесь отображаются ваши заказы после того, как provider переведет заявку в сделку.
+          Здесь отображаются ваши заказы после того, как исполнитель переведет заявку в сделку.
         </Typography>
       </Box>
 
       <OrderOverviewPanel
         heading="Активные сделки"
         description="Заказы уже созданы и ждут исполнения, завершения или отмены."
-        summaryChipLabel={`${orders.length} всего`}
+        summaryChipLabel={`${orders.filter((order) => isOpenOrderStatus(order.status)).length} в работе`}
         stats={stats}
         selectedFilter={filter}
       />
 
       <OrderSearchAndFilters
-        searchLabel="Поиск по услуге или provider"
+        searchLabel="Поиск по услуге или исполнителю"
         search={search}
         onSearchChange={setSearch}
         filter={filter}

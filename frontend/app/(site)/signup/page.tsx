@@ -2,7 +2,18 @@
 
 import { Suspense } from "react";
 import Link from "next/link";
-import { Box, Button, Paper, Stack, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Checkbox,
+  FormControl,
+  FormControlLabel,
+  FormHelperText,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useState } from "react";
@@ -51,6 +62,8 @@ function SignUpPageContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [legalAccepted, setLegalAccepted] = useState(false);
+  const [legalError, setLegalError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const intent = searchParams.get("intent");
@@ -60,6 +73,13 @@ function SignUpPageContent() {
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
+    setLegalError(null);
+
+    if (!legalAccepted) {
+      setLegalError("Чтобы продолжить, нужно принять оферту и политику конфиденциальности");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -163,7 +183,55 @@ function SignUpPageContent() {
                 helperText={error ?? " "}
               />
 
-              <Button variant="contained" size="large" fullWidth color="secondary" type="submit" disabled={loading}>
+              <FormControl error={Boolean(legalError)} variant="standard">
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={legalAccepted}
+                      onChange={(e) => {
+                        setLegalAccepted(e.target.checked);
+                        if (legalError) setLegalError(null);
+                      }}
+                      disabled={loading}
+                    />
+                  }
+                  label={
+                    <Typography variant="body2" color="text.secondary">
+                      Я принимаю{" "}
+                      <Link
+                        href="/offer"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ color: "inherit", fontWeight: 700, textDecoration: "underline" }}
+                      >
+                        оферту
+                      </Link>{" "}
+                      и{" "}
+                      <Link
+                        href="/privacy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ color: "inherit", fontWeight: 700, textDecoration: "underline" }}
+                      >
+                        политику конфиденциальности
+                      </Link>
+                    </Typography>
+                  }
+                  sx={{ alignItems: "flex-start", m: 0 }}
+                />
+                <FormHelperText sx={{ mt: 0 }}>{legalError ?? " "}</FormHelperText>
+              </FormControl>
+
+              <Button
+                variant="contained"
+                size="large"
+                fullWidth
+                color="secondary"
+                type="submit"
+                disabled={loading || !legalAccepted}
+              >
                 Создать аккаунт
               </Button>
             </Stack>

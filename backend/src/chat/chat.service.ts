@@ -161,6 +161,10 @@ export class ChatService {
   private isLockedStatus(status: string) {
     return (
       status === 'ACTIVE' ||
+      status === 'SERVICE_RENDERED' ||
+      status === 'PAYMENT_PENDING' ||
+      status === 'PAYMENT_PROCESSING' ||
+      status === 'PAID' ||
       status === 'COMPLETED' ||
       status === 'CANCELLED'
     );

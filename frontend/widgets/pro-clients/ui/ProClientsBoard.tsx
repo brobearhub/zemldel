@@ -5,7 +5,7 @@ import Groups2OutlinedIcon from "@mui/icons-material/Groups2Outlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import { Box, Chip, Paper, Stack, TextField, Typography } from "@mui/material";
-import { formatOrderDate, getOrderStatusLabel, type OrderDto, type OrderStatus } from "@/entities/order";
+import { formatOrderDate, getOrderStatusLabel, isOpenOrderStatus, type OrderDto, type OrderStatus } from "@/entities/order";
 
 type Props = {
   initialOrders: OrderDto[];
@@ -89,7 +89,14 @@ function summarizeClients(orders: OrderDto[]) {
       ordersCount: 1,
       lastOrderAt: order.createdAt,
       statuses: {
+        CONTRACT_ACCEPTED: order.status === "CONTRACT_ACCEPTED" ? 1 : 0,
         ACTIVE: order.status === "ACTIVE" ? 1 : 0,
+        SERVICE_RENDERED: order.status === "SERVICE_RENDERED" ? 1 : 0,
+        PAYMENT_PENDING: order.status === "PAYMENT_PENDING" ? 1 : 0,
+        PAYMENT_PROCESSING: order.status === "PAYMENT_PROCESSING" ? 1 : 0,
+        ACCEPTANCE_PENDING: order.status === "ACCEPTANCE_PENDING" ? 1 : 0,
+        ACCEPTED: order.status === "ACCEPTED" ? 1 : 0,
+        PAID: order.status === "PAID" ? 1 : 0,
         COMPLETED: order.status === "COMPLETED" ? 1 : 0,
         CANCELLED: order.status === "CANCELLED" ? 1 : 0,
       },
@@ -271,8 +278,17 @@ export function ProClientsBoard({ initialOrders }: Props) {
                 </Stack>
 
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  {client.statuses.ACTIVE > 0 ? (
-                    <Chip size="small" color="info" variant="filled" label={`Активных: ${client.statuses.ACTIVE}`} />
+                  {Object.entries(client.statuses).reduce((sum, [status, count]) => {
+                    return isOpenOrderStatus(status as OrderStatus) ? sum + count : sum;
+                  }, 0) > 0 ? (
+                    <Chip
+                      size="small"
+                      color="info"
+                      variant="filled"
+                      label={`В работе: ${Object.entries(client.statuses).reduce((sum, [status, count]) => {
+                        return isOpenOrderStatus(status as OrderStatus) ? sum + count : sum;
+                      }, 0)}`}
+                    />
                   ) : null}
                   {client.statuses.COMPLETED > 0 ? (
                     <Chip
@@ -316,7 +332,7 @@ export function ProClientsBoard({ initialOrders }: Props) {
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Статусы заказов:{" "}
-                  {(["ACTIVE", "COMPLETED", "CANCELLED"] as const)
+                  {(["ACTIVE", "SERVICE_RENDERED", "PAYMENT_PENDING", "PAYMENT_PROCESSING", "PAID", "COMPLETED", "CANCELLED"] as const)
                     .filter((status) => client.statuses[status] > 0)
                     .map((status) => `${getOrderStatusLabel(status)} ${client.statuses[status]}`)
                     .join(", ")}
