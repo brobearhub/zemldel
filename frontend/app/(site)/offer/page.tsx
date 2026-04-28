@@ -1,35 +1,16 @@
 import { Alert, Container, Paper, Stack, Typography } from "@mui/material";
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
-
-const CURRENT_PUBLIC_OFFER_VERSION = "2026-04-19" as const;
-const CURRENT_PUBLIC_OFFER_DOC = `public-offer-${CURRENT_PUBLIC_OFFER_VERSION}.md` as const;
+import { loadLegalDoc } from "@/lib/legal-docs";
+import { Markdown } from "@/shared/ui/Markdown";
 
 export default async function PublicOfferPage() {
   let error: string | null = null;
   let markdown: string | null = null;
+  let version: string | null = null;
 
   try {
-    const candidates = [
-      resolve(process.cwd(), "..", "docs", CURRENT_PUBLIC_OFFER_DOC),
-      resolve(process.cwd(), "docs", CURRENT_PUBLIC_OFFER_DOC),
-    ];
-
-    let loaded: string | null = null;
-    for (const absolute of candidates) {
-      try {
-        loaded = await readFile(absolute, "utf-8");
-        break;
-      } catch {
-        // try next candidate
-      }
-    }
-
-    if (!loaded) {
-      throw new Error(`Public offer file not found: ${CURRENT_PUBLIC_OFFER_DOC}`);
-    }
-
-    markdown = loaded;
+    const doc = await loadLegalDoc("public-offer");
+    markdown = doc.markdown;
+    version = doc.version;
   } catch (e) {
     error = e instanceof Error ? e.message : "Не удалось загрузить оферту";
   }
@@ -42,18 +23,16 @@ export default async function PublicOfferPage() {
             <Typography variant="h4" component="h1" fontWeight={800}>
               Публичная оферта
             </Typography>
-            {CURRENT_PUBLIC_OFFER_VERSION ? (
+            {version ? (
               <Typography variant="body2" color="text.secondary">
-                Версия: {CURRENT_PUBLIC_OFFER_VERSION}
+                Версия: {version}
               </Typography>
             ) : null}
           </Stack>
 
           {error ? <Alert severity="error">{error}</Alert> : null}
 
-          {markdown ? (
-            <Typography sx={{ whiteSpace: "pre-wrap" }}>{markdown}</Typography>
-          ) : null}
+          {markdown ? <Markdown markdown={markdown} skipFirstH1 /> : null}
         </Stack>
       </Paper>
     </Container>

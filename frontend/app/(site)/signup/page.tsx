@@ -3,9 +3,14 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import {
+  Alert,
   Box,
   Button,
   Checkbox,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControl,
   FormControlLabel,
   FormHelperText,
@@ -17,7 +22,12 @@ import {
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useState } from "react";
-import { SERVICE_REQUEST_INTENT } from "@/entities/service-request";
+import { REQUEST_INTENT as SERVICE_REQUEST_INTENT } from "@/entities/request";
+import type { CitySuggestItemDto } from "@/entities/city";
+import { CityAutocomplete } from "@/shared/ui/CityAutocomplete";
+import { Markdown } from "@/shared/ui/Markdown";
+
+type LegalDoc = "offer" | "privacy";
 
 export default function SignUpPage() {
   return (
@@ -61,22 +71,101 @@ function SignUpPageContent() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [customerCity, setCustomerCity] = useState<CitySuggestItemDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cityError, setCityError] = useState<string | null>(null);
   const [legalAccepted, setLegalAccepted] = useState(false);
   const [legalError, setLegalError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const [legalDocOpen, setLegalDocOpen] = useState<LegalDoc | null>(null);
+  const [offerBusy, setOfferBusy] = useState(false);
+  const [offerError, setOfferError] = useState<string | null>(null);
+  const [offerVersion, setOfferVersion] = useState<string | null>(null);
+  const [offerMarkdown, setOfferMarkdown] = useState<string | null>(null);
+  const [privacyBusy, setPrivacyBusy] = useState(false);
+  const [privacyError, setPrivacyError] = useState<string | null>(null);
+  const [privacyVersion, setPrivacyVersion] = useState<string | null>(null);
+  const [privacyMarkdown, setPrivacyMarkdown] = useState<string | null>(null);
 
   const intent = searchParams.get("intent");
   const returnTo = searchParams.get("returnTo");
   const signInHref = searchParams.toString() ? `/signin?${searchParams.toString()}` : "/signin";
 
+  async function openLegalDoc(doc: LegalDoc) {
+    setLegalDocOpen(doc);
+
+    if (doc === "offer") {
+      if (offerBusy || offerMarkdown) return;
+      setOfferBusy(true);
+      setOfferError(null);
+      try {
+        const res = await fetch("/api/public-offer/current", { cache: "no-store" });
+        const payload = (await res.json().catch(() => null)) as
+          | { error?: string }
+          | { version: string; markdown: string }
+          | null;
+        if (!res.ok) {
+          throw new Error(
+            payload && typeof payload === "object" && "error" in payload
+              ? payload.error ?? "Не удалось загрузить оферту"
+              : "Не удалось загрузить оферту",
+          );
+        }
+        const data = payload as { version: string; markdown: string };
+        setOfferVersion(data.version);
+        setOfferMarkdown(data.markdown);
+      } catch (e) {
+        setOfferError(e instanceof Error ? e.message : "Не удалось загрузить оферту");
+      } finally {
+        setOfferBusy(false);
+      }
+      return;
+    }
+
+    if (doc === "privacy") {
+      if (privacyBusy || privacyMarkdown) return;
+      setPrivacyBusy(true);
+      setPrivacyError(null);
+      try {
+        const res = await fetch("/api/privacy-policy/current", { cache: "no-store" });
+        const payload = (await res.json().catch(() => null)) as
+          | { error?: string }
+          | { version: string; markdown: string }
+          | null;
+        if (!res.ok) {
+          throw new Error(
+            payload && typeof payload === "object" && "error" in payload
+              ? payload.error ?? "Не удалось загрузить политику конфиденциальности"
+              : "Не удалось загрузить политику конфиденциальности",
+          );
+        }
+        const data = payload as { version: string; markdown: string };
+        setPrivacyVersion(data.version);
+        setPrivacyMarkdown(data.markdown);
+      } catch (e) {
+        setPrivacyError(
+          e instanceof Error ? e.message : "Не удалось загрузить политику конфиденциальности",
+        );
+      } finally {
+        setPrivacyBusy(false);
+      }
+    }
+  }
+
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
+    setCityError(null);
     setLegalError(null);
 
     if (!legalAccepted) {
       setLegalError("Чтобы продолжить, нужно принять оферту и политику конфиденциальности");
+      return;
+    }
+
+    if (!customerCity?.id) {
+      setCityError("Выберите локацию из списка");
       return;
     }
 
@@ -86,7 +175,7 @@ function SignUpPageContent() {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, customerCityId: customerCity.id }),
       });
 
       if (!res.ok) {
@@ -109,7 +198,7 @@ function SignUpPageContent() {
       const nextPath =
         intent === SERVICE_REQUEST_INTENT && returnTo
           ? returnTo
-          : "/providers/new";
+          : "/welcome";
 
       router.push(nextPath);
       router.refresh();
@@ -183,6 +272,19 @@ function SignUpPageContent() {
                 helperText={error ?? " "}
               />
 
+              <CityAutocomplete
+                label="Ваша локация"
+                value={customerCity}
+                onChange={(next) => {
+                  setCustomerCity(next);
+                  if (cityError) setCityError(null);
+                }}
+                disabled={loading}
+                placeholder="Начните вводить (минимум 2 символа)"
+                error={Boolean(cityError)}
+                helperText={cityError ?? " "}
+              />
+
               <FormControl error={Boolean(legalError)} variant="standard">
                 <FormControlLabel
                   control={
@@ -200,9 +302,11 @@ function SignUpPageContent() {
                       Я принимаю{" "}
                       <Link
                         href="/offer"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          void openLegalDoc("offer");
+                        }}
                         style={{ color: "inherit", fontWeight: 700, textDecoration: "underline" }}
                       >
                         оферту
@@ -210,9 +314,11 @@ function SignUpPageContent() {
                       и{" "}
                       <Link
                         href="/privacy"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          void openLegalDoc("privacy");
+                        }}
                         style={{ color: "inherit", fontWeight: 700, textDecoration: "underline" }}
                       >
                         политику конфиденциальности
@@ -230,7 +336,7 @@ function SignUpPageContent() {
                 fullWidth
                 color="secondary"
                 type="submit"
-                disabled={loading || !legalAccepted}
+                disabled={loading || !legalAccepted || !customerCity}
               >
                 Создать аккаунт
               </Button>
@@ -245,6 +351,52 @@ function SignUpPageContent() {
           </Typography>
         </Stack>
       </Paper>
+
+      <Dialog
+        open={Boolean(legalDocOpen)}
+        onClose={() => setLegalDocOpen(null)}
+        fullWidth
+        maxWidth="md"
+        scroll="paper"
+      >
+        <DialogTitle>
+          {legalDocOpen === "offer" ? "Публичная оферта" : legalDocOpen === "privacy" ? "Политика конфиденциальности" : ""}
+        </DialogTitle>
+        <DialogContent dividers>
+          {legalDocOpen === "offer" ? (
+            <Stack spacing={1.5}>
+              {offerVersion ? (
+                <Typography variant="body2" color="text.secondary">
+                  Версия: {offerVersion}
+                </Typography>
+              ) : null}
+              {offerError ? <Alert severity="error">{offerError}</Alert> : null}
+              {offerBusy ? <Typography color="text.secondary">Загрузка…</Typography> : null}
+              {!offerBusy && offerMarkdown ? (
+                <Markdown markdown={offerMarkdown} skipFirstH1 />
+              ) : null}
+            </Stack>
+          ) : null}
+
+          {legalDocOpen === "privacy" ? (
+            <Stack spacing={1.5}>
+              {privacyVersion ? (
+                <Typography variant="body2" color="text.secondary">
+                  Версия: {privacyVersion}
+                </Typography>
+              ) : null}
+              {privacyError ? <Alert severity="error">{privacyError}</Alert> : null}
+              {privacyBusy ? <Typography color="text.secondary">Загрузка…</Typography> : null}
+              {!privacyBusy && privacyMarkdown ? (
+                <Markdown markdown={privacyMarkdown} skipFirstH1 />
+              ) : null}
+            </Stack>
+          ) : null}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLegalDocOpen(null)}>Закрыть</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

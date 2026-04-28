@@ -3,8 +3,7 @@
 import { Alert, Chip, Stack, Tab, Tabs, Typography, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { useEffect, useMemo, useState } from "react";
-import { isOpenOrderStatus, type OrderDto } from "@/entities/order";
-import type { ServiceRequestProDto } from "@/entities/service-request";
+import { isOpenRequestStatus, type RequestCustomerDto, type RequestProDto } from "@/entities/request";
 import { useProRequestsFeed } from "@/widgets/pro-requests/model/useProRequestsFeed";
 import type { DialogScope } from "@/widgets/pro-requests/model/types";
 import { FeedColumn } from "@/widgets/pro-requests/ui/FeedColumn";
@@ -13,7 +12,7 @@ import { ProRequestsFeedHeader } from "@/widgets/pro-requests/ui/ProRequestsFeed
 import { OrderList } from "@/widgets/pro-requests/ui/OrderList";
 import { ServiceRequestList } from "@/widgets/pro-requests/ui/ServiceRequestList";
 
-type Props = { initialItems: ServiceRequestProDto[]; initialActiveOrders: OrderDto[] };
+type Props = { initialItems: RequestProDto[]; initialActiveOrders: RequestCustomerDto[] };
 
 type MobileTab = "NEW" | "DISCUSSING" | "ORDERS";
 function isDialogScope(value: unknown): value is DialogScope {
@@ -22,16 +21,16 @@ function isDialogScope(value: unknown): value is DialogScope {
 
 const DESKTOP_COL_HEADER_HEIGHT = 44;
 
-async function fetchActiveOrders(): Promise<OrderDto[]> {
-  const res = await fetch("/api/pro/orders", { cache: "no-store" });
-  const payload = (await res.json().catch(() => null)) as OrderDto[] | { error?: string } | null;
+async function fetchActiveOrders(): Promise<RequestCustomerDto[]> {
+  const res = await fetch("/api/pro/requests", { cache: "no-store" });
+  const payload = (await res.json().catch(() => null)) as RequestCustomerDto[] | { error?: string } | null;
   if (!res.ok) {
     throw new Error(
-      payload && typeof payload === "object" && !Array.isArray(payload) && payload.error ? payload.error : "Не удалось загрузить заказы"
+      payload && typeof payload === "object" && !Array.isArray(payload) && payload.error ? payload.error : "Не удалось загрузить заявки"
     );
   }
   const list = Array.isArray(payload) ? payload : [];
-  return list.filter((o) => o && typeof o === "object" && isOpenOrderStatus((o as OrderDto).status)) as OrderDto[];
+  return list.filter((o) => o && typeof o === "object" && isOpenRequestStatus((o as RequestCustomerDto).status)) as RequestCustomerDto[];
 }
 
 export function ProRequestsFeed({ initialItems, initialActiveOrders }: Props) {
@@ -39,7 +38,7 @@ export function ProRequestsFeed({ initialItems, initialActiveOrders }: Props) {
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
 
   const feed = useProRequestsFeed({ initialItems, isDesktop });
-  const [activeOrders, setActiveOrders] = useState<OrderDto[]>(initialActiveOrders);
+  const [activeOrders, setActiveOrders] = useState<RequestCustomerDto[]>(initialActiveOrders);
   const [ordersError, setOrdersError] = useState<string | null>(null);
 
   const [mobileTab, setMobileTab] = useState<MobileTab>(feed.settings.status);
@@ -55,7 +54,7 @@ export function ProRequestsFeed({ initialItems, initialActiveOrders }: Props) {
       [
         { id: "NEW" as const, label: "Новые" },
         { id: "DISCUSSING" as const, label: "Диалог" },
-        { id: "ORDERS" as const, label: "Заказы" },
+        { id: "ORDERS" as const, label: "В работе" },
       ] as const,
     []
   );
@@ -66,7 +65,7 @@ export function ProRequestsFeed({ initialItems, initialActiveOrders }: Props) {
       feed.refresh(),
       fetchActiveOrders()
         .then((list) => setActiveOrders(list))
-        .catch((e) => setOrdersError(e instanceof Error ? e.message : "Не удалось загрузить заказы")),
+        .catch((e) => setOrdersError(e instanceof Error ? e.message : "Не удалось загрузить заявки")),
     ]);
   }
 
@@ -159,7 +158,7 @@ export function ProRequestsFeed({ initialItems, initialActiveOrders }: Props) {
             headerMinHeight={DESKTOP_COL_HEADER_HEIGHT}
             header={
               <Typography variant="h6" fontWeight={900}>
-                Заказы
+                В работе
               </Typography>
             }
           >
@@ -197,4 +196,3 @@ export function ProRequestsFeed({ initialItems, initialActiveOrders }: Props) {
     </Stack>
   );
 }
-

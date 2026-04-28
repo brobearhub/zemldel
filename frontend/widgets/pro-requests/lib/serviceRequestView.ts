@@ -1,4 +1,4 @@
-import type { ServiceRequestProDto } from "@/entities/service-request";
+import type { RequestProDto } from "@/entities/request";
 
 export function formatServiceRequestDate(value: string) {
   return new Intl.DateTimeFormat("ru-RU", {
@@ -9,9 +9,8 @@ export function formatServiceRequestDate(value: string) {
   }).format(new Date(value));
 }
 
-export function getServiceRequestTitle(item: ServiceRequestProDto) {
+export function getServiceRequestTitle(item: RequestProDto) {
   if (item.subjectType === "SERVICE") return item.serviceTitle ?? "Заявка по услуге";
   if (item.subjectType === "CATEGORY") return item.categoryName ? `Категория: ${item.categoryName}` : "Заявка по категории";
   return "Свободная заявка";
 }
-

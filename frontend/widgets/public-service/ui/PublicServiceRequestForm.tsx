@@ -5,11 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Alert, Button, CircularProgress, Stack, TextField, Typography } from "@mui/material";
 import {
-  SERVICE_REQUESTS_PROFILE_URL,
-  SERVICE_REQUESTS_PROFILE_RESUME_URL,
-  buildServiceRequestAuthHref,
-  savePendingServiceRequestDraft,
-} from "@/entities/service-request";
+  REQUESTS_PROFILE_URL,
+  REQUESTS_PROFILE_RESUME_URL,
+  buildRequestAuthHref,
+  savePendingRequestDraft,
+} from "@/entities/request";
 
 type Props = {
   serviceId: string;
@@ -87,11 +87,11 @@ export function PublicServiceRequestForm({
         if (!res.ok) {
           throw new Error(payload?.error ?? "Не удалось отправить заявку");
         }
-        router.push(SERVICE_REQUESTS_PROFILE_URL);
+        router.push(REQUESTS_PROFILE_URL);
         return;
       }
 
-      savePendingServiceRequestDraft({
+      savePendingRequestDraft({
         kind: "SERVICE",
         serviceId,
         customerName: normalizeNullableString(form.customerName),
@@ -102,9 +102,9 @@ export function PublicServiceRequestForm({
       });
 
       if (!isAuthenticated) {
-        router.push(buildServiceRequestAuthHref("signup", { kind: "SERVICE", serviceId }));
+        router.push(buildRequestAuthHref("signup", { kind: "SERVICE", serviceId }));
       } else {
-        router.push(SERVICE_REQUESTS_PROFILE_RESUME_URL);
+        router.push(REQUESTS_PROFILE_RESUME_URL);
       }
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Не удалось отправить заявку");

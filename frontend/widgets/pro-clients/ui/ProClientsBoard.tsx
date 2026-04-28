@@ -5,10 +5,10 @@ import Groups2OutlinedIcon from "@mui/icons-material/Groups2Outlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import { Box, Chip, Paper, Stack, TextField, Typography } from "@mui/material";
-import { formatOrderDate, getOrderStatusLabel, isOpenOrderStatus, type OrderDto, type OrderStatus } from "@/entities/order";
+import { formatRequestDate, getRequestStatusLabel, isOpenRequestStatus, type RequestCustomerDto, type RequestStatus } from "@/entities/request";
 
 type Props = {
-  initialOrders: OrderDto[];
+  initialOrders: RequestCustomerDto[];
 };
 
 type ClientSummary = {
@@ -18,11 +18,11 @@ type ClientSummary = {
   customerEmail: string | null;
   ordersCount: number;
   lastOrderAt: string;
-  statuses: Record<OrderStatus, number>;
+  statuses: Partial<Record<RequestStatus, number>>;
   recentServiceTitles: string[];
 };
 
-function getClientKey(order: OrderDto) {
+function getClientKey(order: RequestCustomerDto) {
   const normalizedEmail = order.customerEmail?.trim().toLowerCase();
   if (order.customerUserId) {
     return `user:${order.customerUserId}`;
@@ -51,7 +51,7 @@ function getClientLabel(client: ClientSummary) {
   return "Клиент без имени";
 }
 
-function summarizeClients(orders: OrderDto[]) {
+function summarizeClients(orders: RequestCustomerDto[]) {
   const clients = new Map<string, ClientSummary>();
 
   for (const order of orders) {
@@ -60,7 +60,7 @@ function summarizeClients(orders: OrderDto[]) {
 
     if (existing) {
       existing.ordersCount += 1;
-      existing.statuses[order.status] += 1;
+      existing.statuses[order.status] = (existing.statuses[order.status] ?? 0) + 1;
 
       if (new Date(order.createdAt).getTime() > new Date(existing.lastOrderAt).getTime()) {
         existing.lastOrderAt = order.createdAt;
@@ -74,8 +74,9 @@ function summarizeClients(orders: OrderDto[]) {
         existing.customerEmail = order.customerEmail;
       }
 
-      if (!existing.recentServiceTitles.includes(order.serviceTitle) && existing.recentServiceTitles.length < 3) {
-        existing.recentServiceTitles.push(order.serviceTitle);
+      const title = order.serviceTitle ?? "";
+      if (title && !existing.recentServiceTitles.includes(title) && existing.recentServiceTitles.length < 3) {
+        existing.recentServiceTitles.push(title);
       }
 
       continue;
@@ -88,19 +89,8 @@ function summarizeClients(orders: OrderDto[]) {
       customerEmail: order.customerEmail,
       ordersCount: 1,
       lastOrderAt: order.createdAt,
-      statuses: {
-        CONTRACT_ACCEPTED: order.status === "CONTRACT_ACCEPTED" ? 1 : 0,
-        ACTIVE: order.status === "ACTIVE" ? 1 : 0,
-        SERVICE_RENDERED: order.status === "SERVICE_RENDERED" ? 1 : 0,
-        PAYMENT_PENDING: order.status === "PAYMENT_PENDING" ? 1 : 0,
-        PAYMENT_PROCESSING: order.status === "PAYMENT_PROCESSING" ? 1 : 0,
-        ACCEPTANCE_PENDING: order.status === "ACCEPTANCE_PENDING" ? 1 : 0,
-        ACCEPTED: order.status === "ACCEPTED" ? 1 : 0,
-        PAID: order.status === "PAID" ? 1 : 0,
-        COMPLETED: order.status === "COMPLETED" ? 1 : 0,
-        CANCELLED: order.status === "CANCELLED" ? 1 : 0,
-      },
-      recentServiceTitles: [order.serviceTitle],
+      statuses: { [order.status]: 1 },
+      recentServiceTitles: order.serviceTitle ? [order.serviceTitle] : [],
     });
   }
 
@@ -235,115 +225,104 @@ export function ProClientsBoard({ initialOrders }: Props) {
       ) : null}
 
       <Stack spacing={2}>
-        {filteredClients.map((client) => (
-          <Paper
-            key={client.id}
-            variant="outlined"
-            sx={{
-              p: 2.5,
-              borderLeft: 4,
-              borderLeftColor: "primary.main",
-            }}
-          >
-            <Stack
-              direction={{ xs: "column", md: "row" }}
-              spacing={2}
-              justifyContent="space-between"
-              alignItems={{ md: "flex-start" }}
+        {filteredClients.map((client) => {
+          const openCount = Object.entries(client.statuses).reduce((sum, [status, count]) => {
+            return isOpenRequestStatus(status as RequestStatus) ? sum + (count ?? 0) : sum;
+          }, 0);
+          const completedCount = client.statuses.COMPLETED ?? 0;
+          const cancelledCount = client.statuses.CANCELLED ?? 0;
+
+          return (
+            <Paper
+              key={client.id}
+              variant="outlined"
+              sx={{
+                p: 2.5,
+                borderLeft: 4,
+                borderLeftColor: "primary.main",
+              }}
             >
-              <Stack spacing={1.25} sx={{ minWidth: 0, flex: 1 }}>
-                <Box>
+              <Stack
+                direction={{ xs: "column", md: "row" }}
+                spacing={2}
+                justifyContent="space-between"
+                alignItems={{ md: "flex-start" }}
+              >
+                <Stack spacing={1.25} sx={{ minWidth: 0, flex: 1 }}>
+                  <Box>
+                    <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.08em" }}>
+                      Клиент
+                    </Typography>
+                    <Typography variant="h6" fontWeight={700}>
+                      {getClientLabel(client)}
+                    </Typography>
+                  </Box>
+
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      icon={<PersonOutlineOutlinedIcon />}
+                      label={client.customerName || client.customerEmail || "Контакт не заполнен"}
+                    />
+                    <Chip
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                      icon={<ReceiptLongOutlinedIcon />}
+                      label={`${client.ordersCount} заказ${client.ordersCount === 1 ? "" : client.ordersCount < 5 ? "а" : "ов"}`}
+                    />
+                  </Stack>
+
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    {openCount > 0 ? (
+                      <Chip size="small" color="info" variant="filled" label={`В работе: ${openCount}`} />
+                    ) : null}
+                    {completedCount > 0 ? (
+                      <Chip size="small" color="success" variant="filled" label={`Завершенных: ${completedCount}`} />
+                    ) : null}
+                    {cancelledCount > 0 ? (
+                      <Chip size="small" color="default" variant="outlined" label={`Отмененных: ${cancelledCount}`} />
+                    ) : null}
+                  </Stack>
+
+                  {client.recentServiceTitles.length > 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      Услуги: {client.recentServiceTitles.join(", ")}
+                    </Typography>
+                  ) : null}
+                </Stack>
+
+                <Box
+                  sx={{
+                    px: 1.5,
+                    py: 1.25,
+                    bgcolor: "action.hover",
+                    width: { xs: "100%", md: 320 },
+                    flexShrink: 0,
+                  }}
+                >
                   <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.08em" }}>
-                    Клиент
+                    История клиента
                   </Typography>
-                  <Typography variant="h6" fontWeight={700}>
-                    {getClientLabel(client)}
+                  <Typography variant="body2" color="text.secondary">
+                    Последний заказ: {formatRequestDate(client.lastOrderAt)}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Статусы:{" "}
+                    {Object.entries(client.statuses)
+                      .filter(([, count]) => (count ?? 0) > 0)
+                      .map(([status, count]) => `${getRequestStatusLabel(status as RequestStatus)} ${count}`)
+                      .join(", ")}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Раздел агрегирует клиентов только из заказов активного provider, без отдельной CRM-сущности.
                   </Typography>
                 </Box>
-
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  <Chip
-                    size="small"
-                    variant="outlined"
-                    icon={<PersonOutlineOutlinedIcon />}
-                    label={client.customerName || client.customerEmail || "Контакт не заполнен"}
-                  />
-                  <Chip
-                    size="small"
-                    color="primary"
-                    variant="outlined"
-                    icon={<ReceiptLongOutlinedIcon />}
-                    label={`${client.ordersCount} заказ${client.ordersCount === 1 ? "" : client.ordersCount < 5 ? "а" : "ов"}`}
-                  />
-                </Stack>
-
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  {Object.entries(client.statuses).reduce((sum, [status, count]) => {
-                    return isOpenOrderStatus(status as OrderStatus) ? sum + count : sum;
-                  }, 0) > 0 ? (
-                    <Chip
-                      size="small"
-                      color="info"
-                      variant="filled"
-                      label={`В работе: ${Object.entries(client.statuses).reduce((sum, [status, count]) => {
-                        return isOpenOrderStatus(status as OrderStatus) ? sum + count : sum;
-                      }, 0)}`}
-                    />
-                  ) : null}
-                  {client.statuses.COMPLETED > 0 ? (
-                    <Chip
-                      size="small"
-                      color="success"
-                      variant="filled"
-                      label={`Завершенных: ${client.statuses.COMPLETED}`}
-                    />
-                  ) : null}
-                  {client.statuses.CANCELLED > 0 ? (
-                    <Chip
-                      size="small"
-                      color="default"
-                      variant="outlined"
-                      label={`Отмененных: ${client.statuses.CANCELLED}`}
-                    />
-                  ) : null}
-                </Stack>
-
-                {client.recentServiceTitles.length > 0 ? (
-                  <Typography variant="body2" color="text.secondary">
-                    Услуги: {client.recentServiceTitles.join(", ")}
-                  </Typography>
-                ) : null}
               </Stack>
-
-              <Box
-                sx={{
-                  px: 1.5,
-                  py: 1.25,
-                  bgcolor: "action.hover",
-                  width: { xs: "100%", md: 320 },
-                  flexShrink: 0,
-                }}
-              >
-                <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.08em" }}>
-                  История клиента
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Последний заказ: {formatOrderDate(client.lastOrderAt)}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Статусы заказов:{" "}
-                  {(["ACTIVE", "SERVICE_RENDERED", "PAYMENT_PENDING", "PAYMENT_PROCESSING", "PAID", "COMPLETED", "CANCELLED"] as const)
-                    .filter((status) => client.statuses[status] > 0)
-                    .map((status) => `${getOrderStatusLabel(status)} ${client.statuses[status]}`)
-                    .join(", ")}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Раздел агрегирует клиентов только из заказов активного provider, без отдельной CRM-сущности.
-                </Typography>
-              </Box>
-            </Stack>
-          </Paper>
-        ))}
+            </Paper>
+          );
+        })}
 
         {clients.length > 0 && filteredClients.length === 0 ? (
           <Paper variant="outlined" sx={{ p: 3 }}>

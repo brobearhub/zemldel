@@ -12,9 +12,6 @@ export const Header = () => {
       position="sticky"
       elevation={0}
       sx={{
-        // background: (theme) => theme.custom.bgColors.primary,
-        // background: (theme) => theme.custom.gradients.header,
-        background: "secondary.main",
         borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
         backdropFilter: "blur(2px)",
       }}
@@ -30,6 +27,7 @@ export const Header = () => {
           gap: { xs: 1, sm: 0 },
           alignItems: "center",
           width: "100%",
+          backgroundColor: "secondary.main",
         }}
       >
         <Box

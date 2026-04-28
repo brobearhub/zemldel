@@ -1,8 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { Stack } from "@mui/material";
 import { getActiveMembership } from "@/core/auth/authorization";
-import { isOpenOrderStatus, type OrderDto } from "@/entities/order";
-import type { ServiceRequestProDto } from "@/entities/service-request";
+import { isOpenRequestStatus, type RequestCustomerDto, type RequestProDto } from "@/entities/request";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/lib/backend-api";
 import { getServerAuthSession } from "@/lib/auth";
 import { ProfessionalWorkspacePanel } from "@/widgets/pro-dashboard/ui/ProfessionalWorkspacePanel";
@@ -27,13 +26,13 @@ export default async function ProDashboardPage() {
 
   try {
     const [feed, orders] = await Promise.all([
-      fetchBackendJsonAsUser<ServiceRequestProDto[]>(
-        "/pro/service-requests/inbox?status=NEW&categoryId=null",
+      fetchBackendJsonAsUser<RequestProDto[]>(
+        "/pro/requests/inbox?status=NEW&categoryId=null",
         session.user.id
       ),
-      fetchBackendJsonAsUser<OrderDto[]>("/pro/orders", session.user.id),
+      fetchBackendJsonAsUser<RequestCustomerDto[]>("/pro/requests", session.user.id),
     ]);
-    const activeOrders = (orders ?? []).filter((o) => isOpenOrderStatus(o.status));
+    const activeOrders = (orders ?? []).filter((o) => isOpenRequestStatus(o.status));
 
     return (
       <Stack spacing={3}>

@@ -1,4 +1,4 @@
-import type { ServiceRequestProDto } from "@/entities/service-request";
+import type { RequestProDto } from "@/entities/request";
 import type { DialogScope, EligibleCategory, InboxSettings, InboxStatus } from "@/widgets/pro-requests/model/types";
 
 function isUuid(value: string) {
@@ -13,18 +13,18 @@ export async function fetchInbox(status: InboxStatus, categoryId: string | null,
     params.set("dialogScope", dialogScope);
   }
 
-  const res = await fetch(`/api/pro/service-requests/inbox?${params.toString()}`, { cache: "no-store" });
-  const payload = (await res.json().catch(() => null)) as ServiceRequestProDto[] | { error?: string } | null;
+  const res = await fetch(`/api/pro/requests/inbox?${params.toString()}`, { cache: "no-store" });
+  const payload = (await res.json().catch(() => null)) as RequestProDto[] | { error?: string } | null;
   if (!res.ok) {
     throw new Error(
       payload && typeof payload === "object" && !Array.isArray(payload) && payload.error ? payload.error : "Не удалось загрузить ленту"
     );
   }
-  return (Array.isArray(payload) ? payload : []) as ServiceRequestProDto[];
+  return (Array.isArray(payload) ? payload : []) as RequestProDto[];
 }
 
 export async function fetchEligibleCategories() {
-  const res = await fetch("/api/pro/service-requests/eligible-categories", { cache: "no-store" });
+  const res = await fetch("/api/pro/requests/eligible-categories", { cache: "no-store" });
   const payload = (await res.json().catch(() => null)) as EligibleCategory[] | { error?: string } | null;
   if (!res.ok) {
     throw new Error(
@@ -72,4 +72,3 @@ export async function putInboxSettings(next: InboxSettings) {
     throw new Error(serverError ?? "Не удалось сохранить настройки");
   }
 }
-

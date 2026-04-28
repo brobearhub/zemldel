@@ -117,21 +117,21 @@ export const ProfileMenu = () => {
             sx={{
               width: { xs: 24, sm: 28 },
               height: { xs: 24, sm: 28 },
-              bgcolor: "background.paper",
-              color: "primary.main",
+              bgcolor: "info.main",
+              color: "common.white",
               fontSize: { xs: 11, sm: 12 },
               fontWeight: 600,
               border: 2,
-              borderColor: "primary.main",
+              borderColor: "info.main",
             }}
           >
             {initials}
           </Avatar>
         ) : (
-          <PersonOutlineRoundedIcon sx={{ fontSize: { xs: 22, sm: 24 }, color: "primary.main" }} />
+          <PersonOutlineRoundedIcon sx={{ fontSize: { xs: 22, sm: 24 }, color: "info.main" }} />
         )}
         <Typography
-          color="secondary.main"
+          color="common.gray"
           className="nav-label"
           variant="body2"
           sx={{

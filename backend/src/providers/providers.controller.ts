@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Patch, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import { ProvidersService } from './providers.service';
@@ -16,6 +25,11 @@ export class ProvidersController {
   createProvider(@Req() request: Request, @Body() body: CreateProviderDto) {
     const userId = this.internalAuthService.getUserIdFromRequest(request);
     return this.providersService.createProvider(userId, body);
+  }
+
+  @Get('slug-check')
+  checkSlugAvailability(@Query('slug') slug: string) {
+    return this.providersService.checkSlugAvailability(slug ?? '');
   }
 
   @Get('mine')
@@ -50,6 +64,20 @@ export class ProvidersController {
   ) {
     const userId = this.internalAuthService.getUserIdFromRequest(request);
     return this.providersService.addProviderManager(userId, providerId, body);
+  }
+
+  @Patch(':providerId/slug')
+  updateProviderSlug(
+    @Req() request: Request,
+    @Param('providerId') providerId: string,
+    @Body() body: { slug: string },
+  ) {
+    const userId = this.internalAuthService.getUserIdFromRequest(request);
+    return this.providersService.updateProviderSlug(
+      userId,
+      providerId,
+      body.slug ?? '',
+    );
   }
 
   @Patch(':providerId/city')

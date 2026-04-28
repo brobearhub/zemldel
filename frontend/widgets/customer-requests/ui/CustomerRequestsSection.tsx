@@ -4,16 +4,37 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Alert, Button, Chip, Paper, Stack, Typography } from "@mui/material";
 import {
-  clearPendingServiceRequestDraft,
-  isPendingServiceRequestSubmitting,
-  markPendingServiceRequestFailed,
-  markPendingServiceRequestSubmitting,
-  readPendingServiceRequestDraft,
-  type PendingServiceRequestDraft,
-  getServiceRequestStatusLabel,
-  isServiceRequestOrderStatus,
-  type ServiceRequestCustomerDto,
-} from "@/entities/service-request";
+  clearPendingRequestDraft,
+  isPendingRequestSubmitting,
+  markPendingRequestFailed,
+  markPendingRequestSubmitting,
+  readPendingRequestDraft,
+  type PendingRequestDraft,
+  getRequestStatusLabel,
+  isExclusiveProviderPhaseStatus,
+  isOpenRequestStatus,
+  type RequestCustomerDto,
+  type RequestStatus,
+} from "@/entities/request";
+
+type PhaseFilter = "ALL" | "DISCUSSING" | "ORDERS" | "COMPLETED" | "CANCELLED";
+
+const PHASE_TABS: { id: PhaseFilter; label: string }[] = [
+  { id: "ALL", label: "Все" },
+  { id: "DISCUSSING", label: "В обсуждении" },
+  { id: "ORDERS", label: "Заказы" },
+  { id: "COMPLETED", label: "Завершённые" },
+  { id: "CANCELLED", label: "Отменённые" },
+];
+
+function matchesPhase(status: RequestStatus, phase: PhaseFilter): boolean {
+  if (phase === "ALL") return true;
+  if (phase === "DISCUSSING") return !isExclusiveProviderPhaseStatus(status) && isOpenRequestStatus(status);
+  if (phase === "ORDERS") return isExclusiveProviderPhaseStatus(status) && isOpenRequestStatus(status);
+  if (phase === "COMPLETED") return status === "COMPLETED";
+  if (phase === "CANCELLED") return status === "CANCELLED" || status === "CLOSED";
+  return true;
+}
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("ru-RU", {
@@ -30,28 +51,17 @@ type Props = {
 };
 
 export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResumeFinished }: Props) {
-  const [items, setItems] = useState<ServiceRequestCustomerDto[]>([]);
+  const [items, setItems] = useState<RequestCustomerDto[]>([]);
+  const [phase, setPhase] = useState<PhaseFilter>("ALL");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const visibleItems = useMemo(() => {
-    // "Заявки" — только до конверсии в заказ. Заказные статусы показываются в разделе "Заказы".
-    return items.filter((i) => !isServiceRequestOrderStatus(i.status));
-  }, [items]);
-
-  const byKind = useMemo(() => {
-    const freeform = visibleItems.filter((i) => i.subjectType === "FREEFORM");
-    const category = visibleItems.filter((i) => i.subjectType === "CATEGORY");
-    const service = visibleItems.filter((i) => i.subjectType === "SERVICE");
-    return { freeform, category, service };
-  }, [visibleItems]);
 
   async function load(signal?: AbortSignal) {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/service-requests", { cache: "no-store", signal });
-      const payload = (await res.json().catch(() => null)) as ServiceRequestCustomerDto[] | { error?: string } | null;
+      const res = await fetch("/api/requests", { cache: "no-store", signal });
+      const payload = (await res.json().catch(() => null)) as RequestCustomerDto[] | { error?: string } | null;
       if (!res.ok) {
         throw new Error(
           payload && typeof payload === "object" && !Array.isArray(payload) && payload.error
@@ -59,7 +69,7 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
             : "Не удалось загрузить заявки"
         );
       }
-      setItems(payload as ServiceRequestCustomerDto[]);
+      setItems(payload as RequestCustomerDto[]);
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") {
         return;
@@ -81,16 +91,15 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
 
     let cancelled = false;
 
-    async function resume(draft: PendingServiceRequestDraft) {
-      if (isPendingServiceRequestSubmitting(draft)) {
-        // Submission might already be in-flight (or effect was re-run). Still refresh list.
+    async function resume(draft: PendingRequestDraft) {
+      if (isPendingRequestSubmitting(draft)) {
         if (!cancelled) {
           await load();
           onAutoResumeFinished?.();
         }
         return;
       }
-      markPendingServiceRequestSubmitting();
+      markPendingRequestSubmitting();
 
       try {
         const url =
@@ -98,7 +107,7 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
             ? `/api/services/${draft.serviceId}/requests`
             : draft.kind === "CATEGORY"
               ? `/api/service-categories/${draft.categoryId}/requests`
-              : "/api/service-requests";
+              : "/api/requests";
 
         const body =
           draft.kind === "SERVICE"
@@ -123,19 +132,19 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
           throw new Error(payload?.error ?? "Не удалось создать заявку");
         }
 
-        clearPendingServiceRequestDraft();
+        clearPendingRequestDraft();
         if (!cancelled) {
           await load();
           onAutoResumeFinished?.();
         }
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Не удалось создать заявку";
-        markPendingServiceRequestFailed(msg);
+        markPendingRequestFailed(msg);
         if (!cancelled) setError(msg);
       }
     }
 
-    const draft = readPendingServiceRequestDraft();
+    const draft = readPendingRequestDraft();
     if (draft) {
       void resume(draft);
     }
@@ -144,6 +153,19 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
       cancelled = true;
     };
   }, [autoResumeEnabled, onAutoResumeFinished]);
+
+  const filteredItems = useMemo(
+    () => items.filter((item) => matchesPhase(item.status, phase)),
+    [items, phase]
+  );
+
+  const phaseCounts = useMemo(
+    () =>
+      Object.fromEntries(
+        PHASE_TABS.map((t) => [t.id, items.filter((item) => matchesPhase(item.status, t.id)).length])
+      ) as Record<PhaseFilter, number>,
+    [items]
+  );
 
   return (
     <Stack spacing={2}>
@@ -158,9 +180,21 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
         </Button>
       </Stack>
 
+      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+        {PHASE_TABS.map((t) => (
+          <Chip
+            key={t.id}
+            label={`${t.label}${phaseCounts[t.id] > 0 ? ` · ${phaseCounts[t.id]}` : ""}`}
+            color={phase === t.id ? "primary" : "default"}
+            variant={phase === t.id ? "filled" : "outlined"}
+            onClick={() => setPhase(t.id)}
+          />
+        ))}
+      </Stack>
+
       {error ? <Alert severity="error">{error}</Alert> : null}
 
-      {visibleItems.length === 0 ? (
+      {items.length === 0 && !loading ? (
         <Paper variant="outlined" sx={{ p: 3 }}>
           <Typography fontWeight={800} gutterBottom>
             Пока нет заявок
@@ -174,7 +208,14 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
         </Paper>
       ) : (
         <Stack spacing={2}>
-          {[...byKind.freeform, ...byKind.category, ...byKind.service].map((item) => (
+          {filteredItems.length === 0 && !loading ? (
+            <Paper variant="outlined" sx={{ p: 2.5 }}>
+              <Typography color="text.secondary">
+                Нет заявок в этой категории.
+              </Typography>
+            </Paper>
+          ) : null}
+          {filteredItems.map((item) => (
             <Paper key={item.id} variant="outlined" sx={{ p: 2.5 }}>
               <Stack spacing={1}>
                 <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} justifyContent="space-between" alignItems={{ md: "center" }}>
@@ -185,9 +226,9 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
                           ? "Свободная заявка"
                           : item.subjectType === "CATEGORY"
                             ? "Заявка по категории"
-                            : "Заявка по услуге"}
+                            : item.serviceTitle ?? "Заявка по услуге"}
                       </Typography>
-                      <Chip size="small" label={getServiceRequestStatusLabel(item.status)} />
+                      <Chip size="small" label={getRequestStatusLabel(item.status)} />
                     </Stack>
 
                     <Button
@@ -198,11 +239,16 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
                       disabled={item.status === "CLOSED"}
                       sx={{ whiteSpace: "nowrap" }}
                     >
-                      Обсуждение
+                      Открыть
                     </Button>
                   </Stack>
                 </Stack>
-                
+
+                {item.providerName ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Исполнитель: {item.providerName}
+                  </Typography>
+                ) : null}
                 {item.location ? (
                   <Typography variant="body2" color="text.secondary">
                     Локация: {item.location}
@@ -220,4 +266,3 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
     </Stack>
   );
 }
-

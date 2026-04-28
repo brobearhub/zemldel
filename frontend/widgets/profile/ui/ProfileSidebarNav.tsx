@@ -11,19 +11,15 @@ import {
   Paper,
   Typography,
 } from "@mui/material";
-import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 
-export type ProfileNavSection = "profile" | "orders" | "requests";
+export type ProfileNavSection = "profile" | "orders" | "requests" | "documents";
 
 type Props = {
   selected: ProfileNavSection;
 };
-
-function buildHref(section: ProfileNavSection) {
-  return `/profile?section=${section}`;
-}
 
 export function ProfileSidebarNav({ selected }: Props) {
   return (
@@ -48,31 +44,8 @@ export function ProfileSidebarNav({ selected }: Props) {
       <List dense disablePadding>
         <ListItemButton
           component={Link}
-          href={buildHref("orders")}
-          selected={selected === "orders"}
-          sx={{
-            px: 2.5,
-            py: 1.5,
-            "&.Mui-selected": {
-              bgcolor: "action.selected",
-              "&:hover": { bgcolor: "action.selected" },
-            },
-          }}
-        >
-          <ListItemIcon sx={{ minWidth: 36 }}>
-            <ReceiptLongOutlinedIcon />
-          </ListItemIcon>
-          <ListItemText
-            primary="Заказы"
-            secondary="Текущие и завершённые"
-            primaryTypographyProps={{ fontWeight: selected === "orders" ? 700 : 600 }}
-          />
-        </ListItemButton>
-
-        <ListItemButton
-          component={Link}
-          href={buildHref("requests")}
-          selected={selected === "requests"}
+          href="/profile?section=requests"
+          selected={selected === "requests" || selected === "orders"}
           sx={{
             px: 2.5,
             py: 1.5,
@@ -88,13 +61,36 @@ export function ProfileSidebarNav({ selected }: Props) {
           <ListItemText
             primary="Заявки"
             secondary="Все ваши заявки"
-            primaryTypographyProps={{ fontWeight: selected === "requests" ? 700 : 600 }}
+            primaryTypographyProps={{ fontWeight: selected === "requests" || selected === "orders" ? 700 : 600 }}
           />
         </ListItemButton>
 
         <ListItemButton
           component={Link}
-          href={buildHref("profile")}
+          href="/profile?section=documents"
+          selected={selected === "documents"}
+          sx={{
+            px: 2.5,
+            py: 1.5,
+            "&.Mui-selected": {
+              bgcolor: "action.selected",
+              "&:hover": { bgcolor: "action.selected" },
+            },
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 36 }}>
+            <DescriptionOutlinedIcon />
+          </ListItemIcon>
+          <ListItemText
+            primary="Документы"
+            secondary="Личные документы"
+            primaryTypographyProps={{ fontWeight: selected === "documents" ? 700 : 600 }}
+          />
+        </ListItemButton>
+
+        <ListItemButton
+          component={Link}
+          href="/profile?section=profile"
           selected={selected === "profile"}
           sx={{
             px: 2.5,
@@ -109,8 +105,8 @@ export function ProfileSidebarNav({ selected }: Props) {
             <PersonOutlineOutlinedIcon />
           </ListItemIcon>
           <ListItemText
-            primary="Данные"
-            secondary="Аккаунт и контакты"
+            primary="Профиль"
+            secondary="Личные данные"
             primaryTypographyProps={{ fontWeight: selected === "profile" ? 700 : 600 }}
           />
         </ListItemButton>

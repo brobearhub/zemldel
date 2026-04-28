@@ -5,4 +5,3 @@ import { PublicOfferController } from './public-offer.controller';
   controllers: [PublicOfferController],
 })
 export class PublicOfferModule {}
-

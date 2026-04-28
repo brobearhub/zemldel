@@ -52,17 +52,18 @@
   - `providerId`: владелец услуги (критично для ограничения доступа)
   - `status`: `DRAFT | PUBLISHED | ARCHIVED`
   - `createdByUserId` / `updatedByUserId`: аудит
-- **`ServiceRequest`**
+- **`Request`** (заявка/заказ)
   - единая сущность для “заявок/объявлений/заказов”
-  - `status`: `NEW | DISCUSSING | LOCKED | ACTIVE | COMPLETED | CANCELLED | CLOSED`
-  - `providerId`: назначенный провайдер (заполняется при взятии в работу или сразу для заявки по услуге)
+  - `status`: `NEW | DISCUSSING | TERMS_AGREED | PROVIDER_SELECTED | CONTRACT_ACCEPTED | PAYMENT_PENDING | PAYMENT_PROCESSING | ACTIVE | SERVICE_RENDERED | ACCEPTANCE_PENDING | ACCEPTED | PAID | COMPLETED | CANCELLED | CLOSED`
+  - примечание: `LOCKED` исторически присутствует в enum, но как доменной статус в текущем workflow не используется (эксклюзивность сделки определяется через `providerId` + фазу статусов начиная с `PROVIDER_SELECTED`)
+  - `providerId`: назначенный провайдер (для заявки по услуге заполняется сразу; для свободной/категорийной — после финального выбора исполнителя)
   - `serviceId` / `categoryId`: привязка к услуге или категории (опционально)
   - `requestCityId`: город заявки (если не задан — берём `User.customerCityId`), матчинг в ленте идёт по региону/области
   - `customerUserId`: заказчик (для чата обязателен)
 
 - **`Conversation`** (чат)
-  - единственная связь: `serviceRequestId`
-  - уникальность треда: `@@unique([serviceRequestId, providerId])`
+  - единственная связь: `requestId`
+  - уникальность треда: `@@unique([requestId, providerId])`
 
 ## Где живёт авторизация (права)
 

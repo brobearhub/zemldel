@@ -34,7 +34,10 @@ describe("ProfileMenu", () => {
           image: null,
           systemRole: state === "platformAdmin" ? "PLATFORM_ADMIN" : "CUSTOMER",
           activeProviderId: null,
+          customerCity: null,
           memberships: [],
+          linkedAuthProviders: [],
+          stepUpVerifiedAt: {},
         })
       );
     }

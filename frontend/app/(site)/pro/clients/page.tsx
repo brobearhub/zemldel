@@ -1,11 +1,11 @@
 import { notFound, redirect } from "next/navigation";
 import { Box, Stack, Typography } from "@mui/material";
-import type { OrderDto } from "@/entities/order";
+import type { RequestCustomerDto } from "@/entities/request";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/lib/backend-api";
 import { getServerAuthSession } from "@/lib/auth";
 import { ProClientsBoard } from "@/widgets/pro-clients/ui/ProClientsBoard";
 
-function sortOrdersByCreatedAtDesc(orders: OrderDto[]) {
+function sortByCreatedAtDesc(orders: RequestCustomerDto[]) {
   return [...orders].sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
 }
 
@@ -20,10 +20,10 @@ export default async function ProClientsPage() {
     notFound();
   }
 
-  let orders: OrderDto[];
+  let orders: RequestCustomerDto[];
 
   try {
-    orders = await fetchBackendJsonAsUser<OrderDto[]>("/pro/orders", session.user.id);
+    orders = await fetchBackendJsonAsUser<RequestCustomerDto[]>("/pro/requests", session.user.id);
   } catch (error) {
     if (error instanceof BackendApiError && (error.status === 401 || error.status === 403)) {
       notFound();
@@ -43,7 +43,7 @@ export default async function ProClientsPage() {
         </Typography>
       </Box>
 
-      <ProClientsBoard initialOrders={sortOrdersByCreatedAtDesc(orders)} />
+      <ProClientsBoard initialOrders={sortByCreatedAtDesc(orders)} />
     </Stack>
   );
 }

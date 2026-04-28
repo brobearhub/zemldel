@@ -32,6 +32,8 @@ export function SessionSync() {
           activeProviderId: user.activeProviderId,
           customerCity: user.customerCity ?? null,
           memberships: user.memberships,
+          linkedAuthProviders: user.linkedAuthProviders ?? [],
+          stepUpVerifiedAt: user.stepUpVerifiedAt ?? {},
         })
       );
       return;

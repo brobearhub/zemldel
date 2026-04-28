@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { isAllowedLocationRow } from '../cities/location';
 import { CreateUserDto } from './dto/create-user.dto';
 
 @Injectable()
@@ -73,12 +74,8 @@ export class UsersService {
       if (!exists) {
         throw new NotFoundException('City not found');
       }
-      const ok =
-        (exists.typeName === 'г' &&
-          (exists.level === 5 || exists.level === 1)) ||
-        (exists.typeName === 'г.о.' && exists.level === 3);
-      if (!ok) {
-        throw new BadRequestException('Invalid city');
+      if (!isAllowedLocationRow(exists)) {
+        throw new BadRequestException('Invalid location');
       }
     }
 

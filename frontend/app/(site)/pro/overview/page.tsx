@@ -1,9 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { Stack } from "@mui/material";
 import { getActiveMembership } from "@/core/auth/authorization";
-import type { OrderDto } from "@/entities/order";
+import type { RequestCustomerDto, RequestProDto, RequestReminderDto } from "@/entities/request";
 import type { ServiceDto } from "@/entities/service";
-import type { ServiceRequestProDto } from "@/entities/service-request";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/lib/backend-api";
 import { getServerAuthSession } from "@/lib/auth";
 import { ProOverviewDashboard } from "@/widgets/pro-dashboard/ui/ProOverviewDashboard";
@@ -34,10 +33,11 @@ export default async function ProOverviewPage() {
   }
 
   try {
-    const [services, orders, feed] = await Promise.all([
+    const [services, orders, feed, todayReminders] = await Promise.all([
       fetchBackendJsonAsUser<ServiceDto[]>("/pro/services", session.user.id),
-      fetchBackendJsonAsUser<OrderDto[]>("/pro/orders", session.user.id),
-      fetchBackendJsonAsUser<ServiceRequestProDto[]>("/pro/service-requests/feed", session.user.id),
+      fetchBackendJsonAsUser<RequestCustomerDto[]>("/pro/requests", session.user.id),
+      fetchBackendJsonAsUser<RequestProDto[]>("/pro/requests/feed", session.user.id),
+      fetchBackendJsonAsUser<RequestReminderDto[]>("/pro/reminders/today", session.user.id),
     ]);
 
     return (
@@ -47,6 +47,7 @@ export default async function ProOverviewPage() {
           services={services}
           requests={sortByRecent(feed)}
           orders={sortByRecent(orders)}
+          todayReminders={todayReminders}
         />
       </Stack>
     );
@@ -58,4 +59,3 @@ export default async function ProOverviewPage() {
     throw error;
   }
 }
-

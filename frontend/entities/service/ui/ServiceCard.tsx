@@ -16,10 +16,10 @@ import { useRouter } from "next/navigation";
 import { useAppSelector } from "@/core/store/hooks";
 import type { ServiceCardItem } from "../types";
 import {
-  SERVICE_REQUESTS_PROFILE_RESUME_URL,
-  buildServiceRequestAuthHref,
-  savePendingServiceRequestDraft,
-} from "@/entities/service-request";
+  REQUESTS_PROFILE_RESUME_URL as SERVICE_REQUESTS_PROFILE_RESUME_URL,
+  buildRequestAuthHref as buildServiceRequestAuthHref,
+  savePendingRequestDraft as savePendingServiceRequestDraft,
+} from "@/entities/request";
 
 type Props = {
   item: ServiceCardItem;
@@ -241,9 +241,9 @@ export function ServiceCard({ item }: Props) {
             borderRadius: 2,
             fontWeight: 700,
             textTransform: "none",
-            bgcolor: "secondary.main",
-            color: "secondary.contrastText",
-            "&:hover": { bgcolor: "secondary.light" },
+            bgcolor: "primary.main",
+            color: "common.white",
+            "&:hover": { bgcolor: "primary.light" },
           }}
         >
           {item.ctaText}

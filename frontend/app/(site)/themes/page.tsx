@@ -5,18 +5,15 @@ import {
   Button,
   Container,
   Divider,
-  FormControlLabel,
   Grid,
   Paper,
   Stack,
-  Switch,
   Typography,
   useTheme,
 } from "@mui/material";
 import type { Theme } from "@mui/material";
 import { ThemeProvider } from "@mui/material";
 import { createAppTheme } from "@/core/theme/createAppTheme";
-import { useColorMode } from "@/core/theme/ColorModeContext";
 import { useMemo } from "react";
 
 type SwatchProps = {
@@ -158,7 +155,6 @@ const ThemePaletteBlock = ({ mode }: { mode: "light" | "dark" }) => {
 };
 
 export default function ThemesPage() {
-  const { mode, toggleMode } = useColorMode();
   const theme = useTheme();
 
   return (
@@ -176,23 +172,9 @@ export default function ThemesPage() {
                 Themes
               </Typography>
               <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                Текущий режим:{" "}
-                <Box component="span" sx={{ fontWeight: 800 }}>
-                  {mode}
-                </Box>
+                Текущий режим: <Box component="span" sx={{ fontWeight: 800 }}>light</Box>
               </Typography>
             </Box>
-
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={mode === "dark"}
-                  onChange={toggleMode}
-                  inputProps={{ "aria-label": "toggle dark mode" }}
-                />
-              }
-              label="Dark mode"
-            />
           </Stack>
 
           <Paper
@@ -417,7 +399,6 @@ export default function ThemesPage() {
 
           <Stack spacing={2}>
             <ThemePaletteBlock mode="light" />
-            <ThemePaletteBlock mode="dark" />
           </Stack>
         </Stack>
       </Container>

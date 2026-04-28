@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/shared/ui/Link";
 import type { ReactNode } from "react";
 import { Box, ListItem, ListItemButton, Stack, Typography } from "@mui/material";
 import { FEED_ROW_MIN_HEIGHT } from "@/widgets/pro-requests/ui/FeedList";

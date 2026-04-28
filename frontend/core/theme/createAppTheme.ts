@@ -3,60 +3,57 @@ import type { PaletteMode } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 
 /**
- * Тёмная тема по референсу hero (закат): тёплое небо + глубокий синий/индиго.
- * Фон на 1–2 шага темнее, акценты из заката (оранжевый/золото + холодный синий).
+ * Single light theme (brand colors).
  */
 const TOKENS = {
-  dark: {
-    bg: "#0F120E",
-    paper: "#161A14",
-    primary: "#F5A04A",
-    secondary: "#8B9A5A",
-    info: "#5B7DA8",
-    success: "#2DD96A",
-    warning: "#F2D100",
-    error: "#FF5F7A",
-    divider: "rgba(255,255,255,0.08)",
-    textPrimary: "rgba(255,255,255,0.94)",
-    textSecondary: "rgba(255,255,255,0.68)",
-  },
   light: {
-    bg: "#F2E8DE",
-    paper: "#F7F0E8",
-    primary: "#E05E18",
-    secondary: "#3E6B4E",
-    info: "#3D5A7A",
-    success: "#15803D",
-    warning: "#D4B000",
-    error: "#D91C42",
-    divider: "rgba(10, 25, 41, 0.12)",
-    textPrimary: "rgba(10, 25, 41, 0.92)",
-    textSecondary: "rgba(10, 25, 41, 0.62)",
+    bg: "#F4F7F6",
+    paper: "#FFFFFF",
+    primary: {
+      main: "#006E4D",
+      light: "#11805E",
+      dark: "#00523A",
+      contrastText: "#FFFFFF",
+    },
+    secondary: {
+      main: "#353438",
+      light: "#5A5960",
+      dark: "#232226",
+      contrastText: "#FFFFFF",
+    },
+    info: { main: "#FA5018", contrastText: "#FFFFFF" },
+    success: { main: "#2D7D46", contrastText: "#FFFFFF" },
+    warning: { main: "#9A6B16", contrastText: "#FFFFFF" },
+    error: { main: "#DC2626", contrastText: "#FFFFFF" },
+    divider: "rgba(53, 52, 56, 0.12)",
+    textPrimary: "#6A4E3A",
+    textSecondary: "rgba(27, 26, 31, 0.65)",
   },
 } as const;
 
-export function createAppTheme(mode: PaletteMode) {
-  const t = mode === "dark" ? TOKENS.dark : TOKENS.light;
+export function createAppTheme(_mode: PaletteMode) {
+  const t = TOKENS.light;
+  const resolvedMode: PaletteMode = "light";
 
   return createTheme({
     cssVariables: true,
     palette: {
-      mode,
-      primary: { main: t.primary, contrastText: mode === "dark" ? "#0B1220" : "#FFFFFF" },
-      secondary: {
-        main: t.secondary,
-        contrastText: mode === "dark" ? "#0B1220" : "#FFFFFF",
+      mode: resolvedMode,
+      common: {
+        gray: "#a1a4a3",
       },
+      primary: t.primary,
+      secondary: t.secondary,
       info: {
-        main: t.info,
-        contrastText: mode === "dark" ? "#0B1220" : "#FFFFFF",
+        main: t.info.main,
+        contrastText: t.info.contrastText,
       },
-      success: { main: t.success },
+      success: { main: t.success.main, contrastText: t.success.contrastText },
       warning: {
-        main: t.warning,
-        ...(mode === "light" && { contrastText: "#FFFFFF" }),
+        main: t.warning.main,
+        contrastText: t.warning.contrastText,
       },
-      error: { main: t.error },
+      error: { main: t.error.main, contrastText: t.error.contrastText },
       background: {
         default: t.bg,
         paper: t.paper,
@@ -69,48 +66,46 @@ export function createAppTheme(mode: PaletteMode) {
     },
     custom: {
       bgColors: {
-        primary: mode === "dark" ? "#0F120E" : "#F2E8DE",
-        secondary: mode === "dark" ? "#34231c" : "#795243",
+        primary: t.bg,
+        secondary: t.secondary.main,
       },
       gradients: {
         sunset:
-          mode === "dark"
-            ? `linear-gradient(120deg, ${t.warning} 0%, ${t.primary} 40%, #C45A40 70%, #4A2520 100%)`
-            : `linear-gradient(120deg, ${t.warning} 0%, ${t.primary} 45%, #D95A40 100%)`,
+          `linear-gradient(120deg, ${alpha(t.primary.light, 0.18)} 0%, ${alpha(
+            t.primary.main,
+            0.10,
+          )} 35%, ${alpha(t.secondary.main, 0.06)} 100%)`,
         sky:
-          mode === "dark"
-            ? `radial-gradient(1200px 800px at 70% 35%, ${alpha(
-                t.secondary,
-                0.22,
-              )} 0%, ${alpha("#1A7FA2", 0.12)} 35%, ${alpha(t.bg, 0)} 70%)`
-            : `radial-gradient(1200px 800px at 70% 35%, ${alpha(
-                "#2BA7C6",
-                0.22,
-              )} 0%, ${alpha(t.secondary, 0.14)} 35%, ${alpha(t.bg, 0)} 70%)`,
+          `radial-gradient(1200px 800px at 70% 35%, ${alpha(
+            t.primary.light,
+            0.22,
+          )} 0%, ${alpha(t.info.main, 0.10)} 40%, ${alpha(t.bg, 0)} 70%)`,
         glass:
-          mode === "dark"
-            ? `linear-gradient(180deg, ${alpha("#FFFFFF", 0.08)} 0%, ${alpha(
-                "#FFFFFF",
-                0.03,
-              )} 100%)`
-            : `linear-gradient(180deg, ${alpha(t.primary, 0.06)} 0%, ${alpha(
-                t.primary,
-                0.02,
-              )} 100%)`,
-        // Хедер: светлая тема — холодные цвета (маджента → синий → бирюза), тёмная — тёплые (оранж → красно-оранж → пурпур)
+          `linear-gradient(180deg, ${alpha(t.primary.main, 0.06)} 0%, ${alpha(
+            t.primary.main,
+            0.02,
+          )} 100%)`,
         header:
-          mode === "dark"
-            ? `linear-gradient(170deg,rgb(255, 136, 0) 0%, #FFB700 25%, #E65100 50%, #BF360C 70%, #8E24AA 100%)`
-            : `linear-gradient(170deg,rgb(6, 123, 117) 0%,rgb(4, 67, 51) 25%,rgb(74, 74, 74) 50%,rgb(39, 39, 39) 75%, rgb(3, 44, 41) 100%)`,
+          `linear-gradient(170deg, ${alpha(t.primary.light, 0.20)} 0%, ${alpha(
+            t.primary.main,
+            0.12,
+          )} 40%, ${alpha(t.secondary.main, 0.06)} 100%)`,
         footer:
-            mode === "dark"
-              ? `linear-gradient(170deg,rgb(255, 136, 0) 0%, #FFB700 25%, #E65100 50%, #BF360C 70%, #8E24AA 100%)`
-              : `linear-gradient(170deg,rgb(6, 123, 117) 0%,rgb(4, 67, 51) 25%,rgba(2, 58, 71, 0.48) 50%, rgb(3, 44, 41) 100%)`,   
+          `linear-gradient(170deg, ${alpha(t.secondary.main, 0.94)} 0%, ${alpha(
+            t.secondary.dark,
+            0.98,
+          )} 55%, ${alpha("#000000", 0.98)} 100%)`,
       }
     },
     shape: { borderRadius: 16 },
     typography: {
-      fontFamily: ["system-ui", "Segoe UI", "Roboto", "sans-serif"].join(","),
+      fontFamily: [
+        "var(--font-ysabeau-infant)",
+        "system-ui",
+        "Segoe UI",
+        "Roboto",
+        "sans-serif",
+      ].join(","),
       h1: { fontWeight: 900, letterSpacing: "-0.03em" },
       h2: { fontWeight: 900, letterSpacing: "-0.02em" },
       h3: { fontWeight: 800, letterSpacing: "-0.015em" },
@@ -122,10 +117,7 @@ export function createAppTheme(mode: PaletteMode) {
     components: {
       MuiCssBaseline: {
         styleOverrides: (theme) => {
-          const autofillBg =
-            theme.palette.mode === "dark"
-              ? alpha(theme.palette.background.paper, 0.92)
-              : "#fff";
+          const autofillBg = "#fff";
 
           return {
             body: {
@@ -177,10 +169,7 @@ export function createAppTheme(mode: PaletteMode) {
         styleOverrides: {
           root: ({ theme }) => ({
             backgroundImage: theme.custom.gradients.glass,
-            backgroundColor:
-              theme.palette.mode === "dark"
-                ? alpha(theme.palette.background.paper, 0.66)
-                : alpha(theme.palette.background.paper, 0.82),
+            backgroundColor: alpha(theme.palette.background.paper, 0.82),
             borderBottom: `1px solid ${theme.palette.divider}`,
             backdropFilter: "blur(14px)",
           }),
@@ -214,10 +203,7 @@ export function createAppTheme(mode: PaletteMode) {
                 }
               : {
                   border: `1px solid ${theme.palette.divider}`,
-                  backgroundColor:
-                    theme.palette.mode === "dark"
-                      ? alpha("#FFFFFF", 0.06)
-                      : alpha(theme.palette.primary.main, 0.06),
+                  backgroundColor: alpha(theme.palette.primary.main, 0.06),
                 }),
           }),
         },
@@ -232,18 +218,12 @@ export function createAppTheme(mode: PaletteMode) {
       MuiTooltip: {
         styleOverrides: {
           tooltip: ({ theme }) => ({
-            backgroundColor:
-              theme.palette.mode === "dark"
-                ? alpha("#0B1220", 0.92)
-                : alpha("#0B1220", 0.88),
-            border: `1px solid ${alpha("#FFFFFF", theme.palette.mode === "dark" ? 0.12 : 0.08)}`,
+            backgroundColor: alpha("#0B1220", 0.88),
+            border: `1px solid ${alpha("#FFFFFF", 0.08)}`,
             backdropFilter: "blur(10px)",
           }),
           arrow: ({ theme }) => ({
-            color:
-              theme.palette.mode === "dark"
-                ? alpha("#0B1220", 0.92)
-                : alpha("#0B1220", 0.88),
+            color: alpha("#0B1220", 0.88),
           }),
         },
       },
@@ -257,12 +237,11 @@ export function createAppTheme(mode: PaletteMode) {
       MuiPaper: {
         styleOverrides: {
           root: ({ theme }) => ({
-            // backgroundColor: theme.palette.mode === "dark" ? "#0F120E" : "#F2E8DE",
-            backgroundColor: theme.palette.mode === "dark" ? "#0F120E" : "#FFFFFF",
+            backgroundColor: theme.palette.background.paper,
             backgroundImage: "none",
           }),
           outlined: ({ theme }) => ({
-            borderColor: alpha(theme.palette.text.primary, theme.palette.mode === "dark" ? 0.12 : 0.10),
+            borderColor: alpha(theme.palette.text.primary, 0.10),
           }),
         },
       },

@@ -19,13 +19,13 @@ export function HeaderCity() {
   const activeMembership = getActiveMembership(user);
 
   const city = inPro ? activeMembership?.providerCity ?? null : user.customerCity ?? null;
-  const label = city ? city.name : "Выбрать город";
+  const label = city ? city.name : "Выбрать локацию";
 
   return (
     <Box
       component={Link}
       href="/profile?section=profile"
-      aria-label="Город"
+      aria-label="Локация"
       sx={{
         display: "flex",
         alignItems: "center",
@@ -40,10 +40,10 @@ export function HeaderCity() {
         },
       }}
     >
-      <LocationOnOutlinedIcon sx={{ fontSize: { xs: 20, sm: 22 }, color: "primary.main" }} />
+      <LocationOnOutlinedIcon sx={{ fontSize: { xs: 20, sm: 22 }, color: "common.gray" }} />
       <Typography
         className="city-label"
-        color="secondary.main"
+        color="common.gray"
         variant="body2"
         sx={{
           display: { xs: "none", md: "block" },

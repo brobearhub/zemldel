@@ -65,7 +65,7 @@ describe("Service details page", () => {
     });
 
     expect(metadata).toEqual({
-      title: "Межевание участка — Новые горизонты",
+      title: "Межевание участка — Земледел",
       description: "Полное сопровождение",
     });
   });

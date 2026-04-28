@@ -243,8 +243,8 @@ export function Chat({
       <Box
         sx={(theme) => ({
           flexShrink: 0,
-          borderTop: `1px solid ${alpha(theme.palette.text.primary, theme.palette.mode === "dark" ? 0.08 : 0.08)}`,
-          bgcolor: alpha("#FFFFFF", theme.palette.mode === "dark" ? 0.02 : 0.72),
+          borderTop: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
+          bgcolor: alpha("#FFFFFF", 0.72),
           backdropFilter: "blur(8px)",
         })}
       >
@@ -309,28 +309,27 @@ export function Chat({
             }}
             sx={(theme) => ({
               "& .MuiOutlinedInput-root": {
-                borderRadius: 1,
+                borderRadius: 1.5,
                 bgcolor: "#FFFFFF",
                 color: theme.palette.text.primary,
-                boxShadow:
-                  theme.palette.mode === "dark"
-                    ? `inset 0 8px 20px ${alpha("#000000", 0.28)}`
-                    : `inset 0 8px 20px ${alpha("#A79B8D", 0.18)}`,
                 "& fieldset": {
-                  borderColor: alpha(theme.palette.text.primary, theme.palette.mode === "dark" ? 0.10 : 0.08),
+                  borderColor: alpha(theme.palette.primary.main, 0.20),
+                  borderWidth: "1.5px",
+                  transition: "border-color 160ms ease",
                 },
                 "&:hover fieldset": {
-                  borderColor: alpha(theme.palette.text.primary, theme.palette.mode === "dark" ? 0.14 : 0.12),
+                  borderColor: alpha(theme.palette.primary.main, 0.36),
                 },
                 "&.Mui-focused fieldset": {
-                  borderColor: alpha(theme.palette.primary.main, 0.24),
+                  borderColor: theme.palette.primary.main,
+                  borderWidth: "1.5px",
                 },
               },
               "& .MuiOutlinedInput-input": {
-                py: { xs: 1.15, sm: 1.25 },
-                pl: { xs: 2, sm: 2.25 },
-                pr: { xs: 2, sm: 2.25 },
-                minHeight: 24,
+                py: { xs: 0.75, sm: 0.875 },
+                pl: { xs: 1.75, sm: 2 },
+                pr: { xs: 1.75, sm: 2 },
+                minHeight: 22,
               },
               "& .MuiInputBase-inputMultiline": {
                 scrollbarWidth: "none",
@@ -341,7 +340,7 @@ export function Chat({
               },
               "& .MuiOutlinedInput-input::placeholder": {
                 opacity: 1,
-                color: alpha("#000000", 0.40),
+                color: alpha(theme.palette.primary.main, 0.38),
               },
             })}
           />
@@ -357,12 +356,9 @@ export function Chat({
               borderRadius: 2.5,
               bgcolor: theme.palette.primary.main,
               color: "#FFFFFF",
-              boxShadow:
-                theme.palette.mode === "dark"
-                  ? `0 10px 22px ${alpha(theme.palette.primary.main, 0.32)}`
-                  : `0 10px 22px ${alpha(theme.palette.primary.main, 0.26)}`,
+              boxShadow: `0 10px 22px ${alpha(theme.palette.primary.main, 0.26)}`,
               "&:hover": {
-                bgcolor: alpha(theme.palette.primary.main, 0.92),
+                bgcolor: theme.palette.primary.dark,
               },
               "&.Mui-disabled": {
                 bgcolor: alpha(theme.palette.primary.main, 0.35),

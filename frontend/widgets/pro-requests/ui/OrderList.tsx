@@ -1,9 +1,9 @@
-import { formatOrderDate, getOrderStatusLabel, type OrderDto } from "@/entities/order";
+import { formatRequestDate, getRequestStatusLabel, type RequestCustomerDto } from "@/entities/request";
 import { FeedList } from "@/widgets/pro-requests/ui/FeedList";
 import { FeedListItem } from "@/widgets/pro-requests/ui/FeedListItem";
 
 type Props = {
-  items: OrderDto[];
+  items: RequestCustomerDto[];
   minRows?: number;
 };
 
@@ -14,8 +14,8 @@ export function OrderList({ items, minRows = 6 }: Props) {
       minRows={minRows}
       getKey={(order) => order.id}
       renderRow={(order, { isLast }) => {
-        const href = `/pro/orders/${order.id}`;
-        const meta = `${formatOrderDate(order.createdAt)} · ${getOrderStatusLabel(order.status)}`;
+        const href = `/pro/requests/${order.id}`;
+        const meta = `${formatRequestDate(order.createdAt)} · ${getRequestStatusLabel(order.status)}`;
         const preview = order.customerName
           ? order.customerEmail
             ? `${order.customerName} · ${order.customerEmail}`
@@ -26,7 +26,7 @@ export function OrderList({ items, minRows = 6 }: Props) {
             href={href}
             disabled={false}
             isLast={isLast}
-            title={order.serviceTitle || "Заказ"}
+            title={order.serviceTitle || "Заявка"}
             meta={meta}
             preview={preview || undefined}
           />
@@ -35,4 +35,3 @@ export function OrderList({ items, minRows = 6 }: Props) {
     />
   );
 }
-

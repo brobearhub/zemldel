@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { mkdir, readdir, rm, stat } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -96,20 +96,90 @@ async function findLatestAvailableDate(archiveName: string, maxDaysBack: number)
   throw new Error(`Could not find ${archiveName} in the last ${maxDaysBack} day(s)`);
 }
 
+type DownloadMeta = {
+  url: string;
+  folder: string;
+  etag: string | null;
+  lastModified: string | null;
+  contentLength: number | null;
+  createdAt: string;
+};
+
+async function readDownloadMeta(metaPath: string): Promise<DownloadMeta | null> {
+  try {
+    const raw = await readFile(metaPath, 'utf8');
+    return JSON.parse(raw) as DownloadMeta;
+  } catch {
+    return null;
+  }
+}
+
+async function writeDownloadMeta(metaPath: string, meta: Omit<DownloadMeta, 'createdAt'>) {
+  const full: DownloadMeta = { ...meta, createdAt: new Date().toISOString() };
+  await writeFile(metaPath, JSON.stringify(full, null, 2) + '\n', 'utf8');
+}
+
+async function verifyZipCanStreamOneEntry(zipPath: string) {
+  // Fast-ish sanity check: list entries and try to stream one regional AS_ADDR_OBJ XML.
+  // This catches corrupted/truncated downloads early (e.g. wrong resume target).
+  const dir = await unzipper.Open.file(zipPath);
+  const files = dir.files.filter((f) => f.type === 'File');
+  const entry = files.find((f) => /^\d{2}\/AS_ADDR_OBJ_.*\.XML$/i.test(f.path));
+  if (!entry) {
+    throw new Error('GAR XML files not found in ZIP (expected regional AS_ADDR_OBJ_*.XML)');
+  }
+  const stream = entry.stream();
+  await new Promise<void>((resolve, reject) => {
+    let done = false;
+    stream.once('error', (e) => reject(e));
+    stream.once('end', () => resolve());
+    stream.once('data', () => {
+      if (done) return;
+      done = true;
+      stream.destroy();
+      resolve();
+    });
+  });
+}
+
+async function renameArchiveWithMeta(outPath: string, metaPath: string, suffix: string) {
+  const bak = `${outPath}.${suffix}.${Date.now()}`;
+  console.log(`Renaming to: ${bak}`);
+  await rename(outPath, bak);
+  try {
+    await rename(metaPath, `${bak}.meta.json`);
+  } catch {
+    // ignore
+  }
+}
+
 async function downloadGarArchive(
   outDir: string,
   archiveName: 'gar_xml.zip' | 'gar_delta_xml.zip',
 ) {
   await mkdir(outDir, { recursive: true });
   const outPath = join(outDir, archiveName);
+  const metaPath = `${outPath}.meta.json`;
 
   const { folder, url, headers } = await findLatestAvailableDate(archiveName, 30);
   const total = Number(headers.get('content-length') ?? '0') || null;
+  const etag = headers.get('etag');
+  const lastModified = headers.get('last-modified');
 
   console.log(`Downloading GAR (XML): ${archiveName}`);
   console.log(`Date: ${folder}`);
   console.log(`Source: ${url}`);
   console.log(`Output: ${outPath}`);
+
+  // Persist metadata up-front so retries can resume instead of creating "mismatch" files.
+  // (We also update it again after a successful download.)
+  await writeDownloadMeta(metaPath, {
+    url,
+    folder,
+    etag: etag ?? null,
+    lastModified: lastModified ?? null,
+    contentLength: total,
+  });
 
   const maxRetries = 20;
   let attempt = 0;
@@ -124,9 +194,35 @@ async function downloadGarArchive(
       // ignore
     }
 
+    // Guard against resuming a file that belongs to a different date/URL.
+    // If meta is missing or doesn't match, we rename the file aside and start fresh.
+    if (existingBytes > 0) {
+      const prevMeta = await readDownloadMeta(metaPath);
+      const metaMatches =
+        prevMeta &&
+        prevMeta.url === url &&
+        prevMeta.folder === folder &&
+        (prevMeta.contentLength ?? null) === total &&
+        (prevMeta.etag ?? null) === (etag ?? null) &&
+        (prevMeta.lastModified ?? null) === (lastModified ?? null);
+
+      if (!metaMatches) {
+        console.log(`Existing archive does not match current source metadata.`);
+        await renameArchiveWithMeta(outPath, metaPath, 'mismatch');
+        existingBytes = 0;
+      }
+    }
+
     if (existingBytes > 0 && total && existingBytes >= total) {
       console.log(`Already downloaded: ${formatBytes(existingBytes)} (expected ${formatBytes(total)})`);
-      return outPath;
+      try {
+        await verifyZipCanStreamOneEntry(outPath);
+        return outPath;
+      } catch (e: any) {
+        console.log(`Archive verification failed (${String(e?.message ?? e)}).`);
+        await renameArchiveWithMeta(outPath, metaPath, 'corrupt');
+        existingBytes = 0;
+      }
     }
 
     const requestHeaders: Record<string, string> = {
@@ -160,6 +256,15 @@ async function downloadGarArchive(
         throw new Error(`Download failed: HTTP ${response.status}. ${text.slice(0, 200)}`);
       }
 
+      // If we requested a range, the server must respond with 206.
+      // A 200 here means the server ignored Range and we'd corrupt the file by appending.
+      if (existingBytes > 0 && response.status !== 206) {
+        console.log(`Server ignored Range (HTTP ${response.status}).`);
+        await renameArchiveWithMeta(outPath, metaPath, 'range-ignored');
+        existingBytes = 0;
+        continue;
+      }
+
       const body = response.body;
       if (!body) {
         throw new Error('Response body is empty');
@@ -182,6 +287,23 @@ async function downloadGarArchive(
       await pipeline(nodeStream, createWriteStream(outPath, { flags: existingBytes > 0 ? 'a' : 'w' }));
       process.stdout.write('\n');
       console.log('Download done.');
+
+      await writeDownloadMeta(metaPath, {
+        url,
+        folder,
+        etag: etag ?? null,
+        lastModified: lastModified ?? null,
+        contentLength: total,
+      });
+
+      // Optional but helpful: verify the resulting ZIP is readable before continuing.
+      try {
+        await verifyZipCanStreamOneEntry(outPath);
+      } catch (e: any) {
+        console.log(`Archive verification failed (${String(e?.message ?? e)}).`);
+        await renameArchiveWithMeta(outPath, metaPath, 'corrupt');
+        continue;
+      }
       break;
     } catch (e: any) {
       const msg = String(e?.message ?? e);
@@ -481,7 +603,7 @@ async function parseFromLocalGarXmlZip(zipPath: string) {
       const level = Number(levelRaw);
       if (!Number.isFinite(level)) return;
 
-      if (isCityAddrObject(level, typeName)) {
+      if (isSupportedAddrObject(level, typeName)) {
         const normalizedName = normalizeCityName(name, typeName);
         cityByObjectId.set(objectId, {
           garObjectId: objectId,
@@ -638,13 +760,13 @@ function normalizeCityName(rawName: string, typeName: string) {
   return n;
 }
 
-function isCityAddrObject(level: number, typeName: string) {
+function isSupportedAddrObject(level: number, typeName: string) {
   const t = typeName.trim().toLowerCase();
   // GAR: most cities are LEVEL=5, TYPENAME="г".
   // Federal cities (Moscow, Saint Petersburg, Sevastopol) are subjects, i.e. LEVEL=1, but still TYPENAME="г".
   if (t === 'г' && (level === 5 || level === 1)) return true;
-  // Some regional capitals appear as municipality entries: LEVEL=3, TYPENAME="г.о." with NAME="город <Name>".
-  if (t === 'г.о.' && level === 3) return true;
+  // Additional address object levels to keep in our locations directory (see GAR OBJECT_LEVELS).
+  if (level === 2 || level === 3 || level === 4 || level === 6) return true;
   return false;
 }
 
@@ -702,7 +824,7 @@ async function parseAddrObjFiles(addrObjFiles: string[]) {
         const level = Number(levelRaw);
         if (!Number.isFinite(level)) return;
 
-        if (isCityAddrObject(level, typeName)) {
+        if (isSupportedAddrObject(level, typeName)) {
           const normalizedName = normalizeCityName(name, typeName);
           cityByObjectId.set(objectId, {
             garObjectId: objectId,
@@ -818,7 +940,7 @@ async function parseFromNestedRegionZips(rootDir: string) {
       const level = Number(levelRaw);
       if (!Number.isFinite(level)) return;
 
-      if (isCityAddrObject(level, typeName)) {
+      if (isSupportedAddrObject(level, typeName)) {
         const normalizedName = normalizeCityName(name, typeName);
         cityByObjectId.set(objectId, {
           garObjectId: objectId,

@@ -12,15 +12,16 @@ import { alpha } from "@mui/material/styles";
 import type { ReactNode } from "react";
 import { useMemo } from "react";
 import type { AuthMembership } from "@/core/auth/authorization";
-import type { OrderDto } from "@/entities/order";
+import type { RequestCustomerDto, RequestProDto, RequestReminderDto } from "@/entities/request";
 import type { ServiceDto } from "@/entities/service";
-import type { ServiceRequestProDto } from "@/entities/service-request";
+import { TodayRemindersWidget } from "./TodayRemindersWidget";
 
 type Props = {
   provider: Pick<AuthMembership, "providerName" | "providerType" | "role">;
   services: ServiceDto[];
-  requests: ServiceRequestProDto[];
-  orders: OrderDto[];
+  requests: RequestProDto[];
+  orders: RequestCustomerDto[];
+  todayReminders: RequestReminderDto[];
 };
 
 function providerTypeLabel(type: AuthMembership["providerType"]) {
@@ -31,7 +32,7 @@ function providerRoleLabel(role: AuthMembership["role"]) {
   return role === "OWNER" ? "владелец" : "менеджер";
 }
 
-function getClientKey(order: OrderDto) {
+function getClientKey(order: RequestCustomerDto) {
   const normalizedEmail = order.customerEmail?.trim().toLowerCase();
   if (order.customerUserId) {
     return `user:${order.customerUserId}`;
@@ -122,7 +123,7 @@ function MetricRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function ProOverviewDashboard({ provider, services, requests, orders }: Props) {
+export function ProOverviewDashboard({ provider, services, requests, orders, todayReminders }: Props) {
 
   const servicesStats = services.reduce(
     (acc, service) => {
@@ -164,22 +165,12 @@ export function ProOverviewDashboard({ provider, services, requests, orders }: P
   const ordersStats = orders.reduce(
     (acc, order) => {
       acc.total += 1;
-      acc[order.status] += 1;
+      acc[order.status] = (acc[order.status] ?? 0) + 1;
       return acc;
     },
     {
       total: 0,
-      CONTRACT_ACCEPTED: 0,
-      ACTIVE: 0,
-      SERVICE_RENDERED: 0,
-      PAYMENT_PENDING: 0,
-      PAYMENT_PROCESSING: 0,
-      ACCEPTANCE_PENDING: 0,
-      ACCEPTED: 0,
-      PAID: 0,
-      COMPLETED: 0,
-      CANCELLED: 0,
-    }
+    } as { total: number } & Partial<Record<string, number>>
   );
 
   const clients = orders.reduce((acc, order) => {
@@ -287,7 +278,7 @@ export function ProOverviewDashboard({ provider, services, requests, orders }: P
                   <Button component={Link} href="/pro" variant="outlined" fullWidth>
                     Заявки
                   </Button>
-                  <Button component={Link} href="/pro/orders" variant="outlined" fullWidth>
+                  <Button component={Link} href="/pro/requests" variant="outlined" fullWidth>
                     Заказы
                   </Button>
                 </Stack>
@@ -317,7 +308,7 @@ export function ProOverviewDashboard({ provider, services, requests, orders }: P
             <OverviewStatCard
               label="Всего заказов"
               value={ordersStats.total}
-              caption={`${ordersStats.ACTIVE} активных и ${ordersStats.COMPLETED} завершенных`}
+              caption={`${ordersStats.ACTIVE ?? 0} активных и ${ordersStats.COMPLETED ?? 0} завершенных`}
               icon={<ReceiptLongOutlinedIcon fontSize="small" />}
             />
             <OverviewStatCard
@@ -387,8 +378,8 @@ export function ProOverviewDashboard({ provider, services, requests, orders }: P
               Итог по сделкам и клиентской базе, сформированной из заказов активного provider.
             </Typography>
             <MetricRow label="Всего заказов" value={String(ordersStats.total)} />
-            <MetricRow label="Активные" value={String(ordersStats.ACTIVE)} />
-            <MetricRow label="Завершенные" value={String(ordersStats.COMPLETED)} />
+            <MetricRow label="Активные" value={String(ordersStats.ACTIVE ?? 0)} />
+            <MetricRow label="Завершенные" value={String(ordersStats.COMPLETED ?? 0)} />
             <MetricRow label="Уникальные клиенты" value={String(clientStats.total)} />
             <MetricRow label="Повторные клиенты" value={String(clientStats.repeat)} />
           </Stack>
@@ -398,7 +389,7 @@ export function ProOverviewDashboard({ provider, services, requests, orders }: P
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", lg: "1.3fr 1fr" },
+          gridTemplateColumns: { xs: "1fr", lg: "1.3fr 1fr 1fr" },
           gap: 2,
         }}
       >
@@ -430,7 +421,7 @@ export function ProOverviewDashboard({ provider, services, requests, orders }: P
                   Активная работа
                 </Typography>
                 <Typography variant="h5" fontWeight={800}>
-                  {ordersStats.ACTIVE}
+                  {ordersStats.ACTIVE ?? 0}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Заказов находятся в исполнении прямо сейчас.
@@ -450,6 +441,8 @@ export function ProOverviewDashboard({ provider, services, requests, orders }: P
             </Box>
           </Stack>
         </Paper>
+
+        <TodayRemindersWidget reminders={todayReminders} />
 
         <Paper variant="outlined" sx={{ p: 2.5 }}>
           <Stack spacing={1.5}>

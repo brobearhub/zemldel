@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { ServiceRequestProDto } from "@/entities/service-request";
+import type { RequestProDto } from "@/entities/request";
 import { fetchEligibleCategories, fetchInbox, fetchInboxSettings, putInboxSettings } from "@/widgets/pro-requests/api/proRequestsFeedApi";
 import { DEFAULT_SETTINGS, STATUS_CHIPS, type EligibleCategory, type InboxSettings, type InboxStatus, type ItemsByStatus } from "@/widgets/pro-requests/model/types";
 
 type UseProRequestsFeedArgs = {
-  initialItems: ServiceRequestProDto[];
+  initialItems: RequestProDto[];
   isDesktop: boolean;
 };
 
@@ -96,8 +96,7 @@ export function useProRequestsFeed({ initialItems, isDesktop }: UseProRequestsFe
   useEffect(() => {
     if (!settingsLoaded) return;
     const t = window.setTimeout(() => {
-      void putInboxSettings(settings).catch(() => {
-      });
+      void putInboxSettings(settings).catch(() => {});
     }, 450);
     return () => {
       window.clearTimeout(t);
@@ -128,4 +127,3 @@ export function useProRequestsFeed({ initialItems, isDesktop }: UseProRequestsFe
     mobileHasLoaded,
   };
 }
-

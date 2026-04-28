@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!service) return { title: "Услуга" };
   return {
-    title: `${service.title} — Новые горизонты`,
+    title: `${service.title} — Земледел`,
     description: service.description ?? undefined,
   };
 }

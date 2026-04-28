@@ -68,10 +68,10 @@ export const MainServices = () => {
         >
           Основные услуги
         </Typography>
-        <Typography sx={{ color: "text.secondary", maxWidth: 860 }}>
+        {/* <Typography sx={{ color: "text.secondary", maxWidth: 860 }}>
           Работаем с земельными участками: от оформления документов до
           представительства в суде.
-        </Typography>
+        </Typography> */}
       </Stack>
 
       <Box

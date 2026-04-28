@@ -4,11 +4,13 @@ export const SYSTEM_ROLES = ["PLATFORM_ADMIN", "CUSTOMER"] as const;
 export const PROVIDER_MEMBER_ROLES = ["OWNER", "MANAGER"] as const;
 export const PROVIDER_MEMBER_STATUSES = ["INVITED", "ACTIVE", "SUSPENDED"] as const;
 export const PROVIDER_TYPES = ["SELF_EMPLOYED", "COMPANY"] as const;
+export const AUTH_PROVIDER_KEYS = ["GOSUSLUGI"] as const;
 
 export type SystemRole = (typeof SYSTEM_ROLES)[number];
 export type ProviderMemberRole = (typeof PROVIDER_MEMBER_ROLES)[number];
 export type ProviderMemberStatus = (typeof PROVIDER_MEMBER_STATUSES)[number];
 export type ProviderType = (typeof PROVIDER_TYPES)[number];
+export type AuthProviderKey = (typeof AUTH_PROVIDER_KEYS)[number];
 
 export type AuthCity = {
   id: string;
@@ -36,6 +38,8 @@ export type AuthorizedUser = {
   activeProviderId: string | null;
   customerCity: AuthCity | null;
   memberships: AuthMembership[];
+  linkedAuthProviders?: AuthProviderKey[];
+  stepUpVerifiedAt?: Partial<Record<AuthProviderKey, string>>;
 };
 
 export type AppAction = "manage" | "read" | "create" | "update" | "delete";

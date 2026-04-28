@@ -28,19 +28,19 @@ export default async function IndexPage() {
 }
 
 export const metadata: Metadata = {
-  title: "Новые горизонты",
-  description: "Новые горизонты",
+  title: "Земледел",
+  description: "Земледел",
   openGraph: {
-    title: "Новые горизонты",
-    description: "Новые горизонты",
+    title: "Земледел",
+    description: "Земледел",
     url: "https://novagor.ru",
-    siteName: "Новые горизонты",
+    siteName: "Земледел",
     images: [{ url: "https://novagor.ru/og-image.png" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Новые горизонты",
-    description: "Новые горизонты",
+    title: "Земледел",
+    description: "Земледел",
     images: [{ url: "https://novagor.ru/og-image.png" }],
   },
 };

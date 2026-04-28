@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const cat = await fetchBackendJson<ServiceCategoryRow>(`/service-categories/${id}`);
     return {
-      title: `${cat.name} — Новые горизонты`,
+      title: `${cat.name} — Земледел`,
       description: `Исполнители и услуги в категории «${cat.name}».`,
     };
   } catch (e) {

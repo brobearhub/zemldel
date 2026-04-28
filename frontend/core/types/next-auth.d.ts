@@ -1,5 +1,5 @@
 import type { DefaultSession } from "next-auth";
-import type { AuthCity, AuthMembership, SystemRole } from "@/core/auth/authorization";
+import type { AuthCity, AuthMembership, AuthProviderKey, SystemRole } from "@/core/auth/authorization";
 
 declare module "next-auth" {
   interface Session {
@@ -9,6 +9,8 @@ declare module "next-auth" {
       activeProviderId: string | null;
       customerCity: AuthCity | null;
       memberships: AuthMembership[];
+      linkedAuthProviders?: AuthProviderKey[];
+      stepUpVerifiedAt?: Partial<Record<AuthProviderKey, string>>;
     } & DefaultSession["user"];
   }
 }
@@ -23,6 +25,8 @@ declare module "next-auth/jwt" {
     activeProviderId?: string | null;
     customerCity?: AuthCity | null;
     memberships?: AuthMembership[];
+    linkedAuthProviders?: AuthProviderKey[];
+    stepUpVerifiedAt?: Partial<Record<AuthProviderKey, string>>;
   }
 }
 

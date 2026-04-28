@@ -105,7 +105,7 @@ export const Hero = () => {
       {/* Background image as fallback if video doesn't load */}
       <Image
         src={posterSrc}
-        alt="Новые Горизонты"
+        alt="Земледел"
         fill
         priority
         style={{
@@ -199,16 +199,6 @@ export const Hero = () => {
 
       <Container sx={{ position: "relative", zIndex: 3 }}>
         <Stack spacing={{ xs: 2.5, md: 3 }} alignItems="center" textAlign="center">
-          {/* <Box
-            component="img"
-            src="/logo-test-01.png"
-            alt="Новые Горизонты"
-            sx={{
-              width: { xs: 120, sm: 180, md: 240 },
-              height: "auto",
-              mb: { xs: 1, md: 2 },
-            }}
-          /> */}
           <Typography
             component="h1"
             sx={{
@@ -229,12 +219,7 @@ export const Hero = () => {
              top={{ xs: "-42px", sm: "-73px", md: "-98px" }}
              component="span" 
              sx={{ display: "block" }}>
-              Новые
-            </Box>
-            <Box 
-             component="span" 
-             sx={{ display: "block" }}>
-              Горизонты
+              Земледел
             </Box>
           </Typography>
 

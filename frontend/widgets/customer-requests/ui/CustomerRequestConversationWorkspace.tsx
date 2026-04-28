@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Alert,
   Box,
@@ -24,16 +24,20 @@ import {
   Typography,
 } from "@mui/material";
 import type { ChatServiceRequestConversationListItemDto } from "@/entities/chat/dto/chat.dto";
-import { StatusProgressStepper } from "@/entities/order/ui/order-ui";
+import { StatusProgressStepper } from "@/entities/request/ui/request-ui";
 import {
-  buildServiceRequestFlowSteps,
-  getServiceRequestFlowActiveStepId,
-  getServiceRequestStatusLabel,
-  isServiceRequestOrderStatus,
-  type ServiceRequestCustomerDto,
-} from "@/entities/service-request";
+  buildCustomerRequestFlowSteps,
+  getCustomerRequestFlowActiveStepId,
+  getRequestStatusLabel,
+  isExclusiveProviderPhaseStatus,
+  isOrderExecutionStatus,
+  resolveRequestDetailBody,
+  type RequestCustomerDto,
+} from "@/entities/request";
 import { ChatBodyWithSidePanelLayout } from "@/widgets/chat/ui/ChatBodyWithSidePanelLayout";
 import { ServiceRequestChatPanel } from "@/widgets/chat/ui/ServiceRequestChatPanel";
+import Link from "@/shared/ui/Link";
+import { RequestDetailHeaderCard } from "@/shared/ui/RequestDetailHeaderCard";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("ru-RU", {
@@ -44,23 +48,32 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-function pickTitle(req: ServiceRequestCustomerDto) {
-  if (req.subjectType === "SERVICE") return "Заявка по услуге";
+function pickTitle(req: RequestCustomerDto) {
+  if (req.subjectType === "SERVICE") return req.serviceTitle ?? "Заявка по услуге";
   if (req.subjectType === "CATEGORY") return "Заявка по категории";
   return "Свободная заявка";
 }
 
 type Props = {
-  initialRequest: ServiceRequestCustomerDto;
+  initialRequest: RequestCustomerDto;
+};
+
+type CustomerRequestContractListItem = {
+  id: string;
+  title: string;
+  status: "DRAFT" | "SENT" | "SIGNED" | "CANCELLED";
+  updatedAt: string;
 };
 
 export function CustomerRequestConversationWorkspace({ initialRequest }: Props) {
-  const [req, setReq] = useState<ServiceRequestCustomerDto>(initialRequest);
+  const router = useRouter();
+  const [req, setReq] = useState<RequestCustomerDto>(initialRequest);
   const [conversations, setConversations] = useState<ChatServiceRequestConversationListItemDto[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [requestContracts, setRequestContracts] = useState<CustomerRequestContractListItem[]>([]);
   const [offerOpen, setOfferOpen] = useState(false);
   const [offerBusy, setOfferBusy] = useState(false);
   const [offerError, setOfferError] = useState<string | null>(null);
@@ -75,7 +88,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
   );
 
   const loadConversations = useCallback(async () => {
-    const res = await fetch(`/api/chat/service-requests/${req.id}/conversations`, { cache: "no-store" });
+    const res = await fetch(`/api/chat/requests/${req.id}/conversations`, { cache: "no-store" });
     const payload = (await res.json().catch(() => null)) as ChatServiceRequestConversationListItemDto[] | { error?: string } | null;
     if (!res.ok) {
       throw new Error(
@@ -86,14 +99,14 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
   }, [req.id]);
 
   const refreshRequest = useCallback(async () => {
-    const res = await fetch(`/api/service-requests/${req.id}`, { cache: "no-store" });
-    const payload = (await res.json().catch(() => null)) as ServiceRequestCustomerDto | { error?: string } | null;
+    const res = await fetch(`/api/requests/${req.id}`, { cache: "no-store" });
+    const payload = (await res.json().catch(() => null)) as RequestCustomerDto | { error?: string } | null;
     if (!res.ok) {
       throw new Error(
         payload && typeof payload === "object" && "error" in payload && payload.error ? payload.error : "Не удалось обновить заявку"
       );
     }
-    setReq(payload as ServiceRequestCustomerDto);
+    setReq(payload as RequestCustomerDto);
   }, [req.id]);
 
   useEffect(() => {
@@ -126,41 +139,66 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     req.offers.find((offer) => req.selectedProviderIds.includes(offer.providerId)) ??
     null;
 
-  const isOrderStatus = isServiceRequestOrderStatus(req.status);
+  const isExecutionStatus = isOrderExecutionStatus(req.status);
+  const isExclusiveStatus = isExclusiveProviderPhaseStatus(req.status);
+  const listedVisibleContract =
+    requestContracts.find((contract) => contract.status === "SENT" || contract.status === "SIGNED") ?? null;
+  const visibleContract = req.contract && req.contract.status !== "DRAFT" ? req.contract : listedVisibleContract;
+
+  useEffect(() => {
+    if (!isExclusiveStatus) {
+      setRequestContracts([]);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/contracts/requests/${req.id}/instances`, { cache: "no-store" });
+        const payload = (await res.json().catch(() => null)) as CustomerRequestContractListItem[] | { error?: string } | null;
+        if (!res.ok || !Array.isArray(payload)) {
+          if (!cancelled) setRequestContracts([]);
+          return;
+        }
+        if (!cancelled) setRequestContracts(payload);
+      } catch {
+        if (!cancelled) setRequestContracts([]);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isExclusiveStatus, req.id]);
+
+  useEffect(() => {
+    if (req.status !== "PROVIDER_SELECTED" || visibleContract) return;
+
+    let cancelled = false;
+    const refreshIfWaitingForContract = async () => {
+      try {
+        const res = await fetch(`/api/requests/${req.id}`, { cache: "no-store" });
+        const payload = (await res.json().catch(() => null)) as RequestCustomerDto | { error?: string } | null;
+        if (!cancelled && res.ok) {
+          setReq(payload as RequestCustomerDto);
+        }
+      } catch {
+        // Keep the current state; the regular page controls still show the waiting state.
+      }
+    };
+
+    void refreshIfWaitingForContract();
+    const intervalId = window.setInterval(() => void refreshIfWaitingForContract(), 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [req.id, req.status, visibleContract]);
 
   function canInitiateOrderFor(providerId: string) {
-    if (isOrderStatus || req.status === "CLOSED") return false;
+    if (isExclusiveStatus || req.status === "CLOSED") return false;
     if ((req.selectedProviderIds ?? []).includes(providerId)) return false;
     return true;
-  }
-
-  async function initiateOrder(conversationId: string) {
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-    try {
-      const res = await fetch(`/api/service-requests/${req.id}/initiate-order`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId }),
-      });
-      const payload = (await res.json().catch(() => null)) as { error?: string } | ServiceRequestCustomerDto | null;
-      if (!res.ok) {
-        throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось запросить заказ" : "Не удалось запросить заказ");
-      }
-      setReq(payload as ServiceRequestCustomerDto);
-      setNotice("Запрос отправлен. Ожидайте подтверждения компании.");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось запросить заказ");
-    } finally {
-      setBusy(false);
-      try {
-        const list = await loadConversations();
-        setConversations(list);
-      } catch {
-        // ignore
-      }
-    }
   }
 
   async function loadOffer() {
@@ -187,12 +225,12 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`/api/service-requests/${req.id}/accept-terms`, { method: "POST" });
-      const payload = (await res.json().catch(() => null)) as { error?: string } | ServiceRequestCustomerDto | null;
+      const res = await fetch(`/api/requests/${req.id}/accept-terms`, { method: "POST" });
+      const payload = (await res.json().catch(() => null)) as { error?: string } | RequestCustomerDto | null;
       if (!res.ok) {
         throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось согласовать условия" : "Не удалось согласовать условия");
       }
-      setReq(payload as ServiceRequestCustomerDto);
+      setReq(payload as RequestCustomerDto);
       setNotice("Условия согласованы.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось согласовать условия");
@@ -206,17 +244,17 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`/api/service-requests/${req.id}/select-provider`, {
+      const res = await fetch(`/api/requests/${req.id}/select-provider`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ providerId }),
       });
-      const payload = (await res.json().catch(() => null)) as { error?: string } | ServiceRequestCustomerDto | null;
+      const payload = (await res.json().catch(() => null)) as { error?: string } | RequestCustomerDto | null;
       if (!res.ok) {
         throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось выбрать исполнителя" : "Не удалось выбрать исполнителя");
       }
-      setReq(payload as ServiceRequestCustomerDto);
-      setNotice("Исполнитель выбран.");
+      setReq(payload as RequestCustomerDto);
+      setNotice("Исполнитель выбран. Ожидайте договор.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось выбрать исполнителя");
     } finally {
@@ -233,16 +271,24 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`/api/service-requests/${req.id}/accept-contract`, {
+      const res = await fetch(`/api/requests/${req.id}/accept-contract`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ offerVersion }),
       });
-      const payload = (await res.json().catch(() => null)) as { error?: string } | ServiceRequestCustomerDto | null;
+      const payload = (await res.json().catch(() => null)) as
+        | { error?: string; code?: string; provider?: string }
+        | RequestCustomerDto
+        | null;
       if (!res.ok) {
+        if (res.status === 403 && payload && typeof payload === "object" && "code" in payload && payload.code === "STEP_UP_REQUIRED") {
+          const returnTo = `${window.location.pathname}${window.location.search}`;
+          router.push(`/gosuslugi-mock?mode=verify&returnTo=${encodeURIComponent(returnTo)}`);
+          return;
+        }
         throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось заключить договор" : "Не удалось заключить договор");
       }
-      setReq(payload as ServiceRequestCustomerDto);
+      setReq(payload as RequestCustomerDto);
       setNotice("Договор заключен.");
       setOfferOpen(false);
     } catch (e) {
@@ -257,13 +303,28 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`/api/service-requests/${req.id}/pay`, { method: "POST" });
-      const payload = (await res.json().catch(() => null)) as { error?: string } | ServiceRequestCustomerDto | null;
+      const res = await fetch(`/api/requests/${req.id}/pay`, { method: "POST" });
+      const payload = (await res.json().catch(() => null)) as
+        | { error?: string }
+        | { redirectUrl?: string | null; status?: string }
+        | null;
       if (!res.ok) {
-        throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось оплатить" : "Не удалось оплатить");
+        throw new Error(
+          payload && typeof payload === "object" && "error" in payload
+            ? payload.error ?? "Не удалось оплатить"
+            : "Не удалось оплатить",
+        );
       }
-      setReq(payload as ServiceRequestCustomerDto);
-      setNotice("Средства зарезервированы (escrow).");
+      const redirectUrl =
+        payload && typeof payload === "object" && "redirectUrl" in payload
+          ? payload.redirectUrl
+          : null;
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
+        return;
+      }
+      await refreshRequest();
+      setNotice("Оплата в обработке.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось оплатить");
     } finally {
@@ -276,7 +337,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`/api/orders/mine/${req.id}/accept-result`, { method: "POST" });
+      const res = await fetch(`/api/requests/${req.id}/accept-result`, { method: "POST" });
       const payload = (await res.json().catch(() => null)) as { error?: string } | unknown | null;
       if (!res.ok) {
         throw new Error(payload && typeof payload === "object" && payload && "error" in (payload as any) ? ((payload as any).error as string) : "Не удалось принять результат");
@@ -295,7 +356,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`/api/orders/mine/${req.id}/send-remarks`, {
+      const res = await fetch(`/api/requests/${req.id}/send-remarks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ remarks }),
@@ -306,7 +367,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
       }
       setRemarks("");
       await refreshRequest();
-      setNotice("Замечания отправлены. Заказ возвращен в работу.");
+      setNotice("Замечания отправлены. Заявка возвращена в работу.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось отправить замечания");
     } finally {
@@ -316,26 +377,23 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
 
   const selectedCount = req.selectedProviderIds?.length ?? 0;
   const pendingInfo =
-    !isOrderStatus && selectedCount > 0 && req.lastSelectionAt
+    !isExecutionStatus && req.status !== "PROVIDER_SELECTED" && selectedCount > 0 && req.lastSelectionAt
       ? selectedCount === 1
-        ? `Вы выбрали исполнителя · ${formatDate(req.lastSelectionAt)}`
-        : `Вы выбрали исполнителей: ${selectedCount} · ${formatDate(req.lastSelectionAt)}`
+        ? `Вы выбрали компанию для диалога · ${formatDate(req.lastSelectionAt)}`
+        : `Вы выбрали компании для диалога: ${selectedCount} · ${formatDate(req.lastSelectionAt)}`
       : null;
+
+  const requestBody = resolveRequestDetailBody(req.message, req.serviceTitle);
 
   return (
     <ChatBodyWithSidePanelLayout
       middle={
         <Stack spacing={2}>
-          <Stack spacing={0.75}>
-            <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap>
-              <Typography variant="h4" fontWeight={700}>
-                Заявка
-              </Typography>
-              <Chip size="small" label={getServiceRequestStatusLabel(req.status)} />
-            </Stack>
-            <Typography color="text.secondary">{pickTitle(req)}</Typography>
-            {req.message ? <Typography sx={{ whiteSpace: "pre-wrap" }}>{req.message}</Typography> : null}
-          </Stack>
+          <RequestDetailHeaderCard
+            subtitle={pickTitle(req)}
+            statusLabel={getRequestStatusLabel(req.status)}
+            body={requestBody}
+          />
 
           {notice ? <Alert severity="success">{notice}</Alert> : null}
           {error ? <Alert severity="error">{error}</Alert> : null}
@@ -346,41 +404,16 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                 <Typography fontWeight={800}>Детали</Typography>
               </Stack>
               <StatusProgressStepper
-                steps={buildServiceRequestFlowSteps(req.status, activeOffer)}
-                activeStepId={getServiceRequestFlowActiveStepId(req.status, activeOffer)}
+                steps={buildCustomerRequestFlowSteps(req)}
+                activeStepId={getCustomerRequestFlowActiveStepId(req)}
               />
               {pendingInfo ? (
                 <Typography variant="body2" color="text.secondary">
                   {pendingInfo}
                 </Typography>
               ) : null}
-              {!isOrderStatus && (req.status === "NEW" || req.status === "DISCUSSING") && req.dealTerms ? (
-                <Button
-                  variant="contained"
-                  color="success"
-                  disabled={busy}
-                  onClick={() => void acceptTerms()}
-                  sx={{ alignSelf: "flex-start" }}
-                >
-                  Согласовать условия
-                </Button>
-              ) : null}
-              {!isOrderStatus && req.status === "PROVIDER_SELECTED" ? (
-                <Button
-                  variant="contained"
-                  color="success"
-                  disabled={busy}
-                  onClick={() => {
-                    setOfferOpen(true);
-                    setOfferAccepted(false);
-                    if (!offerMarkdown && !offerBusy) void loadOffer();
-                  }}
-                  sx={{ alignSelf: "flex-start" }}
-                >
-                  Заключить договор и начать выполнение
-                </Button>
-              ) : null}
-              {!isOrderStatus && (req.status === "CONTRACT_ACCEPTED" || req.status === "PAYMENT_PENDING") ? (
+              {/* Условия обсуждаются в чате. Договорный цикл ведётся отдельно. */}
+              {(req.status === "CONTRACT_ACCEPTED" || req.status === "PAYMENT_PENDING") ? (
                 <Button
                   variant="contained"
                   color="warning"
@@ -416,16 +449,43 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                   ) : null}
                 </Stack>
               ) : null}
-              {/* advance flow removed */}
               {req.location ? <Typography color="text.secondary">Локация: {req.location}</Typography> : null}
-
-              {isOrderStatus ? (
-                <Button component={Link} href={`/orders/${req.id}`} variant="contained" color="success" sx={{ mt: 1, alignSelf: "flex-start" }}>
-                  Открыть заказ
-                </Button>
-              ) : null}
             </Stack>
           </Paper>
+
+          {isExclusiveStatus ? (
+            <Paper variant="outlined" sx={{ p: 2.5 }}>
+              <Stack spacing={1}>
+                <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap>
+                  <Typography fontWeight={800}>Документы</Typography>
+                </Stack>
+
+                {req.status === "PROVIDER_SELECTED" && !visibleContract ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Ожидаем договор от компании.
+                  </Typography>
+                ) : null}
+                {visibleContract?.status === "SENT" ? (
+                  <Alert severity="info">
+                    Компания отправила договор. Откройте его, проверьте текст и примите или оставьте комментарии.
+                  </Alert>
+                ) : null}
+                {visibleContract?.status === "SIGNED" ? (
+                  <Alert severity="success">Договор принят. Теперь можно перейти к оплате.</Alert>
+                ) : null}
+
+                <Button
+                  component={Link}
+                  href={`/profile/requests/${req.id}/contracts`}
+                  variant={visibleContract ? "contained" : "outlined"}
+                  disabled={busy}
+                  sx={{ alignSelf: "flex-start" }}
+                >
+                  Договор
+                </Button>
+              </Stack>
+            </Paper>
+          ) : null}
 
           <Paper variant="outlined" sx={{ overflow: "hidden" }}>
             <Box sx={{ px: 2, py: 1.5 }}>
@@ -444,15 +504,23 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                 {conversations.map((c) => {
                   const isSelected = (req.selectedProviderIds ?? []).includes(c.providerId);
                   const isDeclined = (req.declinedProviderIds ?? []).includes(c.providerId);
-                  const rowCanInitiate =
-                    req.status === "TERMS_AGREED" ? isSelected : canInitiateOrderFor(c.providerId);
+                  const rowCanInitiate = isSelected ? true : canInitiateOrderFor(c.providerId);
+                  const isChosenProvider = req.status === "PROVIDER_SELECTED" && req.providerId === c.providerId;
 
                   return (
                     <ListItem
                       key={c.conversationId}
                       disablePadding
                       secondaryAction={
-                        isOrderStatus || req.status === "CLOSED" ? null : (
+                        req.status === "CLOSED" ? null : req.status === "PROVIDER_SELECTED" ? (
+                          isChosenProvider ? (
+                            <Stack direction="row" spacing={1} sx={{ pr: 1 }}>
+                              <Button size="small" variant="outlined" disabled sx={{ whiteSpace: "nowrap" }}>
+                                {visibleContract ? "Договор отправлен" : "Ожидаем договор"}
+                              </Button>
+                            </Stack>
+                          ) : null
+                        ) : isExclusiveStatus ? null : (
                           <Stack direction="row" spacing={1} sx={{ pr: 1 }}>
                             <Button
                               color="secondary"
@@ -461,19 +529,11 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                               disabled={!rowCanInitiate || busy}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (req.status === "TERMS_AGREED") {
-                                  void selectProvider(c.providerId);
-                                } else {
-                                  void initiateOrder(c.conversationId);
-                                }
+                                void selectProvider(c.providerId);
                               }}
                               sx={{ whiteSpace: "nowrap" }}
                             >
-                              {req.status === "TERMS_AGREED"
-                                ? "Подтвердить выбор"
-                                : isDeclined
-                                  ? "Выбрать снова"
-                                  : "Выбрать исполнителя"}
+                              {isDeclined ? "Запросить снова" : "Запросить договор"}
                             </Button>
                           </Stack>
                         )
@@ -566,4 +626,3 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     />
   );
 }
-

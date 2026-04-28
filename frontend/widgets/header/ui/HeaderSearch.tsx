@@ -17,7 +17,7 @@ export const HeaderSearch = () => (
         borderRadius: 2,
         bgcolor: "common.white",
         border: (theme) =>
-          `1px solid ${alpha(theme.palette.common.black, 0.12)}`,
+          `5px solid ${theme.palette.primary.light}`,
         px: 1.5,
         py: 0.75,
         "&:focus-within": {

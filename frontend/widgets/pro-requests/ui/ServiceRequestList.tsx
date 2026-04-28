@@ -1,11 +1,11 @@
-import type { ServiceRequestProDto } from "@/entities/service-request";
-import { getServiceRequestStatusLabel } from "@/entities/service-request";
+import type { RequestProDto } from "@/entities/request";
+import { getRequestStatusLabel } from "@/entities/request";
 import { formatServiceRequestDate, getServiceRequestTitle } from "@/widgets/pro-requests/lib/serviceRequestView";
 import { FeedList } from "@/widgets/pro-requests/ui/FeedList";
 import { FeedListItem } from "@/widgets/pro-requests/ui/FeedListItem";
 
 type Props = {
-  items: ServiceRequestProDto[];
+  items: RequestProDto[];
   minRows?: number;
   allowLockedClick?: boolean;
 };
@@ -41,4 +41,3 @@ export function ServiceRequestList({ items, minRows = 6, allowLockedClick }: Pro
     />
   );
 }
-

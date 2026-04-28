@@ -6,7 +6,7 @@ import { Box, Button, Paper, Stack, TextField, Typography } from "@mui/material"
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useState } from "react";
-import { SERVICE_REQUEST_INTENT } from "@/entities/service-request";
+import { REQUEST_INTENT as SERVICE_REQUEST_INTENT } from "@/entities/request";
 
 export default function SignInPage() {
   return (

@@ -30,6 +30,8 @@ function assignAuthContext(token: Record<string, unknown>, user: UserAuthContext
   token.activeProviderId = user.activeProviderId;
   token.customerCity = user.customerCity;
   token.memberships = user.memberships;
+  token.linkedAuthProviders = user.linkedAuthProviders ?? [];
+  token.stepUpVerifiedAt = user.stepUpVerifiedAt ?? {};
 }
 
 export const authOptions: NextAuthOptions = {
@@ -98,6 +100,13 @@ export const authOptions: NextAuthOptions = {
         session.user.memberships = Array.isArray(token.memberships)
           ? (token.memberships as AuthMembership[])
           : [];
+        session.user.linkedAuthProviders = Array.isArray(token.linkedAuthProviders)
+          ? (token.linkedAuthProviders as UserAuthContext["linkedAuthProviders"])
+          : [];
+        session.user.stepUpVerifiedAt =
+          typeof token.stepUpVerifiedAt === "object" && token.stepUpVerifiedAt
+            ? (token.stepUpVerifiedAt as UserAuthContext["stepUpVerifiedAt"])
+            : {};
       }
       return session;
     },

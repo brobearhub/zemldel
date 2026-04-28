@@ -27,4 +27,53 @@ export class AuthController {
     const userId = this.internalAuthService.getUserIdFromRequest(request);
     return this.authService.getUserAuthContext(userId);
   }
+
+  @Get('providers')
+  async listLinkedProviders(@Req() request: Request) {
+    const userId = this.internalAuthService.getUserIdFromRequest(request);
+    return { linked: await this.authService.listLinkedAuthProviders(userId) };
+  }
+
+  @Post('providers/gosuslugi/link')
+  async linkGosuslugi(@Req() request: Request, @Body() body: unknown) {
+    const userId = this.internalAuthService.getUserIdFromRequest(request);
+    const payload = body as { externalSubject?: unknown } | null | undefined;
+    const externalSubject =
+      payload &&
+      typeof payload === 'object' &&
+      typeof payload.externalSubject === 'string'
+        ? payload.externalSubject
+        : '';
+    return this.authService.linkAuthProvider({
+      userId,
+      providerKey: 'GOSUSLUGI',
+      externalSubject,
+    });
+  }
+
+  @Post('providers/gosuslugi/unlink')
+  async unlinkGosuslugi(@Req() request: Request) {
+    const userId = this.internalAuthService.getUserIdFromRequest(request);
+    return this.authService.unlinkAuthProvider({
+      userId,
+      providerKey: 'GOSUSLUGI',
+    });
+  }
+
+  @Post('step-up/gosuslugi/verify')
+  async verifyGosuslugiStepUp(@Req() request: Request, @Body() body: unknown) {
+    const userId = this.internalAuthService.getUserIdFromRequest(request);
+    const payload = body as { externalSubject?: unknown } | null | undefined;
+    const externalSubject =
+      payload &&
+      typeof payload === 'object' &&
+      typeof payload.externalSubject === 'string'
+        ? payload.externalSubject
+        : null;
+    return this.authService.verifyStepUp({
+      userId,
+      providerKey: 'GOSUSLUGI',
+      externalSubject,
+    });
+  }
 }

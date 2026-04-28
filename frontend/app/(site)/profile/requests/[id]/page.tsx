@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import type { ServiceRequestCustomerDto } from "@/entities/service-request";
+import type { RequestCustomerDto } from "@/entities/request";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/lib/backend-api";
 import { getServerAuthSession } from "@/lib/auth";
 import { ChatThreeColumnLayout } from "@/widgets/chat/ui/ChatThreeColumnLayout";
@@ -18,9 +18,9 @@ export default async function CustomerRequestDetailPage({ params }: Props) {
     redirect("/signin");
   }
 
-  let req: ServiceRequestCustomerDto;
+  let req: RequestCustomerDto;
   try {
-    req = await fetchBackendJsonAsUser<ServiceRequestCustomerDto>(`/service-requests/mine/${id}`, session.user.id);
+    req = await fetchBackendJsonAsUser<RequestCustomerDto>(`/requests/mine/${id}`, session.user.id);
   } catch (error) {
     if (error instanceof BackendApiError && (error.status === 401 || error.status === 403 || error.status === 404)) {
       notFound();

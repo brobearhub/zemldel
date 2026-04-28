@@ -2,18 +2,13 @@
 
 import { Box, Typography } from "@mui/material";
 import Image from "next/image";
-import Link from "next/link";
-import { FC } from "react";
+import Link from "next/link";import { FC } from "react";
 
 const LOGO_TEXT = "Земледел";
 const LOGO_LEFT_TEXT = "Ptvkt";
 const LOGO_RIGHT_TEXT = "горизонты";
 
-type Props = {
-  center?: boolean; 
-}
-
-export const HeaderLogo: FC<Props> = ({ center }) => (
+export const HeaderLogo = () => (
   <Box
     component={Link}
     href="/"
@@ -28,40 +23,12 @@ export const HeaderLogo: FC<Props> = ({ center }) => (
       "&:hover .header-logo-text": { color: "primary.main" },
     }}
   >
-    {center && (
-      <Typography
-      className="header-logo-text"
-      variant="h6"
-      sx={{
-        fontWeight: 900,
-        letterSpacing: "-0.02em",
-        color: "primary.main",
-        fontSize: { xs: "0.9375rem", sm: "1.125rem" },
-        textTransform: "uppercase",
-      }}
-    >
-      {LOGO_LEFT_TEXT}
-    </Typography>
-    )}
     <Image
-      src="/logo.svg"
+      src="/zemledel_logo_light.svg"
       alt=""
       width={100}
-      height={60}
+      height={45}
       style={{ objectFit: "contain" }}
     />
-    <Typography
-      className="header-logo-text"
-      variant="h6"
-      sx={{
-        fontWeight: 900,
-        letterSpacing: "-0.02em",
-        color: "primary.main",
-        fontSize: { xs: "0.9375rem", sm: "1.125rem" },
-        textTransform: "uppercase",
-      }}
-    >
-      {center ? LOGO_RIGHT_TEXT : LOGO_TEXT}
-    </Typography>
   </Box>
 );

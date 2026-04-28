@@ -18,15 +18,15 @@ import { ChatEnsureBodyDto, ChatPostMessageBodyDto } from './dto/chat-http.dto';
 export class ChatController {
   constructor(private readonly chat: ChatService) {}
 
-  @Get('chat/service-requests/:id/conversations')
+  @Get('chat/requests/:id/conversations')
   async listRequestConversations(
     @Req() request: Request,
-    @Param('id') serviceRequestId: string,
+    @Param('id') requestId: string,
   ) {
     const userId = this.chat.getRequiredActorUserId(request);
     return this.chat.listServiceRequestConversationsForCustomer(
       userId,
-      serviceRequestId,
+      requestId,
     );
   }
 

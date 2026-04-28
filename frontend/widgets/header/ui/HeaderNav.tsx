@@ -39,13 +39,15 @@ export const HeaderNav = () => (
           textDecoration: "none",
           "&:hover": {
             color: "primary.main",
-            "& .nav-label": { opacity: 1 },
+            "& .nav-label": { opacity: 1, color: "info.main" },
+            "& .MuiSvgIcon-root": { color: "info.main" },
+            "& .MuiTypography-root": { color: "info.main" },
           },
         }}
       >
-        <Icon sx={{ fontSize: { xs: 22, sm: 24 }, color: "primary.main" }} />
+        <Icon sx={{ fontSize: { xs: 22, sm: 24 }, color: "common.gray", "&:hover": { color: "info.main" } }} />
         <Typography
-          color="secondary.main"
+          color="common.gray"
           className="nav-label"
           variant="body2"
           sx={{
@@ -53,6 +55,7 @@ export const HeaderNav = () => (
             fontWeight: 600,
             fontSize: 12,
             opacity: 1,
+            "&:hover": { color: "info.main" },
           }}
         >
           {label}

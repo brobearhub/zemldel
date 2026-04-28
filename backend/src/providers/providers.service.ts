@@ -5,7 +5,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { isAllowedLocationRow } from '../cities/location';
 import { CreateProviderDto } from './dto/create-provider.dto';
 import { AddProviderManagerDto } from './dto/add-provider-manager.dto';
 import { AuthService } from '../auth/auth.service';
@@ -36,6 +38,18 @@ const providerMemberSelect = {
     },
   },
 } as const;
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+const slugLength = 3; // 16 000 000 combinations
 
 @Injectable()
 export class ProvidersService {
@@ -95,9 +109,66 @@ export class ProvidersService {
     return membership;
   }
 
+  async checkSlugAvailability(slug: string) {
+    const normalized = slug.trim().toLowerCase();
+    if (!normalized || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(normalized)) {
+      return { available: false };
+    }
+    const existing = await this.prisma.provider.findUnique({
+      where: { slug: normalized },
+      select: { id: true },
+    });
+    return { available: !existing };
+  }
+
+  async updateProviderSlug(userId: string, providerId: string, slug: string) {
+    await this.ensureProviderOwner(userId, providerId);
+
+    const normalized = slug.trim().toLowerCase();
+    if (!normalized || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(normalized)) {
+      throw new BadRequestException('Invalid slug format');
+    }
+
+    const existing = await this.prisma.provider.findUnique({
+      where: { slug: normalized },
+      select: { id: true },
+    });
+    if (existing && existing.id !== providerId) {
+      throw new ConflictException('Provider slug already exists');
+    }
+
+    const updated = await this.prisma.provider.update({
+      where: { id: providerId },
+      data: { slug: normalized },
+      select: { id: true, slug: true },
+    });
+
+    return updated;
+  }
+
+  private async generateUniqueSlug(base: string): Promise<string> {
+    const baseSlug = slugify(base) || crypto.randomBytes(3).toString('hex');
+
+    const exists = await this.prisma.provider.findUnique({
+      where: { slug: baseSlug },
+      select: { id: true },
+    });
+    if (!exists) return baseSlug;
+
+    for (let i = 2; i <= 20; i++) {
+      const candidate = `${baseSlug}-${i}`;
+      const taken = await this.prisma.provider.findUnique({
+        where: { slug: candidate },
+        select: { id: true },
+      });
+      if (!taken) return candidate;
+    }
+
+    return `${baseSlug}-${crypto.randomBytes(slugLength).toString('hex')}`;
+  }
+
   async createProvider(userId: string, body: CreateProviderDto) {
     const name = body.name.trim();
-    const slug = body.slug.trim().toLowerCase();
     const cityId = body.cityId ?? null;
 
     if (cityId) {
@@ -108,20 +179,23 @@ export class ProvidersService {
       if (!city) {
         throw new NotFoundException('City not found');
       }
-      const ok =
-        (city.typeName === 'г' && (city.level === 5 || city.level === 1)) ||
-        (city.typeName === 'г.о.' && city.level === 3);
-      if (!ok) {
-        throw new BadRequestException('Invalid city');
+      if (!isAllowedLocationRow(city)) {
+        throw new BadRequestException('Invalid location');
       }
     }
 
-    const existingBySlug = await this.prisma.provider.findUnique({
-      where: { slug },
-      select: { id: true },
-    });
-    if (existingBySlug) {
-      throw new ConflictException('Provider slug already exists');
+    let slug: string;
+    if (body.slug) {
+      slug = body.slug.trim().toLowerCase();
+      const existingBySlug = await this.prisma.provider.findUnique({
+        where: { slug },
+        select: { id: true },
+      });
+      if (existingBySlug) {
+        throw new ConflictException('Provider slug already exists');
+      }
+    } else {
+      slug = await this.generateUniqueSlug(name);
     }
 
     if (body.type === 'SELF_EMPLOYED') {
@@ -220,12 +294,8 @@ export class ProvidersService {
       if (!exists) {
         throw new NotFoundException('City not found');
       }
-      const ok =
-        (exists.typeName === 'г' &&
-          (exists.level === 5 || exists.level === 1)) ||
-        (exists.typeName === 'г.о.' && exists.level === 3);
-      if (!ok) {
-        throw new BadRequestException('Invalid city');
+      if (!isAllowedLocationRow(exists)) {
+        throw new BadRequestException('Invalid location');
       }
     }
 

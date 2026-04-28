@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import { useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   Alert,
@@ -18,41 +18,16 @@ import { CityAutocomplete } from "@/shared/ui/CityAutocomplete";
 
 type ProviderType = "SELF_EMPLOYED" | "COMPANY";
 
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
-}
-
 export function ProviderOnboardingForm() {
   const router = useRouter();
   const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
   const [type, setType] = useState<ProviderType>("SELF_EMPLOYED");
   const [city, setCity] = useState<CitySuggestItemDto | null>(null);
-  const [slugTouched, setSlugTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const helperText = useMemo(() => {
-    if (!slug.length) return "Например: ivan-petrov или geo-kadastr";
-    return `URL: /providers/${slug}`;
-  }, [slug]);
-
   function handleNameChange(event: ChangeEvent<HTMLInputElement>) {
-    const nextName = event.target.value;
-    setName(nextName);
-    if (!slugTouched) {
-      setSlug(slugify(nextName));
-    }
-  }
-
-  function handleSlugChange(event: ChangeEvent<HTMLInputElement>) {
-    setSlugTouched(true);
-    setSlug(slugify(event.target.value));
+    setName(event.target.value);
   }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -68,7 +43,6 @@ export function ProviderOnboardingForm() {
         },
         body: JSON.stringify({
           name,
-          slug,
           type,
           cityId: city?.id ?? null,
         }),
@@ -102,7 +76,7 @@ export function ProviderOnboardingForm() {
                 Профессиональный профиль
               </Typography>
               <Typography color="text.secondary">
-                Можно продолжить как заказчик и вернуться к этому шагу позже.
+                Можно продолжить как <b>заказчик</b> и вернуться к этому шагу позже.
               </Typography>
             </Stack>
 
@@ -129,18 +103,8 @@ export function ProviderOnboardingForm() {
                   <MenuItem value="SELF_EMPLOYED">Самозанятый / физлицо</MenuItem>
                   <MenuItem value="COMPANY">Компания / организация</MenuItem>
                 </TextField>
-                <TextField
-                  label="Slug"
-                  value={slug}
-                  onChange={handleSlugChange}
-                  disabled={loading}
-                  fullWidth
-                  required
-                  helperText={helperText}
-                />
-
                 <CityAutocomplete
-                  label="Город"
+                  label="Локация"
                   value={city}
                   onChange={setCity}
                   disabled={loading}

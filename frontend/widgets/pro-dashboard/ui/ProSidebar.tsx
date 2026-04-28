@@ -19,21 +19,29 @@ import DynamicFeedOutlinedIcon from "@mui/icons-material/DynamicFeedOutlined";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import BuildOutlinedIcon from "@mui/icons-material/BuildOutlined";
 import PeopleOutlineOutlinedIcon from "@mui/icons-material/PeopleOutlineOutlined";
-import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import Groups2OutlinedIcon from "@mui/icons-material/Groups2Outlined";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
+import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
+import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
 import { useMemo, useState } from "react";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 
 const NAV_ITEMS = [
   {
     href: "/pro",
-    label: "Лента",
+    label: "Заявки",
     description: "Поток заявок клиентов",
     icon: <DynamicFeedOutlinedIcon />,
+  },
+  {
+    href: "/pro/workday",
+    label: "Рабочий день",
+    description: "Напоминания на сегодня",
+    icon: <TodayOutlinedIcon />,
   },
   {
     href: "/pro/overview",
@@ -48,16 +56,22 @@ const NAV_ITEMS = [
     icon: <PeopleOutlineOutlinedIcon />,
   },
   {
-    href: "/pro/orders",
-    label: "Заказы",
-    description: "Сделки после конверсии заявок",
-    icon: <ReceiptLongOutlinedIcon />,
-  },
-  {
     href: "/pro/clients",
     label: "Клиенты",
     description: "Заказчики с оформленными заказами",
     icon: <Groups2OutlinedIcon />,
+  },
+  {
+    href: "/pro/documents/contracts",
+    label: "Договоры",
+    description: "Шаблоны и подпись договоров",
+    icon: <DescriptionOutlinedIcon />,
+  },
+  {
+    href: "/pro/reminders",
+    label: "Напоминания",
+    description: "Все напоминания по заявкам",
+    icon: <NotificationsNoneOutlinedIcon />,
   },
 ] as const;
 
@@ -117,8 +131,8 @@ export function ProSidebar() {
           const selected =
             pathname === item.href ||
             (item.href === "/pro" && pathname.startsWith("/pro/requests/")) ||
-            (item.href === "/pro/orders" && pathname.startsWith("/pro/orders/"));
-          const badgeEnabled = item.href === "/pro" || item.href === "/pro/orders";
+            (item.href === "/pro/documents/contracts" && pathname.startsWith("/pro/documents/contracts"));
+          const badgeEnabled = item.href === "/pro";
           const icon = badgeEnabled ? (
             <Badge color="error" badgeContent={unreadTotal} max={99} invisible={unreadTotal === 0}>
               {item.icon}

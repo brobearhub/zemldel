@@ -20,11 +20,11 @@ import type { CitySuggestItemDto } from "@/entities/city";
 import { CityAutocomplete } from "@/shared/ui/CityAutocomplete";
 import { useAppSelector } from "@/core/store/hooks";
 import {
-  SERVICE_REQUESTS_PROFILE_URL,
-  SERVICE_REQUESTS_PROFILE_RESUME_URL,
-  buildServiceRequestAuthHref,
-  savePendingServiceRequestDraft,
-} from "@/entities/service-request";
+  REQUESTS_PROFILE_URL,
+  REQUESTS_PROFILE_RESUME_URL,
+  buildRequestAuthHref,
+  savePendingRequestDraft,
+} from "@/entities/request";
 
 type Props = {
   isAuthenticated: boolean;
@@ -70,12 +70,16 @@ function mapCustomerCityToSuggest(
   city: { id: string; name: string; regionCode: string; regionName: string } | null | undefined
 ): CitySuggestItemDto | null {
   if (!city) return null;
+  const name = city.name.trim();
+  const region = city.regionName.trim();
+  const nameKey = name.toLowerCase();
+  const regionKey = region.toLowerCase();
   return {
     id: city.id,
     name: city.name,
     regionCode: city.regionCode,
     regionName: city.regionName,
-    displayName: `г ${city.name}, ${city.regionName}`,
+    displayName: regionKey.includes(nameKey) ? name : `${name}, ${region}`,
   };
 }
 
@@ -108,26 +112,34 @@ export function PublicUnlinkedRequestForm({
     didInitCity.current = true;
   }, [customerCity]);
 
-  const validationError = useMemo(() => {
+  const { validationError, isBlocked } = useMemo(() => {
     if (!form.city) {
-      return "Укажите город.";
+      return { validationError: "Укажите локацию.", isBlocked: true };
     }
+
     const msg = form.message.trim();
     if (!msg) {
-      return "Сообщение обязательно.";
+      // Поле помечено как required; не показываем отдельное "сообщение обязательно" как дефолтный warning.
+      return { validationError: null, isBlocked: true };
     }
+
     const minLen = form.category ? 3 : 10;
     if (msg.length < minLen) {
-      return minLen === 3
-        ? "Опишите задачу чуть подробнее (минимум 3 символа)."
-        : "Опишите задачу чуть подробнее (минимум 10 символов).";
+      return {
+        validationError:
+          minLen === 3
+            ? "Опишите задачу чуть подробнее (минимум 3 символа)."
+            : "Опишите задачу чуть подробнее (минимум 10 символов).",
+        isBlocked: true,
+      };
     }
-    return null;
+
+    return { validationError: null, isBlocked: false };
   }, [form.category, form.city, form.message]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (validationError) {
+    if (isBlocked) {
       setError(validationError);
       return;
     }
@@ -151,11 +163,11 @@ export function PublicUnlinkedRequestForm({
           if (!res.ok) {
             throw new Error(payload?.error ?? "Не удалось создать заявку");
           }
-          router.push(SERVICE_REQUESTS_PROFILE_URL);
+          router.push(REQUESTS_PROFILE_URL);
           return;
         }
 
-        savePendingServiceRequestDraft({
+        savePendingRequestDraft({
           kind: "CATEGORY",
           categoryId: category.id,
           message: normalizeNullableString(composedMessage),
@@ -163,9 +175,9 @@ export function PublicUnlinkedRequestForm({
         });
 
         if (!isAuthenticated) {
-          router.push(buildServiceRequestAuthHref("signup", { kind: "CATEGORY", categoryId: category.id }));
+          router.push(buildRequestAuthHref("signup", { kind: "CATEGORY", categoryId: category.id }));
         } else {
-          router.push(SERVICE_REQUESTS_PROFILE_RESUME_URL);
+          router.push(REQUESTS_PROFILE_RESUME_URL);
         }
         return;
       }
@@ -173,7 +185,7 @@ export function PublicUnlinkedRequestForm({
       const composedMessage = composeMessage(form.message, { cadastralNumber });
 
       if (isAuthenticated) {
-        const res = await fetch("/api/service-requests", {
+        const res = await fetch("/api/requests", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ message: normalizeNullableString(composedMessage), requestCityId }),
@@ -182,20 +194,20 @@ export function PublicUnlinkedRequestForm({
         if (!res.ok) {
           throw new Error(payload?.error ?? "Не удалось создать заявку");
         }
-        router.push(SERVICE_REQUESTS_PROFILE_URL);
+        router.push(REQUESTS_PROFILE_URL);
         return;
       }
 
-      savePendingServiceRequestDraft({
+      savePendingRequestDraft({
         kind: "FREEFORM",
         message: normalizeNullableString(composedMessage),
         requestCityId,
       });
 
       if (!isAuthenticated) {
-        router.push(buildServiceRequestAuthHref("signup", { kind: "FREEFORM" }));
+        router.push(buildRequestAuthHref("signup", { kind: "FREEFORM" }));
       } else {
-        router.push(SERVICE_REQUESTS_PROFILE_RESUME_URL);
+        router.push(REQUESTS_PROFILE_RESUME_URL);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось создать заявку");
@@ -208,7 +220,7 @@ export function PublicUnlinkedRequestForm({
     <Stack spacing={2} component="form" onSubmit={handleSubmit}>
       {variant === "card" ? (
         <Stack spacing={0.5}>
-          <Typography variant="h5" fontWeight={900}>
+          <Typography variant="h5" fontWeight={900} color="text.primary">
             Нужна помощь? Создайте заявку
           </Typography>
           <Typography variant="body2" color="text.secondary">
@@ -229,7 +241,7 @@ export function PublicUnlinkedRequestForm({
       {error ? <Alert severity="error">{error}</Alert> : null}
 
       <CityAutocomplete
-        label="Город"
+        label="Локация"
         value={form.city}
         onChange={(next) => setForm((prev) => ({ ...prev, city: next }))}
         disabled={busy}
@@ -292,10 +304,11 @@ export function PublicUnlinkedRequestForm({
       </Accordion>
 
       <Button
+        color="info"
         type="submit"
         variant="contained"
         size="large"
-        disabled={busy || Boolean(validationError)}
+        disabled={busy || isBlocked}
         startIcon={busy ? <CircularProgress size={18} color="inherit" /> : null}
         sx={{ fontWeight: 800, textTransform: "none" }}
       >

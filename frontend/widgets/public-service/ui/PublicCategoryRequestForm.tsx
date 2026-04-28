@@ -4,11 +4,11 @@ import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, Button, CircularProgress, Stack, TextField, Typography } from "@mui/material";
 import {
-  SERVICE_REQUESTS_PROFILE_URL,
-  SERVICE_REQUESTS_PROFILE_RESUME_URL,
-  buildServiceRequestAuthHref,
-  savePendingServiceRequestDraft,
-} from "@/entities/service-request";
+  REQUESTS_PROFILE_URL,
+  REQUESTS_PROFILE_RESUME_URL,
+  buildRequestAuthHref,
+  savePendingRequestDraft,
+} from "@/entities/request";
 
 type Props = {
   categoryId: string;
@@ -83,11 +83,11 @@ export function PublicCategoryRequestForm({ categoryId, isAuthenticated }: Props
         if (!res.ok) {
           throw new Error(payload?.error ?? "Не удалось создать заявку");
         }
-        router.push(SERVICE_REQUESTS_PROFILE_URL);
+        router.push(REQUESTS_PROFILE_URL);
         return;
       }
 
-      savePendingServiceRequestDraft({
+      savePendingRequestDraft({
         kind: "CATEGORY",
         categoryId,
         message: normalizeNullableString(composedMessage),
@@ -95,9 +95,9 @@ export function PublicCategoryRequestForm({ categoryId, isAuthenticated }: Props
       });
 
       if (!isAuthenticated) {
-        router.push(buildServiceRequestAuthHref("signup", { kind: "CATEGORY", categoryId }));
+        router.push(buildRequestAuthHref("signup", { kind: "CATEGORY", categoryId }));
       } else {
-        router.push(SERVICE_REQUESTS_PROFILE_RESUME_URL);
+        router.push(REQUESTS_PROFILE_RESUME_URL);
       }
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Не удалось создать заявку");

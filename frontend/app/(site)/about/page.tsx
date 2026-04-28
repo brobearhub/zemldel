@@ -29,6 +29,6 @@ export default function AboutPage() {
 }
 
 export const metadata: Metadata = {
-  title: "О компании - Новые горизонты",
+  title: "О компании - Земледел",
 };
 

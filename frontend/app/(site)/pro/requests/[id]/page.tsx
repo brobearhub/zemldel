@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { Box, Typography } from "@mui/material";
-import type { ServiceRequestProDto } from "@/entities/service-request";
+import type { RequestProDto } from "@/entities/request";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/lib/backend-api";
 import { getServerAuthSession } from "@/lib/auth";
 import { ChatBodyWithSidePanelLayout } from "@/widgets/chat/ui/ChatBodyWithSidePanelLayout";
@@ -11,7 +11,7 @@ type Props = {
   params: Promise<{ id: string }>;
 };
 
-function pickSubtitle(item: ServiceRequestProDto) {
+function pickSubtitle(item: RequestProDto) {
   if (item.subjectType === "SERVICE") return item.serviceTitle ?? "Заявка по услуге";
   if (item.subjectType === "CATEGORY") return item.categoryName ? `Категория: ${item.categoryName}` : "Заявка по категории";
   return item.location ? `Локация: ${item.location}` : "Свободная заявка";
@@ -29,9 +29,9 @@ export default async function ProRequestDetailPage({ params }: Props) {
     notFound();
   }
 
-  let req: ServiceRequestProDto;
+  let req: RequestProDto;
   try {
-    req = await fetchBackendJsonAsUser<ServiceRequestProDto>(`/pro/service-requests/${id}`, session.user.id);
+    req = await fetchBackendJsonAsUser<RequestProDto>(`/pro/requests/${id}`, session.user.id);
   } catch (error) {
     if (error instanceof BackendApiError && (error.status === 401 || error.status === 403 || error.status === 404)) {
       notFound();

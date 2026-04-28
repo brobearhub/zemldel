@@ -3,15 +3,18 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
-import { OrdersModule } from './orders/orders.module';
 import { ServicesModule } from './services/services.module';
 import { UsersModule } from './users/users.module';
 import { ProvidersModule } from './providers/providers.module';
 import { ChatModule } from './chat/chat.module';
 import { ServiceCategoriesModule } from './service-categories/service-categories.module';
-import { ServiceRequestsModule } from './service-requests/service-requests.module';
+import { RequestsModule } from './requests/requests.module';
 import { CitiesModule } from './cities/cities.module';
 import { PublicOfferModule } from './public-offer/public-offer.module';
+import { PaymentsModule } from './payments/payments.module';
+import { DocumentsModule } from './documents/documents.module';
+import { ContractsModule } from './contracts/contracts.module';
+import { RemindersModule } from './reminders/reminders.module';
 
 @Module({
   imports: [
@@ -19,13 +22,16 @@ import { PublicOfferModule } from './public-offer/public-offer.module';
     AuthModule,
     ServicesModule,
     ServiceCategoriesModule,
-    ServiceRequestsModule,
-    OrdersModule,
+    RequestsModule,
     UsersModule,
     ProvidersModule,
     ChatModule,
     CitiesModule,
     PublicOfferModule,
+    PaymentsModule,
+    DocumentsModule,
+    ContractsModule,
+    RemindersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

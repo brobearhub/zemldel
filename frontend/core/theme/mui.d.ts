@@ -1,6 +1,11 @@
 import type {} from "@mui/material/styles";
 
 declare module "@mui/material/styles" {
+  interface CommonColors {
+    /** Neutral gray for borders, muted chrome, etc. */
+    gray: string;
+  }
+
   interface Theme {
     custom: {
       gradients: {

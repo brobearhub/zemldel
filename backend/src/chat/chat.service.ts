@@ -138,9 +138,9 @@ export class ChatService {
     }
   }
 
-  private async getRequestForChat(serviceRequestId: string) {
-    const req = await this.prisma.serviceRequest.findUnique({
-      where: { id: serviceRequestId },
+  private async getRequestForChat(requestId: string) {
+    const req = await this.prisma.request.findUnique({
+      where: { id: requestId },
       select: {
         id: true,
         status: true,
@@ -243,11 +243,14 @@ export class ChatService {
     if (isProviderMember) {
       // Before the request is locked to another provider, providers must still be eligible
       // (region/category matching) to access the conversation.
-      await this.assertProviderEligibleForRequest(subject.conversationProviderId, {
-        categoryId: req.categoryId ?? null,
-        requestCityId: req.requestCityId ?? null,
-        customerCityId: req.customerUser?.customerCityId ?? null,
-      });
+      await this.assertProviderEligibleForRequest(
+        subject.conversationProviderId,
+        {
+          categoryId: req.categoryId ?? null,
+          requestCityId: req.requestCityId ?? null,
+          customerCityId: req.customerUser?.customerCityId ?? null,
+        },
+      );
       return;
     }
 
@@ -263,7 +266,7 @@ export class ChatService {
       where: { id: conversationId },
       select: {
         id: true,
-        serviceRequestId: true,
+        requestId: true,
         providerId: true,
         customerUserId: true,
       },
@@ -279,7 +282,7 @@ export class ChatService {
     await this.assertCanAccessRequestConversation(
       userId,
       {
-        requestId: conv.serviceRequestId,
+        requestId: conv.requestId,
         conversationProviderId: conv.providerId,
       },
       action,
@@ -310,9 +313,9 @@ export class ChatService {
 
   async ensureServiceRequestConversation(
     actorUserId: string,
-    serviceRequestId: string,
+    requestId: string,
   ) {
-    const req = await this.getRequestForChat(serviceRequestId);
+    const req = await this.getRequestForChat(requestId);
     this.assertRequestChatEligible({ customerUserId: req.customerUserId });
 
     if (req.status === 'CLOSED') {
@@ -338,7 +341,7 @@ export class ChatService {
     ) {
       const existing = await this.prisma.conversation.findFirst({
         where: {
-          serviceRequestId: req.id,
+          requestId: req.id,
           providerId: { in: memberIds },
           messages: { some: {} },
         },
@@ -346,7 +349,10 @@ export class ChatService {
         select: { id: true },
       });
       if (existing) {
-        return { conversationId: existing.id, messages: [] as ChatMessageDto[] };
+        return {
+          conversationId: existing.id,
+          messages: [] as ChatMessageDto[],
+        };
       }
     }
 
@@ -364,8 +370,8 @@ export class ChatService {
       }
 
       const where = {
-        serviceRequestId_providerId: {
-          serviceRequestId: req.id,
+        requestId_providerId: {
+          requestId: req.id,
           providerId: req.providerId,
         },
       } as const;
@@ -376,7 +382,7 @@ export class ChatService {
           where,
           create: {
             id: randomUUID(),
-            serviceRequestId: req.id,
+            requestId: req.id,
             providerId: req.providerId,
             customerUserId: req.customerUserId!,
           },
@@ -406,14 +412,14 @@ export class ChatService {
       if (req.providerId) {
         const conversation = await this.prisma.conversation.upsert({
           where: {
-            serviceRequestId_providerId: {
-              serviceRequestId: req.id,
+            requestId_providerId: {
+              requestId: req.id,
               providerId: req.providerId,
             },
           },
           create: {
             id: randomUUID(),
-            serviceRequestId: req.id,
+            requestId: req.id,
             providerId: req.providerId,
             customerUserId: req.customerUserId,
           },
@@ -428,7 +434,10 @@ export class ChatService {
       }
 
       const latest = await this.prisma.conversation.findFirst({
-        where: { serviceRequestId: req.id, customerUserId: req.customerUserId! },
+        where: {
+          requestId: req.id,
+          customerUserId: req.customerUserId,
+        },
         orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
         select: { id: true },
       });
@@ -462,7 +471,7 @@ export class ChatService {
       // If activeProviderId isn't set or doesn't match, fall back to any provider membership that has a thread.
       const existing = await this.prisma.conversation.findFirst({
         where: {
-          serviceRequestId: req.id,
+          requestId: req.id,
           providerId: { in: memberIds },
           messages: { some: {} },
         },
@@ -488,8 +497,8 @@ export class ChatService {
     });
 
     const where = {
-      serviceRequestId_providerId: {
-        serviceRequestId: req.id,
+      requestId_providerId: {
+        requestId: req.id,
         providerId,
       },
     } as const;
@@ -500,7 +509,7 @@ export class ChatService {
         where,
         create: {
           id: randomUUID(),
-          serviceRequestId: req.id,
+          requestId: req.id,
           providerId,
           customerUserId: req.customerUserId!,
         },
@@ -524,10 +533,10 @@ export class ChatService {
 
   async listServiceRequestConversationsForCustomer(
     actorUserId: string,
-    serviceRequestId: string,
+    requestId: string,
   ): Promise<ServiceRequestConversationListItemDto[]> {
-    const req = await this.prisma.serviceRequest.findUnique({
-      where: { id: serviceRequestId },
+    const req = await this.prisma.request.findUnique({
+      where: { id: requestId },
       select: { id: true, customerUserId: true, status: true },
     });
     if (!req) {
@@ -543,7 +552,7 @@ export class ChatService {
 
     const rows = await this.prisma.conversation.findMany({
       where: {
-        serviceRequestId: req.id,
+        requestId: req.id,
         customerUserId: actorUserId,
         messages: { some: {} },
       },
@@ -708,7 +717,8 @@ export class ChatService {
       return { canRead: true as const, canWrite: true };
     } catch (error) {
       const reason =
-        error instanceof ForbiddenException || error instanceof BadRequestException
+        error instanceof ForbiddenException ||
+        error instanceof BadRequestException
           ? error.message
           : 'Forbidden';
       return { canRead: true as const, canWrite: false, reason };
@@ -798,12 +808,12 @@ export class ChatService {
       const participants = await this.getParticipantUserIds(conversationId);
       const convRow = await this.prisma.conversation.findUnique({
         where: { id: conversationId },
-        select: { serviceRequestId: true },
+        select: { requestId: true },
       });
 
-      if (convRow?.serviceRequestId) {
-        await this.prisma.serviceRequest.updateMany({
-          where: { id: convRow.serviceRequestId, status: 'NEW' },
+      if (convRow?.requestId) {
+        await this.prisma.request.updateMany({
+          where: { id: convRow.requestId, status: 'NEW' },
           data: { status: 'DISCUSSING' },
         });
 
@@ -812,8 +822,8 @@ export class ChatService {
         const fullHint = {
           conversationId,
           subjectType: 'request' as const,
-          subjectId: convRow.serviceRequestId,
-          serviceRequestId: convRow.serviceRequestId,
+          subjectId: convRow.requestId,
+          requestId: convRow.requestId,
           lastMessageAt: created.createdAt.toISOString(),
           senderUserId: actorUserId,
           bodySnippet,
