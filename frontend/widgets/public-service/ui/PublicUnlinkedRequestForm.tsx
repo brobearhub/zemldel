@@ -25,6 +25,7 @@ import {
   buildRequestAuthHref,
   savePendingRequestDraft,
 } from "@/entities/request";
+import { RequestFormLogo } from "@/widgets/public-service/ui/RequestFormLogo";
 
 type Props = {
   isAuthenticated: boolean;
@@ -217,103 +218,107 @@ export function PublicUnlinkedRequestForm({
   }
 
   const content = (
-    <Stack spacing={2} component="form" onSubmit={handleSubmit}>
-      {variant === "card" ? (
-        <Stack spacing={0.5}>
-          <Typography variant="h5" fontWeight={900} color="text.primary">
-            Нужна помощь? Создайте заявку
-          </Typography>
+    <Stack spacing={2.5}>
+      <RequestFormLogo />
+
+      <Stack spacing={2} component="form" onSubmit={handleSubmit}>
+        {variant === "card" ? (
+          <Stack spacing={0.5}>
+            <Typography variant="h5" fontWeight={900} color="text.primary">
+              Нужна помощь? Создайте заявку
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {isAuthenticated
+                ? "Специалисты свяжутся с вами в ближайшее время."
+                : "Чтобы создать заявку, нужно зарегистрироваться или войти. После этого система продолжит оформление автоматически."}
+            </Typography>
+          </Stack>
+        ) : (
           <Typography variant="body2" color="text.secondary">
             {isAuthenticated
               ? "Специалисты свяжутся с вами в ближайшее время."
               : "Чтобы создать заявку, нужно зарегистрироваться или войти. После этого система продолжит оформление автоматически."}
           </Typography>
-        </Stack>
-      ) : (
-        <Typography variant="body2" color="text.secondary">
-          {isAuthenticated
-            ? "Специалисты свяжутся с вами в ближайшее время."
-            : "Чтобы создать заявку, нужно зарегистрироваться или войти. После этого система продолжит оформление автоматически."}
-        </Typography>
-      )}
+        )}
 
-      {validationError && !error ? <Alert severity="info">{validationError}</Alert> : null}
-      {error ? <Alert severity="error">{error}</Alert> : null}
+        {validationError && !error ? <Alert severity="info">{validationError}</Alert> : null}
+        {error ? <Alert severity="error">{error}</Alert> : null}
 
-      <CityAutocomplete
-        label="Локация"
-        value={form.city}
-        onChange={(next) => setForm((prev) => ({ ...prev, city: next }))}
-        disabled={busy}
-        placeholder="Начните вводить (минимум 2 символа)"
-      />
+        <CityAutocomplete
+          label="Локация"
+          value={form.city}
+          onChange={(next) => setForm((prev) => ({ ...prev, city: next }))}
+          disabled={busy}
+          placeholder="Начните вводить (минимум 2 символа)"
+        />
 
-      <TextField
-        label="Что нужно сделать?"
-        value={form.message}
-        onChange={(event) => setForm((prev) => ({ ...prev, message: event.target.value }))}
-        disabled={busy}
-        fullWidth
-        size="small"
-        multiline
-        minRows={3}
-        required
-      />
+        <TextField
+          label="Что нужно сделать?"
+          value={form.message}
+          onChange={(event) => setForm((prev) => ({ ...prev, message: event.target.value }))}
+          disabled={busy}
+          fullWidth
+          size="small"
+          multiline
+          minRows={3}
+          required
+        />
 
-      <Accordion
-        expanded={optionalExpanded}
-        onChange={(_, next) => setOptionalExpanded(next)}
-        disableGutters
-        elevation={0}
-        sx={{ border: 1, borderColor: "divider", borderRadius: 1.5, "&:before": { display: "none" } }}
-      >
-        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-          <Typography fontWeight={800}>Опционально</Typography>
-        </AccordionSummary>
-        <AccordionDetails>
-          <Stack spacing={2}>
-            <Autocomplete
-              options={categories}
-              value={form.category}
-              onChange={(_, next) => setForm((prev) => ({ ...prev, category: next }))}
-              getOptionLabel={(o) => o.name}
-              isOptionEqualToValue={(a, b) => a.id === b.id}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Категория (опционально)"
-                  size="small"
-                  placeholder="Можно оставить пустым"
-                />
-              )}
-              disabled={busy}
-              clearOnEscape
-            />
+        <Accordion
+          expanded={optionalExpanded}
+          onChange={(_, next) => setOptionalExpanded(next)}
+          disableGutters
+          elevation={0}
+          sx={{ border: 1, borderColor: "divider", borderRadius: 1.5, "&:before": { display: "none" } }}
+        >
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography fontWeight={800}>Опционально</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Stack spacing={2}>
+              <Autocomplete
+                options={categories}
+                value={form.category}
+                onChange={(_, next) => setForm((prev) => ({ ...prev, category: next }))}
+                getOptionLabel={(o) => o.name}
+                isOptionEqualToValue={(a, b) => a.id === b.id}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Категория (опционально)"
+                    size="small"
+                    placeholder="Можно оставить пустым"
+                  />
+                )}
+                disabled={busy}
+                clearOnEscape
+              />
 
-            <TextField
-              label="Кадастровый номер (опционально)"
-              value={form.cadastralBlock}
-              onChange={(event) => setForm((prev) => ({ ...prev, cadastralBlock: event.target.value }))}
-              disabled={busy}
-              fullWidth
-              size="small"
-              placeholder="укажите номер или улицу"
-            />
-          </Stack>
-        </AccordionDetails>
-      </Accordion>
+              <TextField
+                label="Кадастровый номер (опционально)"
+                value={form.cadastralBlock}
+                onChange={(event) => setForm((prev) => ({ ...prev, cadastralBlock: event.target.value }))}
+                disabled={busy}
+                fullWidth
+                size="small"
+                placeholder="укажите номер или улицу"
+              />
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
 
-      <Button
-        color="info"
-        type="submit"
-        variant="contained"
-        size="large"
-        disabled={busy || isBlocked}
-        startIcon={busy ? <CircularProgress size={18} color="inherit" /> : null}
-        sx={{ fontWeight: 800, textTransform: "none" }}
-      >
-        {isAuthenticated ? "Создать заявку" : "Продолжить"}
-      </Button>
+        <Button
+          color="info"
+          type="submit"
+          variant="contained"
+          size="large"
+          disabled={busy || isBlocked}
+          startIcon={busy ? <CircularProgress size={18} color="inherit" /> : null}
+          sx={{ fontWeight: 800, textTransform: "none" }}
+        >
+          {isAuthenticated ? "Создать заявку" : "Продолжить"}
+        </Button>
+      </Stack>
     </Stack>
   );
 

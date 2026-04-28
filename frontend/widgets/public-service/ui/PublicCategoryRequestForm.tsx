@@ -9,6 +9,7 @@ import {
   buildRequestAuthHref,
   savePendingRequestDraft,
 } from "@/entities/request";
+import { RequestFormLogo } from "@/widgets/public-service/ui/RequestFormLogo";
 
 type Props = {
   categoryId: string;
@@ -107,47 +108,51 @@ export function PublicCategoryRequestForm({ categoryId, isAuthenticated }: Props
   }
 
   return (
-    <Stack spacing={2} component="form" onSubmit={handleSubmit}>
-      <Typography variant="body2" color="text.secondary">
-        {isAuthenticated
-          ? "После подтверждения заявка появится в вашем профиле и станет доступна компаниям в ленте."
-          : "Чтобы создать заявку, нужно зарегистрироваться или войти. После этого система продолжит оформление автоматически."}
-      </Typography>
+    <Stack spacing={2.5}>
+      <RequestFormLogo />
 
-      {validationError && !error ? <Alert severity="info">{validationError}</Alert> : null}
-      {error ? <Alert severity="error">{error}</Alert> : null}
+      <Stack spacing={2} component="form" onSubmit={handleSubmit}>
+        <Typography variant="body2" color="text.secondary">
+          {isAuthenticated
+            ? "После подтверждения заявка появится в вашем профиле и станет доступна компаниям в ленте."
+            : "Чтобы создать заявку, нужно зарегистрироваться или войти. После этого система продолжит оформление автоматически."}
+        </Typography>
 
-      <TextField
-        label="Что нужно сделать?"
-        value={form.message}
-        onChange={(event) => setForm((prev) => ({ ...prev, message: event.target.value }))}
-        disabled={busy}
-        fullWidth
-        size="small"
-        multiline
-        minRows={3}
-      />
+        {validationError && !error ? <Alert severity="info">{validationError}</Alert> : null}
+        {error ? <Alert severity="error">{error}</Alert> : null}
 
-      <TextField
-        label="Кадастровый номер (опционально)"
-        value={form.cadastralBlock}
-        onChange={(event) => setForm((prev) => ({ ...prev, cadastralBlock: event.target.value }))}
-        disabled={busy}
-        fullWidth
-        size="small"
-        placeholder="укажите номер или улицу"
-      />
+        <TextField
+          label="Что нужно сделать?"
+          value={form.message}
+          onChange={(event) => setForm((prev) => ({ ...prev, message: event.target.value }))}
+          disabled={busy}
+          fullWidth
+          size="small"
+          multiline
+          minRows={3}
+        />
 
-      <Button
-        type="submit"
-        variant="contained"
-        size="large"
-        disabled={busy || Boolean(validationError)}
-        startIcon={busy ? <CircularProgress size={18} color="inherit" /> : null}
-        sx={{ fontWeight: 800, textTransform: "none", px: 3, py: 1.25 }}
-      >
-        Получить предложения
-      </Button>
+        <TextField
+          label="Кадастровый номер (опционально)"
+          value={form.cadastralBlock}
+          onChange={(event) => setForm((prev) => ({ ...prev, cadastralBlock: event.target.value }))}
+          disabled={busy}
+          fullWidth
+          size="small"
+          placeholder="укажите номер или улицу"
+        />
+
+        <Button
+          type="submit"
+          variant="contained"
+          size="large"
+          disabled={busy || Boolean(validationError)}
+          startIcon={busy ? <CircularProgress size={18} color="inherit" /> : null}
+          sx={{ fontWeight: 800, textTransform: "none", px: 3, py: 1.25 }}
+        >
+          Получить предложения
+        </Button>
+      </Stack>
     </Stack>
   );
 }
