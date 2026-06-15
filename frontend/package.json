@@ -1,5 +1,11 @@
 {
   "private": true,
+  "name": "zemledel-frontend",
+  "version": "0.0.1",
+  "description": "Zemledel PRO frontend",
+  "author": "Zemledel PRO with BroBear.ru",
+  "license": "private",
+  "homepage": "https://zemledel.pro",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -8,7 +14,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "generate-api": "swagger-typescript-api generate -p http://localhost:3003/api-json -o ./shared/api/generated/backend --axios --single-http-client --route-types --responses --extract-enums"
   },
   "dependencies": {
     "@casl/ability": "^6.8.0",
@@ -28,6 +35,7 @@
     "@tiptap/extension-text-align": "^3.22.4",
     "@tiptap/react": "^3.22.4",
     "@tiptap/starter-kit": "^3.22.4",
+    "axios": "^1.18.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "dayjs": "^1.11.20",
@@ -40,7 +48,8 @@
     "reflect-metadata": "^0.2.2",
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.8.3",
+    "swagger-typescript-api": "^13.12.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",

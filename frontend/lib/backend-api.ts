@@ -1,14 +1,7 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { createInternalAuthTokenForUserId } from "@/lib/internal-backend-auth";
-
-function getBackendBaseUrl() {
-  return process.env.BACKEND_API_URL ?? "http://localhost:3003";
-}
-
-function buildBackendUrl(path: string) {
-  return new URL(path, getBackendBaseUrl()).toString();
-}
+import { backendSwaggerFetch } from "@/lib/backend-swagger-transport";
 
 async function parseBackendBody(response: Response) {
   const contentType = response.headers.get("content-type") ?? "";
@@ -37,10 +30,10 @@ export function createInternalAuthHeaders(userId: string) {
 }
 
 export async function fetchBackend(path: string, init?: RequestInit) {
-  return fetch(buildBackendUrl(path), {
-    cache: "no-store",
-    ...init,
-  });
+  // Switched to Swagger-generated transport (axios) to keep a single source of truth
+  // for backend URL, timeouts, request-id propagation, and auth headers.
+  // We still return a Web `Response` to preserve existing callers' behavior.
+  return backendSwaggerFetch({ path, init });
 }
 
 export async function fetchBackendAsUser(
@@ -48,13 +41,7 @@ export async function fetchBackendAsUser(
   userId: string,
   init?: RequestInit,
 ) {
-  const headers = new Headers(init?.headers);
-  headers.set("x-internal-auth", createInternalAuthTokenForUserId(userId));
-
-  return fetchBackend(path, {
-    ...init,
-    headers,
-  });
+  return backendSwaggerFetch({ path, init, userId });
 }
 
 export async function fetchBackendJson<T>(path: string, init?: RequestInit): Promise<T> {

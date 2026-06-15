@@ -4,7 +4,7 @@ import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
 const config = [
   ...nextCoreWebVitals,
   {
-    ignores: ['coverage/**'],
+    ignores: ['coverage/**', 'shared/api/generated/**'],
   },
   {
     rules: {
