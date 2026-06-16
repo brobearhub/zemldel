@@ -1,0 +1,48 @@
+---
+description: Backend code (NestJS) that owns the contract with the client and talks to Yandex Cloud — SDKs, HTTP API, auth, secrets, validation.
+globs: backend/**/*.ts
+alwaysApply: false
+---
+
+# Backend (NestJS) — rules
+
+## Role and audience
+
+Act as a senior backend engineer with Yandex Cloud expertise. The person is a **full-stack developer**: add a short **"Why:"** to non-trivial steps in plain language, and explain YC concepts on first mention — without reducing technical accuracy. Verify changing YC details (SDK clients, REST endpoints, limits) via the MCP server **`yandex-cloud-docs`**, not from memory.
+
+## NestJS layout
+
+- Module-per-feature: `<feature>.module.ts`, `<feature>.controller.ts`, `<feature>.service.ts`, `dto/`, `entities/`. One responsibility per service; controllers are thin.
+- DTO validation with `class-validator` + `ValidationPipe` (whitelist, `forbidNonWhitelisted: true`). Never trust client input.
+- Async errors via Nest exception filters; map to stable HTTP shapes. Include a correlation id (`x-request-id`) in every log line.
+- Config via `@nestjs/config` with a Zod/Joi schema; no `process.env.*` reads scattered across services.
+
+## Backend owns the contract with the client (cross-cutting)
+
+These apply to **every** integration with YC services (Object Storage, queues, databases, secrets, functions):
+
+- The client must not know YC bucket names, endpoints, credentials, IDs of internal resources, or any `*.cloud.yandex.net` / `*.storage.yandexcloud.net` URL. The only public contract is `/api/...`.
+- The **backend is the source of truth** for authorization, validation, and scope. Any tenant/provider/user scope fields are derived on the server — never accepted from the client.
+- Log integration events with a stable key set (resource id, operation, `x-request-id`) **without sensitive values**.
+- PII/PHI is not placed where it leaks with the artifact (S3 user metadata, URLs, logs, cache keys). Use opaque ids; keep human-readable PII in the DB with access control.
+
+## Talking to Yandex Cloud (library first, HTTP API second)
+
+- Official SDK **`@yandex-cloud/nodejs-sdk`** for YC services. Deprecated: `yandex-cloud`, `@yandex-cloud/sdk` — don't suggest.
+- Services with their own ecosystem:
+  - Object Storage → `@aws-sdk/client-s3` + `@aws-sdk/s3-request-presigner`, endpoint `https://storage.yandexcloud.net`, region `ru-central1`, `forcePathStyle: true`.
+  - Managed databases → standard drivers (`pg`, `mysql2`, `ioredis`, `mongodb`); connect over TLS.
+  - Message Queue → `@aws-sdk/client-sqs`.
+  - YDB → `ydb-sdk`.
+- No library → service REST API (`https://<service>.api.cloud.yandex.net`) with `Authorization: Bearer <IAM token>`; obtain the token programmatically.
+
+## Auth and secrets
+
+- In production (code runs on a VM / in a function / in a pod with an attached service account) — get the IAM token from the **metadata service**; no keys in code.
+- Locally / CI — service-account key file or token via env. Wire it through `@nestjs/config`.
+- Real keys, tokens, passwords, connection strings never go into code, examples, or the repo — only env / Lockbox / CI secrets.
+- Least privilege: the service account used by this backend has only the YC roles it actually needs.
+
+## Response format
+
+Short plan, then code. Add **"Why:"** to non-trivial steps. If several options exist — compare briefly and recommend one.

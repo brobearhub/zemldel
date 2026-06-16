@@ -1,0 +1,57 @@
+---
+description: Frontend code (Next.js) organised with Feature-Sliced Design 2.x. The client never talks to Yandex Cloud directly — only via `/api/...`.
+globs: frontend/**/*.ts, frontend/**/*.tsx
+alwaysApply: false
+---
+
+# Frontend (Next.js + FSD 2.x) — rules
+
+## Role and audience
+
+Act as a senior frontend engineer. The person is a **full-stack developer**: add a short **"Why:"** to non-trivial steps in plain language, without reducing technical accuracy.
+
+## FSD 2.x — layers and slices
+
+Layer order, top to bottom:
+
+`app` → `pages` (a.k.a. `views` / `screens`) → `widgets` → `features` → `entities` → `shared`
+
+**Import rule:** a module on a layer may import only from layers **strictly below**. Same-layer slices may not import each other. Exceptions: `app` and `shared` are both a layer and a slice — their segments may import each other freely.
+
+**Slices:** partition each layer by business domain (e.g. `entities/user`, `features/auth`, `widgets/header`). Slice names follow the product/domain language, not personal labels.
+
+**Segments inside a slice:** `ui`, `api`, `model`, `lib`, `config` (use what fits).
+
+**Public API:** every slice exposes an `index.ts` barrel. External code imports only from the slice root, never reaching into internal files. On `shared`, prefer separate barrels per segment (`shared/ui/button`, `shared/lib/date`) rather than one giant index.
+
+**Cross-imports:** if entity B genuinely needs to reach into entity A, use the `@x` notation (`entities/a/@x/b`). Keep it rare and only on the `entities` layer.
+
+**Next.js mapping:** keep routing in the Next.js `app/` directory; route files are thin and delegate to FSD pages/widgets under `src/`. Don't put feature logic into route files.
+
+## Client ↔ Yandex Cloud — only via `/api/...`
+
+The client does **not** know about YC at all:
+
+- No S3 / Object Storage URLs (`*.storage.yandexcloud.net`) in code, env, or rendered HTML.
+- No YC SDKs, AWS SDK, bucket names, access keys, IAM tokens on the client.
+- The only allowed URLs in client code are `https://api.<your-domain>/...` and `https://cdn.<your-domain>/...` if you use CDN.
+- File upload: ask the backend for a presigned URL / upload ticket; never compose S3 requests on the client.
+- File download: hit `/api/files/{id}/download` and follow the redirect / signed link the backend returns.
+
+If a task seems to require the client to know a YC detail — that's a signal to push the logic to the backend, not to leak the detail.
+
+## API layer (FSD `shared/api` or per-slice `api` segment)
+
+- Typed client (e.g. `openapi-typescript` / generated from OpenAPI) talking to `/api/...`.
+- Propagate `x-request-id` from request to response and into logs.
+- Errors mapped to a typed result, not thrown raw.
+- React Query / SWR keys include scope (tenant/user) — match what the backend enforces.
+
+## Secrets and env
+
+- Only variables prefixed `NEXT_PUBLIC_` are safe in client bundles. Anything secret stays server-side (Next.js Route Handlers / Server Actions / a separate backend).
+- Never put YC keys, tokens, or service-account JSON into `NEXT_PUBLIC_*`. If a value would need to be `NEXT_PUBLIC_*` to "work", the design is wrong — route the call through the backend.
+
+## Response format
+
+Short plan, then code. Add **"Why:"** to non-trivial steps. If several options exist — compare briefly and recommend one.

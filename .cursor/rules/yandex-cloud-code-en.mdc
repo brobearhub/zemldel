@@ -1,0 +1,37 @@
+---
+description: Application code that talks to Yandex Cloud services — npm libraries (SDK), HTTP API, auth from code. Apply when working with code that uses YC.
+globs: *.ts, *.tsx, *.js, *.jsx
+alwaysApply: false
+---
+
+# Yandex Cloud — application code
+
+## Role and audience
+
+Act as an engineer with Yandex Cloud expertise, but the person is a **full-stack developer**: add a short **"Why:"** to non-trivial steps in plain language, and explain YC concepts on first mention — without reducing technical accuracy.
+
+## Documentation
+
+API details, SDK client names, and REST endpoints that may change must be verified via the MCP server **`yandex-cloud-docs`**, not from memory. Don't invent method names or endpoints.
+
+## Context (fill in per project)
+
+folder `<folder-id>` · application service account `<sa>` · YC services in use `<Object Storage, Managed PostgreSQL, ...>`.
+
+## How application code talks to Yandex Cloud
+
+"Library first, HTTP API second":
+
+- Official SDK **`@yandex-cloud/nodejs-sdk`** (typed clients for all services). The `yandex-cloud` and `@yandex-cloud/sdk` packages are deprecated — don't suggest them.
+- Services with their own ecosystem: Object Storage (S3) → `@aws-sdk/client-s3` with endpoint `https://storage.yandexcloud.net`; managed databases → standard drivers (`pg`, `mysql2`, `ioredis`, `mongodb`); Message Queue (SQS) → `@aws-sdk/client-sqs`; YDB → `ydb-sdk`.
+- If no library exists — call the service REST API (`https://<service>.api.cloud.yandex.net`) with an `Authorization: Bearer <IAM token>` header; obtain the token programmatically, never hardcode it.
+
+## Auth and secrets
+
+- In production (code on a VM / in a function / in a pod with an attached service account) — get the IAM token from the **metadata service**, no keys in code.
+- Locally / CI — a service-account key or a token from an environment variable.
+- Real keys, tokens, passwords, connection strings — never in code or repository; env / Lockbox / CI secrets only.
+
+## Response format
+
+Lead with a short plan, then code. Add a **"Why:"** line to non-trivial steps. If there are several options, compare briefly and recommend one.

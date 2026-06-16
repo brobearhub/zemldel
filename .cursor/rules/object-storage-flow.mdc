@@ -1,0 +1,93 @@
+---
+description: Object Storage (S3) — upload/download flows, user metadata, access control, CDN delivery, PII rules. Apply when working with Object Storage, S3, file uploads/downloads, presigned URLs, or `x-amz-meta-*` metadata.
+alwaysApply: false
+---
+
+# Object storage (S3): flow + metadata rules
+
+## Upload flows (pick one; don't "mix")
+
+- **Presigned URL (preferred for large files)**: backend issues presigned `PUT`/`POST`, client uploads directly to S3.
+- **Backend proxy (preferred for sensitive scenarios)**: client uploads to backend, backend writes to S3.
+
+In all cases the **client must not know** S3 buckets/keys/credentials; the only public contract for UI is `/api/...`.
+
+## User-defined metadata (S3 user metadata)
+
+- **How it's set**: only via `x-amz-meta-*` headers on `PUT`/`POST`.
+- **Key normalization**: `lower-kebab-case` after the `x-amz-meta-` prefix (e.g. `x-amz-meta-patient-id`).
+- **Casing**: don't rely on casing — S3 typically returns user-metadata keys in lowercase.
+- **Encoding/characters**: use **US-ASCII** (conservative) for keys and values; normalize/transliterate "complex" strings or store them in DB instead.
+- **Limits**:
+  - user-defined metadata: **≤ 2 KB total** (keys + values, measured in bytes)
+  - total `PUT` request headers: **≤ 8 KB**
+- **Immutability**: you can't partially "update" metadata — changing it requires **copy/replace metadata** (object rewrite).
+
+## Presigned URL: important nuance
+
+- For presigned `PUT`/`POST`, the `x-amz-meta-*` set **must be included in the signature** on the backend, and the client must send **exactly** those headers (otherwise S3 returns `SignatureDoesNotMatch`).
+
+## Access control model (4 independent mechanisms)
+
+Access is controlled by four independent mechanisms in object storage:
+
+- **IAM (Identity and Access Management)**: cloud-wide identities, roles, and permissions.
+- **STS (Security Token Service)**: IAM component that issues temporary AWS S3-compatible credentials.
+- **ACL (Access Control List)**: bucket/object-level access control lists.
+- **Bucket Policy**: bucket-level policy with additional conditions for buckets and objects.
+
+Project rules:
+
+- Prefer **IAM + Bucket Policy** as the primary authorization mechanism.
+- Use **STS** for time-limited, least-privilege access (only when direct S3 access is required).
+- Avoid **ACLs** unless there is a legacy/integration requirement; if used, keep them minimal and consistent.
+
+## Yandex Cloud specifics: don't expose S3/Object Storage URLs to the client
+
+If the product requirement is "never show S3/Object Storage URLs to the client", use a **CDN domain** and/or **backend streaming**:
+
+- The client only sees:
+  - `https://api.<your-domain>/...` (for authz + issuing download URLs), and/or
+  - `https://cdn.<your-domain>/...` (for actual content delivery)
+- The client never sees `*.storage.yandexcloud.net` URLs.
+
+### Public images (recommended)
+
+- Create a **Cloud CDN resource** with Object Storage bucket as origin and a custom domain, e.g. `cdn.example.com`.
+- Keep objects versioned (content-hash in path) and set `Cache-Control: public, max-age=..., immutable`.
+- If you want the bucket not to be publicly readable, restrict bucket access to **Cloud CDN IP ranges** via bucket policy (allow `s3:GetObject` only from CDN networks).
+
+### Private documents (recommended)
+
+- Use **Cloud CDN Secure Tokens** (signed links) on a separate CDN resource (separate origin/prefix or separate bucket).
+- Flow:
+  - UI calls `GET /api/files/{fileId}/download`
+  - Backend checks authorization and returns a **short-lived signed CDN URL** (secure token) or `302` redirects to it.
+- Set `Cache-Control: private, no-store` and prefer `Content-Disposition: attachment` for "documents".
+
+Notes:
+
+- If you enable secure tokens for a CDN resource, content becomes accessible **only via signed links**. For mixed public/private content, use **two CDN resources** (or separate prefixes/buckets).
+- For maximum control and zero CDN/S3 URL exposure even in logs, use backend proxy/streaming (at the cost of backend bandwidth).
+
+## Security and PII (important)
+
+- **Do not store PII/PHI in metadata** unless it's strictly necessary: metadata is returned with the object to anyone who can `GetObject` / download.
+- **Preferred**: keep only "technical" fields in `x-amz-meta-*` (version, type, tenant/provider scope, request/contract id, checksum), and store PII in the DB (with access control, audit, encryption/masking).
+- If business requirements still force PII in metadata — store a **token/hash/ID**, not human-readable values (e.g. not the user's email or full name, but `user-id` / `user-ref`).
+
+## Validation rules (backend is the source of truth)
+
+- **Metadata allowlist**: backend only accepts/generates pre-defined keys (including length/format constraints).
+- **Scope**: any provider/tenant fields **must be derived on the server** (do not trust client-provided values).
+- **Logs**: log upload/download events and the metadata key set **without sensitive values**; always propagate `x-request-id` / correlation id.
+
+## Example (possible, but note the PII caveat)
+
+```http
+PUT /images/image0349.dat HTTP/1.1
+x-amz-meta-owner-email: user@example.com
+x-amz-meta-user-id: 4536
+```
+
+Recommended: keep `user-id` (or `user-ref`) and store `owner-email` in the DB.
