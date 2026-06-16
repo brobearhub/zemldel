@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { ServiceDto } from "@/entities/service";
-import { fetchBackendJson } from "@/lib/backend-api";
-import { getServerAuthSession } from "@/lib/auth";
+import { fetchBackendJson } from "@/shared/api/backend/server";
+import { getServerAuthSession } from "@/core/auth";
 import { HomeStickyRequestLayout } from "@/app/(site)/HomeStickyRequestLayout";
 
 type ServiceCategoryRow = {

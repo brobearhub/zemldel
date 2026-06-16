@@ -17,7 +17,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ServiceDto } from "@/entities/service";
 
 const BRAND_NAME = "ЗЕМЛЕДЕЛ";
-const DEVELOPED_BY = "OOO «Новые горизонты»";
+const DEVELOPED_BY = "OOO «Бурый Медведь»";
 
 export const Footer = () => {
   const year = new Date().getFullYear();
@@ -194,7 +194,7 @@ export const Footer = () => {
               © {year} <span style={{ fontWeight: 900 }}>{BRAND_NAME}</span>. Все права защищены.
             </Typography>
             <Link
-              href="https://novagor.ru"
+              href="https://brobear.ru"
               target="_blank"
               rel="noopener noreferrer"
               sx={{

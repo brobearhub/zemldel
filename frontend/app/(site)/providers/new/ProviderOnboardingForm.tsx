@@ -68,7 +68,7 @@ export function ProviderOnboardingForm() {
 
   return (
     <main>
-      <Container maxWidth="sm" sx={{ py: 6, pt: 16 }}>
+      <Container maxWidth="sm" sx={{ py: 6 }}>
         <Paper sx={{ p: 4 }}>
           <Stack spacing={3}>
             <Stack spacing={1}>

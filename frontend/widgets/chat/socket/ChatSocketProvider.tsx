@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { io, type Socket } from "socket.io-client";
 import type { ChatUnreadHintPayload } from "@/entities/chat/dto/chat.dto";
-import { getChatSocketUrl } from "@/lib/chat-socket-url";
+import { getChatSocketUrl } from "@/shared/config/chat-socket";
 import { ChatSocketContext, type ChatSocketContextValue } from "./ChatSocketContext";
 
 const TOKEN_REFRESH_MS = 240_000;

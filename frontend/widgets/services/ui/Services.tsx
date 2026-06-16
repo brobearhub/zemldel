@@ -31,7 +31,7 @@ export const Services = ({ embedded }: Props) => {
 
   if (embedded) {
     return (
-      <Box component="section" id="services" sx={{ py: { xs: 3, md: 4 } }}>
+      <Box component="section" id="services" sx={{ py: 0 }}>
         {content}
       </Box>
     );

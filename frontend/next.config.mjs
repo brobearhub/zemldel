@@ -10,7 +10,7 @@ const nextConfig = {
     root: projectRoot,
   },
   images: {
-    domains: ["novagor.ru", "www.novagor.ru"],
+    domains: ["cdn.zemledel.pro"],
   },
 };
 

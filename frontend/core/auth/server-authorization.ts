@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerAuthSession } from "@/lib/auth";
+import { getServerAuthSession } from "./next-auth";
 import { defineAbilityFor, getActiveMembership, serviceSubject, type AppAction } from "@/core/auth/authorization";
 import type { Session } from "next-auth";
 

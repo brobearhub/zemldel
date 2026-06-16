@@ -24,7 +24,6 @@ import {
   Typography,
 } from "@mui/material";
 import type { ChatServiceRequestConversationListItemDto } from "@/entities/chat/dto/chat.dto";
-import { StatusProgressStepper } from "@/entities/request/ui/request-ui";
 import {
   buildCustomerRequestFlowSteps,
   getCustomerRequestFlowActiveStepId,
@@ -32,7 +31,11 @@ import {
   isExclusiveProviderPhaseStatus,
   isOrderExecutionStatus,
   resolveRequestDetailBody,
+  StatusProgressList,
+  StatusProgressStepper,
+  StatusProgressViewToggle,
   type RequestCustomerDto,
+  useStatusProgressView,
 } from "@/entities/request";
 import { ChatBodyWithSidePanelLayout } from "@/widgets/chat/ui/ChatBodyWithSidePanelLayout";
 import { ServiceRequestChatPanel } from "@/widgets/chat/ui/ServiceRequestChatPanel";
@@ -58,10 +61,12 @@ type Props = {
   initialRequest: RequestCustomerDto;
 };
 
-type CustomerRequestContractListItem = {
+type CustomerRequestContractFileListItem = {
   id: string;
-  title: string;
-  status: "DRAFT" | "SENT" | "SIGNED" | "CANCELLED";
+  status: "PENDING_CUSTOMER" | "APPROVED" | "REVISION_REQUESTED";
+  originalName: string;
+  mimeType: string;
+  revisionMessage: string | null;
   updatedAt: string;
 };
 
@@ -73,7 +78,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [requestContracts, setRequestContracts] = useState<CustomerRequestContractListItem[]>([]);
+  const [contractFiles, setContractFiles] = useState<CustomerRequestContractFileListItem[]>([]);
   const [offerOpen, setOfferOpen] = useState(false);
   const [offerBusy, setOfferBusy] = useState(false);
   const [offerError, setOfferError] = useState<string | null>(null);
@@ -81,6 +86,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
   const [offerMarkdown, setOfferMarkdown] = useState<string | null>(null);
   const [offerAccepted, setOfferAccepted] = useState(false);
   const [remarks, setRemarks] = useState("");
+  const [statusView, setStatusView] = useStatusProgressView();
 
   const selectedConversation = useMemo(
     () => conversations.find((c) => c.conversationId === selectedConversationId) ?? null,
@@ -141,28 +147,30 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
 
   const isExecutionStatus = isOrderExecutionStatus(req.status);
   const isExclusiveStatus = isExclusiveProviderPhaseStatus(req.status);
-  const listedVisibleContract =
-    requestContracts.find((contract) => contract.status === "SENT" || contract.status === "SIGNED") ?? null;
-  const visibleContract = req.contract && req.contract.status !== "DRAFT" ? req.contract : listedVisibleContract;
+  const hasContractFiles = contractFiles.length > 0;
+  const hasApprovedContractFile = contractFiles.some((f) => f.status === "APPROVED");
+  const hasRevisionRequested = contractFiles.some((f) => f.status === "REVISION_REQUESTED");
+  const hasPending = contractFiles.some((f) => f.status === "PENDING_CUSTOMER");
+  const canAcceptContract = req.status === "PROVIDER_SELECTED" && hasApprovedContractFile;
 
   useEffect(() => {
     if (!isExclusiveStatus) {
-      setRequestContracts([]);
+      setContractFiles([]);
       return;
     }
 
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/contracts/requests/${req.id}/instances`, { cache: "no-store" });
-        const payload = (await res.json().catch(() => null)) as CustomerRequestContractListItem[] | { error?: string } | null;
+        const res = await fetch(`/api/requests/${req.id}/contract-files`, { cache: "no-store" });
+        const payload = (await res.json().catch(() => null)) as CustomerRequestContractFileListItem[] | { error?: string } | null;
         if (!res.ok || !Array.isArray(payload)) {
-          if (!cancelled) setRequestContracts([]);
+          if (!cancelled) setContractFiles([]);
           return;
         }
-        if (!cancelled) setRequestContracts(payload);
+        if (!cancelled) setContractFiles(payload);
       } catch {
-        if (!cancelled) setRequestContracts([]);
+        if (!cancelled) setContractFiles([]);
       }
     })();
 
@@ -172,28 +180,26 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
   }, [isExclusiveStatus, req.id]);
 
   useEffect(() => {
-    if (req.status !== "PROVIDER_SELECTED" || visibleContract) return;
+    if (req.status !== "PROVIDER_SELECTED" || hasContractFiles) return;
 
     let cancelled = false;
-    const refreshIfWaitingForContract = async () => {
+    const refreshIfWaitingForContractFiles = async () => {
       try {
-        const res = await fetch(`/api/requests/${req.id}`, { cache: "no-store" });
-        const payload = (await res.json().catch(() => null)) as RequestCustomerDto | { error?: string } | null;
-        if (!cancelled && res.ok) {
-          setReq(payload as RequestCustomerDto);
-        }
+        const res = await fetch(`/api/requests/${req.id}/contract-files`, { cache: "no-store" });
+        const payload = (await res.json().catch(() => null)) as CustomerRequestContractFileListItem[] | { error?: string } | null;
+        if (!cancelled && res.ok && Array.isArray(payload)) setContractFiles(payload);
       } catch {
         // Keep the current state; the regular page controls still show the waiting state.
       }
     };
 
-    void refreshIfWaitingForContract();
-    const intervalId = window.setInterval(() => void refreshIfWaitingForContract(), 5000);
+    void refreshIfWaitingForContractFiles();
+    const intervalId = window.setInterval(() => void refreshIfWaitingForContractFiles(), 5000);
     return () => {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [req.id, req.status, visibleContract]);
+  }, [hasContractFiles, req.id, req.status]);
 
   function canInitiateOrderFor(providerId: string) {
     if (isExclusiveStatus || req.status === "CLOSED") return false;
@@ -298,38 +304,11 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     }
   }
 
-  async function payEscrow() {
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-    try {
-      const res = await fetch(`/api/requests/${req.id}/pay`, { method: "POST" });
-      const payload = (await res.json().catch(() => null)) as
-        | { error?: string }
-        | { redirectUrl?: string | null; status?: string }
-        | null;
-      if (!res.ok) {
-        throw new Error(
-          payload && typeof payload === "object" && "error" in payload
-            ? payload.error ?? "Не удалось оплатить"
-            : "Не удалось оплатить",
-        );
-      }
-      const redirectUrl =
-        payload && typeof payload === "object" && "redirectUrl" in payload
-          ? payload.redirectUrl
-          : null;
-      if (redirectUrl) {
-        window.location.href = redirectUrl;
-        return;
-      }
-      await refreshRequest();
-      setNotice("Оплата в обработке.");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось оплатить");
-    } finally {
-      setBusy(false);
-    }
+  function openOfferDialog() {
+    setOfferAccepted(false);
+    setOfferError(null);
+    setOfferOpen(true);
+    void loadOffer();
   }
 
   async function acceptResult() {
@@ -402,26 +381,28 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
             <Stack spacing={1}>
               <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap>
                 <Typography fontWeight={800}>Детали</Typography>
+                <StatusProgressViewToggle value={statusView} onChange={setStatusView} />
               </Stack>
-              <StatusProgressStepper
-                steps={buildCustomerRequestFlowSteps(req)}
-                activeStepId={getCustomerRequestFlowActiveStepId(req)}
-              />
+              {statusView === "list" ? (
+                <StatusProgressList steps={buildCustomerRequestFlowSteps(req)} activeStepId={getCustomerRequestFlowActiveStepId(req)} />
+              ) : (
+                <StatusProgressStepper steps={buildCustomerRequestFlowSteps(req)} activeStepId={getCustomerRequestFlowActiveStepId(req)} />
+              )}
               {pendingInfo ? (
                 <Typography variant="body2" color="text.secondary">
                   {pendingInfo}
                 </Typography>
               ) : null}
               {/* Условия обсуждаются в чате. Договорный цикл ведётся отдельно. */}
-              {(req.status === "CONTRACT_ACCEPTED" || req.status === "PAYMENT_PENDING") ? (
+              {canAcceptContract ? (
                 <Button
                   variant="contained"
-                  color="warning"
+                  color="success"
                   disabled={busy}
-                  onClick={() => void payEscrow()}
+                  onClick={() => openOfferDialog()}
                   sx={{ alignSelf: "flex-start" }}
                 >
-                  Оплатить (средства будут зарезервированы)
+                  Заключить договор (акцепт оферты)
                 </Button>
               ) : null}
               {req.status === "ACCEPTANCE_PENDING" ? (
@@ -460,29 +441,36 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                   <Typography fontWeight={800}>Документы</Typography>
                 </Stack>
 
-                {req.status === "PROVIDER_SELECTED" && !visibleContract ? (
+                {req.status === "PROVIDER_SELECTED" && !hasContractFiles ? (
                   <Typography variant="body2" color="text.secondary">
                     Ожидаем договор от компании.
                   </Typography>
                 ) : null}
-                {visibleContract?.status === "SENT" ? (
+                {hasRevisionRequested ? (
+                  <Alert severity="warning">Вы отправили договор на доработку. Ожидаем обновлённый файл от компании.</Alert>
+                ) : null}
+                {hasPending ? (
                   <Alert severity="info">
-                    Компания отправила договор. Откройте его, проверьте текст и примите или оставьте комментарии.
+                    Компания прикрепила договор. Откройте его, проверьте и одобрите или отправьте на доработку.
                   </Alert>
                 ) : null}
-                {visibleContract?.status === "SIGNED" ? (
-                  <Alert severity="success">Договор принят. Теперь можно перейти к оплате.</Alert>
-                ) : null}
+                {hasApprovedContractFile ? <Alert severity="success">Есть одобренный файл договора. Теперь можно перейти к акцепту оферты.</Alert> : null}
 
-                <Button
-                  component={Link}
-                  href={`/profile/requests/${req.id}/contracts`}
-                  variant={visibleContract ? "contained" : "outlined"}
-                  disabled={busy}
-                  sx={{ alignSelf: "flex-start" }}
-                >
-                  Договор
-                </Button>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ alignSelf: "flex-start" }}>
+                  <Button
+                    component={Link}
+                    href={`/profile/requests/${req.id}/contracts`}
+                    variant={hasContractFiles ? "contained" : "outlined"}
+                    disabled={busy}
+                  >
+                    Договор
+                  </Button>
+                  {canAcceptContract ? (
+                    <Button variant="contained" color="success" disabled={busy} onClick={() => openOfferDialog()}>
+                      Акцепт оферты
+                    </Button>
+                  ) : null}
+                </Stack>
               </Stack>
             </Paper>
           ) : null}
@@ -516,7 +504,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                           isChosenProvider ? (
                             <Stack direction="row" spacing={1} sx={{ pr: 1 }}>
                               <Button size="small" variant="outlined" disabled sx={{ whiteSpace: "nowrap" }}>
-                                {visibleContract ? "Договор отправлен" : "Ожидаем договор"}
+                                {hasContractFiles ? "Договор прикреплён" : "Ожидаем договор"}
                               </Button>
                             </Stack>
                           ) : null

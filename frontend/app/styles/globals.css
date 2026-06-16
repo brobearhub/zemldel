@@ -3,7 +3,7 @@ body {
   min-height: 100vh;
   padding: 0;
   margin: 0;
-  font-family: var(--font-ysabeau-infant), system-ui, sans-serif;
+  font-family: var(--font-google-sans);
   background-color: white;
 }
 

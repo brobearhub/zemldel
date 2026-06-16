@@ -3,32 +3,39 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Backdrop,
   Box,
   Button,
   Chip,
-  Divider,
-  FormControl,
-  InputLabel,
-  MenuItem,
+  CircularProgress,
+  LinearProgress,
   Paper,
-  Select,
   Stack,
   Typography,
 } from "@mui/material";
-import { StatusProgressStepper } from "@/entities/request/ui/request-ui";
 import {
   buildRequestFlowSteps,
   getRequestFlowActiveStepId,
   getRequestStatusLabel,
   isOpenRequestStatus,
   resolveRequestDetailBody,
+  StatusProgressList,
+  StatusProgressStepper,
+  StatusProgressViewToggle,
   type RequestProDto,
+  useStatusProgressView,
 } from "@/entities/request";
-import { isExclusiveProviderPhaseStatus, isOrderExecutionStatus } from "@/entities/request";
+import { isOrderExecutionStatus } from "@/entities/request";
 import { OrderPassportPanel } from "@/widgets/pro-requests/ui/OrderPassportPanel";
 import { RequestRemindersPanel } from "@/widgets/pro-requests/ui/RequestRemindersPanel";
 import Link from "@/shared/ui/Link";
 import { RequestDetailHeaderCard } from "@/shared/ui/RequestDetailHeaderCard";
+import {
+  fetchProRequestContractFiles,
+  uploadProRequestContractFiles,
+  type ProContractFileStatus,
+  type ProContractFileItem,
+} from "@/entities/request/api/pro-contract-files";
 
 type Props = {
   initialRequest: RequestProDto;
@@ -36,24 +43,15 @@ type Props = {
 };
 
 type NextAction = { action: "confirm" | "decline"; label: string };
-type ContractTemplateOption = { id: string; title: string; updatedAt: string };
-type ContractInstanceOption = {
-  id: string;
-  title: string;
-  status: "DRAFT" | "SENT" | "SIGNED" | "CANCELLED";
-  requestId: string | null;
-  updatedAt: string;
-};
 
 function getNextActions(req: RequestProDto): NextAction[] {
   if (req.status === "CLOSED") return [];
   if (req.isLocked) return [];
 
-  if (req.status === "PAYMENT_PROCESSING") return [{ action: "confirm", label: "Начать работу" }];
+  if (req.status === "CONTRACT_ACCEPTED") return [{ action: "confirm", label: "Начать работу" }];
   if (req.status === "ACTIVE") return [{ action: "confirm", label: "Услуга выполнена" }];
   if (req.status === "SERVICE_RENDERED") return [{ action: "confirm", label: "Передать на принятие" }];
-  if (req.status === "ACCEPTED") return [{ action: "confirm", label: "Выплатить исполнителю" }];
-  if (req.status === "PAID") return [{ action: "confirm", label: "Завершить" }];
+  if (req.status === "ACCEPTED") return [{ action: "confirm", label: "Завершить" }];
 
   if (!isOrderExecutionStatus(req.status) && req.offerStatus === "SELECTED") {
     return [{ action: "decline", label: "Отказать" }];
@@ -62,30 +60,29 @@ function getNextActions(req: RequestProDto): NextAction[] {
   return [];
 }
 
-function contractStatusLabel(status: ContractInstanceOption["status"]) {
-  if (status === "SIGNED") return "Принят клиентом";
-  if (status === "SENT") return "Отправлен клиенту";
-  if (status === "CANCELLED") return "Отменён";
-  return "Черновик";
+function contractFileStatusLabel(status: ProContractFileStatus) {
+  if (status === "APPROVED") return "Одобрен";
+  if (status === "REVISION_REQUESTED") return "На доработку";
+  return "Ожидает решения клиента";
 }
 
 export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   const [req, setReq] = useState(initialRequest);
   const [busy, setBusy] = useState(false);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [uploadNames, setUploadNames] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [contractOptionsLoaded, setContractOptionsLoaded] = useState(false);
-  const [templates, setTemplates] = useState<ContractTemplateOption[]>([]);
-  const [instances, setInstances] = useState<ContractInstanceOption[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState("");
-  const [selectedDraftId, setSelectedDraftId] = useState("");
+  const [contractFilesLoaded, setContractFilesLoaded] = useState(false);
+  const [contractFiles, setContractFiles] = useState<ProContractFileItem[]>([]);
+  const [statusView, setStatusView] = useStatusProgressView();
 
+  const isBusy = busy || uploadBusy;
   const nextActions = useMemo(() => getNextActions(req), [req]);
   const showContractWorkflow = !req.isLocked && req.offerStatus === "SELECTED";
-  const attachableDrafts = useMemo(
-    () => instances.filter((item) => item.status === "DRAFT" && (!item.requestId || item.requestId === req.id)),
-    [instances, req.id]
-  );
+  const hasPendingContractFiles = contractFiles.some((f) => f.status === "PENDING_CUSTOMER");
+  const hasRevisionRequested = contractFiles.some((f) => f.status === "REVISION_REQUESTED");
+  const hasApproved = contractFiles.some((f) => f.status === "APPROVED");
   const pendingInfo =
     req.offerStatus === "SELECTED"
       ? "Клиент выбрал вас исполнителем. Подготовьте и отправьте договор."
@@ -94,36 +91,25 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
         : null;
 
   useEffect(() => {
-    if (!showContractWorkflow || contractOptionsLoaded) return;
+    if (!showContractWorkflow || contractFilesLoaded) return;
     let cancelled = false;
     (async () => {
       try {
-        const [templatesRes, instancesRes] = await Promise.all([
-          fetch("/api/pro/contracts/templates", { cache: "no-store" }),
-          fetch("/api/pro/contracts/instances", { cache: "no-store" }),
-        ]);
-        if (!templatesRes.ok || !instancesRes.ok) return;
-        const [templatesPayload, instancesPayload] = await Promise.all([
-          templatesRes.json(),
-          instancesRes.json(),
-        ]);
+        const payload = await fetchProRequestContractFiles(req.id);
         if (cancelled) return;
-        const nextTemplates = Array.isArray(templatesPayload) ? (templatesPayload as ContractTemplateOption[]) : [];
-        const nextInstances = Array.isArray(instancesPayload) ? (instancesPayload as ContractInstanceOption[]) : [];
-        setTemplates(nextTemplates);
-        setInstances(nextInstances);
-        setSelectedTemplateId((current) => current || nextTemplates[0]?.id || "");
-        const firstDraft = nextInstances.find((item) => item.status === "DRAFT" && (!item.requestId || item.requestId === req.id));
-        setSelectedDraftId((current) => current || firstDraft?.id || "");
-        setContractOptionsLoaded(true);
-      } catch {
-        if (!cancelled) setContractOptionsLoaded(true);
+        setContractFiles(payload);
+        setContractFilesLoaded(true);
+      } catch (e) {
+        if (!cancelled) {
+          setContractFilesLoaded(true);
+          setError(e instanceof Error ? e.message : "Не удалось загрузить файлы договора");
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [contractOptionsLoaded, req.id, showContractWorkflow]);
+  }, [contractFilesLoaded, req.id, showContractWorkflow]);
 
   async function refresh() {
     const res = await fetch(`/api/pro/requests/${req.id}`, { cache: "no-store" });
@@ -134,75 +120,56 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     setReq(payload as RequestProDto);
   }
 
-  async function refreshContractOptions() {
-    const [templatesRes, instancesRes] = await Promise.all([
-      fetch("/api/pro/contracts/templates", { cache: "no-store" }),
-      fetch("/api/pro/contracts/instances", { cache: "no-store" }),
-    ]);
-    if (!templatesRes.ok || !instancesRes.ok) return;
-    const [templatesPayload, instancesPayload] = await Promise.all([
-      templatesRes.json(),
-      instancesRes.json(),
-    ]);
-    setTemplates(Array.isArray(templatesPayload) ? (templatesPayload as ContractTemplateOption[]) : []);
-    setInstances(Array.isArray(instancesPayload) ? (instancesPayload as ContractInstanceOption[]) : []);
-  }
-
-  async function createContractFromTemplate() {
-    if (!selectedTemplateId) return;
-    setBusy(true);
-    setError(null);
-    setNotice(null);
+  async function refreshContractFiles() {
     try {
-      const res = await fetch("/api/pro/contracts/instances", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ templateId: selectedTemplateId, serviceRequestId: req.id }),
-      });
-      const payload = (await res.json().catch(() => null)) as { id?: string; error?: string } | null;
-      if (!res.ok) throw new Error(payload?.error ?? "Не удалось создать договор");
-      await Promise.all([refresh(), refreshContractOptions()]);
-      setNotice("Черновик договора создан и привязан к заявке.");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось создать договор");
-    } finally {
-      setBusy(false);
+      const payload = await fetchProRequestContractFiles(req.id);
+      setContractFiles(payload);
+    } catch {
+      // Keep previous list; the upload handler will surface errors when needed.
     }
   }
 
-  async function attachDraftContract() {
-    if (!selectedDraftId) return;
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-    try {
-      const res = await fetch(`/api/pro/contracts/requests/${req.id}/instances/${selectedDraftId}/attach`, { method: "POST" });
-      const payload = (await res.json().catch(() => null)) as { id?: string; error?: string } | null;
-      if (!res.ok) throw new Error(payload?.error ?? "Не удалось прикрепить договор");
-      await Promise.all([refresh(), refreshContractOptions()]);
-      setNotice("Черновик договора прикреплён к заявке.");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось прикрепить договор");
-    } finally {
-      setBusy(false);
-    }
+  function isOptimisticFileId(id: string) {
+    return id.startsWith("temp:");
   }
 
-  async function sendContractToCustomer() {
-    if (!req.contract?.id) return;
-    setBusy(true);
+  async function uploadContractFiles(files: File[]) {
+    if (files.length === 0) return;
+    const startedAt = Date.now();
+    const nowIso = new Date().toISOString();
+    const optimistic = files.map<ProContractFileItem>((f, idx) => ({
+      id: `temp:${startedAt}:${idx}`,
+      status: "PENDING_CUSTOMER",
+      originalName: f.name,
+      mimeType: f.type || "application/octet-stream",
+      sizeBytes: f.size,
+      revisionMessage: null,
+      decidedAt: null,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    }));
+
+    setUploadBusy(true);
+    setUploadNames(files.map((f) => f.name));
     setError(null);
     setNotice(null);
+    setContractFiles((prev) => [...optimistic, ...prev.filter((x) => !isOptimisticFileId(x.id))]);
     try {
-      const res = await fetch(`/api/pro/contracts/instances/${req.contract.id}/send`, { method: "POST" });
-      const payload = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
-      if (!res.ok) throw new Error(payload?.error ?? "Не удалось отправить договор");
-      await Promise.all([refresh(), refreshContractOptions()]);
-      setNotice("Договор отправлен клиенту.");
+      await uploadProRequestContractFiles(req.id, files);
+      await Promise.all([refresh(), refreshContractFiles()]);
+      setNotice("Файлы договора прикреплены к заявке.");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось отправить договор");
+      setError(e instanceof Error ? e.message : "Не удалось загрузить файлы");
+      const optimisticIds = new Set(optimistic.map((x) => x.id));
+      setContractFiles((prev) => prev.filter((x) => !optimisticIds.has(x.id)));
     } finally {
-      setBusy(false);
+      const elapsed = Date.now() - startedAt;
+      const minMs = 600;
+      if (elapsed < minMs) {
+        await new Promise((r) => setTimeout(r, minMs - elapsed));
+      }
+      setUploadBusy(false);
+      setUploadNames([]);
     }
   }
 
@@ -212,7 +179,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     setNotice(null);
     try {
       if (action === "confirm") {
-        if (req.status === "PAYMENT_PROCESSING") {
+        if (req.status === "CONTRACT_ACCEPTED") {
           const res = await fetch(`/api/pro/requests/${req.id}/start-work`, { method: "POST" });
           const payload = (await res.json().catch(() => null)) as { error?: string } | unknown | null;
           if (!res.ok) throw new Error(payload && typeof payload === "object" && payload && "error" in (payload as any) ? ((payload as any).error as string) : "Не удалось начать работу");
@@ -237,14 +204,6 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
           return;
         }
         if (req.status === "ACCEPTED") {
-          const res = await fetch(`/api/pro/requests/${req.id}/payout`, { method: "POST" });
-          const payload = (await res.json().catch(() => null)) as { error?: string } | unknown | null;
-          if (!res.ok) throw new Error(payload && typeof payload === "object" && payload && "error" in (payload as any) ? ((payload as any).error as string) : "Не удалось выполнить выплату");
-          await refresh();
-          setNotice("Выплата произведена.");
-          return;
-        }
-        if (req.status === "PAID") {
           const res = await fetch(`/api/pro/requests/${req.id}/complete`, { method: "POST" });
           const payload = (await res.json().catch(() => null)) as { error?: string } | unknown | null;
           if (!res.ok) throw new Error(payload && typeof payload === "object" && payload && "error" in (payload as any) ? ((payload as any).error as string) : "Не удалось завершить");
@@ -290,6 +249,37 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
       {notice ? <Alert severity="success">{notice}</Alert> : null}
       {error ? <Alert severity="error">{error}</Alert> : null}
 
+      <Backdrop
+        open={uploadBusy}
+        sx={(theme) => ({
+          zIndex: theme.zIndex.modal + 1,
+          bgcolor: "rgba(0,0,0,0.45)",
+          px: 2,
+        })}
+      >
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 2,
+            width: "100%",
+            maxWidth: 560,
+          }}
+        >
+          <Stack spacing={1.25}>
+            <Stack direction="row" spacing={1.25} alignItems="center">
+              <CircularProgress size={18} />
+              <Typography fontWeight={900}>Загружаем файлы…</Typography>
+            </Stack>
+            <LinearProgress />
+            {uploadNames.length > 0 ? (
+              <Typography variant="body2" color="text.secondary" sx={{ wordBreak: "break-word" }}>
+                {uploadNames.join(", ")}
+              </Typography>
+            ) : null}
+          </Stack>
+        </Paper>
+      </Backdrop>
+
       <Paper
         variant="outlined"
         sx={(theme) => ({
@@ -303,15 +293,26 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
         })}
       >
         <Stack spacing={1}>
-          <Typography variant="h6" fontWeight={800}>
-            Детали
-          </Typography>
+          <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap>
+            <Typography variant="h6" fontWeight={800}>
+              Детали
+            </Typography>
+            <StatusProgressViewToggle value={statusView} onChange={setStatusView} />
+          </Stack>
 
-          <StatusProgressStepper
-            steps={buildRequestFlowSteps(req.status)}
-            activeStepId={getRequestFlowActiveStepId(req.status)}
-            muted={req.isLocked}
-          />
+          {statusView === "list" ? (
+            <StatusProgressList
+              steps={buildRequestFlowSteps(req.status)}
+              activeStepId={getRequestFlowActiveStepId(req.status)}
+              muted={req.isLocked}
+            />
+          ) : (
+            <StatusProgressStepper
+              steps={buildRequestFlowSteps(req.status)}
+              activeStepId={getRequestFlowActiveStepId(req.status)}
+              muted={req.isLocked}
+            />
+          )}
           {req.isLocked ? (
             <Alert
               severity="warning"
@@ -357,120 +358,135 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
                   Документы
                 </Typography>
               </Box>
-              {req.contract ? <Chip size="small" label={contractStatusLabel(req.contract.status)} /> : null}
+              {contractFiles.length > 0 ? (
+                <Chip
+                  size="small"
+                  label={
+                    hasRevisionRequested
+                      ? "Есть замечания"
+                      : hasPendingContractFiles
+                        ? "Ожидает решения клиента"
+                        : hasApproved
+                          ? "Одобрено"
+                          : "Документы"
+                  }
+                />
+              ) : null}
             </Stack>
 
-            {req.contract ? (
-              <Stack spacing={1.25}>
-                <Typography fontWeight={700}>{req.contract.title}</Typography>
-                {req.contract.status === "DRAFT" ? (
-                  <Alert severity="info">
-                    Черновик прикреплён к заявке. Проверьте текст и отправьте его клиенту.
-                  </Alert>
-                ) : null}
-                {req.contract.status === "SENT" && req.contract.openCommentsCount > 0 ? (
-                  <Alert severity="warning">
-                    Клиент оставил комментарии: {req.contract.openCommentsCount}. Ответьте и закройте их перед принятием договора.
-                  </Alert>
-                ) : null}
-                {req.contract.status === "SENT" && req.contract.openCommentsCount === 0 ? (
-                  <Alert severity="success">Договор у клиента. Он может прочитать его, оставить комментарии или принять.</Alert>
-                ) : null}
-                {req.contract.status === "SIGNED" ? (
-                  <Alert severity="success">Клиент принял договор. Следующий шаг для клиента - оплата.</Alert>
-                ) : null}
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  <Button
-                    component={Link}
-                    href={`/pro/documents/contracts/instances/${req.contract.id}`}
-                    variant="outlined"
-                    disabled={busy}
-                  >
-                    Договор
-                  </Button>
-                  {req.contract.status === "DRAFT" ? (
-                    <Button variant="contained" disabled={busy} onClick={() => void sendContractToCustomer()}>
-                      Отправить клиенту
-                    </Button>
+            {contractFiles.length === 0 ? <Alert severity="info">Договор ещё не прикреплён к заявке.</Alert> : null}
+            {hasRevisionRequested ? (
+              <Alert severity="warning">Клиент запросил доработку по одному или нескольким файлам.</Alert>
+            ) : hasPendingContractFiles ? (
+              <Alert severity="info">Файлы у клиента. Он может скачать и одобрить договор или отправить на доработку.</Alert>
+            ) : hasApproved ? (
+              <Alert severity="success">Есть одобренные файлы договора.</Alert>
+            ) : null}
+
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Button
+                component="label"
+                variant="contained"
+                disabled={isBusy}
+                startIcon={uploadBusy ? <CircularProgress size={16} color="inherit" /> : undefined}
+              >
+                {uploadBusy ? "Загрузка…" : "Загрузить файлы"}
+                <input
+                  hidden
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  onChange={(e) => {
+                    const next = Array.from(e.currentTarget.files ?? []);
+                    e.currentTarget.value = "";
+                    void uploadContractFiles(next);
+                  }}
+                />
+              </Button>
+            </Stack>
+
+            {!contractFilesLoaded ? (
+              <Alert
+                severity="info"
+                icon={<CircularProgress size={16} />}
+                sx={{
+                  "& .MuiAlert-message": { width: "100%" },
+                  "& .MuiAlert-icon": { alignSelf: "flex-start", mt: "2px" },
+                }}
+              >
+                Загружаем список документов…
+              </Alert>
+            ) : null}
+
+            {uploadBusy ? (
+              <Paper
+                variant="outlined"
+                sx={(theme) => ({
+                  p: 1.5,
+                  bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.03)" : "action.hover",
+                  borderColor: "divider",
+                })}
+              >
+                <Stack spacing={1}>
+                  <Typography fontWeight={800}>Идёт загрузка файлов</Typography>
+                  <LinearProgress />
+                  {uploadNames.length > 0 ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ wordBreak: "break-word" }}>
+                      {uploadNames.join(", ")}
+                    </Typography>
                   ) : null}
                 </Stack>
+              </Paper>
+            ) : null}
+
+            {contractFiles.length > 0 ? (
+              <Stack spacing={1}>
+                {contractFiles.map((file) => (
+                  <Paper key={file.id} variant="outlined" sx={{ p: 1.5 }}>
+                    <Stack spacing={0.75}>
+                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                        <Typography fontWeight={800} sx={{ wordBreak: "break-word" }}>
+                          {file.originalName}
+                        </Typography>
+                        <Chip
+                          size="small"
+                          color={isOptimisticFileId(file.id) ? "info" : undefined}
+                          label={isOptimisticFileId(file.id) ? "Загружается…" : contractFileStatusLabel(file.status)}
+                        />
+                      </Stack>
+                      {file.status === "REVISION_REQUESTED" && file.revisionMessage ? (
+                        <Typography variant="body2" color="text.secondary">
+                          Комментарий клиента: {file.revisionMessage}
+                        </Typography>
+                      ) : null}
+                      {isOptimisticFileId(file.id) ? <LinearProgress /> : null}
+                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                        {!isOptimisticFileId(file.id) && file.mimeType === "application/pdf" ? (
+                          <Button
+                            component={Link}
+                            href={`/api/pro/contract-files/${file.id}/download?inline=1`}
+                            variant="outlined"
+                            disabled={isBusy}
+                          >
+                            Открыть
+                          </Button>
+                        ) : null}
+                        {!isOptimisticFileId(file.id) ? (
+                          <Button
+                            component={Link}
+                            href={`/api/pro/contract-files/${file.id}/download`}
+                            variant="text"
+                            disabled={isBusy}
+                          >
+                            Скачать
+                          </Button>
+                        ) : null}
+                      </Stack>
+                    </Stack>
+                  </Paper>
+                ))}
               </Stack>
-            ) : (
-              <Stack spacing={1.5}>
-                <Alert severity="info">Договор ещё не прикреплён к заявке.</Alert>
-                <Paper variant="outlined" sx={{ p: 2 }}>
-                  <Stack spacing={1.5}>
-                    <Typography fontWeight={800}>Создать из шаблона</Typography>
-                    <FormControl fullWidth size="small">
-                      <InputLabel id="request-contract-template-label">Шаблон договора</InputLabel>
-                      <Select
-                        labelId="request-contract-template-label"
-                        label="Шаблон договора"
-                        value={selectedTemplateId}
-                        onChange={(event) => setSelectedTemplateId(event.target.value)}
-                        disabled={busy || templates.length === 0}
-                      >
-                        {templates.map((template) => (
-                          <MenuItem key={template.id} value={template.id}>
-                            {template.title}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    <Button variant="contained" disabled={busy || !selectedTemplateId} onClick={() => void createContractFromTemplate()}>
-                      Создать и прикрепить
-                    </Button>
-                    {templates.length === 0 ? (
-                      <Typography variant="body2" color="text.secondary">
-                        Шаблонов пока нет. Создайте шаблон в разделе договоров.
-                      </Typography>
-                    ) : null}
-                  </Stack>
-                </Paper>
-
-                <Divider>или</Divider>
-
-                <Paper variant="outlined" sx={{ p: 2 }}>
-                  <Stack spacing={1.5}>
-                    <Typography fontWeight={800}>Прикрепить существующий черновик</Typography>
-                    <FormControl fullWidth size="small">
-                      <InputLabel id="request-contract-draft-label">Черновик</InputLabel>
-                      <Select
-                        labelId="request-contract-draft-label"
-                        label="Черновик"
-                        value={selectedDraftId}
-                        onChange={(event) => setSelectedDraftId(event.target.value)}
-                        disabled={busy || attachableDrafts.length === 0}
-                      >
-                        {attachableDrafts.map((draft) => (
-                          <MenuItem key={draft.id} value={draft.id}>
-                            {draft.title}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    <Button variant="outlined" disabled={busy || !selectedDraftId} onClick={() => void attachDraftContract()}>
-                      Прикрепить к заявке
-                    </Button>
-                    {attachableDrafts.length === 0 ? (
-                      <Typography variant="body2" color="text.secondary">
-                        Подходящих черновиков пока нет.
-                      </Typography>
-                    ) : null}
-                  </Stack>
-                </Paper>
-
-                <Button
-                  component={Link}
-                  href={`/pro/documents/contracts?requestId=${encodeURIComponent(req.id)}`}
-                  variant="text"
-                  disabled={busy}
-                  sx={{ alignSelf: "flex-start" }}
-                >
-                  Все договоры
-                </Button>
-              </Stack>
-            )}
+            ) : null}
           </Stack>
         </Paper>
       ) : null}
@@ -482,7 +498,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
               key={a.action}
               variant="contained"
               color={a.action === "confirm" ? "success" : "secondary"}
-              disabled={busy}
+              disabled={isBusy}
               onClick={() => void runAction(a.action)}
             >
               {a.label}

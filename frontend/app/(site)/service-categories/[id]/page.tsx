@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Box, Container, Paper, Stack, Typography } from "@mui/material";
-import { BackendApiError, fetchBackendJson } from "@/lib/backend-api";
-import { getServerAuthSession } from "@/lib/auth";
+import { BackendApiError, fetchBackendJson } from "@/shared/api/backend/server";
+import { getServerAuthSession } from "@/core/auth";
 import { ServiceCard, type ServiceCardItem } from "@/entities/service";
 import { PublicUnlinkedRequestForm } from "@/widgets/public-service/ui/PublicUnlinkedRequestForm";
 
@@ -60,7 +60,6 @@ export default async function ServiceCategoryPage({ params }: Props) {
         component="section"
         sx={{
           py: { xs: 4, md: 6 },
-          pt: { xs: 14, md: 16 },
           bgcolor: "background.default",
         }}
       >

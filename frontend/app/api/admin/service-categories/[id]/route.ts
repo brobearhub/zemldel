@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePlatformAdminApi } from "@/core/auth/server-authorization";
-import { fetchBackendAsUser } from "@/lib/backend-api";
+import { fetchBackendAsUser } from "@/shared/api/backend/server";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const gate = await requirePlatformAdminApi();

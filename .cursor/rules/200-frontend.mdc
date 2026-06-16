@@ -1,0 +1,302 @@
+---
+description: Правила для frontend (Next.js App Router + FSD + Redux Toolkit)
+globs: frontend/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Frontend: Next.js (App Router) + FSD
+
+## Feature-Sliced Design — обязательно
+
+Проект без `src/` — слои FSD лежат прямо в `frontend/` рядом с `app/`. Алиас `@/` указывает на корень `frontend/` (`@/entities/...`, `@/shared/...`, `@/core/...`).
+
+```
+frontend/
+  app/        — Next.js App Router (роутинг: layout, page, route handlers app/api/**)
+              — здесь же инициализация FSD-слоя app: app/providers.tsx, app/store.ts
+  core/       — framework-glue вне FSD (auth, providers, store, theme). Держать минимальным
+  views/      — FSD-слой "pages", ПЕРЕИМЕНОВАН (см. ниже) — композиция страниц
+  widgets/    — самостоятельные UI-блоки (Header, Sidebar, ProductCard)
+  features/   — пользовательские сценарии (AddToCart, LoginByEmail)
+  entities/   — бизнес-сущности (User, Product, Order) — модель + базовый UI
+  shared/     — UI-кит, утилиты, конфиг, типы, swagger-клиент (shared/api/generated)
+              — server-only transport boundary к Nest: shared/api/backend/server
+```
+
+Зависимости направлены **только сверху вниз**: `app` → `views` → `widgets` → `features` → `entities` → `shared`.
+
+### Коллизии имён с Next.js (важно, т.к. нет `src/`)
+
+Next.js резервирует папки `app/` и `pages/` в корне `frontend/`. Это пересекается с одноимёнными слоями FSD:
+
+- **FSD-слой `pages` переименован в `views/`.** Папку `frontend/pages/` создавать **нельзя** — Next.js примет её за Pages Router. Все «страницы» в смысле FSD (композиция виджетов/фич под конкретный роут) лежат в `views/`, а файлы роутинга (`page.tsx`) в `app/` импортируют из `views/`.
+- **FSD-слой `app` живёт внутри Next.js `app/`.** Отдельной папки для него нет: провайдеры (`app/providers.tsx`), сборка стора (`app/store.ts`), глобальные стили лежат в директории роутинга, т.к. обе сущности — это инициализация приложения. Бизнес-композицию сюда не класть — она в `views/`.
+
+### core/ — санкционированное исключение
+
+`core/` — это framework-glue вне FSD (например: next-auth config, app providers/store, theme). Правила для неё:
+- Только конфигурация фреймворка/синглтоны, которым нет места в домене.
+- **Не свалка**: бизнес-логику, доменный код и переиспользуемые утилиты сюда не класть — это `shared` или соответствующий слой.
+- Новый код по умолчанию идёт в слои FSD, а не в `core/`.
+
+### Сегменты внутри слайса
+
+```
+features/add-to-cart/
+  ui/        — React-компоненты (PascalCase.tsx: AddToCartButton.tsx)
+  model/     — состояние, бизнес-логика слайса (стор, хуки, селекторы)
+  api/       — доступ к данным: RTK Query слайс (клиент) + серверный сервис ('server-only')
+  lib/       — вспомогательные функции слайса (НЕ путать с `core/` и `shared/lib/`)
+  config/    — константы, конфиг
+  index.ts   — публичный API слайса
+```
+
+Имена файлов: React-компоненты — `PascalCase.tsx`, остальное — `kebab-case.ts` (точечная нотация допустима: `request.api.ts`, `request.server.ts`).
+
+### Правила импортов FSD
+
+- Слой импортирует **только нижележащие** слои (`app` → `views` → `widgets` → `features` → `entities` → `shared`).
+- Импорты между слайсами одного слоя — **запрещены**. Нужна общая логика — поднять в нижний слой.
+- Внутрь слайса извне — **только через `index.ts`**. Глубокие импорты запрещены.
+- `shared` ничего не знает о бизнесе.
+
+## Redux Toolkit — стандарт управления состоянием
+
+Только **Redux Toolkit (RTK)**. Голый Redux (ручные `action creators`, `switch`-редьюсеры, `combineReducers` руками) — **запрещён**.
+
+### Размещение в FSD
+
+- Слайсы RTK живут в `model/` соответствующего FSD-слайса: `entities/user/model/slice.ts`, `features/cart/model/slice.ts`.
+- **Один FSD-слайс = один Redux-слайс.** Никакого «god-store».
+- Сборка корневого стора (`configureStore`) — в `app/store.ts` (директория Next.js `app/`, где живёт инициализация FSD-слоя app). Корневой стор только импортирует редьюсеры из слайсов, своей логики не содержит.
+- `Provider` из `react-redux` — в `app/providers.tsx`, файл помечается `'use client'`, подключается в корневом `app/layout.tsx`.
+
+### Правила слайсов
+
+- Слайс создаётся через `createSlice`. Внутри — Immer, поэтому пишем «мутирующий» код, но **не возвращаем и не мутируем состояние снаружи редьюсера**.
+- Асинхронность — `createAsyncThunk` или **RTK Query** (предпочтительно для запросов к API).
+- Типизация: `RootState` и `AppDispatch` выводятся из стора, использовать типизированные хуки `useAppSelector` / `useAppDispatch` (объявить в `shared/lib/store`), а не сырые `useSelector` / `useDispatch`.
+- **Селекторы обязательны** и выносятся отдельно. Мемоизация через `createSelector` для производных данных. Компонент читает состояние только через селектор, не лезет в `state.x.y.z` напрямую.
+- Локальное UI-состояние (открыт модал, ввод формы) — это `useState`, **не Redux**. В Redux только глобальное/разделяемое состояние.
+
+### Что в Redux НЕ кладём
+
+- Серверное состояние с кэшированием/инвалидацией — это **RTK Query**, не ручные thunk + slice.
+- Эфемерное UI-состояние одного компонента — `useState`.
+- Доменное поведение (методы вроде `order.canCancel()`) — в классах сущностей `entities/*/model`. Redux хранит **данные**, классы инкапсулируют **поведение**.
+
+Пример структуры слайса:
+
+```ts
+// features/cart/model/slice.ts
+type CartState = { items: CartItem[] };
+const initialState: CartState = { items: [] };
+
+const cartSlice = createSlice({
+  name: 'cart',
+  initialState,
+  reducers: {
+    // Immer: пишем как мутацию, но это иммутабельно под капотом
+    add: (state, action: PayloadAction<CartItem>) => {
+      state.items.push(action.payload);
+    },
+    remove: (state, action: PayloadAction<string>) => {
+      state.items = state.items.filter((i) => i.id !== action.payload);
+    },
+    clear: (state) => {
+      state.items = [];
+    },
+  },
+});
+
+export const cartReducer = cartSlice.reducer;
+export const { add, remove, clear } = cartSlice.actions;
+
+// features/cart/model/selectors.ts
+export const selectCartItems = (state: RootState) => state.cart.items;
+export const selectCartTotal = createSelector(
+  selectCartItems,
+  (items) => items.reduce((sum, i) => sum + i.price, 0),
+);
+```
+
+### Redux и шаблоны проектирования (для контекста)
+
+RTK реализует: **Flux** (однонаправленный поток), **Observer** (`useSelector`-подписки), **Command** (actions), **Reducer/Fold** (чистые функции), **Singleton** (один стор), **Mediator** (стор-посредник между UI), **Chain of Responsibility** (middleware). Это поддерживает SRP (UI / actions / reducers / selectors разделены), тестируемость (редьюсеры — чистые функции) и предсказуемость.
+
+## Получение данных и BFF
+
+Next.js работает как **BFF-прокси**: браузер ходит на свои же роуты `app/api/**`, а уже сервер Next.js ходит на NestJS-бэкенд через **сгенерированный swagger-клиент**. Поверх — сессия next-auth.
+
+### Главный принцип: две разные границы
+
+Данные пересекают **две** сетевые границы, для каждой — свой инструмент. Это не «или-или», слои дополняют друг друга:
+
+1. **Граница 1 — браузер ↔ BFF (`app/api/**`).** Same-origin, cookie сессии едет автоматически. Нужны кэш, дедупликация, состояния загрузки, инвалидация → **RTK Query**.
+2. **Граница 2 — BFF ↔ NestJS.** Server-to-server, bearer-токен из сессии, типизированный контракт → **сгенерированный swagger-клиент**, завёрнутый в тонкий серверный сервис.
+
+`fetch` в `useEffect` внутри компонента — **запрещён**: он схлопывает обе границы, тащит загрузку в UI и рискует утечкой токена в браузер.
+
+### Слои доступа к данным
+
+- **Сгенерированный swagger-клиент** — транспорт границы 2. Лежит в `shared/api/generated`, **не редактируется руками**, перегенерируется при изменении контракта бэкенда. Сам про сессию ничего не знает.
+- **Серверный сервис сущности** — тонкая обёртка над swagger-клиентом: читает сессию (`getServerSession`), достаёт токен, конфигурирует клиент, зовёт его. Это **функции, а не классы** (состояния нет). Класс — только если появляется доменная логика (агрегация нескольких вызовов, бизнес-правила). Файл помечается `import 'server-only'`.
+- **RTK Query** — граница 1, только для клиентских компонентов. Эндпоинты добавляются через `baseApi.injectEndpoints` (единый `createApi`, см. ниже), зовут BFF `app/api/**`, отдают типизированные хуки.
+- **Сервис-классы** — редкость, только для доменного поведения поверх данных. Это `entities/*/model`, **не** слой запросов.
+
+### Два пути получения данных
+
+- **Server Component (RSC)** — зовёт серверный сервис **напрямую** (`await`), **без HTTP-хопа на свой же `app/api/**`**. Делать самозапрос сервера на свой роут — это лишний сетевой хоп, **запрещено**. Загрузка прячется через `loading.tsx` + Suspense.
+- **Client Component** — зовёт RTK Query хук, который идёт на BFF `app/api/**`. Route handler читает сессию server-side и прикрепляет токен к запросу на бэкенд.
+
+Оба пути сходятся в одном серверном сервисе сущности, который и читает сессию.
+
+### Безопасность
+
+Bearer-токен бэкенда **никогда не попадает в браузер**. Сессия next-auth (cookie) едет на BFF, токен прикрепляется **только server-side** в route handler / серверном сервисе. Поэтому серверный сервис помечается `'server-only'` — чтобы его нельзя было случайно импортировать в клиентский бандл.
+
+Конфиг next-auth (`authOptions`) лежит в `core/auth` (`@/core/auth`). Route handler `app/api/auth/[...nextauth]/route.ts` импортирует его оттуда. Серверный код читает сессию через `getServerAuthSession()` (server-only), а BFF → Nest авторизация делается server-side.
+
+### Route handlers (`app/api/.../route.ts`)
+
+- Остаются в `app/` Next.js (это роутинг, не FSD-слой) и должны быть **тонкими**: достать сессию → вызвать серверный сервис сущности → вернуть ответ. **Без бизнес-логики.**
+- Бизнес-логика и работа со swagger-клиентом — в серверном сервисе сущности, не в route handler.
+
+### Размещение в FSD
+
+Весь доступ к данным через BFF лежит в `entities/{name}/api/`:
+
+```
+entities/request/
+  api/
+    request.api.ts       — endpoints через baseApi.injectEndpoints (клиент, граница 1)
+    request.server.ts    — серверный сервис: 'server-only', сессия + swagger
+    request.dto.ts       — типы запроса/ответа BFF
+  model/
+    request.entity.ts    — класс Request с доменным поведением (если есть)
+  index.ts               — публичный API: хуки RTK Query + серверные функции
+```
+
+Route handler делегирует в `request.server.ts`:
+
+```ts
+// app/api/pro/requests/[id]/route.ts — тонкий, только роутинг
+import { getRequestById } from '@/entities/request'; // серверный сервис
+
+export async function GET(_req: Request, { params }: { params: { id: string } }) {
+  const data = await getRequestById(params.id); // сессия + swagger внутри
+  return Response.json(data);
+}
+```
+
+### RTK Query: единый baseApi
+
+**Один `createApi` на всё приложение.** Несколько `createApi` создают изолированные кэши и reducer'ы — это ломает дедупликацию, инвалидацию между сущностями и раздувает стор. Поэтому:
+
+- Единый `baseApi` объявляется в `shared/api` (`shared/api/base-api.ts`): один `reducerPath: 'api'`, общий `baseQuery` на BFF (`baseUrl: '/api'`), общий список `tagTypes`, пустой `endpoints: () => ({})`.
+- Каждая сущность **расширяет** его через `baseApi.injectEndpoints` в своём `entities/{name}/api/{name}.api.ts` — **не** создаёт новый `createApi`.
+- В стор подключается один редьюсер `baseApi.reducer` и один `baseApi.middleware`.
+- `baseQuery` ходит same-origin на `/api/**`, поэтому `credentials: 'include'` для передачи cookie сессии. Токен бэкенда здесь не фигурирует — он живёт только server-side.
+
+```ts
+// shared/api/base-api.ts
+export const baseApi = createApi({
+  reducerPath: 'api',
+  baseQuery: fetchBaseQuery({ baseUrl: '/api', credentials: 'include' }),
+  tagTypes: ['Request', 'User'], // централизованный список
+  endpoints: () => ({}),
+});
+
+// entities/request/api/request.api.ts
+export const requestApi = baseApi.injectEndpoints({
+  endpoints: (build) => ({
+    getRequest: build.query<RequestDto, string>({
+      query: (id) => `/pro/requests/${id}`,
+      providesTags: (_res, _err, id) => [{ type: 'Request', id }],
+    }),
+    updateRequest: build.mutation<RequestDto, UpdateRequestDto>({
+      query: (body) => ({ url: `/pro/requests/${body.id}`, method: 'PATCH', body }),
+      invalidatesTags: (_res, _err, body) => [{ type: 'Request', id: body.id }],
+    }),
+  }),
+});
+
+export const { useGetRequestQuery, useUpdateRequestMutation } = requestApi;
+```
+
+### Теги и инвалидация
+
+- Все `tagTypes` объявляются **централизованно** в `baseApi`. Имя тега = сущность (`'Request'`, `'User'`).
+- `query` помечает данные через `providesTags`; конкретные записи — с `id` (`{ type: 'Request', id }`), списки — тегом `{ type: 'Request', id: 'LIST' }`.
+- `mutation` инвалидирует через `invalidatesTags` — затронутую запись и/или `LIST`. Не инвалидировать «всё подряд»: точечная инвалидация по `id`.
+- Ручной `refetch`/сброс кэша — исключение, не норма. Сначала теги.
+
+### Цепочка ошибок сквозь BFF
+
+Ошибка проходит обе границы и должна долетать до UI в едином формате:
+
+1. **NestJS** кидает доменное исключение → `ExceptionFilter` отдаёт единый JSON ошибки с HTTP-статусом (см. backend-правила).
+2. **Серверный сервис / route handler** не «глотает» ошибку: пробрасывает статус и тело наружу. Route handler возвращает тот же статус (`Response.json(error, { status })`), не превращая всё в 200/500 молча.
+3. **RTK Query** получает ошибку в `error` (тип `FetchBaseQueryError`). Нормализовать форму ошибки в одном месте — в `baseQuery` (обёртка над `fetchBaseQuery`), чтобы у всех эндпоинтов был один тип ошибки.
+4. **UI**: контейнер читает `isError`/`error` из хука и показывает состояние ошибки; presentational-компонент про ошибку не знает — получает уже готовый проп (`errorMessage`) или ветку рендера от контейнера.
+
+Не пробрасывать сырой `FetchBaseQueryError` в presentational-компоненты — маппить в доменное сообщение на уровне контейнера.
+
+### UI не знает про загрузку
+
+Принцип «UI не знает про загрузку» обеспечивается паттерном **Container / Presentational**, а не выбором инструмента:
+
+- **Presentational** компонент (`RequestCard`) — принимает данные пропсами, про загрузку/ошибки не знает.
+- **Container** поднимает знание о загрузке на уровень выше: либо Server Component (`await` серверного сервиса + Suspense), либо клиентский контейнер (RTK Query хук, обрабатывает `isLoading`, передаёт `data` вниз).
+
+## Шаблоны проектирования
+
+Ниже — **частые** для фронта паттерны, а не закрытый список. Применим весь каталог GoF (см. `000-general.mdc`), если паттерн уместен под конкретную задачу.
+
+- **Container / Presentational** — контейнер тянет данные (RSC через серверный сервис, либо клиентский через RTK Query), presentational рендерит по пропсам и не знает про загрузку.
+- **Compound Components** — для составных UI (`<Tabs><Tabs.Item/></Tabs>`).
+- **Provider** — контекст для темы, auth, фичефлагов. Регистрировать в FSD-слое `app`.
+- **Custom Hook** — переиспользуемая логика. Предпочитать хукам над HOC.
+- **Factory** — создание API-клиентов, инстансов сторов с параметрами.
+- **Strategy** — взаимозаменяемые алгоритмы (валидаторы, форматтеры).
+- **Adapter** — обёртки над сторонними SDK.
+- **Facade** — серверный сервис сущности скрывает сессию + swagger-клиент за простой функцией (`getRequestById(id)`).
+
+## ООП — точечно
+
+Использовать классы только там, где есть состояние + поведение, инвариант или сложный жизненный цикл:
+
+- **Да**: доменные модели в `entities/*/model` (класс `Order` с методами `canCancel()`, `total()`), error-классы, обёртки над SDK, кастомные клиенты API.
+- **Нет**: React-компоненты (только функциональные), утилиты, чистые трансформации.
+
+Правила для классов: `private`/`#` поля, `readonly` где возможно, **композиция важнее наследования**.
+
+## Next.js App Router
+
+- По умолчанию — **Server Components**. `'use client'` — только когда нужны хуки, события, браузерные API.
+- Запросы данных — см. секцию «Получение данных и BFF». RSC зовут серверный сервис напрямую, клиентские компоненты — через RTK Query.
+- Redux работает только в Client Components — `Provider` и компоненты, читающие стор, помечаются `'use client'`. На сервере состояние не используется; для серверных данных — RSC через серверный сервис сущности.
+- Транспорт к бэкенду — сгенерированный swagger-клиент в `shared/api/generated`, руками не редактируется.
+- Не смешивать серверную и клиентскую логику в одном файле. Серверный доступ к данным помечается `'server-only'`.
+- Метаданные, `generateStaticParams`, кэширование — в файлах роутов Next.js, не в FSD-слайсах.
+
+## Чего избегать
+
+- Файлы вне FSD-структуры.
+- Создание `frontend/pages/` — Next.js перехватит как Pages Router. FSD-слой страниц — это `views/`.
+- Бизнес-логика, доменный код или утилиты в `core/` — это `shared` или нужный слой. `core/` только под framework-glue.
+- Обратные импорты между слоями.
+- Бизнес-логика в компонентах.
+- `fetch` в `useEffect` внутри компонента для загрузки данных.
+- HTTP-самозапрос Server Component на свой же `app/api/**` (лишний хоп) — звать серверный сервис напрямую.
+- Бизнес-логика и работа со swagger-клиентом в route handler — только делегирование в серверный сервис.
+- Импорт серверного сервиса (`'server-only'`) в клиентский код.
+- Ручное редактирование сгенерированного swagger-клиента.
+- Несколько `createApi` — только один `baseApi`, сущности расширяют его через `injectEndpoints`.
+- Инвалидация «всего» вместо точечной по тегам с `id`.
+- Сырой `FetchBaseQueryError` в presentational-компонентах — маппить в контейнере.
+- Глобальный «god-store» — один слайс на всё.
+- Голый Redux без RTK (ручные action creators, switch-редьюсеры).
+- Redux для эфемерного UI-состояния, которое решается `useState`.
+- `useEffect` для синхронизации состояния, которое можно вычислить.
+- Классы там, где достаточно функции, и наоборот.

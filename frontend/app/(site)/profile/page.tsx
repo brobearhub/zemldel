@@ -196,6 +196,9 @@ function ProfileOverview({
   const router = useRouter();
   const { update: updateSession } = useSession();
   const [busy, setBusy] = useState(false);
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [imageSuccess, setImageSuccess] = useState<string | null>(null);
   const [cityError, setCityError] = useState<string | null>(null);
   const [providerCityError, setProviderCityError] = useState<string | null>(null);
   const [authProvidersBusy, setAuthProvidersBusy] = useState(false);
@@ -236,6 +239,58 @@ function ProfileOverview({
       setCityError("Не удалось обновить локацию");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function uploadProfileImage(file: File) {
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowed.includes(file.type)) {
+      setImageError("Поддерживаются только JPG, PNG или WebP.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setImageError("Максимальный размер изображения — 5 МБ.");
+      return;
+    }
+
+    setImageBusy(true);
+    setImageError(null);
+    setImageSuccess(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/users/me/image", { method: "POST", body: formData });
+      const payload = (await res.json().catch(() => null)) as { error?: string } | { image?: string | null } | null;
+      if (!res.ok) {
+        throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось загрузить фото" : "Не удалось загрузить фото");
+      }
+      await updateSession();
+      router.refresh();
+      setImageSuccess("Фото профиля обновлено.");
+    } catch (e) {
+      setImageError(e instanceof Error ? e.message : "Не удалось загрузить фото");
+    } finally {
+      setImageBusy(false);
+    }
+  }
+
+  async function deleteProfileImage() {
+    setImageBusy(true);
+    setImageError(null);
+    setImageSuccess(null);
+    try {
+      const res = await fetch("/api/users/me/image", { method: "DELETE" });
+      const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) {
+        throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось удалить фото" : "Не удалось удалить фото");
+      }
+      await updateSession();
+      router.refresh();
+      setImageSuccess("Фото профиля удалено.");
+    } catch (e) {
+      setImageError(e instanceof Error ? e.message : "Не удалось удалить фото");
+    } finally {
+      setImageBusy(false);
     }
   }
 
@@ -324,8 +379,40 @@ function ProfileOverview({
             <EmailIcon fontSize="small" />
             <Typography variant="body1">{email || "Email не указан"}</Typography>
           </Box>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 1.5 }} flexWrap="wrap" useFlexGap>
+            <Button
+              variant="outlined"
+              component="label"
+              disabled={imageBusy}
+              sx={{ whiteSpace: "nowrap" }}
+            >
+              Загрузить фото
+              <input
+                type="file"
+                hidden
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  e.currentTarget.value = "";
+                  if (f) void uploadProfileImage(f);
+                }}
+              />
+            </Button>
+            <Button
+              variant="text"
+              color="error"
+              disabled={imageBusy || !(image && image.trim().length > 0)}
+              onClick={() => void deleteProfileImage()}
+              sx={{ whiteSpace: "nowrap" }}
+            >
+              Удалить фото
+            </Button>
+          </Stack>
         </Box>
       </Box>
+
+      {imageError ? <Alert severity="error">{imageError}</Alert> : null}
+      {imageSuccess ? <Alert severity="success">{imageSuccess}</Alert> : null}
 
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Stack spacing={1.5}>
@@ -488,7 +575,7 @@ export default function ProfilePage() {
 
 function ProfilePageFallback() {
   return (
-    <Container maxWidth="xl" sx={{ py: 4, pt: 14, pb: 10 }}>
+    <Container maxWidth="xl" sx={{ py: 4, pb: 10 }}>
       <Stack direction={{ xs: "column", md: "row" }} spacing={3} alignItems="flex-start">
         <Paper variant="outlined" sx={{ width: { xs: "100%", md: 320 }, p: 3 }}>
           <Skeleton variant="text" width="40%" height={28} sx={{ mb: 2 }} />
@@ -556,7 +643,7 @@ function ProfilePageContent() {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4, pt: 14, pb: 10 }}>
+    <Container maxWidth="xl" sx={{ py: 4, pb: 10 }}>
       <Stack direction={{ xs: "column", md: "row" }} spacing={3} alignItems="flex-start">
         <Box sx={{ width: { xs: "100%", md: 320 }, flexShrink: 0 }}>
           <ProfileSidebar

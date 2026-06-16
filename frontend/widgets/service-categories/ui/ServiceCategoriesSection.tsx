@@ -44,16 +44,20 @@ export function ServiceCategoriesSection({ categories, embedded }: Props) {
               p: 2.5,
               width: "100%",
               height: "100%",
-              borderRadius: 1.5,
+              borderRadius: 2,
               bgcolor: "background.paper",
               borderColor: "divider",
               textTransform: "none",
               gap: 1.5,
               alignItems: "center",
               justifyContent: "center",
+              boxShadow: "0 10px 26px rgba(0,0,0,0.05)",
+              transition: "transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease",
               "&:hover": {
                 bgcolor: "action.hover",
                 borderColor: "divider",
+                boxShadow: "0 18px 45px rgba(0,0,0,0.10)",
+                transform: "translateY(-2px)",
               },
             }}
           >
@@ -67,7 +71,7 @@ export function ServiceCategoriesSection({ categories, embedded }: Props) {
 
   if (embedded) {
     return (
-      <Box component="section" sx={{ py: { xs: 3, md: 4 } }}>
+      <Box component="section" sx={{ py: 0 }}>
         {content}
       </Box>
     );

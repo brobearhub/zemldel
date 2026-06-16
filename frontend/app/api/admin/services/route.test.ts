@@ -3,18 +3,18 @@
 import type { NextRequest } from "next/server";
 import { GET, POST } from "./route";
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@/core/auth", () => ({
   __esModule: true,
   getServerAuthSession: vi.fn(),
 }));
 
-vi.mock("@/lib/backend-api", () => ({
+vi.mock("@/shared/api/backend/server", () => ({
   __esModule: true,
   fetchBackendAsUser: vi.fn(),
 }));
 
-import { fetchBackendAsUser } from "@/lib/backend-api";
-import { getServerAuthSession } from "@/lib/auth";
+import { fetchBackendAsUser } from "@/shared/api/backend/server";
+import { getServerAuthSession } from "@/core/auth";
 import { mainService } from "@/tests/fixtures/services";
 
 const mockedFetchBackendAsUser = vi.mocked(fetchBackendAsUser);

@@ -1,8 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { Box, Typography } from "@mui/material";
 import type { RequestProDto } from "@/entities/request";
-import { BackendApiError, fetchBackendJsonAsUser } from "@/lib/backend-api";
-import { getServerAuthSession } from "@/lib/auth";
+import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
+import { getServerAuthSession } from "@/core/auth";
 import { ChatBodyWithSidePanelLayout } from "@/widgets/chat/ui/ChatBodyWithSidePanelLayout";
 import { ServiceRequestChatPanel } from "@/widgets/chat/ui/ServiceRequestChatPanel";
 import { ProRequestDetails } from "@/widgets/pro-requests/ui/ProRequestDetails";

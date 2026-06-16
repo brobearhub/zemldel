@@ -63,8 +63,7 @@ export function Markdown({ markdown, skipFirstH1 }: Props) {
           bgcolor: "action.hover",
         },
         "& code": {
-          fontFamily:
-            "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+          fontFamily: "inherit",
           fontSize: "0.9em",
           bgcolor: "action.hover",
           px: 0.6,

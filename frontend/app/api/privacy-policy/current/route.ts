@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { loadLegalDoc } from "@/lib/legal-docs";
+import { loadLegalDoc } from "@/shared/lib/server";
 
 export async function GET() {
   try {

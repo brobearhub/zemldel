@@ -16,17 +16,22 @@ type Props = {
 
 export function ServiceCardList({ title, subtitle, items, columns }: Props) {
   return (
-    <Stack spacing={{ xs: 2, md: 2.5 }} >
+    <Stack spacing={{ xs: 2, md: 2.5 }}>
       <Stack spacing={0.75}>
         <Typography
           component="h2"
-          sx={{ fontWeight: 900, letterSpacing: "-0.01em", fontSize: 28 }}
+          sx={{
+            fontWeight: 900,
+            letterSpacing: "-0.02em",
+            fontSize: { xs: 24, sm: 26, md: 28 },
+            lineHeight: 1.15,
+          }}
           color="primary"
         >
           {title}
         </Typography>
         {subtitle && (
-          <Typography sx={{ color: "text.secondary", maxWidth: 860 }}>
+          <Typography sx={{ color: "text.secondary", maxWidth: 860, lineHeight: 1.7 }}>
             {subtitle}
           </Typography>
         )}

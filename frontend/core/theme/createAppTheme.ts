@@ -99,13 +99,7 @@ export function createAppTheme(_mode: PaletteMode) {
     },
     shape: { borderRadius: 16 },
     typography: {
-      fontFamily: [
-        "var(--font-ysabeau-infant)",
-        "system-ui",
-        "Segoe UI",
-        "Roboto",
-        "sans-serif",
-      ].join(","),
+      fontFamily: "var(--font-google-sans)",
       h1: { fontWeight: 900, letterSpacing: "-0.03em" },
       h2: { fontWeight: 900, letterSpacing: "-0.02em" },
       h3: { fontWeight: 800, letterSpacing: "-0.015em" },
@@ -242,6 +236,11 @@ export function createAppTheme(_mode: PaletteMode) {
           }),
           outlined: ({ theme }) => ({
             borderColor: alpha(theme.palette.text.primary, 0.10),
+            backgroundImage: theme.custom.gradients.glass,
+            boxShadow:
+              theme.palette.mode === "light"
+                ? "0 10px 30px rgba(0,0,0,0.06)"
+                : "0 14px 50px rgba(0,0,0,0.40)",
           }),
         },
       },

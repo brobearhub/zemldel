@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Box, Stack, Typography } from "@mui/material";
-import { getServerAuthSession } from "@/lib/auth";
+import { getServerAuthSession } from "@/core/auth";
 import { ProfessionalWorkspacePanel } from "@/widgets/pro-dashboard/ui/ProfessionalWorkspacePanel";
 
 export default async function ProTeamPage() {

@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { fetchBackendAsUser } from "@/lib/backend-api";
-import { getServerAuthSession } from "@/lib/auth";
+import { fetchBackendAsUser } from "@/shared/api/backend/server";
+import { getServerAuthSession } from "@/core/auth";
 
 export async function GET(request: NextRequest) {
   try {

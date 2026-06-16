@@ -4,7 +4,7 @@ import { forbidden, redirect } from "next/navigation";
 import { Header } from "@/widgets/header/ui";
 import { Footer } from "@/widgets/footer/ui/Footer";
 import { AdminSidebar } from "@/widgets/admin-sidebar";
-import { getServerAuthSession } from "@/lib/auth";
+import { getServerAuthSession } from "@/core/auth";
 
 interface Props {
   readonly children: ReactNode;

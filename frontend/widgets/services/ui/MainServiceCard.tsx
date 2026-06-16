@@ -53,7 +53,7 @@ export const MainServiceCard = ({ item }: Props) => {
         variant="outlined"
         sx={{
           height: { xs: 240, md: 260 },
-          borderRadius: 0.3,
+          borderRadius: 2,
           overflow: "visible",
           borderColor: "divider",
           color: "text.primary",

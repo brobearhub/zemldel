@@ -3,8 +3,8 @@ import { Stack } from "@mui/material";
 import { getActiveMembership } from "@/core/auth/authorization";
 import type { RequestCustomerDto, RequestProDto, RequestReminderDto } from "@/entities/request";
 import type { ServiceDto } from "@/entities/service";
-import { BackendApiError, fetchBackendJsonAsUser } from "@/lib/backend-api";
-import { getServerAuthSession } from "@/lib/auth";
+import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
+import { getServerAuthSession } from "@/core/auth";
 import { ProOverviewDashboard } from "@/widgets/pro-dashboard/ui/ProOverviewDashboard";
 import { ProfessionalWorkspacePanel } from "@/widgets/pro-dashboard/ui/ProfessionalWorkspacePanel";
 

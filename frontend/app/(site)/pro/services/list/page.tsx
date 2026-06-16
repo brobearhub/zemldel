@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Box, Button, Stack, Typography } from "@mui/material";
 import type { ServiceDto } from "@/entities/service";
-import { BackendApiError, fetchBackendJsonAsUser } from "@/lib/backend-api";
-import { getServerAuthSession } from "@/lib/auth";
+import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
+import { getServerAuthSession } from "@/core/auth";
 import { ProServicesListClient } from "@/widgets/pro-services/ui/ProServicesListClient";
 
 export default async function ProServicesListPage() {

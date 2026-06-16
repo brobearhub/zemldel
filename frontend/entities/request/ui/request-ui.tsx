@@ -1,9 +1,25 @@
 "use client";
 
+import FormatListBulletedOutlinedIcon from "@mui/icons-material/FormatListBulletedOutlined";
+import LinearScaleOutlinedIcon from "@mui/icons-material/LinearScaleOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
-import { Box, Chip, Paper, Stack, Step, StepLabel, Stepper, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  Chip,
+  List,
+  ListItem,
+  Paper,
+  Stack,
+  Step,
+  StepLabel,
+  Stepper,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
-import type { ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { RequestCustomerDto, RequestStatus } from "../dto/request.dto";
 import {
   buildCustomerRequestFlowSteps,
@@ -21,6 +37,65 @@ import { getRequestStatusLabel } from "../dto/request.dto";
 
 export type { StatusProgressStep };
 
+export type StatusProgressView = "chain" | "list";
+
+const STATUS_PROGRESS_VIEW_STORAGE_KEY = "request.statusProgressView";
+
+export function useStatusProgressView(defaultView: StatusProgressView = "chain") {
+  const [view, setView] = useState<StatusProgressView>(defaultView);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(STATUS_PROGRESS_VIEW_STORAGE_KEY);
+      if (raw === "chain" || raw === "list") setView(raw);
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
+  const update = useCallback((next: StatusProgressView) => {
+    setView(next);
+    try {
+      window.localStorage.setItem(STATUS_PROGRESS_VIEW_STORAGE_KEY, next);
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
+  return [view, update] as const;
+}
+
+type StatusProgressViewToggleProps = {
+  value: StatusProgressView;
+  onChange: (next: StatusProgressView) => void;
+  disabled?: boolean;
+};
+
+export function StatusProgressViewToggle({ value, onChange, disabled }: StatusProgressViewToggleProps) {
+  return (
+    <ToggleButtonGroup
+      size="small"
+      exclusive
+      value={value}
+      disabled={disabled}
+      onChange={(_, next) => {
+        if (next === "chain" || next === "list") onChange(next);
+      }}
+      sx={{
+        bgcolor: "background.paper",
+        "& .MuiToggleButton-root": { px: 1, py: 0.25 },
+      }}
+    >
+      <ToggleButton value="chain" aria-label="Цепочка шагов">
+        <LinearScaleOutlinedIcon fontSize="small" />
+      </ToggleButton>
+      <ToggleButton value="list" aria-label="Список статусов">
+        <FormatListBulletedOutlinedIcon fontSize="small" />
+      </ToggleButton>
+    </ToggleButtonGroup>
+  );
+}
+
 type StatusProgressStepperProps = {
   steps: StatusProgressStep[];
   activeStepId: string;
@@ -34,62 +109,80 @@ export function StatusProgressStepper({ steps, activeStepId, muted = false }: St
   );
 
   return (
-    <Stepper
-      alternativeLabel
-      activeStep={activeIndex}
+    <Box
       sx={{
-        "& .MuiStepConnector-line": {
-          borderTopWidth: 3,
-          borderColor: "divider",
-        },
-        "& .MuiStepLabel-label": {
-          mt: 1,
-          fontSize: 12,
-          color: "text.secondary",
-        },
-        "& .MuiStepLabel-label.Mui-active": {
-          color: "text.primary",
-          fontWeight: 700,
-        },
-        "& .MuiStepLabel-label.Mui-completed": {
-          color: "text.primary",
-        },
-        ...(muted
-          ? {
-              "& .MuiStepConnector-line": {
-                borderColor: "action.disabledBackground",
-              },
-              "& .MuiStepIcon-root": {
-                color: "action.disabledBackground",
-              },
-              "& .MuiStepIcon-root.Mui-active": {
-                color: "action.disabledBackground",
-              },
-              "& .MuiStepIcon-root.Mui-completed": {
-                color: "action.disabledBackground",
-              },
-              "& .MuiStepIcon-text": {
-                fill: "text.disabled",
-              },
-              "& .MuiStepLabel-label": {
-                color: "text.disabled",
-              },
-              "& .MuiStepLabel-label.Mui-active": {
-                color: "text.disabled",
-              },
-              "& .MuiStepLabel-label.Mui-completed": {
-                color: "text.disabled",
-              },
-            }
-          : null),
+        width: "100%",
+        overflowX: "auto",
+        overflowY: "hidden",
+        WebkitOverflowScrolling: "touch",
       }}
     >
-      {steps.map((step) => (
-        <Step key={step.id} completed={step.completed}>
-          <StepLabel>{step.label}</StepLabel>
-        </Step>
-      ))}
-    </Stepper>
+      <Stepper
+        alternativeLabel
+        activeStep={activeIndex}
+      >
+        {steps.map((step, index) => (
+          <Step key={step.id} completed={step.completed}>
+            <StepLabel icon={index + 1}>{step.label}</StepLabel>
+          </Step>
+        ))}
+      </Stepper>
+    </Box>
+  );
+}
+
+export function StatusProgressList({ steps, activeStepId, muted = false }: StatusProgressStepperProps) {
+  return (
+    <List dense disablePadding>
+      {steps.map((step, index) => {
+        const isActive = step.id === activeStepId;
+        const isCompleted = step.completed;
+        const badgeBg = muted
+          ? "action.disabledBackground"
+          : isActive
+            ? "primary.main"
+            : isCompleted
+              ? "primary.dark"
+              : "action.hover";
+        const badgeColor = muted ? "text.disabled" : isActive || isCompleted ? "common.white" : "text.secondary";
+        const labelColor = muted ? "text.disabled" : isActive || isCompleted ? "text.primary" : "text.secondary";
+
+        return (
+          <ListItem key={step.id} disableGutters sx={{ py: 0.5 }}>
+            <Stack direction="row" spacing={1.25} alignItems="flex-start" sx={{ width: "100%" }}>
+              <Box
+                sx={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: "50%",
+                  display: "grid",
+                  placeItems: "center",
+                  flexShrink: 0,
+                  bgcolor: badgeBg,
+                  color: badgeColor,
+                  fontSize: 12,
+                  fontWeight: 900,
+                  border: 1,
+                  borderColor: muted ? "action.disabledBackground" : isActive || isCompleted ? "primary.main" : "divider",
+                }}
+              >
+                {index + 1}
+              </Box>
+              <Typography
+                variant="body2"
+                sx={{
+                  pt: "3px",
+                  color: labelColor,
+                  fontWeight: muted ? 700 : isActive ? 900 : isCompleted ? 800 : 700,
+                }}
+              >
+                {step.label}
+              </Typography>
+            </Stack>
+          </ListItem>
+        );
+      })}
+    </List>
   );
 }
 
@@ -203,9 +296,8 @@ export function RequestSearchAndFilters({
             "ALL",
             "ACTIVE",
             "SERVICE_RENDERED",
-            "PAYMENT_PENDING",
-            "PAYMENT_PROCESSING",
-            "PAID",
+            "ACCEPTANCE_PENDING",
+            "ACCEPTED",
             "COMPLETED",
             "CANCELLED",
           ] as const
@@ -284,7 +376,7 @@ export function RequestCard({
 
           {leftMeta}
 
-          <Box sx={{ pt: 1 }}>
+          <Box sx={{ pt: 4 }}>
             <StatusProgressStepper
               steps={buildCustomerRequestFlowSteps(request)}
               activeStepId={getCustomerRequestFlowActiveStepId(request)}

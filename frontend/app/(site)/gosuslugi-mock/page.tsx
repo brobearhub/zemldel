@@ -44,7 +44,7 @@ function GosuslugiMockPageContent() {
 
   return (
     <main>
-      <Container maxWidth="sm" sx={{ py: 4, pt: 14, pb: 10 }}>
+      <Container maxWidth="sm" sx={{ py: 4, pb: 10 }}>
         <Stack spacing={3}>
           <Box>
             <Typography variant="h4" fontWeight={800} gutterBottom>

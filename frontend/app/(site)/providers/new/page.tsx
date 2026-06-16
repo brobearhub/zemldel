@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getServerAuthSession } from "@/lib/auth";
+import { getServerAuthSession } from "@/core/auth";
 import { ProviderOnboardingForm } from "./ProviderOnboardingForm";
 
 export default async function NewProviderPage() {

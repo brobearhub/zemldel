@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import { BackendApiError, fetchBackendJsonAsUser } from "@/lib/backend-api";
-import { getServerAuthSession } from "@/lib/auth";
+import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
+import { getServerAuthSession } from "@/core/auth";
 import type { RequestReminderDto } from "@/entities/request";
 import { RemindersListView } from "@/widgets/pro-requests/ui/RemindersListView";
 

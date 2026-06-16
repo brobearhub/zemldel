@@ -315,6 +315,69 @@ export function ProServiceEditor({ mode, initialService }: Props) {
     }
   }
 
+  async function uploadImage(file: File) {
+    if (mode !== "edit" || !initialService?.id) {
+      setError("Сначала сохраните услугу, затем загрузите изображение.");
+      return;
+    }
+
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowed.includes(file.type)) {
+      setError("Поддерживаются только JPG, PNG или WebP.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError("Максимальный размер изображения — 10 МБ.");
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`/api/pro/services/${initialService.id}/image`, {
+        method: "POST",
+        body: formData,
+      });
+      const payload = (await res.json().catch(() => null)) as
+        | { image?: string | null; error?: string }
+        | null;
+      if (!res.ok) {
+        throw new Error(payload?.error || "Не удалось загрузить изображение");
+      }
+      if (payload && typeof payload === "object" && typeof payload.image === "string") {
+        setForm((current) => ({ ...current, image: payload.image ?? "" }));
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось загрузить изображение");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteImage() {
+    if (mode !== "edit" || !initialService?.id) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/pro/services/${initialService.id}/image`, {
+        method: "DELETE",
+      });
+      const payload = (await res.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+      if (!res.ok) {
+        throw new Error(payload?.error || "Не удалось удалить изображение");
+      }
+      setForm((current) => ({ ...current, image: "" }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось удалить изображение");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await submitForm();
@@ -495,14 +558,52 @@ export function ProServiceEditor({ mode, initialService }: Props) {
                 />
               </Stack>
 
-              <TextField
-                label="Изображение"
-                value={form.image}
-                onChange={(event) => setForm((current) => ({ ...current, image: event.target.value }))}
-                disabled={busy}
-                fullWidth
-                helperText="URL изображения для карточки. Если оставить пустым, будет показан плейсхолдер."
-              />
+              <Stack spacing={1}>
+                <TextField
+                  label="Изображение (URL)"
+                  value={form.image}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, image: event.target.value }))
+                  }
+                  disabled={busy}
+                  fullWidth
+                  helperText="Можно оставить пустым. Для загрузки файла используйте кнопки ниже (доступно после сохранения услуги)."
+                />
+
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
+                  alignItems={{ sm: "center" }}
+                  flexWrap="wrap"
+                  useFlexGap
+                >
+                  <Button
+                    variant="outlined"
+                    component="label"
+                    disabled={busy || mode !== "edit"}
+                  >
+                    Загрузить файл (JPG/PNG/WebP)
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] ?? null;
+                        e.currentTarget.value = "";
+                        if (f) void uploadImage(f);
+                      }}
+                    />
+                  </Button>
+                  <Button
+                    variant="text"
+                    color="error"
+                    disabled={busy || mode !== "edit" || !form.image.trim()}
+                    onClick={() => void deleteImage()}
+                  >
+                    Удалить изображение
+                  </Button>
+                </Stack>
+              </Stack>
 
               <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
                 <TextField
@@ -538,7 +639,7 @@ export function ProServiceEditor({ mode, initialService }: Props) {
             </Stack>
           </Paper>
 
-          <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 } }}>
+          <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 }, display: "none" }}>
             <Stack spacing={2}>
               <Typography variant="subtitle1" fontWeight={800}>
                 Социальное доказательство

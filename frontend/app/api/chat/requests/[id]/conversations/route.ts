@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { fetchBackendAsUser } from "@/lib/backend-api";
-import { getServerAuthSession } from "@/lib/auth";
+import { fetchBackendAsUser } from "@/shared/api/backend/server";
+import { getServerAuthSession } from "@/core/auth";
 
 type RouteParams = { params: Promise<{ id: string }> };
 

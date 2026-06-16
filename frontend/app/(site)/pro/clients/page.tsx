@@ -1,8 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { Box, Stack, Typography } from "@mui/material";
 import type { RequestCustomerDto } from "@/entities/request";
-import { BackendApiError, fetchBackendJsonAsUser } from "@/lib/backend-api";
-import { getServerAuthSession } from "@/lib/auth";
+import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
+import { getServerAuthSession } from "@/core/auth";
 import { ProClientsBoard } from "@/widgets/pro-clients/ui/ProClientsBoard";
 
 function sortByCreatedAtDesc(orders: RequestCustomerDto[]) {

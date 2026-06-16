@@ -11,22 +11,16 @@ export type RequestStatus =
   | "ACCEPTED"
   | "ACTIVE"
   | "SERVICE_RENDERED"
-  | "PAYMENT_PENDING"
-  | "PAYMENT_PROCESSING"
-  | "PAID"
   | "COMPLETED"
   | "CANCELLED"
   | "CLOSED";
 
 export const ORDER_EXECUTION_STATUSES = [
   "CONTRACT_ACCEPTED",
-  "PAYMENT_PENDING",
-  "PAYMENT_PROCESSING",
   "ACTIVE",
   "SERVICE_RENDERED",
   "ACCEPTANCE_PENDING",
   "ACCEPTED",
-  "PAID",
   "COMPLETED",
   "CANCELLED",
 ] as const satisfies readonly RequestStatus[];
@@ -45,18 +39,6 @@ export function isExclusiveProviderPhaseStatus(status: RequestStatus) {
 }
 
 export type RequestProviderOfferStatus = "SELECTED" | "DECLINED";
-export type RequestContractStatus = "DRAFT" | "SENT" | "SIGNED" | "CANCELLED";
-
-export type RequestContractSummaryDto = {
-  id: string;
-  title: string;
-  status: RequestContractStatus;
-  requestId: string | null;
-  providerId: string | null;
-  openCommentsCount: number;
-  createdAt: string;
-  updatedAt: string;
-};
 
 export type RequestCustomerOfferDto = {
   providerId: string;
@@ -82,7 +64,6 @@ export type RequestCustomerDto = {
   declinedProviderIds: string[];
   lastSelectionAt: string | null;
   offers: RequestCustomerOfferDto[];
-  contract: RequestContractSummaryDto | null;
   requestCityId: string | null;
   lockedAt: string | null;
   serviceTitle: string | null;
@@ -118,7 +99,6 @@ export type RequestProDto = {
   lockedAt: string | null;
   conversationsCount: number;
   isLocked: boolean;
-  contract: RequestContractSummaryDto | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -145,12 +125,6 @@ export function getRequestStatusLabel(status: RequestStatus): string {
       return "Ожидает принятия";
     case "ACCEPTED":
       return "Принято";
-    case "PAYMENT_PENDING":
-      return "Ожидает оплаты";
-    case "PAYMENT_PROCESSING":
-      return "Средства зарезервированы";
-    case "PAID":
-      return "Выплата исполнителю";
     case "COMPLETED":
       return "Заказ выполнен";
     case "CANCELLED":

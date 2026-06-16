@@ -2,12 +2,12 @@
 
 import { GET } from "./route";
 
-vi.mock("@/lib/backend-api", () => ({
+vi.mock("@/shared/api/backend/server", () => ({
   __esModule: true,
   fetchBackend: vi.fn(),
 }));
 
-import { fetchBackend } from "@/lib/backend-api";
+import { fetchBackend } from "@/shared/api/backend/server";
 import { legalService, mainService } from "@/tests/fixtures/services";
 
 const mockedFetchBackend = vi.mocked(fetchBackend);

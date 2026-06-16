@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { fetchBackendAsUser } from "@/lib/backend-api";
-import { getServerAuthSession } from "@/lib/auth";
+import { fetchBackendAsUser } from "@/shared/api/backend/server";
+import { getServerAuthSession } from "@/core/auth";
 
 function hasFreshGosuslugiStepUp(input: { linkedAuthProviders?: unknown; stepUpVerifiedAt?: unknown }) {
   const linked = Array.isArray(input.linkedAuthProviders) && input.linkedAuthProviders.includes("GOSUSLUGI");

@@ -20,7 +20,6 @@ import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import BuildOutlinedIcon from "@mui/icons-material/BuildOutlined";
 import PeopleOutlineOutlinedIcon from "@mui/icons-material/PeopleOutlineOutlined";
 import Groups2OutlinedIcon from "@mui/icons-material/Groups2Outlined";
-import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
@@ -60,12 +59,6 @@ const NAV_ITEMS = [
     label: "Клиенты",
     description: "Заказчики с оформленными заказами",
     icon: <Groups2OutlinedIcon />,
-  },
-  {
-    href: "/pro/documents/contracts",
-    label: "Договоры",
-    description: "Шаблоны и подпись договоров",
-    icon: <DescriptionOutlinedIcon />,
   },
   {
     href: "/pro/reminders",
@@ -130,8 +123,7 @@ export function ProSidebar() {
         {NAV_ITEMS.map((item, index) => {
           const selected =
             pathname === item.href ||
-            (item.href === "/pro" && pathname.startsWith("/pro/requests/")) ||
-            (item.href === "/pro/documents/contracts" && pathname.startsWith("/pro/documents/contracts"));
+            (item.href === "/pro" && pathname.startsWith("/pro/requests/"));
           const badgeEnabled = item.href === "/pro";
           const icon = badgeEnabled ? (
             <Badge color="error" badgeContent={unreadTotal} max={99} invisible={unreadTotal === 0}>

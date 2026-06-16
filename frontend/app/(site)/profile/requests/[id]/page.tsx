@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import type { RequestCustomerDto } from "@/entities/request";
-import { BackendApiError, fetchBackendJsonAsUser } from "@/lib/backend-api";
-import { getServerAuthSession } from "@/lib/auth";
+import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
+import { getServerAuthSession } from "@/core/auth";
 import { ChatThreeColumnLayout } from "@/widgets/chat/ui/ChatThreeColumnLayout";
 import { CustomerRequestConversationWorkspace } from "@/widgets/customer-requests/ui/CustomerRequestConversationWorkspace";
 import { ProfileSidebarNav } from "@/widgets/profile/ui/ProfileSidebarNav";

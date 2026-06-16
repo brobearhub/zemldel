@@ -5,6 +5,7 @@ import {
   Button,
   IconButton,
   Paper,
+  Divider,
   Typography,
 } from "@mui/material";
 import FavoriteBorderRoundedIcon from "@mui/icons-material/FavoriteBorderRounded";
@@ -67,9 +68,17 @@ export function ServiceCard({ item }: Props) {
         sx={{
           position: "relative",
           width: "100%",
-          aspectRatio: "1",
-          bgcolor: "action.hover",
+          aspectRatio: { xs: "16/10", md: "16/10" },
+          bgcolor: (theme) => theme.custom.gradients.glass,
           overflow: "hidden",
+          "&:after": {
+            content: '""',
+            position: "absolute",
+            inset: 0,
+            backgroundImage:
+              "linear-gradient(180deg, rgba(0,0,0,0.00) 0%, rgba(0,0,0,0.08) 55%, rgba(0,0,0,0.18) 100%)",
+            pointerEvents: "none",
+          },
         }}
       >
         {item.image ? (
@@ -83,6 +92,7 @@ export function ServiceCard({ item }: Props) {
               height: "100%",
               objectFit: "cover",
               objectPosition: "center",
+              transform: "scale(1.01)",
             }}
           />
         ) : (
@@ -94,10 +104,12 @@ export function ServiceCard({ item }: Props) {
               alignItems: "center",
               justifyContent: "center",
               color: "text.disabled",
-              fontSize: 48,
+              fontSize: 46,
+              letterSpacing: "-0.02em",
+              fontWeight: 800,
             }}
           >
-            —
+            Фото
           </Box>
         )}
 
@@ -209,9 +221,9 @@ export function ServiceCard({ item }: Props) {
             )}
           </Box>
         )}
-
+        <Divider />
         <Button
-          variant="contained"
+          variant="text"
           fullWidth
           component="span"
           startIcon={<ShoppingBagOutlinedIcon />}
@@ -237,13 +249,14 @@ export function ServiceCard({ item }: Props) {
             router.push(buildServiceRequestAuthHref("signup", { kind: "SERVICE", serviceId: item.id }));
           }}
           sx={{
-            py: 1.25,
-            borderRadius: 2,
-            fontWeight: 700,
-            textTransform: "none",
-            bgcolor: "primary.main",
-            color: "common.white",
-            "&:hover": { bgcolor: "primary.light" },
+            mt: 1.5,
+            // py: 1.25,
+            // borderRadius: 2,
+            // fontWeight: 700,
+            // textTransform: "none",
+            // bgcolor: "primary.main",
+            // color: "common.white",
+            // "&:hover": { bgcolor: "primary.light" },
           }}
         >
           {item.ctaText}

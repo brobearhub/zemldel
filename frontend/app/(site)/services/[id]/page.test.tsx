@@ -8,7 +8,7 @@ vi.mock("next/navigation", () => ({
   notFound: () => notFoundMock(),
 }));
 
-vi.mock("@/lib/backend-api", () => {
+vi.mock("@/shared/api/backend/server", () => {
   class MockBackendApiError extends Error {
     status: number;
     body: unknown;
@@ -27,13 +27,13 @@ vi.mock("@/lib/backend-api", () => {
   };
 });
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@/core/auth", () => ({
   __esModule: true,
   getServerAuthSession: vi.fn(),
 }));
 
-import { BackendApiError, fetchBackendJson } from "@/lib/backend-api";
-import { getServerAuthSession } from "@/lib/auth";
+import { BackendApiError, fetchBackendJson } from "@/shared/api/backend/server";
+import { getServerAuthSession } from "@/core/auth";
 
 const mockedFetchBackendJson = vi.mocked(fetchBackendJson);
 const mockedGetServerAuthSession = vi.mocked(getServerAuthSession);

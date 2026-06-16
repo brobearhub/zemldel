@@ -8,18 +8,18 @@ vi.mock("next/navigation", () => ({
   notFound: () => notFoundMock(),
 }));
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@/core/auth", () => ({
   __esModule: true,
   getServerAuthSession: vi.fn(),
 }));
 
-vi.mock("@/lib/backend-api", () => ({
+vi.mock("@/shared/api/backend/server", () => ({
   __esModule: true,
   fetchBackendJsonAsUser: vi.fn(),
 }));
 
-import { fetchBackendJsonAsUser } from "@/lib/backend-api";
-import { getServerAuthSession } from "@/lib/auth";
+import { fetchBackendJsonAsUser } from "@/shared/api/backend/server";
+import { getServerAuthSession } from "@/core/auth";
 
 const mockedFetchBackendJsonAsUser = vi.mocked(fetchBackendJsonAsUser);
 const mockedGetServerAuthSession = vi.mocked(getServerAuthSession);

@@ -1,5 +1,5 @@
 import { Alert, Container, Paper, Stack, Typography } from "@mui/material";
-import { loadLegalDoc } from "@/lib/legal-docs";
+import { loadLegalDoc } from "@/shared/lib/server";
 import { Markdown } from "@/shared/ui/Markdown";
 
 export default async function PublicOfferPage() {
@@ -16,7 +16,7 @@ export default async function PublicOfferPage() {
   }
 
   return (
-    <Container maxWidth="md" sx={{ py: 4, pt: 14, pb: 10 }}>
+    <Container maxWidth="md" sx={{ py: 4, pb: 10 }}>
       <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 } }}>
         <Stack spacing={2}>
           <Stack spacing={0.5}>

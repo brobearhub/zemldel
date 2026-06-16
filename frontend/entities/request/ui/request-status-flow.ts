@@ -11,7 +11,7 @@ export type StatusProgressStep = {
 
 type CustomerRequestStepperInput = Pick<RequestCustomerDto, "status" | "dealTerms">;
 
-const ORDER_STATUS_STEPPER_FLOW = ["CONTRACT", "ESCROW", "WORK", "ACCEPTANCE", "PAYOUT", "COMPLETED"] as const;
+const ORDER_STATUS_STEPPER_FLOW = ["CONTRACT", "WORK", "ACCEPTANCE", "COMPLETED"] as const;
 type OrderStepperStepId = (typeof ORDER_STATUS_STEPPER_FLOW)[number];
 
 export function isOpenRequestStatus(status: RequestStatus) {
@@ -19,17 +19,17 @@ export function isOpenRequestStatus(status: RequestStatus) {
 }
 
 export function getRequestStatusColor(status: RequestStatus): "default" | "info" | "success" | "warning" {
-  if (status === "PAYMENT_PENDING" || status === "SERVICE_RENDERED" || status === "ACCEPTANCE_PENDING") return "warning";
-  if (status === "PAYMENT_PROCESSING" || status === "CONTRACT_ACCEPTED" || status === "DISCUSSING" || status === "TERMS_AGREED" || status === "PROVIDER_SELECTED") return "info";
-  if (status === "ACCEPTED" || status === "PAID" || status === "COMPLETED") return "success";
+  if (status === "SERVICE_RENDERED" || status === "ACCEPTANCE_PENDING") return "warning";
+  if (status === "CONTRACT_ACCEPTED" || status === "ACTIVE" || status === "DISCUSSING" || status === "TERMS_AGREED" || status === "PROVIDER_SELECTED") return "info";
+  if (status === "ACCEPTED" || status === "COMPLETED") return "success";
   if (status === "CANCELLED" || status === "CLOSED") return "default";
   return "info";
 }
 
 export function getRequestCardAccentColor(status: RequestStatus) {
-  if (status === "PAYMENT_PENDING" || status === "SERVICE_RENDERED" || status === "ACCEPTANCE_PENDING") return "warning.main";
-  if (status === "PAYMENT_PROCESSING" || status === "CONTRACT_ACCEPTED") return "info.main";
-  if (status === "ACCEPTED" || status === "PAID") return "success.main";
+  if (status === "SERVICE_RENDERED" || status === "ACCEPTANCE_PENDING") return "warning.main";
+  if (status === "CONTRACT_ACCEPTED" || status === "ACTIVE") return "info.main";
+  if (status === "ACCEPTED") return "success.main";
   if (status === "COMPLETED") return "success.main";
   if (status === "CANCELLED" || status === "CLOSED") return "text.disabled";
   return "info.main";
@@ -46,19 +46,10 @@ export function formatRequestDate(value: string) {
 
 function getOrderFlowActiveStepId(status: RequestStatus): OrderStepperStepId | string {
   if (status === "CONTRACT_ACCEPTED") return "CONTRACT";
-  if (status === "PAYMENT_PENDING" || status === "PAYMENT_PROCESSING") return "ESCROW";
   if (status === "ACTIVE" || status === "SERVICE_RENDERED") return "WORK";
   if (status === "ACCEPTANCE_PENDING" || status === "ACCEPTED") return "ACCEPTANCE";
-  if (status === "PAID") return "PAYOUT";
   if (status === "COMPLETED") return "COMPLETED";
   return status;
-}
-
-function getEscrowStepLabel(status: RequestStatus) {
-  if (status === "PAYMENT_PROCESSING" || status === "ACTIVE" || status === "SERVICE_RENDERED" || status === "ACCEPTANCE_PENDING" || status === "ACCEPTED" || status === "PAID" || status === "COMPLETED") {
-    return "Средства зарезервированы";
-  }
-  return status === "PAYMENT_PENDING" ? "Ожидает оплаты" : "Эскроу";
 }
 
 function buildOrderPhaseSteps(status: RequestStatus): StatusProgressStep[] {
@@ -72,15 +63,11 @@ function buildOrderPhaseSteps(status: RequestStatus): StatusProgressStep[] {
     label:
       step === "CONTRACT"
         ? "Договор"
-        : step === "ESCROW"
-          ? getEscrowStepLabel(status)
-          : step === "WORK"
-            ? status === "SERVICE_RENDERED" ? "Услуга оказана" : "В работе"
-            : step === "ACCEPTANCE"
-              ? status === "ACCEPTANCE_PENDING" ? "Ожидает принятия" : status === "ACCEPTED" || status === "PAID" || status === "COMPLETED" ? "Принято" : "Принятие"
-              : step === "PAYOUT"
-                ? "Выплата исполнителю"
-                : "Завершен",
+        : step === "WORK"
+          ? status === "SERVICE_RENDERED" ? "Услуга оказана" : "В работе"
+          : step === "ACCEPTANCE"
+            ? status === "ACCEPTANCE_PENDING" ? "Ожидает принятия" : status === "ACCEPTED" || status === "COMPLETED" ? "Принято" : "Принятие"
+            : "Завершен",
     completed: activeIndex > index,
   }));
 }

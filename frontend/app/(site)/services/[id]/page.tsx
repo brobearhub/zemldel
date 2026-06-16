@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import { Box, Container, Paper, Stack, Typography } from "@mui/material";
 import type { ServiceDto } from "@/entities/service";
-import { BackendApiError, fetchBackendJson } from "@/lib/backend-api";
-import { getServerAuthSession } from "@/lib/auth";
+import { BackendApiError, fetchBackendJson } from "@/shared/api/backend/server";
+import { getServerAuthSession } from "@/core/auth";
 import { PublicServiceRequestForm } from "@/widgets/public-service/ui/PublicServiceRequestForm";
 
 type Props = {
@@ -56,104 +56,111 @@ export default async function ServicePage({ params }: Props) {
       <Box
         component="section"
         sx={{
-          py: { xs: 4, md: 6 },
-          pt: { xs: 14, md: 16 },
+          pb: { xs: 4, md: 6 },
+          pt: 0,
           bgcolor: "background.default",
+          // Keep `sx` serializable for Server Components (no functions).
+          backgroundImage:
+            "radial-gradient(1200px 800px at 70% 35%, rgb(var(--mui-palette-primary-mainChannel) / 0.22) 0%, rgb(var(--mui-palette-info-mainChannel) / 0.10) 40%, rgb(var(--mui-palette-background-defaultChannel) / 0) 70%)",
+          backgroundRepeat: "no-repeat",
+          backgroundSize: "cover",
         }}
       >
-        <Container>
+        <Container maxWidth="xl">
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "minmax(320px, 400px) 1fr" },
-              gap: { xs: 3, md: 4 },
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "minmax(320px, 420px) minmax(0, 1fr) 440px",
+              },
+              gap: { xs: 3, md: 4.5 },
               alignItems: "start",
             }}
           >
-            <Box
+            <Paper
+              variant="outlined"
               sx={{
-                position: "relative",
-                width: "100%",
-                aspectRatio: "4/3",
-                borderRadius: 1.5,
+                borderRadius: 2,
                 overflow: "hidden",
-                bgcolor: "action.hover",
+                bgcolor: "background.paper",
+                borderColor: "divider",
               }}
             >
-              {service.image ? (
-                <Image
-                  src={service.image}
-                  alt=""
-                  fill
-                  sizes="(max-width: 900px) 100vw, 400px"
-                  style={{ objectFit: "cover", objectPosition: "center" }}
-                />
-              ) : (
-                <Box
-                  sx={{
-                    width: "100%",
-                    height: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "text.disabled",
-                  }}
-                >
-                  <Typography component="span" variant="h4">
-                    Фото
-                  </Typography>
-                </Box>
-              )}
-            </Box>
+              <Box
+                sx={{
+                  position: "relative",
+                  width: "100%",
+                  aspectRatio: { xs: "16/10", md: "4/3" },
+                  bgcolor: "action.hover",
+                }}
+              >
+                {service.image ? (
+                  <Image
+                    src={service.image}
+                    alt=""
+                    fill
+                    sizes="(max-width: 900px) 100vw, 420px"
+                    style={{ objectFit: "cover", objectPosition: "center" }}
+                  />
+                ) : (
+                  <Box
+                    sx={{
+                      width: "100%",
+                      height: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "text.disabled",
+                    }}
+                  >
+                    <Typography component="span" variant="h4">
+                      Фото
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Paper>
 
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: { xs: "column", md: "row" },
-                gap: 3,
-                alignItems: { xs: "stretch", md: "flex-start" },
-              }}
-            >
-              <Stack spacing={1.5} sx={{ flex: { md: "1 1 0%" }, minWidth: 0 }}>
-                <Typography
-                  component="h1"
-                  variant="h4"
-                  sx={{
-                    fontWeight: 700,
-                    letterSpacing: "-0.02em",
-                    lineHeight: 1.2,
-                  }}
-                  color="primary"
-                >
-                  {service.title}
-                </Typography>
-                <Typography
-                  sx={{
-                    color: "text.secondary",
-                    lineHeight: 1.6,
-                    maxWidth: 640,
-                  }}
-                >
-                  {shortDescription}
-                </Typography>
-              </Stack>
+            <Stack spacing={1.5} sx={{ minWidth: 0, pt: { xs: 0, md: 0.5 } }}>
+              <Typography
+                component="h1"
+                variant="h3"
+                sx={{
+                  fontWeight: 900,
+                  letterSpacing: "-0.03em",
+                  lineHeight: 1.08,
+                  maxWidth: 980,
+                }}
+                color="primary"
+              >
+                {service.title}
+              </Typography>
+              <Typography
+                sx={{
+                  color: "text.secondary",
+                  lineHeight: 1.7,
+                  fontSize: { xs: 15, md: 16 },
+                  maxWidth: 860,
+                }}
+              >
+                {shortDescription}
+              </Typography>
+            </Stack>
 
+            <Box sx={{ position: { md: "sticky" }, top: { md: 96 }, alignSelf: "start" }}>
               <Paper
                 variant="outlined"
                 sx={{
-                  p: 2.5,
-                  borderRadius: 1.5,
+                  p: { xs: 2.5, md: 3 },
+                  borderRadius: 2,
                   borderColor: "divider",
                   bgcolor: "background.paper",
-                  flexShrink: 0,
+                  boxShadow: "0 12px 40px rgba(0,0,0,0.08)",
                 }}
               >
                 <Stack spacing={2} alignItems="flex-start">
-                  <Typography
-                    component="span"
-                    sx={{ fontSize: 28, fontWeight: 800 }}
-                    color="primary"
-                  >
+                  <Typography component="span" sx={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.02em" }} color="primary">
                     {service.price}
                   </Typography>
                   <PublicServiceRequestForm

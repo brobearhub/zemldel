@@ -84,7 +84,7 @@ export function CustomerContractInstanceView({ initial }: { initial: CustomerCon
         }
         return;
       }
-      setNotice("Договор принят. Теперь можно перейти к оплате в заявке.");
+      setNotice("Договор принят. Перейдите к деталям заявки.");
       if (initial.requestId) {
         router.push(`/profile/requests/${initial.requestId}`);
         return;

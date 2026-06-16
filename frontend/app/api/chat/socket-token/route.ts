@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerAuthSession } from "@/lib/auth";
-import { getSocketJwtSecret, signSocketJwt } from "@/lib/socket-jwt-server";
+import { getServerAuthSession } from "@/core/auth";
+import { getSocketJwtSecret, signSocketJwt } from "@/entities/chat/lib/server/socket-jwt";
 
 const TTL_SECONDS = 300;
 

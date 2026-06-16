@@ -24,8 +24,12 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories, initialSe
     <Box
       component="main"
       sx={{
-        py: { xs: 3, md: 4 },
-        pt: { xs: 12, sm: 14, md: 16 },
+        pb: { xs: 3, md: 4 },
+        pt: 0,
+        bgcolor: "background.default",
+        backgroundImage: (theme) => theme.custom.gradients.sky,
+        backgroundRepeat: "no-repeat",
+        backgroundSize: "cover",
       }}
     >
       <Container maxWidth="xl">
@@ -41,9 +45,11 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories, initialSe
           }}
         >
           <Box sx={{ minWidth: 0, order: { xs: 2, md: 0 } }}>
-            <ServiceCategoriesSection categories={categories} embedded />
-            <HydrateService initialServices={initialServices} />
-            <Services embedded />
+            <Stack spacing={{ xs: 3, md: 4 }}>
+              <ServiceCategoriesSection categories={categories} embedded />
+              <HydrateService initialServices={initialServices} />
+              <Services embedded />
+            </Stack>
           </Box>
 
           <Box
