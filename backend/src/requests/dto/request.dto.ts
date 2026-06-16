@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   Expose,
   instanceToPlain,
@@ -27,22 +28,16 @@ export type RequestStatus =
   | 'ACCEPTED'
   | 'ACTIVE'
   | 'SERVICE_RENDERED'
-  | 'PAYMENT_PENDING'
-  | 'PAYMENT_PROCESSING'
-  | 'PAID'
   | 'COMPLETED'
   | 'CANCELLED'
   | 'CLOSED';
 
 export const ORDER_EXECUTION_STATUSES = [
   'CONTRACT_ACCEPTED',
-  'PAYMENT_PENDING',
-  'PAYMENT_PROCESSING',
   'ACTIVE',
   'SERVICE_RENDERED',
   'ACCEPTANCE_PENDING',
   'ACCEPTED',
-  'PAID',
   'COMPLETED',
   'CANCELLED',
 ] as const satisfies readonly RequestStatus[];
@@ -66,13 +61,10 @@ export function isExclusiveProviderStatus(
 
 export const ORDER_STATUSES = [
   'CONTRACT_ACCEPTED',
-  'PAYMENT_PENDING',
-  'PAYMENT_PROCESSING',
   'ACTIVE',
   'SERVICE_RENDERED',
   'ACCEPTANCE_PENDING',
   'ACCEPTED',
-  'PAID',
   'COMPLETED',
   'CANCELLED',
 ] as const satisfies readonly RequestStatus[];
@@ -80,48 +72,14 @@ export const ORDER_STATUSES = [
 export type RequestSubjectType = 'FREEFORM' | 'CATEGORY' | 'SERVICE';
 
 export type RequestProviderOfferStatus = 'SELECTED' | 'DECLINED';
-export type RequestContractStatus = 'DRAFT' | 'SENT' | 'SIGNED' | 'CANCELLED';
-
-export class RequestContractSummaryDto {
-  @Expose()
-  @IsUUID()
-  id!: string;
-
-  @Expose()
-  @IsString()
-  title!: string;
-
-  @Expose()
-  @IsEnum(['DRAFT', 'SENT', 'SIGNED', 'CANCELLED'])
-  status!: RequestContractStatus;
-
-  @Expose()
-  @IsOptional()
-  @IsUUID()
-  requestId!: string | null;
-
-  @Expose()
-  @IsOptional()
-  @IsUUID()
-  providerId!: string | null;
-
-  @Expose()
-  openCommentsCount!: number;
-
-  @Expose()
-  @IsString()
-  createdAt!: string;
-
-  @Expose()
-  @IsString()
-  updatedAt!: string;
-}
 
 export class RequestCustomerOfferDto {
+  @ApiProperty({ format: 'uuid' })
   @Expose()
   @IsUUID()
   providerId!: string;
 
+  @ApiProperty({ enum: ['SELECTED', 'DECLINED'] })
   @Expose()
   @IsEnum(['SELECTED', 'DECLINED'])
   status!: RequestProviderOfferStatus;
@@ -137,9 +95,6 @@ function normalizeStatus(value: unknown): RequestStatus {
   if (value === 'ACCEPTED') return 'ACCEPTED';
   if (value === 'ACTIVE') return 'ACTIVE';
   if (value === 'SERVICE_RENDERED') return 'SERVICE_RENDERED';
-  if (value === 'PAYMENT_PENDING') return 'PAYMENT_PENDING';
-  if (value === 'PAYMENT_PROCESSING') return 'PAYMENT_PROCESSING';
-  if (value === 'PAID') return 'PAID';
   if (value === 'COMPLETED') return 'COMPLETED';
   if (value === 'CANCELLED') return 'CANCELLED';
   if (value === 'CLOSED') return 'CLOSED';
@@ -172,6 +127,7 @@ function toSubjectType(row: {
 }
 
 export class RequestUnlinkedCreateDto {
+  @ApiPropertyOptional({ nullable: true, minLength: 10, example: null })
   @Expose()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
   @ValidateIf((_, value) => value !== null && value !== undefined)
@@ -179,6 +135,7 @@ export class RequestUnlinkedCreateDto {
   @MinLength(10)
   message?: string | null;
 
+  @ApiPropertyOptional({ nullable: true, minLength: 2, example: null })
   @Expose()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
   @ValidateIf((_, value) => value !== null && value !== undefined)
@@ -186,6 +143,7 @@ export class RequestUnlinkedCreateDto {
   @MinLength(2)
   location?: string | null;
 
+  @ApiPropertyOptional({ nullable: true, minLength: 7, example: null })
   @Expose()
   @IsOptional()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
@@ -194,6 +152,7 @@ export class RequestUnlinkedCreateDto {
   @MinLength(7)
   customerPhone?: string | null;
 
+  @ApiPropertyOptional({ format: 'uuid' })
   @Expose()
   @IsOptional()
   @Transform(({ value }) => trimOrUndefined(value), { toClassOnly: true })
@@ -219,6 +178,7 @@ export function parseRequestUnlinkedCreateDto(body: unknown): {
 }
 
 export class RequestCategoryCreateDto {
+  @ApiPropertyOptional({ nullable: true, minLength: 3, example: null })
   @Expose()
   @IsOptional()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
@@ -227,6 +187,7 @@ export class RequestCategoryCreateDto {
   @MinLength(3)
   message?: string | null;
 
+  @ApiPropertyOptional({ nullable: true, minLength: 7, example: null })
   @Expose()
   @IsOptional()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
@@ -235,6 +196,7 @@ export class RequestCategoryCreateDto {
   @MinLength(7)
   customerPhone?: string | null;
 
+  @ApiPropertyOptional({ format: 'uuid' })
   @Expose()
   @IsOptional()
   @Transform(({ value }) => trimOrUndefined(value), { toClassOnly: true })
@@ -259,6 +221,7 @@ export function parseRequestCategoryCreateDto(body: unknown): {
 }
 
 export class RequestServiceCreateDto {
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
@@ -266,6 +229,7 @@ export class RequestServiceCreateDto {
   @IsString()
   customerName?: string | null;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
@@ -273,6 +237,7 @@ export class RequestServiceCreateDto {
   @IsString()
   customerEmail?: string | null;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
@@ -280,6 +245,7 @@ export class RequestServiceCreateDto {
   @IsString()
   customerPhone?: string | null;
 
+  @ApiPropertyOptional({ nullable: true, minLength: 3, example: null })
   @Expose()
   @IsOptional()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
@@ -288,6 +254,7 @@ export class RequestServiceCreateDto {
   @MinLength(3)
   message?: string | null;
 
+  @ApiPropertyOptional({ format: 'uuid' })
   @Expose()
   @IsOptional()
   @Transform(({ value }) => trimOrUndefined(value), { toClassOnly: true })
@@ -312,14 +279,33 @@ export function parseRequestServiceCreateDto(body: unknown): {
 }
 
 export class RequestCustomerDto {
+  @ApiProperty({ format: 'uuid' })
   @Expose()
   @IsUUID()
   id!: string;
 
+  @ApiProperty({ enum: ['FREEFORM', 'CATEGORY', 'SERVICE'] })
   @Expose()
   @IsEnum(['FREEFORM', 'CATEGORY', 'SERVICE'])
   subjectType!: RequestSubjectType;
 
+  @ApiProperty({
+    enum: [
+      'NEW',
+      'DISCUSSING',
+      'TERMS_AGREED',
+      'PROVIDER_SELECTED',
+      'CONTRACT_ACCEPTED',
+      'LOCKED',
+      'ACTIVE',
+      'SERVICE_RENDERED',
+      'ACCEPTANCE_PENDING',
+      'ACCEPTED',
+      'COMPLETED',
+      'CANCELLED',
+      'CLOSED',
+    ],
+  })
   @Expose()
   @Transform(({ value }) => normalizeStatus(value), { toClassOnly: true })
   @IsEnum([
@@ -331,135 +317,171 @@ export class RequestCustomerDto {
     'LOCKED',
     'ACTIVE',
     'SERVICE_RENDERED',
-    'PAYMENT_PENDING',
-    'PAYMENT_PROCESSING',
     'ACCEPTANCE_PENDING',
     'ACCEPTED',
-    'PAID',
     'COMPLETED',
     'CANCELLED',
     'CLOSED',
   ])
   status!: RequestStatus;
 
+  @ApiProperty({ format: 'uuid', nullable: true })
   @Expose()
   @IsOptional()
   @IsUUID()
   serviceId!: string | null;
 
+  @ApiProperty({ format: 'uuid', nullable: true })
   @Expose()
   @IsOptional()
   @IsUUID()
   categoryId!: string | null;
 
+  @ApiProperty({ format: 'uuid', nullable: true })
   @Expose()
   @IsOptional()
   @IsUUID()
   providerId!: string | null;
 
+  @ApiProperty({ type: [String] })
   @Expose()
   selectedProviderIds!: string[];
 
+  @ApiProperty({ type: [String] })
   @Expose()
   declinedProviderIds!: string[];
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   lastSelectionAt!: string | null;
 
+  @ApiProperty({ type: [RequestCustomerOfferDto] })
   @Expose()
   offers!: RequestCustomerOfferDto[];
 
-  @Expose()
-  contract!: RequestContractSummaryDto | null;
-
+  @ApiProperty({ format: 'uuid', nullable: true })
   @Expose()
   @IsOptional()
   @IsUUID()
   requestCityId!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   message!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   location!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   lockedAt!: string | null;
 
+  @ApiProperty({ nullable: true, type: Object, example: null })
   @Expose()
   dealTerms!: unknown | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   offerVersion!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   contractAcceptedAt!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   acceptanceRequestedAt!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   autoAcceptAt!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   acceptedAt!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   serviceTitle!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   providerName!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   customerName!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   customerEmail!: string | null;
 
+  @ApiProperty()
   @Expose()
   @IsString()
   createdAt!: string;
 
+  @ApiProperty()
   @Expose()
   @IsString()
   updatedAt!: string;
 }
 
 export class RequestProDto {
+  @ApiProperty({ format: 'uuid' })
   @Expose()
   @IsUUID()
   id!: string;
 
+  @ApiProperty({ enum: ['FREEFORM', 'CATEGORY', 'SERVICE'] })
   @Expose()
   @IsEnum(['FREEFORM', 'CATEGORY', 'SERVICE'])
   subjectType!: RequestSubjectType;
 
+  @ApiProperty({
+    enum: [
+      'NEW',
+      'DISCUSSING',
+      'TERMS_AGREED',
+      'PROVIDER_SELECTED',
+      'CONTRACT_ACCEPTED',
+      'LOCKED',
+      'ACTIVE',
+      'SERVICE_RENDERED',
+      'ACCEPTANCE_PENDING',
+      'ACCEPTED',
+      'COMPLETED',
+      'CANCELLED',
+      'CLOSED',
+    ],
+  })
   @Expose()
   @Transform(({ value }) => normalizeStatus(value), { toClassOnly: true })
   @IsEnum([
@@ -471,118 +493,134 @@ export class RequestProDto {
     'LOCKED',
     'ACTIVE',
     'SERVICE_RENDERED',
-    'PAYMENT_PENDING',
-    'PAYMENT_PROCESSING',
     'ACCEPTANCE_PENDING',
     'ACCEPTED',
-    'PAID',
     'COMPLETED',
     'CANCELLED',
     'CLOSED',
   ])
   status!: RequestStatus;
 
+  @ApiProperty({ format: 'uuid', nullable: true })
   @Expose()
   @IsOptional()
   @IsUUID()
   serviceId!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   serviceTitle!: string | null;
 
+  @ApiProperty({ format: 'uuid', nullable: true })
   @Expose()
   @IsOptional()
   @IsUUID()
   categoryId!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   categoryName!: string | null;
 
+  @ApiProperty({ format: 'uuid', nullable: true })
   @Expose()
   @IsOptional()
   @IsUUID()
   providerId!: string | null;
 
+  @ApiProperty({ enum: ['SELECTED', 'DECLINED'], nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsEnum(['SELECTED', 'DECLINED'])
   offerStatus!: RequestProviderOfferStatus | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   offerSelectedAt!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   offerDeclinedAt!: string | null;
 
+  @ApiProperty({ format: 'uuid', nullable: true })
   @Expose()
   @IsOptional()
   @IsUUID()
   requestCityId!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   message!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   location!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   lockedAt!: string | null;
 
+  @ApiProperty({ nullable: true, type: Object, example: null })
   @Expose()
   dealTerms!: unknown | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   offerVersion!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   contractAcceptedAt!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   acceptanceRequestedAt!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   autoAcceptAt!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsString()
   acceptedAt!: string | null;
 
+  @ApiProperty()
   @Expose()
   conversationsCount!: number;
 
+  @ApiProperty()
   @Expose()
   isLocked!: boolean;
 
-  @Expose()
-  contract!: RequestContractSummaryDto | null;
-
+  @ApiProperty()
   @Expose()
   @IsString()
   createdAt!: string;
 
+  @ApiProperty()
   @Expose()
   @IsString()
   updatedAt!: string;
@@ -621,38 +659,7 @@ export type RequestDbRow = {
     selectedAt: Date;
     declinedAt: Date | null;
   }>;
-  contractInstances?: Array<{
-    id: string;
-    title: string;
-    status: RequestContractStatus;
-    requestId: string | null;
-    providerId: string;
-    createdAt: Date;
-    updatedAt: Date;
-    commentThreads?: Array<{ id: string }>;
-  }>;
 };
-
-function toContractSummary(
-  contract: NonNullable<RequestDbRow['contractInstances']>[number] | null,
-): RequestContractSummaryDto | null {
-  if (!contract) return null;
-  const inst = plainToInstance(
-    RequestContractSummaryDto,
-    {
-      id: contract.id,
-      title: contract.title,
-      status: contract.status,
-      requestId: contract.requestId,
-      providerId: contract.providerId,
-      openCommentsCount: contract.commentThreads?.length ?? 0,
-      createdAt: contract.createdAt.toISOString(),
-      updatedAt: contract.updatedAt.toISOString(),
-    },
-    { excludeExtraneousValues: true, enableImplicitConversion: false },
-  );
-  return instanceToPlain(inst) as RequestContractSummaryDto;
-}
 
 export function requestRowToCustomerDtoPlain(
   row: RequestDbRow,
@@ -660,12 +667,6 @@ export function requestRowToCustomerDtoPlain(
   const offers = row.providerOffers ?? [];
   const selected = offers.filter((o) => o.status === 'SELECTED');
   const declined = offers.filter((o) => o.status === 'DECLINED');
-  const visibleContracts = (row.contractInstances ?? []).filter((contract) => {
-    if (contract.status === 'DRAFT') return false;
-    if (!row.providerId) return true;
-    return contract.providerId === row.providerId;
-  });
-  const contract = visibleContracts[0] ?? null;
   const lastSelectionAt =
     selected.length === 0
       ? null
@@ -690,7 +691,6 @@ export function requestRowToCustomerDtoPlain(
         providerId: offer.providerId,
         status: offer.status,
       })),
-      contract: toContractSummary(contract),
       requestCityId: row.requestCityId,
       message: row.message,
       location: row.location,
@@ -740,11 +740,6 @@ export function requestRowToProDtoPlain(
 
   const offers = row.providerOffers ?? [];
   const myOffer = offers.find((o) => o.providerId === actorProviderId) ?? null;
-  const contract = locked
-    ? null
-    : ((row.contractInstances ?? []).find(
-        (item) => item.providerId === actorProviderId,
-      ) ?? null);
 
   const subjectType = locked
     ? row.categoryId
@@ -786,7 +781,6 @@ export function requestRowToProDtoPlain(
       acceptedAt: row.acceptedAt ? row.acceptedAt.toISOString() : null,
       conversationsCount,
       isLocked: locked,
-      contract: toContractSummary(contract),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     },

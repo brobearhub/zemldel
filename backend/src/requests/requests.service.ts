@@ -62,24 +62,6 @@ const select = {
       declinedAt: true,
     },
   },
-  contractInstances: {
-    select: {
-      id: true,
-      title: true,
-      status: true,
-      requestId: true,
-      providerId: true,
-      createdAt: true,
-      updatedAt: true,
-      commentThreads: {
-        where: { status: 'OPEN' },
-        select: { id: true },
-        take: 100,
-      },
-    },
-    orderBy: [{ updatedAt: 'desc' }],
-    take: 20,
-  },
 } satisfies Prisma.RequestSelect;
 
 type SubjectType = 'SERVICE' | 'CATEGORY' | 'FREEFORM';
@@ -1438,6 +1420,18 @@ export class RequestsService {
       if (!req.dealTerms) {
         throw new ConflictException('Deal terms are required');
       }
+      const approvedFiles = await tx.requestContractFile.count({
+        where: {
+          requestId: req.id,
+          providerId: req.providerId,
+          status: 'APPROVED',
+        },
+      });
+      if (approvedFiles === 0) {
+        throw new ConflictException(
+          'At least one approved contract file is required',
+        );
+      }
 
       const now = new Date();
       const next = await tx.request.update({
@@ -1475,10 +1469,8 @@ export class RequestsService {
       });
       if (!current) throw new NotFoundException('Request not found');
 
-      if (current.status !== 'PAYMENT_PROCESSING') {
-        throw new ForbiddenException(
-          'Escrow must be reserved before starting work',
-        );
+      if (current.status !== 'CONTRACT_ACCEPTED') {
+        throw new ForbiddenException('Contract must be accepted before work');
       }
 
       const now = new Date();
@@ -1588,10 +1580,8 @@ export class RequestsService {
         select,
       });
       if (!current) throw new NotFoundException('Request not found');
-      if (current.status !== 'PAID') {
-        throw new ForbiddenException(
-          'Request must be paid out before completion',
-        );
+      if (current.status !== 'ACCEPTED') {
+        throw new ForbiddenException('Request must be accepted before completion');
       }
 
       const now = new Date();

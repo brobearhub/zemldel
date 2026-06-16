@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  BadGatewayException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -7,9 +8,13 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import type { Prisma } from '@prisma/client';
+import { DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { InternalAuthService } from '../auth/internal-auth.service';
+import { S3Service } from '../storage/s3.service';
 import {
   type ServiceStatus,
   type ServiceCreateDto,
@@ -69,12 +74,54 @@ type ServiceScope = {
   canArchive?: boolean;
 };
 
+const ALLOWED_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+function sha256Buffer(buf: Buffer) {
+  return createHash('sha256').update(buf).digest('hex');
+}
+
+function sniffImageExt(buf: Buffer, mimeType: string) {
+  if (!ALLOWED_IMAGE_MIMES.has(mimeType)) return null;
+  if (mimeType === 'image/png') {
+    if (buf.length >= 8 && buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+      return '.png';
+    }
+    return null;
+  }
+  if (mimeType === 'image/jpeg') {
+    if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+      return '.jpg';
+    }
+    return null;
+  }
+  if (mimeType === 'image/webp') {
+    if (buf.length >= 12 && buf.subarray(0, 4).toString('ascii') === 'RIFF' && buf.subarray(8, 12).toString('ascii') === 'WEBP') {
+      return '.webp';
+    }
+    return null;
+  }
+  return null;
+}
+
+function tryExtractKeyFromPublicUrl(input: { url: string; baseUrl: string }) {
+  try {
+    const u = new URL(input.url);
+    const b = new URL(input.baseUrl);
+    if (u.origin !== b.origin) return null;
+    const key = u.pathname.replace(/^\//, '');
+    return key.length > 0 ? key : null;
+  } catch {
+    return null;
+  }
+}
+
 @Injectable()
 export class ServicesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
     private readonly internalAuthService: InternalAuthService,
+    private readonly s3: S3Service,
   ) {}
 
   private async resolveScopedServiceId(id: string, providerId?: string | null) {
@@ -201,6 +248,117 @@ export class ServicesService {
     });
 
     return serviceDbRowToDtoPlain(row as ServiceDbRow);
+  }
+
+  async uploadServiceImage(input: {
+    actorUserId: string;
+    providerId: string;
+    serviceId: string;
+    file: Express.Multer.File;
+  }) {
+    const serviceId = await this.resolveScopedServiceId(
+      input.serviceId,
+      input.providerId,
+    );
+
+    const bucket = this.s3.requirePublicBucket();
+    const cdnBase = this.s3.requirePublicCdnBaseUrl();
+    const buf = input.file.buffer as Buffer | undefined;
+    if (!buf || buf.length === 0) {
+      throw new BadRequestException('file is required');
+    }
+
+    const ext = sniffImageExt(buf, input.file.mimetype);
+    if (!ext) {
+      throw new BadRequestException('Unsupported image type');
+    }
+
+    const hash = sha256Buffer(buf);
+    const key = `${this.s3.publicPrefix}services/${serviceId}/${hash}${ext}`;
+    const url = `${cdnBase.replace(/\/+$/, '')}/${key}`;
+
+    // Read old image for cleanup (best-effort).
+    const prev = await this.prisma.service.findUnique({
+      where: { id: serviceId },
+      select: { image: true },
+    });
+
+    try {
+      await this.s3.client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: key,
+          Body: buf,
+          ACL: 'public-read',
+          ContentType: input.file.mimetype,
+          CacheControl: 'public, max-age=31536000, immutable',
+        }),
+      );
+    } catch {
+      throw new BadGatewayException('File storage unavailable');
+    }
+
+    const updated = await this.prisma.service.update({
+      where: { id: serviceId },
+      data: { image: url, updatedByUserId: input.actorUserId },
+      select: serviceSelect,
+    });
+
+    const prevKey =
+      prev?.image && this.s3.publicCdnBaseUrl
+        ? tryExtractKeyFromPublicUrl({
+            url: prev.image,
+            baseUrl: this.s3.publicCdnBaseUrl,
+          })
+        : null;
+
+    // Best-effort cleanup of previous image if it was ours.
+    if (prevKey && prevKey.startsWith(`${this.s3.publicPrefix}services/${serviceId}/`)) {
+      await this.s3.client
+        .send(new DeleteObjectCommand({ Bucket: bucket, Key: prevKey }))
+        .catch(() => null);
+    }
+
+    return serviceDbRowToDtoPlain(updated as ServiceDbRow);
+  }
+
+  async deleteServiceImage(input: {
+    actorUserId: string;
+    providerId: string;
+    serviceId: string;
+  }) {
+    const serviceId = await this.resolveScopedServiceId(
+      input.serviceId,
+      input.providerId,
+    );
+
+    const bucket = this.s3.requirePublicBucket();
+    const prev = await this.prisma.service.findUnique({
+      where: { id: serviceId },
+      select: { image: true },
+    });
+
+    const updated = await this.prisma.service.update({
+      where: { id: serviceId },
+      data: { image: null, updatedByUserId: input.actorUserId },
+      select: serviceSelect,
+    });
+
+    const prevKey =
+      prev?.image && this.s3.publicCdnBaseUrl
+        ? tryExtractKeyFromPublicUrl({
+            url: prev.image,
+            baseUrl: this.s3.publicCdnBaseUrl,
+          })
+        : null;
+
+    if (prevKey && prevKey.startsWith(`${this.s3.publicPrefix}services/${serviceId}/`)) {
+      await this.s3.client
+        .send(new DeleteObjectCommand({ Bucket: bucket, Key: prevKey }))
+        .catch(() => null);
+    }
+
+    return serviceDbRowToDtoPlain(updated as ServiceDbRow);
   }
 
   async deleteService(id: string, scope?: Pick<ServiceScope, 'providerId'>) {

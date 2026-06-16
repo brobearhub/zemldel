@@ -40,13 +40,10 @@ enum RequestStatus {
   PROVIDER_SELECTED
   CONTRACT_ACCEPTED
   LOCKED
-  PAYMENT_PENDING
-  PAYMENT_PROCESSING
   ACTIVE
   SERVICE_RENDERED
   ACCEPTANCE_PENDING
   ACCEPTED
-  PAID
   COMPLETED
   CANCELLED
   CLOSED
@@ -66,43 +63,14 @@ enum ConversationStatus {
   ARCHIVED
 }
 
-enum PaymentType {
-  PAYMENT
-  PAYOUT
-}
-
-enum PaymentStatus {
-  PENDING
-  SUCCEEDED
-  FAILED
-  CANCELLED
-}
-
 enum AuthProviderKey {
   GOSUSLUGI
 }
 
-enum ContractStatus {
-  DRAFT
-  SENT
-  SIGNED
-  CANCELLED
-}
-
-enum ContractSignerRole {
-  CUSTOMER
-  PROVIDER
-}
-
-enum ContractBlockStatus {
-  DRAFT
-  PUBLISHED
-  ARCHIVED
-}
-
-enum ContractCommentStatus {
-  OPEN
-  RESOLVED
+enum RequestContractFileStatus {
+  PENDING_CUSTOMER
+  APPROVED
+  REVISION_REQUESTED
 }
 
 model City {
@@ -143,12 +111,8 @@ model User {
   stepUpVerifications       UserStepUpVerification[]
   passportDocument          PassportDocument?
   passportAccessAudits      PassportAccessAudit[]    @relation("PassportAccessAuditPassportUser")
-  customerContractInstances ContractInstance[]       @relation("ContractInstanceCustomer")
-  contractSignatures        ContractSignature[]      @relation("ContractSignatureSigner")
-  contractFeedbacks         ContractFeedback[]       @relation("ContractFeedbackAuthor")
-  contractCommentThreads    ContractCommentThread[]  @relation("ContractCommentThreadAuthor")
-  contractComments          ContractComment[]        @relation("ContractCommentAuthor")
-  resolvedContractComments  ContractCommentThread[]  @relation("ContractCommentThreadResolvedBy")
+  uploadedRequestContractFiles RequestContractFile[] @relation("RequestContractFileUploadedBy")
+  decidedRequestContractFiles  RequestContractFile[] @relation("RequestContractFileDecidedBy")
   providerMemberships       ProviderMember[]
   providerUserSettings      ProviderUserSettings[]
   customerLegalProfile      CustomerLegalProfile?
@@ -217,8 +181,7 @@ model Provider {
   members           ProviderMember[]
   userSettings      ProviderUserSettings[]
   legalProfile      ProviderLegalProfile?
-  contractTemplates ContractTemplate[]
-  contractInstances ContractInstance[]
+  requestContractFiles RequestContractFile[]
   services          Service[]
   conversations     Conversation[]
   requests          Request[]
@@ -363,8 +326,7 @@ model Request {
   conversations     Conversation[]
   providerOffers    RequestProviderOffer[]
   events            RequestEvent[]
-  payments          Payment[]
-  contractInstances ContractInstance[]
+  contractFiles     RequestContractFile[]
   reminders         RequestReminder[]
 
   createdAt DateTime @default(now())
@@ -497,28 +459,6 @@ model ConversationReadState {
   @@index([userId])
 }
 
-model Payment {
-  id                    String        @id @default(uuid()) @db.Uuid
-  requestId             String        @db.Uuid
-  type                  PaymentType
-  status                PaymentStatus @default(PENDING)
-  providerKey           String
-  amountMinor           Int
-  currency              String        @default("RUB")
-  externalId            String?
-  payload               Json?
-  initiatedByUserId     String?       @db.Uuid
-  initiatedByProviderId String?       @db.Uuid
-  confirmedAt           DateTime?
-  failedAt              DateTime?
-  request               Request       @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
-
-  @@index([requestId, type, status])
-  @@index([providerKey, externalId])
-}
-
 model UserAuthProviderLink {
   id              String          @id @default(uuid()) @db.Uuid
   userId          String          @db.Uuid
@@ -581,167 +521,33 @@ model PassportAccessAudit {
   @@index([requestId, createdAt])
 }
 
-model ContractTemplate {
-  id               String   @id @default(uuid()) @db.Uuid
-  providerId       String   @db.Uuid
-  title            String
-  content          Json
-  editorFormat     String   @default("markdown")
-  editorVersion    Int      @default(1)
-  variables        Json?
-  version          Int      @default(1)
-  parentTemplateId String?  @db.Uuid
-  createdByUserId  String?  @db.Uuid
-  updatedByUserId  String?  @db.Uuid
-  lastRevisionAt   DateTime @default(now())
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+model RequestContractFile {
+  id             String                   @id @default(uuid()) @db.Uuid
+  requestId      String                   @db.Uuid
+  providerId     String                   @db.Uuid
+  uploadedByUserId String?                @db.Uuid
+  decidedByUserId  String?                @db.Uuid
+  decidedAt      DateTime?
+  status         RequestContractFileStatus @default(PENDING_CUSTOMER)
+  revisionMessage String?
 
-  provider          Provider           @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  parentTemplate    ContractTemplate?  @relation("ContractTemplateParent", fields: [parentTemplateId], references: [id], onDelete: SetNull)
-  childrenTemplates ContractTemplate[] @relation("ContractTemplateParent")
-  instances         ContractInstance[]
+  originalName   String
+  mimeType       String
+  sizeBytes      Int
+  sha256         String
+  storageRelPath String
 
+  request        Request                  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  provider       Provider                 @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  uploadedByUser User?                    @relation("RequestContractFileUploadedBy", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+  decidedByUser  User?                    @relation("RequestContractFileDecidedBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([requestId, updatedAt])
   @@index([providerId, updatedAt])
-  @@index([parentTemplateId])
-}
-
-model ContractInstance {
-  id               String         @id @default(uuid()) @db.Uuid
-  providerId       String         @db.Uuid
-  requestId        String?        @db.Uuid
-  customerUserId   String?        @db.Uuid
-  templateId       String?        @db.Uuid
-  title            String
-  content          Json
-  editorFormat     String         @default("markdown")
-  editorVersion    Int            @default(1)
-  variableSnapshot Json?
-  revision         Int            @default(1)
-  status           ContractStatus @default(DRAFT)
-  pdfHash          String?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-
-  provider       Provider                @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  request        Request?                @relation(fields: [requestId], references: [id], onDelete: SetNull)
-  customerUser   User?                   @relation("ContractInstanceCustomer", fields: [customerUserId], references: [id], onDelete: SetNull)
-  template       ContractTemplate?       @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  signatures     ContractSignature[]
-  feedback       ContractFeedback[]
-  commentThreads ContractCommentThread[]
-
-  @@index([providerId, updatedAt])
-  @@index([requestId])
-  @@index([customerUserId, updatedAt])
   @@index([status, updatedAt])
-}
-
-model ContractBlock {
-  id              String              @id @default(uuid()) @db.Uuid
-  title           String
-  description     String?
-  category        String?
-  status          ContractBlockStatus @default(DRAFT)
-  content         Json
-  version         Int                 @default(1)
-  createdByUserId String?             @db.Uuid
-  updatedByUserId String?             @db.Uuid
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-
-  versions ContractBlockVersion[]
-
-  @@index([status, updatedAt])
-  @@index([category])
-}
-
-model ContractBlockVersion {
-  id              String   @id @default(uuid()) @db.Uuid
-  blockId         String   @db.Uuid
-  version         Int
-  title           String
-  description     String?
-  category        String?
-  content         Json
-  createdByUserId String?  @db.Uuid
-  createdAt       DateTime @default(now())
-
-  block ContractBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
-
-  @@unique([blockId, version])
-  @@index([blockId, createdAt])
-}
-
-model ContractFeedback {
-  id           String             @id @default(uuid()) @db.Uuid
-  contractId   String             @db.Uuid
-  authorRole   ContractSignerRole
-  authorUserId String?            @db.Uuid
-  body         String
-  createdAt    DateTime           @default(now())
-
-  contract   ContractInstance @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  authorUser User?            @relation("ContractFeedbackAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
-
-  @@index([contractId, createdAt])
-  @@index([authorUserId, createdAt])
-}
-
-model ContractCommentThread {
-  id               String                @id @default(uuid()) @db.Uuid
-  contractId       String                @db.Uuid
-  anchor           Json
-  quote            String?
-  status           ContractCommentStatus @default(OPEN)
-  createdByRole    ContractSignerRole
-  createdByUserId  String?               @db.Uuid
-  resolvedByUserId String?               @db.Uuid
-  resolvedAt       DateTime?
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
-
-  contract       ContractInstance  @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  createdByUser  User?             @relation("ContractCommentThreadAuthor", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  resolvedByUser User?             @relation("ContractCommentThreadResolvedBy", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
-  comments       ContractComment[]
-
-  @@index([contractId, status, createdAt])
-  @@index([createdByUserId, createdAt])
-}
-
-model ContractComment {
-  id           String             @id @default(uuid()) @db.Uuid
-  threadId     String             @db.Uuid
-  authorRole   ContractSignerRole
-  authorUserId String?            @db.Uuid
-  body         String
-  createdAt    DateTime           @default(now())
-
-  thread     ContractCommentThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  authorUser User?                 @relation("ContractCommentAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
-
-  @@index([threadId, createdAt])
-  @@index([authorUserId, createdAt])
-}
-
-model ContractSignature {
-  id           String             @id @default(uuid()) @db.Uuid
-  contractId   String             @db.Uuid
-  signerRole   ContractSignerRole
-  signerUserId String?            @db.Uuid
-  method       String
-  docHash      String
-  ip           String?
-  userAgent    String?
-  signedAt     DateTime           @default(now())
-
-  contract   ContractInstance @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  signerUser User?            @relation("ContractSignatureSigner", fields: [signerUserId], references: [id], onDelete: SetNull)
-
-  @@unique([contractId, signerRole])
-  @@index([contractId, signedAt])
-  @@index([signerUserId, signedAt])
 }
 
 model RequestReminder {

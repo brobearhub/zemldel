@@ -160,11 +160,12 @@ export class ChatService {
 
   private isLockedStatus(status: string) {
     return (
+      status === 'PROVIDER_SELECTED' ||
+      status === 'CONTRACT_ACCEPTED' ||
       status === 'ACTIVE' ||
       status === 'SERVICE_RENDERED' ||
-      status === 'PAYMENT_PENDING' ||
-      status === 'PAYMENT_PROCESSING' ||
-      status === 'PAID' ||
+      status === 'ACCEPTANCE_PENDING' ||
+      status === 'ACCEPTED' ||
       status === 'COMPLETED' ||
       status === 'CANCELLED'
     );

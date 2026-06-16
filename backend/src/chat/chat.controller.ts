@@ -8,17 +8,39 @@ import {
   Req,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import {
+  ApiBody as ApiBodyDoc,
+  ApiOkResponse,
+  ApiParam,
+  ApiQuery,
+  ApiTags,
+  ApiUnprocessableEntityResponse,
+} from '@nestjs/swagger';
 import type { Request } from 'express';
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
 import { ChatService } from './chat.service';
 import { ChatEnsureBodyDto, ChatPostMessageBodyDto } from './dto/chat-http.dto';
+import {
+  ChatConversationAccessDto,
+  ChatEnsureResponseDto,
+  ChatMarkReadResponseDto,
+  ChatMessageDto,
+  ChatPostMessageResponseDto,
+  ServiceRequestConversationListItemDto,
+} from './dto/chat-responses.dto';
+import { ApiValidationErrorResponseDto } from '../common/dto/api-error-response.dto';
+import { ApiStandardErrors } from '../common/swagger/api-standard-errors.decorator';
 
+@ApiTags('chat')
+@ApiStandardErrors()
 @Controller()
 export class ChatController {
   constructor(private readonly chat: ChatService) {}
 
   @Get('chat/requests/:id/conversations')
+  @ApiParam({ name: 'id', type: String })
+  @ApiOkResponse({ type: [ServiceRequestConversationListItemDto] })
   async listRequestConversations(
     @Req() request: Request,
     @Param('id') requestId: string,
@@ -31,6 +53,12 @@ export class ChatController {
   }
 
   @Post('chat/ensure')
+  @ApiBodyDoc({ type: ChatEnsureBodyDto })
+  @ApiOkResponse({ type: ChatEnsureResponseDto })
+  @ApiUnprocessableEntityResponse({
+    type: ApiValidationErrorResponseDto,
+    description: 'Validation failed',
+  })
   async ensure(@Req() request: Request, @Body() body: unknown) {
     const dto = plainToInstance(ChatEnsureBodyDto, body);
     const issues = validateSync(dto, {
@@ -65,6 +93,11 @@ export class ChatController {
   }
 
   @Get('chat/conversations/:conversationId/messages')
+  @ApiParam({ name: 'conversationId', type: String })
+  @ApiQuery({ name: 'before', required: false, type: String })
+  @ApiQuery({ name: 'after', required: false, type: String })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiOkResponse({ type: [ChatMessageDto] })
   async listMessages(
     @Req() request: Request,
     @Param('conversationId') conversationId: string,
@@ -82,6 +115,8 @@ export class ChatController {
   }
 
   @Get('chat/conversations/:conversationId/access')
+  @ApiParam({ name: 'conversationId', type: String })
+  @ApiOkResponse({ type: ChatConversationAccessDto })
   async getConversationAccess(
     @Req() request: Request,
     @Param('conversationId') conversationId: string,
@@ -91,6 +126,13 @@ export class ChatController {
   }
 
   @Post('chat/conversations/:conversationId/messages')
+  @ApiParam({ name: 'conversationId', type: String })
+  @ApiBodyDoc({ type: ChatPostMessageBodyDto })
+  @ApiOkResponse({ type: ChatPostMessageResponseDto })
+  @ApiUnprocessableEntityResponse({
+    type: ApiValidationErrorResponseDto,
+    description: 'Validation failed',
+  })
   async postMessage(
     @Req() request: Request,
     @Param('conversationId') conversationId: string,
@@ -121,6 +163,8 @@ export class ChatController {
   }
 
   @Post('chat/conversations/:conversationId/read')
+  @ApiParam({ name: 'conversationId', type: String })
+  @ApiOkResponse({ type: ChatMarkReadResponseDto })
   async markRead(
     @Req() request: Request,
     @Param('conversationId') conversationId: string,

@@ -1,13 +1,30 @@
-export type PassportDto = {
-  series: string;
-  number: string;
-  issuedBy: string | null;
-  issuedAt: string | null; // ISO date (YYYY-MM-DD)
-  departmentCode: string | null;
-  registrationAddress: string | null;
-  fullName: string | null;
-  birthDate: string | null; // ISO date (YYYY-MM-DD)
-};
+import { ApiProperty } from '@nestjs/swagger';
+
+export class PassportDto {
+  @ApiProperty({ example: '1234', pattern: '^\\d{4}$' })
+  series!: string;
+
+  @ApiProperty({ example: '567890', pattern: '^\\d{6}$' })
+  number!: string;
+
+  @ApiProperty({ nullable: true, example: null })
+  issuedBy!: string | null;
+
+  @ApiProperty({ nullable: true, format: 'date', example: null })
+  issuedAt!: string | null; // ISO date (YYYY-MM-DD)
+
+  @ApiProperty({ nullable: true, example: null })
+  departmentCode!: string | null;
+
+  @ApiProperty({ nullable: true, example: null })
+  registrationAddress!: string | null;
+
+  @ApiProperty({ nullable: true, example: null })
+  fullName!: string | null;
+
+  @ApiProperty({ nullable: true, format: 'date', example: null })
+  birthDate!: string | null; // ISO date (YYYY-MM-DD)
+}
 
 export type ValidationIssue = { path: string[]; message: string };
 

@@ -8,6 +8,7 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   Expose,
   Transform,
@@ -66,23 +67,28 @@ function trimOrSame(value: unknown): unknown {
 }
 
 export class ServiceCategoryDto {
+  @ApiProperty()
   @Expose()
   @IsString()
   id!: string;
 
+  @ApiProperty()
   @Expose()
   @IsString()
   name!: string;
 
+  @ApiProperty()
   @Expose()
   @IsString()
   slug!: string;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   parentId!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsInt()
@@ -90,106 +96,129 @@ export class ServiceCategoryDto {
 }
 
 export class CityRefDto {
+  @ApiProperty()
   @Expose()
   @IsString()
   id!: string;
 
+  @ApiProperty()
   @Expose()
   @IsString()
   name!: string;
 
+  @ApiProperty()
   @Expose()
   @IsString()
   regionCode!: string;
 
+  @ApiProperty()
   @Expose()
   @IsString()
   regionName!: string;
 }
 
 export class ServiceProviderRefDto {
+  @ApiProperty()
   @Expose()
   @IsString()
   id!: string;
 
+  @ApiProperty()
   @Expose()
   @IsString()
   name!: string;
 
+  @ApiProperty({ type: CityRefDto, nullable: true })
   @Expose()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   city!: CityRefDto | null;
 }
 
 export class ServiceDto {
+  @ApiProperty()
   @Expose()
   @IsString()
   id!: string;
 
+  @ApiProperty()
   @Expose()
   @IsString()
   categoryId!: string;
 
+  @ApiProperty({ type: ServiceCategoryDto })
   @Expose()
   category!: ServiceCategoryDto;
 
+  @ApiProperty({ enum: ['DRAFT', 'PUBLISHED', 'ARCHIVED'] })
   @Expose()
   @Transform(({ value }) => normalizeStatus(value), { toClassOnly: true })
   @IsEnum(['DRAFT', 'PUBLISHED', 'ARCHIVED'])
   status!: ServiceStatus;
 
+  @ApiProperty()
   @Expose()
   @IsString()
   title!: string;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   image!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   stockBadge!: string | null;
 
+  @ApiProperty()
   @Expose()
   @IsString()
   price!: string;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsNumber()
   rating!: number | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsInt()
   reviewCount!: number | null;
 
+  @ApiProperty()
   @Expose()
   @IsString()
   ctaText!: string;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   ctaHref!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   description!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   highlight!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   badge!: string | null;
 
+  @ApiProperty({ enum: PALETTE_COLORS, nullable: true, example: null })
   @Expose()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsEnum(PALETTE_COLORS)
@@ -198,6 +227,7 @@ export class ServiceDto {
   })
   paletteColor!: ServicePaletteColor | null;
 
+  @ApiProperty({ enum: ICON_KEYS, nullable: true, example: null })
   @Expose()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsEnum(ICON_KEYS)
@@ -206,6 +236,7 @@ export class ServiceDto {
   })
   icon!: ServiceIconKey | null;
 
+  @ApiProperty({ type: ServiceProviderRefDto })
   @Expose()
   provider!: ServiceProviderRefDto;
 }
@@ -255,6 +286,7 @@ export function serviceDbRowToDtoPlain(row: ServiceDbRow): ServiceDto {
 }
 
 export class ServiceCreateDto {
+  @ApiPropertyOptional({ minLength: 1 })
   @Expose()
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
@@ -264,6 +296,7 @@ export class ServiceCreateDto {
   @MinLength(1)
   categoryId?: string;
 
+  @ApiPropertyOptional({ enum: ['DRAFT', 'PUBLISHED'] })
   @Expose()
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
@@ -272,6 +305,7 @@ export class ServiceCreateDto {
   @IsEnum(['DRAFT', 'PUBLISHED'])
   status?: Extract<ServiceStatus, 'DRAFT' | 'PUBLISHED'>;
 
+  @ApiPropertyOptional({ minLength: 1 })
   @Expose()
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
@@ -282,6 +316,7 @@ export class ServiceCreateDto {
   @MinLength(1)
   title?: string;
 
+  @ApiPropertyOptional({ minLength: 1 })
   @Expose()
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
@@ -292,6 +327,7 @@ export class ServiceCreateDto {
   @MinLength(1)
   price?: string;
 
+  @ApiPropertyOptional({ minLength: 1 })
   @Expose()
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
@@ -302,60 +338,70 @@ export class ServiceCreateDto {
   @MinLength(1)
   ctaText?: string;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   ctaHref?: string | null;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   image?: string | null;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   stockBadge?: string | null;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsNumber()
   rating?: number | null;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsInt()
   reviewCount?: number | null;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   description?: string | null;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   highlight?: string | null;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   badge?: string | null;
 
+  @ApiPropertyOptional({ enum: PALETTE_COLORS, nullable: true, example: null })
   @Expose()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsEnum(PALETTE_COLORS)
   paletteColor?: ServicePaletteColor | null;
 
+  @ApiPropertyOptional({ enum: ICON_KEYS, nullable: true, example: null })
   @Expose()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
   @ValidateIf((_, value) => value !== null && value !== undefined)
@@ -364,6 +410,7 @@ export class ServiceCreateDto {
 }
 
 export class ServicePatchDto {
+  @ApiPropertyOptional({ minLength: 1 })
   @Expose()
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
@@ -373,6 +420,7 @@ export class ServicePatchDto {
   @MinLength(1)
   categoryId?: string;
 
+  @ApiPropertyOptional({ enum: ['DRAFT', 'PUBLISHED', 'ARCHIVED'] })
   @Expose()
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
@@ -381,6 +429,7 @@ export class ServicePatchDto {
   @IsEnum(['DRAFT', 'PUBLISHED', 'ARCHIVED'])
   status?: ServiceStatus;
 
+  @ApiPropertyOptional({ minLength: 1 })
   @Expose()
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
@@ -390,6 +439,7 @@ export class ServicePatchDto {
   @MinLength(1)
   title?: string;
 
+  @ApiPropertyOptional({ minLength: 1 })
   @Expose()
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
@@ -399,6 +449,7 @@ export class ServicePatchDto {
   @MinLength(1)
   price?: string;
 
+  @ApiPropertyOptional({ minLength: 1 })
   @Expose()
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
@@ -408,6 +459,7 @@ export class ServicePatchDto {
   @MinLength(1)
   ctaText?: string;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
@@ -415,6 +467,7 @@ export class ServicePatchDto {
   @IsString()
   ctaHref?: string | null;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
@@ -422,6 +475,7 @@ export class ServicePatchDto {
   @IsString()
   image?: string | null;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
@@ -429,18 +483,21 @@ export class ServicePatchDto {
   @IsString()
   stockBadge?: string | null;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsNumber()
   rating?: number | null;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsInt()
   reviewCount?: number | null;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
@@ -448,6 +505,7 @@ export class ServicePatchDto {
   @IsString()
   description?: string | null;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
@@ -455,6 +513,7 @@ export class ServicePatchDto {
   @IsString()
   highlight?: string | null;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
@@ -462,6 +521,7 @@ export class ServicePatchDto {
   @IsString()
   badge?: string | null;
 
+  @ApiPropertyOptional({ enum: PALETTE_COLORS, nullable: true, example: null })
   @Expose()
   @IsOptional()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
@@ -469,6 +529,7 @@ export class ServicePatchDto {
   @IsEnum(PALETTE_COLORS)
   paletteColor?: ServicePaletteColor | null;
 
+  @ApiPropertyOptional({ enum: ICON_KEYS, nullable: true, example: null })
   @Expose()
   @IsOptional()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })

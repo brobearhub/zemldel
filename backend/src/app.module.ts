@@ -11,10 +11,9 @@ import { ServiceCategoriesModule } from './service-categories/service-categories
 import { RequestsModule } from './requests/requests.module';
 import { CitiesModule } from './cities/cities.module';
 import { PublicOfferModule } from './public-offer/public-offer.module';
-import { PaymentsModule } from './payments/payments.module';
 import { DocumentsModule } from './documents/documents.module';
-import { ContractsModule } from './contracts/contracts.module';
 import { RemindersModule } from './reminders/reminders.module';
+import { ContractFilesModule } from './contract-files/contract-files.module';
 
 @Module({
   imports: [
@@ -28,9 +27,8 @@ import { RemindersModule } from './reminders/reminders.module';
     ChatModule,
     CitiesModule,
     PublicOfferModule,
-    PaymentsModule,
     DocumentsModule,
-    ContractsModule,
+    ContractFilesModule,
     RemindersModule,
   ],
   controllers: [AppController],

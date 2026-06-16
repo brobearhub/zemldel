@@ -8,11 +8,22 @@ import {
   Req,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import {
+  ApiBody,
+  ApiOkResponse,
+  ApiTags,
+  ApiUnprocessableEntityResponse,
+} from '@nestjs/swagger';
 import type { Request } from 'express';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import { DocumentsService } from './documents.service';
-import { parsePassportDto } from './dto/passport.dto';
+import { parsePassportDto, PassportDto } from './dto/passport.dto';
+import { OkResponseDto } from '../common/dto/ok-response.dto';
+import { ApiValidationErrorResponseDto } from '../common/dto/api-error-response.dto';
+import { ApiStandardErrors } from '../common/swagger/api-standard-errors.decorator';
 
+@ApiTags('documents')
+@ApiStandardErrors()
 @Controller()
 export class DocumentsController {
   constructor(
@@ -34,12 +45,19 @@ export class DocumentsController {
   }
 
   @Get('documents/passport/mine')
+  @ApiOkResponse({ type: PassportDto })
   async getMyPassport(@Req() request: Request) {
     const actorUserId = this.getRequiredActorUserId(request);
     return this.documents.getMyPassport(actorUserId);
   }
 
   @Put('documents/passport/mine')
+  @ApiBody({ type: PassportDto })
+  @ApiOkResponse({ type: PassportDto })
+  @ApiUnprocessableEntityResponse({
+    type: ApiValidationErrorResponseDto,
+    description: 'Validation failed',
+  })
   async upsertMyPassport(@Req() request: Request, @Body() body: unknown) {
     const actorUserId = this.getRequiredActorUserId(request);
     const { data, issues } = parsePassportDto(body);
@@ -58,6 +76,7 @@ export class DocumentsController {
   }
 
   @Delete('documents/passport/mine')
+  @ApiOkResponse({ type: OkResponseDto })
   async deleteMyPassport(@Req() request: Request) {
     const actorUserId = this.getRequiredActorUserId(request);
     return this.documents.deleteMyPassport({
@@ -68,6 +87,7 @@ export class DocumentsController {
   }
 
   @Get('pro/requests/:id/passport')
+  @ApiOkResponse({ type: PassportDto })
   async getPassportForProvider(
     @Req() request: Request,
     @Param('id') requestId: string,

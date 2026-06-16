@@ -1,4 +1,5 @@
 import { Expose, Transform } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
   IsEnum,
@@ -23,28 +24,34 @@ function trimOrSame(value: unknown): unknown {
 }
 
 export class ServiceCategoryDto {
+  @ApiProperty()
   @Expose()
   @IsString()
   id!: string;
 
+  @ApiProperty()
   @Expose()
   @IsString()
   name!: string;
 
+  @ApiProperty()
   @Expose()
   @IsString()
   slug!: string;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   parentId!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
   @Expose()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsInt()
   sortOrder!: number | null;
 
+  @ApiProperty({ enum: ['HOME'], isArray: true })
   @Expose()
   @IsArray()
   @IsEnum(['HOME'], { each: true })
@@ -52,6 +59,7 @@ export class ServiceCategoryDto {
 }
 
 export class ServiceCategoryCreateDto {
+  @ApiProperty({ minLength: 1 })
   @Expose()
   @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
     toClassOnly: true,
@@ -60,6 +68,7 @@ export class ServiceCategoryCreateDto {
   @MinLength(1)
   name!: string;
 
+  @ApiProperty({ minLength: 1 })
   @Expose()
   @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
     toClassOnly: true,
@@ -68,6 +77,7 @@ export class ServiceCategoryCreateDto {
   @MinLength(1)
   slug!: string;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
@@ -75,6 +85,7 @@ export class ServiceCategoryCreateDto {
   @IsString()
   parentId?: string | null;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @Transform(
@@ -87,6 +98,7 @@ export class ServiceCategoryCreateDto {
   @IsInt()
   sortOrder?: number | null;
 
+  @ApiPropertyOptional({ enum: ['HOME'], isArray: true })
   @Expose()
   @IsOptional()
   @IsArray()
@@ -95,6 +107,7 @@ export class ServiceCategoryCreateDto {
 }
 
 export class ServiceCategoryPatchDto {
+  @ApiPropertyOptional({ minLength: 1 })
   @Expose()
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
@@ -104,6 +117,7 @@ export class ServiceCategoryPatchDto {
   @MinLength(1)
   name?: string;
 
+  @ApiPropertyOptional({ minLength: 1 })
   @Expose()
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
@@ -113,6 +127,7 @@ export class ServiceCategoryPatchDto {
   @MinLength(1)
   slug?: string;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
@@ -120,6 +135,7 @@ export class ServiceCategoryPatchDto {
   @IsString()
   parentId?: string | null;
 
+  @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @Transform(
@@ -132,6 +148,7 @@ export class ServiceCategoryPatchDto {
   @IsInt()
   sortOrder?: number | null;
 
+  @ApiPropertyOptional({ enum: ['HOME'], isArray: true })
   @Expose()
   @IsOptional()
   @IsArray()
