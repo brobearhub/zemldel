@@ -3,7 +3,7 @@
 import type { NextRequest } from "next/server";
 import { GET, POST } from "./route";
 
-vi.mock("@/core/auth", () => ({
+vi.mock("@/core/auth/next-auth", () => ({
   __esModule: true,
   getServerAuthSession: vi.fn(),
 }));
@@ -14,7 +14,7 @@ vi.mock("@/shared/api/backend/server", () => ({
 }));
 
 import { fetchBackendAsUser } from "@/shared/api/backend/server";
-import { getServerAuthSession } from "@/core/auth";
+import { getServerAuthSession } from "@/core/auth/next-auth";
 import { mainService } from "@/tests/fixtures/services";
 
 const mockedFetchBackendAsUser = vi.mocked(fetchBackendAsUser);

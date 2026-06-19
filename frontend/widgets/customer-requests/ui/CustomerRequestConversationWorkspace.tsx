@@ -25,31 +25,32 @@ import {
 } from "@mui/material";
 import type { ChatServiceRequestConversationListItemDto } from "@/entities/chat/dto/chat.dto";
 import {
-  buildCustomerRequestFlowSteps,
-  getCustomerRequestFlowActiveStepId,
   getRequestStatusLabel,
   isExclusiveProviderPhaseStatus,
   isOrderExecutionStatus,
   resolveRequestDetailBody,
-  StatusProgressList,
-  StatusProgressStepper,
-  StatusProgressViewToggle,
+  type RequestDocumentRequestDto,
+  type RequestRemarkDto,
   type RequestCustomerDto,
-  useStatusProgressView,
 } from "@/entities/request";
+import {
+  completeCustomerRequestRemark,
+  createCustomerRequestRemark,
+  fetchCustomerRequestRemarks,
+} from "@/entities/request/api/request-remarks";
 import { ChatBodyWithSidePanelLayout } from "@/widgets/chat/ui/ChatBodyWithSidePanelLayout";
 import { ServiceRequestChatPanel } from "@/widgets/chat/ui/ServiceRequestChatPanel";
 import Link from "@/shared/ui/Link";
 import { RequestDetailHeaderCard } from "@/shared/ui/RequestDetailHeaderCard";
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("ru-RU", {
-    day: "2-digit",
-    month: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
+import { createCustomerRequestDetailsBehavior, RequestDetails } from "@/widgets/request-details";
+import {
+  fetchCustomerRequestDocumentRequests,
+  uploadCustomerRequestDocument,
+  deleteCustomerRequestDocumentFile,
+} from "@/entities/request/api/request-document-requests";
+import type { CustomerContractFileListItem } from "@/features/request-contract-files/ui/CustomerRequestContractFilesClient";
+import { canCustomerAcceptContract } from "@/widgets/customer-requests/lib/can-accept-contract";
+import { CustomerRequestDocumentsSection } from "@/widgets/customer-requests/ui/CustomerRequestDocumentsSection";
 
 function pickTitle(req: RequestCustomerDto) {
   if (req.subjectType === "SERVICE") return req.serviceTitle ?? "Заявка по услуге";
@@ -61,15 +62,6 @@ type Props = {
   initialRequest: RequestCustomerDto;
 };
 
-type CustomerRequestContractFileListItem = {
-  id: string;
-  status: "PENDING_CUSTOMER" | "APPROVED" | "REVISION_REQUESTED";
-  originalName: string;
-  mimeType: string;
-  revisionMessage: string | null;
-  updatedAt: string;
-};
-
 export function CustomerRequestConversationWorkspace({ initialRequest }: Props) {
   const router = useRouter();
   const [req, setReq] = useState<RequestCustomerDto>(initialRequest);
@@ -78,15 +70,17 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [contractFiles, setContractFiles] = useState<CustomerRequestContractFileListItem[]>([]);
+  const [contractFiles, setContractFiles] = useState<CustomerContractFileListItem[]>([]);
+  const [docRequests, setDocRequests] = useState<RequestDocumentRequestDto[]>([]);
+  const [docUploadBusy, setDocUploadBusy] = useState(false);
+  const [remarks, setRemarks] = useState<RequestRemarkDto[]>([]);
+  const [remarksError, setRemarksError] = useState<string | null>(null);
   const [offerOpen, setOfferOpen] = useState(false);
   const [offerBusy, setOfferBusy] = useState(false);
   const [offerError, setOfferError] = useState<string | null>(null);
   const [offerVersion, setOfferVersion] = useState<string | null>(null);
   const [offerMarkdown, setOfferMarkdown] = useState<string | null>(null);
   const [offerAccepted, setOfferAccepted] = useState(false);
-  const [remarks, setRemarks] = useState("");
-  const [statusView, setStatusView] = useStatusProgressView();
 
   const selectedConversation = useMemo(
     () => conversations.find((c) => c.conversationId === selectedConversationId) ?? null,
@@ -133,6 +127,32 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     };
   }, [loadConversations]);
 
+  const loadRemarks = useCallback(async () => {
+    const list = await fetchCustomerRequestRemarks(req.id);
+    setRemarks(list);
+  }, [req.id]);
+
+  useEffect(() => {
+    if (!isOrderExecutionStatus(req.status)) {
+      setRemarks([]);
+      setRemarksError(null);
+      return;
+    }
+    let cancelled = false;
+    setRemarksError(null);
+    (async () => {
+      try {
+        const list = await fetchCustomerRequestRemarks(req.id);
+        if (!cancelled) setRemarks(list);
+      } catch (e) {
+        if (!cancelled) setRemarksError(e instanceof Error ? e.message : "Не удалось загрузить замечания");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [req.id, req.status]);
+
   useEffect(() => {
     if (selectedConversationId) return;
     if (conversations.length > 0) {
@@ -151,7 +171,12 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
   const hasApprovedContractFile = contractFiles.some((f) => f.status === "APPROVED");
   const hasRevisionRequested = contractFiles.some((f) => f.status === "REVISION_REQUESTED");
   const hasPending = contractFiles.some((f) => f.status === "PENDING_CUSTOMER");
-  const canAcceptContract = req.status === "PROVIDER_SELECTED" && hasApprovedContractFile;
+  const allRequestedDocumentsUploaded = docRequests.every((d) => d.status === "UPLOADED");
+  const canAcceptContract = canCustomerAcceptContract({
+    requestStatus: req.status,
+    contractFiles,
+    documentRequests: docRequests,
+  });
 
   useEffect(() => {
     if (!isExclusiveStatus) {
@@ -163,7 +188,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     (async () => {
       try {
         const res = await fetch(`/api/requests/${req.id}/contract-files`, { cache: "no-store" });
-        const payload = (await res.json().catch(() => null)) as CustomerRequestContractFileListItem[] | { error?: string } | null;
+        const payload = (await res.json().catch(() => null)) as CustomerContractFileListItem[] | { error?: string } | null;
         if (!res.ok || !Array.isArray(payload)) {
           if (!cancelled) setContractFiles([]);
           return;
@@ -180,13 +205,55 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
   }, [isExclusiveStatus, req.id]);
 
   useEffect(() => {
+    if (!isExclusiveStatus) {
+      setDocRequests([]);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const payload = await fetchCustomerRequestDocumentRequests(req.id);
+        if (!cancelled) setDocRequests(payload);
+      } catch {
+        if (!cancelled) setDocRequests([]);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isExclusiveStatus, req.id]);
+
+  useEffect(() => {
+    if (req.status !== "PROVIDER_SELECTED") return;
+
+    let cancelled = false;
+    const refreshIfWaitingForDocs = async () => {
+      try {
+        const payload = await fetchCustomerRequestDocumentRequests(req.id);
+        if (!cancelled) setDocRequests(payload);
+      } catch {
+        // Keep current state.
+      }
+    };
+
+    void refreshIfWaitingForDocs();
+    const intervalId = window.setInterval(() => void refreshIfWaitingForDocs(), 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [req.id, req.status]);
+
+  useEffect(() => {
     if (req.status !== "PROVIDER_SELECTED" || hasContractFiles) return;
 
     let cancelled = false;
     const refreshIfWaitingForContractFiles = async () => {
       try {
         const res = await fetch(`/api/requests/${req.id}/contract-files`, { cache: "no-store" });
-        const payload = (await res.json().catch(() => null)) as CustomerRequestContractFileListItem[] | { error?: string } | null;
+        const payload = (await res.json().catch(() => null)) as CustomerContractFileListItem[] | { error?: string } | null;
         if (!cancelled && res.ok && Array.isArray(payload)) setContractFiles(payload);
       } catch {
         // Keep the current state; the regular page controls still show the waiting state.
@@ -268,6 +335,39 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     }
   }
 
+  async function uploadRequestedDocument(docRequestId: string, file: File) {
+    setDocUploadBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await uploadCustomerRequestDocument(req.id, docRequestId, file);
+      const next = await fetchCustomerRequestDocumentRequests(req.id);
+      setDocRequests(next);
+      setNotice("Документ загружен.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось загрузить документ");
+    } finally {
+      setDocUploadBusy(false);
+    }
+  }
+
+  async function deleteRequestedDocument(docRequestId: string) {
+    if (!window.confirm("Удалить загруженный документ?")) return;
+    setDocUploadBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await deleteCustomerRequestDocumentFile(req.id, docRequestId);
+      const next = await fetchCustomerRequestDocumentRequests(req.id);
+      setDocRequests(next);
+      setNotice("Документ удалён.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось удалить документ");
+    } finally {
+      setDocUploadBusy(false);
+    }
+  }
+
   async function acceptContract() {
     if (!offerVersion) {
       setOfferError("Версия оферты не загружена");
@@ -335,17 +435,13 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`/api/requests/${req.id}/send-remarks`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ remarks }),
-      });
+      const res = await fetch(`/api/requests/${req.id}/send-remarks`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
       const payload = (await res.json().catch(() => null)) as { error?: string } | unknown | null;
       if (!res.ok) {
         throw new Error(payload && typeof payload === "object" && payload && "error" in (payload as any) ? ((payload as any).error as string) : "Не удалось отправить замечания");
       }
-      setRemarks("");
       await refreshRequest();
+      await loadRemarks().catch(() => null);
       setNotice("Замечания отправлены. Заявка возвращена в работу.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось отправить замечания");
@@ -354,13 +450,37 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     }
   }
 
-  const selectedCount = req.selectedProviderIds?.length ?? 0;
-  const pendingInfo =
-    !isExecutionStatus && req.status !== "PROVIDER_SELECTED" && selectedCount > 0 && req.lastSelectionAt
-      ? selectedCount === 1
-        ? `Вы выбрали компанию для диалога · ${formatDate(req.lastSelectionAt)}`
-        : `Вы выбрали компании для диалога: ${selectedCount} · ${formatDate(req.lastSelectionAt)}`
-      : null;
+  async function remarkAdd(text: string) {
+    const normalized = text.trim();
+    if (normalized.length < 3) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await createCustomerRequestRemark(req.id, normalized);
+      await loadRemarks();
+      setNotice("Замечание добавлено.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось добавить замечание");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remarkComplete(remarkId: string) {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await completeCustomerRequestRemark(req.id, remarkId);
+      await loadRemarks();
+      setNotice("Замечание отмечено как выполненное.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось отметить замечание выполненным");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const requestBody = resolveRequestDetailBody(req.message, req.serviceTitle);
 
@@ -376,104 +496,41 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
 
           {notice ? <Alert severity="success">{notice}</Alert> : null}
           {error ? <Alert severity="error">{error}</Alert> : null}
+          {remarksError ? <Alert severity="warning">{remarksError}</Alert> : null}
 
-          <Paper variant="outlined" sx={{ p: 2.5 }}>
-            <Stack spacing={1}>
-              <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap>
-                <Typography fontWeight={800}>Детали</Typography>
-                <StatusProgressViewToggle value={statusView} onChange={setStatusView} />
-              </Stack>
-              {statusView === "list" ? (
-                <StatusProgressList steps={buildCustomerRequestFlowSteps(req)} activeStepId={getCustomerRequestFlowActiveStepId(req)} />
-              ) : (
-                <StatusProgressStepper steps={buildCustomerRequestFlowSteps(req)} activeStepId={getCustomerRequestFlowActiveStepId(req)} />
-              )}
-              {pendingInfo ? (
-                <Typography variant="body2" color="text.secondary">
-                  {pendingInfo}
-                </Typography>
-              ) : null}
-              {/* Условия обсуждаются в чате. Договорный цикл ведётся отдельно. */}
-              {canAcceptContract ? (
-                <Button
-                  variant="contained"
-                  color="success"
-                  disabled={busy}
-                  onClick={() => openOfferDialog()}
-                  sx={{ alignSelf: "flex-start" }}
-                >
-                  Заключить договор (акцепт оферты)
-                </Button>
-              ) : null}
-              {req.status === "ACCEPTANCE_PENDING" ? (
-                <Stack spacing={1} sx={{ pt: 1 }}>
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                    <Button variant="contained" color="success" disabled={busy} onClick={() => void acceptResult()}>
-                      Принять результат
-                    </Button>
-                    <Button variant="outlined" color="warning" disabled={busy} onClick={() => void sendRemarks()}>
-                      Отправить замечания
-                    </Button>
-                  </Stack>
-                  <TextField
-                    label="Замечания"
-                    value={remarks}
-                    onChange={(e) => setRemarks(e.target.value)}
-                    minRows={3}
-                    multiline
-                    disabled={busy}
-                  />
-                  {req.autoAcceptAt ? (
-                    <Typography variant="body2" color="text.secondary">
-                      Автопринятие: {formatDate(req.autoAcceptAt)}
-                    </Typography>
-                  ) : null}
-                </Stack>
-              ) : null}
-              {req.location ? <Typography color="text.secondary">Локация: {req.location}</Typography> : null}
-            </Stack>
-          </Paper>
+          <RequestDetails
+            busy={busy}
+            behavior={createCustomerRequestDetailsBehavior({
+              request: req,
+              canAcceptContract,
+              remarks,
+              actions: {
+                openOfferDialog,
+                acceptResult,
+                sendRemarks,
+                remarkAdd,
+                remarkComplete,
+              },
+            })}
+          />
 
-          {isExclusiveStatus ? (
-            <Paper variant="outlined" sx={{ p: 2.5 }}>
-              <Stack spacing={1}>
-                <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap>
-                  <Typography fontWeight={800}>Документы</Typography>
-                </Stack>
-
-                {req.status === "PROVIDER_SELECTED" && !hasContractFiles ? (
-                  <Typography variant="body2" color="text.secondary">
-                    Ожидаем договор от компании.
-                  </Typography>
-                ) : null}
-                {hasRevisionRequested ? (
-                  <Alert severity="warning">Вы отправили договор на доработку. Ожидаем обновлённый файл от компании.</Alert>
-                ) : null}
-                {hasPending ? (
-                  <Alert severity="info">
-                    Компания прикрепила договор. Откройте его, проверьте и одобрите или отправьте на доработку.
-                  </Alert>
-                ) : null}
-                {hasApprovedContractFile ? <Alert severity="success">Есть одобренный файл договора. Теперь можно перейти к акцепту оферты.</Alert> : null}
-
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ alignSelf: "flex-start" }}>
-                  <Button
-                    component={Link}
-                    href={`/profile/requests/${req.id}/contracts`}
-                    variant={hasContractFiles ? "contained" : "outlined"}
-                    disabled={busy}
-                  >
-                    Договор
-                  </Button>
-                  {canAcceptContract ? (
-                    <Button variant="contained" color="success" disabled={busy} onClick={() => openOfferDialog()}>
-                      Акцепт оферты
-                    </Button>
-                  ) : null}
-                </Stack>
-              </Stack>
-            </Paper>
-          ) : null}
+          <CustomerRequestDocumentsSection
+            open={isExclusiveStatus}
+            request={req}
+            busy={busy}
+            docUploadBusy={docUploadBusy}
+            contractFiles={contractFiles}
+            docRequests={docRequests}
+            allRequestedDocumentsUploaded={allRequestedDocumentsUploaded}
+            hasRevisionRequested={hasRevisionRequested}
+            hasPending={hasPending}
+            hasContractFiles={hasContractFiles}
+            canAcceptContract={canAcceptContract}
+            onDeleteRequestedDocument={deleteRequestedDocument}
+            onUploadRequestedDocument={uploadRequestedDocument}
+            onOpenOfferDialog={openOfferDialog}
+            onContractFilesChange={setContractFiles}
+          />
 
           <Paper variant="outlined" sx={{ overflow: "hidden" }}>
             <Box sx={{ px: 2, py: 1.5 }}>
@@ -521,7 +578,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                               }}
                               sx={{ whiteSpace: "nowrap" }}
                             >
-                              {isDeclined ? "Запросить снова" : "Запросить договор"}
+                              {isDeclined ? "Запросить снова" : "Заключить договор"}
                             </Button>
                           </Stack>
                         )
@@ -575,8 +632,8 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                 control={<Checkbox checked={offerAccepted} onChange={(e) => setOfferAccepted(e.target.checked)} />}
                 label={
                   offerVersion
-                    ? `Я согласен(на) с офертой версии ${offerVersion} и условиями сделки`
-                    : "Я согласен(на) с офертой и условиями сделки"
+                    ? `Я согласен(на) с офертой версии ${offerVersion} и условиями договора`
+                    : "Я согласен(на) с офертой и условиями договора"
                 }
                 sx={{ mt: 2 }}
               />

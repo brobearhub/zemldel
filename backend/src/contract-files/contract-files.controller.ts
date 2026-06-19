@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -215,6 +216,14 @@ export class ContractFilesController {
     res.setHeader('content-disposition', `${disposition}; filename="${fileName}"`);
     res.setHeader('cache-control', 'private, no-store');
     await pipeline(stream, res);
+  }
+
+  @Delete('pro/contract-files/:fileId')
+  @ApiParam({ name: 'fileId', type: String })
+  @ApiOkResponse({ type: OkResponseDto })
+  deleteProvider(@Req() request: Request, @Param('fileId') fileId: string) {
+    const actorUserId = this.getRequiredActorUserId(request);
+    return this.contractFiles.deleteForProvider({ actorUserId, fileId });
   }
 
   @Get('requests/mine/:requestId/contract-files/:fileId/download')

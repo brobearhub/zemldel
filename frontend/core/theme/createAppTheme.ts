@@ -37,6 +37,16 @@ export function createAppTheme(_mode: PaletteMode) {
 
   return createTheme({
     cssVariables: true,
+    breakpoints: {
+      values: {
+        xs: 0,
+        sm: 600,
+        md: 900,
+        lg: 1200,
+        xl: 1536,
+        xxl: 1920,
+      },
+    },
     palette: {
       mode: resolvedMode,
       common: {
@@ -99,7 +109,7 @@ export function createAppTheme(_mode: PaletteMode) {
     },
     shape: { borderRadius: 16 },
     typography: {
-      fontFamily: "var(--font-google-sans)",
+      fontFamily: "var(--font-nunito-sans)",
       h1: { fontWeight: 900, letterSpacing: "-0.03em" },
       h2: { fontWeight: 900, letterSpacing: "-0.02em" },
       h3: { fontWeight: 800, letterSpacing: "-0.015em" },

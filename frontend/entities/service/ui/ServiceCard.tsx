@@ -69,7 +69,7 @@ export function ServiceCard({ item }: Props) {
           position: "relative",
           width: "100%",
           aspectRatio: { xs: "16/10", md: "16/10" },
-          bgcolor: (theme) => theme.custom.gradients.glass,
+          bgcolor: (theme) => theme.custom?.gradients?.glass ?? theme.palette.action.hover,
           overflow: "hidden",
           "&:after": {
             content: '""',

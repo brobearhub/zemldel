@@ -3,18 +3,23 @@
 import {
   Box,
   Button,
+  Chip,
   Container,
   Divider,
   Grid,
   Paper,
   Stack,
   Typography,
+  useMediaQuery,
   useTheme,
 } from "@mui/material";
 import type { Theme } from "@mui/material";
 import { ThemeProvider } from "@mui/material";
 import { createAppTheme } from "@/core/theme/createAppTheme";
 import { useMemo } from "react";
+
+const BREAKPOINT_KEYS = ["xs", "sm", "md", "lg", "xl", "xxl"] as const;
+type BreakpointKey = (typeof BREAKPOINT_KEYS)[number];
 
 type SwatchProps = {
   label: string;
@@ -154,8 +159,40 @@ const ThemePaletteBlock = ({ mode }: { mode: "light" | "dark" }) => {
   );
 };
 
+function getActiveBreakpointKey(args: {
+  readonly isXs: boolean;
+  readonly isSm: boolean;
+  readonly isMd: boolean;
+  readonly isLg: boolean;
+  readonly isXl: boolean;
+  readonly isXxl: boolean;
+}): BreakpointKey | "unknown" {
+  if (args.isXxl) return "xxl";
+  if (args.isXl) return "xl";
+  if (args.isLg) return "lg";
+  if (args.isMd) return "md";
+  if (args.isSm) return "sm";
+  if (args.isXs) return "xs";
+  return "unknown";
+}
+
 export default function ThemesPage() {
   const theme = useTheme();
+  const isXs = useMediaQuery(theme.breakpoints.only("xs"));
+  const isSm = useMediaQuery(theme.breakpoints.only("sm"));
+  const isMd = useMediaQuery(theme.breakpoints.only("md"));
+  const isLg = useMediaQuery(theme.breakpoints.only("lg"));
+  const isXl = useMediaQuery(theme.breakpoints.only("xl"));
+  const isXxl = useMediaQuery(theme.breakpoints.only("xxl"));
+
+  const activeBreakpointKey = getActiveBreakpointKey({
+    isXs,
+    isSm,
+    isMd,
+    isLg,
+    isXl,
+    isXxl,
+  });
 
   return (
     <Box sx={{ minHeight: "100vh", py: { xs: 4, md: 6 } }}>
@@ -192,6 +229,95 @@ export default function ThemesPage() {
               <Typography variant="body2" sx={{ color: "text.secondary" }}>
                 primary: {theme.palette.primary.main} • secondary: {theme.palette.secondary.main}
               </Typography>
+            </Stack>
+          </Paper>
+
+          <Paper
+            variant="outlined"
+            sx={{
+              p: { xs: 2, md: 2.5 },
+              borderRadius: 3,
+              bgcolor: "background.paper",
+            }}
+          >
+            <Stack spacing={1.25}>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                alignItems={{ xs: "flex-start", sm: "center" }}
+                justifyContent="space-between"
+                gap={1}
+              >
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+                    Breakpoints (theme.breakpoints.values)
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                    Активный брейкпоинт:{" "}
+                    <Box component="span" sx={{ fontWeight: 800 }}>
+                      {activeBreakpointKey}
+                    </Box>
+                  </Typography>
+                </Box>
+                <Chip
+                  label={`active: ${activeBreakpointKey}`}
+                  color={activeBreakpointKey === "unknown" ? "warning" : "primary"}
+                  variant="outlined"
+                  size="small"
+                  sx={{ fontWeight: 800 }}
+                />
+              </Stack>
+
+              <Divider />
+
+              <Grid container spacing={1.25}>
+                {BREAKPOINT_KEYS.map((key) => {
+                  const valuePx = theme.breakpoints.values[key];
+                  const isActive = key === activeBreakpointKey;
+
+                  return (
+                    <Grid key={key} size={{ xs: 12, sm: 6, md: 4 }}>
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          p: 1.25,
+                          borderRadius: 2,
+                          borderColor: isActive ? "primary.main" : undefined,
+                          bgcolor: isActive ? "action.hover" : undefined,
+                        }}
+                      >
+                        <Stack spacing={0.5}>
+                          <Stack direction="row" alignItems="center" gap={1}>
+                            <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                              {key}
+                            </Typography>
+                            {isActive ? (
+                              <Chip
+                                label="active"
+                                color="primary"
+                                size="small"
+                                sx={{ height: 20, fontWeight: 800 }}
+                              />
+                            ) : null}
+                          </Stack>
+                          <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                            {valuePx}px
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: "text.secondary",
+                              fontFamily: "monospace",
+                              wordBreak: "break-word",
+                            }}
+                          >
+                            {theme.breakpoints.up(key)}
+                          </Typography>
+                        </Stack>
+                      </Paper>
+                    </Grid>
+                  );
+                })}
+              </Grid>
             </Stack>
           </Paper>
 

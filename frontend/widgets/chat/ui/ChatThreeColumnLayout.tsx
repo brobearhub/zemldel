@@ -19,7 +19,7 @@ export function ChatThreeColumnLayout({
   stickyTop = 112,
 }: Props) {
   return (
-    <Container maxWidth="xl" sx={{ py: 4, pt: { xs: 10, lg: 14 }, pb: { xs: 6, lg: 10 } }}>
+    <Container maxWidth="xxl" sx={{ pt: 0, pb: { xs: 3, sm: 4, lg: 5 } }}>
       <Stack spacing={2}>
         <Box
           sx={{

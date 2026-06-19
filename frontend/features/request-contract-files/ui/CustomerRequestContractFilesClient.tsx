@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Alert,
@@ -11,11 +11,11 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Paper,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
+import { ContractFilesList } from "@/entities/request";
 
 type ContractFileStatus = "PENDING_CUSTOMER" | "APPROVED" | "REVISION_REQUESTED";
 export type CustomerContractFileListItem = {
@@ -39,9 +39,11 @@ function statusLabel(status: ContractFileStatus) {
 export function CustomerRequestContractFilesClient({
   requestId,
   initialFiles,
+  onFilesChange,
 }: {
   requestId: string;
   initialFiles: CustomerContractFileListItem[];
+  onFilesChange?: (next: CustomerContractFileListItem[]) => void;
 }) {
   const [files, setFiles] = useState(initialFiles);
   const [busy, setBusy] = useState(false);
@@ -53,6 +55,14 @@ export function CustomerRequestContractFilesClient({
   const [revisionMessage, setRevisionMessage] = useState("");
 
   const hasApproved = useMemo(() => files.some((f) => f.status === "APPROVED"), [files]);
+
+  useEffect(() => {
+    setFiles(initialFiles);
+  }, [initialFiles]);
+
+  useEffect(() => {
+    onFilesChange?.(files);
+  }, [files, onFilesChange]);
 
   async function refresh() {
     const res = await fetch(`/api/requests/${requestId}/contract-files`, { cache: "no-store" });
@@ -107,75 +117,47 @@ export function CustomerRequestContractFilesClient({
       {notice ? <Alert severity="success">{notice}</Alert> : null}
       {error ? <Alert severity="error">{error}</Alert> : null}
 
-      {files.length === 0 ? (
-        <Paper variant="outlined" sx={{ p: 2.5 }}>
-          <Typography color="text.secondary">Компания ещё не прикрепила договор.</Typography>
-        </Paper>
-      ) : (
-        <Stack spacing={1.5}>
-          {files.map((f) => (
-            <Paper key={f.id} variant="outlined" sx={{ p: 2.5 }}>
-              <Stack spacing={1}>
-                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                  <Typography fontWeight={800} sx={{ wordBreak: "break-word" }}>
-                    {f.originalName}
-                  </Typography>
-                  <Chip size="small" label={statusLabel(f.status)} />
-                </Stack>
-
-                {f.status === "REVISION_REQUESTED" && f.revisionMessage ? (
-                  <Typography variant="body2" color="text.secondary">
-                    Замечания: {f.revisionMessage}
-                  </Typography>
-                ) : null}
-
-                <Box>
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                    {f.mimeType === "application/pdf" ? (
-                      <Link href={`/api/requests/${requestId}/contract-files/${f.id}/download?inline=1`} style={{ textDecoration: "none" }}>
-                        <Button component="span" variant="outlined" disabled={busy}>
-                          Открыть
-                        </Button>
-                      </Link>
-                    ) : null}
-                    <Link href={`/api/requests/${requestId}/contract-files/${f.id}/download`} style={{ textDecoration: "none" }}>
-                      <Button component="span" variant="text" disabled={busy}>
-                        Скачать
-                      </Button>
-                    </Link>
-                  </Stack>
-                </Box>
-
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  <Button
-                    variant="contained"
-                    color="success"
-                    disabled={busy}
-                    onClick={() => void approve(f.id)}
-                  >
-                    Одобрить
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="warning"
-                    disabled={busy}
-                    onClick={() => {
-                      setRevisionFileId(f.id);
-                      setRevisionOpen(true);
-                    }}
-                  >
-                    На доработку
-                  </Button>
-                </Stack>
-              </Stack>
-            </Paper>
-          ))}
-        </Stack>
-      )}
+      <ContractFilesList
+        items={files}
+        revisionLabel="Замечания"
+        empty={
+          <Box sx={{ p: 2.5 }}>
+            <Typography color="text.secondary">Компания ещё не прикрепила договор.</Typography>
+          </Box>
+        }
+        getStatusLabel={statusLabel}
+        renderActions={(f) => (
+          <>
+            <Link href={`/api/requests/${requestId}/contract-files/${f.id}/download`} style={{ textDecoration: "none" }}>
+              <Button component="span" variant="text" disabled={busy}>
+                Скачать
+              </Button>
+            </Link>
+            {f.status === "PENDING_CUSTOMER" && !hasApproved ? (
+              <>
+                <Button variant="contained" color="success" disabled={busy} onClick={() => void approve(f.id)}>
+                  Одобрить
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  disabled={busy}
+                  onClick={() => {
+                    setRevisionFileId(f.id);
+                    setRevisionOpen(true);
+                  }}
+                >
+                  На доработку
+                </Button>
+              </>
+            ) : null}
+          </>
+        )}
+      />
 
       {hasApproved ? (
         <Typography variant="body2" color="text.secondary">
-          После одобрения вы сможете подтвердить акцепт оферты на странице заявки.
+          После одобрения вы сможете подтвердить заключение договора на странице заявки.
         </Typography>
       ) : null}
 
@@ -190,9 +172,7 @@ export function CustomerRequestContractFilesClient({
         <DialogTitle>Отправить на доработку</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={1.5}>
-            <Typography color="text.secondary">
-              Опишите, что нужно исправить в договоре.
-            </Typography>
+            <Typography color="text.secondary">Опишите, что нужно исправить в договоре.</Typography>
             <TextField
               label="Комментарий"
               value={revisionMessage}

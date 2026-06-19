@@ -14,10 +14,10 @@ export const HeaderSearch = () => (
       sx={{
         display: "flex",
         alignItems: "center",
-        borderRadius: 2,
+        borderRadius: 1.2,
         bgcolor: "common.white",
         border: (theme) =>
-          `5px solid ${theme.palette.primary.light}`,
+          `3px solid ${theme.palette.primary.light}`,
         px: 1.5,
         py: 0.75,
         "&:focus-within": {

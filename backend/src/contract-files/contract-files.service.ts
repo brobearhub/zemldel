@@ -12,7 +12,10 @@ import path from 'node:path';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
-import { EXCLUSIVE_PROVIDER_STATUSES } from '../requests/dto/request.dto';
+import {
+  EXCLUSIVE_PROVIDER_STATUSES,
+  isOrderExecutionStatus,
+} from '../requests/dto/request.dto';
 import { S3Service } from '../storage/s3.service';
 
 const ALLOWED_EXT = new Set(['.pdf', '.docx']);
@@ -474,6 +477,55 @@ export class ContractFilesService {
         disposition,
       };
     }
+  }
+
+  async deleteForProvider(input: { actorUserId: string; fileId: string }) {
+    const providerId = await this.requireProviderId(input.actorUserId);
+    const file = await this.prisma.requestContractFile.findFirst({
+      where: { id: input.fileId, providerId },
+      select: {
+        id: true,
+        requestId: true,
+        uploadedByUserId: true,
+        storageRelPath: true,
+      },
+    });
+    if (!file) throw new NotFoundException('File not found');
+
+    if (!file.uploadedByUserId || file.uploadedByUserId !== input.actorUserId) {
+      throw new ForbiddenException('Forbidden');
+    }
+
+    const request = await this.assertProviderCanManageFiles({
+      providerId,
+      requestId: file.requestId,
+    });
+    if (isOrderExecutionStatus(request.status)) {
+      throw new ForbiddenException('Cannot delete files after contract accepted');
+    }
+
+    try {
+      await this.s3.client.send(
+        new DeleteObjectCommand({
+          Bucket: this.s3.privateBucket,
+          Key: file.storageRelPath,
+        }),
+      );
+    } catch (_e) {
+      const e = _e as any;
+      const isNotFound =
+        e?.name === 'NoSuchKey' || e?.$metadata?.httpStatusCode === 404;
+      if (!isNotFound) {
+        throw new BadGatewayException('File storage unavailable');
+      }
+    }
+
+    await this.prisma.requestContractFile.delete({
+      where: { id: file.id },
+      select: { id: true },
+    });
+
+    return { ok: true };
   }
 }
 

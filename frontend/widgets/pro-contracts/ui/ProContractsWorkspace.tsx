@@ -335,7 +335,7 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
                             variant="outlined"
                             disabled={busy}
                           >
-                            Открыть
+                            Перейти
                           </Button>
                           <Button
                             size="small"

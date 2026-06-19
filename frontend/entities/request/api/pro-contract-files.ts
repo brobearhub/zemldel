@@ -40,3 +40,10 @@ export async function uploadProRequestContractFiles(requestId: string, files: Fi
   return payload as { created?: Array<{ id: string }> };
 }
 
+export async function deleteProRequestContractFile(fileId: string): Promise<{ ok: true }> {
+  const res = await fetch(`/api/pro/contract-files/${fileId}`, { method: "DELETE" });
+  const payload = await safeJson(res);
+  if (!res.ok) throw new Error(extractError(payload, "Не удалось удалить файл"));
+  return { ok: true };
+}
+

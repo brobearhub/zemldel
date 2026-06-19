@@ -542,7 +542,7 @@ function ProfileOverview({
               </Typography>
               <Box>
                 <Button variant="contained" onClick={onOpenProfessionalArea}>
-                  Открыть кабинет профессионала
+                  Перейти в кабинет профессионала
                 </Button>
               </Box>
             </>

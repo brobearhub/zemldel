@@ -17,7 +17,7 @@ type Props = {
 export function ChatThreadLinkButton({
   href,
   serviceRequestId,
-  label = "Открыть",
+  label = "Чат",
   disabled,
   tooltip,
   size = "small",

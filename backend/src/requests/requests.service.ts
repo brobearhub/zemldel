@@ -27,6 +27,7 @@ import {
   requestRowToCustomerDtoPlain,
   requestRowToProDtoPlain,
 } from './dto/request.dto';
+import { requestRemarkToDtoPlain, type RequestRemarkDto } from './dto/request-remark.dto';
 
 const select = {
   id: true,
@@ -474,7 +475,7 @@ export class RequestsService {
   async sendRemarksByCustomer(
     actorUserId: string,
     id: string,
-    input: { remarks: string },
+    input: { remarks: string | null },
   ): Promise<RequestCustomerDto> {
     const updated = await this.prisma.$transaction(async (tx) => {
       const current = await tx.request.findFirst({
@@ -486,6 +487,32 @@ export class RequestsService {
       const normalized = await this.autoAcceptIfNeeded(tx, current);
       if (normalized.status !== 'ACCEPTANCE_PENDING') {
         throw new ForbiddenException('Request is not awaiting acceptance');
+      }
+
+      const trimmed = input.remarks?.trim() ?? null;
+      if (!trimmed) {
+        const existingOpen = await tx.requestRemark.count({
+          where: {
+            requestId: normalized.id,
+            authorSide: 'CUSTOMER',
+            status: 'OPEN',
+          },
+          take: 1,
+        });
+        if (existingOpen === 0) {
+          throw new BadRequestException('At least one remark is required');
+        }
+      } else {
+        await tx.requestRemark.create({
+          data: {
+            requestId: normalized.id,
+            authorSide: 'CUSTOMER',
+            status: 'OPEN',
+            text: trimmed,
+            createdByUserId: actorUserId,
+          },
+          select: { id: true },
+        });
       }
 
       const now = new Date();
@@ -505,12 +532,378 @@ export class RequestsService {
         requestId: normalized.id,
         type: 'REMARKS',
         actorUserId,
-        payload: { remarks: input.remarks, at: now.toISOString() },
+        payload: trimmed ? { remarks: trimmed, at: now.toISOString() } : { at: now.toISOString() },
       });
 
       return next;
     });
     return requestRowToCustomerDtoPlain(updated as unknown as RequestDbRow);
+  }
+
+  // --- Remarks checklist ---
+
+  async listRemarksByCustomer(
+    actorUserId: string,
+    requestId: string,
+  ): Promise<RequestRemarkDto[]> {
+    const req = await this.prisma.request.findFirst({
+      where: { id: requestId, customerUserId: actorUserId },
+      select: { id: true },
+    });
+    if (!req) throw new NotFoundException('Request not found');
+
+    const rows = await this.prisma.requestRemark.findMany({
+      where: { requestId },
+      select: {
+        id: true,
+        requestId: true,
+        authorSide: true,
+        status: true,
+        text: true,
+        createdAt: true,
+        doneAt: true,
+      },
+      orderBy: [{ createdAt: 'asc' }],
+      take: 500,
+    });
+
+    return rows.map((r) =>
+      requestRemarkToDtoPlain({
+        id: r.id,
+        requestId: r.requestId,
+        authorSide: r.authorSide as any,
+        status: r.status as any,
+        text: r.text,
+        createdAt: r.createdAt,
+        doneAt: r.doneAt,
+      }),
+    );
+  }
+
+  async createRemarkByCustomer(
+    actorUserId: string,
+    requestId: string,
+    input: { text: string },
+  ): Promise<RequestRemarkDto> {
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const current = await tx.request.findFirst({
+        where: { id: requestId, customerUserId: actorUserId },
+        select: { id: true, status: true },
+      });
+      if (!current) throw new NotFoundException('Request not found');
+      if (current.status !== 'ACCEPTANCE_PENDING') {
+        throw new ForbiddenException('Remarks can be added only during acceptance');
+      }
+
+      const text = input.text.trim();
+      if (text.length < 3) {
+        throw new BadRequestException('Invalid remark text');
+      }
+
+      const created = await tx.requestRemark.create({
+        data: {
+          requestId: current.id,
+          authorSide: 'CUSTOMER',
+          status: 'OPEN',
+          text,
+          createdByUserId: actorUserId,
+        },
+        select: {
+          id: true,
+          requestId: true,
+          authorSide: true,
+          status: true,
+          text: true,
+          createdAt: true,
+          doneAt: true,
+        },
+      });
+
+      await this.addEvent(tx, {
+        requestId: current.id,
+        type: 'REMARK_ADDED',
+        actorUserId,
+        payload: { remarkId: created.id },
+      });
+
+      return created;
+    });
+
+    return requestRemarkToDtoPlain({
+      id: updated.id,
+      requestId: updated.requestId,
+      authorSide: updated.authorSide as any,
+      status: updated.status as any,
+      text: updated.text,
+      createdAt: updated.createdAt,
+      doneAt: updated.doneAt,
+    });
+  }
+
+  async completeRemarkByCustomer(
+    actorUserId: string,
+    requestId: string,
+    remarkId: string,
+  ): Promise<RequestRemarkDto> {
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const current = await tx.request.findFirst({
+        where: { id: requestId, customerUserId: actorUserId },
+        select: { id: true, status: true },
+      });
+      if (!current) throw new NotFoundException('Request not found');
+      if (current.status !== 'ACTIVE') {
+        throw new ForbiddenException('Remarks can be completed only during work');
+      }
+
+      const remark = await tx.requestRemark.findFirst({
+        where: { id: remarkId, requestId: current.id },
+        select: {
+          id: true,
+          requestId: true,
+          authorSide: true,
+          status: true,
+          text: true,
+          createdAt: true,
+          doneAt: true,
+        },
+      });
+      if (!remark) throw new NotFoundException('Remark not found');
+      if (remark.status !== 'OPEN') {
+        throw new ConflictException('Remark is already completed');
+      }
+      if (remark.authorSide !== 'PROVIDER') {
+        throw new ForbiddenException('Only provider remarks can be completed by customer');
+      }
+
+      const now = new Date();
+      const done = await tx.requestRemark.update({
+        where: { id: remark.id },
+        data: {
+          status: 'DONE',
+          doneAt: now,
+          doneByUserId: actorUserId,
+        },
+        select: {
+          id: true,
+          requestId: true,
+          authorSide: true,
+          status: true,
+          text: true,
+          createdAt: true,
+          doneAt: true,
+        },
+      });
+
+      await this.addEvent(tx, {
+        requestId: current.id,
+        type: 'REMARK_DONE',
+        actorUserId,
+        payload: { remarkId: done.id },
+      });
+
+      return done;
+    });
+
+    return requestRemarkToDtoPlain({
+      id: updated.id,
+      requestId: updated.requestId,
+      authorSide: updated.authorSide as any,
+      status: updated.status as any,
+      text: updated.text,
+      createdAt: updated.createdAt,
+      doneAt: updated.doneAt,
+    });
+  }
+
+  private async requireProviderAccessToRequest(
+    actorProviderId: string,
+    requestId: string,
+  ) {
+    // Reuse existing access logic (throws if forbidden).
+    await this.getProById(actorProviderId, requestId);
+    const row = await this.prisma.request.findUnique({
+      where: { id: requestId },
+      select: { id: true, status: true, providerId: true },
+    });
+    if (!row) throw new NotFoundException('Request not found');
+    return row;
+  }
+
+  async listRemarksByProvider(
+    actorProviderId: string,
+    requestId: string,
+  ): Promise<RequestRemarkDto[]> {
+    await this.requireProviderAccessToRequest(actorProviderId, requestId);
+    const rows = await this.prisma.requestRemark.findMany({
+      where: { requestId },
+      select: {
+        id: true,
+        requestId: true,
+        authorSide: true,
+        status: true,
+        text: true,
+        createdAt: true,
+        doneAt: true,
+      },
+      orderBy: [{ createdAt: 'asc' }],
+      take: 500,
+    });
+    return rows.map((r) =>
+      requestRemarkToDtoPlain({
+        id: r.id,
+        requestId: r.requestId,
+        authorSide: r.authorSide as any,
+        status: r.status as any,
+        text: r.text,
+        createdAt: r.createdAt,
+        doneAt: r.doneAt,
+      }),
+    );
+  }
+
+  async createRemarkByProvider(
+    actorProviderId: string,
+    requestId: string,
+    input: { text: string },
+  ): Promise<RequestRemarkDto> {
+    const req = await this.requireProviderAccessToRequest(actorProviderId, requestId);
+    if (req.status !== 'ACCEPTANCE_PENDING') {
+      throw new ForbiddenException('Remarks can be added only during acceptance');
+    }
+
+    const text = input.text.trim();
+    if (text.length < 3) {
+      throw new BadRequestException('Invalid remark text');
+    }
+
+    const created = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.request.findUnique({
+        where: { id: req.id },
+        select: { id: true, status: true },
+      });
+      if (!row) throw new NotFoundException('Request not found');
+      if (row.status !== 'ACCEPTANCE_PENDING') {
+        throw new ForbiddenException('Remarks can be added only during acceptance');
+      }
+
+      const next = await tx.requestRemark.create({
+        data: {
+          requestId: row.id,
+          authorSide: 'PROVIDER',
+          status: 'OPEN',
+          text,
+          createdByProviderId: actorProviderId,
+        },
+        select: {
+          id: true,
+          requestId: true,
+          authorSide: true,
+          status: true,
+          text: true,
+          createdAt: true,
+          doneAt: true,
+        },
+      });
+
+      await this.addEvent(tx, {
+        requestId: row.id,
+        type: 'REMARK_ADDED',
+        actorProviderId,
+        payload: { remarkId: next.id },
+      });
+
+      return next;
+    });
+
+    return requestRemarkToDtoPlain({
+      id: created.id,
+      requestId: created.requestId,
+      authorSide: created.authorSide as any,
+      status: created.status as any,
+      text: created.text,
+      createdAt: created.createdAt,
+      doneAt: created.doneAt,
+    });
+  }
+
+  async completeRemarkByProvider(
+    actorProviderId: string,
+    requestId: string,
+    remarkId: string,
+  ): Promise<RequestRemarkDto> {
+    const req = await this.requireProviderAccessToRequest(actorProviderId, requestId);
+    if (req.status !== 'ACTIVE') {
+      throw new ForbiddenException('Remarks can be completed only during work');
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.request.findUnique({
+        where: { id: req.id },
+        select: { id: true, status: true },
+      });
+      if (!row) throw new NotFoundException('Request not found');
+      if (row.status !== 'ACTIVE') {
+        throw new ForbiddenException('Remarks can be completed only during work');
+      }
+
+      const remark = await tx.requestRemark.findFirst({
+        where: { id: remarkId, requestId: row.id },
+        select: {
+          id: true,
+          requestId: true,
+          authorSide: true,
+          status: true,
+          text: true,
+          createdAt: true,
+          doneAt: true,
+        },
+      });
+      if (!remark) throw new NotFoundException('Remark not found');
+      if (remark.status !== 'OPEN') {
+        throw new ConflictException('Remark is already completed');
+      }
+      if (remark.authorSide !== 'CUSTOMER') {
+        throw new ForbiddenException('Only customer remarks can be completed by provider');
+      }
+
+      const now = new Date();
+      const done = await tx.requestRemark.update({
+        where: { id: remark.id },
+        data: {
+          status: 'DONE',
+          doneAt: now,
+          doneByProviderId: actorProviderId,
+        },
+        select: {
+          id: true,
+          requestId: true,
+          authorSide: true,
+          status: true,
+          text: true,
+          createdAt: true,
+          doneAt: true,
+        },
+      });
+
+      await this.addEvent(tx, {
+        requestId: row.id,
+        type: 'REMARK_DONE',
+        actorProviderId,
+        payload: { remarkId: done.id },
+      });
+
+      return done;
+    });
+
+    return requestRemarkToDtoPlain({
+      id: updated.id,
+      requestId: updated.requestId,
+      authorSide: updated.authorSide as any,
+      status: updated.status as any,
+      text: updated.text,
+      createdAt: updated.createdAt,
+      doneAt: updated.doneAt,
+    });
   }
 
   // --- Provider: read ---
@@ -1431,6 +1824,17 @@ export class RequestsService {
         throw new ConflictException(
           'At least one approved contract file is required',
         );
+      }
+
+      const pendingRequestedDocs = await tx.requestDocumentRequest.count({
+        where: {
+          requestId: req.id,
+          providerId: req.providerId,
+          status: 'REQUESTED',
+        },
+      });
+      if (pendingRequestedDocs > 0) {
+        throw new ConflictException('All requested documents must be uploaded');
       }
 
       const now = new Date();

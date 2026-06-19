@@ -73,6 +73,21 @@ enum RequestContractFileStatus {
   REVISION_REQUESTED
 }
 
+enum RequestDocumentRequestStatus {
+  REQUESTED
+  UPLOADED
+}
+
+enum RequestRemarkStatus {
+  OPEN
+  DONE
+}
+
+enum RequestRemarkAuthorSide {
+  CUSTOMER
+  PROVIDER
+}
+
 model City {
   id          String @id @default(uuid()) @db.Uuid
   garObjectId BigInt @unique
@@ -113,6 +128,7 @@ model User {
   passportAccessAudits      PassportAccessAudit[]    @relation("PassportAccessAuditPassportUser")
   uploadedRequestContractFiles RequestContractFile[] @relation("RequestContractFileUploadedBy")
   decidedRequestContractFiles  RequestContractFile[] @relation("RequestContractFileDecidedBy")
+  uploadedRequestDocumentRequests RequestDocumentRequest[] @relation("RequestDocumentRequestUploadedBy")
   providerMemberships       ProviderMember[]
   providerUserSettings      ProviderUserSettings[]
   customerLegalProfile      CustomerLegalProfile?
@@ -123,6 +139,8 @@ model User {
   sentChatMessages          Message[]                @relation("MessageSender")
   chatReadStates            ConversationReadState[]
   customerConversations     Conversation[]           @relation("ConversationCustomer")
+  createdRequestRemarks     RequestRemark[]          @relation("RequestRemarkCreatedByUser")
+  doneRequestRemarks        RequestRemark[]          @relation("RequestRemarkDoneByUser")
   activeProvider            Provider?                @relation("ActiveProvider", fields: [activeProviderId], references: [id], onDelete: SetNull)
   customerCity              City?                    @relation("UserCustomerCity", fields: [customerCityId], references: [id], onDelete: SetNull)
   createdAt                 DateTime                 @default(now())
@@ -182,11 +200,14 @@ model Provider {
   userSettings      ProviderUserSettings[]
   legalProfile      ProviderLegalProfile?
   requestContractFiles RequestContractFile[]
+  requestDocumentRequests RequestDocumentRequest[]
   services          Service[]
   conversations     Conversation[]
   requests          Request[]
   requestOffers     RequestProviderOffer[]
   reminders         RequestReminder[]
+  createdRequestRemarks RequestRemark[] @relation("RequestRemarkCreatedByProvider")
+  doneRequestRemarks    RequestRemark[] @relation("RequestRemarkDoneByProvider")
   activeUsers       User[]                 @relation("ActiveProvider")
   city              City?                  @relation("ProviderCity", fields: [cityId], references: [id], onDelete: SetNull)
   createdAt         DateTime               @default(now())
@@ -327,7 +348,9 @@ model Request {
   providerOffers    RequestProviderOffer[]
   events            RequestEvent[]
   contractFiles     RequestContractFile[]
+  documentRequests  RequestDocumentRequest[]
   reminders         RequestReminder[]
+  remarks           RequestRemark[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -337,6 +360,33 @@ model Request {
   @@index([categoryId, status])
   @@index([serviceId, status])
   @@index([requestCityId, status])
+}
+
+model RequestRemark {
+  id         String                @id @default(uuid()) @db.Uuid
+  requestId  String                @db.Uuid
+  authorSide RequestRemarkAuthorSide
+  status     RequestRemarkStatus   @default(OPEN)
+  text       String
+
+  createdByUserId     String?  @db.Uuid
+  createdByProviderId String?  @db.Uuid
+  doneByUserId        String?  @db.Uuid
+  doneByProviderId    String?  @db.Uuid
+  doneAt              DateTime?
+
+  request           Request   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  createdByUser     User?     @relation("RequestRemarkCreatedByUser", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  doneByUser        User?     @relation("RequestRemarkDoneByUser", fields: [doneByUserId], references: [id], onDelete: SetNull)
+  createdByProvider Provider? @relation("RequestRemarkCreatedByProvider", fields: [createdByProviderId], references: [id], onDelete: SetNull)
+  doneByProvider    Provider? @relation("RequestRemarkDoneByProvider", fields: [doneByProviderId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([requestId, createdAt])
+  @@index([requestId, status])
+  @@index([authorSide, status])
 }
 
 model RequestEvent {
@@ -546,6 +596,36 @@ model RequestContractFile {
   updatedAt DateTime @updatedAt
 
   @@index([requestId, updatedAt])
+  @@index([providerId, updatedAt])
+  @@index([status, updatedAt])
+}
+
+model RequestDocumentRequest {
+  id              String                     @id @default(uuid()) @db.Uuid
+  requestId       String                     @db.Uuid
+  providerId      String                     @db.Uuid
+  uploadedByUserId String?                   @db.Uuid
+  uploadedAt      DateTime?
+  status          RequestDocumentRequestStatus @default(REQUESTED)
+
+  title           String
+  sortOrder       Int
+
+  originalName    String?
+  mimeType        String?
+  sizeBytes       Int?
+  sha256          String?
+  storageRelPath  String?
+
+  request         Request                    @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  provider        Provider                   @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  uploadedByUser  User?                      @relation("RequestDocumentRequestUploadedBy", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([requestId, sortOrder])
+  @@index([requestId, status])
   @@index([providerId, updatedAt])
   @@index([status, updatedAt])
 }

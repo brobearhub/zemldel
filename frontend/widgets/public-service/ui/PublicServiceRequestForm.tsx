@@ -180,7 +180,7 @@ export function PublicServiceRequestForm({
 
         {ctaHref ? (
           <Button component={Link} href={ctaHref} variant="text" disabled={busy}>
-            Открыть дополнительную ссылку
+            Перейти по ссылке
           </Button>
         ) : null}
       </Stack>

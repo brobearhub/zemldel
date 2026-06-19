@@ -9,7 +9,7 @@ interface Props {
 export default function ProLayout({ children }: Props) {
   return (
     <main>
-      <Container maxWidth="xl" sx={{ py: 4, pb: 10 }}>
+      <Container maxWidth="xxl" sx={{ py: 4, pb: 10 }}>
         <Stack direction={{ xs: "column", md: "row" }} spacing={3} alignItems="flex-start">
           <Box sx={{ width: { xs: "100%", md: 320 }, flexShrink: 0 }}>
             <ProSidebar />

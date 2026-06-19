@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { AppProviders } from "@/core/providers/AppProviders";
-import { googleSans } from "@/app/fonts";
+import { nunitoSans } from "@/app/fonts";
 
 import "./styles/globals.css";
 
@@ -10,7 +10,7 @@ interface Props {
 
 export default function RootLayout({ children }: Props) {
   return (
-    <html lang="ru" className={googleSans.variable} suppressHydrationWarning>
+    <html lang="ru" className={nunitoSans.variable} suppressHydrationWarning>
       <head>
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />

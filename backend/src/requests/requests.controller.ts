@@ -32,6 +32,11 @@ import {
   RequestServiceCreateDto,
   RequestUnlinkedCreateDto,
 } from './dto/request.dto';
+import {
+  parseRequestRemarkCreateDto,
+  RequestRemarkCreateDto,
+  RequestRemarkDto,
+} from './dto/request-remark.dto';
 import { RequestsService } from './requests.service';
 import {
   ProEligibleCategoryDto,
@@ -289,7 +294,6 @@ export class RequestsController {
     schema: {
       type: 'object',
       properties: { remarks: { type: 'string', minLength: 3 } },
-      required: ['remarks'],
     },
   })
   @ApiOkResponse({ type: RequestCustomerDto })
@@ -310,18 +314,56 @@ export class RequestsController {
       typeof payload.remarks === 'string'
         ? payload.remarks
         : null;
-    if (!remarks || remarks.trim().length < 3) {
+    return this.requests.sendRemarksByCustomer(userId, id, {
+      remarks: remarks && remarks.trim().length >= 3 ? remarks : null,
+    });
+  }
+
+  // --- Customer: remarks checklist ---
+
+  @Get('requests/mine/:id/remarks')
+  @ApiParam({ name: 'id', type: String })
+  @ApiOkResponse({ type: [RequestRemarkDto] })
+  async listMineRemarks(@Req() request: Request, @Param('id') id: string) {
+    const userId = this.requests.getRequiredActorUserId(request);
+    return this.requests.listRemarksByCustomer(userId, id);
+  }
+
+  @Post('requests/mine/:id/remarks')
+  @ApiParam({ name: 'id', type: String })
+  @ApiBody({ type: RequestRemarkCreateDto })
+  @ApiOkResponse({ type: RequestRemarkDto })
+  @ApiUnprocessableEntityResponse({
+    type: ApiValidationErrorResponseDto,
+    description: 'Validation failed',
+  })
+  async createMineRemark(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const userId = this.requests.getRequiredActorUserId(request);
+    const { data, issues } = parseRequestRemarkCreateDto(body);
+    if (!data) {
       throw new UnprocessableEntityException({
         error: 'Validation failed',
-        issues: [
-          {
-            path: ['remarks'],
-            message: 'remarks is required',
-          },
-        ],
+        issues,
       });
     }
-    return this.requests.sendRemarksByCustomer(userId, id, { remarks });
+    return this.requests.createRemarkByCustomer(userId, id, { text: data.text });
+  }
+
+  @Post('requests/mine/:id/remarks/:remarkId/complete')
+  @ApiParam({ name: 'id', type: String })
+  @ApiParam({ name: 'remarkId', type: String })
+  @ApiOkResponse({ type: RequestRemarkDto })
+  async completeMineRemark(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Param('remarkId') remarkId: string,
+  ) {
+    const userId = this.requests.getRequiredActorUserId(request);
+    return this.requests.completeRemarkByCustomer(userId, id, remarkId);
   }
 
   // --- Provider: feed / inbox ---
@@ -468,6 +510,55 @@ export class RequestsController {
   async proDeclineOffer(@Req() request: Request, @Param('id') id: string) {
     const ctx = await this.requests.requireProviderContext(request);
     return this.requests.declineOfferByProvider(ctx.providerId, id);
+  }
+
+  // --- Provider: remarks checklist ---
+
+  @Get('pro/requests/:id/remarks')
+  @ApiParam({ name: 'id', type: String })
+  @ApiOkResponse({ type: [RequestRemarkDto] })
+  async listProRemarks(@Req() request: Request, @Param('id') id: string) {
+    const ctx = await this.requests.requireProviderContext(request);
+    return this.requests.listRemarksByProvider(ctx.providerId, id);
+  }
+
+  @Post('pro/requests/:id/remarks')
+  @ApiParam({ name: 'id', type: String })
+  @ApiBody({ type: RequestRemarkCreateDto })
+  @ApiOkResponse({ type: RequestRemarkDto })
+  @ApiUnprocessableEntityResponse({
+    type: ApiValidationErrorResponseDto,
+    description: 'Validation failed',
+  })
+  async createProRemark(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const ctx = await this.requests.requireProviderContext(request);
+    const { data, issues } = parseRequestRemarkCreateDto(body);
+    if (!data) {
+      throw new UnprocessableEntityException({
+        error: 'Validation failed',
+        issues,
+      });
+    }
+    return this.requests.createRemarkByProvider(ctx.providerId, id, {
+      text: data.text,
+    });
+  }
+
+  @Post('pro/requests/:id/remarks/:remarkId/complete')
+  @ApiParam({ name: 'id', type: String })
+  @ApiParam({ name: 'remarkId', type: String })
+  @ApiOkResponse({ type: RequestRemarkDto })
+  async completeProRemark(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Param('remarkId') remarkId: string,
+  ) {
+    const ctx = await this.requests.requireProviderContext(request);
+    return this.requests.completeRemarkByProvider(ctx.providerId, id, remarkId);
   }
 
   @Get('pro/requests')

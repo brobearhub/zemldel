@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Alert, Button, Chip, Paper, Stack, Typography } from "@mui/material";
 import {
   clearPendingRequestDraft,
@@ -51,6 +52,7 @@ type Props = {
 };
 
 export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResumeFinished }: Props) {
+  const router = useRouter();
   const [items, setItems] = useState<RequestCustomerDto[]>([]);
   const [phase, setPhase] = useState<PhaseFilter>("ALL");
   const [error, setError] = useState<string | null>(null);
@@ -167,6 +169,11 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
     [items]
   );
 
+  function openRequest(id: string, status: RequestStatus) {
+    if (status === "CLOSED") return;
+    router.push(`/profile/requests/${id}`);
+  }
+
   return (
     <Stack spacing={2}>
       <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} justifyContent="space-between" alignItems={{ md: "center" }}>
@@ -216,7 +223,38 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
             </Paper>
           ) : null}
           {filteredItems.map((item) => (
-            <Paper key={item.id} variant="outlined" sx={{ p: 2.5 }}>
+            <Paper
+              key={item.id}
+              variant="outlined"
+              role={item.status === "CLOSED" ? undefined : "link"}
+              tabIndex={item.status === "CLOSED" ? undefined : 0}
+              aria-disabled={item.status === "CLOSED" ? true : undefined}
+              onClick={() => openRequest(item.id, item.status)}
+              onKeyDown={(e) => {
+                if (item.status === "CLOSED") return;
+                if (e.key !== "Enter" && e.key !== " ") return;
+                e.preventDefault();
+                openRequest(item.id, item.status);
+              }}
+              sx={{
+                p: 2.5,
+                cursor: item.status === "CLOSED" ? "default" : "pointer",
+                transition: (theme) => theme.transitions.create(["background-color", "box-shadow", "border-color"]),
+                ...(item.status === "CLOSED"
+                  ? {}
+                  : {
+                      "&:hover": {
+                        bgcolor: "action.hover",
+                        boxShadow: 1,
+                      },
+                      "&:focus-visible": {
+                        outline: "2px solid",
+                        outlineColor: "primary.main",
+                        outlineOffset: 2,
+                      },
+                    }),
+              }}
+            >
               <Stack spacing={1}>
                 <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} justifyContent="space-between" alignItems={{ md: "center" }}>
                   <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }} justifyContent="space-between" sx={{ width: "100%" }}>
@@ -230,17 +268,6 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
                       </Typography>
                       <Chip size="small" label={getRequestStatusLabel(item.status)} />
                     </Stack>
-
-                    <Button
-                      component={Link}
-                      href={`/profile/requests/${item.id}`}
-                      size="small"
-                      variant="outlined"
-                      disabled={item.status === "CLOSED"}
-                      sx={{ whiteSpace: "nowrap" }}
-                    >
-                      Открыть
-                    </Button>
                   </Stack>
                 </Stack>
 
