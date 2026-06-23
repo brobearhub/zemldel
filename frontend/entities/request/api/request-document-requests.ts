@@ -30,6 +30,16 @@ export async function createProRequestDocumentRequest(requestId: string, title: 
   return payload as RequestDocumentRequestDto;
 }
 
+export async function deleteProRequestDocumentRequest(
+  requestId: string,
+  docRequestId: string
+): Promise<{ ok: true }> {
+  const res = await fetch(`/api/pro/requests/${requestId}/document-requests/${docRequestId}`, { method: "DELETE" });
+  const payload = await safeJson(res);
+  if (!res.ok) throw new Error(extractError(payload, "Не удалось отменить запрос документа"));
+  return { ok: true };
+}
+
 export async function fetchCustomerRequestDocumentRequests(requestId: string): Promise<RequestDocumentRequestDto[]> {
   const res = await fetch(`/api/requests/${requestId}/document-requests`, { cache: "no-store" });
   const payload = await safeJson(res);

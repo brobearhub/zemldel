@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsString, MaxLength, MinLength } from 'class-validator';
 
 export class CreateRequestDocumentRequestDto {
   @ApiProperty({ example: 'Паспорт (скан)' })
@@ -15,10 +15,6 @@ export class RequestDocumentRequestItemDto {
 
   @ApiProperty({ example: 'Паспорт (скан)' })
   title!: string;
-
-  @ApiProperty({ example: 1 })
-  @IsInt()
-  sortOrder!: number;
 
   @ApiProperty({ enum: ['REQUESTED', 'UPLOADED'] })
   status!: 'REQUESTED' | 'UPLOADED';

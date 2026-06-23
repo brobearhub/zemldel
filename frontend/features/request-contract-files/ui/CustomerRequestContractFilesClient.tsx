@@ -55,6 +55,7 @@ export function CustomerRequestContractFilesClient({
   const [revisionMessage, setRevisionMessage] = useState("");
 
   const hasApproved = useMemo(() => files.some((f) => f.status === "APPROVED"), [files]);
+  const hasPendingCustomerDecision = useMemo(() => files.some((f) => f.status === "PENDING_CUSTOMER"), [files]);
 
   useEffect(() => {
     setFiles(initialFiles);
@@ -118,6 +119,7 @@ export function CustomerRequestContractFilesClient({
       {error ? <Alert severity="error">{error}</Alert> : null}
 
       <ContractFilesList
+        title="Документы исполнителя"
         items={files}
         revisionLabel="Замечания"
         empty={
@@ -155,7 +157,7 @@ export function CustomerRequestContractFilesClient({
         )}
       />
 
-      {hasApproved ? (
+      {hasPendingCustomerDecision ? (
         <Typography variant="body2" color="text.secondary">
           После одобрения вы сможете подтвердить заключение договора на странице заявки.
         </Typography>

@@ -2,10 +2,11 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ServicesAdminClient } from "./ServicesAdminClient";
 import { legalService, mainService } from "../../../tests/fixtures/services";
+import type { ReactElement } from "react";
+import { ConfirmProvider } from "@/shared/ui/confirm";
 
 const mockPush = vi.fn();
 let fetchMock: ReturnType<typeof vi.fn>;
-let confirmMock: ReturnType<typeof vi.fn>;
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
@@ -20,10 +21,12 @@ describe("ServicesAdminClient", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fetchMock = vi.fn();
-    confirmMock = vi.fn(() => true);
     global.fetch = fetchMock as any;
-    global.confirm = confirmMock as any;
   });
+
+  function renderWithConfirm(ui: ReactElement) {
+    return render(<ConfirmProvider>{ui}</ConfirmProvider>);
+  }
 
   it("creates a service and redirects in create mode", async () => {
     const user = userEvent.setup();
@@ -34,7 +37,7 @@ describe("ServicesAdminClient", () => {
       return Promise.resolve({ ok: true, json: async () => ({ id: "new-id" }) });
     });
 
-    render(<ServicesAdminClient mode="create" />);
+    renderWithConfirm(<ServicesAdminClient mode="create" />);
 
     await user.click(screen.getByLabelText("category"));
     await user.click(screen.getByRole("option", { name: /Юридические услуги/i }));
@@ -72,7 +75,7 @@ describe("ServicesAdminClient", () => {
         json: async () => [mainService, legalService],
       });
 
-    render(
+    renderWithConfirm(
       <ServicesAdminClient
         mode="list"
         initialServices={[mainService, legalService]}
@@ -81,13 +84,14 @@ describe("ServicesAdminClient", () => {
 
     const deleteButtons = screen.getAllByRole("button", { name: "Удалить" });
     await user.click(deleteButtons[0]);
+    const confirmDialog = await screen.findByRole("dialog", { name: `Удалить услугу "${mainService.title}"?` });
+    await user.click(within(confirmDialog).getByRole("button", { name: "Удалить" }));
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
 
     const [deleteUrl, deleteInit] = fetchMock.mock.calls[1];
     expect(deleteUrl).toBe(`/api/admin/services/${mainService.id}`);
     expect(deleteInit).toEqual({ method: "DELETE" });
-    expect(global.confirm).toHaveBeenCalled();
   });
 
   it("deletes legal service row path", async () => {
@@ -100,7 +104,7 @@ describe("ServicesAdminClient", () => {
         json: async () => [mainService, legalService],
       });
 
-    render(
+    renderWithConfirm(
       <ServicesAdminClient
         mode="list"
         initialServices={[mainService, legalService]}
@@ -108,6 +112,8 @@ describe("ServicesAdminClient", () => {
     );
 
     await user.click(screen.getAllByRole("button", { name: "Удалить" })[1]);
+    const confirmDialog = await screen.findByRole("dialog", { name: `Удалить услугу "${legalService.title}"?` });
+    await user.click(within(confirmDialog).getByRole("button", { name: "Удалить" }));
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
 
     const [deleteUrl, deleteInit] = fetchMock.mock.calls[1];
@@ -125,7 +131,7 @@ describe("ServicesAdminClient", () => {
         json: async () => [{ ...mainService, title: "Обновленный title" }, legalService],
       });
 
-    render(
+    renderWithConfirm(
       <ServicesAdminClient
         mode="list"
         initialServices={[mainService, legalService]}
@@ -163,7 +169,7 @@ describe("ServicesAdminClient", () => {
       });
     });
 
-    render(<ServicesAdminClient mode="create" />);
+    renderWithConfirm(<ServicesAdminClient mode="create" />);
 
     await user.click(screen.getByRole("button", { name: "Создать" }));
 
@@ -174,7 +180,6 @@ describe("ServicesAdminClient", () => {
 
   it("does not call delete API when user cancels confirm", async () => {
     const user = userEvent.setup();
-    confirmMock.mockReturnValue(false);
     fetchMock.mockImplementation((url: string) => {
       if (url === "/api/admin/service-categories") {
         return Promise.resolve({ ok: true, json: async () => categories });
@@ -182,7 +187,7 @@ describe("ServicesAdminClient", () => {
       return Promise.resolve({ ok: true, json: async () => ({ ok: true }) });
     });
 
-    render(
+    renderWithConfirm(
       <ServicesAdminClient
         mode="list"
         initialServices={[mainService, legalService]}
@@ -190,6 +195,8 @@ describe("ServicesAdminClient", () => {
     );
 
     await user.click(screen.getAllByRole("button", { name: "Удалить" })[0]);
+    const confirmDialog = await screen.findByRole("dialog", { name: `Удалить услугу "${mainService.title}"?` });
+    await user.click(within(confirmDialog).getByRole("button", { name: "Отмена" }));
 
     // The component fetches categories on mount; delete request should not be called.
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/admin/services/"))).toBe(false);
@@ -204,7 +211,7 @@ describe("ServicesAdminClient", () => {
       return Promise.resolve({ ok: false, json: async () => ({}) });
     });
 
-    render(
+    renderWithConfirm(
       <ServicesAdminClient
         mode="list"
         initialServices={[mainService, legalService]}
@@ -212,6 +219,8 @@ describe("ServicesAdminClient", () => {
     );
 
     await user.click(screen.getAllByRole("button", { name: "Удалить" })[0]);
+    const confirmDialog = await screen.findByRole("dialog", { name: `Удалить услугу "${mainService.title}"?` });
+    await user.click(within(confirmDialog).getByRole("button", { name: "Удалить" }));
 
     expect(await screen.findByText("Failed to delete service")).toBeInTheDocument();
   });
@@ -226,7 +235,7 @@ describe("ServicesAdminClient", () => {
         json: async () => [mainService, legalService],
       });
 
-    render(
+    renderWithConfirm(
       <ServicesAdminClient
         mode="list"
         initialServices={[mainService, legalService]}
@@ -276,7 +285,7 @@ describe("ServicesAdminClient", () => {
       });
     });
 
-    render(
+    renderWithConfirm(
       <ServicesAdminClient
         mode="list"
         initialServices={[mainService, legalService]}
@@ -305,7 +314,7 @@ describe("ServicesAdminClient", () => {
       return Promise.resolve({ ok: true, json: async () => ({ ok: true }) });
     });
 
-    render(
+    renderWithConfirm(
       <ServicesAdminClient
         mode="list"
         initialServices={[mainService, legalService]}
@@ -369,7 +378,7 @@ describe("ServicesAdminClient", () => {
       return Promise.resolve({ ok: true, json: async () => ({ ok: true }) });
     });
 
-    render(
+    renderWithConfirm(
       <ServicesAdminClient
         mode="list"
         initialServices={[mainService, legalService]}

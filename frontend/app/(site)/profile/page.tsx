@@ -11,6 +11,7 @@ import {
   Button,
   Container,
   Divider,
+  IconButton,
   List,
   ListItemButton,
   ListItemIcon,
@@ -18,12 +19,15 @@ import {
   Paper,
   Skeleton,
   Stack,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import EmailIcon from "@mui/icons-material/Email";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
+import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import { useAppSelector } from "@/core/store/hooks";
 import type { AuthMembership, AuthProviderKey } from "@/core/auth/authorization";
 import { CustomerRequestsSection } from "@/widgets/customer-requests/ui/CustomerRequestsSection";
@@ -54,6 +58,27 @@ function buildLocationDisplayName(locationName: string, regionName: string) {
   return `${loc}, ${region}`;
 }
 
+const PROFILE_SIDEBAR_STORAGE_KEY = "ui.sidebar.profile.collapsed";
+const PROFILE_SIDEBAR_EXPANDED_W = 320;
+const PROFILE_SIDEBAR_COLLAPSED_W = 72;
+
+function readProfileSidebarCollapsedFromStorage(): boolean {
+  try {
+    const raw = window.localStorage.getItem(PROFILE_SIDEBAR_STORAGE_KEY);
+    return raw === "1" || raw === "true";
+  } catch {
+    return false;
+  }
+}
+
+function writeProfileSidebarCollapsedToStorage(value: boolean) {
+  try {
+    window.localStorage.setItem(PROFILE_SIDEBAR_STORAGE_KEY, value ? "1" : "0");
+  } catch {
+    // ignore storage errors
+  }
+}
+
 type ProfileSection = "profile" | "requests" | "documents";
 
 function resolveProfileSection(value: string | null): ProfileSection {
@@ -67,9 +92,11 @@ function resolveProfileSection(value: string | null): ProfileSection {
 interface ProfileSidebarProps {
   selectedSection: ProfileSection;
   onSelectSection: (section: ProfileSection) => void;
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
 }
 
-function ProfileSidebar({ selectedSection, onSelectSection }: ProfileSidebarProps) {
+function ProfileSidebar({ selectedSection, onSelectSection, collapsed, onToggleCollapsed }: ProfileSidebarProps) {
   const { unreadByRequestId } = useChatSocket();
   const unreadRequestsTotal = useMemo(
     () => Object.values(unreadByRequestId).reduce((acc, value) => acc + value, 0),
@@ -86,81 +113,152 @@ function ProfileSidebar({ selectedSection, onSelectSection }: ProfileSidebarProp
         top: { md: 112 },
       }}
     >
-      <Box sx={{ px: 2.5, py: 2 }}>
-        <Typography variant="overline" sx={{ fontWeight: 800, letterSpacing: "0.08em" }}>
-          Профиль
-        </Typography>
+      <Box
+        sx={{
+          px: collapsed ? 1 : 2.5,
+          py: 1.25,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: collapsed ? "center" : "space-between",
+          gap: 1,
+        }}
+      >
+        {collapsed ? null : (
+          <Typography variant="overline" sx={{ fontWeight: 800, letterSpacing: "0.08em" }}>
+            Профиль
+          </Typography>
+        )}
+        <Tooltip title={collapsed ? "Развернуть меню" : "Свернуть меню"}>
+          <IconButton size="small" aria-label={collapsed ? "Развернуть меню" : "Свернуть меню"} onClick={onToggleCollapsed}>
+            {collapsed ? <ChevronLeftRoundedIcon fontSize="small" /> : <ChevronRightRoundedIcon fontSize="small" />}
+          </IconButton>
+        </Tooltip>
       </Box>
 
       <Divider />
 
       <List dense disablePadding>
-        <ListItemButton
-          selected={selectedSection === "requests"}
-          sx={{
-            px: 2.5,
-            py: 1.5,
-            "&.Mui-selected": {
-              bgcolor: "action.selected",
-              "&:hover": { bgcolor: "action.selected" },
-            },
-          }}
-          onClick={() => onSelectSection("requests")}
-        >
-          <ListItemIcon sx={{ minWidth: 36 }}>
-            <Badge color="error" badgeContent={unreadRequestsTotal} max={99} invisible={unreadRequestsTotal === 0}>
-              <AssignmentTurnedInOutlinedIcon />
-            </Badge>
-          </ListItemIcon>
-          <ListItemText
-            primary="Заявки"
-            secondary="Все ваши заявки"
-            primaryTypographyProps={{ fontWeight: selectedSection === "requests" ? 700 : 600 }}
-          />
-        </ListItemButton>
+        {(() => {
+          const selected = selectedSection === "requests";
+          const title = "Заявки — Все ваши заявки";
+          const button = (
+            <ListItemButton
+              selected={selected}
+              aria-label={collapsed ? title : undefined}
+              sx={{
+                px: collapsed ? 1 : 2.5,
+                py: collapsed ? 1.25 : 1.5,
+                alignItems: "center",
+                justifyContent: collapsed ? "center" : "flex-start",
+                "&.Mui-selected": {
+                  bgcolor: "action.selected",
+                  "&:hover": { bgcolor: "action.selected" },
+                },
+              }}
+              onClick={() => onSelectSection("requests")}
+            >
+              <ListItemIcon sx={{ minWidth: collapsed ? "unset" : 36, justifyContent: "center" }}>
+                <Badge color="error" badgeContent={unreadRequestsTotal} max={99} invisible={unreadRequestsTotal === 0}>
+                  <AssignmentTurnedInOutlinedIcon />
+                </Badge>
+              </ListItemIcon>
+              {collapsed ? null : (
+                <ListItemText
+                  primary="Заявки"
+                  secondary="Все ваши заявки"
+                  primaryTypographyProps={{ fontWeight: selected ? 700 : 600 }}
+                />
+              )}
+            </ListItemButton>
+          );
+          return collapsed ? (
+            <Tooltip title={title} placement="right">
+              {button}
+            </Tooltip>
+          ) : (
+            button
+          );
+        })()}
 
-        <ListItemButton
-          selected={selectedSection === "documents"}
-          sx={{
-            px: 2.5,
-            py: 1.5,
-            "&.Mui-selected": {
-              bgcolor: "action.selected",
-              "&:hover": { bgcolor: "action.selected" },
-            },
-          }}
-          onClick={() => onSelectSection("documents")}
-        >
-          <ListItemIcon sx={{ minWidth: 36 }}>
-            <DescriptionOutlinedIcon />
-          </ListItemIcon>
-          <ListItemText
-            primary="Документы"
-            secondary="Личные документы"
-            primaryTypographyProps={{ fontWeight: selectedSection === "documents" ? 700 : 600 }}
-          />
-        </ListItemButton>
-        <ListItemButton
-          selected={selectedSection === "profile"}
-          sx={{
-            px: 2.5,
-            py: 1.5,
-            "&.Mui-selected": {
-              bgcolor: "action.selected",
-              "&:hover": { bgcolor: "action.selected" },
-            },
-          }}
-          onClick={() => onSelectSection("profile")}
-        >
-          <ListItemIcon sx={{ minWidth: 36 }}>
-            <PersonOutlineOutlinedIcon />
-          </ListItemIcon>
-          <ListItemText
-            primary="Профиль"
-            secondary="Личные данные"
-            primaryTypographyProps={{ fontWeight: selectedSection === "profile" ? 700 : 600 }}
-          />
-        </ListItemButton>
+        {(() => {
+          const selected = selectedSection === "documents";
+          const title = "Документы — Личные документы";
+          const button = (
+            <ListItemButton
+              selected={selected}
+              aria-label={collapsed ? title : undefined}
+              sx={{
+                px: collapsed ? 1 : 2.5,
+                py: collapsed ? 1.25 : 1.5,
+                alignItems: "center",
+                justifyContent: collapsed ? "center" : "flex-start",
+                "&.Mui-selected": {
+                  bgcolor: "action.selected",
+                  "&:hover": { bgcolor: "action.selected" },
+                },
+              }}
+              onClick={() => onSelectSection("documents")}
+            >
+              <ListItemIcon sx={{ minWidth: collapsed ? "unset" : 36, justifyContent: "center" }}>
+                <DescriptionOutlinedIcon />
+              </ListItemIcon>
+              {collapsed ? null : (
+                <ListItemText
+                  primary="Документы"
+                  secondary="Личные документы"
+                  primaryTypographyProps={{ fontWeight: selected ? 700 : 600 }}
+                />
+              )}
+            </ListItemButton>
+          );
+          return collapsed ? (
+            <Tooltip title={title} placement="right">
+              {button}
+            </Tooltip>
+          ) : (
+            button
+          );
+        })()}
+
+        {(() => {
+          const selected = selectedSection === "profile";
+          const title = "Профиль — Личные данные";
+          const button = (
+            <ListItemButton
+              selected={selected}
+              aria-label={collapsed ? title : undefined}
+              sx={{
+                px: collapsed ? 1 : 2.5,
+                py: collapsed ? 1.25 : 1.5,
+                alignItems: "center",
+                justifyContent: collapsed ? "center" : "flex-start",
+                "&.Mui-selected": {
+                  bgcolor: "action.selected",
+                  "&:hover": { bgcolor: "action.selected" },
+                },
+              }}
+              onClick={() => onSelectSection("profile")}
+            >
+              <ListItemIcon sx={{ minWidth: collapsed ? "unset" : 36, justifyContent: "center" }}>
+                <PersonOutlineOutlinedIcon />
+              </ListItemIcon>
+              {collapsed ? null : (
+                <ListItemText
+                  primary="Профиль"
+                  secondary="Личные данные"
+                  primaryTypographyProps={{ fontWeight: selected ? 700 : 600 }}
+                />
+              )}
+            </ListItemButton>
+          );
+          return collapsed ? (
+            <Tooltip title={title} placement="right">
+              {button}
+            </Tooltip>
+          ) : (
+            button
+          );
+        })()}
       </List>
     </Paper>
   );
@@ -605,6 +703,7 @@ function ProfilePageContent() {
   const [selectedSection, setSelectedSection] = useState<ProfileSection>(() =>
     resolveProfileSection(searchParams.get("section"))
   );
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -615,6 +714,18 @@ function ProfilePageContent() {
   useEffect(() => {
     setSelectedSection(resolveProfileSection(searchParams.get("section")));
   }, [searchParams]);
+
+  useEffect(() => {
+    setSidebarCollapsed(readProfileSidebarCollapsedFromStorage());
+  }, []);
+
+  const toggleSidebarCollapsed = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      writeProfileSidebarCollapsedToStorage(next);
+      return next;
+    });
+  };
 
   const memberships = useMemo(() => user?.memberships ?? [], [user?.memberships]);
   const activeMembership = useMemo(
@@ -645,10 +756,20 @@ function ProfilePageContent() {
   return (
     <Container maxWidth="xl" sx={{ py: 4, pb: 10 }}>
       <Stack direction={{ xs: "column", md: "row" }} spacing={3} alignItems="flex-start">
-        <Box sx={{ width: { xs: "100%", md: 320 }, flexShrink: 0 }}>
+        <Box
+          sx={{
+            width: {
+              xs: "100%",
+              md: sidebarCollapsed ? PROFILE_SIDEBAR_COLLAPSED_W : PROFILE_SIDEBAR_EXPANDED_W,
+            },
+            flexShrink: 0,
+          }}
+        >
           <ProfileSidebar
             selectedSection={selectedSection}
             onSelectSection={handleSelectSection}
+            collapsed={sidebarCollapsed}
+            onToggleCollapsed={toggleSidebarCollapsed}
           />
         </Box>
 

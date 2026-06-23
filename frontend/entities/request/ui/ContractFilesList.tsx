@@ -13,6 +13,7 @@ export type ContractFilesListItem = {
 };
 
 export type ContractFilesListProps = {
+  title: string;
   items: readonly ContractFilesListItem[];
   renderActions?: (item: ContractFilesListItem) => ReactNode;
   empty?: ReactNode;
@@ -27,6 +28,7 @@ function defaultStatusLabel(status: ContractFileStatus) {
 }
 
 export function ContractFilesList({
+  title,
   items,
   renderActions,
   empty,
@@ -35,6 +37,7 @@ export function ContractFilesList({
 }: ContractFilesListProps) {
   return (
     <RowList
+      title={title}
       items={items}
       empty={empty}
       getKey={(f) => f.id}
@@ -42,12 +45,11 @@ export function ContractFilesList({
         const optimistic = Boolean(file.optimistic);
         return (
           <RowListItem
-            key={file.id}
             isLast={isLast}
             left={
               <Stack spacing={0.5}>
                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ minWidth: 0 }}>
-                  <Typography fontWeight={800} sx={{ wordBreak: "break-word" }}>
+                  <Typography fontWeight={600} sx={{ wordBreak: "break-word" }}>
                     {file.originalName}
                   </Typography>
                   <Chip

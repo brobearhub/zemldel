@@ -87,6 +87,19 @@ export class RequestDocumentRequestsController {
     return this.requests.createForProvider({ actorUserId, requestId, title: body.title });
   }
 
+  @Delete('pro/requests/:requestId/document-requests/:docRequestId')
+  @ApiParam({ name: 'requestId', type: String })
+  @ApiParam({ name: 'docRequestId', type: String })
+  @ApiOkResponse({ type: OkResponseDto })
+  deleteForProvider(
+    @Req() request: Request,
+    @Param('requestId') requestId: string,
+    @Param('docRequestId') docRequestId: string,
+  ) {
+    const actorUserId = this.getRequiredActorUserId(request);
+    return this.requests.deleteForProvider({ actorUserId, requestId, docRequestId });
+  }
+
   @Get('requests/mine/:requestId/document-requests')
   @ApiParam({ name: 'requestId', type: String })
   @ApiOkResponse({ type: [RequestDocumentRequestItemDto] })

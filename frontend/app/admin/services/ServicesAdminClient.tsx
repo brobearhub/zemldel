@@ -16,6 +16,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { ServiceDto } from "@/entities/service";
+import { useConfirm } from "@/shared/ui/confirm";
 
 type ServiceRow = ServiceDto;
 
@@ -53,6 +54,7 @@ function normalizeIcon(v: string): ServiceDto["icon"] {
 
 export function ServicesAdminClient({ mode, initialServices }: Props) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [services, setServices] = useState<ServiceRow[]>(initialServices ?? []);
   const [categories, setCategories] = useState<ServiceCategoryRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -186,7 +188,13 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
   }
 
   async function onDelete(service: Pick<ServiceRow, "id" | "title">) {
-    if (!confirm(`Удалить услугу "${service.title}"?`)) return;
+    const ok = await confirm({
+      title: `Удалить услугу "${service.title}"?`,
+      description: "Это действие нельзя отменить.",
+      confirmText: "Удалить",
+      confirmColor: "error",
+    });
+    if (!ok) return;
     setError(null);
     setBusy(true);
     try {

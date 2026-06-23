@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import { useAppSelector } from "@/core/store/hooks";
 import type { ServiceCreateDto, ServiceDto, ServiceStatus } from "@/entities/service";
+import { useConfirm } from "@/shared/ui/confirm";
 
 type Props = {
   initialServices: ServiceDto[];
@@ -79,6 +80,7 @@ function buildDuplicatePayload(service: ServiceDto): ServiceCreateDto {
 export function ProServicesListClient({ initialServices }: Props) {
   const searchParams = useSearchParams();
   const { user } = useAppSelector((state) => state.auth);
+  const confirm = useConfirm();
   const [services, setServices] = useState(() => sortServices(initialServices));
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(() => noticeFromQuery(searchParams.get("notice")));
@@ -202,7 +204,13 @@ export function ProServicesListClient({ initialServices }: Props) {
   }
 
   async function deleteService(service: ServiceDto) {
-    if (!confirm(`Удалить услугу "${service.title}"?`)) return;
+    const ok = await confirm({
+      title: `Удалить услугу "${service.title}"?`,
+      description: "Это действие нельзя отменить.",
+      confirmText: "Удалить",
+      confirmColor: "error",
+    });
+    if (!ok) return;
 
     setBusyId(service.id);
     setError(null);

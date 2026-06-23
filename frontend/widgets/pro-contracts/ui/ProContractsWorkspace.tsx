@@ -24,6 +24,7 @@ import {
   Typography,
 } from "@mui/material";
 import Link from "@/shared/ui/Link";
+import { useConfirm } from "@/shared/ui/confirm";
 
 export type ProContractTemplateListItem = {
   id: string;
@@ -75,6 +76,7 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const confirm = useConfirm();
 
   const [createInstanceTemplateId, setCreateInstanceTemplateId] = useState<string>("");
   const [createInstanceOrderId, setCreateInstanceOrderId] = useState<string>(() => requestIdFromQuery);
@@ -139,7 +141,12 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
   }
 
   async function deleteTemplate(template: ProContractTemplateListItem) {
-    const ok = window.confirm(`Удалить шаблон «${template.title}»? Это действие нельзя отменить.`);
+    const ok = await confirm({
+      title: `Удалить шаблон «${template.title}»?`,
+      description: "Это действие нельзя отменить.",
+      confirmText: "Удалить",
+      confirmColor: "error",
+    });
     if (!ok) return;
 
     setBusy(true);

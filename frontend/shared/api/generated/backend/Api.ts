@@ -439,6 +439,23 @@ export interface RequestServiceCreateDto {
   requestCityId?: string;
 }
 
+export interface RequestRemarkDto {
+  /** @format uuid */
+  id: string;
+  /** @format uuid */
+  requestId: string;
+  authorSide: RequestRemarkDtoAuthorSideEnum;
+  status: RequestRemarkDtoStatusEnum;
+  text: string;
+  createdAt: string;
+  doneAt?: object | null;
+}
+
+export interface RequestRemarkCreateDto {
+  /** @minLength 3 */
+  text: string;
+}
+
 export interface RequestProDto {
   /** @format uuid */
   id: string;
@@ -838,6 +855,36 @@ export interface ContractFilesUploadResponseDto {
   }[];
 }
 
+export interface RequestDocumentRequestItemDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Паспорт (скан)" */
+  title: string;
+  status: RequestDocumentRequestItemDtoStatusEnum;
+  /** @example null */
+  originalName: object | null;
+  /** @example null */
+  mimeType: object | null;
+  /** @example null */
+  sizeBytes: object | null;
+  /** @example null */
+  sha256: object | null;
+  /**
+   * @format date-time
+   * @example null
+   */
+  uploadedAt: object | null;
+  /** @format date-time */
+  createdAt: string;
+  /** @format date-time */
+  updatedAt: string;
+}
+
+export interface CreateRequestDocumentRequestDto {
+  /** @example "Паспорт (скан)" */
+  title: string;
+}
+
 export interface ReminderServiceTitleDto {
   title: string;
 }
@@ -1046,6 +1093,16 @@ export enum RequestCustomerDtoStatusEnum {
   CLOSED = "CLOSED",
 }
 
+export enum RequestRemarkDtoAuthorSideEnum {
+  CUSTOMER = "CUSTOMER",
+  PROVIDER = "PROVIDER",
+}
+
+export enum RequestRemarkDtoStatusEnum {
+  OPEN = "OPEN",
+  DONE = "DONE",
+}
+
 export enum RequestProDtoSubjectTypeEnum {
   FREEFORM = "FREEFORM",
   CATEGORY = "CATEGORY",
@@ -1144,6 +1201,11 @@ export enum ContractFileItemDtoStatusEnum {
   PENDING_CUSTOMER = "PENDING_CUSTOMER",
   APPROVED = "APPROVED",
   REVISION_REQUESTED = "REVISION_REQUESTED",
+}
+
+export enum RequestDocumentRequestItemDtoStatusEnum {
+  REQUESTED = "REQUESTED",
+  UPLOADED = "UPLOADED",
 }
 
 export enum ServiceCategoriesControllerGetPublicCategoriesParamsPlacementEnum {
@@ -1973,6 +2035,79 @@ export namespace Pro {
   /**
    * No description
    * @tags requests
+   * @name RequestsControllerListProRemarks
+   * @request GET:/pro/requests/{id}/remarks
+   * @response `200` `(RequestRemarkDto)[]`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace RequestsControllerListProRemarks {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = RequestRemarkDto[];
+  }
+
+  /**
+   * No description
+   * @tags requests
+   * @name RequestsControllerCreateProRemark
+   * @request POST:/pro/requests/{id}/remarks
+   * @response `200` `RequestRemarkDto`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace RequestsControllerCreateProRemark {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = RequestRemarkCreateDto;
+    export type RequestHeaders = {};
+    export type ResponseBody = RequestRemarkDto;
+  }
+
+  /**
+   * No description
+   * @tags requests
+   * @name RequestsControllerCompleteProRemark
+   * @request POST:/pro/requests/{id}/remarks/{remarkId}/complete
+   * @response `200` `RequestRemarkDto`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace RequestsControllerCompleteProRemark {
+    export type RequestParams = {
+      id: string;
+      remarkId: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = RequestRemarkDto;
+  }
+
+  /**
+   * No description
+   * @tags requests
    * @name RequestsControllerGetProOrders
    * @request GET:/pro/requests
    * @response `200` `(RequestCustomerDto)[]`
@@ -2203,6 +2338,129 @@ export namespace Pro {
   export namespace ContractFilesControllerDownloadProvider {
     export type RequestParams = {
       fileId: string;
+    };
+    export type RequestQuery = {
+      inline?: string;
+    };
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = Blob;
+  }
+
+  /**
+   * No description
+   * @tags ContractFiles
+   * @name ContractFilesControllerDeleteProvider
+   * @request DELETE:/pro/contract-files/{fileId}
+   * @response `200` `OkResponseDto`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace ContractFilesControllerDeleteProvider {
+    export type RequestParams = {
+      fileId: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = OkResponseDto;
+  }
+
+  /**
+   * No description
+   * @tags request-document-requests
+   * @name RequestDocumentRequestsControllerListForProvider
+   * @request GET:/pro/requests/{requestId}/document-requests
+   * @response `200` `(RequestDocumentRequestItemDto)[]`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace RequestDocumentRequestsControllerListForProvider {
+    export type RequestParams = {
+      requestId: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = RequestDocumentRequestItemDto[];
+  }
+
+  /**
+   * No description
+   * @tags request-document-requests
+   * @name RequestDocumentRequestsControllerCreateForProvider
+   * @request POST:/pro/requests/{requestId}/document-requests
+   * @response `200` `RequestDocumentRequestItemDto`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace RequestDocumentRequestsControllerCreateForProvider {
+    export type RequestParams = {
+      requestId: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = CreateRequestDocumentRequestDto;
+    export type RequestHeaders = {};
+    export type ResponseBody = RequestDocumentRequestItemDto;
+  }
+
+  /**
+   * No description
+   * @tags request-document-requests
+   * @name RequestDocumentRequestsControllerDeleteForProvider
+   * @request DELETE:/pro/requests/{requestId}/document-requests/{docRequestId}
+   * @response `200` `OkResponseDto`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace RequestDocumentRequestsControllerDeleteForProvider {
+    export type RequestParams = {
+      requestId: string;
+      docRequestId: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = OkResponseDto;
+  }
+
+  /**
+   * No description
+   * @tags request-document-requests
+   * @name RequestDocumentRequestsControllerDownloadProvider
+   * @request GET:/pro/document-requests/{docRequestId}/download
+   * @response `200` `File`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace RequestDocumentRequestsControllerDownloadProvider {
+    export type RequestParams = {
+      docRequestId: string;
     };
     export type RequestQuery = {
       inline?: string;
@@ -2690,10 +2948,83 @@ export namespace Requests {
     export type RequestQuery = {};
     export type RequestBody = {
       /** @minLength 3 */
-      remarks: string;
+      remarks?: string;
     };
     export type RequestHeaders = {};
     export type ResponseBody = RequestCustomerDto;
+  }
+
+  /**
+   * No description
+   * @tags requests
+   * @name RequestsControllerListMineRemarks
+   * @request GET:/requests/mine/{id}/remarks
+   * @response `200` `(RequestRemarkDto)[]`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace RequestsControllerListMineRemarks {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = RequestRemarkDto[];
+  }
+
+  /**
+   * No description
+   * @tags requests
+   * @name RequestsControllerCreateMineRemark
+   * @request POST:/requests/mine/{id}/remarks
+   * @response `200` `RequestRemarkDto`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace RequestsControllerCreateMineRemark {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = RequestRemarkCreateDto;
+    export type RequestHeaders = {};
+    export type ResponseBody = RequestRemarkDto;
+  }
+
+  /**
+   * No description
+   * @tags requests
+   * @name RequestsControllerCompleteMineRemark
+   * @request POST:/requests/mine/{id}/remarks/{remarkId}/complete
+   * @response `200` `RequestRemarkDto`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace RequestsControllerCompleteMineRemark {
+    export type RequestParams = {
+      id: string;
+      remarkId: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = RequestRemarkDto;
   }
 
   /**
@@ -2791,6 +3122,110 @@ export namespace Requests {
     export type RequestParams = {
       requestId: string;
       fileId: string;
+    };
+    export type RequestQuery = {
+      inline?: string;
+    };
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = Blob;
+  }
+
+  /**
+   * No description
+   * @tags request-document-requests
+   * @name RequestDocumentRequestsControllerListForCustomer
+   * @request GET:/requests/mine/{requestId}/document-requests
+   * @response `200` `(RequestDocumentRequestItemDto)[]`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace RequestDocumentRequestsControllerListForCustomer {
+    export type RequestParams = {
+      requestId: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = RequestDocumentRequestItemDto[];
+  }
+
+  /**
+   * No description
+   * @tags request-document-requests
+   * @name RequestDocumentRequestsControllerUploadForCustomer
+   * @request POST:/requests/mine/{requestId}/document-requests/{docRequestId}/upload
+   * @response `200` `OkResponseDto`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace RequestDocumentRequestsControllerUploadForCustomer {
+    export type RequestParams = {
+      requestId: string;
+      docRequestId: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = {
+      /** @format binary */
+      file: File;
+    };
+    export type RequestHeaders = {};
+    export type ResponseBody = OkResponseDto;
+  }
+
+  /**
+   * No description
+   * @tags request-document-requests
+   * @name RequestDocumentRequestsControllerDeleteFileForCustomer
+   * @request DELETE:/requests/mine/{requestId}/document-requests/{docRequestId}/file
+   * @response `200` `OkResponseDto`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace RequestDocumentRequestsControllerDeleteFileForCustomer {
+    export type RequestParams = {
+      requestId: string;
+      docRequestId: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = OkResponseDto;
+  }
+
+  /**
+   * No description
+   * @tags request-document-requests
+   * @name RequestDocumentRequestsControllerDownloadCustomer
+   * @request GET:/requests/mine/{requestId}/document-requests/{docRequestId}/download
+   * @response `200` `File`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace RequestDocumentRequestsControllerDownloadCustomer {
+    export type RequestParams = {
+      requestId: string;
+      docRequestId: string;
     };
     export type RequestQuery = {
       inline?: string;
@@ -4857,6 +5292,115 @@ export class Api<SecurityDataType extends unknown> {
      * No description
      *
      * @tags requests
+     * @name RequestsControllerListProRemarks
+     * @request GET:/pro/requests/{id}/remarks
+     * @response `200` `(RequestRemarkDto)[]`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    requestsControllerListProRemarks: (
+      id: string,
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        RequestRemarkDto[],
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/pro/requests/${id}/remarks`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags requests
+     * @name RequestsControllerCreateProRemark
+     * @request POST:/pro/requests/{id}/remarks
+     * @response `200` `RequestRemarkDto`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    requestsControllerCreateProRemark: (
+      id: string,
+      data: RequestRemarkCreateDto,
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        RequestRemarkDto,
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/pro/requests/${id}/remarks`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags requests
+     * @name RequestsControllerCompleteProRemark
+     * @request POST:/pro/requests/{id}/remarks/{remarkId}/complete
+     * @response `200` `RequestRemarkDto`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    requestsControllerCompleteProRemark: (
+      id: string,
+      remarkId: string,
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        RequestRemarkDto,
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/pro/requests/${id}/remarks/${remarkId}/complete`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags requests
      * @name RequestsControllerGetProOrders
      * @request GET:/pro/requests
      * @response `200` `(RequestCustomerDto)[]`
@@ -5197,6 +5741,188 @@ export class Api<SecurityDataType extends unknown> {
         | ApiInternalServerErrorDto
       >({
         path: `/pro/contract-files/${fileId}/download`,
+        method: "GET",
+        query: query,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags ContractFiles
+     * @name ContractFilesControllerDeleteProvider
+     * @request DELETE:/pro/contract-files/{fileId}
+     * @response `200` `OkResponseDto`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    contractFilesControllerDeleteProvider: (
+      fileId: string,
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        OkResponseDto,
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/pro/contract-files/${fileId}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags request-document-requests
+     * @name RequestDocumentRequestsControllerListForProvider
+     * @request GET:/pro/requests/{requestId}/document-requests
+     * @response `200` `(RequestDocumentRequestItemDto)[]`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    requestDocumentRequestsControllerListForProvider: (
+      requestId: string,
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        RequestDocumentRequestItemDto[],
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/pro/requests/${requestId}/document-requests`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags request-document-requests
+     * @name RequestDocumentRequestsControllerCreateForProvider
+     * @request POST:/pro/requests/{requestId}/document-requests
+     * @response `200` `RequestDocumentRequestItemDto`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    requestDocumentRequestsControllerCreateForProvider: (
+      requestId: string,
+      data: CreateRequestDocumentRequestDto,
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        RequestDocumentRequestItemDto,
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/pro/requests/${requestId}/document-requests`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags request-document-requests
+     * @name RequestDocumentRequestsControllerDeleteForProvider
+     * @request DELETE:/pro/requests/{requestId}/document-requests/{docRequestId}
+     * @response `200` `OkResponseDto`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    requestDocumentRequestsControllerDeleteForProvider: (
+      requestId: string,
+      docRequestId: string,
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        OkResponseDto,
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/pro/requests/${requestId}/document-requests/${docRequestId}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags request-document-requests
+     * @name RequestDocumentRequestsControllerDownloadProvider
+     * @request GET:/pro/document-requests/{docRequestId}/download
+     * @response `200` `File`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    requestDocumentRequestsControllerDownloadProvider: (
+      docRequestId: string,
+      query?: {
+        inline?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        Blob,
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/pro/document-requests/${docRequestId}/download`,
         method: "GET",
         query: query,
         ...params,
@@ -5897,7 +6623,7 @@ export class Api<SecurityDataType extends unknown> {
       id: string,
       data: {
         /** @minLength 3 */
-        remarks: string;
+        remarks?: string;
       },
       params: RequestParams = {},
     ) =>
@@ -5915,6 +6641,115 @@ export class Api<SecurityDataType extends unknown> {
         method: "POST",
         body: data,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags requests
+     * @name RequestsControllerListMineRemarks
+     * @request GET:/requests/mine/{id}/remarks
+     * @response `200` `(RequestRemarkDto)[]`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    requestsControllerListMineRemarks: (
+      id: string,
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        RequestRemarkDto[],
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/requests/mine/${id}/remarks`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags requests
+     * @name RequestsControllerCreateMineRemark
+     * @request POST:/requests/mine/{id}/remarks
+     * @response `200` `RequestRemarkDto`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    requestsControllerCreateMineRemark: (
+      id: string,
+      data: RequestRemarkCreateDto,
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        RequestRemarkDto,
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/requests/mine/${id}/remarks`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags requests
+     * @name RequestsControllerCompleteMineRemark
+     * @request POST:/requests/mine/{id}/remarks/{remarkId}/complete
+     * @response `200` `RequestRemarkDto`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    requestsControllerCompleteMineRemark: (
+      id: string,
+      remarkId: string,
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        RequestRemarkDto,
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/requests/mine/${id}/remarks/${remarkId}/complete`,
+        method: "POST",
         format: "json",
         ...params,
       }),
@@ -6066,6 +6901,158 @@ export class Api<SecurityDataType extends unknown> {
         | ApiInternalServerErrorDto
       >({
         path: `/requests/mine/${requestId}/contract-files/${fileId}/download`,
+        method: "GET",
+        query: query,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags request-document-requests
+     * @name RequestDocumentRequestsControllerListForCustomer
+     * @request GET:/requests/mine/{requestId}/document-requests
+     * @response `200` `(RequestDocumentRequestItemDto)[]`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    requestDocumentRequestsControllerListForCustomer: (
+      requestId: string,
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        RequestDocumentRequestItemDto[],
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/requests/mine/${requestId}/document-requests`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags request-document-requests
+     * @name RequestDocumentRequestsControllerUploadForCustomer
+     * @request POST:/requests/mine/{requestId}/document-requests/{docRequestId}/upload
+     * @response `200` `OkResponseDto`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    requestDocumentRequestsControllerUploadForCustomer: (
+      requestId: string,
+      docRequestId: string,
+      data: {
+        /** @format binary */
+        file: File;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        OkResponseDto,
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/requests/mine/${requestId}/document-requests/${docRequestId}/upload`,
+        method: "POST",
+        body: data,
+        type: ContentType.FormData,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags request-document-requests
+     * @name RequestDocumentRequestsControllerDeleteFileForCustomer
+     * @request DELETE:/requests/mine/{requestId}/document-requests/{docRequestId}/file
+     * @response `200` `OkResponseDto`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    requestDocumentRequestsControllerDeleteFileForCustomer: (
+      requestId: string,
+      docRequestId: string,
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        OkResponseDto,
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/requests/mine/${requestId}/document-requests/${docRequestId}/file`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags request-document-requests
+     * @name RequestDocumentRequestsControllerDownloadCustomer
+     * @request GET:/requests/mine/{requestId}/document-requests/{docRequestId}/download
+     * @response `200` `File`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    requestDocumentRequestsControllerDownloadCustomer: (
+      requestId: string,
+      docRequestId: string,
+      query?: {
+        inline?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        Blob,
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/requests/mine/${requestId}/document-requests/${docRequestId}/download`,
         method: "GET",
         query: query,
         ...params,

@@ -609,7 +609,6 @@ model RequestDocumentRequest {
   status          RequestDocumentRequestStatus @default(REQUESTED)
 
   title           String
-  sortOrder       Int
 
   originalName    String?
   mimeType        String?
@@ -624,7 +623,7 @@ model RequestDocumentRequest {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([requestId, sortOrder])
+  @@index([requestId, createdAt])
   @@index([requestId, status])
   @@index([providerId, updatedAt])
   @@index([status, updatedAt])

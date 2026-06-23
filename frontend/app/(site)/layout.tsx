@@ -10,7 +10,7 @@ interface Props {
 export default function SiteLayout({ children }: Props) {
   return (
     <Box sx={{ minHeight: "100dvh", bgcolor: "background.default" }}>
-      <Box sx={{ position: "fixed", left: 0, top: 0, width: "100%", zIndex: 1200 }}>
+      <Box className="mui-fixed" sx={{ position: "fixed", left: 0, top: 0, width: "100%", zIndex: 1200 }}>
         <Header />
       </Box>
       {/* Fixed header offset + consistent breathing room */}

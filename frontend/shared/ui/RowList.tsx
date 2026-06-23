@@ -1,10 +1,11 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import type { SxProps, Theme } from "@mui/material";
-import { Box, List, ListItem, Paper, Stack } from "@mui/material";
+import { Box, List, ListItem, Paper, Stack, Typography } from "@mui/material";
 
-export type RowListRenderRowArgs = { isLast: boolean };
+export type RowListRenderRowArgs = { isLast: boolean; index: number };
 
 export type RowListProps<T> = {
+  title: string;
   items: readonly T[];
   getKey: (item: T) => string;
   renderRow: (item: T, args: RowListRenderRowArgs) => ReactNode;
@@ -12,17 +13,56 @@ export type RowListProps<T> = {
   paperSx?: SxProps<Theme>;
 };
 
-export function RowList<T>({ items, getKey, renderRow, empty, paperSx }: RowListProps<T>) {
+export function RowList<T>({ title, items, getKey, renderRow, empty, paperSx }: RowListProps<T>) {
+  const tabRadiusPx = 10;
+  const tabLiftPx = 10;
+
   return (
-    <Paper variant="elevation" elevation={1} square sx={{ overflow: "hidden", ...paperSx }}>
-      {items.length === 0 ? (
-        empty ?? null
-      ) : (
-        <List dense disablePadding>
-          {items.map((item, idx) => renderRow(item, { isLast: idx === items.length - 1 }))}
-        </List>
-      )}
-    </Paper>
+    <Box sx={{ pt: `${tabLiftPx}px` }}>
+      <Paper
+        variant="elevation"
+        elevation={1}
+        sx={{
+          display: "inline-block",
+          mt: `-${tabLiftPx}px`,
+          px: 2,
+          py: 1,
+          bgcolor: "background.paper",
+          borderRadius: `${tabRadiusPx}px ${tabRadiusPx}px 0 0`,
+          clipPath: `inset(-${tabRadiusPx}px -${tabRadiusPx}px 0 -${tabRadiusPx}px)`,
+          mb: "-1px",
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        <Typography variant="caption" fontWeight={600} color="text.disabled">{title}</Typography>
+      </Paper>
+
+      <Paper
+        square
+        variant="elevation"
+        elevation={1}
+        sx={{
+          overflow: "hidden",
+          ...paperSx,
+          borderRadius: 0,
+        }}
+      >
+        {items.length === 0 ? (
+          empty ? (
+            <Box sx={{ borderTop: "1px solid", borderTopColor: "divider", p: 2 }}>{empty}</Box>
+          ) : null
+        ) : (
+          <List dense disablePadding sx={{ borderTop: "1px solid", borderTopColor: "divider" }}>
+            {items.map((item, idx) => (
+              <Fragment key={getKey(item)}>
+                {renderRow(item, { isLast: idx === items.length - 1, index: idx })}
+              </Fragment>
+            ))}
+          </List>
+        )}
+      </Paper>
+    </Box>
   );
 }
 

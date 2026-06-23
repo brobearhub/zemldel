@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   Alert,
+  Box,
   Button,
   Chip,
   CircularProgress,
@@ -10,6 +11,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   LinearProgress,
   Paper,
   Stack,
@@ -46,6 +48,7 @@ export type ProRequestDocumentsSectionProps = {
   isOptimisticFileId: (id: string) => boolean;
 
   onCreateDocRequest: (title: string) => Promise<void> | void;
+  onCancelDocRequest: (docRequestId: string) => Promise<void> | void;
   onUploadContractFiles: (files: File[]) => Promise<void> | void;
   onDeleteContractFile: (fileId: string) => Promise<void> | void;
 };
@@ -88,29 +91,45 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
         {props.docRequests.length > 0 ? (
           <Stack spacing={1}>
             <RequestDocumentsList
+              title="Документы клиента"
               items={props.docRequests}
               renderActions={(d) => {
                 const hasFile = d.status === "UPLOADED" && Boolean(d.originalName) && Boolean(d.mimeType);
-                return hasFile ? (
-                  <Button component={Link} href={`/api/pro/document-requests/${d.id}/download`} variant="text" disabled={props.isBusy}>
-                    Скачать
-                  </Button>
-                ) : null;
+                const canCancel = d.status === "REQUESTED";
+
+                if (!hasFile && !canCancel) return null;
+
+                return (
+                  <>
+                    {hasFile ? (
+                      <Button component={Link} href={`/api/pro/document-requests/${d.id}/download`} variant="text" disabled={props.isBusy}>
+                        Скачать
+                      </Button>
+                    ) : null}
+                    {canCancel ? (
+                      <Button color="error" variant="text" disabled={props.isBusy} onClick={() => void props.onCancelDocRequest(d.id)}>
+                        Отмена
+                      </Button>
+                    ) : null}
+                  </>
+                );
               }}
             />
           </Stack>
         ) : null}
 
-        <Button
-          color="success"
-          variant="contained"
-          startIcon={<AddIcon />}
-          disabled={props.isBusy}
-          onClick={() => setDocDialogOpen(true)}
-          sx={{ alignSelf: "flex-start", fontWeight: 900 }}
-        >
-          Запросить документ у клиента
-        </Button>
+        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mb: 2 }}>
+          <Button
+            color="warning"
+            variant="text"
+            startIcon={<AddIcon />}
+            disabled={props.isBusy}
+            onClick={() => setDocDialogOpen(true)}
+            sx={{ alignSelf: "flex-start", fontWeight: 900 }}
+          >
+            Запросить документ у клиента
+          </Button>
+        </Box>
 
         {props.contractFiles.length === 0 ? <Alert severity="info">Договор ещё не прикреплён к заявке.</Alert> : null}
         {hasRevisionRequested ? (
@@ -120,28 +139,6 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
         ) : hasApproved ? (
           <Alert severity="success">Есть одобренные файлы договора.</Alert>
         ) : null}
-
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          <Button
-            component="label"
-            variant="contained"
-            disabled={props.isBusy}
-            startIcon={props.uploadBusy ? <CircularProgress size={16} color="inherit" /> : undefined}
-          >
-            {props.uploadBusy ? "Загрузка…" : "Загрузить файлы"}
-            <input
-              hidden
-              type="file"
-              multiple
-              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              onChange={(e) => {
-                const next = Array.from(e.currentTarget.files ?? []);
-                e.currentTarget.value = "";
-                void props.onUploadContractFiles(next);
-              }}
-            />
-          </Button>
-        </Stack>
 
         {!props.docRequestsLoaded || !props.contractFilesLoaded ? (
           <Alert
@@ -177,9 +174,10 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
           </Paper>
         ) : null}
 
-        {props.contractFiles.length > 0 ? (
+        {props.contractFiles.length > 0 && (
           <Stack spacing={1}>
             <ContractFilesList
+              title="Мои документы"
               items={props.contractFiles.map((f) => ({ ...f, optimistic: props.isOptimisticFileId(f.id) }))}
               revisionLabel="Комментарий клиента"
               getStatusLabel={contractFileStatusLabel}
@@ -197,7 +195,29 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
               )}
             />
           </Stack>
-        ) : null}
+        )}
+        <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="center" useFlexGap>
+          <Button
+            component="label"
+            variant="text"
+            color="warning"
+            disabled={props.isBusy}
+            startIcon={props.uploadBusy ? <CircularProgress size={16} color="inherit" /> : <AddIcon />}
+          >
+            {props.uploadBusy ? "Загрузка…" : "Загрузить документы"}
+            <input
+              hidden
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={(e) => {
+                const next = Array.from(e.currentTarget.files ?? []);
+                e.currentTarget.value = "";
+                void props.onUploadContractFiles(next);
+              }}
+            />
+          </Button>
+        </Stack>
       </DocumentsSectionShell>
 
       <Dialog

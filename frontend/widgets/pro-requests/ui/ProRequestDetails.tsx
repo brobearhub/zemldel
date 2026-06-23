@@ -40,9 +40,11 @@ import {
 } from "@/entities/request/api/pro-contract-files";
 import {
   createProRequestDocumentRequest,
+  deleteProRequestDocumentRequest,
   fetchProRequestDocumentRequests,
 } from "@/entities/request/api/request-document-requests";
 import { ProRequestDocumentsSection } from "@/widgets/pro-requests/ui/ProRequestDocumentsSection";
+import { useConfirm } from "@/shared/ui/confirm";
 
 type Props = {
   initialRequest: RequestProDto;
@@ -62,6 +64,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   const [docRequests, setDocRequests] = useState<RequestDocumentRequestDto[]>([]);
   const [remarks, setRemarks] = useState<RequestRemarkDto[]>([]);
   const [remarksError, setRemarksError] = useState<string | null>(null);
+  const confirm = useConfirm();
 
   const isBusy = busy || uploadBusy;
   const showContractWorkflow = !req.isLocked && req.offerStatus === "SELECTED";
@@ -183,6 +186,28 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     }
   }
 
+  async function cancelDocRequest(docRequestId: string) {
+    const ok = await confirm({
+      title: "Удалить запрос документа?",
+      description: "Клиент больше не увидит этот запрос в списке документов.",
+      confirmText: "Удалить",
+      confirmColor: "error",
+    });
+    if (!ok) return;
+    setBusy(true);
+    setNotice(null);
+    setError(null);
+    try {
+      await deleteProRequestDocumentRequest(req.id, docRequestId);
+      await refreshDocRequests();
+      setNotice("Запрос документа отменён.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось отменить запрос документа");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function isOptimisticFileId(id: string) {
     return id.startsWith("temp:");
   }
@@ -228,7 +253,13 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   }
 
   async function deleteContractFile(fileId: string) {
-    if (!window.confirm("Удалить файл?")) return;
+    const ok = await confirm({
+      title: "Удалить файл?",
+      description: "Файл будет удалён из заявки. Это действие нельзя отменить.",
+      confirmText: "Удалить",
+      confirmColor: "error",
+    });
+    if (!ok) return;
     setBusy(true);
     setError(null);
     setNotice(null);
@@ -414,6 +445,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
         uploadNames={uploadNames}
         isOptimisticFileId={isOptimisticFileId}
         onCreateDocRequest={createDocRequest}
+        onCancelDocRequest={cancelDocRequest}
         onUploadContractFiles={uploadContractFiles}
         onDeleteContractFile={deleteContractFile}
       />

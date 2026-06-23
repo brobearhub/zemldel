@@ -24,6 +24,39 @@ describe("canCustomerAcceptContract", () => {
     ).toBe(false);
   });
 
+  it("requires all provider documents approved", () => {
+    expect(
+      canCustomerAcceptContract({
+        requestStatus: "PROVIDER_SELECTED",
+        contractFiles: [
+          {
+            id: "f1",
+            status: "APPROVED",
+            originalName: "a.pdf",
+            mimeType: "application/pdf",
+            sizeBytes: 10,
+            revisionMessage: null,
+            decidedAt: "2026-01-01T00:00:00.000Z",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          },
+          {
+            id: "f2",
+            status: "PENDING_CUSTOMER",
+            originalName: "b.pdf",
+            mimeType: "application/pdf",
+            sizeBytes: 10,
+            revisionMessage: null,
+            decidedAt: null,
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+        documentRequests: [],
+      })
+    ).toBe(false);
+  });
+
   it("requires all requested documents uploaded", () => {
     expect(
       canCustomerAcceptContract({
@@ -45,7 +78,6 @@ describe("canCustomerAcceptContract", () => {
           {
             id: "d1",
             title: "Паспорт",
-            sortOrder: 1,
             status: "REQUESTED",
             originalName: null,
             mimeType: null,
@@ -81,7 +113,6 @@ describe("canCustomerAcceptContract", () => {
           {
             id: "d1",
             title: "Паспорт",
-            sortOrder: 1,
             status: "UPLOADED",
             originalName: "pass.pdf",
             mimeType: "application/pdf",

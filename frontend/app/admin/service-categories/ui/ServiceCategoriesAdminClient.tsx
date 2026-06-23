@@ -17,6 +17,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useMemo, useState } from "react";
+import { useConfirm } from "@/shared/ui/confirm";
 
 export type ServiceCategoryRow = {
   id: string;
@@ -77,6 +78,7 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
   const [categories, setCategories] = useState<ServiceCategoryRow[]>(initialCategories);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const confirm = useConfirm();
 
   const [createForm, setCreateForm] = useState<{
     name: string;
@@ -175,7 +177,13 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
   }
 
   async function onDelete(row: Pick<ServiceCategoryRow, "id" | "name">) {
-    if (!confirm(`Удалить категорию "${row.name}"?`)) return;
+    const ok = await confirm({
+      title: `Удалить категорию "${row.name}"?`,
+      description: "Это действие нельзя отменить.",
+      confirmText: "Удалить",
+      confirmColor: "error",
+    });
+    if (!ok) return;
     setError(null);
     setBusy(true);
     try {

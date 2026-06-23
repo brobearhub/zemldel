@@ -3,7 +3,6 @@ export type RequestDocumentRequestStatus = "REQUESTED" | "UPLOADED";
 export type RequestDocumentRequestDto = {
   id: string;
   title: string;
-  sortOrder: number;
   status: RequestDocumentRequestStatus;
 
   originalName: string | null;

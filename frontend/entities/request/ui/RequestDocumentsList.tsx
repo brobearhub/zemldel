@@ -4,6 +4,7 @@ import type { RequestDocumentRequestDto } from "../dto/request-document-request.
 import { RowList, RowListItem } from "@/shared/ui/RowList";
 
 type Props = {
+  title: string;
   items: RequestDocumentRequestDto[];
   renderActions: (item: RequestDocumentRequestDto) => ReactNode;
   renderHint?: (item: RequestDocumentRequestDto) => ReactNode;
@@ -14,23 +15,23 @@ function statusLabel(status: RequestDocumentRequestDto["status"]) {
   return status === "UPLOADED" ? "Загружен" : "Ожидаем";
 }
 
-export function RequestDocumentsList({ items, renderActions, renderHint, empty }: Props) {
+export function RequestDocumentsList({ title, items, renderActions, renderHint, empty }: Props) {
   return (
     <RowList
+      title={title}
       items={items}
       empty={empty}
       getKey={(x) => x.id}
-      renderRow={(d, { isLast }) => {
+      renderRow={(d, { isLast, index }) => {
         const hasFile = d.status === "UPLOADED" && Boolean(d.originalName) && Boolean(d.mimeType);
         return (
           <RowListItem
-            key={d.id}
             isLast={isLast}
             left={
               <Stack spacing={0.5}>
                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ minWidth: 0 }}>
-                  <Typography fontWeight={800} sx={{ wordBreak: "break-word" }}>
-                    {d.sortOrder}. {d.title}
+                  <Typography fontWeight={600} sx={{ wordBreak: "break-word" }}>
+                    {index + 1}. {d.title}
                   </Typography>
                   <Chip size="small" label={statusLabel(d.status)} />
                 </Stack>

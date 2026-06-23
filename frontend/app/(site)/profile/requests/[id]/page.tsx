@@ -2,9 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import type { RequestCustomerDto } from "@/entities/request";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
-import { ChatThreeColumnLayout } from "@/widgets/chat/ui/ChatThreeColumnLayout";
-import { CustomerRequestConversationWorkspace } from "@/widgets/customer-requests/ui/CustomerRequestConversationWorkspace";
-import { ProfileSidebarNav } from "@/widgets/profile/ui/ProfileSidebarNav";
+import { CustomerRequestDetailClient } from "./CustomerRequestDetailClient";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -30,12 +28,7 @@ export default async function CustomerRequestDetailPage({ params }: Props) {
 
   return (
     <main>
-      <ChatThreeColumnLayout
-        left={<ProfileSidebarNav selected="requests" />}
-        middle={<CustomerRequestConversationWorkspace initialRequest={req} />}
-        right={<></>}
-        rightWidth={0}
-      />
+      <CustomerRequestDetailClient initialRequest={req} />
     </main>
   );
 }

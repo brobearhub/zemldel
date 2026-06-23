@@ -6,8 +6,9 @@ export function canCustomerAcceptContract(input: {
   contractFiles: readonly CustomerContractFileListItem[];
   documentRequests: readonly RequestDocumentRequestDto[];
 }) {
-  const hasApprovedContractFile = input.contractFiles.some((f) => f.status === "APPROVED");
+  const allProviderDocumentsApproved =
+    input.contractFiles.length > 0 && input.contractFiles.every((f) => f.status === "APPROVED");
   const allRequestedDocumentsUploaded = input.documentRequests.every((d) => d.status === "UPLOADED");
-  return input.requestStatus === "PROVIDER_SELECTED" && hasApprovedContractFile && allRequestedDocumentsUploaded;
+  return input.requestStatus === "PROVIDER_SELECTED" && allProviderDocumentsApproved && allRequestedDocumentsUploaded;
 }
 

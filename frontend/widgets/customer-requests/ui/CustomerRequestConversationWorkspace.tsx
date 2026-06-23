@@ -51,6 +51,7 @@ import {
 import type { CustomerContractFileListItem } from "@/features/request-contract-files/ui/CustomerRequestContractFilesClient";
 import { canCustomerAcceptContract } from "@/widgets/customer-requests/lib/can-accept-contract";
 import { CustomerRequestDocumentsSection } from "@/widgets/customer-requests/ui/CustomerRequestDocumentsSection";
+import { useConfirm } from "@/shared/ui/confirm";
 
 function pickTitle(req: RequestCustomerDto) {
   if (req.subjectType === "SERVICE") return req.serviceTitle ?? "Заявка по услуге";
@@ -81,6 +82,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
   const [offerVersion, setOfferVersion] = useState<string | null>(null);
   const [offerMarkdown, setOfferMarkdown] = useState<string | null>(null);
   const [offerAccepted, setOfferAccepted] = useState(false);
+  const confirm = useConfirm();
 
   const selectedConversation = useMemo(
     () => conversations.find((c) => c.conversationId === selectedConversationId) ?? null,
@@ -352,7 +354,13 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
   }
 
   async function deleteRequestedDocument(docRequestId: string) {
-    if (!window.confirm("Удалить загруженный документ?")) return;
+    const ok = await confirm({
+      title: "Удалить загруженный документ?",
+      description: "Файл будет удалён. Если документ нужен снова — загрузите его повторно.",
+      confirmText: "Удалить",
+      confirmColor: "error",
+    });
+    if (!ok) return;
     setDocUploadBusy(true);
     setError(null);
     setNotice(null);

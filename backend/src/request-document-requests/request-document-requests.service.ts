@@ -63,7 +63,6 @@ function decodePossiblyMisencodedFileName(value: string) {
 function toItemDto(row: {
   id: string;
   title: string;
-  sortOrder: number;
   status: 'REQUESTED' | 'UPLOADED';
   originalName: string | null;
   mimeType: string | null;
@@ -76,7 +75,6 @@ function toItemDto(row: {
   return {
     id: row.id,
     title: row.title,
-    sortOrder: row.sortOrder,
     status: row.status,
     originalName: row.originalName
       ? decodePossiblyMisencodedFileName(row.originalName)
@@ -150,7 +148,6 @@ export class RequestDocumentRequestsService {
       select: {
         id: true,
         title: true,
-        sortOrder: true,
         status: true,
         originalName: true,
         mimeType: true,
@@ -160,7 +157,7 @@ export class RequestDocumentRequestsService {
         createdAt: true,
         updatedAt: true,
       },
-      orderBy: [{ sortOrder: 'asc' }],
+      orderBy: [{ createdAt: 'asc' }],
       take: 200,
     });
 
@@ -183,25 +180,16 @@ export class RequestDocumentRequestsService {
       throw new BadRequestException('Title is required');
     }
 
-    const last = await this.prisma.requestDocumentRequest.findFirst({
-      where: { requestId: input.requestId, providerId },
-      select: { sortOrder: true },
-      orderBy: [{ sortOrder: 'desc' }],
-    });
-    const nextSort = (last?.sortOrder ?? 0) + 1;
-
     const created = await this.prisma.requestDocumentRequest.create({
       data: {
         request: { connect: { id: input.requestId } },
         provider: { connect: { id: providerId } },
         title,
-        sortOrder: nextSort,
         status: 'REQUESTED',
       } satisfies Prisma.RequestDocumentRequestCreateInput,
       select: {
         id: true,
         title: true,
-        sortOrder: true,
         status: true,
         originalName: true,
         mimeType: true,
@@ -214,6 +202,34 @@ export class RequestDocumentRequestsService {
     });
 
     return toItemDto(created);
+  }
+
+  async deleteForProvider(input: {
+    actorUserId: string;
+    requestId: string;
+    docRequestId: string;
+  }) {
+    const providerId = await this.requireProviderId(input.actorUserId);
+    await this.assertProviderCanManageRequestExclusive({
+      providerId,
+      requestId: input.requestId,
+    });
+
+    const doc = await this.prisma.requestDocumentRequest.findFirst({
+      where: { id: input.docRequestId, requestId: input.requestId, providerId },
+      select: { id: true, status: true },
+    });
+    if (!doc) throw new NotFoundException('Document request not found');
+    if (doc.status !== 'REQUESTED') {
+      throw new BadRequestException('Cannot cancel uploaded document');
+    }
+
+    await this.prisma.requestDocumentRequest.delete({
+      where: { id: doc.id },
+      select: { id: true },
+    });
+
+    return { ok: true as const };
   }
 
   async listForCustomer(input: { actorUserId: string; requestId: string }) {
@@ -235,7 +251,6 @@ export class RequestDocumentRequestsService {
       select: {
         id: true,
         title: true,
-        sortOrder: true,
         status: true,
         originalName: true,
         mimeType: true,
@@ -245,7 +260,7 @@ export class RequestDocumentRequestsService {
         createdAt: true,
         updatedAt: true,
       },
-      orderBy: [{ sortOrder: 'asc' }],
+      orderBy: [{ createdAt: 'asc' }],
       take: 200,
     });
 

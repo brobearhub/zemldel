@@ -8,6 +8,7 @@ import { ColorModeProvider, useColorMode } from "@/core/theme/ColorModeContext";
 import { createAppTheme } from "@/core/theme/createAppTheme";
 import { ReduxProvider } from "@/core/providers/ReduxProvider";
 import { AuthProvider } from "@/core/providers/AuthProvider";
+import { ConfirmProvider } from "@/shared/ui/confirm";
 
 interface Props {
   readonly children: ReactNode;
@@ -21,7 +22,7 @@ const InnerProviders = ({ children }: Props) => {
     <AppRouterCacheProvider>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        {children}
+        <ConfirmProvider>{children}</ConfirmProvider>
       </ThemeProvider>
     </AppRouterCacheProvider>
   );

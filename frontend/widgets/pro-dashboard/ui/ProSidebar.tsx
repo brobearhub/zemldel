@@ -13,6 +13,7 @@ import {
   ListItemIcon,
   ListItemText,
   Paper,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import DynamicFeedOutlinedIcon from "@mui/icons-material/DynamicFeedOutlined";
@@ -26,6 +27,8 @@ import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
+import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
+import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import { useMemo, useState } from "react";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 
@@ -87,7 +90,12 @@ const SERVICES_GROUP = {
   ],
 } as const;
 
-export function ProSidebar() {
+type Props = {
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
+};
+
+export function ProSidebar({ collapsed = false, onToggleCollapsed }: Props) {
   const pathname = usePathname();
   const { unreadByRequestId } = useChatSocket();
   const isServicesRoute = useMemo(
@@ -98,6 +106,21 @@ export function ProSidebar() {
   const unreadTotal = useMemo(
     () => Object.values(unreadByRequestId).reduce((acc, value) => acc + value, 0),
     [unreadByRequestId]
+  );
+
+  const toggleButton = (
+    <Tooltip title={collapsed ? "Развернуть меню" : "Свернуть меню"}>
+      <span>
+        <IconButton
+          size="small"
+          aria-label={collapsed ? "Развернуть меню" : "Свернуть меню"}
+          onClick={onToggleCollapsed}
+          disabled={!onToggleCollapsed}
+        >
+          {collapsed ? <ChevronLeftRoundedIcon fontSize="small" /> : <ChevronRightRoundedIcon fontSize="small" />}
+        </IconButton>
+      </span>
+    </Tooltip>
   );
 
   return (
@@ -111,10 +134,22 @@ export function ProSidebar() {
         top: { md: 112 },
       }}
     >
-      <Box sx={{ px: 2.5, py: 2 }}>
-        <Typography variant="overline" sx={{ fontWeight: 800, letterSpacing: "0.08em" }}>
-          Pro
-        </Typography>
+      <Box
+        sx={{
+          px: collapsed ? 1 : 2.5,
+          py: 1.25,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: collapsed ? "center" : "space-between",
+          gap: 1,
+        }}
+      >
+        {collapsed ? null : (
+          <Typography variant="overline" sx={{ fontWeight: 800, letterSpacing: "0.08em" }}>
+            Pro
+          </Typography>
+        )}
+        {toggleButton}
       </Box>
 
       <Divider />
@@ -122,8 +157,7 @@ export function ProSidebar() {
       <List dense disablePadding>
         {NAV_ITEMS.map((item, index) => {
           const selected =
-            pathname === item.href ||
-            (item.href === "/pro" && pathname.startsWith("/pro/requests/"));
+            pathname === item.href || (item.href === "/pro" && pathname.startsWith("/pro/requests/"));
           const badgeEnabled = item.href === "/pro";
           const icon = badgeEnabled ? (
             <Badge color="error" badgeContent={unreadTotal} max={99} invisible={unreadTotal === 0}>
@@ -132,16 +166,20 @@ export function ProSidebar() {
           ) : (
             item.icon
           );
-          return (
+          const title = item.description ? `${item.label} — ${item.description}` : item.label;
+
+          const button = (
             <ListItemButton
               key={item.href}
               component={Link}
               href={item.href}
               selected={selected}
+              aria-label={collapsed ? title : undefined}
               sx={{
-                px: 2.5,
-                py: 1.5,
-                alignItems: "flex-start",
+                px: collapsed ? 1 : 2.5,
+                py: collapsed ? 1.25 : 1.5,
+                alignItems: collapsed ? "center" : "flex-start",
+                justifyContent: collapsed ? "center" : "flex-start",
                 "&.Mui-selected": {
                   bgcolor: "action.selected",
                   "&:hover": { bgcolor: "action.selected" },
@@ -152,81 +190,139 @@ export function ProSidebar() {
                 }),
               }}
             >
-              <ListItemIcon sx={{ minWidth: 36, mt: 0.25 }}>{icon}</ListItemIcon>
-              <ListItemText
-                primary={item.label}
-                secondary={item.description}
-                primaryTypographyProps={{ fontWeight: selected ? 700 : 600 }}
-                secondaryTypographyProps={{ sx: { mt: 0.25 } }}
-              />
+              <ListItemIcon
+                sx={{
+                  minWidth: collapsed ? "unset" : 36,
+                  mt: collapsed ? 0 : 0.25,
+                  justifyContent: "center",
+                }}
+              >
+                {icon}
+              </ListItemIcon>
+              {collapsed ? null : (
+                <ListItemText
+                  primary={item.label}
+                  secondary={item.description}
+                  primaryTypographyProps={{ fontWeight: selected ? 700 : 600 }}
+                  secondaryTypographyProps={{ sx: { mt: 0.25 } }}
+                />
+              )}
             </ListItemButton>
+          );
+
+          return collapsed ? (
+            <Tooltip key={item.href} title={title} placement="right">
+              {button}
+            </Tooltip>
+          ) : (
+            button
           );
         })}
 
-        <ListItemButton
-          component={Link}
-          href="/pro/services/list"
-          selected={isServicesRoute}
-          sx={{
-            px: 2.5,
-            py: 1.5,
-            alignItems: "flex-start",
-            "&.Mui-selected": {
-              bgcolor: "action.selected",
-              "&:hover": { bgcolor: "action.selected" },
-            },
-          }}
-        >
-          <ListItemIcon sx={{ minWidth: 36, mt: 0.25 }}>{SERVICES_GROUP.icon}</ListItemIcon>
-          <ListItemText
-            primary={SERVICES_GROUP.label}
-            secondary={SERVICES_GROUP.description}
-            primaryTypographyProps={{ fontWeight: isServicesRoute ? 700 : 600 }}
-            secondaryTypographyProps={{ sx: { mt: 0.25 } }}
-          />
-          <IconButton
-            size="small"
-            aria-label={servicesOpen ? "Свернуть" : "Раскрыть"}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              setServicesOpen((value) => !value);
-            }}
-          >
-            {servicesOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-          </IconButton>
-        </ListItemButton>
-
-        <Collapse in={servicesOpen} timeout="auto" unmountOnExit>
-          <List dense disablePadding>
+        {collapsed ? (
+          <>
             {SERVICES_GROUP.items.map((item) => {
-              const selected = pathname === item.href;
-              return (
+              const isCreateRoute = pathname === "/pro/services/create";
+              const selected =
+                item.href === "/pro/services/create" ? isCreateRoute : isServicesRoute && !isCreateRoute;
+              const title = `${SERVICES_GROUP.label}: ${item.label}`;
+              const button = (
                 <ListItemButton
                   key={item.href}
                   component={Link}
                   href={item.href}
                   selected={selected}
+                  aria-label={title}
                   sx={{
-                    pl: 5,
-                    pr: 2.5,
-                    py: 1.1,
+                    px: 1,
+                    py: 1.25,
+                    alignItems: "center",
+                    justifyContent: "center",
                     "&.Mui-selected": {
                       bgcolor: "action.selected",
                       "&:hover": { bgcolor: "action.selected" },
                     },
                   }}
                 >
-                  <ListItemIcon sx={{ minWidth: 32 }}>{item.icon}</ListItemIcon>
-                  <ListItemText
-                    primary={item.label}
-                    primaryTypographyProps={{ fontWeight: selected ? 700 : 600 }}
-                  />
+                  <ListItemIcon sx={{ minWidth: "unset", justifyContent: "center" }}>{item.icon}</ListItemIcon>
                 </ListItemButton>
               );
+
+              return (
+                <Tooltip key={item.href} title={title} placement="right">
+                  {button}
+                </Tooltip>
+              );
             })}
-          </List>
-        </Collapse>
+          </>
+        ) : (
+          <>
+            <ListItemButton
+              component={Link}
+              href="/pro/services/list"
+              selected={isServicesRoute}
+              sx={{
+                px: 2.5,
+                py: 1.5,
+                alignItems: "flex-start",
+                "&.Mui-selected": {
+                  bgcolor: "action.selected",
+                  "&:hover": { bgcolor: "action.selected" },
+                },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 36, mt: 0.25 }}>{SERVICES_GROUP.icon}</ListItemIcon>
+              <ListItemText
+                primary={SERVICES_GROUP.label}
+                secondary={SERVICES_GROUP.description}
+                primaryTypographyProps={{ fontWeight: isServicesRoute ? 700 : 600 }}
+                secondaryTypographyProps={{ sx: { mt: 0.25 } }}
+              />
+              <IconButton
+                size="small"
+                aria-label={servicesOpen ? "Свернуть" : "Раскрыть"}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setServicesOpen((value) => !value);
+                }}
+              >
+                {servicesOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+              </IconButton>
+            </ListItemButton>
+
+            <Collapse in={servicesOpen} timeout="auto" unmountOnExit>
+              <List dense disablePadding>
+                {SERVICES_GROUP.items.map((item) => {
+                  const selected = pathname === item.href;
+                  return (
+                    <ListItemButton
+                      key={item.href}
+                      component={Link}
+                      href={item.href}
+                      selected={selected}
+                      sx={{
+                        pl: 5,
+                        pr: 2.5,
+                        py: 1.1,
+                        "&.Mui-selected": {
+                          bgcolor: "action.selected",
+                          "&:hover": { bgcolor: "action.selected" },
+                        },
+                      }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 32 }}>{item.icon}</ListItemIcon>
+                      <ListItemText
+                        primary={item.label}
+                        primaryTypographyProps={{ fontWeight: selected ? 700 : 600 }}
+                      />
+                    </ListItemButton>
+                  );
+                })}
+              </List>
+            </Collapse>
+          </>
+        )}
       </List>
     </Paper>
   );

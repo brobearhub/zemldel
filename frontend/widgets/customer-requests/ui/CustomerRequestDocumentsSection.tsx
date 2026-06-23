@@ -80,6 +80,7 @@ function CustomerRequestedDocumentsBlock(props: {
   return (
     <Stack spacing={1}>
       <RequestDocumentsList
+        title="Мои документы"
         items={items}
         renderActions={(d) => {
           const hasFile = d.status === "UPLOADED" && Boolean(d.originalName) && Boolean(d.mimeType);
@@ -143,8 +144,8 @@ function CustomerAcceptContractActions(props: { canAcceptContract: boolean; busy
     <>
       {canAcceptContract ? (
         <>
-          <Alert severity="success">Есть одобренный файл договора. Теперь можно перейти к заключению договора.</Alert>
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ alignSelf: "flex-start" }}>
+          <Alert severity="success">Все документы одобрены. Теперь можно перейти к заключению договора.</Alert>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ alignSelf: "flex-start", pt: 2 }}>
             <Button variant="contained" color="success" disabled={busy || docUploadBusy} onClick={() => onOpenOfferDialog()}>
               Заключить договор
             </Button>
