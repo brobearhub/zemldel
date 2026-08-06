@@ -34,6 +34,42 @@ describe('RequestsService remarks checklist', () => {
     await expect(svc.sendRemarksByCustomer('u1', 'r1', { remarks: null })).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('createRemarkByProvider создаёт замечание сразу отправленным (sentAt!=null)', async () => {
+    const tx = {
+      request: { findUnique: vi.fn().mockResolvedValue({ id: 'r1', status: 'ACCEPTANCE_PENDING' }) },
+      requestRemark: {
+        create: vi.fn().mockResolvedValue({
+          id: 'rm1',
+          requestId: 'r1',
+          authorSide: 'PROVIDER',
+          status: 'OPEN',
+          text: '...',
+          createdAt: new Date(),
+          doneAt: null,
+          sentAt: new Date(),
+        }),
+      },
+      requestEvent: { create: vi.fn() },
+    };
+    const prisma = {
+      request: { findUnique: vi.fn().mockResolvedValue({ id: 'r1', status: 'ACCEPTANCE_PENDING', providerId: 'p1' }) },
+      $transaction: async (fn: any) => await fn(tx),
+    };
+    const svc = makeService(prisma);
+    (svc as any).getProById = vi.fn().mockResolvedValue({});
+
+    await svc.createRemarkByProvider('p1', 'r1', { text: 'test' });
+
+    expect(tx.requestRemark.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          authorSide: 'PROVIDER',
+          sentAt: expect.any(Date),
+        }),
+      }),
+    );
+  });
+
   it('completeRemarkByProvider запрещает закрывать замечание, созданное провайдером', async () => {
     const tx = {
       request: {
@@ -48,6 +84,7 @@ describe('RequestsService remarks checklist', () => {
           text: '...',
           createdAt: new Date(),
           doneAt: null,
+          sentAt: new Date(),
         }),
       },
       requestEvent: { create: vi.fn() },

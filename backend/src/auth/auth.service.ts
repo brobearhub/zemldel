@@ -13,6 +13,7 @@ import {
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { isAllowedLocationRow } from '../cities/location';
+import { LegalDocsService } from '../legal-docs/legal-docs.service';
 import {
   type AuthMembership,
   type AuthCity,
@@ -82,7 +83,10 @@ type UserAuthRow = Prisma.UserGetPayload<{ select: typeof userAuthSelect }>;
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly legalDocs: LegalDocsService,
+  ) {}
 
   private isUuid(value: string) {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -200,6 +204,7 @@ export class AuthService {
     password: string;
     name?: string;
     customerCityId?: string;
+    acceptedLegal: { terms: string; privacy: string; consent: string };
   }) {
     const email = input.email.trim().toLowerCase();
     const passwordHash = await bcrypt.hash(input.password, 10);
@@ -229,20 +234,53 @@ export class AuthService {
       }
     }
 
-    const created = await this.prisma.user.create({
-      data: {
-        email,
-        name: input.name?.trim() || undefined,
-        passwordHash,
-        customerCityId,
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+    const versions = await this.legalDocs.assertCurrentVersions({
+      terms: input.acceptedLegal.terms,
+      privacy: input.acceptedLegal.privacy,
+      consent: input.acceptedLegal.consent,
+    });
+
+    const created = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email,
+          name: input.name?.trim() || undefined,
+          passwordHash,
+          customerCityId,
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      await tx.legalAcceptance.createMany({
+        data: [
+          {
+            userId: user.id,
+            docId: 'TERMS',
+            version: versions.terms,
+            context: 'SIGNUP',
+          },
+          {
+            userId: user.id,
+            docId: 'PRIVACY',
+            version: versions.privacy,
+            context: 'SIGNUP',
+          },
+          {
+            userId: user.id,
+            docId: 'CONSENT',
+            version: versions.consent,
+            context: 'SIGNUP',
+          },
+        ],
+      });
+
+      return user;
     });
 
     return created;

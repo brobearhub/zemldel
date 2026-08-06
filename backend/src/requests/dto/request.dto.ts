@@ -21,21 +21,27 @@ export type RequestStatus =
   | 'NEW'
   | 'DISCUSSING'
   | 'TERMS_AGREED'
-  | 'PROVIDER_SELECTED'
-  | 'CONTRACT_ACCEPTED'
-  | 'LOCKED'
+  | 'ACTIVE'
   | 'ACCEPTANCE_PENDING'
   | 'ACCEPTED'
-  | 'ACTIVE'
-  | 'SERVICE_RENDERED'
   | 'COMPLETED'
   | 'CANCELLED'
   | 'CLOSED';
 
-export const ORDER_EXECUTION_STATUSES = [
-  'CONTRACT_ACCEPTED',
+export const REQUEST_STATUS_VALUES = [
+  'NEW',
+  'DISCUSSING',
+  'TERMS_AGREED',
   'ACTIVE',
-  'SERVICE_RENDERED',
+  'ACCEPTANCE_PENDING',
+  'ACCEPTED',
+  'COMPLETED',
+  'CANCELLED',
+  'CLOSED',
+] as const satisfies readonly RequestStatus[];
+
+export const ORDER_EXECUTION_STATUSES = [
+  'ACTIVE',
   'ACCEPTANCE_PENDING',
   'ACCEPTED',
   'COMPLETED',
@@ -48,21 +54,39 @@ export function isOrderExecutionStatus(
   return (ORDER_EXECUTION_STATUSES as readonly string[]).includes(value);
 }
 
-export const EXCLUSIVE_PROVIDER_STATUSES = [
-  'PROVIDER_SELECTED',
-  ...ORDER_EXECUTION_STATUSES,
-] as const satisfies readonly RequestStatus[];
+/** Заявка зафиксирована за исполнителем (фаза заказа/договора и далее). */
+export function hasRequestLock(row: {
+  lockedAt: Date | string | null | undefined;
+}): boolean {
+  return row.lockedAt != null;
+}
 
-export function isExclusiveProviderStatus(
-  value: RequestStatus | string,
-): value is (typeof EXCLUSIVE_PROVIDER_STATUSES)[number] {
-  return (EXCLUSIVE_PROVIDER_STATUSES as readonly string[]).includes(value);
+export function isLockedToOtherProvider(
+  row: {
+    lockedAt: Date | string | null | undefined;
+    providerId: string | null | undefined;
+  },
+  actorProviderId: string,
+): boolean {
+  return (
+    hasRequestLock(row) &&
+    Boolean(row.providerId) &&
+    row.providerId !== actorProviderId
+  );
+}
+
+export function isExclusiveForActorProvider(
+  row: {
+    lockedAt: Date | string | null | undefined;
+    providerId: string | null | undefined;
+  },
+  actorProviderId: string,
+): boolean {
+  return hasRequestLock(row) && row.providerId === actorProviderId;
 }
 
 export const ORDER_STATUSES = [
-  'CONTRACT_ACCEPTED',
   'ACTIVE',
-  'SERVICE_RENDERED',
   'ACCEPTANCE_PENDING',
   'ACCEPTED',
   'COMPLETED',
@@ -88,13 +112,9 @@ export class RequestCustomerOfferDto {
 function normalizeStatus(value: unknown): RequestStatus {
   if (value === 'DISCUSSING') return 'DISCUSSING';
   if (value === 'TERMS_AGREED') return 'TERMS_AGREED';
-  if (value === 'PROVIDER_SELECTED') return 'PROVIDER_SELECTED';
-  if (value === 'CONTRACT_ACCEPTED') return 'CONTRACT_ACCEPTED';
-  if (value === 'LOCKED') return 'LOCKED';
   if (value === 'ACCEPTANCE_PENDING') return 'ACCEPTANCE_PENDING';
   if (value === 'ACCEPTED') return 'ACCEPTED';
   if (value === 'ACTIVE') return 'ACTIVE';
-  if (value === 'SERVICE_RENDERED') return 'SERVICE_RENDERED';
   if (value === 'COMPLETED') return 'COMPLETED';
   if (value === 'CANCELLED') return 'CANCELLED';
   if (value === 'CLOSED') return 'CLOSED';
@@ -289,40 +309,10 @@ export class RequestCustomerDto {
   @IsEnum(['FREEFORM', 'CATEGORY', 'SERVICE'])
   subjectType!: RequestSubjectType;
 
-  @ApiProperty({
-    enum: [
-      'NEW',
-      'DISCUSSING',
-      'TERMS_AGREED',
-      'PROVIDER_SELECTED',
-      'CONTRACT_ACCEPTED',
-      'LOCKED',
-      'ACTIVE',
-      'SERVICE_RENDERED',
-      'ACCEPTANCE_PENDING',
-      'ACCEPTED',
-      'COMPLETED',
-      'CANCELLED',
-      'CLOSED',
-    ],
-  })
+  @ApiProperty({ enum: REQUEST_STATUS_VALUES })
   @Expose()
   @Transform(({ value }) => normalizeStatus(value), { toClassOnly: true })
-  @IsEnum([
-    'NEW',
-    'DISCUSSING',
-    'TERMS_AGREED',
-    'PROVIDER_SELECTED',
-    'CONTRACT_ACCEPTED',
-    'LOCKED',
-    'ACTIVE',
-    'SERVICE_RENDERED',
-    'ACCEPTANCE_PENDING',
-    'ACCEPTED',
-    'COMPLETED',
-    'CANCELLED',
-    'CLOSED',
-  ])
+  @IsEnum(REQUEST_STATUS_VALUES)
   status!: RequestStatus;
 
   @ApiProperty({ format: 'uuid', nullable: true })
@@ -399,6 +389,12 @@ export class RequestCustomerDto {
   @Expose()
   @IsOptional()
   @IsString()
+  termsVersion!: string | null;
+
+  @ApiProperty({ nullable: true, example: null })
+  @Expose()
+  @IsOptional()
+  @IsString()
   contractAcceptedAt!: string | null;
 
   @ApiProperty({ nullable: true, example: null })
@@ -465,40 +461,10 @@ export class RequestProDto {
   @IsEnum(['FREEFORM', 'CATEGORY', 'SERVICE'])
   subjectType!: RequestSubjectType;
 
-  @ApiProperty({
-    enum: [
-      'NEW',
-      'DISCUSSING',
-      'TERMS_AGREED',
-      'PROVIDER_SELECTED',
-      'CONTRACT_ACCEPTED',
-      'LOCKED',
-      'ACTIVE',
-      'SERVICE_RENDERED',
-      'ACCEPTANCE_PENDING',
-      'ACCEPTED',
-      'COMPLETED',
-      'CANCELLED',
-      'CLOSED',
-    ],
-  })
+  @ApiProperty({ enum: REQUEST_STATUS_VALUES })
   @Expose()
   @Transform(({ value }) => normalizeStatus(value), { toClassOnly: true })
-  @IsEnum([
-    'NEW',
-    'DISCUSSING',
-    'TERMS_AGREED',
-    'PROVIDER_SELECTED',
-    'CONTRACT_ACCEPTED',
-    'LOCKED',
-    'ACTIVE',
-    'SERVICE_RENDERED',
-    'ACCEPTANCE_PENDING',
-    'ACCEPTED',
-    'COMPLETED',
-    'CANCELLED',
-    'CLOSED',
-  ])
+  @IsEnum(REQUEST_STATUS_VALUES)
   status!: RequestStatus;
 
   @ApiProperty({ format: 'uuid', nullable: true })
@@ -587,6 +553,12 @@ export class RequestProDto {
   @Expose()
   @IsOptional()
   @IsString()
+  termsVersion!: string | null;
+
+  @ApiProperty({ nullable: true, example: null })
+  @Expose()
+  @IsOptional()
+  @IsString()
   contractAcceptedAt!: string | null;
 
   @ApiProperty({ nullable: true, example: null })
@@ -639,6 +611,7 @@ export type RequestDbRow = {
   lockedAt: Date | null;
   dealTerms?: unknown | null;
   offerVersion?: string | null;
+  termsVersion?: string | null;
   contractAcceptedAt?: Date | null;
   acceptanceRequestedAt?: Date | null;
   autoAcceptAt?: Date | null;
@@ -697,6 +670,7 @@ export function requestRowToCustomerDtoPlain(
       lockedAt: row.lockedAt ? row.lockedAt.toISOString() : null,
       dealTerms: row.dealTerms ?? null,
       offerVersion: row.offerVersion ?? null,
+      termsVersion: row.termsVersion ?? null,
       contractAcceptedAt: row.contractAcceptedAt
         ? row.contractAcceptedAt.toISOString()
         : null,
@@ -730,10 +704,7 @@ export function requestRowToProDtoPlain(
     revealMessageForLocked?: boolean;
   },
 ): RequestProDto {
-  const locked =
-    isExclusiveProviderStatus(row.status) &&
-    Boolean(row.providerId) &&
-    row.providerId !== actorProviderId;
+  const locked = isLockedToOtherProvider(row, actorProviderId);
 
   const revealMessageForLocked = Boolean(options?.revealMessageForLocked);
   const canRevealBasicDetails = !locked || revealMessageForLocked;
@@ -771,6 +742,7 @@ export function requestRowToProDtoPlain(
       lockedAt: row.lockedAt ? row.lockedAt.toISOString() : null,
       dealTerms: locked ? null : (row.dealTerms ?? null),
       offerVersion: row.offerVersion ?? null,
+      termsVersion: row.termsVersion ?? null,
       contractAcceptedAt: row.contractAcceptedAt
         ? row.contractAcceptedAt.toISOString()
         : null,

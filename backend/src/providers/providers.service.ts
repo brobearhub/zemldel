@@ -11,6 +11,7 @@ import { isAllowedLocationRow } from '../cities/location';
 import { CreateProviderDto } from './dto/create-provider.dto';
 import { AddProviderManagerDto } from './dto/add-provider-manager.dto';
 import { AuthService } from '../auth/auth.service';
+import { LegalDocsService } from '../legal-docs/legal-docs.service';
 
 const providerSelect = {
   id: true,
@@ -56,6 +57,7 @@ export class ProvidersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
+    private readonly legalDocs: LegalDocsService,
   ) {}
 
   private async getActiveMembership(userId: string, providerId: string) {
@@ -214,6 +216,10 @@ export class ProvidersService {
       }
     }
 
+    const offerVersions = await this.legalDocs.assertCurrentVersions({
+      offer: body.offerVersion,
+    });
+
     const provider = await this.prisma.$transaction(async (tx) => {
       const createdProvider = await tx.provider.create({
         data: {
@@ -239,6 +245,15 @@ export class ProvidersService {
         where: { id: userId },
         data: {
           activeProviderId: createdProvider.id,
+        },
+      });
+
+      await tx.legalAcceptance.create({
+        data: {
+          userId,
+          docId: 'OFFER',
+          version: offerVersions.offer,
+          context: 'PROVIDER_ONBOARDING',
         },
       });
 

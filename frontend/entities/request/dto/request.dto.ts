@@ -4,21 +4,15 @@ export type RequestStatus =
   | "NEW"
   | "DISCUSSING"
   | "TERMS_AGREED"
-  | "PROVIDER_SELECTED"
-  | "CONTRACT_ACCEPTED"
-  | "LOCKED"
   | "ACCEPTANCE_PENDING"
   | "ACCEPTED"
   | "ACTIVE"
-  | "SERVICE_RENDERED"
   | "COMPLETED"
   | "CANCELLED"
   | "CLOSED";
 
 export const ORDER_EXECUTION_STATUSES = [
-  "CONTRACT_ACCEPTED",
   "ACTIVE",
-  "SERVICE_RENDERED",
   "ACCEPTANCE_PENDING",
   "ACCEPTED",
   "COMPLETED",
@@ -29,13 +23,17 @@ export function isOrderExecutionStatus(status: RequestStatus) {
   return (ORDER_EXECUTION_STATUSES as readonly string[]).includes(status);
 }
 
-export const EXCLUSIVE_PROVIDER_PHASE_STATUSES = [
-  "PROVIDER_SELECTED",
-  ...ORDER_EXECUTION_STATUSES,
-] as const satisfies readonly RequestStatus[];
+/** Заявка зафиксирована за исполнителем (фаза заказа/договора и далее). */
+export function hasRequestLock(row: { lockedAt: string | null | undefined }): boolean {
+  return row.lockedAt != null;
+}
 
-export function isExclusiveProviderPhaseStatus(status: RequestStatus) {
-  return (EXCLUSIVE_PROVIDER_PHASE_STATUSES as readonly string[]).includes(status);
+/** Фаза «Договор»: lock есть, работы ещё не начаты. */
+export function isContractPhase(req: {
+  status: RequestStatus;
+  lockedAt: string | null | undefined;
+}): boolean {
+  return hasRequestLock(req) && !isOrderExecutionStatus(req.status);
 }
 
 export type RequestProviderOfferStatus = "SELECTED" | "DECLINED";
@@ -56,6 +54,7 @@ export type RequestCustomerDto = {
   providerId: string | null;
   dealTerms: unknown | null;
   offerVersion: string | null;
+  termsVersion: string | null;
   contractAcceptedAt: string | null;
   acceptanceRequestedAt: string | null;
   autoAcceptAt: string | null;
@@ -88,6 +87,7 @@ export type RequestProDto = {
   providerId: string | null;
   dealTerms: unknown | null;
   offerVersion: string | null;
+  termsVersion: string | null;
   contractAcceptedAt: string | null;
   acceptanceRequestedAt: string | null;
   autoAcceptAt: string | null;
@@ -111,16 +111,8 @@ export function getRequestStatusLabel(status: RequestStatus): string {
       return "Обсуждение";
     case "TERMS_AGREED":
       return "Условия согласованы";
-    case "PROVIDER_SELECTED":
-      return "Исполнитель выбран";
-    case "CONTRACT_ACCEPTED":
-      return "Договор заключен";
-    case "LOCKED":
-      return "Взято в работу";
     case "ACTIVE":
       return "В работе";
-    case "SERVICE_RENDERED":
-      return "Услуга оказана";
     case "ACCEPTANCE_PENDING":
       return "Ожидает принятия";
     case "ACCEPTED":

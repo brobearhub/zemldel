@@ -150,9 +150,10 @@ export function ProOverviewDashboard({ provider, services, requests, orders, tod
       total: 0,
       NEW: 0,
       DISCUSSING: 0,
-      LOCKED: 0,
+      TERMS_AGREED: 0,
       ACTIVE: 0,
-      SERVICE_RENDERED: 0,
+      ACCEPTANCE_PENDING: 0,
+      ACCEPTED: 0,
       COMPLETED: 0,
       CANCELLED: 0,
       CLOSED: 0,
@@ -200,7 +201,8 @@ export function ProOverviewDashboard({ provider, services, requests, orders, tod
     .filter(Boolean)
     .sort((left, right) => new Date(String(right)).getTime() - new Date(String(left)).getTime())[0] ?? null;
 
-  const requestsInWork = requestStats.NEW + requestStats.DISCUSSING + requestStats.LOCKED;
+  const requestsInWork =
+    requestStats.NEW + requestStats.DISCUSSING + (requestStats.TERMS_AGREED ?? 0);
 
   return (
     <Stack spacing={3}>
@@ -299,7 +301,7 @@ export function ProOverviewDashboard({ provider, services, requests, orders, tod
             <OverviewStatCard
               label="Заявки в работе"
               value={requestsInWork}
-              caption={`${requestStats.NEW} новых и ${requestStats.LOCKED} в работе`}
+              caption={`${requestStats.NEW} новых и ${requestStats.DISCUSSING} в обсуждении`}
               icon={<AssignmentTurnedInOutlinedIcon fontSize="small" />}
             />
             <OverviewStatCard
@@ -357,7 +359,7 @@ export function ProOverviewDashboard({ provider, services, requests, orders, tod
             </Typography>
             <MetricRow label="Всего заявок" value={String(requestStats.total)} />
             <MetricRow label="Новые" value={String(requestStats.NEW)} />
-            <MetricRow label="В работе" value={String(requestStats.LOCKED)} />
+            <MetricRow label="В обсуждении" value={String(requestStats.DISCUSSING)} />
             <MetricRow label="Заказы (активные)" value={String(requestStats.ACTIVE)} />
             <MetricRow label="Закрыто" value={String(requestStats.CLOSED)} />
           </Stack>

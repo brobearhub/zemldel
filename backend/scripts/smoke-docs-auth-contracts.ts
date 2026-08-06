@@ -50,7 +50,16 @@ async function main() {
     const a = await req<{ id: string }>({
       method: 'POST',
       path: '/auth/signup',
-      body: { email: customerEmail, password, name: 'Smoke Customer' },
+      body: {
+        email: customerEmail,
+        password,
+        name: 'Smoke Customer',
+        acceptedLegal: {
+          terms: '2026-08-04',
+          privacy: '2026-08-04',
+          consent: '2026-08-04',
+        },
+      },
     });
     assertOk(a.status, a.json, 'customer signup');
   }
@@ -58,7 +67,16 @@ async function main() {
     const a = await req<{ id: string }>({
       method: 'POST',
       path: '/auth/signup',
-      body: { email: providerEmail, password, name: 'Smoke Provider' },
+      body: {
+        email: providerEmail,
+        password,
+        name: 'Smoke Provider',
+        acceptedLegal: {
+          terms: '2026-08-04',
+          privacy: '2026-08-04',
+          consent: '2026-08-04',
+        },
+      },
     });
     assertOk(a.status, a.json, 'provider signup');
   }
@@ -97,7 +115,12 @@ async function main() {
     method: 'POST',
     path: '/providers',
     token: providerToken,
-    body: { name: 'Smoke Provider Co', slug, type: 'COMPANY' },
+    body: {
+      name: 'Smoke Provider Co',
+      slug,
+      type: 'COMPANY',
+      offerVersion: '2026-08-04',
+    },
   });
   assertOk(createdProvider.status, createdProvider.json, 'create provider');
   const providerId =
@@ -178,7 +201,7 @@ async function main() {
     method: 'POST',
     path: `/requests/mine/${requestId}/accept-contract`,
     token: customerToken,
-    body: { offerVersion: '2026-04-19' },
+    body: { termsVersion: '2026-08-04' },
   });
   assertOk(acceptContract.status, acceptContract.json, 'accept contract');
 

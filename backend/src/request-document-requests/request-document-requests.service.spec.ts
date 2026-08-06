@@ -9,7 +9,8 @@ describe('RequestDocumentRequestsService', () => {
         findFirst: vi.fn().mockResolvedValue({
           id: 'r1',
           providerId: 'p1',
-          status: 'PROVIDER_SELECTED',
+          status: 'DISCUSSING',
+          lockedAt: new Date('2026-08-06T00:00:00.000Z'),
         }),
       },
       requestDocumentRequest: {
@@ -46,13 +47,14 @@ describe('RequestDocumentRequestsService', () => {
     ).resolves.toEqual({ ok: true });
   });
 
-  it('deleteFileForCustomer запрещает удаление после CONTRACT_ACCEPTED', async () => {
+  it('deleteFileForCustomer запрещает удаление после ACTIVE', async () => {
     const prisma = {
       request: {
         findFirst: vi.fn().mockResolvedValue({
           id: 'r1',
           providerId: 'p1',
-          status: 'CONTRACT_ACCEPTED',
+          status: 'ACTIVE',
+          lockedAt: new Date('2026-08-06T00:00:00.000Z'),
         }),
       },
     };
@@ -72,4 +74,3 @@ describe('RequestDocumentRequestsService', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });
-

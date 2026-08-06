@@ -12,6 +12,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import type { OrderManagementAction } from '../auth/authorization';
+import { LegalDocsService } from '../legal-docs/legal-docs.service';
 import type {
   RequestCategoryCreateDto,
   RequestCustomerDto,
@@ -22,8 +23,9 @@ import type {
 } from './dto/request.dto';
 import {
   ORDER_STATUSES,
-  EXCLUSIVE_PROVIDER_STATUSES,
-  isExclusiveProviderStatus,
+  hasRequestLock,
+  isLockedToOtherProvider,
+  isOrderExecutionStatus,
   requestRowToCustomerDtoPlain,
   requestRowToProDtoPlain,
 } from './dto/request.dto';
@@ -45,6 +47,7 @@ const select = {
   lockedAt: true,
   dealTerms: true,
   offerVersion: true,
+  termsVersion: true,
   contractAcceptedAt: true,
   acceptanceRequestedAt: true,
   autoAcceptAt: true,
@@ -83,6 +86,7 @@ export class RequestsService {
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
     private readonly internalAuthService: InternalAuthService,
+    private readonly legalDocs: LegalDocsService,
   ) {}
 
   private async addEvent(
@@ -222,6 +226,56 @@ export class RequestsService {
         throw new ForbiddenException('Forbidden');
       }
     }
+  }
+
+  private async transitionToAcceptancePending(
+    tx: Prisma.TransactionClient,
+    row: Prisma.RequestGetPayload<{ select: typeof select }>,
+    opts: {
+      actorProviderId: string | null;
+      emitServiceRenderedEvent?: boolean;
+    },
+  ) {
+    const now = new Date();
+    const autoAcceptAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    if (opts.emitServiceRenderedEvent) {
+      await this.addEvent(tx, {
+        requestId: row.id,
+        type: 'SERVICE_RENDERED',
+        actorProviderId: opts.actorProviderId,
+        payload: { at: now.toISOString() },
+      });
+    }
+
+    const next = await tx.request.update({
+      where: { id: row.id },
+      data: {
+        status: 'ACCEPTANCE_PENDING',
+        acceptanceRequestedAt: now,
+        autoAcceptAt,
+      },
+      select,
+    });
+
+    await this.addEvent(tx, {
+      requestId: row.id,
+      type: 'ACCEPTANCE_REQUESTED',
+      actorProviderId: opts.actorProviderId,
+      payload: {
+        at: now.toISOString(),
+        autoAcceptAt: autoAcceptAt.toISOString(),
+      },
+    });
+
+    return next;
+  }
+
+  private async normalizeLifecycleIfNeeded(
+    tx: Prisma.TransactionClient,
+    row: Prisma.RequestGetPayload<{ select: typeof select }>,
+  ) {
+    return this.autoAcceptIfNeeded(tx, row);
   }
 
   private async autoAcceptIfNeeded(
@@ -428,7 +482,10 @@ export class RequestsService {
     if (!row) {
       throw new NotFoundException('Request not found');
     }
-    return requestRowToCustomerDtoPlain(row as unknown as RequestDbRow);
+    const normalized = await this.prisma.$transaction((tx) =>
+      this.normalizeLifecycleIfNeeded(tx, row),
+    );
+    return requestRowToCustomerDtoPlain(normalized as unknown as RequestDbRow);
   }
 
   // --- Customer: order-phase actions ---
@@ -444,7 +501,7 @@ export class RequestsService {
       });
       if (!current) throw new NotFoundException('Request not found');
 
-      const normalized = await this.autoAcceptIfNeeded(tx, current);
+      const normalized = await this.normalizeLifecycleIfNeeded(tx, current);
       if (normalized.status !== 'ACCEPTANCE_PENDING') {
         throw new ForbiddenException('Request is not awaiting acceptance');
       }
@@ -484,12 +541,13 @@ export class RequestsService {
       });
       if (!current) throw new NotFoundException('Request not found');
 
-      const normalized = await this.autoAcceptIfNeeded(tx, current);
+      const normalized = await this.normalizeLifecycleIfNeeded(tx, current);
       if (normalized.status !== 'ACCEPTANCE_PENDING') {
         throw new ForbiddenException('Request is not awaiting acceptance');
       }
 
       const trimmed = input.remarks?.trim() ?? null;
+      const now = new Date();
       if (!trimmed) {
         const existingOpen = await tx.requestRemark.count({
           where: {
@@ -510,12 +568,11 @@ export class RequestsService {
             status: 'OPEN',
             text: trimmed,
             createdByUserId: actorUserId,
+            sentAt: now,
           },
           select: { id: true },
         });
       }
-
-      const now = new Date();
       const next = await tx.request.update({
         where: { id: normalized.id },
         data: {
@@ -562,6 +619,7 @@ export class RequestsService {
         text: true,
         createdAt: true,
         doneAt: true,
+        sentAt: true,
       },
       orderBy: [{ createdAt: 'asc' }],
       take: 500,
@@ -576,6 +634,7 @@ export class RequestsService {
         text: r.text,
         createdAt: r.createdAt,
         doneAt: r.doneAt,
+        sentAt: r.sentAt,
       }),
     );
   }
@@ -591,8 +650,8 @@ export class RequestsService {
         select: { id: true, status: true },
       });
       if (!current) throw new NotFoundException('Request not found');
-      if (current.status !== 'ACCEPTANCE_PENDING') {
-        throw new ForbiddenException('Remarks can be added only during acceptance');
+      if (current.status !== 'ACCEPTANCE_PENDING' && current.status !== 'ACTIVE') {
+        throw new ForbiddenException('Remarks can be added only during acceptance or work');
       }
 
       const text = input.text.trim();
@@ -607,6 +666,7 @@ export class RequestsService {
           status: 'OPEN',
           text,
           createdByUserId: actorUserId,
+          sentAt: new Date(),
         },
         select: {
           id: true,
@@ -616,6 +676,7 @@ export class RequestsService {
           text: true,
           createdAt: true,
           doneAt: true,
+          sentAt: true,
         },
       });
 
@@ -637,6 +698,7 @@ export class RequestsService {
       text: updated.text,
       createdAt: updated.createdAt,
       doneAt: updated.doneAt,
+      sentAt: updated.sentAt,
     });
   }
 
@@ -665,6 +727,7 @@ export class RequestsService {
           text: true,
           createdAt: true,
           doneAt: true,
+          sentAt: true,
         },
       });
       if (!remark) throw new NotFoundException('Remark not found');
@@ -691,6 +754,7 @@ export class RequestsService {
           text: true,
           createdAt: true,
           doneAt: true,
+          sentAt: true,
         },
       });
 
@@ -712,6 +776,7 @@ export class RequestsService {
       text: updated.text,
       createdAt: updated.createdAt,
       doneAt: updated.doneAt,
+      sentAt: updated.sentAt,
     });
   }
 
@@ -744,6 +809,7 @@ export class RequestsService {
         text: true,
         createdAt: true,
         doneAt: true,
+        sentAt: true,
       },
       orderBy: [{ createdAt: 'asc' }],
       take: 500,
@@ -757,6 +823,7 @@ export class RequestsService {
         text: r.text,
         createdAt: r.createdAt,
         doneAt: r.doneAt,
+        sentAt: r.sentAt,
       }),
     );
   }
@@ -767,8 +834,8 @@ export class RequestsService {
     input: { text: string },
   ): Promise<RequestRemarkDto> {
     const req = await this.requireProviderAccessToRequest(actorProviderId, requestId);
-    if (req.status !== 'ACCEPTANCE_PENDING') {
-      throw new ForbiddenException('Remarks can be added only during acceptance');
+    if (req.status !== 'ACCEPTANCE_PENDING' && req.status !== 'ACTIVE') {
+      throw new ForbiddenException('Remarks can be added only during acceptance or work');
     }
 
     const text = input.text.trim();
@@ -782,8 +849,8 @@ export class RequestsService {
         select: { id: true, status: true },
       });
       if (!row) throw new NotFoundException('Request not found');
-      if (row.status !== 'ACCEPTANCE_PENDING') {
-        throw new ForbiddenException('Remarks can be added only during acceptance');
+      if (row.status !== 'ACCEPTANCE_PENDING' && row.status !== 'ACTIVE') {
+        throw new ForbiddenException('Remarks can be added only during acceptance or work');
       }
 
       const next = await tx.requestRemark.create({
@@ -793,6 +860,7 @@ export class RequestsService {
           status: 'OPEN',
           text,
           createdByProviderId: actorProviderId,
+          sentAt: new Date(),
         },
         select: {
           id: true,
@@ -802,6 +870,7 @@ export class RequestsService {
           text: true,
           createdAt: true,
           doneAt: true,
+          sentAt: true,
         },
       });
 
@@ -823,6 +892,7 @@ export class RequestsService {
       text: created.text,
       createdAt: created.createdAt,
       doneAt: created.doneAt,
+      sentAt: created.sentAt,
     });
   }
 
@@ -856,6 +926,7 @@ export class RequestsService {
           text: true,
           createdAt: true,
           doneAt: true,
+          sentAt: true,
         },
       });
       if (!remark) throw new NotFoundException('Remark not found');
@@ -882,6 +953,7 @@ export class RequestsService {
           text: true,
           createdAt: true,
           doneAt: true,
+          sentAt: true,
         },
       });
 
@@ -903,6 +975,7 @@ export class RequestsService {
       text: updated.text,
       createdAt: updated.createdAt,
       doneAt: updated.doneAt,
+      sentAt: updated.sentAt,
     });
   }
 
@@ -1032,7 +1105,7 @@ export class RequestsService {
 
     if (status === 'DISCUSSING' && dialogScope === 'ARCHIVE') {
       const archiveWhere: Prisma.RequestWhereInput = {
-        status: { in: [...EXCLUSIVE_PROVIDER_STATUSES] },
+        lockedAt: { not: null },
         AND: [
           { providerId: { not: null } },
           { providerId: { not: actorProviderId } },
@@ -1189,10 +1262,10 @@ export class RequestsService {
     const req = row as unknown as RequestDbRow;
     this.assertRequestShape(req);
 
-    const lockedToOtherProvider =
-      isExclusiveProviderStatus(req.status) &&
-      Boolean(req.providerId) &&
-      req.providerId !== actorProviderId;
+    const lockedToOtherProvider = isLockedToOtherProvider(
+      req,
+      actorProviderId,
+    );
 
     if (lockedToOtherProvider) {
       const existing = await this.prisma.conversation.findFirst({
@@ -1243,8 +1316,18 @@ export class RequestsService {
       }
     }
 
-    const counts = await this.getConversationCounts([req.id]);
-    return requestRowToProDtoPlain(req, counts.get(req.id) ?? 0, actorProviderId);
+    const normalized =
+      req.providerId === actorProviderId
+        ? await this.prisma.$transaction((tx) =>
+            this.normalizeLifecycleIfNeeded(tx, row),
+          )
+        : row;
+    const counts = await this.getConversationCounts([normalized.id]);
+    return requestRowToProDtoPlain(
+      normalized as unknown as RequestDbRow,
+      counts.get(normalized.id) ?? 0,
+      actorProviderId,
+    );
   }
 
   async getOrders(scope?: {
@@ -1263,7 +1346,7 @@ export class RequestsService {
 
     const normalized = await this.prisma.$transaction(async (tx) => {
       const out: typeof rows = [];
-      for (const row of rows) out.push(await this.autoAcceptIfNeeded(tx, row));
+      for (const row of rows) out.push(await this.normalizeLifecycleIfNeeded(tx, row));
       return out;
     });
 
@@ -1292,7 +1375,7 @@ export class RequestsService {
     }
 
     const normalized = await this.prisma.$transaction((tx) =>
-      this.autoAcceptIfNeeded(tx, row),
+      this.normalizeLifecycleIfNeeded(tx, row),
     );
     return requestRowToCustomerDtoPlain(normalized as unknown as RequestDbRow);
   }
@@ -1428,7 +1511,7 @@ export class RequestsService {
         throw new ForbiddenException('Forbidden');
       }
 
-      if (isExclusiveProviderStatus(req.status)) {
+      if (hasRequestLock(req)) {
         throw new ConflictException('Request already converted to order');
       }
       if (req.status === 'CLOSED') {
@@ -1494,10 +1577,7 @@ export class RequestsService {
       const req = current as unknown as RequestDbRow;
       this.assertRequestShape(req);
 
-      if (
-        isExclusiveProviderStatus(req.status) &&
-        req.status !== 'PROVIDER_SELECTED'
-      ) {
+      if (hasRequestLock(req) && isOrderExecutionStatus(req.status)) {
         throw new ConflictException('Request already converted to order');
       }
       if (req.status === 'CLOSED') {
@@ -1524,14 +1604,14 @@ export class RequestsService {
         select: { id: true },
       });
 
-      if (req.status === 'PROVIDER_SELECTED') {
+      if (hasRequestLock(req)) {
         if (req.providerId !== actorProviderId) {
           throw new ForbiddenException('Forbidden');
         }
         await tx.request.update({
           where: { id: req.id },
           data: {
-            status: 'DISCUSSING',
+            status: req.status === 'TERMS_AGREED' ? 'TERMS_AGREED' : 'DISCUSSING',
             providerId: null,
             lockedAt: null,
             offerVersion: null,
@@ -1602,7 +1682,7 @@ export class RequestsService {
         }
       }
 
-      if (isExclusiveProviderStatus(req.status) || req.status === 'CLOSED') {
+      if (hasRequestLock(req) || req.status === 'CLOSED') {
         throw new ConflictException('Request is not editable');
       }
 
@@ -1648,7 +1728,7 @@ export class RequestsService {
       if (req.customerUserId !== actorUserId) {
         throw new ForbiddenException('Forbidden');
       }
-      if (isExclusiveProviderStatus(req.status) || req.status === 'CLOSED') {
+      if (hasRequestLock(req) || req.status === 'CLOSED') {
         throw new ConflictException('Request is not editable');
       }
       if (!req.dealTerms) {
@@ -1692,7 +1772,7 @@ export class RequestsService {
       if (req.customerUserId !== actorUserId) {
         throw new ForbiddenException('Forbidden');
       }
-      if (isExclusiveProviderStatus(req.status) || req.status === 'CLOSED') {
+      if (hasRequestLock(req) || req.status === 'CLOSED') {
         throw new ConflictException('Request is not editable');
       }
       if (
@@ -1765,7 +1845,6 @@ export class RequestsService {
       const next = await tx.request.update({
         where: { id: req.id },
         data: {
-          status: 'PROVIDER_SELECTED',
           providerId: input.providerId,
           lockedAt: req.lockedAt ?? now,
         },
@@ -1788,8 +1867,12 @@ export class RequestsService {
   async acceptContractByCustomer(
     actorUserId: string,
     requestId: string,
-    input: { offerVersion: string },
+    input: { termsVersion: string },
   ): Promise<RequestCustomerDto> {
+    const termsVersions = await this.legalDocs.assertCurrentVersions({
+      terms: input.termsVersion,
+    });
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const current = await tx.request.findUnique({
         where: { id: requestId },
@@ -1802,27 +1885,58 @@ export class RequestsService {
       if (req.customerUserId !== actorUserId) {
         throw new ForbiddenException('Forbidden');
       }
-      if (req.status !== 'PROVIDER_SELECTED') {
+      if (!req.providerId || !hasRequestLock(req)) {
         throw new BadRequestException(
           'Provider must be selected before contract acceptance',
         );
       }
-      if (!req.providerId) {
-        throw new ConflictException('Provider is required');
-      }
-      if (!req.dealTerms) {
-        throw new ConflictException('Deal terms are required');
-      }
-      const approvedFiles = await tx.requestContractFile.count({
+      const contractDocs = await tx.requestContractFile.findMany({
         where: {
           requestId: req.id,
           providerId: req.providerId,
-          status: 'APPROVED',
+          role: 'CONTRACT_DOCUMENT',
+          bundleId: { not: null },
         },
+        select: { bundleId: true, status: true },
+        take: 50,
       });
-      if (approvedFiles === 0) {
+
+      const bundleIds = [
+        ...new Set(
+          contractDocs
+            .map((r) => r.bundleId)
+            .filter((v): v is string => typeof v === 'string'),
+        ),
+      ];
+      if (bundleIds.length === 0) {
         throw new ConflictException(
-          'At least one approved contract file is required',
+          'At least one approved contract bundle is required',
+        );
+      }
+      if (contractDocs.some((r) => r.status !== 'APPROVED')) {
+        throw new ConflictException('All contract bundles must be approved');
+      }
+
+      const signatures = await tx.requestContractFile.findMany({
+        where: {
+          requestId: req.id,
+          providerId: req.providerId,
+          role: 'CONTRACT_SIGNATURE',
+          bundleId: { in: bundleIds },
+        },
+        select: { bundleId: true },
+        distinct: ['bundleId'],
+        take: 50,
+      });
+      const signedBundleIds = new Set(
+        signatures
+          .map((r) => r.bundleId)
+          .filter((v): v is string => typeof v === 'string'),
+      );
+
+      if (bundleIds.some((id) => !signedBundleIds.has(id))) {
+        throw new ConflictException(
+          'All approved contract bundles must have a signature',
         );
       }
 
@@ -1838,22 +1952,40 @@ export class RequestsService {
       }
 
       const now = new Date();
+      // После акцепта договора сразу переходим в работу — отдельный шаг «Начать работу» не нужен.
       const next = await tx.request.update({
         where: { id: req.id },
         data: {
-          status: 'CONTRACT_ACCEPTED',
-          offerVersion: input.offerVersion,
+          status: 'ACTIVE',
+          termsVersion: termsVersions.terms,
           contractAcceptedAt: now,
           contractAcceptedByUserId: actorUserId,
         },
         select,
       });
 
+      await tx.legalAcceptance.create({
+        data: {
+          userId: actorUserId,
+          docId: 'TERMS',
+          version: termsVersions.terms,
+          context: 'CONTRACT',
+          requestId: req.id,
+        },
+      });
+
       await this.addEvent(tx, {
         requestId: req.id,
         type: 'CONTRACT_ACCEPTED',
         actorUserId,
-        payload: { offerVersion: input.offerVersion },
+        payload: { termsVersion: termsVersions.terms },
+      });
+
+      await this.addEvent(tx, {
+        requestId: req.id,
+        type: 'START_WORK',
+        actorUserId,
+        payload: { at: now.toISOString(), auto: true },
       });
 
       return next;
@@ -1863,38 +1995,12 @@ export class RequestsService {
   }
 
   async startWorkByProvider(
-    actorProviderId: string,
-    id: string,
+    _actorProviderId: string,
+    _id: string,
   ): Promise<RequestCustomerDto> {
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const current = await tx.request.findFirst({
-        where: { id, providerId: actorProviderId },
-        select,
-      });
-      if (!current) throw new NotFoundException('Request not found');
-
-      if (current.status !== 'CONTRACT_ACCEPTED') {
-        throw new ForbiddenException('Contract must be accepted before work');
-      }
-
-      const now = new Date();
-      const next = await tx.request.update({
-        where: { id: current.id },
-        data: { status: 'ACTIVE' },
-        select,
-      });
-
-      await this.addEvent(tx, {
-        requestId: current.id,
-        type: 'START_WORK',
-        actorProviderId,
-        payload: { at: now.toISOString() },
-      });
-
-      return next;
-    });
-
-    return requestRowToCustomerDtoPlain(updated as unknown as RequestDbRow);
+    throw new BadRequestException(
+      'Start work is automatic after contract acceptance',
+    );
   }
 
   async markServiceRenderedByProvider(
@@ -1911,21 +2017,10 @@ export class RequestsService {
         throw new ForbiddenException('Request must be in work');
       }
 
-      const now = new Date();
-      const next = await tx.request.update({
-        where: { id: current.id },
-        data: { status: 'SERVICE_RENDERED' },
-        select,
-      });
-
-      await this.addEvent(tx, {
-        requestId: current.id,
-        type: 'SERVICE_RENDERED',
+      return this.transitionToAcceptancePending(tx, current, {
         actorProviderId,
-        payload: { at: now.toISOString() },
+        emitServiceRenderedEvent: true,
       });
-
-      return next;
     });
     return requestRowToCustomerDtoPlain(updated as unknown as RequestDbRow);
   }
@@ -1934,44 +2029,7 @@ export class RequestsService {
     actorProviderId: string,
     id: string,
   ): Promise<RequestCustomerDto> {
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const current = await tx.request.findFirst({
-        where: { id, providerId: actorProviderId },
-        select,
-      });
-      if (!current) throw new NotFoundException('Request not found');
-      if (current.status !== 'SERVICE_RENDERED') {
-        throw new ForbiddenException(
-          'Request must be rendered before acceptance',
-        );
-      }
-
-      const now = new Date();
-      const autoAcceptAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-      const next = await tx.request.update({
-        where: { id: current.id },
-        data: {
-          status: 'ACCEPTANCE_PENDING',
-          acceptanceRequestedAt: now,
-          autoAcceptAt,
-        },
-        select,
-      });
-
-      await this.addEvent(tx, {
-        requestId: current.id,
-        type: 'ACCEPTANCE_REQUESTED',
-        actorProviderId,
-        payload: {
-          at: now.toISOString(),
-          autoAcceptAt: autoAcceptAt.toISOString(),
-        },
-      });
-
-      return next;
-    });
-    return requestRowToCustomerDtoPlain(updated as unknown as RequestDbRow);
+    return this.markServiceRenderedByProvider(actorProviderId, id);
   }
 
   async completeByProvider(

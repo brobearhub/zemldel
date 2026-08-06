@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { Alert, Button, Stack, Typography } from "@mui/material";
 import type { RequestCustomerDto, RequestDocumentRequestDto } from "@/entities/request";
-import { isOrderExecutionStatus, RequestDocumentsList } from "@/entities/request";
+import { isOrderExecutionStatus, RequestDocumentsList, shouldCollapseDocumentsByDefault } from "@/entities/request";
 import { DocumentsSectionHeader } from "@/features/documents-security-info";
-import { CustomerRequestContractFilesClient, type CustomerContractFileListItem } from "@/features/request-contract-files/ui/CustomerRequestContractFilesClient";
+import { CustomerRequestContractFilesClient, type CustomerContractBundleListItem } from "@/features/request-contract-files/ui/CustomerRequestContractFilesClient";
+import { DocumentsNeutralAlert } from "@/shared/ui/DocumentsNeutralAlert";
 import { DocumentsSectionShell } from "@/shared/ui/DocumentsSectionShell";
 
 type Props = {
@@ -14,41 +15,42 @@ type Props = {
   busy: boolean;
   docUploadBusy: boolean;
 
-  contractFiles: CustomerContractFileListItem[];
+  contractBundles: CustomerContractBundleListItem[];
   docRequests: RequestDocumentRequestDto[];
   allRequestedDocumentsUploaded: boolean;
 
   hasRevisionRequested: boolean;
   hasPending: boolean;
-  hasContractFiles: boolean;
+  hasContractBundles: boolean;
   canAcceptContract: boolean;
 
   onDeleteRequestedDocument: (docRequestId: string) => Promise<void> | void;
   onUploadRequestedDocument: (docRequestId: string, file: File) => Promise<void> | void;
   onOpenOfferDialog: () => void;
-  onContractFilesChange: (next: CustomerContractFileListItem[]) => void;
+  onContractBundlesChange: (next: CustomerContractBundleListItem[]) => void;
 };
 
 function CustomerDocumentsBanners(props: {
   request: RequestCustomerDto;
-  hasContractFiles: boolean;
+  hasContractBundles: boolean;
   docRequests: readonly RequestDocumentRequestDto[];
   allRequestedDocumentsUploaded: boolean;
   hasRevisionRequested: boolean;
   hasPending: boolean;
 }) {
-  const { request, hasContractFiles, docRequests, allRequestedDocumentsUploaded, hasRevisionRequested, hasPending } = props;
+  const { request, hasContractBundles, docRequests, allRequestedDocumentsUploaded, hasRevisionRequested, hasPending } =
+    props;
 
   return (
     <>
-      {request.status === "PROVIDER_SELECTED" && !hasContractFiles ? (
+      {Boolean(request.lockedAt) && !hasContractBundles ? (
         <Typography variant="body2" color="text.secondary">
           Ожидаем договор от компании.
         </Typography>
       ) : null}
 
       {docRequests.length > 0 && !allRequestedDocumentsUploaded ? (
-        <Alert severity="info">Исполнитель запросил документы. Загрузите их.</Alert>
+        <DocumentsNeutralAlert>Исполнитель запросил документы. Загрузите их.</DocumentsNeutralAlert>
       ) : null}
 
       {hasRevisionRequested ? (
@@ -56,9 +58,9 @@ function CustomerDocumentsBanners(props: {
       ) : null}
 
       {hasPending ? (
-        <Alert severity="info">
+        <DocumentsNeutralAlert>
           Компания прикрепила договор. Скачайте его, проверьте и одобрите или отправьте на доработку.
-        </Alert>
+        </DocumentsNeutralAlert>
       ) : null}
     </>
   );
@@ -159,16 +161,21 @@ function CustomerAcceptContractActions(props: { canAcceptContract: boolean; busy
 export function CustomerRequestDocumentsSection(props: Props) {
   if (!props.open) return null;
 
+  const collapseByDefault = shouldCollapseDocumentsByDefault(props.request.status);
+
   return (
     <DocumentsSectionShell
       id="documents"
       headerLeft={<DocumentsSectionHeader titleVariant="body1" titleWeight={800} />}
       headerRight={null}
       spacing={1}
+      collapsible={collapseByDefault}
+      defaultExpanded={!collapseByDefault}
+      expandedResetKey={`${props.request.id}:${props.request.status}`}
     >
       <CustomerDocumentsBanners
         request={props.request}
-        hasContractFiles={props.hasContractFiles}
+        hasContractBundles={props.hasContractBundles}
         docRequests={props.docRequests}
         allRequestedDocumentsUploaded={props.allRequestedDocumentsUploaded}
         hasRevisionRequested={props.hasRevisionRequested}
@@ -187,8 +194,8 @@ export function CustomerRequestDocumentsSection(props: Props) {
 
       <CustomerRequestContractFilesClient
         requestId={props.request.id}
-        initialFiles={props.contractFiles}
-        onFilesChange={props.onContractFilesChange}
+        initialBundles={props.contractBundles}
+        onBundlesChange={props.onContractBundlesChange}
       />
 
       <CustomerAcceptContractActions

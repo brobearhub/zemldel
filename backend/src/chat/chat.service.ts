@@ -11,6 +11,7 @@ import type { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { InternalAuthService } from '../auth/internal-auth.service';
+import { isLockedToOtherProvider } from '../requests/dto/request.dto';
 import { ChatGateway } from './chat.gateway';
 
 const SNIPPET_LEN = 160;
@@ -148,6 +149,7 @@ export class ChatService {
         categoryId: true,
         requestCityId: true,
         providerId: true,
+        lockedAt: true,
         customerUserId: true,
         customerUser: { select: { customerCityId: true } },
       },
@@ -156,19 +158,6 @@ export class ChatService {
       throw new NotFoundException('Service request not found');
     }
     return req;
-  }
-
-  private isLockedStatus(status: string) {
-    return (
-      status === 'PROVIDER_SELECTED' ||
-      status === 'CONTRACT_ACCEPTED' ||
-      status === 'ACTIVE' ||
-      status === 'SERVICE_RENDERED' ||
-      status === 'ACCEPTANCE_PENDING' ||
-      status === 'ACCEPTED' ||
-      status === 'COMPLETED' ||
-      status === 'CANCELLED'
-    );
   }
 
   private async assertCanAccessRequestConversation(
@@ -191,10 +180,10 @@ export class ChatService {
       throw new ForbiddenException('Request is closed');
     }
 
-    const lockedToOtherProvider =
-      this.isLockedStatus(String(req.status)) &&
-      Boolean(req.providerId) &&
-      req.providerId !== subject.conversationProviderId;
+    const lockedToOtherProvider = isLockedToOtherProvider(
+      req,
+      subject.conversationProviderId,
+    );
 
     // Archive rule (applies even when serviceId is set after conversion):
     // - customer: forbidden (only chosen provider thread remains)
@@ -334,11 +323,11 @@ export class ChatService {
 
     // Provider archive flow: allow opening an existing thread even after the request is converted
     // (serviceId may be assigned during conversion for FREEFORM/CATEGORY requests).
+    const actorProviderId = this.pickActorProviderId(user);
     if (
       req.customerUserId !== actorUserId &&
-      this.isLockedStatus(String(req.status)) &&
-      Boolean(req.providerId) &&
-      req.providerId !== this.pickActorProviderId(user)
+      actorProviderId &&
+      isLockedToOtherProvider(req, actorProviderId)
     ) {
       const existing = await this.prisma.conversation.findFirst({
         where: {
@@ -462,10 +451,7 @@ export class ChatService {
       throw new ForbiddenException('Forbidden');
     }
 
-    const lockedToOtherProvider =
-      this.isLockedStatus(String(req.status)) &&
-      Boolean(req.providerId) &&
-      req.providerId !== providerId;
+    const lockedToOtherProvider = isLockedToOtherProvider(req, providerId);
 
     if (lockedToOtherProvider) {
       // For archived provider threads, allow opening ONLY if a conversation already exists (with messages).

@@ -12,7 +12,7 @@ import {
   readPendingRequestDraft,
   type PendingRequestDraft,
   getRequestStatusLabel,
-  isExclusiveProviderPhaseStatus,
+  hasRequestLock,
   isOpenRequestStatus,
   type RequestCustomerDto,
   type RequestStatus,
@@ -28,12 +28,12 @@ const PHASE_TABS: { id: PhaseFilter; label: string }[] = [
   { id: "CANCELLED", label: "Отменённые" },
 ];
 
-function matchesPhase(status: RequestStatus, phase: PhaseFilter): boolean {
+function matchesPhase(item: RequestCustomerDto, phase: PhaseFilter): boolean {
   if (phase === "ALL") return true;
-  if (phase === "DISCUSSING") return !isExclusiveProviderPhaseStatus(status) && isOpenRequestStatus(status);
-  if (phase === "ORDERS") return isExclusiveProviderPhaseStatus(status) && isOpenRequestStatus(status);
-  if (phase === "COMPLETED") return status === "COMPLETED";
-  if (phase === "CANCELLED") return status === "CANCELLED" || status === "CLOSED";
+  if (phase === "DISCUSSING") return !hasRequestLock(item) && isOpenRequestStatus(item.status);
+  if (phase === "ORDERS") return hasRequestLock(item) && isOpenRequestStatus(item.status);
+  if (phase === "COMPLETED") return item.status === "COMPLETED";
+  if (phase === "CANCELLED") return item.status === "CANCELLED" || item.status === "CLOSED";
   return true;
 }
 
@@ -157,14 +157,14 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
   }, [autoResumeEnabled, onAutoResumeFinished]);
 
   const filteredItems = useMemo(
-    () => items.filter((item) => matchesPhase(item.status, phase)),
+    () => items.filter((item) => matchesPhase(item, phase)),
     [items, phase]
   );
 
   const phaseCounts = useMemo(
     () =>
       Object.fromEntries(
-        PHASE_TABS.map((t) => [t.id, items.filter((item) => matchesPhase(item.status, t.id)).length])
+        PHASE_TABS.map((t) => [t.id, items.filter((item) => matchesPhase(item, t.id)).length])
       ) as Record<PhaseFilter, number>,
     [items]
   );

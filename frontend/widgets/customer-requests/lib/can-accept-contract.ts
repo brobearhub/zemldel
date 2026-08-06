@@ -1,14 +1,21 @@
 import type { RequestCustomerDto, RequestDocumentRequestDto } from "@/entities/request";
-import type { CustomerContractFileListItem } from "@/features/request-contract-files/ui/CustomerRequestContractFilesClient";
+import { isOrderExecutionStatus } from "@/entities/request";
+import type { CustomerContractBundleListItem } from "@/features/request-contract-files/ui/CustomerRequestContractFilesClient";
 
 export function canCustomerAcceptContract(input: {
   requestStatus: RequestCustomerDto["status"];
-  contractFiles: readonly CustomerContractFileListItem[];
+  lockedAt: RequestCustomerDto["lockedAt"];
+  contractBundles: readonly CustomerContractBundleListItem[];
   documentRequests: readonly RequestDocumentRequestDto[];
 }) {
-  const allProviderDocumentsApproved =
-    input.contractFiles.length > 0 && input.contractFiles.every((f) => f.status === "APPROVED");
+  const allContractBundlesApproved =
+    input.contractBundles.length > 0 &&
+    input.contractBundles.every((b) => b.status === "APPROVED" && Boolean(b.signature));
   const allRequestedDocumentsUploaded = input.documentRequests.every((d) => d.status === "UPLOADED");
-  return input.requestStatus === "PROVIDER_SELECTED" && allProviderDocumentsApproved && allRequestedDocumentsUploaded;
+  return (
+    Boolean(input.lockedAt) &&
+    !isOrderExecutionStatus(input.requestStatus) &&
+    allContractBundlesApproved &&
+    allRequestedDocumentsUploaded
+  );
 }
-

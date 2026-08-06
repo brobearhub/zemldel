@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Box } from "@mui/material";
+import { SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
 
 type Props = {
   middle: ReactNode;
@@ -8,7 +9,12 @@ type Props = {
   stickyTop?: number;
 };
 
-export function ChatBodyWithSidePanelLayout({ middle, right, rightWidth = 420, stickyTop = 112 }: Props) {
+export function ChatBodyWithSidePanelLayout({
+  middle,
+  right,
+  rightWidth = 420,
+  stickyTop = SITE_STICKY_TOP_PX,
+}: Props) {
   return (
     <Box
       sx={{
@@ -36,4 +42,3 @@ export function ChatBodyWithSidePanelLayout({ middle, right, rightWidth = 420, s
     </Box>
   );
 }
-

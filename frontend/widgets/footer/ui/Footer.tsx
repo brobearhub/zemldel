@@ -150,7 +150,7 @@ export const Footer = () => {
               </Typography>
               <Link
                 component={NextLink}
-                href="/offer"
+                href="/terms"
                 sx={{
                   fontSize: 14,
                   color: "common.white",
@@ -158,7 +158,7 @@ export const Footer = () => {
                   "&:hover": { textDecoration: "underline", color: "rgba(255,255,255,0.95)" },
                 }}
               >
-                Оферта
+                Пользовательское соглашение
               </Link>
               <Link
                 component={NextLink}
@@ -170,7 +170,31 @@ export const Footer = () => {
                   "&:hover": { textDecoration: "underline", color: "rgba(255,255,255,0.95)" },
                 }}
               >
-                Политика конфиденциальности
+                Политика обработки ПДн
+              </Link>
+              <Link
+                component={NextLink}
+                href="/consent"
+                sx={{
+                  fontSize: 14,
+                  color: "common.white",
+                  textDecoration: "none",
+                  "&:hover": { textDecoration: "underline", color: "rgba(255,255,255,0.95)" },
+                }}
+              >
+                Согласие на обработку ПДн
+              </Link>
+              <Link
+                component={NextLink}
+                href="/offer"
+                sx={{
+                  fontSize: 14,
+                  color: "common.white",
+                  textDecoration: "none",
+                  "&:hover": { textDecoration: "underline", color: "rgba(255,255,255,0.95)" },
+                }}
+              >
+                Оферта (платные услуги)
               </Link>
             </Stack>
           </Box>

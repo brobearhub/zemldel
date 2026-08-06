@@ -43,6 +43,10 @@ export class RequestRemarkDto {
   @ApiProperty({ required: false, nullable: true })
   @Expose()
   doneAt!: string | null;
+
+  @ApiProperty({ required: false, nullable: true, description: 'Когда замечание стало видимым другой стороне (null = черновик).' })
+  @Expose()
+  sentAt!: string | null;
 }
 
 export class RequestRemarkCreateDto {
@@ -84,6 +88,7 @@ export function requestRemarkToDtoPlain(input: {
   text: string;
   createdAt: Date;
   doneAt: Date | null;
+  sentAt: Date | null;
 }): RequestRemarkDto {
   return instanceToPlain(
     plainToInstance(RequestRemarkDto, {
@@ -94,6 +99,7 @@ export function requestRemarkToDtoPlain(input: {
       text: input.text,
       createdAt: input.createdAt.toISOString(),
       doneAt: input.doneAt ? input.doneAt.toISOString() : null,
+      sentAt: input.sentAt ? input.sentAt.toISOString() : null,
     }),
   ) as unknown as RequestRemarkDto;
 }

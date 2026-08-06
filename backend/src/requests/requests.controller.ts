@@ -242,8 +242,8 @@ export class RequestsController {
   @ApiBody({
     schema: {
       type: 'object',
-      properties: { offerVersion: { type: 'string' } },
-      required: ['offerVersion'],
+      properties: { termsVersion: { type: 'string' } },
+      required: ['termsVersion'],
     },
   })
   @ApiOkResponse({ type: RequestCustomerDto })
@@ -257,25 +257,25 @@ export class RequestsController {
     @Body() body: unknown,
   ) {
     const userId = this.requests.getRequiredActorUserId(request);
-    const payload = body as { offerVersion?: unknown } | null | undefined;
-    const offerVersion =
+    const payload = body as { termsVersion?: unknown } | null | undefined;
+    const termsVersion =
       payload &&
       typeof payload === 'object' &&
-      typeof payload.offerVersion === 'string'
-        ? payload.offerVersion
+      typeof payload.termsVersion === 'string'
+        ? payload.termsVersion
         : null;
-    if (!offerVersion) {
+    if (!termsVersion) {
       throw new UnprocessableEntityException({
         error: 'Validation failed',
         issues: [
           {
-            path: ['offerVersion'],
-            message: 'offerVersion is required',
+            path: ['termsVersion'],
+            message: 'termsVersion is required',
           },
         ],
       });
     }
-    return this.requests.acceptContractByCustomer(userId, id, { offerVersion });
+    return this.requests.acceptContractByCustomer(userId, id, { termsVersion });
   }
 
   // --- Customer: order-phase actions ---

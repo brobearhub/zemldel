@@ -40,4 +40,13 @@ export class CreateProviderDto {
   @IsOptional()
   @IsUUID()
   cityId?: string;
+
+  /** Версия оферты платных услуг, с которой исполнитель ознакомился (не акцепт-оплата). */
+  @ApiProperty({ example: '2026-08-04', pattern: '^\\d{4}-\\d{2}-\\d{2}$' })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  offerVersion!: string;
 }

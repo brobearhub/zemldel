@@ -6,7 +6,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -17,20 +16,33 @@ import {
 } from "@mui/material";
 import { ContractFilesList } from "@/entities/request";
 
-type ContractFileStatus = "PENDING_CUSTOMER" | "APPROVED" | "REVISION_REQUESTED";
-export type CustomerContractFileListItem = {
-  id: string;
-  status: ContractFileStatus;
-  originalName: string;
-  mimeType: string;
-  sizeBytes: number;
+type ContractBundleStatus = "PENDING_CUSTOMER" | "APPROVED" | "REVISION_REQUESTED";
+export type CustomerContractBundleListItem = {
+  bundleId: string;
+  status: ContractBundleStatus;
   revisionMessage: string | null;
   decidedAt: string | null;
+  document: {
+    id: string;
+    originalName: string;
+    mimeType: string;
+    sizeBytes: number;
+    createdAt: string;
+    updatedAt: string;
+  };
+  signature: {
+    id: string;
+    originalName: string;
+    mimeType: string;
+    sizeBytes: number;
+    createdAt: string;
+    updatedAt: string;
+  } | null;
   createdAt: string;
   updatedAt: string;
 };
 
-function statusLabel(status: ContractFileStatus) {
+function statusLabel(status: ContractBundleStatus) {
   if (status === "APPROVED") return "Одобрен";
   if (status === "REVISION_REQUESTED") return "На доработку";
   return "Ожидает решения";
@@ -38,45 +50,47 @@ function statusLabel(status: ContractFileStatus) {
 
 export function CustomerRequestContractFilesClient({
   requestId,
-  initialFiles,
-  onFilesChange,
+  initialBundles,
+  onBundlesChange,
 }: {
   requestId: string;
-  initialFiles: CustomerContractFileListItem[];
-  onFilesChange?: (next: CustomerContractFileListItem[]) => void;
+  initialBundles: CustomerContractBundleListItem[];
+  onBundlesChange?: (next: CustomerContractBundleListItem[]) => void;
 }) {
-  const [files, setFiles] = useState(initialFiles);
+  const [bundles, setBundles] = useState(initialBundles);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [revisionOpen, setRevisionOpen] = useState(false);
-  const [revisionFileId, setRevisionFileId] = useState<string | null>(null);
+  const [revisionBundleId, setRevisionBundleId] = useState<string | null>(null);
   const [revisionMessage, setRevisionMessage] = useState("");
 
-  const hasApproved = useMemo(() => files.some((f) => f.status === "APPROVED"), [files]);
-  const hasPendingCustomerDecision = useMemo(() => files.some((f) => f.status === "PENDING_CUSTOMER"), [files]);
+  const hasPendingCustomerDecision = useMemo(
+    () => bundles.some((b) => b.status === "PENDING_CUSTOMER"),
+    [bundles],
+  );
 
   useEffect(() => {
-    setFiles(initialFiles);
-  }, [initialFiles]);
+    setBundles(initialBundles);
+  }, [initialBundles]);
 
   useEffect(() => {
-    onFilesChange?.(files);
-  }, [files, onFilesChange]);
+    onBundlesChange?.(bundles);
+  }, [bundles, onBundlesChange]);
 
   async function refresh() {
-    const res = await fetch(`/api/requests/${requestId}/contract-files`, { cache: "no-store" });
-    const payload = (await res.json().catch(() => null)) as CustomerContractFileListItem[] | { error?: string } | null;
-    if (res.ok && Array.isArray(payload)) setFiles(payload);
+    const res = await fetch(`/api/requests/${requestId}/contract-bundles`, { cache: "no-store" });
+    const payload = (await res.json().catch(() => null)) as CustomerContractBundleListItem[] | { error?: string } | null;
+    if (res.ok && Array.isArray(payload)) setBundles(payload);
   }
 
-  async function approve(fileId: string) {
+  async function approve(bundleId: string) {
     setBusy(true);
     setNotice(null);
     setError(null);
     try {
-      const res = await fetch(`/api/requests/${requestId}/contract-files/${fileId}/approve`, { method: "POST" });
+      const res = await fetch(`/api/requests/${requestId}/contract-bundles/${bundleId}/approve`, { method: "POST" });
       const payload = (await res.json().catch(() => null)) as { error?: string } | { ok?: boolean } | null;
       if (!res.ok) throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось одобрить" : "Не удалось одобрить");
       await refresh();
@@ -89,12 +103,12 @@ export function CustomerRequestContractFilesClient({
   }
 
   async function submitRevision() {
-    if (!revisionFileId) return;
+    if (!revisionBundleId) return;
     setBusy(true);
     setNotice(null);
     setError(null);
     try {
-      const res = await fetch(`/api/requests/${requestId}/contract-files/${revisionFileId}/revision`, {
+      const res = await fetch(`/api/requests/${requestId}/contract-bundles/${revisionBundleId}/revision`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ message: revisionMessage }),
@@ -102,7 +116,7 @@ export function CustomerRequestContractFilesClient({
       const payload = (await res.json().catch(() => null)) as { error?: string } | { ok?: boolean } | null;
       if (!res.ok) throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось отправить на доработку" : "Не удалось отправить на доработку");
       setRevisionOpen(false);
-      setRevisionFileId(null);
+      setRevisionBundleId(null);
       setRevisionMessage("");
       await refresh();
       setNotice("Запрос на доработку отправлен компании.");
@@ -120,7 +134,19 @@ export function CustomerRequestContractFilesClient({
 
       <ContractFilesList
         title="Документы исполнителя"
-        items={files}
+        actionsPlacement="below"
+        showDocumentIcon
+        items={bundles.map((b) => ({
+          id: b.bundleId,
+          status: b.status,
+          originalName: b.document.originalName,
+          mimeType: b.document.mimeType,
+          sizeBytes: b.document.sizeBytes,
+          revisionMessage: b.revisionMessage,
+          decidedAt: b.decidedAt,
+          createdAt: b.createdAt,
+          updatedAt: b.updatedAt,
+        }))}
         revisionLabel="Замечания"
         empty={
           <Box sx={{ p: 2.5 }}>
@@ -128,33 +154,63 @@ export function CustomerRequestContractFilesClient({
           </Box>
         }
         getStatusLabel={statusLabel}
-        renderActions={(f) => (
-          <>
-            <Link href={`/api/requests/${requestId}/contract-files/${f.id}/download`} style={{ textDecoration: "none" }}>
-              <Button component="span" variant="text" disabled={busy}>
-                Скачать
-              </Button>
-            </Link>
-            {f.status === "PENDING_CUSTOMER" && !hasApproved ? (
-              <>
-                <Button variant="contained" color="success" disabled={busy} onClick={() => void approve(f.id)}>
-                  Одобрить
+        renderActions={(f) => {
+          const bundle = bundles.find((b) => b.bundleId === f.id);
+          if (!bundle) return null;
+          const canDecide = bundle.status === "PENDING_CUSTOMER";
+          const signatureMissing = !bundle.signature;
+
+          return (
+            <>
+              <Link
+                href={`/api/requests/${requestId}/contract-files/${bundle.document.id}/download`}
+                style={{ textDecoration: "none" }}
+              >
+                <Button component="span" variant="text" disabled={busy}>
+                  Скачать договор
                 </Button>
-                <Button
-                  variant="outlined"
-                  color="warning"
-                  disabled={busy}
-                  onClick={() => {
-                    setRevisionFileId(f.id);
-                    setRevisionOpen(true);
-                  }}
+              </Link>
+              {bundle.signature ? (
+                <Link
+                  href={`/api/requests/${requestId}/contract-files/${bundle.signature.id}/download`}
+                  style={{ textDecoration: "none" }}
                 >
-                  На доработку
-                </Button>
-              </>
-            ) : null}
-          </>
-        )}
+                  <Button component="span" variant="text" disabled={busy}>
+                    Скачать подпись
+                  </Button>
+                </Link>
+              ) : (
+                <Typography variant="body2" color="warning.main" sx={{ px: 1 }}>
+                  Подпись (.sig) ещё не прикреплена
+                </Typography>
+              )}
+
+              {canDecide ? (
+                <>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    disabled={busy || signatureMissing}
+                    onClick={() => void approve(bundle.bundleId)}
+                  >
+                    Одобрить
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="warning"
+                    disabled={busy}
+                    onClick={() => {
+                      setRevisionBundleId(bundle.bundleId);
+                      setRevisionOpen(true);
+                    }}
+                  >
+                    На доработку
+                  </Button>
+                </>
+              ) : null}
+            </>
+          );
+        }}
       />
 
       {hasPendingCustomerDecision ? (

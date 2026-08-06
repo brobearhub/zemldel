@@ -5,6 +5,8 @@ import {
   formatRequestDate,
   getCustomerRequestFlowActiveStepId,
   getRequestFlowActiveStepId,
+  hasRequestLock,
+  isContractPhase,
   isOrderExecutionStatus,
   isOpenRequestStatus,
 } from "@/entities/request";
@@ -14,14 +16,11 @@ export type RequestDetailsSide = "customer" | "provider";
 export type RequestDetailsActionId =
   | "openOfferDialog"
   | "acceptResult"
-  | "sendRemarks"
   | "startWork"
   | "markRendered"
   | "requestAcceptance"
   | "complete"
-  | "declineOffer"
-  | "remarkAdd"
-  | "remarkComplete";
+  | "declineOffer";
 
 export type RequestDetailsActionDescriptor = {
   id: RequestDetailsActionId;
@@ -70,25 +69,25 @@ export type BuildProviderRequestDetailsInput = {
 
 export type BuildRequestDetailsInput = BuildCustomerRequestDetailsInput | BuildProviderRequestDetailsInput;
 
-function resolveStateIdFromStatus(status: RequestCustomerDto["status"]): RequestDetailsStateId {
+function resolveStateIdFromRequest(req: {
+  status: RequestStatus;
+  lockedAt: string | null;
+}): RequestDetailsStateId {
+  const { status } = req;
   if (status === "CLOSED") return "CLOSED";
   if (status === "CANCELLED") return "CANCELLED";
   if (status === "COMPLETED") return "COMPLETED";
   if (status === "ACCEPTANCE_PENDING" || status === "ACCEPTED") return "ACCEPTANCE";
-  if (status === "ACTIVE" || status === "SERVICE_RENDERED") return "WORK";
-  if (status === "PROVIDER_SELECTED" || status === "CONTRACT_ACCEPTED") return "CONTRACT";
+  if (status === "ACTIVE") return "WORK";
+  if (isContractPhase(req)) return "CONTRACT";
   if (status === "DISCUSSING" || status === "TERMS_AGREED") return "DISCUSSING";
   return "NEW";
-}
-
-function resolveStateIdFromAnyStatus(status: RequestStatus): RequestDetailsStateId {
-  return resolveStateIdFromStatus(status);
 }
 
 function buildCustomerPendingInfo(req: RequestCustomerDto): string | null {
   const selectedCount = req.selectedProviderIds?.length ?? 0;
   if (isOrderExecutionStatus(req.status)) return null;
-  if (req.status === "PROVIDER_SELECTED") return null;
+  if (hasRequestLock(req)) return null;
   if (req.status === "CLOSED") return null;
   if (selectedCount === 0 || !req.lastSelectionAt) return null;
   const when = formatRequestDate(req.lastSelectionAt);
@@ -97,8 +96,14 @@ function buildCustomerPendingInfo(req: RequestCustomerDto): string | null {
 }
 
 function buildProviderPendingInfo(req: RequestProDto): string | null {
-  if (req.offerStatus === "SELECTED") return "Клиент выбрал вас исполнителем. Подготовьте и отправьте договор.";
   if (req.offerStatus === "DECLINED") return "Вы отказались от предложения.";
+  if (
+    req.offerStatus === "SELECTED" &&
+    hasRequestLock(req) &&
+    !isOrderExecutionStatus(req.status)
+  ) {
+    return "Клиент выбрал вас исполнителем. Подготовьте и отправьте договор.";
+  }
   return null;
 }
 
@@ -144,10 +149,7 @@ function buildCustomerState(id: RequestDetailsStateId): RequestDetailsState<Cust
         note: null,
         actions:
           request.status === "ACCEPTANCE_PENDING"
-            ? [
-                { id: "acceptResult", label: "Принять результат", variant: "contained", color: "success" },
-                { id: "sendRemarks", label: "Отправить замечания", variant: "outlined", color: "warning" },
-              ]
+            ? [{ id: "acceptResult", label: "Принять результат", variant: "contained", color: "success" }]
             : [],
         autoAcceptAtLabel: request.autoAcceptAt ? `Автопринятие: ${formatRequestDate(request.autoAcceptAt)}` : null,
       }),
@@ -172,14 +174,9 @@ function buildProviderState(id: RequestDetailsStateId): RequestDetailsState<Prov
         note: buildProviderPendingInfo(request),
         actions: request.isLocked
           ? []
-          : [
-              ...(request.status === "CONTRACT_ACCEPTED"
-                ? [{ id: "startWork", label: "Начать работу", variant: "contained", color: "success" } satisfies RequestDetailsActionDescriptor]
-                : []),
-              ...(!isOrderExecutionStatus(request.status) && request.offerStatus === "SELECTED"
-                ? [{ id: "declineOffer", label: "Отказать", variant: "outlined", color: "secondary" } satisfies RequestDetailsActionDescriptor]
-                : []),
-            ],
+          : !isOrderExecutionStatus(request.status) && request.offerStatus === "SELECTED"
+            ? [{ id: "declineOffer", label: "Отказать", variant: "outlined", color: "secondary" }]
+            : [],
         autoAcceptAtLabel: null,
       }),
     };
@@ -194,9 +191,7 @@ function buildProviderState(id: RequestDetailsStateId): RequestDetailsState<Prov
           ? []
           : request.status === "ACTIVE"
             ? [{ id: "markRendered", label: "Услуга выполнена", variant: "contained", color: "success" }]
-            : request.status === "SERVICE_RENDERED"
-              ? [{ id: "requestAcceptance", label: "Передать на принятие", variant: "contained", color: "success" }]
-              : [],
+            : [],
         autoAcceptAtLabel: null,
       }),
     };
@@ -231,19 +226,19 @@ function buildProviderState(id: RequestDetailsStateId): RequestDetailsState<Prov
 }
 
 export function buildRequestDetailsViewModel(input: BuildRequestDetailsInput): RequestDetailsViewModel {
-  const stateId = resolveStateIdFromAnyStatus(input.request.status);
+  const stateId = resolveStateIdFromRequest(input.request);
 
   const muted = input.side === "provider" ? input.request.isLocked : false;
 
   const steps =
     input.side === "customer"
       ? buildCustomerRequestFlowSteps(input.request)
-      : buildRequestFlowSteps(input.request.status);
+      : buildRequestFlowSteps(input.request);
 
   const activeStepId =
     input.side === "customer"
       ? getCustomerRequestFlowActiveStepId(input.request)
-      : getRequestFlowActiveStepId(input.request.status);
+      : getRequestFlowActiveStepId(input.request);
 
   const infoRows: RequestDetailsInfoRow[] = [];
   if (input.request.location) {

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Box, Container, Paper, Stack, Typography } from "@mui/material";
 import { BackendApiError, fetchBackendJson } from "@/shared/api/backend/server";
+import { SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
 import { getServerAuthSession } from "@/core/auth";
 import { ServiceCard, type ServiceCardItem } from "@/entities/service";
 import { PublicUnlinkedRequestForm } from "@/widgets/public-service/ui/PublicUnlinkedRequestForm";
@@ -59,7 +60,8 @@ export default async function ServiceCategoryPage({ params }: Props) {
       <Box
         component="section"
         sx={{
-          py: { xs: 4, md: 6 },
+          pt: 0,
+          pb: { xs: 4, md: 6 },
           bgcolor: "background.default",
         }}
       >
@@ -117,7 +119,7 @@ export default async function ServiceCategoryPage({ params }: Props) {
                   order: { xs: 1, md: 1 },
                   alignSelf: "start",
                   position: { md: "sticky" },
-                  top: { md: 96 },
+                  top: { md: SITE_STICKY_TOP_PX },
                 }}
               >
                 <Paper variant="outlined" sx={{ p: 3, borderRadius: 1.5 }}>

@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Box, Container, Paper, Stack, Typography } from "@mui/material";
 import type { ServiceDto } from "@/entities/service";
 import { BackendApiError, fetchBackendJson } from "@/shared/api/backend/server";
+import { SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
 import { getServerAuthSession } from "@/core/auth";
 import { PublicServiceRequestForm } from "@/widgets/public-service/ui/PublicServiceRequestForm";
 
@@ -148,7 +149,7 @@ export default async function ServicePage({ params }: Props) {
               </Typography>
             </Stack>
 
-            <Box sx={{ position: { md: "sticky" }, top: { md: 96 }, alignSelf: "start" }}>
+            <Box sx={{ position: { md: "sticky" }, top: { md: SITE_STICKY_TOP_PX }, alignSelf: "start" }}>
               <Paper
                 variant="outlined"
                 sx={{

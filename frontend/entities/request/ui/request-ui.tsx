@@ -295,7 +295,6 @@ export function RequestSearchAndFilters({
           [
             "ALL",
             "ACTIVE",
-            "SERVICE_RENDERED",
             "ACCEPTANCE_PENDING",
             "ACCEPTED",
             "COMPLETED",

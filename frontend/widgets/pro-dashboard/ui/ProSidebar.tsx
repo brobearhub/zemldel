@@ -29,7 +29,9 @@ import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNone
 import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
 import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
-import { useMemo, useState } from "react";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 
 const NAV_ITEMS = [
@@ -90,6 +92,29 @@ const SERVICES_GROUP = {
   ],
 } as const;
 
+/** Описание пункта — компактнее title, чтобы в узком сайдбаре меньше переносилось. */
+const NAV_SECONDARY_TYPOGRAPHY_PROPS = {
+  sx: { mt: 0.25, fontSize: 11, lineHeight: 1.25 },
+} as const;
+
+/** Активный пункт: без фона, акцент warning на иконке и title (бордер — отдельный индикатор). */
+const SELECTED_NAV_SX = {
+  "&.Mui-selected": {
+    bgcolor: "transparent",
+    "&:hover": { bgcolor: "action.hover" },
+    "& .MuiListItemIcon-root": { color: "warning.main" },
+    "& .MuiListItemText-primary": { color: "warning.main" },
+  },
+  "& .MuiListItemIcon-root, & .MuiListItemText-primary": {
+    transition: "color 0.2s ease",
+  },
+} as const;
+
+type IndicatorRect = {
+  top: number;
+  height: number;
+};
+
 type Props = {
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
@@ -98,15 +123,52 @@ type Props = {
 export function ProSidebar({ collapsed = false, onToggleCollapsed }: Props) {
   const pathname = usePathname();
   const { unreadByRequestId } = useChatSocket();
+  const listRef = useRef<HTMLUListElement | null>(null);
+  const [indicator, setIndicator] = useState<IndicatorRect | null>(null);
+  // Почему: описания пунктов занимают место — по умолчанию скрыты, включаются иконкой в шапке.
+  const [showDescriptions, setShowDescriptions] = useState(false);
   const isServicesRoute = useMemo(
     () => pathname === SERVICES_GROUP.hrefPrefix || pathname.startsWith(`${SERVICES_GROUP.hrefPrefix}/`),
     [pathname]
   );
-  const [servicesOpen, setServicesOpen] = useState<boolean>(true);
+  const [servicesOpen, setServicesOpen] = useState<boolean>(false);
   const unreadTotal = useMemo(
     () => Object.values(unreadByRequestId).reduce((acc, value) => acc + value, 0),
     [unreadByRequestId]
   );
+
+  // Почему: один «ездящий» индикатор вместо бордера на каждом пункте — плавно двигаем top/height.
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!list) {
+      setIndicator(null);
+      return;
+    }
+
+    const updateIndicator = () => {
+      const active = list.querySelector<HTMLElement>('[data-nav-active="true"]');
+      if (!active) {
+        setIndicator(null);
+        return;
+      }
+      const listRect = list.getBoundingClientRect();
+      const activeRect = active.getBoundingClientRect();
+      setIndicator({
+        top: activeRect.top - listRect.top + list.scrollTop,
+        height: activeRect.height,
+      });
+    };
+
+    updateIndicator();
+
+    const resizeObserver = new ResizeObserver(updateIndicator);
+    resizeObserver.observe(list);
+    for (const child of list.querySelectorAll<HTMLElement>("[data-nav-item]")) {
+      resizeObserver.observe(child);
+    }
+
+    return () => resizeObserver.disconnect();
+  }, [pathname, collapsed, servicesOpen, showDescriptions]);
 
   const toggleButton = (
     <Tooltip title={collapsed ? "Развернуть меню" : "Свернуть меню"}>
@@ -117,7 +179,7 @@ export function ProSidebar({ collapsed = false, onToggleCollapsed }: Props) {
           onClick={onToggleCollapsed}
           disabled={!onToggleCollapsed}
         >
-          {collapsed ? <ChevronLeftRoundedIcon fontSize="small" /> : <ChevronRightRoundedIcon fontSize="small" />}
+          {collapsed ? <ChevronRightRoundedIcon fontSize="small" /> : <ChevronLeftRoundedIcon fontSize="small" />}
         </IconButton>
       </span>
     </Tooltip>
@@ -131,7 +193,7 @@ export function ProSidebar({ collapsed = false, onToggleCollapsed }: Props) {
         overflow: "hidden",
         borderColor: "divider",
         position: { md: "sticky" },
-        top: { md: 112 },
+        top: { md: SITE_STICKY_TOP_PX },
       }}
     >
       <Box
@@ -145,17 +207,46 @@ export function ProSidebar({ collapsed = false, onToggleCollapsed }: Props) {
         }}
       >
         {collapsed ? null : (
-          <Typography variant="overline" sx={{ fontWeight: 800, letterSpacing: "0.08em" }}>
-            Pro
-          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.25, minWidth: 0 }}>
+            <Typography variant="overline" sx={{ fontWeight: 800, letterSpacing: "0.08em" }}>
+              Pro
+            </Typography>
+            <Tooltip title={showDescriptions ? "Скрыть описания" : "Показать описания"} placement="right">
+              <IconButton
+                size="small"
+                aria-label={showDescriptions ? "Скрыть описания" : "Показать описания"}
+                aria-pressed={showDescriptions}
+                onClick={() => setShowDescriptions((value) => !value)}
+                sx={{ color: "text.disabled" }}
+              >
+                <InfoOutlinedIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
         )}
         {toggleButton}
       </Box>
 
       <Divider />
 
-      <List dense disablePadding>
-        {NAV_ITEMS.map((item, index) => {
+      <List dense disablePadding ref={listRef} sx={{ position: "relative" }}>
+        <Box
+          aria-hidden
+          sx={{
+            position: "absolute",
+            left: 0,
+            top: indicator?.top ?? 0,
+            width: "1px",
+            height: indicator?.height ?? 0,
+            bgcolor: "warning.main",
+            opacity: indicator ? 1 : 0,
+            transition: "top 0.28s ease, height 0.28s ease, opacity 0.2s ease",
+            pointerEvents: "none",
+            zIndex: 1,
+          }}
+        />
+
+        {NAV_ITEMS.map((item) => {
           const selected =
             pathname === item.href || (item.href === "/pro" && pathname.startsWith("/pro/requests/"));
           const badgeEnabled = item.href === "/pro";
@@ -174,26 +265,21 @@ export function ProSidebar({ collapsed = false, onToggleCollapsed }: Props) {
               component={Link}
               href={item.href}
               selected={selected}
+              data-nav-item=""
+              data-nav-active={selected ? "true" : undefined}
               aria-label={collapsed ? title : undefined}
               sx={{
                 px: collapsed ? 1 : 2.5,
                 py: collapsed ? 1.25 : 1.5,
-                alignItems: collapsed ? "center" : "flex-start",
+                alignItems: collapsed || !showDescriptions ? "center" : "flex-start",
                 justifyContent: collapsed ? "center" : "flex-start",
-                "&.Mui-selected": {
-                  bgcolor: "action.selected",
-                  "&:hover": { bgcolor: "action.selected" },
-                },
-                ...(index === 0 && {
-                  borderBottom: "1px solid",
-                  borderBottomColor: "divider",
-                }),
+                ...SELECTED_NAV_SX,
               }}
             >
               <ListItemIcon
                 sx={{
                   minWidth: collapsed ? "unset" : 36,
-                  mt: collapsed ? 0 : 0.25,
+                  mt: collapsed || !showDescriptions ? 0 : 0.25,
                   justifyContent: "center",
                 }}
               >
@@ -202,9 +288,9 @@ export function ProSidebar({ collapsed = false, onToggleCollapsed }: Props) {
               {collapsed ? null : (
                 <ListItemText
                   primary={item.label}
-                  secondary={item.description}
+                  secondary={showDescriptions ? item.description : undefined}
                   primaryTypographyProps={{ fontWeight: selected ? 700 : 600 }}
-                  secondaryTypographyProps={{ sx: { mt: 0.25 } }}
+                  secondaryTypographyProps={NAV_SECONDARY_TYPOGRAPHY_PROPS}
                 />
               )}
             </ListItemButton>
@@ -232,16 +318,15 @@ export function ProSidebar({ collapsed = false, onToggleCollapsed }: Props) {
                   component={Link}
                   href={item.href}
                   selected={selected}
+                  data-nav-item=""
+                  data-nav-active={selected ? "true" : undefined}
                   aria-label={title}
                   sx={{
                     px: 1,
                     py: 1.25,
                     alignItems: "center",
                     justifyContent: "center",
-                    "&.Mui-selected": {
-                      bgcolor: "action.selected",
-                      "&:hover": { bgcolor: "action.selected" },
-                    },
+                    ...SELECTED_NAV_SX,
                   }}
                 >
                   <ListItemIcon sx={{ minWidth: "unset", justifyContent: "center" }}>{item.icon}</ListItemIcon>
@@ -261,22 +346,24 @@ export function ProSidebar({ collapsed = false, onToggleCollapsed }: Props) {
               component={Link}
               href="/pro/services/list"
               selected={isServicesRoute}
+              data-nav-item=""
+              // Почему: индикатор на родителе только если подменю закрыто — иначе едет к дочернему пункту.
+              data-nav-active={isServicesRoute && !servicesOpen ? "true" : undefined}
               sx={{
                 px: 2.5,
                 py: 1.5,
-                alignItems: "flex-start",
-                "&.Mui-selected": {
-                  bgcolor: "action.selected",
-                  "&:hover": { bgcolor: "action.selected" },
-                },
+                alignItems: showDescriptions ? "flex-start" : "center",
+                ...SELECTED_NAV_SX,
               }}
             >
-              <ListItemIcon sx={{ minWidth: 36, mt: 0.25 }}>{SERVICES_GROUP.icon}</ListItemIcon>
+              <ListItemIcon sx={{ minWidth: 36, mt: showDescriptions ? 0.25 : 0 }}>
+                {SERVICES_GROUP.icon}
+              </ListItemIcon>
               <ListItemText
                 primary={SERVICES_GROUP.label}
-                secondary={SERVICES_GROUP.description}
+                secondary={showDescriptions ? SERVICES_GROUP.description : undefined}
                 primaryTypographyProps={{ fontWeight: isServicesRoute ? 700 : 600 }}
-                secondaryTypographyProps={{ sx: { mt: 0.25 } }}
+                secondaryTypographyProps={NAV_SECONDARY_TYPOGRAPHY_PROPS}
               />
               <IconButton
                 size="small"
@@ -301,14 +388,13 @@ export function ProSidebar({ collapsed = false, onToggleCollapsed }: Props) {
                       component={Link}
                       href={item.href}
                       selected={selected}
+                      data-nav-item=""
+                      data-nav-active={selected ? "true" : undefined}
                       sx={{
                         pl: 5,
                         pr: 2.5,
                         py: 1.1,
-                        "&.Mui-selected": {
-                          bgcolor: "action.selected",
-                          "&:hover": { bgcolor: "action.selected" },
-                        },
+                        ...SELECTED_NAV_SX,
                       }}
                     >
                       <ListItemIcon sx={{ minWidth: 32 }}>{item.icon}</ListItemIcon>

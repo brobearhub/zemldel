@@ -54,8 +54,8 @@
   - `createdByUserId` / `updatedByUserId`: аудит
 - **`Request`** (заявка/заказ)
   - единая сущность для “заявок/объявлений/заказов”
-  - `status`: `NEW | DISCUSSING | TERMS_AGREED | PROVIDER_SELECTED | CONTRACT_ACCEPTED | ACTIVE | SERVICE_RENDERED | ACCEPTANCE_PENDING | ACCEPTED | COMPLETED | CANCELLED | CLOSED`
-  - примечание: `LOCKED` исторически присутствует в enum, но как доменной статус в текущем workflow не используется (эксклюзивность сделки определяется через `providerId` + фазу статусов начиная с `PROVIDER_SELECTED`)
+  - `status`: `NEW | DISCUSSING | TERMS_AGREED | ACTIVE | ACCEPTANCE_PENDING | ACCEPTED | COMPLETED | CANCELLED | CLOSED`
+  - эксклюзивность сделки: `lockedAt != null` + `providerId` (финальный выбор исполнителя не меняет `status`)
   - `providerId`: назначенный провайдер (для заявки по услуге заполняется сразу; для свободной/категорийной — после финального выбора исполнителя)
   - `serviceId` / `categoryId`: привязка к услуге или категории (опционально)
   - `requestCityId`: город заявки (если не задан — берём `User.customerCityId`), матчинг в ленте идёт по региону/области

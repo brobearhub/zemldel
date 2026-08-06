@@ -16,7 +16,8 @@ import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import {
-  EXCLUSIVE_PROVIDER_STATUSES,
+  hasRequestLock,
+  isExclusiveForActorProvider,
   isOrderExecutionStatus,
 } from '../requests/dto/request.dto';
 import { S3Service } from '../storage/s3.service';
@@ -116,7 +117,13 @@ export class RequestDocumentRequestsService {
   }) {
     const request = await this.prisma.request.findFirst({
       where: { id: input.requestId },
-      select: { id: true, status: true, providerId: true, customerUserId: true },
+      select: {
+        id: true,
+        status: true,
+        providerId: true,
+        lockedAt: true,
+        customerUserId: true,
+      },
     });
     if (!request) throw new NotFoundException('Request not found');
     if (!request.customerUserId) {
@@ -125,12 +132,7 @@ export class RequestDocumentRequestsService {
     if (!request.providerId) {
       throw new BadRequestException('Provider is required');
     }
-    if (request.providerId !== input.providerId) {
-      throw new ForbiddenException('Forbidden');
-    }
-    if (
-      !(EXCLUSIVE_PROVIDER_STATUSES as readonly string[]).includes(request.status)
-    ) {
+    if (!isExclusiveForActorProvider(request, input.providerId)) {
       throw new ForbiddenException('Forbidden');
     }
     return request;
@@ -235,14 +237,12 @@ export class RequestDocumentRequestsService {
   async listForCustomer(input: { actorUserId: string; requestId: string }) {
     const request = await this.prisma.request.findFirst({
       where: { id: input.requestId, customerUserId: input.actorUserId },
-      select: { id: true, providerId: true, status: true },
+      select: { id: true, providerId: true, status: true, lockedAt: true },
     });
     if (!request) throw new NotFoundException('Request not found');
     if (!request.providerId) return [];
 
-    if (
-      !(EXCLUSIVE_PROVIDER_STATUSES as readonly string[]).includes(request.status)
-    ) {
+    if (!hasRequestLock(request)) {
       return [];
     }
 
@@ -275,13 +275,11 @@ export class RequestDocumentRequestsService {
   }) {
     const request = await this.prisma.request.findFirst({
       where: { id: input.requestId, customerUserId: input.actorUserId },
-      select: { id: true, providerId: true, status: true },
+      select: { id: true, providerId: true, status: true, lockedAt: true },
     });
     if (!request) throw new NotFoundException('Request not found');
     if (!request.providerId) throw new BadRequestException('Provider is required');
-    if (
-      !(EXCLUSIVE_PROVIDER_STATUSES as readonly string[]).includes(request.status)
-    ) {
+    if (!hasRequestLock(request)) {
       throw new ForbiddenException('Forbidden');
     }
 
@@ -426,13 +424,11 @@ export class RequestDocumentRequestsService {
   }) {
     const request = await this.prisma.request.findFirst({
       where: { id: input.requestId, customerUserId: input.actorUserId },
-      select: { id: true, providerId: true, status: true },
+      select: { id: true, providerId: true, status: true, lockedAt: true },
     });
     if (!request) throw new NotFoundException('Request not found');
     if (!request.providerId) throw new BadRequestException('Provider is required');
-    if (
-      !(EXCLUSIVE_PROVIDER_STATUSES as readonly string[]).includes(request.status)
-    ) {
+    if (!hasRequestLock(request)) {
       throw new ForbiddenException('Forbidden');
     }
 
@@ -499,7 +495,7 @@ export class RequestDocumentRequestsService {
   }) {
     const request = await this.prisma.request.findFirst({
       where: { id: input.requestId, customerUserId: input.actorUserId },
-      select: { id: true, providerId: true, status: true },
+      select: { id: true, providerId: true, status: true, lockedAt: true },
     });
     if (!request) throw new NotFoundException('Request not found');
     if (!request.providerId) throw new BadRequestException('Provider is required');
@@ -507,9 +503,7 @@ export class RequestDocumentRequestsService {
     if (isOrderExecutionStatus(request.status)) {
       throw new ForbiddenException('Cannot delete files after contract accepted');
     }
-    if (
-      !(EXCLUSIVE_PROVIDER_STATUSES as readonly string[]).includes(request.status)
-    ) {
+    if (!hasRequestLock(request)) {
       throw new ForbiddenException('Forbidden');
     }
 

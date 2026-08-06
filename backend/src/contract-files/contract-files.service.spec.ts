@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ContractFilesService } from './contract-files.service';
 
 describe('ContractFilesService', () => {
-  it('deleteForProvider запрещает удаление после CONTRACT_ACCEPTED', async () => {
+  it('deleteForProvider запрещает удаление после ACTIVE', async () => {
     const prisma = {
       requestContractFile: {
         findFirst: vi.fn().mockResolvedValue({
@@ -17,8 +17,9 @@ describe('ContractFilesService', () => {
       request: {
         findFirst: vi.fn().mockResolvedValue({
           id: 'r1',
-          status: 'CONTRACT_ACCEPTED',
+          status: 'ACTIVE',
           providerId: 'p1',
+          lockedAt: new Date('2026-08-06T00:00:00.000Z'),
           customerUserId: 'c1',
         }),
       },

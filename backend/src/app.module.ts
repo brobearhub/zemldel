@@ -11,6 +11,7 @@ import { ServiceCategoriesModule } from './service-categories/service-categories
 import { RequestsModule } from './requests/requests.module';
 import { CitiesModule } from './cities/cities.module';
 import { PublicOfferModule } from './public-offer/public-offer.module';
+import { LegalDocsModule } from './legal-docs/legal-docs.module';
 import { DocumentsModule } from './documents/documents.module';
 import { RemindersModule } from './reminders/reminders.module';
 import { ContractFilesModule } from './contract-files/contract-files.module';
@@ -19,6 +20,7 @@ import { RequestDocumentRequestsModule } from './request-document-requests/reque
 @Module({
   imports: [
     PrismaModule,
+    LegalDocsModule,
     AuthModule,
     ServicesModule,
     ServiceCategoriesModule,

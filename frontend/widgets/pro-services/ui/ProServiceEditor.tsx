@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import { ServiceCard } from "@/entities/service";
 import type { ServiceDto, ServiceStatus } from "@/entities/service";
+import { SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
 import { useAppSelector } from "@/core/store/hooks";
 
 type Props = {
@@ -724,7 +725,7 @@ export function ProServiceEditor({ mode, initialService }: Props) {
       </Box>
 
       <Stack spacing={3} sx={{ width: "100%", maxWidth: { xl: 380 } }}>
-        <Paper variant="outlined" sx={{ p: 2.5, position: { xl: "sticky" }, top: { xl: 112 } }}>
+        <Paper variant="outlined" sx={{ p: 2.5, position: { xl: "sticky" }, top: { xl: SITE_STICKY_TOP_PX } }}>
           <Stack spacing={2}>
             <Box>
               <Typography variant="subtitle1" fontWeight={800} gutterBottom>

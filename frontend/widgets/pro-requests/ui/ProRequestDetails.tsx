@@ -21,23 +21,30 @@ import {
 } from "@/entities/request";
 import { isOrderExecutionStatus } from "@/entities/request";
 import type { RequestDocumentRequestDto } from "@/entities/request";
-import { OrderPassportPanel } from "@/widgets/pro-requests/ui/OrderPassportPanel";
 import { RequestRemindersPanel } from "@/widgets/pro-requests/ui/RequestRemindersPanel";
 import Link from "@/shared/ui/Link";
 import { RequestDetailHeaderCard } from "@/shared/ui/RequestDetailHeaderCard";
 import { createProviderRequestDetailsBehavior, RequestDetails } from "@/widgets/request-details";
+import {
+  createProviderRequestRemarksBehavior,
+  RequestRemarks,
+} from "@/widgets/request-remarks";
 import {
   completeProRequestRemark,
   createProRequestRemark,
   fetchProRequestRemarks,
 } from "@/entities/request/api/request-remarks";
 import {
-  fetchProRequestContractFiles,
-  uploadProRequestContractFiles,
   deleteProRequestContractFile,
-  type ProContractFileStatus,
-  type ProContractFileItem,
 } from "@/entities/request/api/pro-contract-files";
+import type { ProContractBundleItem, ProMiscFileItem } from "@/entities/request/api/pro-contract-bundles";
+import {
+  deleteProRequestContractBundle,
+  fetchProRequestContractBundles,
+  fetchProRequestMiscFiles,
+  uploadProRequestContractBundle,
+  uploadProRequestMiscFiles,
+} from "@/entities/request/api/pro-contract-bundles";
 import {
   createProRequestDocumentRequest,
   deleteProRequestDocumentRequest,
@@ -58,8 +65,10 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   const [uploadNames, setUploadNames] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [contractFilesLoaded, setContractFilesLoaded] = useState(false);
-  const [contractFiles, setContractFiles] = useState<ProContractFileItem[]>([]);
+  const [contractBundlesLoaded, setContractBundlesLoaded] = useState(false);
+  const [contractBundles, setContractBundles] = useState<ProContractBundleItem[]>([]);
+  const [miscLoaded, setMiscLoaded] = useState(false);
+  const [miscFiles, setMiscFiles] = useState<ProMiscFileItem[]>([]);
   const [docRequestsLoaded, setDocRequestsLoaded] = useState(false);
   const [docRequests, setDocRequests] = useState<RequestDocumentRequestDto[]>([]);
   const [remarks, setRemarks] = useState<RequestRemarkDto[]>([]);
@@ -68,9 +77,9 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
 
   const isBusy = busy || uploadBusy;
   const showContractWorkflow = !req.isLocked && req.offerStatus === "SELECTED";
-  const hasPendingContractFiles = contractFiles.some((f) => f.status === "PENDING_CUSTOMER");
-  const hasRevisionRequested = contractFiles.some((f) => f.status === "REVISION_REQUESTED");
-  const hasApproved = contractFiles.some((f) => f.status === "APPROVED");
+  const hasPendingContractFiles = contractBundles.some((b) => b.status === "PENDING_CUSTOMER");
+  const hasRevisionRequested = contractBundles.some((b) => b.status === "REVISION_REQUESTED");
+  const hasApproved = contractBundles.some((b) => b.status === "APPROVED");
   const hasPendingRequestedDocs = docRequests.some((d) => d.status === "REQUESTED");
   const hasUploadedDocs = docRequests.some((d) => d.status === "UPLOADED");
 
@@ -101,25 +110,46 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   }, [req.id, req.status]);
 
   useEffect(() => {
-    if (!showContractWorkflow || contractFilesLoaded) return;
+    if (!showContractWorkflow || contractBundlesLoaded) return;
     let cancelled = false;
     (async () => {
       try {
-        const payload = await fetchProRequestContractFiles(req.id);
+        const payload = await fetchProRequestContractBundles(req.id);
         if (cancelled) return;
-        setContractFiles(payload);
-        setContractFilesLoaded(true);
+        setContractBundles(payload);
+        setContractBundlesLoaded(true);
       } catch (e) {
         if (!cancelled) {
-          setContractFilesLoaded(true);
-          setError(e instanceof Error ? e.message : "Не удалось загрузить файлы договора");
+          setContractBundlesLoaded(true);
+          setError(e instanceof Error ? e.message : "Не удалось загрузить договоры");
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [contractFilesLoaded, req.id, showContractWorkflow]);
+  }, [contractBundlesLoaded, req.id, showContractWorkflow]);
+
+  useEffect(() => {
+    if (!showContractWorkflow || miscLoaded) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const payload = await fetchProRequestMiscFiles(req.id);
+        if (cancelled) return;
+        setMiscFiles(payload);
+        setMiscLoaded(true);
+      } catch (e) {
+        if (!cancelled) {
+          setMiscLoaded(true);
+          setError(e instanceof Error ? e.message : "Не удалось загрузить документы");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [miscLoaded, req.id, showContractWorkflow]);
 
   useEffect(() => {
     if (!showContractWorkflow || docRequestsLoaded) return;
@@ -151,12 +181,21 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     setReq(payload as RequestProDto);
   }
 
-  async function refreshContractFiles() {
+  async function refreshContractBundles() {
     try {
-      const payload = await fetchProRequestContractFiles(req.id);
-      setContractFiles(payload);
+      const payload = await fetchProRequestContractBundles(req.id);
+      setContractBundles(payload);
     } catch {
       // Keep previous list; the upload handler will surface errors when needed.
+    }
+  }
+
+  async function refreshMiscFiles() {
+    try {
+      const payload = await fetchProRequestMiscFiles(req.id);
+      setMiscFiles(payload);
+    } catch {
+      // Keep previous list.
     }
   }
 
@@ -208,39 +247,18 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     }
   }
 
-  function isOptimisticFileId(id: string) {
-    return id.startsWith("temp:");
-  }
-
-  async function uploadContractFiles(files: File[]) {
-    if (files.length === 0) return;
+  async function uploadContractBundle(input: { document: File; signature: File }) {
     const startedAt = Date.now();
-    const nowIso = new Date().toISOString();
-    const optimistic = files.map<ProContractFileItem>((f, idx) => ({
-      id: `temp:${startedAt}:${idx}`,
-      status: "PENDING_CUSTOMER",
-      originalName: f.name,
-      mimeType: f.type || "application/octet-stream",
-      sizeBytes: f.size,
-      revisionMessage: null,
-      decidedAt: null,
-      createdAt: nowIso,
-      updatedAt: nowIso,
-    }));
-
     setUploadBusy(true);
-    setUploadNames(files.map((f) => f.name));
+    setUploadNames([input.document.name, input.signature.name]);
     setError(null);
     setNotice(null);
-    setContractFiles((prev) => [...optimistic, ...prev.filter((x) => !isOptimisticFileId(x.id))]);
     try {
-      await uploadProRequestContractFiles(req.id, files);
-      await Promise.all([refresh(), refreshContractFiles()]);
-      setNotice("Файлы договора прикреплены к заявке.");
+      await uploadProRequestContractBundle(req.id, input);
+      await Promise.all([refresh(), refreshContractBundles()]);
+      setNotice("Договор прикреплён к заявке.");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось загрузить файлы");
-      const optimisticIds = new Set(optimistic.map((x) => x.id));
-      setContractFiles((prev) => prev.filter((x) => !optimisticIds.has(x.id)));
+      setError(e instanceof Error ? e.message : "Не удалось загрузить договор");
     } finally {
       const elapsed = Date.now() - startedAt;
       const minMs = 600;
@@ -252,7 +270,53 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     }
   }
 
-  async function deleteContractFile(fileId: string) {
+  async function deleteContractBundle(bundleId: string) {
+    const ok = await confirm({
+      title: "Удалить пакет договора?",
+      description: "Договор и подпись будут удалены из заявки. Это действие нельзя отменить.",
+      confirmText: "Удалить пакет",
+      confirmColor: "error",
+    });
+    if (!ok) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await deleteProRequestContractBundle(req.id, bundleId);
+      await refreshContractBundles();
+      setNotice("Пакет удалён.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось удалить пакет");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function uploadMiscFiles(files: File[]) {
+    if (files.length === 0) return;
+    const startedAt = Date.now();
+    setUploadBusy(true);
+    setUploadNames(files.map((f) => f.name));
+    setError(null);
+    setNotice(null);
+    try {
+      await uploadProRequestMiscFiles(req.id, files);
+      await refreshMiscFiles();
+      setNotice("Документы прикреплены.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось загрузить документы");
+    } finally {
+      const elapsed = Date.now() - startedAt;
+      const minMs = 600;
+      if (elapsed < minMs) {
+        await new Promise((r) => setTimeout(r, minMs - elapsed));
+      }
+      setUploadBusy(false);
+      setUploadNames([]);
+    }
+  }
+
+  async function deleteMiscFile(fileId: string) {
     const ok = await confirm({
       title: "Удалить файл?",
       description: "Файл будет удалён из заявки. Это действие нельзя отменить.",
@@ -265,7 +329,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     setNotice(null);
     try {
       await deleteProRequestContractFile(fileId);
-      await refreshContractFiles();
+      await refreshMiscFiles();
       setNotice("Файл удалён.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось удалить файл");
@@ -280,28 +344,12 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     setNotice(null);
     try {
       if (action === "confirm") {
-        if (req.status === "CONTRACT_ACCEPTED") {
-          const res = await fetch(`/api/pro/requests/${req.id}/start-work`, { method: "POST" });
-          const payload = (await res.json().catch(() => null)) as { error?: string } | unknown | null;
-          if (!res.ok) throw new Error(payload && typeof payload === "object" && payload && "error" in (payload as any) ? ((payload as any).error as string) : "Не удалось начать работу");
-          await refresh();
-          setNotice("Работа начата.");
-          return;
-        }
         if (req.status === "ACTIVE") {
           const res = await fetch(`/api/pro/requests/${req.id}/mark-rendered`, { method: "POST" });
           const payload = (await res.json().catch(() => null)) as { error?: string } | unknown | null;
-          if (!res.ok) throw new Error(payload && typeof payload === "object" && payload && "error" in (payload as any) ? ((payload as any).error as string) : "Не удалось отметить выполнение");
+          if (!res.ok) throw new Error(payload && typeof payload === "object" && payload && "error" in (payload as any) ? ((payload as any).error as string) : "Не удалось отметить работу");
           await refresh();
-          setNotice("Услуга отмечена как оказанная.");
-          return;
-        }
-        if (req.status === "SERVICE_RENDERED") {
-          const res = await fetch(`/api/pro/requests/${req.id}/request-acceptance`, { method: "POST" });
-          const payload = (await res.json().catch(() => null)) as { error?: string } | unknown | null;
-          if (!res.ok) throw new Error(payload && typeof payload === "object" && payload && "error" in (payload as any) ? ((payload as any).error as string) : "Не удалось запросить принятие");
-          await refresh();
-          setNotice("Передано на принятие клиенту.");
+          setNotice("Услуга передана на принятие клиенту.");
           return;
         }
         if (req.status === "ACCEPTED") {
@@ -418,14 +466,44 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
         busy={isBusy}
         behavior={createProviderRequestDetailsBehavior({
           request: req,
-          bottomSlot: isOrderExecutionStatus(req.status) ? <OrderPassportPanel orderId={req.id} /> : null,
+          bottomSlot: null,
+          isMarkRenderedDisabled: remarks.some((r) => r.status === "OPEN"),
+          actions: {
+            startWork: async () => undefined,
+            markRendered: async () => {
+              const ok = await confirm({
+                title: "Услуга выполнена?",
+                description:
+                  "Заявка перейдёт в статус «Ожидает принятия». Клиент сможет принять результат или отправить замечания. Это действие нельзя отменить.",
+                confirmText: "Да, выполнена",
+                confirmColor: "success",
+              });
+              if (!ok) return;
+              await runAction("confirm");
+            },
+            requestAcceptance: async () => undefined,
+            complete: () => runAction("confirm"),
+            declineOffer: async () => {
+              const ok = await confirm({
+                title: "Отказаться от заявки?",
+                description:
+                  "Вы больше не будете исполнителем по этой заявке. Клиент сможет выбрать другого исполнителя. Это действие нельзя отменить.",
+                confirmText: "Да, отказать",
+                confirmColor: "error",
+              });
+              if (!ok) return;
+              await runAction("decline");
+            },
+          },
+        })}
+      />
+
+      <RequestRemarks
+        busy={isBusy}
+        behavior={createProviderRequestRemarksBehavior({
+          request: req,
           remarks,
           actions: {
-            startWork: () => runAction("confirm"),
-            markRendered: () => runAction("confirm"),
-            requestAcceptance: () => runAction("confirm"),
-            complete: () => runAction("confirm"),
-            declineOffer: () => runAction("decline"),
             remarkAdd,
             remarkComplete,
           },
@@ -438,16 +516,19 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
         requestStatus={req.status}
         isBusy={isBusy}
         docRequestsLoaded={docRequestsLoaded}
-        contractFilesLoaded={contractFilesLoaded}
+        contractBundlesLoaded={contractBundlesLoaded}
+        miscLoaded={miscLoaded}
         docRequests={docRequests}
-        contractFiles={contractFiles}
+        contractBundles={contractBundles}
+        miscFiles={miscFiles}
         uploadBusy={uploadBusy}
         uploadNames={uploadNames}
-        isOptimisticFileId={isOptimisticFileId}
         onCreateDocRequest={createDocRequest}
         onCancelDocRequest={cancelDocRequest}
-        onUploadContractFiles={uploadContractFiles}
-        onDeleteContractFile={deleteContractFile}
+        onUploadContractBundle={uploadContractBundle}
+        onDeleteContractBundle={deleteContractBundle}
+        onUploadMiscFiles={uploadMiscFiles}
+        onDeleteMiscFile={deleteMiscFile}
       />
 
       <RequestRemindersPanel requestId={req.id} />

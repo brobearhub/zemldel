@@ -1,5 +1,11 @@
 import type { ReactNode } from "react";
 import { Box, Container, Stack } from "@mui/material";
+import {
+  CABINET_SIDEBAR_EXPANDED_W,
+  SITE_PAGE_PB,
+  SITE_STICKY_TOP_PX,
+  sitePageContainerSx,
+} from "@/shared/config/site-layout";
 
 type Props = {
   left: ReactNode;
@@ -14,12 +20,12 @@ export function ChatThreeColumnLayout({
   left,
   middle,
   right,
-  leftWidth = 320,
+  leftWidth = CABINET_SIDEBAR_EXPANDED_W,
   rightWidth = 420,
-  stickyTop = 112,
+  stickyTop = SITE_STICKY_TOP_PX,
 }: Props) {
   return (
-    <Container maxWidth="xxl" sx={{ pt: 0, pb: { xs: 3, sm: 4, lg: 5 } }}>
+    <Container maxWidth="xxl" sx={{ ...sitePageContainerSx, pb: { xs: 3, sm: 4, lg: SITE_PAGE_PB } }}>
       <Stack spacing={2}>
         <Box
           sx={{
@@ -53,4 +59,3 @@ export function ChatThreeColumnLayout({
     </Container>
   );
 }
-

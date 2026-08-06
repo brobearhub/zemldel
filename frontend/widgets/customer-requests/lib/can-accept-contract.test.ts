@@ -1,22 +1,41 @@
 import { describe, expect, it } from "vitest";
 import { canCustomerAcceptContract } from "./can-accept-contract";
 
+const approvedFullBundle = {
+  bundleId: "b1",
+  status: "APPROVED" as const,
+  revisionMessage: null,
+  decidedAt: null,
+  document: {
+    id: "d1",
+    originalName: "a.pdf",
+    mimeType: "application/pdf",
+    sizeBytes: 10,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  },
+  signature: {
+    id: "s1",
+    originalName: "a.sig",
+    mimeType: "application/octet-stream",
+    sizeBytes: 10,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  },
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+};
+
 describe("canCustomerAcceptContract", () => {
-  it("requires approved contract file", () => {
+  it("requires approved full bundle", () => {
     expect(
       canCustomerAcceptContract({
-        requestStatus: "PROVIDER_SELECTED",
-        contractFiles: [
+        requestStatus: "DISCUSSING",
+        lockedAt: "2026-08-06T00:00:00.000Z",
+        contractBundles: [
           {
-            id: "f1",
+            ...approvedFullBundle,
             status: "PENDING_CUSTOMER",
-            originalName: "a.pdf",
-            mimeType: "application/pdf",
-            sizeBytes: 10,
-            revisionMessage: null,
-            decidedAt: null,
-            createdAt: "2026-01-01T00:00:00.000Z",
-            updatedAt: "2026-01-01T00:00:00.000Z",
           },
         ],
         documentRequests: [],
@@ -24,32 +43,15 @@ describe("canCustomerAcceptContract", () => {
     ).toBe(false);
   });
 
-  it("requires all provider documents approved", () => {
+  it("requires signature attached", () => {
     expect(
       canCustomerAcceptContract({
-        requestStatus: "PROVIDER_SELECTED",
-        contractFiles: [
+        requestStatus: "DISCUSSING",
+        lockedAt: "2026-08-06T00:00:00.000Z",
+        contractBundles: [
           {
-            id: "f1",
-            status: "APPROVED",
-            originalName: "a.pdf",
-            mimeType: "application/pdf",
-            sizeBytes: 10,
-            revisionMessage: null,
-            decidedAt: "2026-01-01T00:00:00.000Z",
-            createdAt: "2026-01-01T00:00:00.000Z",
-            updatedAt: "2026-01-01T00:00:00.000Z",
-          },
-          {
-            id: "f2",
-            status: "PENDING_CUSTOMER",
-            originalName: "b.pdf",
-            mimeType: "application/pdf",
-            sizeBytes: 10,
-            revisionMessage: null,
-            decidedAt: null,
-            createdAt: "2026-01-01T00:00:00.000Z",
-            updatedAt: "2026-01-01T00:00:00.000Z",
+            ...approvedFullBundle,
+            signature: null,
           },
         ],
         documentRequests: [],
@@ -60,20 +62,9 @@ describe("canCustomerAcceptContract", () => {
   it("requires all requested documents uploaded", () => {
     expect(
       canCustomerAcceptContract({
-        requestStatus: "PROVIDER_SELECTED",
-        contractFiles: [
-          {
-            id: "f1",
-            status: "APPROVED",
-            originalName: "a.pdf",
-            mimeType: "application/pdf",
-            sizeBytes: 10,
-            revisionMessage: null,
-            decidedAt: null,
-            createdAt: "2026-01-01T00:00:00.000Z",
-            updatedAt: "2026-01-01T00:00:00.000Z",
-          },
-        ],
+        requestStatus: "DISCUSSING",
+        lockedAt: "2026-08-06T00:00:00.000Z",
+        contractBundles: [approvedFullBundle],
         documentRequests: [
           {
             id: "d1",
@@ -92,23 +83,12 @@ describe("canCustomerAcceptContract", () => {
     ).toBe(false);
   });
 
-  it("allows accept when approved file exists and all documents uploaded", () => {
+  it("allows accept when approved full bundle exists and all documents uploaded", () => {
     expect(
       canCustomerAcceptContract({
-        requestStatus: "PROVIDER_SELECTED",
-        contractFiles: [
-          {
-            id: "f1",
-            status: "APPROVED",
-            originalName: "a.pdf",
-            mimeType: "application/pdf",
-            sizeBytes: 10,
-            revisionMessage: null,
-            decidedAt: null,
-            createdAt: "2026-01-01T00:00:00.000Z",
-            updatedAt: "2026-01-01T00:00:00.000Z",
-          },
-        ],
+        requestStatus: "DISCUSSING",
+        lockedAt: "2026-08-06T00:00:00.000Z",
+        contractBundles: [approvedFullBundle],
         documentRequests: [
           {
             id: "d1",
@@ -126,5 +106,26 @@ describe("canCustomerAcceptContract", () => {
       })
     ).toBe(true);
   });
-});
 
+  it("blocks accept while any contract bundle is still pending", () => {
+    expect(
+      canCustomerAcceptContract({
+        requestStatus: "DISCUSSING",
+        lockedAt: "2026-08-06T00:00:00.000Z",
+        contractBundles: [
+          approvedFullBundle,
+          {
+            ...approvedFullBundle,
+            bundleId: "b2",
+            status: "PENDING_CUSTOMER",
+            document: { ...approvedFullBundle.document, id: "d2" },
+            signature: approvedFullBundle.signature
+              ? { ...approvedFullBundle.signature, id: "s2" }
+              : null,
+          },
+        ],
+        documentRequests: [],
+      })
+    ).toBe(false);
+  });
+});

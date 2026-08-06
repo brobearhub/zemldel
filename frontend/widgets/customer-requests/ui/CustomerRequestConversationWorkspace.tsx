@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Alert,
   Box,
@@ -26,7 +25,7 @@ import {
 import type { ChatServiceRequestConversationListItemDto } from "@/entities/chat/dto/chat.dto";
 import {
   getRequestStatusLabel,
-  isExclusiveProviderPhaseStatus,
+  hasRequestLock,
   isOrderExecutionStatus,
   resolveRequestDetailBody,
   type RequestDocumentRequestDto,
@@ -44,11 +43,15 @@ import Link from "@/shared/ui/Link";
 import { RequestDetailHeaderCard } from "@/shared/ui/RequestDetailHeaderCard";
 import { createCustomerRequestDetailsBehavior, RequestDetails } from "@/widgets/request-details";
 import {
+  createCustomerRequestRemarksBehavior,
+  RequestRemarks,
+} from "@/widgets/request-remarks";
+import {
   fetchCustomerRequestDocumentRequests,
   uploadCustomerRequestDocument,
   deleteCustomerRequestDocumentFile,
 } from "@/entities/request/api/request-document-requests";
-import type { CustomerContractFileListItem } from "@/features/request-contract-files/ui/CustomerRequestContractFilesClient";
+import type { CustomerContractBundleListItem } from "@/features/request-contract-files/ui/CustomerRequestContractFilesClient";
 import { canCustomerAcceptContract } from "@/widgets/customer-requests/lib/can-accept-contract";
 import { CustomerRequestDocumentsSection } from "@/widgets/customer-requests/ui/CustomerRequestDocumentsSection";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -64,24 +67,22 @@ type Props = {
 };
 
 export function CustomerRequestConversationWorkspace({ initialRequest }: Props) {
-  const router = useRouter();
   const [req, setReq] = useState<RequestCustomerDto>(initialRequest);
   const [conversations, setConversations] = useState<ChatServiceRequestConversationListItemDto[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [contractFiles, setContractFiles] = useState<CustomerContractFileListItem[]>([]);
+  const [contractBundles, setContractBundles] = useState<CustomerContractBundleListItem[]>([]);
   const [docRequests, setDocRequests] = useState<RequestDocumentRequestDto[]>([]);
   const [docUploadBusy, setDocUploadBusy] = useState(false);
   const [remarks, setRemarks] = useState<RequestRemarkDto[]>([]);
   const [remarksError, setRemarksError] = useState<string | null>(null);
-  const [offerOpen, setOfferOpen] = useState(false);
-  const [offerBusy, setOfferBusy] = useState(false);
-  const [offerError, setOfferError] = useState<string | null>(null);
-  const [offerVersion, setOfferVersion] = useState<string | null>(null);
-  const [offerMarkdown, setOfferMarkdown] = useState<string | null>(null);
-  const [offerAccepted, setOfferAccepted] = useState(false);
+  const [contractDialogOpen, setContractDialogOpen] = useState(false);
+  const [termsBusy, setTermsBusy] = useState(false);
+  const [termsError, setTermsError] = useState<string | null>(null);
+  const [termsVersion, setTermsVersion] = useState<string | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const confirm = useConfirm();
 
   const selectedConversation = useMemo(
@@ -168,36 +169,37 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     null;
 
   const isExecutionStatus = isOrderExecutionStatus(req.status);
-  const isExclusiveStatus = isExclusiveProviderPhaseStatus(req.status);
-  const hasContractFiles = contractFiles.length > 0;
-  const hasApprovedContractFile = contractFiles.some((f) => f.status === "APPROVED");
-  const hasRevisionRequested = contractFiles.some((f) => f.status === "REVISION_REQUESTED");
-  const hasPending = contractFiles.some((f) => f.status === "PENDING_CUSTOMER");
+  const isExclusiveStatus = hasRequestLock(req);
+  const hasContractBundles = contractBundles.length > 0;
+  const hasApprovedContractBundle = contractBundles.some((b) => b.status === "APPROVED" && Boolean(b.signature));
+  const hasRevisionRequested = contractBundles.some((b) => b.status === "REVISION_REQUESTED");
+  const hasPending = contractBundles.some((b) => b.status === "PENDING_CUSTOMER");
   const allRequestedDocumentsUploaded = docRequests.every((d) => d.status === "UPLOADED");
   const canAcceptContract = canCustomerAcceptContract({
     requestStatus: req.status,
-    contractFiles,
+    lockedAt: req.lockedAt,
+    contractBundles,
     documentRequests: docRequests,
   });
 
   useEffect(() => {
     if (!isExclusiveStatus) {
-      setContractFiles([]);
+      setContractBundles([]);
       return;
     }
 
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/requests/${req.id}/contract-files`, { cache: "no-store" });
-        const payload = (await res.json().catch(() => null)) as CustomerContractFileListItem[] | { error?: string } | null;
+        const res = await fetch(`/api/requests/${req.id}/contract-bundles`, { cache: "no-store" });
+        const payload = (await res.json().catch(() => null)) as CustomerContractBundleListItem[] | { error?: string } | null;
         if (!res.ok || !Array.isArray(payload)) {
-          if (!cancelled) setContractFiles([]);
+          if (!cancelled) setContractBundles([]);
           return;
         }
-        if (!cancelled) setContractFiles(payload);
+        if (!cancelled) setContractBundles(payload);
       } catch {
-        if (!cancelled) setContractFiles([]);
+        if (!cancelled) setContractBundles([]);
       }
     })();
 
@@ -228,7 +230,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
   }, [isExclusiveStatus, req.id]);
 
   useEffect(() => {
-    if (req.status !== "PROVIDER_SELECTED") return;
+    if (!hasRequestLock(req)) return;
 
     let cancelled = false;
     const refreshIfWaitingForDocs = async () => {
@@ -246,17 +248,17 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [req.id, req.status]);
+  }, [req.id, req.lockedAt]);
 
   useEffect(() => {
-    if (req.status !== "PROVIDER_SELECTED" || hasContractFiles) return;
+    if (!hasRequestLock(req) || hasContractBundles) return;
 
     let cancelled = false;
     const refreshIfWaitingForContractFiles = async () => {
       try {
-        const res = await fetch(`/api/requests/${req.id}/contract-files`, { cache: "no-store" });
-        const payload = (await res.json().catch(() => null)) as CustomerContractFileListItem[] | { error?: string } | null;
-        if (!cancelled && res.ok && Array.isArray(payload)) setContractFiles(payload);
+        const res = await fetch(`/api/requests/${req.id}/contract-bundles`, { cache: "no-store" });
+        const payload = (await res.json().catch(() => null)) as CustomerContractBundleListItem[] | { error?: string } | null;
+        if (!cancelled && res.ok && Array.isArray(payload)) setContractBundles(payload);
       } catch {
         // Keep the current state; the regular page controls still show the waiting state.
       }
@@ -268,7 +270,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [hasContractFiles, req.id, req.status]);
+  }, [hasContractBundles, req.id, req.status]);
 
   function canInitiateOrderFor(providerId: string) {
     if (isExclusiveStatus || req.status === "CLOSED") return false;
@@ -276,22 +278,27 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     return true;
   }
 
-  async function loadOffer() {
-    setOfferBusy(true);
-    setOfferError(null);
+  async function loadTermsVersion() {
+    setTermsBusy(true);
+    setTermsError(null);
     try {
-      const res = await fetch(`/api/public-offer/current`, { cache: "no-store" });
-      const payload = (await res.json().catch(() => null)) as { error?: string } | { version: string; markdown: string } | null;
-      if (!res.ok) {
-        throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось загрузить оферту" : "Не удалось загрузить оферту");
+      const res = await fetch(`/api/legal-docs/terms/current`, { cache: "no-store" });
+      const payload = (await res.json().catch(() => null)) as
+        | { error?: string }
+        | { version: string }
+        | null;
+      if (!res.ok || !payload || typeof payload !== "object" || !("version" in payload) || !payload.version) {
+        throw new Error(
+          payload && typeof payload === "object" && "error" in payload
+            ? payload.error ?? "Не удалось загрузить соглашение"
+            : "Не удалось загрузить соглашение",
+        );
       }
-      const data = payload as { version: string; markdown: string };
-      setOfferVersion(data.version);
-      setOfferMarkdown(data.markdown);
+      setTermsVersion(payload.version);
     } catch (e) {
-      setOfferError(e instanceof Error ? e.message : "Не удалось загрузить оферту");
+      setTermsError(e instanceof Error ? e.message : "Не удалось загрузить соглашение");
     } finally {
-      setOfferBusy(false);
+      setTermsBusy(false);
     }
   }
 
@@ -376,47 +383,69 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     }
   }
 
+  function extractAcceptContractError(payload: unknown) {
+    if (!payload || typeof payload !== "object") return "Не удалось заключить договор";
+    const record = payload as { error?: unknown; message?: unknown };
+    const raw =
+      typeof record.error === "string" && record.error.trim()
+        ? record.error
+        : typeof record.message === "string" && record.message.trim()
+          ? record.message
+          : Array.isArray(record.message) && typeof record.message[0] === "string"
+            ? record.message[0]
+            : null;
+    if (!raw) return "Не удалось заключить договор";
+    if (/all contract bundles must be approved/i.test(raw)) {
+      return "Одобрите все пакеты договора.";
+    }
+    if (/approved contract bundle/i.test(raw)) {
+      return "Нужен одобренный пакет договора с файлом подписи.";
+    }
+    if (/requested documents/i.test(raw)) {
+      return "Загрузите все запрошенные документы.";
+    }
+    return raw;
+  }
+
   async function acceptContract() {
-    if (!offerVersion) {
-      setOfferError("Версия оферты не загружена");
+    if (!termsVersion) {
+      setTermsError("Версия пользовательского соглашения не загружена");
       return;
     }
     setBusy(true);
     setError(null);
+    setTermsError(null);
     setNotice(null);
     try {
       const res = await fetch(`/api/requests/${req.id}/accept-contract`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ offerVersion }),
+        body: JSON.stringify({ termsVersion }),
       });
       const payload = (await res.json().catch(() => null)) as
-        | { error?: string; code?: string; provider?: string }
+        | { error?: string; message?: string }
         | RequestCustomerDto
         | null;
       if (!res.ok) {
-        if (res.status === 403 && payload && typeof payload === "object" && "code" in payload && payload.code === "STEP_UP_REQUIRED") {
-          const returnTo = `${window.location.pathname}${window.location.search}`;
-          router.push(`/gosuslugi-mock?mode=verify&returnTo=${encodeURIComponent(returnTo)}`);
-          return;
-        }
-        throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось заключить договор" : "Не удалось заключить договор");
+        throw new Error(extractAcceptContractError(payload));
       }
       setReq(payload as RequestCustomerDto);
       setNotice("Договор заключен.");
-      setOfferOpen(false);
+      setContractDialogOpen(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось заключить договор");
+      const message = e instanceof Error ? e.message : "Не удалось заключить договор";
+      setTermsError(message);
+      setError(message);
     } finally {
       setBusy(false);
     }
   }
 
-  function openOfferDialog() {
-    setOfferAccepted(false);
-    setOfferError(null);
-    setOfferOpen(true);
-    void loadOffer();
+  function openContractDialog() {
+    setTermsAccepted(false);
+    setTermsError(null);
+    setContractDialogOpen(true);
+    void loadTermsVersion();
   }
 
   async function acceptResult() {
@@ -438,12 +467,18 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     }
   }
 
-  async function sendRemarks() {
+  async function sendRemarks(text: string) {
+    const normalized = text.trim();
+    if (normalized.length < 3) return;
     setBusy(true);
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`/api/requests/${req.id}/send-remarks`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const res = await fetch(`/api/requests/${req.id}/send-remarks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ remarks: normalized }),
+      });
       const payload = (await res.json().catch(() => null)) as { error?: string } | unknown | null;
       if (!res.ok) {
         throw new Error(payload && typeof payload === "object" && payload && "error" in (payload as any) ? ((payload as any).error as string) : "Не удалось отправить замечания");
@@ -511,10 +546,19 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
             behavior={createCustomerRequestDetailsBehavior({
               request: req,
               canAcceptContract,
+              actions: {
+                openOfferDialog: openContractDialog,
+                acceptResult,
+              },
+            })}
+          />
+
+          <RequestRemarks
+            busy={busy}
+            behavior={createCustomerRequestRemarksBehavior({
+              request: req,
               remarks,
               actions: {
-                openOfferDialog,
-                acceptResult,
                 sendRemarks,
                 remarkAdd,
                 remarkComplete,
@@ -527,17 +571,17 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
             request={req}
             busy={busy}
             docUploadBusy={docUploadBusy}
-            contractFiles={contractFiles}
+            contractBundles={contractBundles}
             docRequests={docRequests}
             allRequestedDocumentsUploaded={allRequestedDocumentsUploaded}
             hasRevisionRequested={hasRevisionRequested}
             hasPending={hasPending}
-            hasContractFiles={hasContractFiles}
+            hasContractBundles={hasContractBundles}
             canAcceptContract={canAcceptContract}
             onDeleteRequestedDocument={deleteRequestedDocument}
             onUploadRequestedDocument={uploadRequestedDocument}
-            onOpenOfferDialog={openOfferDialog}
-            onContractFilesChange={setContractFiles}
+            onOpenOfferDialog={openContractDialog}
+            onContractBundlesChange={setContractBundles}
           />
 
           <Paper variant="outlined" sx={{ overflow: "hidden" }}>
@@ -558,18 +602,18 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                   const isSelected = (req.selectedProviderIds ?? []).includes(c.providerId);
                   const isDeclined = (req.declinedProviderIds ?? []).includes(c.providerId);
                   const rowCanInitiate = isSelected ? true : canInitiateOrderFor(c.providerId);
-                  const isChosenProvider = req.status === "PROVIDER_SELECTED" && req.providerId === c.providerId;
+                  const isChosenProvider = hasRequestLock(req) && req.providerId === c.providerId;
 
                   return (
                     <ListItem
                       key={c.conversationId}
                       disablePadding
                       secondaryAction={
-                        req.status === "CLOSED" ? null : req.status === "PROVIDER_SELECTED" ? (
+                        req.status === "CLOSED" ? null : hasRequestLock(req) ? (
                           isChosenProvider ? (
                             <Stack direction="row" spacing={1} sx={{ pr: 1 }}>
                               <Button size="small" variant="outlined" disabled sx={{ whiteSpace: "nowrap" }}>
-                                {hasContractFiles ? "Договор прикреплён" : "Ожидаем договор"}
+                                {hasContractBundles ? "Договор прикреплён" : "Ожидаем договор"}
                               </Button>
                             </Stack>
                           ) : null
@@ -622,38 +666,51 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
           </Paper>
 
           <Dialog
-            open={offerOpen}
+            open={contractDialogOpen}
             onClose={() => {
-              if (!busy) setOfferOpen(false);
+              if (!busy) setContractDialogOpen(false);
             }}
             fullWidth
             maxWidth="md"
           >
-            <DialogTitle>Публичная оферта</DialogTitle>
+            <DialogTitle>Заключение договора</DialogTitle>
             <DialogContent dividers>
-              {offerError ? <Alert severity="error">{offerError}</Alert> : null}
-              {offerBusy ? <Typography color="text.secondary">Загрузка…</Typography> : null}
-              {!offerBusy && offerMarkdown ? (
-                <Typography sx={{ whiteSpace: "pre-wrap" }}>{offerMarkdown}</Typography>
-              ) : null}
-              <FormControlLabel
-                control={<Checkbox checked={offerAccepted} onChange={(e) => setOfferAccepted(e.target.checked)} />}
-                label={
-                  offerVersion
-                    ? `Я согласен(на) с офертой версии ${offerVersion} и условиями договора`
-                    : "Я согласен(на) с офертой и условиями договора"
-                }
-                sx={{ mt: 2 }}
-              />
+              <Stack spacing={1.5}>
+                <Typography variant="body2" color="text.secondary">
+                  Договор заключается напрямую между вами и исполнителем (по согласованным условиям
+                  сделки и файлам договора). Платформа стороной этого договора не является — см.{" "}
+                  <Box
+                    component="a"
+                    href="/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{ fontWeight: 700, color: "inherit" }}
+                  >
+                    пользовательское соглашение
+                  </Box>
+                  {termsVersion ? ` (версия ${termsVersion})` : ""}.
+                </Typography>
+                {termsError ? <Alert severity="error">{termsError}</Alert> : null}
+                {termsBusy ? <Typography color="text.secondary">Загрузка версии соглашения…</Typography> : null}
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={termsAccepted}
+                      onChange={(e) => setTermsAccepted(e.target.checked)}
+                    />
+                  }
+                  label="Я согласен(а) с договором исполнителя и пользовательским соглашением платформы"
+                />
+              </Stack>
             </DialogContent>
             <DialogActions>
-              <Button disabled={busy} onClick={() => setOfferOpen(false)}>
+              <Button disabled={busy} onClick={() => setContractDialogOpen(false)}>
                 Отмена
               </Button>
               <Button
                 variant="contained"
                 color="success"
-                disabled={busy || offerBusy || !offerAccepted || !offerVersion}
+                disabled={busy || termsBusy || !termsAccepted || !termsVersion}
                 onClick={() => void acceptContract()}
               >
                 Подтвердить акцепт

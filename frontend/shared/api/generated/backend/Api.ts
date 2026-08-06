@@ -134,6 +134,15 @@ export interface AuthorizedUserDto {
   stepUpVerifiedAt: Record<string, string>;
 }
 
+export interface AcceptedLegalVersionsDto {
+  /** @example "2026-08-04" */
+  terms: string;
+  /** @example "2026-08-04" */
+  privacy: string;
+  /** @example "2026-08-04" */
+  consent: string;
+}
+
 export interface SignupDto {
   /** @example "user@example.com" */
   email: string;
@@ -146,6 +155,7 @@ export interface SignupDto {
   name?: string;
   /** @format uuid */
   customerCityId?: string;
+  acceptedLegal: AcceptedLegalVersionsDto;
 }
 
 export interface LinkedAuthProvidersDto {
@@ -389,6 +399,8 @@ export interface RequestCustomerDto {
   /** @example null */
   offerVersion: object | null;
   /** @example null */
+  termsVersion: object | null;
+  /** @example null */
   contractAcceptedAt: object | null;
   /** @example null */
   acceptanceRequestedAt: object | null;
@@ -449,6 +461,8 @@ export interface RequestRemarkDto {
   text: string;
   createdAt: string;
   doneAt?: object | null;
+  /** Когда замечание стало видимым другой стороне (null = черновик). */
+  sentAt?: object | null;
 }
 
 export interface RequestRemarkCreateDto {
@@ -489,6 +503,8 @@ export interface RequestProDto {
   dealTerms: object | null;
   /** @example null */
   offerVersion: object | null;
+  /** @example null */
+  termsVersion: object | null;
   /** @example null */
   contractAcceptedAt: object | null;
   /** @example null */
@@ -590,6 +606,11 @@ export interface CreateProviderDto {
   type: CreateProviderDtoTypeEnum;
   /** @format uuid */
   cityId?: string;
+  /**
+   * @pattern ^\d{4}-\d{2}-\d{2}$
+   * @example "2026-08-04"
+   */
+  offerVersion: string;
 }
 
 export interface ProviderSlugCheckDto {
@@ -855,6 +876,39 @@ export interface ContractFilesUploadResponseDto {
   }[];
 }
 
+export interface ContractBundleFileDto {
+  /** @format uuid */
+  id: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  /** @example null */
+  sha256: object | null;
+  /** @format date-time */
+  createdAt: string;
+  /** @format date-time */
+  updatedAt: string;
+}
+
+export interface ContractBundleItemDto {
+  /** @format uuid */
+  bundleId: string;
+  status: ContractBundleItemDtoStatusEnum;
+  /** @example null */
+  revisionMessage: object | null;
+  /**
+   * @format date-time
+   * @example null
+   */
+  decidedAt: object | null;
+  document: ContractBundleFileDto;
+  signature: ContractBundleFileDto | null;
+  /** @format date-time */
+  createdAt: string;
+  /** @format date-time */
+  updatedAt: string;
+}
+
 export interface RequestDocumentRequestItemDto {
   /** @format uuid */
   id: string;
@@ -1081,11 +1135,7 @@ export enum RequestCustomerDtoStatusEnum {
   NEW = "NEW",
   DISCUSSING = "DISCUSSING",
   TERMS_AGREED = "TERMS_AGREED",
-  PROVIDER_SELECTED = "PROVIDER_SELECTED",
-  CONTRACT_ACCEPTED = "CONTRACT_ACCEPTED",
-  LOCKED = "LOCKED",
   ACTIVE = "ACTIVE",
-  SERVICE_RENDERED = "SERVICE_RENDERED",
   ACCEPTANCE_PENDING = "ACCEPTANCE_PENDING",
   ACCEPTED = "ACCEPTED",
   COMPLETED = "COMPLETED",
@@ -1113,11 +1163,7 @@ export enum RequestProDtoStatusEnum {
   NEW = "NEW",
   DISCUSSING = "DISCUSSING",
   TERMS_AGREED = "TERMS_AGREED",
-  PROVIDER_SELECTED = "PROVIDER_SELECTED",
-  CONTRACT_ACCEPTED = "CONTRACT_ACCEPTED",
-  LOCKED = "LOCKED",
   ACTIVE = "ACTIVE",
-  SERVICE_RENDERED = "SERVICE_RENDERED",
   ACCEPTANCE_PENDING = "ACCEPTANCE_PENDING",
   ACCEPTED = "ACCEPTED",
   COMPLETED = "COMPLETED",
@@ -1203,6 +1249,12 @@ export enum ContractFileItemDtoStatusEnum {
   REVISION_REQUESTED = "REVISION_REQUESTED",
 }
 
+export enum ContractBundleItemDtoStatusEnum {
+  PENDING_CUSTOMER = "PENDING_CUSTOMER",
+  APPROVED = "APPROVED",
+  REVISION_REQUESTED = "REVISION_REQUESTED",
+}
+
 export enum RequestDocumentRequestItemDtoStatusEnum {
   REQUESTED = "REQUESTED",
   UPLOADED = "UPLOADED",
@@ -1210,6 +1262,43 @@ export enum RequestDocumentRequestItemDtoStatusEnum {
 
 export enum ServiceCategoriesControllerGetPublicCategoriesParamsPlacementEnum {
   HOME = "HOME",
+}
+
+export namespace LegalDocs {
+  /**
+ * No description
+ * @tags legal-docs
+ * @name LegalDocsControllerGetCurrent
+ * @request GET:/legal-docs/{docId}/current
+ * @response `200` `{
+    id: string,
+    version: string,
+    title: string,
+    markdown: string,
+
+}`
+ * @response `400` `ApiBadRequestErrorDto` Bad Request
+ * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+ * @response `403` `ApiForbiddenErrorDto` Forbidden
+ * @response `404` `ApiNotFoundErrorDto` Not Found
+ * @response `409` `ApiConflictErrorDto` Conflict
+ * @response `422` `ApiValidationErrorResponseDto` Validation failed
+ * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+*/
+  export namespace LegalDocsControllerGetCurrent {
+    export type RequestParams = {
+      docId: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = {
+      id: string;
+      version: string;
+      title: string;
+      markdown: string;
+    };
+  }
 }
 
 export namespace Auth {
@@ -2323,6 +2412,141 @@ export namespace Pro {
 
   /**
    * No description
+   * @tags ContractFiles, contract-files
+   * @name ContractFilesControllerListMiscForProvider
+   * @request GET:/pro/requests/{requestId}/provider-misc
+   * @response `200` `(ContractFileItemDto)[]`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace ContractFilesControllerListMiscForProvider {
+    export type RequestParams = {
+      requestId: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = ContractFileItemDto[];
+  }
+
+  /**
+   * No description
+   * @tags ContractFiles, contract-files
+   * @name ContractFilesControllerUploadMiscForProvider
+   * @request POST:/pro/requests/{requestId}/provider-misc
+   * @response `200` `ContractFilesUploadResponseDto`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace ContractFilesControllerUploadMiscForProvider {
+    export type RequestParams = {
+      requestId: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = {
+      files: File[];
+    };
+    export type RequestHeaders = {};
+    export type ResponseBody = ContractFilesUploadResponseDto;
+  }
+
+  /**
+   * No description
+   * @tags ContractFiles, contract-files
+   * @name ContractFilesControllerListBundlesForProvider
+   * @request GET:/pro/requests/{requestId}/contract-bundles
+   * @response `200` `(ContractBundleItemDto)[]`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace ContractFilesControllerListBundlesForProvider {
+    export type RequestParams = {
+      requestId: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = ContractBundleItemDto[];
+  }
+
+  /**
+ * No description
+ * @tags ContractFiles, contract-files
+ * @name ContractFilesControllerUploadBundleForProvider
+ * @request POST:/pro/requests/{requestId}/contract-bundles
+ * @response `200` `{
+  /** @format uuid *\/
+    bundleId: string,
+
+}`
+ * @response `400` `ApiBadRequestErrorDto` Bad Request
+ * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+ * @response `403` `ApiForbiddenErrorDto` Forbidden
+ * @response `404` `ApiNotFoundErrorDto` Not Found
+ * @response `409` `ApiConflictErrorDto` Conflict
+ * @response `422` `ApiValidationErrorResponseDto` Validation failed
+ * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+*/
+  export namespace ContractFilesControllerUploadBundleForProvider {
+    export type RequestParams = {
+      requestId: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = {
+      /** @format binary */
+      document: File;
+      /** @format binary */
+      signature: File;
+    };
+    export type RequestHeaders = {};
+    export type ResponseBody = {
+      /** @format uuid */
+      bundleId: string;
+    };
+  }
+
+  /**
+   * No description
+   * @tags ContractFiles, contract-files
+   * @name ContractFilesControllerDeleteBundleForProvider
+   * @request DELETE:/pro/requests/{requestId}/contract-bundles/{bundleId}
+   * @response `200` `OkResponseDto`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace ContractFilesControllerDeleteBundleForProvider {
+    export type RequestParams = {
+      requestId: string;
+      bundleId: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = OkResponseDto;
+  }
+
+  /**
+   * No description
    * @tags ContractFiles
    * @name ContractFilesControllerDownloadProvider
    * @request GET:/pro/contract-files/{fileId}/download
@@ -2897,7 +3121,7 @@ export namespace Requests {
     };
     export type RequestQuery = {};
     export type RequestBody = {
-      offerVersion: string;
+      termsVersion: string;
     };
     export type RequestHeaders = {};
     export type ResponseBody = RequestCustomerDto;
@@ -3025,6 +3249,83 @@ export namespace Requests {
     export type RequestBody = never;
     export type RequestHeaders = {};
     export type ResponseBody = RequestRemarkDto;
+  }
+
+  /**
+   * No description
+   * @tags ContractFiles, contract-files
+   * @name ContractFilesControllerListBundlesForCustomer
+   * @request GET:/requests/mine/{requestId}/contract-bundles
+   * @response `200` `(ContractBundleItemDto)[]`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace ContractFilesControllerListBundlesForCustomer {
+    export type RequestParams = {
+      requestId: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = ContractBundleItemDto[];
+  }
+
+  /**
+   * No description
+   * @tags ContractFiles, contract-files
+   * @name ContractFilesControllerApproveBundle
+   * @request POST:/requests/mine/{requestId}/contract-bundles/{bundleId}/approve
+   * @response `200` `OkResponseDto`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace ContractFilesControllerApproveBundle {
+    export type RequestParams = {
+      requestId: string;
+      bundleId: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = OkResponseDto;
+  }
+
+  /**
+   * No description
+   * @tags ContractFiles, contract-files
+   * @name ContractFilesControllerRequestBundleRevision
+   * @request POST:/requests/mine/{requestId}/contract-bundles/{bundleId}/revision
+   * @response `200` `OkResponseDto`
+   * @response `400` `ApiBadRequestErrorDto` Bad Request
+   * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+   * @response `403` `ApiForbiddenErrorDto` Forbidden
+   * @response `404` `ApiNotFoundErrorDto` Not Found
+   * @response `409` `ApiConflictErrorDto` Conflict
+   * @response `422` `ApiValidationErrorResponseDto` Validation failed
+   * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+   */
+  export namespace ContractFilesControllerRequestBundleRevision {
+    export type RequestParams = {
+      requestId: string;
+      bundleId: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = {
+      /** @minLength 3 */
+      message: string;
+    };
+    export type RequestHeaders = {};
+    export type ResponseBody = OkResponseDto;
   }
 
   /**
@@ -4051,6 +4352,53 @@ export class Api<SecurityDataType extends unknown> {
       ...params,
     });
 
+  legalDocs = {
+    /**
+ * No description
+ *
+ * @tags legal-docs
+ * @name LegalDocsControllerGetCurrent
+ * @request GET:/legal-docs/{docId}/current
+ * @response `200` `{
+    id: string,
+    version: string,
+    title: string,
+    markdown: string,
+
+}`
+ * @response `400` `ApiBadRequestErrorDto` Bad Request
+ * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+ * @response `403` `ApiForbiddenErrorDto` Forbidden
+ * @response `404` `ApiNotFoundErrorDto` Not Found
+ * @response `409` `ApiConflictErrorDto` Conflict
+ * @response `422` `ApiValidationErrorResponseDto` Validation failed
+ * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+ */
+    legalDocsControllerGetCurrent: (
+      docId: string,
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        {
+          id: string;
+          version: string;
+          title: string;
+          markdown: string;
+        },
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/legal-docs/${docId}/current`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+  };
   auth = {
     /**
      * No description
@@ -5711,6 +6059,202 @@ export class Api<SecurityDataType extends unknown> {
     /**
      * No description
      *
+     * @tags ContractFiles, contract-files
+     * @name ContractFilesControllerListMiscForProvider
+     * @request GET:/pro/requests/{requestId}/provider-misc
+     * @response `200` `(ContractFileItemDto)[]`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    contractFilesControllerListMiscForProvider: (
+      requestId: string,
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        ContractFileItemDto[],
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/pro/requests/${requestId}/provider-misc`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags ContractFiles, contract-files
+     * @name ContractFilesControllerUploadMiscForProvider
+     * @request POST:/pro/requests/{requestId}/provider-misc
+     * @response `200` `ContractFilesUploadResponseDto`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    contractFilesControllerUploadMiscForProvider: (
+      requestId: string,
+      data: {
+        files: File[];
+      },
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        ContractFilesUploadResponseDto,
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/pro/requests/${requestId}/provider-misc`,
+        method: "POST",
+        body: data,
+        type: ContentType.FormData,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags ContractFiles, contract-files
+     * @name ContractFilesControllerListBundlesForProvider
+     * @request GET:/pro/requests/{requestId}/contract-bundles
+     * @response `200` `(ContractBundleItemDto)[]`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    contractFilesControllerListBundlesForProvider: (
+      requestId: string,
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        ContractBundleItemDto[],
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/pro/requests/${requestId}/contract-bundles`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+ * No description
+ *
+ * @tags ContractFiles, contract-files
+ * @name ContractFilesControllerUploadBundleForProvider
+ * @request POST:/pro/requests/{requestId}/contract-bundles
+ * @response `200` `{
+  /** @format uuid *\/
+    bundleId: string,
+
+}`
+ * @response `400` `ApiBadRequestErrorDto` Bad Request
+ * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+ * @response `403` `ApiForbiddenErrorDto` Forbidden
+ * @response `404` `ApiNotFoundErrorDto` Not Found
+ * @response `409` `ApiConflictErrorDto` Conflict
+ * @response `422` `ApiValidationErrorResponseDto` Validation failed
+ * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+ */
+    contractFilesControllerUploadBundleForProvider: (
+      requestId: string,
+      data: {
+        /** @format binary */
+        document: File;
+        /** @format binary */
+        signature: File;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        {
+          /** @format uuid */
+          bundleId: string;
+        },
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/pro/requests/${requestId}/contract-bundles`,
+        method: "POST",
+        body: data,
+        type: ContentType.FormData,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags ContractFiles, contract-files
+     * @name ContractFilesControllerDeleteBundleForProvider
+     * @request DELETE:/pro/requests/{requestId}/contract-bundles/{bundleId}
+     * @response `200` `OkResponseDto`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    contractFilesControllerDeleteBundleForProvider: (
+      requestId: string,
+      bundleId: string,
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        OkResponseDto,
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/pro/requests/${requestId}/contract-bundles/${bundleId}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
      * @tags ContractFiles
      * @name ContractFilesControllerDownloadProvider
      * @request GET:/pro/contract-files/{fileId}/download
@@ -6550,7 +7094,7 @@ export class Api<SecurityDataType extends unknown> {
     requestsControllerCustomerAcceptContract: (
       id: string,
       data: {
-        offerVersion: string;
+        termsVersion: string;
       },
       params: RequestParams = {},
     ) =>
@@ -6750,6 +7294,119 @@ export class Api<SecurityDataType extends unknown> {
       >({
         path: `/requests/mine/${id}/remarks/${remarkId}/complete`,
         method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags ContractFiles, contract-files
+     * @name ContractFilesControllerListBundlesForCustomer
+     * @request GET:/requests/mine/{requestId}/contract-bundles
+     * @response `200` `(ContractBundleItemDto)[]`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    contractFilesControllerListBundlesForCustomer: (
+      requestId: string,
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        ContractBundleItemDto[],
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/requests/mine/${requestId}/contract-bundles`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags ContractFiles, contract-files
+     * @name ContractFilesControllerApproveBundle
+     * @request POST:/requests/mine/{requestId}/contract-bundles/{bundleId}/approve
+     * @response `200` `OkResponseDto`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    contractFilesControllerApproveBundle: (
+      requestId: string,
+      bundleId: string,
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        OkResponseDto,
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/requests/mine/${requestId}/contract-bundles/${bundleId}/approve`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags ContractFiles, contract-files
+     * @name ContractFilesControllerRequestBundleRevision
+     * @request POST:/requests/mine/{requestId}/contract-bundles/{bundleId}/revision
+     * @response `200` `OkResponseDto`
+     * @response `400` `ApiBadRequestErrorDto` Bad Request
+     * @response `401` `ApiUnauthorizedErrorDto` Unauthorized
+     * @response `403` `ApiForbiddenErrorDto` Forbidden
+     * @response `404` `ApiNotFoundErrorDto` Not Found
+     * @response `409` `ApiConflictErrorDto` Conflict
+     * @response `422` `ApiValidationErrorResponseDto` Validation failed
+     * @response `500` `ApiInternalServerErrorDto` Internal Server Error
+     */
+    contractFilesControllerRequestBundleRevision: (
+      requestId: string,
+      bundleId: string,
+      data: {
+        /** @minLength 3 */
+        message: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.http.request<
+        OkResponseDto,
+        | ApiBadRequestErrorDto
+        | ApiUnauthorizedErrorDto
+        | ApiForbiddenErrorDto
+        | ApiNotFoundErrorDto
+        | ApiConflictErrorDto
+        | ApiValidationErrorResponseDto
+        | ApiInternalServerErrorDto
+      >({
+        path: `/requests/mine/${requestId}/contract-bundles/${bundleId}/revision`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),

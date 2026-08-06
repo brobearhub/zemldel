@@ -6,6 +6,7 @@ import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import { Box, Container, IconButton, Stack, Tooltip } from "@mui/material";
 
 import type { ServiceDto } from "@/entities/service";
+import { SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
 import { PublicUnlinkedRequestForm } from "@/widgets/public-service/ui/PublicUnlinkedRequestForm";
 import { HydrateService } from "@/widgets/services/ui/HydrateService";
 import { Services } from "@/widgets/services/ui/Services";
@@ -57,7 +58,7 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories, initialSe
               order: { xs: 1, md: 1 },
               alignSelf: "start",
               position: { md: "sticky" },
-              top: { md: 96 },
+              top: { md: SITE_STICKY_TOP_PX },
             }}
           >
             {collapsed ? (

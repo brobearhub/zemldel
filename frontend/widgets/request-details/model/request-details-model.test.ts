@@ -13,6 +13,7 @@ function makeCustomer(overrides: Partial<RequestCustomerDto> = {}): RequestCusto
     providerId: null,
     dealTerms: null,
     offerVersion: null,
+    termsVersion: null,
     contractAcceptedAt: null,
     acceptanceRequestedAt: null,
     autoAcceptAt: null,
@@ -48,6 +49,7 @@ function makeProvider(overrides: Partial<RequestProDto> = {}): RequestProDto {
     providerId: null,
     dealTerms: null,
     offerVersion: null,
+    termsVersion: null,
     contractAcceptedAt: null,
     acceptanceRequestedAt: null,
     autoAcceptAt: null,
@@ -66,19 +68,19 @@ function makeProvider(overrides: Partial<RequestProDto> = {}): RequestProDto {
 }
 
 describe("buildRequestDetailsViewModel", () => {
-  it("customer: shows acceptance actions + remarks on ACCEPTANCE_PENDING", () => {
+  it("customer: shows acceptance action on ACCEPTANCE_PENDING", () => {
     const req = makeCustomer({
       status: "ACCEPTANCE_PENDING",
       autoAcceptAt: new Date("2026-02-01T10:00:00.000Z").toISOString(),
     });
     const vm = buildRequestDetailsViewModel({ side: "customer", request: req, canAcceptContract: false });
 
-    expect(vm.actions.map((a) => a.id)).toEqual(["acceptResult", "sendRemarks"]);
+    expect(vm.actions.map((a) => a.id)).toEqual(["acceptResult"]);
     expect(vm.autoAcceptAtLabel?.startsWith("Автопринятие:")).toBe(true);
   });
 
   it("customer: shows open offer action when contract can be accepted", () => {
-    const req = makeCustomer({ status: "PROVIDER_SELECTED" });
+    const req = makeCustomer({ status: "DISCUSSING", lockedAt: "2026-08-06T00:00:00.000Z" });
     const vm = buildRequestDetailsViewModel({ side: "customer", request: req, canAcceptContract: true });
 
     expect(vm.actions.map((a) => a.id)).toEqual(["openOfferDialog"]);
@@ -93,11 +95,21 @@ describe("buildRequestDetailsViewModel", () => {
     expect(vm.actions).toEqual([]);
   });
 
-  it("provider: shows start work action on CONTRACT_ACCEPTED", () => {
-    const req = makeProvider({ status: "CONTRACT_ACCEPTED", offerStatus: "SELECTED" });
+  it("provider: ACTIVE is work (no startWork button)", () => {
+    const req = makeProvider({ status: "ACTIVE", offerStatus: "SELECTED", lockedAt: "2026-08-06T00:00:00.000Z" });
     const vm = buildRequestDetailsViewModel({ side: "provider", request: req });
 
-    expect(vm.actions.map((a) => a.id)).toContain("startWork");
+    expect(vm.activeStepId).toBe("WORK");
+    expect(vm.actions.map((a) => a.id)).not.toContain("startWork");
+    expect(vm.actions.map((a) => a.id)).toContain("markRendered");
+  });
+
+  it("provider: ACCEPTANCE_PENDING has no separate requestAcceptance action", () => {
+    const req = makeProvider({ status: "ACCEPTANCE_PENDING", offerStatus: "SELECTED", lockedAt: "2026-08-06T00:00:00.000Z" });
+    const vm = buildRequestDetailsViewModel({ side: "provider", request: req });
+
+    expect(vm.actions.map((a) => a.id)).not.toContain("requestAcceptance");
+    expect(vm.actions.map((a) => a.id)).not.toContain("markRendered");
   });
 
   it("provider: allows decline on non-execution status when offer is selected", () => {

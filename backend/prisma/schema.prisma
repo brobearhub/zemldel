@@ -37,11 +37,7 @@ enum RequestStatus {
   NEW
   DISCUSSING
   TERMS_AGREED
-  PROVIDER_SELECTED
-  CONTRACT_ACCEPTED
-  LOCKED
   ACTIVE
-  SERVICE_RENDERED
   ACCEPTANCE_PENDING
   ACCEPTED
   COMPLETED
@@ -73,6 +69,12 @@ enum RequestContractFileStatus {
   REVISION_REQUESTED
 }
 
+enum RequestContractFileRole {
+  CONTRACT_DOCUMENT
+  CONTRACT_SIGNATURE
+  PROVIDER_MISC
+}
+
 enum RequestDocumentRequestStatus {
   REQUESTED
   UPLOADED
@@ -86,6 +88,19 @@ enum RequestRemarkStatus {
 enum RequestRemarkAuthorSide {
   CUSTOMER
   PROVIDER
+}
+
+enum LegalDocId {
+  TERMS
+  PRIVACY
+  CONSENT
+  OFFER
+}
+
+enum LegalAcceptanceContext {
+  SIGNUP
+  PROVIDER_ONBOARDING
+  CONTRACT
 }
 
 model City {
@@ -136,6 +151,7 @@ model User {
   createdServices           Service[]                @relation("ServiceCreatedBy")
   updatedServices           Service[]                @relation("ServiceUpdatedBy")
   requests                  Request[]
+  legalAcceptances          LegalAcceptance[]
   sentChatMessages          Message[]                @relation("MessageSender")
   chatReadStates            ConversationReadState[]
   customerConversations     Conversation[]           @relation("ConversationCustomer")
@@ -149,6 +165,23 @@ model User {
   @@index([systemRole])
   @@index([activeProviderId])
   @@index([customerCityId])
+}
+
+model LegalAcceptance {
+  id         String                  @id @default(uuid()) @db.Uuid
+  userId     String                  @db.Uuid
+  docId      LegalDocId
+  version    String
+  context    LegalAcceptanceContext
+  requestId  String?                 @db.Uuid
+  acceptedAt DateTime                @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  request Request? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+
+  @@index([userId, docId])
+  @@index([requestId])
+  @@index([context, docId])
 }
 
 model Account {
@@ -332,6 +365,7 @@ model Request {
 
   dealTerms                Json?
   offerVersion             String?
+  termsVersion             String?
   contractAcceptedAt       DateTime?
   contractAcceptedByUserId String?   @db.Uuid
   acceptanceRequestedAt    DateTime?
@@ -346,6 +380,7 @@ model Request {
   requestCity       City?                  @relation("RequestCity", fields: [requestCityId], references: [id], onDelete: SetNull)
   conversations     Conversation[]
   providerOffers    RequestProviderOffer[]
+  legalAcceptances  LegalAcceptance[]
   events            RequestEvent[]
   contractFiles     RequestContractFile[]
   documentRequests  RequestDocumentRequest[]
@@ -374,6 +409,7 @@ model RequestRemark {
   doneByUserId        String?  @db.Uuid
   doneByProviderId    String?  @db.Uuid
   doneAt              DateTime?
+  sentAt              DateTime?
 
   request           Request   @relation(fields: [requestId], references: [id], onDelete: Cascade)
   createdByUser     User?     @relation("RequestRemarkCreatedByUser", fields: [createdByUserId], references: [id], onDelete: SetNull)
@@ -580,6 +616,8 @@ model RequestContractFile {
   decidedAt      DateTime?
   status         RequestContractFileStatus @default(PENDING_CUSTOMER)
   revisionMessage String?
+  role           RequestContractFileRole  @default(CONTRACT_DOCUMENT)
+  bundleId       String?                  @db.Uuid
 
   originalName   String
   mimeType       String
@@ -598,6 +636,7 @@ model RequestContractFile {
   @@index([requestId, updatedAt])
   @@index([providerId, updatedAt])
   @@index([status, updatedAt])
+  @@index([bundleId, updatedAt])
 }
 
 model RequestDocumentRequest {

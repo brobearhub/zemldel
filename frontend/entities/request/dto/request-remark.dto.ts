@@ -9,5 +9,6 @@ export type RequestRemarkDto = {
   text: string;
   createdAt: string;
   doneAt: string | null;
+  sentAt: string | null;
 };
 

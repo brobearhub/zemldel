@@ -3,6 +3,7 @@
 import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Alert, Box, Button, Container, Paper, Stack, Typography } from "@mui/material";
+import { sitePageContainerSx } from "@/shared/config/site-layout";
 
 type Mode = "link" | "verify";
 
@@ -44,7 +45,7 @@ function GosuslugiMockPageContent() {
 
   return (
     <main>
-      <Container maxWidth="sm" sx={{ py: 4, pb: 10 }}>
+      <Container maxWidth="sm" sx={sitePageContainerSx}>
         <Stack spacing={3}>
           <Box>
             <Typography variant="h4" fontWeight={800} gutterBottom>
