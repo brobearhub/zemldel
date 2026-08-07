@@ -30,6 +30,10 @@ import Link from "@/shared/ui/Link";
 import { RequestDetailHeaderCard } from "@/shared/ui/RequestDetailHeaderCard";
 import { createProviderRequestDetailsBehavior, RequestDetails } from "@/widgets/request-details";
 import {
+  createProviderRequestLifecycleBehavior,
+  RequestLifecycleActions,
+} from "@/widgets/request-lifecycle-actions";
+import {
   createProviderRequestRemarksBehavior,
   RequestRemarks,
 } from "@/widgets/request-remarks";
@@ -496,6 +500,49 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
         subtitle={subtitle}
         statusLabel={getRequestStatusLabel(req.status)}
         body={messageBody}
+        details={
+          <RequestDetails
+            busy={isBusy}
+            behavior={createProviderRequestDetailsBehavior({ request: req })}
+          />
+        }
+        afterBody={
+          <RequestLifecycleActions
+            busy={isBusy}
+            behavior={createProviderRequestLifecycleBehavior({
+              request: req,
+              isMarkRenderedDisabled: remarks.some((r) => r.status === "OPEN"),
+              actions: {
+                startWork: async () => undefined,
+                markRendered: async () => {
+                  const ok = await confirm({
+                    title: "Услуга выполнена?",
+                    description:
+                      "Заявка перейдёт в статус «Ожидает принятия». Клиент сможет принять результат или отправить замечания. Это действие нельзя отменить.",
+                    confirmText: "Да, выполнена",
+                    confirmColor: "success",
+                  });
+                  if (!ok) return;
+                  await runAction("confirm");
+                },
+                requestAcceptance: async () => undefined,
+                complete: () => runAction("confirm"),
+                declineOffer: async () => {
+                  const reason = await confirmWithReason({
+                    title: "Отказаться от заявки?",
+                    description:
+                      "Вы больше не будете исполнителем по этой заявке. Клиент сможет выбрать другого исполнителя. Это действие нельзя отменить.",
+                    reasonLabel: "Причина",
+                    confirmText: "Да, отказаться",
+                    confirmColor: "error",
+                  });
+                  if (reason == null) return;
+                  await runAction("decline", reason);
+                },
+              },
+            })}
+          />
+        }
       />
 
       {notice ? <Alert severity="success">{notice}</Alert> : null}
@@ -532,43 +579,6 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
           </Stack>
         </Paper>
       </Backdrop>
-
-      <RequestDetails
-        busy={isBusy}
-        behavior={createProviderRequestDetailsBehavior({
-          request: req,
-          bottomSlot: null,
-          isMarkRenderedDisabled: remarks.some((r) => r.status === "OPEN"),
-          actions: {
-            startWork: async () => undefined,
-            markRendered: async () => {
-              const ok = await confirm({
-                title: "Услуга выполнена?",
-                description:
-                  "Заявка перейдёт в статус «Ожидает принятия». Клиент сможет принять результат или отправить замечания. Это действие нельзя отменить.",
-                confirmText: "Да, выполнена",
-                confirmColor: "success",
-              });
-              if (!ok) return;
-              await runAction("confirm");
-            },
-            requestAcceptance: async () => undefined,
-            complete: () => runAction("confirm"),
-            declineOffer: async () => {
-              const reason = await confirmWithReason({
-                title: "Отказаться от заявки?",
-                description:
-                  "Вы больше не будете исполнителем по этой заявке. Клиент сможет выбрать другого исполнителя. Это действие нельзя отменить.",
-                reasonLabel: "Причина",
-                confirmText: "Да, отказаться",
-                confirmColor: "error",
-              });
-              if (reason == null) return;
-              await runAction("decline", reason);
-            },
-          },
-        })}
-      />
 
       <RequestWorkProgress
         mode="provider"

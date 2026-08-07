@@ -20,10 +20,15 @@ import type { Request } from 'express';
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
 import { ChatService } from './chat.service';
-import { ChatEnsureBodyDto, ChatPostMessageBodyDto } from './dto/chat-http.dto';
+import {
+  ChatEnsureBodyDto,
+  ChatInboxQueryDto,
+  ChatPostMessageBodyDto,
+} from './dto/chat-http.dto';
 import {
   ChatConversationAccessDto,
   ChatEnsureResponseDto,
+  ChatInboxItemDto,
   ChatMarkReadResponseDto,
   ChatMessageDto,
   ChatPostMessageResponseDto,
@@ -37,6 +42,31 @@ import { ApiStandardErrors } from '../common/swagger/api-standard-errors.decorat
 @Controller()
 export class ChatController {
   constructor(private readonly chat: ChatService) {}
+
+  @Get('chat/inbox')
+  @ApiQuery({ name: 'role', required: false, enum: ['customer', 'provider'] })
+  @ApiOkResponse({ type: [ChatInboxItemDto] })
+  @ApiUnprocessableEntityResponse({
+    type: ApiValidationErrorResponseDto,
+    description: 'Validation failed',
+  })
+  async listInbox(@Req() request: Request, @Query() query: unknown) {
+    const dto = plainToInstance(ChatInboxQueryDto, query);
+    const issues = validateSync(dto, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
+    if (issues.length > 0) {
+      throw new UnprocessableEntityException({
+        error: 'Validation failed',
+        issues,
+      });
+    }
+
+    const role: 'customer' | 'provider' = dto.role ?? 'customer';
+    const userId = this.chat.getRequiredActorUserId(request);
+    return this.chat.listInbox(userId, role);
+  }
 
   @Get('chat/requests/:id/conversations')
   @ApiParam({ name: 'id', type: String })

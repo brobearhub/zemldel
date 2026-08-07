@@ -12,6 +12,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import type { OrderManagementAction } from '../auth/authorization';
+import { ChatService } from '../chat/chat.service';
 import { LegalDocsService } from '../legal-docs/legal-docs.service';
 import type {
   RequestCategoryCreateDto,
@@ -30,6 +31,9 @@ import {
   requestRowToProDtoPlain,
 } from './dto/request.dto';
 import { requestRemarkToDtoPlain, type RequestRemarkDto } from './dto/request-remark.dto';
+import { formatProviderDeclineChatMessage } from './dto/decline-offer.dto';
+import { formatCustomerSelectProviderChatMessage } from './dto/select-provider.dto';
+import { randomUUID } from 'node:crypto';
 
 const select = {
   id: true,
@@ -87,6 +91,7 @@ export class RequestsService {
     private readonly authService: AuthService,
     private readonly internalAuthService: InternalAuthService,
     private readonly legalDocs: LegalDocsService,
+    private readonly chat: ChatService,
   ) {}
 
   private async addEvent(
@@ -1566,7 +1571,13 @@ export class RequestsService {
   async declineOfferByProvider(
     actorProviderId: string,
     requestId: string,
+    input: { reason: string; actorUserId: string },
   ): Promise<RequestProDto> {
+    const reason = input.reason.trim();
+    if (!reason) {
+      throw new BadRequestException('reason is required');
+    }
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const current = await tx.request.findUnique({
         where: { id: requestId },
@@ -1625,7 +1636,35 @@ export class RequestsService {
           requestId: req.id,
           type: 'PROVIDER_DECLINED_AFTER_SELECTION',
           actorProviderId,
-          payload: { at: now.toISOString() },
+          payload: { at: now.toISOString(), reason },
+        });
+      }
+
+      const conversation = await tx.conversation.findFirst({
+        where: {
+          requestId: req.id,
+          providerId: actorProviderId,
+        },
+        select: { id: true },
+      });
+
+      let createdMessageId: string | null = null;
+      if (conversation) {
+        const createdMessage = await tx.message.create({
+          data: {
+            id: randomUUID(),
+            conversationId: conversation.id,
+            senderUserId: input.actorUserId,
+            clientMessageId: randomUUID(),
+            body: formatProviderDeclineChatMessage(reason),
+          },
+          select: { id: true },
+        });
+        createdMessageId = createdMessage.id;
+        await tx.conversation.update({
+          where: { id: conversation.id },
+          data: { lastMessageAt: now },
+          select: { id: true },
         });
       }
 
@@ -1634,13 +1673,18 @@ export class RequestsService {
         select,
       });
       if (!refreshed) throw new NotFoundException('Request not found');
-      return refreshed;
+      return { request: refreshed, createdMessageId };
     });
 
-    const counts = await this.getConversationCounts([updated.id]);
+    // Why: message is persisted in the transaction above; WS fan-out must run after commit.
+    if (updated.createdMessageId) {
+      await this.chat.notifyMessageCreated(updated.createdMessageId);
+    }
+
+    const counts = await this.getConversationCounts([updated.request.id]);
     return requestRowToProDtoPlain(
-      updated as unknown as RequestDbRow,
-      counts.get(updated.id) ?? 0,
+      updated.request as unknown as RequestDbRow,
+      counts.get(updated.request.id) ?? 0,
       actorProviderId,
     );
   }
@@ -1793,7 +1837,7 @@ export class RequestsService {
               providerId: input.providerId,
             },
           },
-          select: { id: true },
+          select: { id: true, status: true },
         }),
         tx.conversation.findFirst({
           where: {
@@ -1810,29 +1854,30 @@ export class RequestsService {
       }
 
       const now = new Date();
-      if (!offer) {
-        await tx.requestProviderOffer.upsert({
-          where: {
-            requestId_providerId: {
-              requestId: req.id,
-              providerId: input.providerId,
-            },
-          },
-          create: {
+      // Why: after provider decline the offer row stays DECLINED; "Запросить снова"
+      // must flip it back to SELECTED, otherwise pro UI keeps showing the refusal.
+      const reRequested = offer?.status === 'DECLINED';
+      await tx.requestProviderOffer.upsert({
+        where: {
+          requestId_providerId: {
             requestId: req.id,
             providerId: input.providerId,
-            status: 'SELECTED',
-            selectedAt: now,
-            declinedAt: null,
           },
-          update: {
-            status: 'SELECTED',
-            selectedAt: now,
-            declinedAt: null,
-          },
-          select: { id: true },
-        });
-      }
+        },
+        create: {
+          requestId: req.id,
+          providerId: input.providerId,
+          status: 'SELECTED',
+          selectedAt: now,
+          declinedAt: null,
+        },
+        update: {
+          status: 'SELECTED',
+          selectedAt: now,
+          declinedAt: null,
+        },
+        select: { id: true },
+      });
 
       await tx.requestProviderOffer.updateMany({
         where: {
@@ -1855,13 +1900,39 @@ export class RequestsService {
         requestId: req.id,
         type: 'PROVIDER_SELECTED',
         actorUserId,
-        payload: { providerId: input.providerId },
+        payload: { providerId: input.providerId, reRequested },
       });
 
-      return next;
+      let createdMessageId: string | null = null;
+      if (conv) {
+        const createdMessage = await tx.message.create({
+          data: {
+            id: randomUUID(),
+            conversationId: conv.id,
+            senderUserId: actorUserId,
+            clientMessageId: randomUUID(),
+            body: formatCustomerSelectProviderChatMessage(reRequested),
+          },
+          select: { id: true },
+        });
+        createdMessageId = createdMessage.id;
+        await tx.conversation.update({
+          where: { id: conv.id },
+          data: { lastMessageAt: now },
+          select: { id: true },
+        });
+      }
+
+      return { request: next, createdMessageId };
     });
 
-    return requestRowToCustomerDtoPlain(updated as unknown as RequestDbRow);
+    if (updated.createdMessageId) {
+      await this.chat.notifyMessageCreated(updated.createdMessageId);
+    }
+
+    return requestRowToCustomerDtoPlain(
+      updated.request as unknown as RequestDbRow,
+    );
   }
 
   async acceptContractByCustomer(
@@ -2107,3 +2178,4 @@ export class RequestsService {
     return { ...ctx, providerId: ctx.providerId };
   }
 }
+

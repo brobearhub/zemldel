@@ -8,11 +8,13 @@ function makeService(prisma: unknown, legalDocs?: { assertCurrentVersions: Retur
   const docs = legalDocs ?? {
     assertCurrentVersions: vi.fn().mockResolvedValue({ terms: '2026-08-04' }),
   };
+  const chat = { notifyMessageCreated: vi.fn() } as never;
   return new RequestsService(
     prisma as never,
     auth,
     internalAuth,
     docs as never,
+    chat,
   );
 }
 

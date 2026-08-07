@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { io, type Socket } from "socket.io-client";
-import type { ChatUnreadHintPayload } from "@/entities/chat/dto/chat.dto";
+import type { ChatJoinConversationAck, ChatUnreadHintPayload } from "@/entities/chat/dto/chat.dto";
 import { getChatSocketUrl } from "@/shared/config/chat-socket";
 import { ChatSocketContext, type ChatSocketContextValue } from "./ChatSocketContext";
 
@@ -21,7 +21,7 @@ function useInertValue(): ChatSocketContextValue {
     unreadByRequestId: {},
     setOpenConversationId: () => {},
     clearUnreadForRequest: () => {},
-    joinConversationRoom: async () => false,
+    joinConversationRoom: async () => ({ ok: false, error: "Disconnected" }),
   };
 }
 
@@ -61,11 +61,11 @@ export function ChatSocketProvider({ children }: Props) {
   const joinConversationRoom = useCallback(async (conversationId: string) => {
     const s = socketRef.current;
     if (!s?.connected) {
-      return false;
+      return { ok: false, error: "Disconnected" } satisfies ChatJoinConversationAck;
     }
-    return await new Promise<boolean>((resolve) => {
-      s.emit("joinConversation", { conversationId }, (ack: { ok?: boolean } | undefined) => {
-        resolve(ack?.ok === true);
+    return await new Promise<ChatJoinConversationAck>((resolve) => {
+      s.emit("joinConversation", { conversationId }, (ack: ChatJoinConversationAck | undefined) => {
+        resolve(ack ?? { ok: false, error: "No ack" });
       });
     });
   }, []);

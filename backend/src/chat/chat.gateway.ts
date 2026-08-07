@@ -11,9 +11,12 @@ import {
 import type { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 import { SocketJwtService } from './socket-jwt.service';
+import { ChatPresenceRegistry } from './chat-presence-registry';
+import { pickPeerOnline, type ChatPresenceUpdatedPayload } from './chat-presence';
 
 const CONVERSATION_PREFIX = 'conversation:';
 const USER_PREFIX = 'user:';
+const DISCONNECT_GRACE_MS = 2500;
 
 export type JoinConversationPayload = {
   conversationId: string;
@@ -31,6 +34,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   server!: Server;
 
   private readonly logger = new Logger(ChatGateway.name);
+  private readonly presence = new ChatPresenceRegistry();
 
   constructor(
     private readonly socketJwt: SocketJwtService,
@@ -48,6 +52,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const data = client.data as unknown as { userId?: string };
       data.userId = userId;
       void client.join(`${USER_PREFIX}${userId}`);
+      const { becameOnline } = this.presence.registerConnected(userId, client.id);
+      if (becameOnline) {
+        void this.chatService.notifyPresenceChanged(userId);
+      }
     } catch (error) {
       this.logger.warn(`Socket connection rejected: ${error}`);
       client.disconnect(true);
@@ -57,6 +65,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleDisconnect(client: Socket) {
     const data = client.data as unknown as { userId?: string };
     data.userId = undefined;
+    this.presence.scheduleDisconnected(
+      client.id,
+      DISCONNECT_GRACE_MS,
+      (userId, becameOffline) => {
+        if (becameOffline) {
+          void this.chatService.notifyPresenceChanged(userId);
+        }
+      },
+    );
   }
 
   @SubscribeMessage('joinConversation')
@@ -92,7 +109,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     void client.join(`${CONVERSATION_PREFIX}${conversationId}`);
-    return { ok: true };
+    const snapshot = await this.chatService.getConversationPresenceSnapshot(
+      userId,
+      conversationId,
+    );
+    if (!snapshot) {
+      return { ok: false, error: 'NotFound' };
+    }
+    return {
+      ok: true,
+      viewerSide: snapshot.viewerSide,
+      peerOnline: pickPeerOnline(snapshot.viewerSide, snapshot.presence),
+    };
   }
 
   emitMessageCreated(conversationId: string, payload: unknown) {
@@ -103,5 +131,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   emitUnreadHint(userId: string, payload: unknown) {
     this.server.to(`${USER_PREFIX}${userId}`).emit('chat.unreadHint', payload);
+  }
+
+  emitPresenceUpdated(conversationId: string, payload: ChatPresenceUpdatedPayload) {
+    this.server
+      .to(`${CONVERSATION_PREFIX}${conversationId}`)
+      .emit('presence.updated', payload);
+  }
+
+  isUserOnline(userId: string): boolean {
+    return this.presence.isOnline(userId);
   }
 }

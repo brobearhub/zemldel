@@ -20,7 +20,6 @@ import type { AuthMembership, AuthProviderKey } from "@/core/auth/authorization"
 import { CustomerRequestsSection } from "@/widgets/customer-requests/ui/CustomerRequestsSection";
 import { CustomerPassportSection } from "@/widgets/customer-documents/ui/CustomerPassportSection";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
-import { ProfileSidebarSlot } from "@/widgets/profile/ui/ProfileSidebarSlot";
 import type { CitySuggestItemDto } from "@/entities/city";
 import { CityAutocomplete } from "@/shared/ui/CityAutocomplete";
 import { CABINET_SIDEBAR_EXPANDED_W, sitePageContainerSx } from "@/shared/config/site-layout";
@@ -540,45 +539,37 @@ function ProfilePageContent() {
 
   return (
     <Container maxWidth="xl" sx={sitePageContainerSx}>
-      <Stack direction={{ xs: "column", md: "row" }} spacing={3} alignItems="flex-start">
-        <ProfileSidebarSlot
-          selected={selectedSection}
-          onSelectSection={handleSelectSection}
-          requestsUnreadCount={requestsUnreadCount}
-        />
+      <Paper sx={{ width: "100%", p: { xs: 3, md: 4 } }}>
+        {selectedSection === "profile" ? (
+          <ProfileOverview
+            name={user?.name}
+            email={user?.email}
+            image={user?.image}
+            customerCity={user?.customerCity}
+            memberships={memberships}
+            activeMembership={activeMembership}
+            linkedAuthProviders={user?.linkedAuthProviders ?? []}
+            stepUpVerifiedAt={user?.stepUpVerifiedAt ?? {}}
+            onOpenProfessionalArea={() => router.push("/pro")}
+            onCreateProvider={() => router.push("/providers/new")}
+            onCityUpdated={() => router.refresh()}
+          />
+        ) : null}
 
-        <Paper sx={{ flex: 1, width: "100%", p: { xs: 3, md: 4 } }}>
-          {selectedSection === "profile" ? (
-            <ProfileOverview
-              name={user?.name}
-              email={user?.email}
-              image={user?.image}
-              customerCity={user?.customerCity}
-              memberships={memberships}
-              activeMembership={activeMembership}
-              linkedAuthProviders={user?.linkedAuthProviders ?? []}
-              stepUpVerifiedAt={user?.stepUpVerifiedAt ?? {}}
-              onOpenProfessionalArea={() => router.push("/pro")}
-              onCreateProvider={() => router.push("/providers/new")}
-              onCityUpdated={() => router.refresh()}
-            />
-          ) : null}
+        {selectedSection === "requests" ? (
+          <CustomerRequestsSection
+            autoResumeEnabled={searchParams.get("requestResume") === "1"}
+            onAutoResumeFinished={() => {
+              const nextParams = new URLSearchParams(searchParams.toString());
+              nextParams.delete("requestResume");
+              const nextQuery = nextParams.toString();
+              router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+            }}
+          />
+        ) : null}
 
-          {selectedSection === "requests" ? (
-            <CustomerRequestsSection
-              autoResumeEnabled={searchParams.get("requestResume") === "1"}
-              onAutoResumeFinished={() => {
-                const nextParams = new URLSearchParams(searchParams.toString());
-                nextParams.delete("requestResume");
-                const nextQuery = nextParams.toString();
-                router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
-              }}
-            />
-          ) : null}
-
-          {selectedSection === "documents" ? <CustomerPassportSection /> : null}
-        </Paper>
-      </Stack>
+        {selectedSection === "documents" ? <CustomerPassportSection /> : null}
+      </Paper>
     </Container>
   );
 }

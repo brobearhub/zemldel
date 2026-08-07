@@ -5,7 +5,9 @@ import { RequestsService } from './requests.service';
 function makeService(prisma: any) {
   const auth = {} as any;
   const internalAuth = {} as any;
-  return new RequestsService(prisma, auth, internalAuth);
+  const legalDocs = {} as any;
+  const chat = { notifyMessageCreated: vi.fn() } as any;
+  return new RequestsService(prisma, auth, internalAuth, legalDocs, chat);
 }
 
 describe('RequestsService remarks checklist', () => {

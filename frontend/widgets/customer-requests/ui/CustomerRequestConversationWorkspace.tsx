@@ -47,6 +47,10 @@ import Link from "@/shared/ui/Link";
 import { RequestDetailHeaderCard } from "@/shared/ui/RequestDetailHeaderCard";
 import { createCustomerRequestDetailsBehavior, RequestDetails } from "@/widgets/request-details";
 import {
+  createCustomerRequestLifecycleBehavior,
+  RequestLifecycleActions,
+} from "@/widgets/request-lifecycle-actions";
+import {
   createCustomerRequestRemarksBehavior,
   RequestRemarks,
 } from "@/widgets/request-remarks";
@@ -571,23 +575,33 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
             subtitle={pickTitle(req)}
             statusLabel={getRequestStatusLabel(req.status)}
             body={requestBody}
+            details={
+              <RequestDetails
+                busy={busy}
+                behavior={createCustomerRequestDetailsBehavior({
+                  request: req,
+                  canAcceptContract,
+                })}
+              />
+            }
+            afterBody={
+              <RequestLifecycleActions
+                busy={busy}
+                behavior={createCustomerRequestLifecycleBehavior({
+                  request: req,
+                  canAcceptContract,
+                  actions: {
+                    openOfferDialog: openContractDialog,
+                    acceptResult,
+                  },
+                })}
+              />
+            }
           />
 
           {notice ? <Alert severity="success">{notice}</Alert> : null}
           {error ? <Alert severity="error">{error}</Alert> : null}
           {remarksError ? <Alert severity="warning">{remarksError}</Alert> : null}
-
-          <RequestDetails
-            busy={busy}
-            behavior={createCustomerRequestDetailsBehavior({
-              request: req,
-              canAcceptContract,
-              actions: {
-                openOfferDialog: openContractDialog,
-                acceptResult,
-              },
-            })}
-          />
 
           <RequestWorkProgress
             mode="customer"

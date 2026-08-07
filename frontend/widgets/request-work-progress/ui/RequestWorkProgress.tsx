@@ -1,12 +1,17 @@
 "use client";
 
 import { useRef, useState } from "react";
+import AddIcon from "@mui/icons-material/Add";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
   Box,
   Button,
   Chip,
+  Collapse,
   Divider,
   FormControl,
+  IconButton,
   InputLabel,
   Link,
   MenuItem,
@@ -15,7 +20,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import type { WorkStageDto } from "@/entities/request";
+import { formatRequestDate, type WorkStageDto } from "@/entities/request";
 import {
   createProWorkStage,
   createProWorkStageDocSlot,
@@ -71,13 +76,33 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
     <DocumentsSectionShell
       headerLeft={
         <Typography variant="h6" fontWeight={800}>
-          Ход выполнения работ
+          Прогресс
         </Typography>
       }
       headerRight={
         canMutate ? (
-          <Button size="small" variant="outlined" disabled={isBusy} onClick={() => setCreateOpen((v) => !v)}>
-            {createOpen ? "Скрыть" : "Добавить этап"}
+          <Button
+            size="small"
+            variant="text"
+            disabled={isBusy}
+            startIcon={createOpen ? undefined : <AddIcon fontSize="small" />}
+            onClick={() => setCreateOpen((v) => !v)}
+            sx={{
+              minWidth: 0,
+              px: 1,
+              lineHeight: 1.2,
+              alignItems: "center",
+              "& .MuiButton-startIcon": {
+                marginRight: 0.5,
+                marginLeft: 0,
+                display: "inline-flex",
+                alignItems: "center",
+                // Why: глиф Add визуально ниже капители текста — поднимаем на 1px.
+                transform: "translateY(-1px)",
+              },
+            }}
+          >
+            {createOpen ? "Скрыть" : "Этап"}
           </Button>
         ) : null
       }
@@ -85,60 +110,131 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
       defaultExpanded
       collapseAriaLabel={{ expanded: "Свернуть этапы", collapsed: "Развернуть этапы" }}
     >
-      <Stack spacing={2}>
+      <Stack spacing={0.5}>
         {createOpen && canMutate ? (
-          <Stack spacing={1.25} sx={{ p: 1.5, border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
-            <TextField
-              label="Название"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={isBusy}
-              size="small"
-            />
-            <TextField
-              label="Описание"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={isBusy}
-              size="small"
-              multiline
-              minRows={2}
-            />
-            <FormControl size="small" fullWidth>
-              <InputLabel id="new-stage-status">Статус</InputLabel>
-              <Select
-                labelId="new-stage-status"
-                label="Статус"
-                value={statusKey}
-                onChange={(e) => setStatusKey(String(e.target.value))}
-                disabled={isBusy}
-              >
-                {props.statusOptions.map((opt) => (
-                  <MenuItem key={opt.key} value={opt.key}>
-                    {opt.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <Button
-              variant="contained"
-              disabled={isBusy || title.trim().length < 1}
-              onClick={() =>
-                void withBusy(async () => {
-                  await createProWorkStage(props.requestId, {
-                    title: title.trim(),
-                    description: description.trim(),
-                    statusKey,
-                  });
-                  setTitle("");
-                  setDescription("");
-                  setCreateOpen(false);
-                })
-              }
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "7fr 3fr" },
+              gap: 1.25,
+              p: 1.5,
+              border: "1px solid",
+              borderColor: "divider",
+              borderRadius: 1,
+              bgcolor: "common.white",
+              // Why: форма белая, а поля оставляем с прежним glass-фоном секции.
+              "& .MuiOutlinedInput-root": {
+                backgroundImage: (theme) => theme.custom.gradients.glass,
+              },
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 1.25,
+                minWidth: 0,
+                minHeight: 0,
+              }}
             >
-              Создать черновик
-            </Button>
-          </Stack>
+              <TextField
+                label="Название"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                disabled={isBusy}
+                size="small"
+              />
+              <Box
+                sx={{
+                  // Why: на md занимаем остаток высоты колонки и вписываем textarea в абсолютный слот —
+                  // иначе MUI TextField с minRows не растягивается flex'ом.
+                  position: { md: "relative" },
+                  flex: { md: 1 },
+                  minHeight: { xs: 64, md: 0 },
+                }}
+              >
+                <TextField
+                  label="Описание"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  disabled={isBusy}
+                  size="small"
+                  multiline
+                  minRows={2}
+                  fullWidth
+                  sx={{
+                    height: { md: "100%" },
+                    position: { md: "absolute" },
+                    inset: { md: 0 },
+                    "& .MuiInputBase-root": {
+                      height: { md: "100%" },
+                      alignItems: { md: "stretch" },
+                    },
+                    "& textarea": {
+                      height: { md: "100% !important" },
+                      overflow: { md: "auto !important" },
+                    },
+                  }}
+                />
+              </Box>
+            </Box>
+            <Stack spacing={1.25} sx={{ minWidth: 0 }}>
+              <FormControl size="small" fullWidth>
+                <InputLabel id="new-stage-status">Статус</InputLabel>
+                <Select
+                  labelId="new-stage-status"
+                  label="Статус"
+                  value={statusKey}
+                  onChange={(e) => setStatusKey(String(e.target.value))}
+                  disabled={isBusy}
+                >
+                  {props.statusOptions.map((opt) => (
+                    <MenuItem key={opt.key} value={opt.key}>
+                      {opt.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Button
+                variant="outlined"
+                disabled={isBusy || title.trim().length < 1}
+                onClick={() =>
+                  void withBusy(async () => {
+                    await createProWorkStage(props.requestId, {
+                      title: title.trim(),
+                      description: description.trim(),
+                      statusKey,
+                    });
+                    setTitle("");
+                    setDescription("");
+                    setCreateOpen(false);
+                  })
+                }
+              >
+                Создать черновик
+              </Button>
+              <Button
+                variant="contained"
+                disabled={isBusy || title.trim().length < 1}
+                onClick={() =>
+                  void withBusy(async () => {
+                    // Why: create → publish — заказчик сразу видит этап без отдельного шага.
+                    const stage = await createProWorkStage(props.requestId, {
+                      title: title.trim(),
+                      description: description.trim(),
+                      statusKey,
+                    });
+                    await publishProWorkStage(props.requestId, stage.id);
+                    setTitle("");
+                    setDescription("");
+                    setCreateOpen(false);
+                  })
+                }
+              >
+                Опубликовать
+              </Button>
+            </Stack>
+          </Box>
         ) : null}
 
         {props.stages.length === 0 ? (
@@ -148,10 +244,11 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
               : "Исполнитель пока не опубликовал этапы."}
           </Typography>
         ) : (
-          props.stages.map((stage) => (
+          props.stages.map((stage, index) => (
             <StageCard
               key={stage.id}
               stage={stage}
+              order={index + 1}
               mode={props.mode}
               canMutate={canMutate}
               isBusy={isBusy}
@@ -182,6 +279,7 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
 
 function StageCard(props: {
   stage: WorkStageDto;
+  order: number;
   mode: "provider" | "customer";
   canMutate: boolean;
   isBusy: boolean;
@@ -199,116 +297,169 @@ function StageCard(props: {
 }) {
   const { stage } = props;
   const isDraft = stage.lifecycle === "DRAFT";
+  const [expanded, setExpanded] = useState(false);
   const [editTitle, setEditTitle] = useState(stage.title);
   const [editDescription, setEditDescription] = useState(stage.description);
+  const stageDate = formatRequestDate(stage.publishedAt ?? stage.createdAt);
+  // Why: порядковый номер в UI — по позиции в уже отсортированном списке, не из БД.
+  const stageLabel = `${props.order}. ${stage.title}`;
 
   return (
-    <Box sx={{ p: 1.5, border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
-      <Stack spacing={1.25}>
-        <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Typography fontWeight={800}>{stage.title}</Typography>
-            {isDraft ? <Chip size="small" label="Черновик" color="warning" /> : null}
-          </Stack>
-          {props.mode === "provider" ? (
-            <FormControl size="small" sx={{ minWidth: 220 }} disabled={!props.canMutate || props.isBusy}>
-              <InputLabel id={`status-${stage.id}`}>Статус</InputLabel>
-              <Select
-                labelId={`status-${stage.id}`}
-                label="Статус"
-                value={stage.statusKey}
-                onChange={(e) =>
-                  props.onAction(async () => {
-                    await updateProWorkStageStatus(props.requestId, stage.id, String(e.target.value));
-                  })
-                }
-              >
-                {props.statusOptions.map((opt) => (
-                  <MenuItem key={opt.key} value={opt.key}>
-                    {opt.label}
-                  </MenuItem>
-                ))}
-                {!props.statusOptions.some((o) => o.key === stage.statusKey) ? (
-                  <MenuItem value={stage.statusKey}>{stage.statusLabel}</MenuItem>
-                ) : null}
-              </Select>
-            </FormControl>
-          ) : (
-            <Chip size="small" label={stage.statusLabel} color="success" />
-          )}
-        </Stack>
-
-        {props.mode === "provider" && isDraft && props.canMutate ? (
-          <>
-            <TextField
-              label="Название"
-              size="small"
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              disabled={props.isBusy}
-            />
-            <TextField
-              label="Описание"
-              size="small"
-              multiline
-              minRows={2}
-              value={editDescription}
-              onChange={(e) => setEditDescription(e.target.value)}
-              disabled={props.isBusy}
-            />
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              <Button
-                size="small"
-                variant="outlined"
-                disabled={props.isBusy}
-                onClick={() =>
-                  props.onAction(async () => {
-                    await updateProWorkStage(props.requestId, stage.id, {
-                      title: editTitle.trim(),
-                      description: editDescription.trim(),
-                    });
-                  })
-                }
-              >
-                Сохранить
-              </Button>
-              <Button
-                size="small"
-                variant="contained"
-                disabled={props.isBusy}
-                onClick={() =>
-                  props.onAction(async () => {
-                    await publishProWorkStage(props.requestId, stage.id);
-                  })
-                }
-              >
-                Опубликовать
-              </Button>
-              <Button
-                size="small"
-                color="error"
-                disabled={props.isBusy}
-                onClick={() =>
-                  props.onAction(async () => {
-                    await deleteProWorkStage(props.requestId, stage.id);
-                  })
-                }
-              >
-                Удалить
-              </Button>
+    <Box
+      sx={{
+        px: 2,
+        py: 1.25,
+        borderRadius: 1,
+        bgcolor: expanded ? "action.hover" : "transparent",
+      }}
+    >
+      <Stack spacing={1}>
+        <Box
+          role="button"
+          tabIndex={0}
+          onClick={() => setExpanded((value) => !value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setExpanded((value) => !value);
+            }
+          }}
+          sx={{ cursor: "pointer", outline: "none" }}
+        >
+          <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" useFlexGap>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0, flex: 1 }} flexWrap="wrap" useFlexGap>
+              <Typography fontWeight={600} noWrap sx={{ maxWidth: { xs: "100%", sm: 280 } }}>
+                {stageLabel}
+              </Typography>
+              {isDraft ? <Chip size="small" label="Черновик" color="warning" /> : null}
+              <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: "nowrap" }}>
+                {stageDate}
+              </Typography>
             </Stack>
-          </>
-        ) : (
-          <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-wrap" }}>
-            {stage.description || "Без описания"}
-          </Typography>
-        )}
+            <Stack direction="row" spacing={0.25} alignItems="center" sx={{ flexShrink: 0 }}>
+              <Typography variant="body2" color="primary" fontWeight={700} sx={{ whiteSpace: "nowrap" }}>
+                {stage.statusLabel}
+              </Typography>
+              <IconButton
+                size="small"
+                aria-label={expanded ? "Свернуть этап" : "Развернуть этап"}
+                aria-expanded={expanded}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpanded((value) => !value);
+                }}
+              >
+                {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+              </IconButton>
+            </Stack>
+          </Stack>
+        </Box>
 
-        <Divider />
+        <Collapse in={expanded} timeout="auto" unmountOnExit>
+          <Stack spacing={1.25} sx={{ pt: 0.5 }}>
+            {!(props.mode === "provider" && isDraft && props.canMutate) ? (
+              <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-wrap" }}>
+                {stage.description || "Без описания"}
+              </Typography>
+            ) : null}
 
-        <Typography variant="subtitle2" fontWeight={700}>
-          Файлы исполнителя
-        </Typography>
+            {props.mode === "provider" ? (
+              <FormControl
+                size="small"
+                sx={{ minWidth: 220, alignSelf: "flex-start" }}
+                disabled={!props.canMutate || props.isBusy}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <InputLabel id={`status-${stage.id}`}>Статус</InputLabel>
+                <Select
+                  labelId={`status-${stage.id}`}
+                  label="Статус"
+                  value={stage.statusKey}
+                  onChange={(e) =>
+                    props.onAction(async () => {
+                      await updateProWorkStageStatus(props.requestId, stage.id, String(e.target.value));
+                    })
+                  }
+                >
+                  {props.statusOptions.map((opt) => (
+                    <MenuItem key={opt.key} value={opt.key}>
+                      {opt.label}
+                    </MenuItem>
+                  ))}
+                  {!props.statusOptions.some((o) => o.key === stage.statusKey) ? (
+                    <MenuItem value={stage.statusKey}>{stage.statusLabel}</MenuItem>
+                  ) : null}
+                </Select>
+              </FormControl>
+            ) : null}
+
+            {props.mode === "provider" && isDraft && props.canMutate ? (
+              <>
+                <TextField
+                  label="Название"
+                  size="small"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  disabled={props.isBusy}
+                />
+                <TextField
+                  label="Описание"
+                  size="small"
+                  multiline
+                  minRows={2}
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  disabled={props.isBusy}
+                />
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    disabled={props.isBusy}
+                    onClick={() =>
+                      props.onAction(async () => {
+                        await updateProWorkStage(props.requestId, stage.id, {
+                          title: editTitle.trim(),
+                          description: editDescription.trim(),
+                        });
+                      })
+                    }
+                  >
+                    Сохранить
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    disabled={props.isBusy}
+                    onClick={() =>
+                      props.onAction(async () => {
+                        await publishProWorkStage(props.requestId, stage.id);
+                      })
+                    }
+                  >
+                    Опубликовать
+                  </Button>
+                  <Button
+                    size="small"
+                    color="error"
+                    disabled={props.isBusy}
+                    onClick={() =>
+                      props.onAction(async () => {
+                        await deleteProWorkStage(props.requestId, stage.id);
+                      })
+                    }
+                  >
+                    Удалить
+                  </Button>
+                </Stack>
+              </>
+            ) : null}
+
+            <Divider />
+
+            <Typography variant="subtitle2" fontWeight={700}>
+              Файлы исполнителя
+            </Typography>
         {stage.files.length === 0 ? (
           <Typography variant="body2" color="text.secondary">
             Нет файлов
@@ -361,7 +512,7 @@ function StageCard(props: {
                 });
               }}
             />
-            <Button size="small" variant="outlined" disabled={props.isBusy} onClick={props.onPickFile}>
+            <Button size="small" variant="text" disabled={props.isBusy} onClick={props.onPickFile}>
               Прикрепить файл
             </Button>
           </>
@@ -380,15 +531,59 @@ function StageCard(props: {
           <Stack spacing={1}>
             {stage.docSlots.map((slot) => (
               <Stack key={slot.id} spacing={0.5}>
-                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                  <Typography variant="body2" fontWeight={600}>
-                    {slot.title}
-                  </Typography>
-                  <Chip
-                    size="small"
-                    label={slot.status === "UPLOADED" ? "Загружено" : "Ожидает"}
-                    color={slot.status === "UPLOADED" ? "success" : "default"}
-                  />
+                <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" useFlexGap>
+                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" fontWeight={600}>
+                      {slot.title}
+                    </Typography>
+                    <Chip
+                      size="small"
+                      label={slot.status === "UPLOADED" ? "Загружено" : "Ожидает"}
+                      color={slot.status === "UPLOADED" ? "success" : "default"}
+                    />
+                  </Stack>
+                  {props.mode === "customer" && slot.status === "REQUESTED" ? (
+                    <>
+                      <input
+                        ref={(el) => props.slotFileInputRef(slot.id, el)}
+                        type="file"
+                        accept={ACCEPT}
+                        hidden
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = "";
+                          if (!file) return;
+                          props.onAction(async () => {
+                            await uploadCustomerWorkStageDocSlot(props.requestId, stage.id, slot.id, file);
+                          });
+                        }}
+                      />
+                      <Button
+                        size="small"
+                        variant="contained"
+                        disabled={props.isBusy || props.requestStatus !== "ACTIVE"}
+                        onClick={() => props.onPickSlotFile(slot.id)}
+                        sx={{ flexShrink: 0 }}
+                      >
+                        Загрузить файл
+                      </Button>
+                    </>
+                  ) : null}
+                  {props.mode === "provider" && props.canMutate && slot.status === "REQUESTED" ? (
+                    <Button
+                      size="small"
+                      color="error"
+                      disabled={props.isBusy}
+                      onClick={() =>
+                        props.onAction(async () => {
+                          await deleteProWorkStageDocSlot(props.requestId, stage.id, slot.id);
+                        })
+                      }
+                      sx={{ flexShrink: 0 }}
+                    >
+                      Отменить запрос
+                    </Button>
+                  ) : null}
                 </Stack>
                 {slot.status === "UPLOADED" && slot.originalName ? (
                   <Link
@@ -401,46 +596,6 @@ function StageCard(props: {
                   >
                     {slot.originalName}
                   </Link>
-                ) : null}
-                {props.mode === "customer" && slot.status === "REQUESTED" ? (
-                  <>
-                    <input
-                      ref={(el) => props.slotFileInputRef(slot.id, el)}
-                      type="file"
-                      accept={ACCEPT}
-                      hidden
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        e.target.value = "";
-                        if (!file) return;
-                        props.onAction(async () => {
-                          await uploadCustomerWorkStageDocSlot(props.requestId, stage.id, slot.id, file);
-                        });
-                      }}
-                    />
-                    <Button
-                      size="small"
-                      variant="contained"
-                      disabled={props.isBusy || props.requestStatus !== "ACTIVE"}
-                      onClick={() => props.onPickSlotFile(slot.id)}
-                    >
-                      Загрузить файл
-                    </Button>
-                  </>
-                ) : null}
-                {props.mode === "provider" && props.canMutate && slot.status === "REQUESTED" ? (
-                  <Button
-                    size="small"
-                    color="error"
-                    disabled={props.isBusy}
-                    onClick={() =>
-                      props.onAction(async () => {
-                        await deleteProWorkStageDocSlot(props.requestId, stage.id, slot.id);
-                      })
-                    }
-                  >
-                    Отменить запрос
-                  </Button>
                 ) : null}
               </Stack>
             ))}
@@ -471,6 +626,8 @@ function StageCard(props: {
             </Button>
           </Stack>
         ) : null}
+          </Stack>
+        </Collapse>
       </Stack>
     </Box>
   );

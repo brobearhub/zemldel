@@ -1,6 +1,5 @@
 import type { RequestCustomerDto, RequestProDto, RequestStatus, RequestSubjectType } from "@/entities/request";
 import { createCustomerRequestDetailsBehavior, createProviderRequestDetailsBehavior } from "./request-details-behavior";
-import { vi } from "vitest";
 
 function makeCustomer(overrides: Partial<RequestCustomerDto> = {}): RequestCustomerDto {
   return {
@@ -69,69 +68,21 @@ function makeProvider(overrides: Partial<RequestProDto> = {}): RequestProDto {
 }
 
 describe("request-details behavior", () => {
-  it("customer: getViewModel exposes actions and run dispatches callbacks", async () => {
-    const openOfferDialog = vi.fn();
-    const acceptResult = vi.fn();
-
-    const behavior = createCustomerRequestDetailsBehavior({
-      request: makeCustomer({ status: "DISCUSSING", lockedAt: "2026-08-06T00:00:00.000Z" }),
-      canAcceptContract: true,
-      actions: { openOfferDialog, acceptResult },
-    });
-
-    const vm = behavior.getViewModel();
-    expect(vm.actions.map((a) => a.id)).toEqual(["openOfferDialog"]);
-
-    await behavior.run({ id: "openOfferDialog" });
-    expect(openOfferDialog).toHaveBeenCalledTimes(1);
-  });
-
-  it("customer: acceptResult dispatches on ACCEPTANCE_PENDING", async () => {
-    const acceptResult = vi.fn();
+  it("customer: exposes progress view model only", () => {
     const behavior = createCustomerRequestDetailsBehavior({
       request: makeCustomer({ status: "ACCEPTANCE_PENDING" }),
       canAcceptContract: false,
-      actions: { openOfferDialog: vi.fn(), acceptResult },
     });
-
-    expect(behavior.getViewModel().actions.map((a) => a.id)).toEqual(["acceptResult"]);
-    await behavior.run({ id: "acceptResult" });
-    expect(acceptResult).toHaveBeenCalledTimes(1);
-  });
-
-  it("provider: run dispatches to correct callbacks", async () => {
-    const startWork = vi.fn();
-    const markRendered = vi.fn();
-    const requestAcceptance = vi.fn();
-    const complete = vi.fn();
-    const declineOffer = vi.fn();
-
-    const behavior = createProviderRequestDetailsBehavior({
-      request: makeProvider({ status: "ACTIVE", offerStatus: "SELECTED" }),
-      actions: { startWork, markRendered, requestAcceptance, complete, declineOffer },
-    });
-
-    await behavior.run({ id: "markRendered" });
-    expect(markRendered).toHaveBeenCalledTimes(1);
-
-    await behavior.run({ id: "declineOffer" });
-    expect(declineOffer).toHaveBeenCalledTimes(1);
-  });
-
-  it("provider: disables markRendered when flag is set", () => {
-    const behavior = createProviderRequestDetailsBehavior({
-      request: makeProvider({ status: "ACTIVE", offerStatus: "SELECTED" }),
-      isMarkRenderedDisabled: true,
-      actions: {
-        startWork: vi.fn(),
-        markRendered: vi.fn(),
-        requestAcceptance: vi.fn(),
-        complete: vi.fn(),
-        declineOffer: vi.fn(),
-      },
-    });
-
     const vm = behavior.getViewModel();
-    expect(vm.actions.find((a) => a.id === "markRendered")?.disabled).toBe(true);
+    expect(vm.activeStepId).toBe("ACCEPTANCE");
+    expect(vm.steps.length).toBeGreaterThan(0);
+    expect("actions" in vm).toBe(false);
+  });
+
+  it("provider: muted when locked", () => {
+    const behavior = createProviderRequestDetailsBehavior({
+      request: makeProvider({ status: "ACTIVE", isLocked: true }),
+    });
+    expect(behavior.getViewModel().muted).toBe(true);
   });
 });

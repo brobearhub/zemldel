@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ChatEnsureBodyDto {
@@ -22,4 +22,11 @@ export class ChatPostMessageBodyDto {
   @IsOptional()
   @IsUUID()
   replyToMessageId?: string;
+}
+
+export class ChatInboxQueryDto {
+  @ApiPropertyOptional({ enum: ['customer', 'provider'] })
+  @IsOptional()
+  @IsIn(['customer', 'provider'])
+  role?: 'customer' | 'provider';
 }

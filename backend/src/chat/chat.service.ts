@@ -13,6 +13,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import { isLockedToOtherProvider } from '../requests/dto/request.dto';
 import { ChatGateway } from './chat.gateway';
+import type { ChatPresenceUpdatedPayload, ChatViewerSide } from './chat-presence';
 
 const SNIPPET_LEN = 160;
 type ChatAccessAction = 'read' | 'write';
@@ -44,6 +45,14 @@ export type ServiceRequestConversationListItemDto = {
   providerName: string;
   lastMessageAt: string | null;
   lastSnippet: string | null;
+};
+
+export type ChatInboxItemDto = {
+  serviceRequestId: string;
+  title: string;
+  lastMessageAt: string | null;
+  lastSnippet: string | null;
+  unreadCount?: number;
 };
 
 @Injectable()
@@ -299,6 +308,148 @@ export class ChatService {
       'code' in error &&
       (error as { code?: unknown }).code === 'P2002'
     );
+  }
+
+  async listInbox(
+    actorUserId: string,
+    role: 'customer' | 'provider',
+  ): Promise<ChatInboxItemDto[]> {
+    const user = await this.loadUserChatActor(actorUserId);
+    const memberIds = user.providerMemberships.map((m) => m.providerId);
+
+    if (user.systemRole === 'PLATFORM_ADMIN') {
+      throw new ForbiddenException(
+        'Platform admin cannot access customer-provider chats',
+      );
+    }
+
+    const titleFromRequest = (req: {
+      service: { title: string } | null;
+      category: { name: string } | null;
+    }) => req.service?.title ?? req.category?.name ?? 'Заявка';
+
+    const take = 500;
+
+    if (role === 'provider') {
+      const providerId = this.pickActorProviderId(user);
+      if (!providerId) {
+        throw new ForbiddenException('Active provider is required');
+      }
+      if (!memberIds.includes(providerId)) {
+        throw new ForbiddenException('Forbidden');
+      }
+
+      const rows = await this.prisma.conversation.findMany({
+        where: {
+          providerId,
+          messages: { some: {} },
+          request: { status: { not: 'CLOSED' } },
+        },
+        select: {
+          requestId: true,
+          providerId: true,
+          lastMessageAt: true,
+          createdAt: true,
+          request: {
+            select: {
+              id: true,
+              status: true,
+              lockedAt: true,
+              providerId: true,
+              service: { select: { title: true } },
+              category: { select: { name: true } },
+            },
+          },
+          messages: {
+            select: { body: true, createdAt: true },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+        },
+        orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
+        take,
+      });
+
+      const seen = new Set<string>();
+      const result: ChatInboxItemDto[] = [];
+      for (const c of rows) {
+        if (seen.has(c.requestId)) continue;
+        seen.add(c.requestId);
+
+        const lastBody = c.messages[0]?.body ?? null;
+        const snippet =
+          lastBody && lastBody.length > SNIPPET_LEN
+            ? `${lastBody.slice(0, SNIPPET_LEN)}…`
+            : lastBody;
+        const lastAt = c.lastMessageAt ?? c.messages[0]?.createdAt ?? null;
+
+        result.push({
+          serviceRequestId: c.requestId,
+          title: titleFromRequest(c.request),
+          lastMessageAt: lastAt ? lastAt.toISOString() : null,
+          lastSnippet: snippet,
+        });
+      }
+
+      return result;
+    }
+
+    // customer
+    const rows = await this.prisma.conversation.findMany({
+      where: {
+        customerUserId: actorUserId,
+        messages: { some: {} },
+        request: { status: { not: 'CLOSED' } },
+      },
+      select: {
+        requestId: true,
+        providerId: true,
+        lastMessageAt: true,
+        createdAt: true,
+        request: {
+          select: {
+            id: true,
+            status: true,
+            lockedAt: true,
+            providerId: true,
+            service: { select: { title: true } },
+            category: { select: { name: true } },
+          },
+        },
+        messages: {
+          select: { body: true, createdAt: true },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+      orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
+      take,
+    });
+
+    const seen = new Set<string>();
+    const result: ChatInboxItemDto[] = [];
+    for (const c of rows) {
+      // customer cannot see threads if request is locked to another provider
+      if (isLockedToOtherProvider(c.request, c.providerId)) continue;
+      if (seen.has(c.requestId)) continue;
+      seen.add(c.requestId);
+
+      const lastBody = c.messages[0]?.body ?? null;
+      const snippet =
+        lastBody && lastBody.length > SNIPPET_LEN
+          ? `${lastBody.slice(0, SNIPPET_LEN)}…`
+          : lastBody;
+      const lastAt = c.lastMessageAt ?? c.messages[0]?.createdAt ?? null;
+
+      result.push({
+        serviceRequestId: c.requestId,
+        title: titleFromRequest(c.request),
+        lastMessageAt: lastAt ? lastAt.toISOString() : null,
+        lastSnippet: snippet,
+      });
+    }
+
+    return result;
   }
 
   async ensureServiceRequestConversation(
@@ -738,6 +889,158 @@ export class ChatService {
     return [...ids];
   }
 
+  private async getConversationPresencePayload(
+    conversationId: string,
+  ): Promise<{ payload: ChatPresenceUpdatedPayload; customerUserId: string; providerId: string } | null> {
+    const conv = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { id: true, customerUserId: true, providerId: true },
+    });
+    if (!conv) {
+      return null;
+    }
+
+    const members = await this.prisma.providerMember.findMany({
+      where: { providerId: conv.providerId, status: 'ACTIVE' },
+      select: { userId: true },
+    });
+
+    const customerOnline = this.gateway.isUserOnline(conv.customerUserId);
+    const providerOnline = members.some((m) => this.gateway.isUserOnline(m.userId));
+
+    return {
+      payload: {
+        conversationId: conv.id,
+        customerOnline,
+        providerOnline,
+      },
+      customerUserId: conv.customerUserId,
+      providerId: conv.providerId,
+    };
+  }
+
+  async getConversationPresenceSnapshot(
+    actorUserId: string,
+    conversationId: string,
+  ): Promise<{ viewerSide: ChatViewerSide; presence: ChatPresenceUpdatedPayload } | null> {
+    await this.assertConversationAccess(actorUserId, conversationId, 'read');
+    const res = await this.getConversationPresencePayload(conversationId);
+    if (!res) return null;
+    const viewerSide: ChatViewerSide =
+      actorUserId === res.customerUserId ? 'customer' : 'provider';
+    return { viewerSide, presence: res.payload };
+  }
+
+  async notifyPresenceChanged(userId: string): Promise<void> {
+    const memberships = await this.prisma.providerMember.findMany({
+      where: { userId, status: 'ACTIVE' },
+      select: { providerId: true },
+    });
+    const providerIds = memberships.map((m) => m.providerId);
+
+    const [customerConvs, providerConvs] = await Promise.all([
+      this.prisma.conversation.findMany({
+        where: { customerUserId: userId, status: 'OPEN' },
+        select: { id: true, customerUserId: true, providerId: true },
+      }),
+      providerIds.length
+        ? this.prisma.conversation.findMany({
+            where: { providerId: { in: providerIds }, status: 'OPEN' },
+            select: { id: true, customerUserId: true, providerId: true },
+          })
+        : Promise.resolve([] as Array<{ id: string; customerUserId: string; providerId: string }>),
+    ]);
+
+    const convById = new Map<string, { id: string; customerUserId: string; providerId: string }>();
+    for (const c of customerConvs) convById.set(c.id, c);
+    for (const c of providerConvs) convById.set(c.id, c);
+    const conversations = [...convById.values()];
+    if (conversations.length === 0) return;
+
+    const uniqProviderIds = [...new Set(conversations.map((c) => c.providerId))];
+    const allMembers = await this.prisma.providerMember.findMany({
+      where: { providerId: { in: uniqProviderIds }, status: 'ACTIVE' },
+      select: { providerId: true, userId: true },
+    });
+    const memberIdsByProviderId = new Map<string, string[]>();
+    for (const m of allMembers) {
+      const arr = memberIdsByProviderId.get(m.providerId) ?? [];
+      arr.push(m.userId);
+      memberIdsByProviderId.set(m.providerId, arr);
+    }
+
+    for (const conv of conversations) {
+      const memberIds = memberIdsByProviderId.get(conv.providerId) ?? [];
+      const payload: ChatPresenceUpdatedPayload = {
+        conversationId: conv.id,
+        customerOnline: this.gateway.isUserOnline(conv.customerUserId),
+        providerOnline: memberIds.some((id) => this.gateway.isUserOnline(id)),
+      };
+      this.gateway.emitPresenceUpdated(conv.id, payload);
+    }
+  }
+
+  private async broadcastMessageCreated(input: {
+    conversationId: string;
+    dto: ChatMessageDto;
+    senderUserId: string;
+    body: string;
+    createdAt: Date;
+  }): Promise<void> {
+    this.gateway.emitMessageCreated(input.conversationId, input.dto);
+
+    const participants = await this.getParticipantUserIds(input.conversationId);
+    const convRow = await this.prisma.conversation.findUnique({
+      where: { id: input.conversationId },
+      select: { requestId: true },
+    });
+
+    if (!convRow?.requestId) {
+      return;
+    }
+
+    const bodySnippet =
+      input.body.length > SNIPPET_LEN
+        ? `${input.body.slice(0, SNIPPET_LEN)}…`
+        : input.body;
+    const fullHint = {
+      conversationId: input.conversationId,
+      subjectType: 'request' as const,
+      subjectId: convRow.requestId,
+      requestId: convRow.requestId,
+      lastMessageAt: input.createdAt.toISOString(),
+      senderUserId: input.senderUserId,
+      bodySnippet,
+    };
+    for (const uid of participants) {
+      if (uid !== input.senderUserId) {
+        this.gateway.emitUnreadHint(uid, fullHint);
+      }
+    }
+  }
+
+  /**
+   * Why: messages created outside createMessage (e.g. decline-offer side-effect)
+   * still need the same realtime fan-out, otherwise clients only see them after reload.
+   */
+  async notifyMessageCreated(messageId: string): Promise<void> {
+    const row = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      include: this.messageInclude,
+    });
+    if (!row) {
+      return;
+    }
+
+    await this.broadcastMessageCreated({
+      conversationId: row.conversationId,
+      dto: this.mapMessageRow(row),
+      senderUserId: row.senderUserId,
+      body: row.body,
+      createdAt: row.createdAt,
+    });
+  }
+
   async createMessage(
     actorUserId: string,
     conversationId: string,
@@ -790,9 +1093,14 @@ export class ChatService {
 
       const dto = this.mapMessageRow(created);
 
-      this.gateway.emitMessageCreated(conversationId, dto);
+      await this.broadcastMessageCreated({
+        conversationId,
+        dto,
+        senderUserId: actorUserId,
+        body,
+        createdAt: created.createdAt,
+      });
 
-      const participants = await this.getParticipantUserIds(conversationId);
       const convRow = await this.prisma.conversation.findUnique({
         where: { id: conversationId },
         select: { requestId: true },
@@ -803,23 +1111,6 @@ export class ChatService {
           where: { id: convRow.requestId, status: 'NEW' },
           data: { status: 'DISCUSSING' },
         });
-
-        const bodySnippet =
-          body.length > SNIPPET_LEN ? `${body.slice(0, SNIPPET_LEN)}…` : body;
-        const fullHint = {
-          conversationId,
-          subjectType: 'request' as const,
-          subjectId: convRow.requestId,
-          requestId: convRow.requestId,
-          lastMessageAt: created.createdAt.toISOString(),
-          senderUserId: actorUserId,
-          bodySnippet,
-        };
-        for (const uid of participants) {
-          if (uid !== actorUserId) {
-            this.gateway.emitUnreadHint(uid, fullHint);
-          }
-        }
       }
 
       return { message: dto, alreadyExisted: false };

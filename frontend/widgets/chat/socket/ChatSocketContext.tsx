@@ -8,7 +8,7 @@ export type ChatSocketContextValue = {
   unreadByRequestId: Record<string, number>;
   setOpenConversationId: (conversationId: string | null) => void;
   clearUnreadForRequest: (requestId: string) => void;
-  joinConversationRoom: (conversationId: string) => Promise<boolean>;
+  joinConversationRoom: (conversationId: string) => Promise<import("@/entities/chat/dto/chat.dto").ChatJoinConversationAck>;
 };
 
 export const ChatSocketContext = createContext<ChatSocketContextValue | null>(null);

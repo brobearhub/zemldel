@@ -94,7 +94,7 @@ export function ContractFilesList({
                     </Stack>
 
                     {file.status === "REVISION_REQUESTED" && file.revisionMessage ? (
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body1" color="text.primary" fontWeight={600}>
                         {revisionLabel}: {file.revisionMessage}
                       </Typography>
                     ) : null}

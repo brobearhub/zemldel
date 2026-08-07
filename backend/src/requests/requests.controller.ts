@@ -37,6 +37,7 @@ import {
   RequestRemarkCreateDto,
   RequestRemarkDto,
 } from './dto/request-remark.dto';
+import { parseDeclineOfferDto } from './dto/decline-offer.dto';
 import { RequestsService } from './requests.service';
 import {
   ProEligibleCategoryDto,
@@ -506,10 +507,34 @@ export class RequestsController {
 
   @Post('pro/requests/:id/decline-offer')
   @ApiParam({ name: 'id', type: String })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { reason: { type: 'string', minLength: 1 } },
+      required: ['reason'],
+    },
+  })
   @ApiOkResponse({ type: RequestProDto })
-  async proDeclineOffer(@Req() request: Request, @Param('id') id: string) {
+  async proDeclineOffer(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
     const ctx = await this.requests.requireProviderContext(request);
-    return this.requests.declineOfferByProvider(ctx.providerId, id);
+    const parsed = parseDeclineOfferDto(body);
+    if (!parsed.ok) {
+      throw new UnprocessableEntityException({
+        error: 'Validation failed',
+        issues: parsed.issues.map((issue) => ({
+          path: issue.property ? [issue.property] : [],
+          message: Object.values(issue.constraints ?? {})[0] ?? 'Invalid reason',
+        })),
+      });
+    }
+    return this.requests.declineOfferByProvider(ctx.providerId, id, {
+      reason: parsed.value.reason,
+      actorUserId: ctx.actorUserId,
+    });
   }
 
   // --- Provider: remarks checklist ---

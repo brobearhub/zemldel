@@ -95,9 +95,9 @@ export const ProfileMenu = () => {
         aria-expanded={open ? "true" : undefined}
         sx={{
           display: "flex",
-          flexDirection: "column",
+          flexDirection: "row",
           alignItems: "center",
-          gap: 0.25,
+          gap: 0.75,
           px: { xs: 0.75, sm: 1 },
           py: 0.75,
           borderRadius: 1.5,
@@ -115,14 +115,12 @@ export const ProfileMenu = () => {
           <Avatar
             src={user?.image || undefined}
             sx={{
-              width: { xs: 24, sm: 28 },
-              height: { xs: 24, sm: 28 },
-              bgcolor: "info.main",
+              width: { xs: 28, sm: 32 },
+              height: { xs: 28, sm: 32 },
+              bgcolor: "primary.main",
               color: "common.white",
-              fontSize: { xs: 11, sm: 12 },
+              fontSize: { xs: 12, sm: 13 },
               fontWeight: 600,
-              border: 2,
-              borderColor: "info.main",
             }}
           >
             {initials}
@@ -130,19 +128,6 @@ export const ProfileMenu = () => {
         ) : (
           <PersonOutlineRoundedIcon sx={{ fontSize: { xs: 22, sm: 24 }, color: "info.main" }} />
         )}
-        <Typography
-          color="common.gray"
-          className="nav-label"
-          variant="body2"
-          sx={{
-            display: { xs: "none", md: "block" },
-            fontWeight: 600,
-            fontSize: 12,
-            opacity: 1,
-          }}
-        >
-          Профиль
-        </Typography>
       </Box>
 
       <Menu

@@ -1,7 +1,7 @@
 # Decline Offer Reason + Revision Comment Visibility — Design
 
 Дата: 2026-08-06  
-Статус: draft (ожидает review)
+Статус: implemented
 
 ## Цель
 

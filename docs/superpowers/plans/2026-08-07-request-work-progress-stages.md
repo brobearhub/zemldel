@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Блок «Ход выполнения работ» на `/pro/requests/{id}` и `/profile/requests/{id}`: этапы с draft/publish, статусы (системные + кастомные), файлы исполнителя и слоты документов для клиента.
+**Goal:** Блок «Прогресс» на `/pro/requests/{id}` и `/profile/requests/{id}`: этапы с draft/publish, статусы (системные + кастомные), файлы исполнителя и слоты документов для клиента.
 
-**Architecture:** Отдельный NestJS-модуль `request-work-stages` (как `request-document-requests`) + Prisma-модели. Кастомные статусы в `ProviderUserSettings.workStageStatuses`. Frontend: entity API через BFF + widget под `RequestDetails`. Порядок на странице: **Детали → Ход выполнения работ → Замечания → Документы**.
+**Architecture:** Отдельный NestJS-модуль `request-work-stages` (как `request-document-requests`) + Prisma-модели. Кастомные статусы в `ProviderUserSettings.workStageStatuses`. Frontend: entity API через BFF + widget под `RequestDetails`. Порядок на странице: **Детали → Прогресс → Замечания → Документы**.
 
 **Tech Stack:** NestJS, Prisma, S3 (`S3Service`), Next.js App Router BFF, MUI, Vitest, FSD
 
@@ -43,7 +43,7 @@ backend/src/request-work-stages/
 
 - `backend/prisma/schema.prisma` — enums/models + `ProviderUserSettings.workStageStatuses`
 - `backend/src/app.module.ts` — register module
-- `docs/business-logic.md` — раздел «Ход выполнения работ»
+- `docs/business-logic.md` — раздел «Прогресс»
 
 ### Frontend (create)
 
@@ -458,7 +458,7 @@ type RequestWorkProgressProps = {
 ```
 
 UI:
-- Paper «Ход выполнения работ» (стиль как соседние блоки)
+- Paper «Прогресс» (стиль как соседние блоки)
 - Empty: provider CTA «Добавить этап»; customer текст «Исполнитель пока не опубликовал этапы»
 - Stage card: badge Черновик; StatusSelect; title/description (edit only draft); Publish; files list; doc slots
 - Read-only UI если `requestStatus !== 'ACTIVE'` (кроме просмотра/download)

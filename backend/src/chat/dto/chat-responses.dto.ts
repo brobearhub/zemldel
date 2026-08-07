@@ -1,4 +1,21 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class ChatInboxItemDto {
+  @ApiProperty({ format: 'uuid' })
+  serviceRequestId!: string;
+
+  @ApiProperty()
+  title!: string;
+
+  @ApiProperty({ format: 'date-time', nullable: true, example: null })
+  lastMessageAt!: string | null;
+
+  @ApiProperty({ nullable: true, example: null })
+  lastSnippet!: string | null;
+
+  @ApiPropertyOptional({ example: 0, description: 'Если не поддерживается — поле может отсутствовать.' })
+  unreadCount?: number;
+}
 
 export class ServiceRequestConversationListItemDto {
   @ApiProperty({ format: 'uuid' })

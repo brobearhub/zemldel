@@ -3,7 +3,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Alert, Box, Paper, Stack, Typography } from "@mui/material";
-import type { ChatConversationAccessDto, ChatEnsureResponse, ChatMessageDto, ChatPostMessageResponse } from "@/entities/chat/dto/chat.dto";
+import { alpha } from "@mui/material/styles";
+import type {
+  ChatConversationAccessDto,
+  ChatEnsureResponse,
+  ChatMessageDto,
+  ChatPostMessageResponse,
+  ChatPresenceUpdatedPayload,
+  ChatViewerSide,
+} from "@/entities/chat/dto/chat.dto";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import { Chat, type ChatRenderableRow, type ChatReplyTarget } from "./Chat";
 
@@ -54,6 +62,14 @@ export function ServiceRequestChatPanel({ serviceRequestId, conversationId: forc
   const [bootError, setBootError] = useState<string | null>(null);
   const [canWrite, setCanWrite] = useState(true);
   const [readOnlyReason, setReadOnlyReason] = useState<string | null>(null);
+  const [viewerSide, setViewerSide] = useState<ChatViewerSide | null>(null);
+  const [peerOnline, setPeerOnline] = useState(false);
+  const [presenceReady, setPresenceReady] = useState(false);
+  const prevPeerOnlineRef = useRef(false);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [headerFlash, setHeaderFlash] = useState(false);
+  const [indicatorTone, setIndicatorTone] = useState<"secondary" | "info" | "primary">("secondary");
+  const indicatorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const serverMessagesRef = useRef<ChatMessageDto[]>([]);
   useEffect(() => {
@@ -205,7 +221,33 @@ export function ServiceRequestChatPanel({ serviceRequestId, conversationId: forc
     if (!conversationId || !socketConnected) {
       return;
     }
-    void joinConversationRoom(conversationId);
+    // reset per-conversation presence state before join snapshot arrives
+    setPresenceReady(false);
+    setHeaderFlash(false);
+    setViewerSide(null);
+    setPeerOnline(false);
+    prevPeerOnlineRef.current = false;
+    setIndicatorTone("secondary");
+    if (indicatorTimerRef.current) {
+      clearTimeout(indicatorTimerRef.current);
+      indicatorTimerRef.current = null;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      const ack = await joinConversationRoom(conversationId);
+      if (cancelled) return;
+      if (ack.ok) {
+        setViewerSide(ack.viewerSide);
+        setPeerOnline(ack.peerOnline);
+        prevPeerOnlineRef.current = ack.peerOnline; // avoid flashing on initial snapshot
+        setIndicatorTone(ack.peerOnline ? "primary" : "secondary");
+        setPresenceReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [conversationId, socketConnected, joinConversationRoom]);
 
   useEffect(() => {
@@ -224,6 +266,66 @@ export function ServiceRequestChatPanel({ serviceRequestId, conversationId: forc
       socket?.off("message.created", handler);
     };
   }, [conversationId, socket]);
+
+  useEffect(() => {
+    if (!conversationId || !viewerSide) {
+      return;
+    }
+    const handler = (payload: ChatPresenceUpdatedPayload) => {
+      if (payload.conversationId !== conversationId) return;
+      setPeerOnline(viewerSide === "customer" ? payload.providerOnline : payload.customerOnline);
+    };
+    socket?.on("presence.updated", handler);
+    return () => {
+      socket?.off("presence.updated", handler);
+    };
+  }, [conversationId, socket, viewerSide]);
+
+  useEffect(() => {
+    if (!presenceReady) {
+      prevPeerOnlineRef.current = peerOnline;
+      return;
+    }
+    const prev = prevPeerOnlineRef.current;
+    prevPeerOnlineRef.current = peerOnline;
+    if (prev === peerOnline) return;
+
+    // indicator: online/offline transition via info with 1s pause
+    setIndicatorTone("info");
+    if (indicatorTimerRef.current) {
+      clearTimeout(indicatorTimerRef.current);
+    }
+    indicatorTimerRef.current = setTimeout(() => {
+      setIndicatorTone(peerOnline ? "primary" : "secondary");
+      indicatorTimerRef.current = null;
+    }, 1000);
+
+    // header shine: only when peer comes online; run twice
+    if (!prev && peerOnline) {
+      setHeaderFlash(false); // restart animation even if already true
+      setTimeout(() => setHeaderFlash(true), 0);
+      if (flashTimerRef.current) {
+        clearTimeout(flashTimerRef.current);
+      }
+      flashTimerRef.current = setTimeout(() => {
+        setHeaderFlash(false);
+        flashTimerRef.current = null;
+      }, 1350);
+    }
+  }, [peerOnline, presenceReady]);
+
+  useEffect(() => {
+    return () => {
+      if (flashTimerRef.current) {
+        clearTimeout(flashTimerRef.current);
+        flashTimerRef.current = null;
+      }
+      if (indicatorTimerRef.current) {
+        clearTimeout(indicatorTimerRef.current);
+        indicatorTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const postOutbound = useCallback(
     async (body: string, replyToMessageId: string | undefined, clientMessageId: string) => {
@@ -353,10 +455,59 @@ export function ServiceRequestChatPanel({ serviceRequestId, conversationId: forc
       variant="outlined"
       sx={{ height: "100%", minHeight: 420, display: "flex", flexDirection: "column", overflow: "hidden" }}
     >
-      <Box sx={{ px: 2, py: 1.5, borderBottom: "1px solid", borderBottomColor: "divider" }}>
-        <Typography variant="h6" fontWeight={800}>
-          {title}
-        </Typography>
+      <Box
+        sx={(theme) => ({
+          px: 2,
+          py: 1.5,
+          borderBottom: "1px solid",
+          borderBottomColor: "divider",
+          position: "relative",
+          overflow: "hidden",
+          ...(headerFlash
+            ? {
+                "@keyframes chatHeaderShine": {
+                  "0%": { transform: "translateX(-140%) skewX(-20deg)", opacity: 0 },
+                  "15%": { opacity: 0.65 },
+                  "100%": { transform: "translateX(260%) skewX(-20deg)", opacity: 0 },
+                },
+                "&::after": {
+                  content: '""',
+                  position: "absolute",
+                  top: 0,
+                  bottom: 0,
+                  left: 0,
+                  width: "38%",
+                  background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.primary.main, 0.22)}, transparent)`,
+                  opacity: 0,
+                  transform: "translateX(-140%) skewX(-20deg)",
+                  animation: "chatHeaderShine 650ms ease-out 2",
+                  animationFillMode: "both",
+                  pointerEvents: "none",
+                  willChange: "transform, opacity",
+                },
+                "@media (prefers-reduced-motion: reduce)": {
+                  "&::after": { animation: "none", opacity: 0 },
+                },
+              }
+            : null),
+        })}
+      >
+        <Stack direction="row" alignItems="center" spacing={1}>
+          {viewerSide ? (
+            <Box
+              sx={{
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                bgcolor: `${indicatorTone}.main`,
+                flex: "0 0 auto",
+              }}
+            />
+          ) : null}
+          <Typography variant="h6" fontWeight={800}>
+            {title}
+          </Typography>
+        </Stack>
         {subtitle ? (
           <Typography variant="body2" color="text.secondary">
             {subtitle}

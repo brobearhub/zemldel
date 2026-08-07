@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 
@@ -8,6 +9,10 @@ export type RequestDetailHeaderCardProps = {
   statusLabel: string;
   /** Текст заявки в белой карточке; если null — карточка скрыта */
   body: string | null;
+  /** Произвольный контент между заголовком и текстом заявки */
+  details?: ReactNode;
+  /** Контент после описания (lifecycle-кнопки/мета); без body — сразу после details */
+  afterBody?: ReactNode;
   title?: string;
 };
 
@@ -18,6 +23,8 @@ export function RequestDetailHeaderCard({
   subtitle,
   statusLabel,
   body,
+  details,
+  afterBody,
   title = "Заявка",
 }: RequestDetailHeaderCardProps) {
   return (
@@ -55,6 +62,8 @@ export function RequestDetailHeaderCard({
           />
         </Stack>
 
+        {details ? <Box>{details}</Box> : null}
+
         {body ? (
           <Paper
             elevation={0}
@@ -71,6 +80,8 @@ export function RequestDetailHeaderCard({
             </Typography>
           </Paper>
         ) : null}
+
+        {afterBody ? <Box>{afterBody}</Box> : null}
       </Stack>
     </Box>
   );

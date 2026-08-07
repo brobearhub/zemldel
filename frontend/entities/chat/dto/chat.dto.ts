@@ -45,7 +45,27 @@ export type ChatServiceRequestConversationListItemDto = {
   lastSnippet: string | null;
 };
 
+export type ChatInboxItemDto = {
+  serviceRequestId: string;
+  title: string;
+  lastMessageAt: string | null;
+  lastSnippet: string | null;
+  unreadCount?: number;
+};
+
 export type ChatPostMessageResponse = {
   message: ChatMessageDto;
   alreadyExisted: boolean;
 };
+
+export type ChatViewerSide = "customer" | "provider";
+
+export type ChatPresenceUpdatedPayload = {
+  conversationId: string;
+  customerOnline: boolean;
+  providerOnline: boolean;
+};
+
+export type ChatJoinConversationAck =
+  | { ok: true; viewerSide: ChatViewerSide; peerOnline: boolean }
+  | { ok: false; error: string };
