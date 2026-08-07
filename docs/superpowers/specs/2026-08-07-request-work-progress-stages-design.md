@@ -25,6 +25,7 @@
 | Модель статуса этапа | Фиксированный набор системных статусов + кастомные статусы исполнителя; отдельно свободные `title` и `description` |
 | Кастомные статусы | Личные для активного пользователя в контексте provider (`ProviderUserSettings`); shared на весь provider — вне MVP |
 | Хранение кастомных статусов | Новое поле `workStageStatuses Json?` в `ProviderUserSettings`; `proInboxFilters` не переименовываем |
+| Удаление кастомного статуса | Нельзя, если `statusKey` используется на этапах **активных** заявок; если только на **архивных** — удалять из settings можно; на архивных заявках label сохраняется через `statusLabel` |
 | Когда доступен блок | Мутации при `Request.status = ACTIVE`; в `ACCEPTANCE_PENDING` — read-only |
 | Запрос файлов у клиента | Слоты документов на этапе (как `RequestDocumentRequest`: название → upload клиентом) |
 | Жизненный цикл этапа | `DRAFT` → `PUBLISHED`; после публикации `title`/`description` immutable |
@@ -107,8 +108,15 @@
 
 - scope: `(userId, providerId)` — личный список в кабинете активного provider;
 - UI: pro sidebar → «Настройки»;
-- переименование/удаление в settings влияет только на dropdown будущего выбора;
-- уже проставленные на этапах `statusKey`/`statusLabel` не переписываются и не каскадятся (этапы продолжают показывать snapshot `statusLabel`).
+- переименование в settings влияет только на dropdown будущего выбора; уже проставленные `statusLabel` на этапах не переписываются.
+
+**Удаление кастомного статуса из settings:**
+
+- Заявка считается **активной** (блокирует удаление), если есть этап с этим `statusKey` и `Request.status ∈ { ACTIVE, ACCEPTANCE_PENDING }` (и `providerId` = текущий provider-контекст).
+- Заявка считается **архивной** для этого правила, если `Request.status ∈ { ACCEPTED, COMPLETED, CANCELLED, CLOSED }` (сделка вне фазы работы/приёмки).
+- Если статус используется **хотя бы на одной активной** заявке → `400`, удаление запрещено.
+- Если используется **только на архивных** (или нигде) → удаление из `workStageStatuses` разрешено.
+- На архивных заявках отображение не ломается: этапы хранят snapshot `statusKey` + `statusLabel`, settings после удаления не нужны для read.
 
 ## API
 
@@ -194,7 +202,7 @@ Pro sidebar → «Настройки»: управление кастомным�
 
 ## Тестирование
 
-- Backend unit/integration: publish immutability title/description; status change after publish; customer list hides drafts; slot upload ACL; delete draft rules; `statusLabel` snapshot; mutations forbidden outside `ACTIVE`.
+- Backend unit/integration: publish immutability title/description; status change after publish; customer list hides drafts; slot upload ACL; delete draft rules; `statusLabel` snapshot; запрет удаления кастомного статуса при использовании в `ACTIVE`/`ACCEPTANCE_PENDING` и разрешение при использовании только в архивных статусах заявки; mutations forbidden outside `ACTIVE`.
 - Frontend: model/helpers для visibility и labels статусов; smoke UI по возможности в существующих test-паттернах.
 
 ## Вне MVP
