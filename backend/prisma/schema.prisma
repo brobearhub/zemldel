@@ -90,6 +90,16 @@ enum RequestRemarkAuthorSide {
   PROVIDER
 }
 
+enum WorkStageLifecycle {
+  DRAFT
+  PUBLISHED
+}
+
+enum WorkStageDocSlotStatus {
+  REQUESTED
+  UPLOADED
+}
+
 enum LegalDocId {
   TERMS
   PRIVACY
@@ -234,6 +244,7 @@ model Provider {
   legalProfile      ProviderLegalProfile?
   requestContractFiles RequestContractFile[]
   requestDocumentRequests RequestDocumentRequest[]
+  workStages        RequestWorkStage[]
   services          Service[]
   conversations     Conversation[]
   requests          Request[]
@@ -311,12 +322,13 @@ model ProviderMember {
 }
 
 model ProviderUserSettings {
-  id              String   @id @default(uuid()) @db.Uuid
-  userId          String   @db.Uuid
-  providerId      String   @db.Uuid
-  proInboxFilters Json?
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  provider        Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @db.Uuid
+  providerId        String   @db.Uuid
+  proInboxFilters   Json?
+  workStageStatuses Json?
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider          Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -384,6 +396,7 @@ model Request {
   events            RequestEvent[]
   contractFiles     RequestContractFile[]
   documentRequests  RequestDocumentRequest[]
+  workStages        RequestWorkStage[]
   reminders         RequestReminder[]
   remarks           RequestRemark[]
 
@@ -395,6 +408,71 @@ model Request {
   @@index([categoryId, status])
   @@index([serviceId, status])
   @@index([requestCityId, status])
+}
+
+model RequestWorkStage {
+  id          String             @id @default(uuid()) @db.Uuid
+  requestId   String             @db.Uuid
+  providerId  String             @db.Uuid
+  title       String
+  description String             @default("")
+  statusKey   String
+  statusLabel String
+  lifecycle   WorkStageLifecycle @default(DRAFT)
+  publishedAt DateTime?
+  sortOrder   Int                @default(0)
+
+  request  Request                   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  provider Provider                  @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  files    RequestWorkStageFile[]
+  docSlots RequestWorkStageDocSlot[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([requestId, sortOrder])
+  @@index([providerId, statusKey])
+  @@index([requestId, lifecycle])
+}
+
+model RequestWorkStageFile {
+  id               String  @id @default(uuid()) @db.Uuid
+  stageId          String  @db.Uuid
+  uploadedByUserId String? @db.Uuid
+  originalName     String
+  mimeType         String
+  sizeBytes        Int
+  sha256           String
+  storageRelPath   String
+
+  stage RequestWorkStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stageId, createdAt])
+}
+
+model RequestWorkStageDocSlot {
+  id               String                 @id @default(uuid()) @db.Uuid
+  stageId          String                 @db.Uuid
+  title            String
+  status           WorkStageDocSlotStatus @default(REQUESTED)
+  uploadedByUserId String?                @db.Uuid
+  uploadedAt       DateTime?
+  originalName     String?
+  mimeType         String?
+  sizeBytes        Int?
+  sha256           String?
+  storageRelPath   String?
+
+  stage RequestWorkStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stageId, createdAt])
+  @@index([stageId, status])
 }
 
 model RequestRemark {
