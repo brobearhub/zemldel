@@ -1,11 +1,21 @@
 import {
+  BadGatewayException,
   BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+} from '@aws-sdk/client-s3';
+import { createHash, randomUUID } from 'node:crypto';
+import path from 'node:path';
+import type { RequestStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
+import { S3Service } from '../storage/s3.service';
 import { isExclusiveForActorProvider } from '../requests/dto/request.dto';
 import {
   SYSTEM_WORK_STAGE_STATUSES,
@@ -19,6 +29,52 @@ import type {
   WorkStageFileDto,
 } from './dto/work-stages.dto';
 
+const ALLOWED_EXT = new Set([
+  '.pdf',
+  '.doc',
+  '.docx',
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.webp',
+]);
+
+function normalizeExt(fileName: string, mimeType: string) {
+  const ext = path.extname(fileName).toLowerCase();
+  if (ALLOWED_EXT.has(ext)) return ext;
+  if (mimeType === 'application/pdf') return '.pdf';
+  if (mimeType === 'application/msword') return '.doc';
+  if (
+    mimeType ===
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ) {
+    return '.docx';
+  }
+  if (mimeType === 'image/jpeg') return '.jpg';
+  if (mimeType === 'image/png') return '.png';
+  if (mimeType === 'image/webp') return '.webp';
+  return '';
+}
+
+function sha256Buffer(buf: Buffer) {
+  return createHash('sha256').update(buf).digest('hex');
+}
+
+function countCyrillicChars(value: string) {
+  const matches = value.match(/[\u0400-\u04FF]/g);
+  return matches ? matches.length : 0;
+}
+
+function decodePossiblyMisencodedFileName(value: string) {
+  const decoded = Buffer.from(value, 'latin1').toString('utf8').normalize('NFC');
+  if (decoded.includes('\uFFFD')) return value;
+  const originalCyrillic = countCyrillicChars(value);
+  const decodedCyrillic = countCyrillicChars(decoded);
+  const looksLikeMojibake = /[ÐÑÃ]/.test(value);
+  if (looksLikeMojibake && decodedCyrillic > originalCyrillic) return decoded;
+  return value;
+}
+
 const READABLE_REQUEST_STATUSES = new Set([
   'ACTIVE',
   'ACCEPTANCE_PENDING',
@@ -28,7 +84,7 @@ const READABLE_REQUEST_STATUSES = new Set([
   'CLOSED',
 ]);
 
-const ACTIVE_STATUS_USAGE = new Set(['ACTIVE', 'ACCEPTANCE_PENDING']);
+const ACTIVE_STATUS_USAGE: RequestStatus[] = ['ACTIVE', 'ACCEPTANCE_PENDING'];
 
 function parseCustomStatuses(value: unknown): WorkStageStatusOption[] {
   if (!Array.isArray(value)) return [];
@@ -154,6 +210,7 @@ export class RequestWorkStagesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
+    private readonly s3: S3Service,
   ) {}
 
   private async requireProviderId(actorUserId: string) {
@@ -546,7 +603,7 @@ export class RequestWorkStagesService {
         where: {
           providerId,
           statusKey: item.key,
-          request: { status: { in: [...ACTIVE_STATUS_USAGE] } },
+          request: { status: { in: ACTIVE_STATUS_USAGE } },
         },
         select: { id: true },
       });
@@ -577,4 +634,468 @@ export class RequestWorkStagesService {
 
     return this.getWorkStageStatuses({ actorUserId: input.actorUserId });
   }
+
+  async uploadProviderFile(input: {
+    actorUserId: string;
+    requestId: string;
+    stageId: string;
+    file: Express.Multer.File;
+  }) {
+    const providerId = await this.requireProviderId(input.actorUserId);
+    const request = await this.assertProviderRequest({
+      providerId,
+      requestId: input.requestId,
+    });
+    this.assertMutable(request.status);
+
+    const stage = await this.prisma.requestWorkStage.findFirst({
+      where: {
+        id: input.stageId,
+        requestId: input.requestId,
+        providerId,
+      },
+      select: { id: true },
+    });
+    if (!stage) throw new NotFoundException('Stage not found');
+
+    const ext = normalizeExt(input.file.originalname, input.file.mimetype);
+    if (!ext) throw new BadRequestException('Unsupported file type');
+    if (!input.file.buffer || input.file.buffer.length === 0) {
+      throw new BadRequestException('Empty file');
+    }
+
+    const fileId = randomUUID();
+    const storageRelPath = `${this.s3.privatePrefix}requests/${input.requestId}/work-stages/${stage.id}/${fileId}${ext}`;
+    const originalName = decodePossiblyMisencodedFileName(
+      input.file.originalname,
+    );
+    const hash = sha256Buffer(input.file.buffer);
+
+    await this.s3.client.send(
+      new PutObjectCommand({
+        Bucket: this.s3.privateBucket,
+        Key: storageRelPath,
+        Body: input.file.buffer,
+        ContentType: input.file.mimetype,
+        CacheControl: 'private, no-store',
+      }),
+    );
+
+    try {
+      const created = await this.prisma.requestWorkStageFile.create({
+        data: {
+          id: fileId,
+          stageId: stage.id,
+          uploadedByUserId: input.actorUserId,
+          originalName,
+          mimeType: input.file.mimetype,
+          sizeBytes: input.file.size,
+          sha256: hash,
+          storageRelPath,
+        },
+      });
+      return toFileDto(created);
+    } catch (e) {
+      await this.s3.client
+        .send(
+          new DeleteObjectCommand({
+            Bucket: this.s3.privateBucket,
+            Key: storageRelPath,
+          }),
+        )
+        .catch(() => null);
+      throw e;
+    }
+  }
+
+  async deleteProviderFile(input: {
+    actorUserId: string;
+    requestId: string;
+    stageId: string;
+    fileId: string;
+  }) {
+    const providerId = await this.requireProviderId(input.actorUserId);
+    const request = await this.assertProviderRequest({
+      providerId,
+      requestId: input.requestId,
+    });
+    this.assertMutable(request.status);
+
+    const file = await this.prisma.requestWorkStageFile.findFirst({
+      where: {
+        id: input.fileId,
+        stageId: input.stageId,
+        stage: { requestId: input.requestId, providerId },
+      },
+      select: { id: true, storageRelPath: true },
+    });
+    if (!file) throw new NotFoundException('File not found');
+
+    await this.prisma.requestWorkStageFile.delete({
+      where: { id: file.id },
+      select: { id: true },
+    });
+    await this.s3.client
+      .send(
+        new DeleteObjectCommand({
+          Bucket: this.s3.privateBucket,
+          Key: file.storageRelPath,
+        }),
+      )
+      .catch(() => null);
+    return { ok: true as const };
+  }
+
+  private async streamStoredFile(input: {
+    storageRelPath: string;
+    originalName: string;
+    mimeType: string;
+    inline: boolean;
+  }) {
+    const fileName = decodePossiblyMisencodedFileName(input.originalName);
+    const disposition =
+      input.inline && input.mimeType === 'application/pdf'
+        ? 'inline'
+        : 'attachment';
+    try {
+      const obj = await this.s3.client.send(
+        new GetObjectCommand({
+          Bucket: this.s3.privateBucket,
+          Key: input.storageRelPath,
+        }),
+      );
+      const body = obj.Body as unknown;
+      if (!body || typeof (body as { pipe?: unknown }).pipe !== 'function') {
+        throw new NotFoundException('File not found');
+      }
+      return {
+        stream: body as NodeJS.ReadableStream,
+        fileName,
+        mimeType: input.mimeType,
+        disposition,
+      };
+    } catch (_e) {
+      const e = _e as { name?: string; $metadata?: { httpStatusCode?: number } };
+      const isNotFound =
+        e?.name === 'NoSuchKey' || e?.$metadata?.httpStatusCode === 404;
+      if (isNotFound) throw new NotFoundException('File not found');
+      if (_e instanceof NotFoundException) throw _e;
+      throw new BadGatewayException('File storage unavailable');
+    }
+  }
+
+  async downloadProviderFile(input: {
+    actorUserId: string;
+    requestId: string;
+    stageId: string;
+    fileId: string;
+    inline: boolean;
+  }) {
+    const providerId = await this.requireProviderId(input.actorUserId);
+    await this.assertProviderRequest({
+      providerId,
+      requestId: input.requestId,
+    });
+    const file = await this.prisma.requestWorkStageFile.findFirst({
+      where: {
+        id: input.fileId,
+        stageId: input.stageId,
+        stage: { requestId: input.requestId, providerId },
+      },
+      select: {
+        originalName: true,
+        mimeType: true,
+        storageRelPath: true,
+      },
+    });
+    if (!file) throw new NotFoundException('File not found');
+    return this.streamStoredFile({ ...file, inline: input.inline });
+  }
+
+  async downloadCustomerFile(input: {
+    actorUserId: string;
+    requestId: string;
+    stageId: string;
+    fileId: string;
+    inline: boolean;
+  }) {
+    const request = await this.prisma.request.findFirst({
+      where: { id: input.requestId, customerUserId: input.actorUserId },
+      select: { id: true, providerId: true, status: true },
+    });
+    if (!request) throw new NotFoundException('Request not found');
+    if (!request.providerId) throw new BadRequestException('Provider is required');
+    if (!READABLE_REQUEST_STATUSES.has(request.status)) {
+      throw new BadRequestException('Work stages are not available');
+    }
+
+    const file = await this.prisma.requestWorkStageFile.findFirst({
+      where: {
+        id: input.fileId,
+        stageId: input.stageId,
+        stage: {
+          requestId: request.id,
+          providerId: request.providerId,
+          lifecycle: 'PUBLISHED',
+        },
+      },
+      select: {
+        originalName: true,
+        mimeType: true,
+        storageRelPath: true,
+      },
+    });
+    if (!file) throw new NotFoundException('File not found');
+    return this.streamStoredFile({ ...file, inline: input.inline });
+  }
+
+  async createDocSlot(input: {
+    actorUserId: string;
+    requestId: string;
+    stageId: string;
+    title: string;
+  }) {
+    const providerId = await this.requireProviderId(input.actorUserId);
+    const request = await this.assertProviderRequest({
+      providerId,
+      requestId: input.requestId,
+    });
+    this.assertMutable(request.status);
+
+    const stage = await this.prisma.requestWorkStage.findFirst({
+      where: {
+        id: input.stageId,
+        requestId: input.requestId,
+        providerId,
+      },
+      select: { id: true },
+    });
+    if (!stage) throw new NotFoundException('Stage not found');
+
+    const title = input.title.trim();
+    if (title.length < 3) throw new BadRequestException('Title is required');
+
+    const created = await this.prisma.requestWorkStageDocSlot.create({
+      data: {
+        stageId: stage.id,
+        title,
+        status: 'REQUESTED',
+      },
+    });
+    return toDocSlotDto(created);
+  }
+
+  async deleteDocSlot(input: {
+    actorUserId: string;
+    requestId: string;
+    stageId: string;
+    slotId: string;
+  }) {
+    const providerId = await this.requireProviderId(input.actorUserId);
+    const request = await this.assertProviderRequest({
+      providerId,
+      requestId: input.requestId,
+    });
+    this.assertMutable(request.status);
+
+    const slot = await this.prisma.requestWorkStageDocSlot.findFirst({
+      where: {
+        id: input.slotId,
+        stageId: input.stageId,
+        stage: { requestId: input.requestId, providerId },
+      },
+      select: { id: true, status: true },
+    });
+    if (!slot) throw new NotFoundException('Document slot not found');
+    if (slot.status !== 'REQUESTED') {
+      throw new BadRequestException('Cannot delete uploaded document slot');
+    }
+
+    await this.prisma.requestWorkStageDocSlot.delete({
+      where: { id: slot.id },
+      select: { id: true },
+    });
+    return { ok: true as const };
+  }
+
+  async uploadCustomerDocSlot(input: {
+    actorUserId: string;
+    requestId: string;
+    stageId: string;
+    slotId: string;
+    file: Express.Multer.File;
+  }) {
+    const request = await this.prisma.request.findFirst({
+      where: { id: input.requestId, customerUserId: input.actorUserId },
+      select: { id: true, providerId: true, status: true },
+    });
+    if (!request) throw new NotFoundException('Request not found');
+    if (!request.providerId) throw new BadRequestException('Provider is required');
+    if (request.status !== 'ACTIVE') {
+      throw new BadRequestException('Request must be ACTIVE');
+    }
+
+    const slot = await this.prisma.requestWorkStageDocSlot.findFirst({
+      where: {
+        id: input.slotId,
+        stageId: input.stageId,
+        stage: {
+          requestId: request.id,
+          providerId: request.providerId,
+          lifecycle: 'PUBLISHED',
+        },
+      },
+      select: { id: true, status: true, storageRelPath: true },
+    });
+    if (!slot) throw new NotFoundException('Document slot not found');
+    if (slot.status !== 'REQUESTED') {
+      throw new BadRequestException('Document already uploaded');
+    }
+
+    const ext = normalizeExt(input.file.originalname, input.file.mimetype);
+    if (!ext) throw new BadRequestException('Unsupported file type');
+    if (!input.file.buffer || input.file.buffer.length === 0) {
+      throw new BadRequestException('Empty file');
+    }
+
+    const storageRelPath = `${this.s3.privatePrefix}requests/${request.id}/work-stages/${input.stageId}/slots/${slot.id}${ext}`;
+    const originalName = decodePossiblyMisencodedFileName(
+      input.file.originalname,
+    );
+    const hash = sha256Buffer(input.file.buffer);
+
+    await this.s3.client.send(
+      new PutObjectCommand({
+        Bucket: this.s3.privateBucket,
+        Key: storageRelPath,
+        Body: input.file.buffer,
+        ContentType: input.file.mimetype,
+        CacheControl: 'private, no-store',
+      }),
+    );
+
+    try {
+      await this.prisma.requestWorkStageDocSlot.update({
+        where: { id: slot.id },
+        data: {
+          status: 'UPLOADED',
+          uploadedByUserId: input.actorUserId,
+          uploadedAt: new Date(),
+          originalName,
+          mimeType: input.file.mimetype,
+          sizeBytes: input.file.size,
+          sha256: hash,
+          storageRelPath,
+        },
+        select: { id: true },
+      });
+    } catch (e) {
+      await this.s3.client
+        .send(
+          new DeleteObjectCommand({
+            Bucket: this.s3.privateBucket,
+            Key: storageRelPath,
+          }),
+        )
+        .catch(() => null);
+      throw e;
+    }
+
+    return { ok: true as const };
+  }
+
+  async downloadDocSlotForProvider(input: {
+    actorUserId: string;
+    requestId: string;
+    stageId: string;
+    slotId: string;
+    inline: boolean;
+  }) {
+    const providerId = await this.requireProviderId(input.actorUserId);
+    await this.assertProviderRequest({
+      providerId,
+      requestId: input.requestId,
+    });
+    const slot = await this.prisma.requestWorkStageDocSlot.findFirst({
+      where: {
+        id: input.slotId,
+        stageId: input.stageId,
+        stage: { requestId: input.requestId, providerId },
+      },
+      select: {
+        status: true,
+        originalName: true,
+        mimeType: true,
+        storageRelPath: true,
+      },
+    });
+    if (
+      !slot ||
+      slot.status !== 'UPLOADED' ||
+      !slot.storageRelPath ||
+      !slot.originalName ||
+      !slot.mimeType
+    ) {
+      throw new NotFoundException('File not found');
+    }
+    return this.streamStoredFile({
+      storageRelPath: slot.storageRelPath,
+      originalName: slot.originalName,
+      mimeType: slot.mimeType,
+      inline: input.inline,
+    });
+  }
+
+  async downloadDocSlotForCustomer(input: {
+    actorUserId: string;
+    requestId: string;
+    stageId: string;
+    slotId: string;
+    inline: boolean;
+  }) {
+    const request = await this.prisma.request.findFirst({
+      where: { id: input.requestId, customerUserId: input.actorUserId },
+      select: { id: true, providerId: true, status: true },
+    });
+    if (!request) throw new NotFoundException('Request not found');
+    if (!request.providerId) throw new BadRequestException('Provider is required');
+    if (!READABLE_REQUEST_STATUSES.has(request.status)) {
+      throw new BadRequestException('Work stages are not available');
+    }
+
+    const slot = await this.prisma.requestWorkStageDocSlot.findFirst({
+      where: {
+        id: input.slotId,
+        stageId: input.stageId,
+        stage: {
+          requestId: request.id,
+          providerId: request.providerId,
+          lifecycle: 'PUBLISHED',
+        },
+      },
+      select: {
+        status: true,
+        originalName: true,
+        mimeType: true,
+        storageRelPath: true,
+      },
+    });
+    if (
+      !slot ||
+      slot.status !== 'UPLOADED' ||
+      !slot.storageRelPath ||
+      !slot.originalName ||
+      !slot.mimeType
+    ) {
+      throw new NotFoundException('File not found');
+    }
+    return this.streamStoredFile({
+      storageRelPath: slot.storageRelPath,
+      originalName: slot.originalName,
+      mimeType: slot.mimeType,
+      inline: input.inline,
+    });
+  }
 }
+
+export { normalizeExt as normalizeWorkStageFileExt };

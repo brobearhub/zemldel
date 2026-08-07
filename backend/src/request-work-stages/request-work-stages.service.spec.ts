@@ -11,6 +11,11 @@ function makeService(prisma: unknown, auth?: unknown) {
         providerId: 'p1',
       }),
     }) as any,
+    {
+      privatePrefix: 'private/',
+      privateBucket: 'b',
+      client: { send: vi.fn().mockResolvedValue({}) },
+    } as any,
   );
 }
 

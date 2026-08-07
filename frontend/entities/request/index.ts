@@ -2,6 +2,8 @@ export * from "./dto/request.dto";
 export * from "./dto/request-document-request.dto";
 export * from "./dto/request-remark.dto";
 export * from "./dto/reminder.dto";
+export * from "./dto/work-stage.dto";
+export * from "./lib/work-stage-statuses";
 export * from "./pending-request";
 export * from "./ui/request-status-flow";
 export * from "./ui/request-ui";

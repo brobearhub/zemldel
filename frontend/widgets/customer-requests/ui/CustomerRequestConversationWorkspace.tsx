@@ -27,16 +27,20 @@ import {
   getRequestStatusLabel,
   hasRequestLock,
   isOrderExecutionStatus,
+  mergeWorkStageStatusOptions,
   resolveRequestDetailBody,
   type RequestDocumentRequestDto,
   type RequestRemarkDto,
   type RequestCustomerDto,
+  type WorkStageDto,
+  type WorkStageStatusOptionDto,
 } from "@/entities/request";
 import {
   completeCustomerRequestRemark,
   createCustomerRequestRemark,
   fetchCustomerRequestRemarks,
 } from "@/entities/request/api/request-remarks";
+import { fetchCustomerWorkStages } from "@/entities/request/api/request-work-stages";
 import { ChatBodyWithSidePanelLayout } from "@/widgets/chat/ui/ChatBodyWithSidePanelLayout";
 import { ServiceRequestChatPanel } from "@/widgets/chat/ui/ServiceRequestChatPanel";
 import Link from "@/shared/ui/Link";
@@ -46,6 +50,7 @@ import {
   createCustomerRequestRemarksBehavior,
   RequestRemarks,
 } from "@/widgets/request-remarks";
+import { RequestWorkProgress } from "@/widgets/request-work-progress";
 import {
   fetchCustomerRequestDocumentRequests,
   uploadCustomerRequestDocument,
@@ -78,6 +83,10 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
   const [docUploadBusy, setDocUploadBusy] = useState(false);
   const [remarks, setRemarks] = useState<RequestRemarkDto[]>([]);
   const [remarksError, setRemarksError] = useState<string | null>(null);
+  const [workStages, setWorkStages] = useState<WorkStageDto[]>([]);
+  const [workStageStatusOptions] = useState<WorkStageStatusOptionDto[]>(
+    mergeWorkStageStatusOptions([])
+  );
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
   const [termsBusy, setTermsBusy] = useState(false);
   const [termsError, setTermsError] = useState<string | null>(null);
@@ -135,6 +144,19 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     setRemarks(list);
   }, [req.id]);
 
+  const loadWorkStages = useCallback(async () => {
+    if (
+      req.status !== "ACTIVE" &&
+      req.status !== "ACCEPTANCE_PENDING" &&
+      req.status !== "ACCEPTED" &&
+      req.status !== "COMPLETED"
+    ) {
+      setWorkStages([]);
+      return;
+    }
+    setWorkStages(await fetchCustomerWorkStages(req.id));
+  }, [req.id, req.status]);
+
   useEffect(() => {
     if (!isOrderExecutionStatus(req.status)) {
       setRemarks([]);
@@ -155,6 +177,20 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
       cancelled = true;
     };
   }, [req.id, req.status]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await loadWorkStages();
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Не удалось загрузить этапы работ");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadWorkStages]);
 
   useEffect(() => {
     if (selectedConversationId) return;
@@ -551,6 +587,17 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                 acceptResult,
               },
             })}
+          />
+
+          <RequestWorkProgress
+            mode="customer"
+            requestId={req.id}
+            requestStatus={req.status}
+            stages={workStages}
+            statusOptions={workStageStatusOptions}
+            busy={busy}
+            onRefresh={loadWorkStages}
+            onError={(message) => setError(message)}
           />
 
           <RequestRemarks

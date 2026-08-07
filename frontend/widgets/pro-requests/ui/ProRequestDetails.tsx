@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Backdrop,
@@ -15,9 +15,13 @@ import {
 } from "@mui/material";
 import {
   getRequestStatusLabel,
+  mergeWorkStageStatusOptions,
   resolveRequestDetailBody,
+  SYSTEM_WORK_STAGE_STATUSES,
   type RequestRemarkDto,
   type RequestProDto,
+  type WorkStageDto,
+  type WorkStageStatusOptionDto,
 } from "@/entities/request";
 import { isOrderExecutionStatus } from "@/entities/request";
 import type { RequestDocumentRequestDto } from "@/entities/request";
@@ -29,6 +33,11 @@ import {
   createProviderRequestRemarksBehavior,
   RequestRemarks,
 } from "@/widgets/request-remarks";
+import { RequestWorkProgress } from "@/widgets/request-work-progress";
+import {
+  fetchProWorkStages,
+  fetchWorkStageStatuses,
+} from "@/entities/request/api/request-work-stages";
 import {
   completeProRequestRemark,
   createProRequestRemark,
@@ -51,7 +60,8 @@ import {
   fetchProRequestDocumentRequests,
 } from "@/entities/request/api/request-document-requests";
 import { ProRequestDocumentsSection } from "@/widgets/pro-requests/ui/ProRequestDocumentsSection";
-import { useConfirm } from "@/shared/ui/confirm";
+import { useConfirm, useConfirmWithReason } from "@/shared/ui/confirm";
+import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 
 type Props = {
   initialRequest: RequestProDto;
@@ -73,7 +83,13 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   const [docRequests, setDocRequests] = useState<RequestDocumentRequestDto[]>([]);
   const [remarks, setRemarks] = useState<RequestRemarkDto[]>([]);
   const [remarksError, setRemarksError] = useState<string | null>(null);
+  const [workStages, setWorkStages] = useState<WorkStageDto[]>([]);
+  const [workStageStatusOptions, setWorkStageStatusOptions] = useState<WorkStageStatusOptionDto[]>([
+    ...SYSTEM_WORK_STAGE_STATUSES,
+  ]);
   const confirm = useConfirm();
+  const confirmWithReason = useConfirmWithReason();
+  const { socket } = useChatSocket();
 
   const isBusy = busy || uploadBusy;
   const showContractWorkflow = !req.isLocked && req.offerStatus === "SELECTED";
@@ -82,6 +98,19 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   const hasApproved = contractBundles.some((b) => b.status === "APPROVED");
   const hasPendingRequestedDocs = docRequests.some((d) => d.status === "REQUESTED");
   const hasUploadedDocs = docRequests.some((d) => d.status === "UPLOADED");
+
+  const loadWorkStages = useCallback(async () => {
+    if (req.status !== "ACTIVE" && req.status !== "ACCEPTANCE_PENDING" && req.status !== "ACCEPTED" && req.status !== "COMPLETED") {
+      setWorkStages([]);
+      return;
+    }
+    const [stages, statuses] = await Promise.all([
+      fetchProWorkStages(req.id),
+      fetchWorkStageStatuses().catch(() => ({ system: [...SYSTEM_WORK_STAGE_STATUSES], custom: [] })),
+    ]);
+    setWorkStages(stages);
+    setWorkStageStatusOptions(mergeWorkStageStatusOptions(statuses.custom));
+  }, [req.id, req.status]);
 
   async function loadRemarks() {
     const list = await fetchProRequestRemarks(req.id);
@@ -108,6 +137,20 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
       cancelled = true;
     };
   }, [req.id, req.status]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await loadWorkStages();
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Не удалось загрузить этапы работ");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadWorkStages]);
 
   useEffect(() => {
     if (!showContractWorkflow || contractBundlesLoaded) return;
@@ -172,14 +215,34 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     };
   }, [docRequestsLoaded, req.id, showContractWorkflow]);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     const res = await fetch(`/api/pro/requests/${req.id}`, { cache: "no-store" });
     const payload = (await res.json().catch(() => null)) as { error?: string } | RequestProDto | null;
     if (!res.ok) {
       throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось обновить заявку" : "Не удалось обновить заявку");
     }
     setReq(payload as RequestProDto);
-  }
+  }, [req.id]);
+
+  // Why: selection/re-request updates offerStatus on the server; chat WS alone would
+  // only append a message, so details note/actions need a refetch on unreadHint.
+  useEffect(() => {
+    if (!socket) {
+      return;
+    }
+    const handler = (hint: { requestId?: string }) => {
+      if (hint.requestId !== req.id) {
+        return;
+      }
+      void refresh().catch(() => {
+        // Best-effort; chat message still arrives via message.created.
+      });
+    };
+    socket.on("chat.unreadHint", handler);
+    return () => {
+      socket.off("chat.unreadHint", handler);
+    };
+  }, [socket, req.id, refresh]);
 
   async function refreshContractBundles() {
     try {
@@ -338,7 +401,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     }
   }
 
-  async function runAction(action: "confirm" | "decline") {
+  async function runAction(action: "confirm" | "decline", reason?: string) {
     setBusy(true);
     setError(null);
     setNotice(null);
@@ -363,17 +426,25 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
       }
 
       if (action === "decline") {
-        const res = await fetch(`/api/pro/requests/${req.id}/decline-offer`, { method: "POST" });
+        const normalizedReason = reason?.trim() ?? "";
+        if (!normalizedReason) {
+          throw new Error("Укажите причину отказа");
+        }
+        const res = await fetch(`/api/pro/requests/${req.id}/decline-offer`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason: normalizedReason }),
+        });
         const payload = (await res.json().catch(() => null)) as { error?: string } | RequestProDto | null;
         if (!res.ok) {
           throw new Error(
             payload && typeof payload === "object" && "error" in payload
-              ? payload.error ?? "Не удалось отказать"
-              : "Не удалось отказать"
+              ? payload.error ?? "Не удалось отказаться от заявки"
+              : "Не удалось отказаться от заявки"
           );
         }
         setReq(payload as RequestProDto);
-        setNotice("Вы отказались от предложения.");
+        setNotice("Вы отказались от заявки.");
         return;
       }
 
@@ -484,18 +555,30 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
             requestAcceptance: async () => undefined,
             complete: () => runAction("confirm"),
             declineOffer: async () => {
-              const ok = await confirm({
+              const reason = await confirmWithReason({
                 title: "Отказаться от заявки?",
                 description:
                   "Вы больше не будете исполнителем по этой заявке. Клиент сможет выбрать другого исполнителя. Это действие нельзя отменить.",
-                confirmText: "Да, отказать",
+                reasonLabel: "Причина",
+                confirmText: "Да, отказаться",
                 confirmColor: "error",
               });
-              if (!ok) return;
-              await runAction("decline");
+              if (reason == null) return;
+              await runAction("decline", reason);
             },
           },
         })}
+      />
+
+      <RequestWorkProgress
+        mode="provider"
+        requestId={req.id}
+        requestStatus={req.status}
+        stages={workStages}
+        statusOptions={workStageStatusOptions}
+        busy={isBusy}
+        onRefresh={loadWorkStages}
+        onError={(message) => setError(message)}
       />
 
       <RequestRemarks
