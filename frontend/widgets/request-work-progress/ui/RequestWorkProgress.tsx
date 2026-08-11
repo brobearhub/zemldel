@@ -34,6 +34,7 @@ import {
   uploadProWorkStageFile,
 } from "@/entities/request/api/request-work-stages";
 import { DocumentsSectionShell } from "@/shared/ui/DocumentsSectionShell";
+import { hasStageAttachments, hasStageExpandableContent } from "../lib/has-stage-attachments";
 import type { RequestWorkProgressProps } from "../model/types";
 
 const ACCEPT =
@@ -303,6 +304,14 @@ function StageCard(props: {
   const stageDate = formatRequestDate(stage.publishedAt ?? stage.createdAt);
   // Why: порядковый номер в UI — по позиции в уже отсортированном списке, не из БД.
   const stageLabel = `${props.order}. ${stage.title}`;
+  const isProvider = props.mode === "provider";
+  // Why: у customer не показываем пустые секции («Нет файлов» / «Запросов нет»).
+  const showExecutorFiles = isProvider || stage.files.length > 0;
+  const showClientDocs = isProvider || stage.docSlots.length > 0;
+  const showAttachmentsArea = isProvider || hasStageAttachments(stage);
+  // Why: provider всегда может раскрыть (статус/файлы); customer — только если есть контент.
+  const canExpand = isProvider || hasStageExpandableContent(stage);
+  const isExpanded = canExpand && expanded;
 
   return (
     <Box
@@ -310,21 +319,25 @@ function StageCard(props: {
         px: 2,
         py: 1.25,
         borderRadius: 1,
-        bgcolor: expanded ? "action.hover" : "transparent",
+        bgcolor: isExpanded ? "action.hover" : "transparent",
       }}
     >
       <Stack spacing={1}>
         <Box
-          role="button"
-          tabIndex={0}
-          onClick={() => setExpanded((value) => !value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              setExpanded((value) => !value);
-            }
-          }}
-          sx={{ cursor: "pointer", outline: "none" }}
+          role={canExpand ? "button" : undefined}
+          tabIndex={canExpand ? 0 : undefined}
+          onClick={canExpand ? () => setExpanded((value) => !value) : undefined}
+          onKeyDown={
+            canExpand
+              ? (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setExpanded((value) => !value);
+                  }
+                }
+              : undefined
+          }
+          sx={{ cursor: canExpand ? "pointer" : "default", outline: "none" }}
         >
           <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" useFlexGap>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0, flex: 1 }} flexWrap="wrap" useFlexGap>
@@ -337,29 +350,32 @@ function StageCard(props: {
               </Typography>
             </Stack>
             <Stack direction="row" spacing={0.25} alignItems="center" sx={{ flexShrink: 0 }}>
+              {canExpand ? (
+                <IconButton
+                  size="small"
+                  aria-label={isExpanded ? "Свернуть этап" : "Развернуть этап"}
+                  aria-expanded={isExpanded}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpanded((value) => !value);
+                  }}
+                >
+                  {isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+                </IconButton>
+              ) : null}
               <Typography variant="body2" color="primary" fontWeight={700} sx={{ whiteSpace: "nowrap" }}>
                 {stage.statusLabel}
               </Typography>
-              <IconButton
-                size="small"
-                aria-label={expanded ? "Свернуть этап" : "Развернуть этап"}
-                aria-expanded={expanded}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setExpanded((value) => !value);
-                }}
-              >
-                {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-              </IconButton>
             </Stack>
           </Stack>
         </Box>
 
-        <Collapse in={expanded} timeout="auto" unmountOnExit>
+        <Collapse in={isExpanded} timeout="auto" unmountOnExit>
           <Stack spacing={1.25} sx={{ pt: 0.5 }}>
-            {!(props.mode === "provider" && isDraft && props.canMutate) ? (
+            {!(props.mode === "provider" && isDraft && props.canMutate) &&
+            stage.description.trim().length > 0 ? (
               <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-wrap" }}>
-                {stage.description || "Без описания"}
+                {stage.description}
               </Typography>
             ) : null}
 
@@ -455,177 +471,207 @@ function StageCard(props: {
               </>
             ) : null}
 
-            <Divider />
+            {showAttachmentsArea ? (
+              <>
+                {showExecutorFiles ? (
+                  <>
+                    <Divider />
 
-            <Typography variant="subtitle2" fontWeight={700}>
-              Файлы исполнителя
-            </Typography>
-        {stage.files.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            Нет файлов
-          </Typography>
-        ) : (
-          <Stack spacing={0.5}>
-            {stage.files.map((file) => (
-              <Stack key={file.id} direction="row" spacing={1} alignItems="center">
-                <Link
-                  href={
-                    props.mode === "provider"
-                      ? `/api/pro/requests/${props.requestId}/work-stages/${stage.id}/files/${file.id}/download`
-                      : `/api/requests/${props.requestId}/work-stages/${stage.id}/files/${file.id}/download`
-                  }
-                  underline="hover"
-                >
-                  {file.originalName}
-                </Link>
-                {props.mode === "provider" && props.canMutate ? (
-                  <Button
-                    size="small"
-                    color="error"
-                    disabled={props.isBusy}
-                    onClick={() =>
-                      props.onAction(async () => {
-                        await deleteProWorkStageFile(props.requestId, stage.id, file.id);
-                      })
-                    }
-                  >
-                    Удалить
-                  </Button>
-                ) : null}
-              </Stack>
-            ))}
-          </Stack>
-        )}
-        {props.mode === "provider" && props.canMutate ? (
-          <>
-            <input
-              ref={props.fileInputRef}
-              type="file"
-              accept={ACCEPT}
-              hidden
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (!file) return;
-                props.onAction(async () => {
-                  await uploadProWorkStageFile(props.requestId, stage.id, file);
-                });
-              }}
-            />
-            <Button size="small" variant="text" disabled={props.isBusy} onClick={props.onPickFile}>
-              Прикрепить файл
-            </Button>
-          </>
-        ) : null}
-
-        <Divider />
-
-        <Typography variant="subtitle2" fontWeight={700}>
-          Документы от клиента
-        </Typography>
-        {stage.docSlots.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            Запросов нет
-          </Typography>
-        ) : (
-          <Stack spacing={1}>
-            {stage.docSlots.map((slot) => (
-              <Stack key={slot.id} spacing={0.5}>
-                <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" useFlexGap>
-                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ minWidth: 0 }}>
-                    <Typography variant="body2" fontWeight={600}>
-                      {slot.title}
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      Файлы исполнителя
                     </Typography>
-                    <Chip
+                    {stage.files.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary">
+                        Нет файлов
+                      </Typography>
+                    ) : (
+                      <Stack spacing={0.5}>
+                        {stage.files.map((file) => (
+                          <Stack key={file.id} direction="row" spacing={1} alignItems="center">
+                            <Link
+                              href={
+                                isProvider
+                                  ? `/api/pro/requests/${props.requestId}/work-stages/${stage.id}/files/${file.id}/download`
+                                  : `/api/requests/${props.requestId}/work-stages/${stage.id}/files/${file.id}/download`
+                              }
+                              underline="hover"
+                            >
+                              {file.originalName}
+                            </Link>
+                            {isProvider && props.canMutate ? (
+                              <Button
+                                size="small"
+                                color="error"
+                                disabled={props.isBusy}
+                                onClick={() =>
+                                  props.onAction(async () => {
+                                    await deleteProWorkStageFile(props.requestId, stage.id, file.id);
+                                  })
+                                }
+                              >
+                                Удалить
+                              </Button>
+                            ) : null}
+                          </Stack>
+                        ))}
+                      </Stack>
+                    )}
+                    {isProvider && props.canMutate ? (
+                      <>
+                        <input
+                          ref={props.fileInputRef}
+                          type="file"
+                          accept={ACCEPT}
+                          hidden
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = "";
+                            if (!file) return;
+                            props.onAction(async () => {
+                              await uploadProWorkStageFile(props.requestId, stage.id, file);
+                            });
+                          }}
+                        />
+                        <Button size="small" variant="text" disabled={props.isBusy} onClick={props.onPickFile}>
+                          Прикрепить файл
+                        </Button>
+                      </>
+                    ) : null}
+                  </>
+                ) : null}
+
+                {showClientDocs ? (
+                  <>
+                    <Divider />
+
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      Документы от клиента
+                    </Typography>
+                    {stage.docSlots.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary">
+                        Запросов нет
+                      </Typography>
+                    ) : (
+                      <Stack spacing={1}>
+                        {stage.docSlots.map((slot) => (
+                          <Stack key={slot.id} spacing={0.5}>
+                            <Stack
+                              direction="row"
+                              spacing={1}
+                              alignItems="center"
+                              justifyContent="space-between"
+                              useFlexGap
+                            >
+                              <Stack
+                                direction="row"
+                                spacing={1}
+                                alignItems="center"
+                                flexWrap="wrap"
+                                useFlexGap
+                                sx={{ minWidth: 0 }}
+                              >
+                                <Typography variant="body2" fontWeight={600}>
+                                  {slot.title}
+                                </Typography>
+                                <Chip
+                                  size="small"
+                                  label={slot.status === "UPLOADED" ? "Загружено" : "Ожидает"}
+                                  color={slot.status === "UPLOADED" ? "success" : "default"}
+                                />
+                              </Stack>
+                              {props.mode === "customer" && slot.status === "REQUESTED" ? (
+                                <>
+                                  <input
+                                    ref={(el) => props.slotFileInputRef(slot.id, el)}
+                                    type="file"
+                                    accept={ACCEPT}
+                                    hidden
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      e.target.value = "";
+                                      if (!file) return;
+                                      props.onAction(async () => {
+                                        await uploadCustomerWorkStageDocSlot(
+                                          props.requestId,
+                                          stage.id,
+                                          slot.id,
+                                          file,
+                                        );
+                                      });
+                                    }}
+                                  />
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    disabled={props.isBusy || props.requestStatus !== "ACTIVE"}
+                                    onClick={() => props.onPickSlotFile(slot.id)}
+                                    sx={{ flexShrink: 0 }}
+                                  >
+                                    Загрузить файл
+                                  </Button>
+                                </>
+                              ) : null}
+                              {isProvider && props.canMutate && slot.status === "REQUESTED" ? (
+                                <Button
+                                  size="small"
+                                  color="error"
+                                  disabled={props.isBusy}
+                                  onClick={() =>
+                                    props.onAction(async () => {
+                                      await deleteProWorkStageDocSlot(props.requestId, stage.id, slot.id);
+                                    })
+                                  }
+                                  sx={{ flexShrink: 0 }}
+                                >
+                                  Отменить запрос
+                                </Button>
+                              ) : null}
+                            </Stack>
+                            {slot.status === "UPLOADED" && slot.originalName ? (
+                              <Link
+                                href={
+                                  isProvider
+                                    ? `/api/pro/requests/${props.requestId}/work-stages/${stage.id}/doc-slots/${slot.id}/download`
+                                    : `/api/requests/${props.requestId}/work-stages/${stage.id}/doc-slots/${slot.id}/download`
+                                }
+                                underline="hover"
+                              >
+                                {slot.originalName}
+                              </Link>
+                            ) : null}
+                          </Stack>
+                        ))}
+                      </Stack>
+                    )}
+                  </>
+                ) : null}
+
+                {isProvider && props.canMutate ? (
+                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                    <TextField
                       size="small"
-                      label={slot.status === "UPLOADED" ? "Загружено" : "Ожидает"}
-                      color={slot.status === "UPLOADED" ? "success" : "default"}
+                      label="Запросить документ"
+                      value={props.slotTitle}
+                      onChange={(e) => props.onSlotTitleChange(e.target.value)}
+                      disabled={props.isBusy}
                     />
-                  </Stack>
-                  {props.mode === "customer" && slot.status === "REQUESTED" ? (
-                    <>
-                      <input
-                        ref={(el) => props.slotFileInputRef(slot.id, el)}
-                        type="file"
-                        accept={ACCEPT}
-                        hidden
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          e.target.value = "";
-                          if (!file) return;
-                          props.onAction(async () => {
-                            await uploadCustomerWorkStageDocSlot(props.requestId, stage.id, slot.id, file);
-                          });
-                        }}
-                      />
-                      <Button
-                        size="small"
-                        variant="contained"
-                        disabled={props.isBusy || props.requestStatus !== "ACTIVE"}
-                        onClick={() => props.onPickSlotFile(slot.id)}
-                        sx={{ flexShrink: 0 }}
-                      >
-                        Загрузить файл
-                      </Button>
-                    </>
-                  ) : null}
-                  {props.mode === "provider" && props.canMutate && slot.status === "REQUESTED" ? (
                     <Button
                       size="small"
-                      color="error"
-                      disabled={props.isBusy}
+                      variant="outlined"
+                      disabled={props.isBusy || props.slotTitle.trim().length < 3}
                       onClick={() =>
                         props.onAction(async () => {
-                          await deleteProWorkStageDocSlot(props.requestId, stage.id, slot.id);
+                          await createProWorkStageDocSlot(props.requestId, stage.id, props.slotTitle.trim());
+                          props.onSlotTitleChange("");
                         })
                       }
-                      sx={{ flexShrink: 0 }}
                     >
-                      Отменить запрос
+                      Запросить
                     </Button>
-                  ) : null}
-                </Stack>
-                {slot.status === "UPLOADED" && slot.originalName ? (
-                  <Link
-                    href={
-                      props.mode === "provider"
-                        ? `/api/pro/requests/${props.requestId}/work-stages/${stage.id}/doc-slots/${slot.id}/download`
-                        : `/api/requests/${props.requestId}/work-stages/${stage.id}/doc-slots/${slot.id}/download`
-                    }
-                    underline="hover"
-                  >
-                    {slot.originalName}
-                  </Link>
+                  </Stack>
                 ) : null}
-              </Stack>
-            ))}
-          </Stack>
-        )}
-
-        {props.mode === "provider" && props.canMutate ? (
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-            <TextField
-              size="small"
-              label="Запросить документ"
-              value={props.slotTitle}
-              onChange={(e) => props.onSlotTitleChange(e.target.value)}
-              disabled={props.isBusy}
-            />
-            <Button
-              size="small"
-              variant="outlined"
-              disabled={props.isBusy || props.slotTitle.trim().length < 3}
-              onClick={() =>
-                props.onAction(async () => {
-                  await createProWorkStageDocSlot(props.requestId, stage.id, props.slotTitle.trim());
-                  props.onSlotTitleChange("");
-                })
-              }
-            >
-              Запросить
-            </Button>
-          </Stack>
-        ) : null}
+              </>
+            ) : null}
           </Stack>
         </Collapse>
       </Stack>

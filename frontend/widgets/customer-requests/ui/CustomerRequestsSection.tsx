@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Alert, Button, Chip, Paper, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
 import {
   clearPendingRequestDraft,
   isPendingRequestSubmitting,
@@ -44,6 +44,28 @@ function formatDate(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function getSubjectSubtitle(item: RequestCustomerDto): string | null {
+  if (item.subjectType === "SERVICE") {
+    const title = item.serviceTitle?.trim();
+    return title || "Заявка по услуге";
+  }
+  if (item.subjectType === "CATEGORY") {
+    return "Заявка по категории";
+  }
+  return null;
+}
+
+function getDesktopMetaLeft(item: RequestCustomerDto): string {
+  const parts: string[] = [];
+  if (item.providerName) {
+    parts.push(`Исполнитель: ${item.providerName}`);
+  }
+  if (item.location) {
+    parts.push(`Локация: ${item.location}`);
+  }
+  return parts.join(" · ");
 }
 
 type Props = {
@@ -222,72 +244,113 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
               </Typography>
             </Paper>
           ) : null}
-          {filteredItems.map((item) => (
-            <Paper
-              key={item.id}
-              variant="outlined"
-              role={item.status === "CLOSED" ? undefined : "link"}
-              tabIndex={item.status === "CLOSED" ? undefined : 0}
-              aria-disabled={item.status === "CLOSED" ? true : undefined}
-              onClick={() => openRequest(item.id, item.status)}
-              onKeyDown={(e) => {
-                if (item.status === "CLOSED") return;
-                if (e.key !== "Enter" && e.key !== " ") return;
-                e.preventDefault();
-                openRequest(item.id, item.status);
-              }}
-              sx={{
-                p: 2.5,
-                cursor: item.status === "CLOSED" ? "default" : "pointer",
-                transition: (theme) => theme.transitions.create(["background-color", "box-shadow", "border-color"]),
-                ...(item.status === "CLOSED"
-                  ? {}
-                  : {
-                      "&:hover": {
-                        bgcolor: "action.hover",
-                        boxShadow: 1,
-                      },
-                      "&:focus-visible": {
-                        outline: "2px solid",
-                        outlineColor: "primary.main",
-                        outlineOffset: 2,
-                      },
-                    }),
-              }}
-            >
-              <Stack spacing={1}>
-                <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} justifyContent="space-between" alignItems={{ md: "center" }}>
-                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }} justifyContent="space-between" sx={{ width: "100%" }}>
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
-                      <Typography variant="overline" color="text.secondary">
-                        {item.subjectType === "FREEFORM"
-                          ? "Свободная заявка"
-                          : item.subjectType === "CATEGORY"
-                            ? "Заявка по категории"
-                            : item.serviceTitle ?? "Заявка по услуге"}
+          {filteredItems.map((item) => {
+            const title = item.message?.trim() || "Без описания";
+            const subjectSubtitle = getSubjectSubtitle(item);
+            const desktopMetaLeft = getDesktopMetaLeft(item);
+            const statusLabel = getRequestStatusLabel(item.status);
+
+            return (
+              <Paper
+                key={item.id}
+                variant="outlined"
+                role={item.status === "CLOSED" ? undefined : "link"}
+                tabIndex={item.status === "CLOSED" ? undefined : 0}
+                aria-disabled={item.status === "CLOSED" ? true : undefined}
+                onClick={() => openRequest(item.id, item.status)}
+                onKeyDown={(e) => {
+                  if (item.status === "CLOSED") return;
+                  if (e.key !== "Enter" && e.key !== " ") return;
+                  e.preventDefault();
+                  openRequest(item.id, item.status);
+                }}
+                sx={{
+                  p: 2.5,
+                  cursor: item.status === "CLOSED" ? "default" : "pointer",
+                  transition: (theme) => theme.transitions.create(["background-color", "box-shadow", "border-color"]),
+                  ...(item.status === "CLOSED"
+                    ? {}
+                    : {
+                        "&:hover": {
+                          bgcolor: "action.hover",
+                          boxShadow: 1,
+                        },
+                        "&:focus-visible": {
+                          outline: "2px solid",
+                          outlineColor: "primary.main",
+                          outlineOffset: 2,
+                        },
+                      }),
+                }}
+              >
+                <Stack spacing={1}>
+                  <Box sx={{ display: { xs: "block", md: "none" } }}>
+                    <Chip size="small" label={statusLabel} />
+                  </Box>
+
+                  <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
+                    <Typography
+                      color="text.primary"
+                      fontWeight={600}
+                      noWrap
+                      title={title}
+                      sx={{ minWidth: 0, flex: 1 }}
+                    >
+                      {title}
+                    </Typography>
+                    <Chip
+                      size="small"
+                      label={statusLabel}
+                      sx={{ display: { xs: "none", md: "inline-flex" }, flexShrink: 0 }}
+                    />
+                  </Stack>
+
+                  {subjectSubtitle ? (
+                    <Typography variant="body2" color="text.secondary" noWrap title={subjectSubtitle}>
+                      {subjectSubtitle}
+                    </Typography>
+                  ) : null}
+
+                  <Stack
+                    direction="row"
+                    spacing={1.5}
+                    alignItems="center"
+                    justifyContent="space-between"
+                    sx={{ display: { xs: "none", md: "flex" } }}
+                  >
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      noWrap
+                      title={desktopMetaLeft || undefined}
+                      sx={{ minWidth: 0, flex: 1 }}
+                    >
+                      {desktopMetaLeft}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                      {formatDate(item.createdAt)}
+                    </Typography>
+                  </Stack>
+
+                  <Stack spacing={0.5} sx={{ display: { xs: "flex", md: "none" } }}>
+                    {item.providerName ? (
+                      <Typography variant="body2" color="text.secondary">
+                        Исполнитель: {item.providerName}
                       </Typography>
-                      <Chip size="small" label={getRequestStatusLabel(item.status)} />
-                    </Stack>
+                    ) : null}
+                    {item.location ? (
+                      <Typography variant="body2" color="text.secondary">
+                        Локация: {item.location}
+                      </Typography>
+                    ) : null}
+                    <Typography variant="caption" color="text.secondary">
+                      {formatDate(item.createdAt)}
+                    </Typography>
                   </Stack>
                 </Stack>
-
-                {item.providerName ? (
-                  <Typography variant="body2" color="text.secondary">
-                    Исполнитель: {item.providerName}
-                  </Typography>
-                ) : null}
-                {item.location ? (
-                  <Typography variant="body2" color="text.secondary">
-                    Локация: {item.location}
-                  </Typography>
-                ) : null}
-                {item.message ? <Typography color="text.primary" fontWeight={600}>{item.message}</Typography> : null}
-                <Typography variant="caption" color="text.secondary">
-                  {formatDate(item.createdAt)}
-                </Typography>
-              </Stack>
-            </Paper>
-          ))}
+              </Paper>
+            );
+          })}
         </Stack>
       )}
     </Stack>

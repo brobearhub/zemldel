@@ -46,10 +46,14 @@ export async function fetchBackendJson<T>(path: string, init?: RequestInit): Pro
   const body = await parseBackendBody(response);
 
   if (!response.ok) {
-    const message =
+    // Why: status must remain in message — client error.tsx loses custom Error fields.
+    const detail =
       typeof body === "object" && body && "error" in body && typeof body.error === "string"
         ? body.error
-        : `Backend request failed with status ${response.status}`;
+        : null;
+    const message = detail
+      ? `Backend request failed with status ${response.status}: ${detail}`
+      : `Backend request failed with status ${response.status}`;
 
     throw new BackendApiError(message, response.status, body);
   }
@@ -62,10 +66,13 @@ export async function fetchBackendJsonAsUser<T>(path: string, userId: string, in
   const body = await parseBackendBody(response);
 
   if (!response.ok) {
-    const message =
+    const detail =
       typeof body === "object" && body && "error" in body && typeof body.error === "string"
         ? body.error
-        : `Backend request failed with status ${response.status}`;
+        : null;
+    const message = detail
+      ? `Backend request failed with status ${response.status}: ${detail}`
+      : `Backend request failed with status ${response.status}`;
 
     throw new BackendApiError(message, response.status, body);
   }

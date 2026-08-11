@@ -43,7 +43,8 @@ export default async function ServicePage({ params }: Props) {
     if (e instanceof BackendApiError && e.status === 404) {
       notFound();
     }
-    console.error("Error fetching service:", e);
+    // Why: 5xx/network must reach app/error.tsx (maintenance), not look like 404.
+    throw e;
   }
 
   if (!service) notFound();
