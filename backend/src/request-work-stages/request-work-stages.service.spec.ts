@@ -199,21 +199,52 @@ describe('RequestWorkStagesService', () => {
     );
   });
 
-  it('deleteDraft с файлами — 400', async () => {
+  it('deleteStage отклоняет не-последний этап', async () => {
     const prisma = {
       request: { findFirst: vi.fn().mockResolvedValue(activeRequest) },
       requestWorkStage: {
-        findFirst: vi.fn().mockResolvedValue({
-          id: 's1',
-          lifecycle: 'DRAFT',
-          _count: { files: 1, docSlots: 0 },
-        }),
+        findFirst: vi
+          .fn()
+          .mockResolvedValueOnce({
+            id: 's1',
+            files: [],
+            docSlots: [],
+          })
+          .mockResolvedValueOnce({ id: 's2' }),
       },
     };
     const svc = makeService(prisma);
     await expect(
-      svc.deleteDraft({ actorUserId: 'u1', requestId: 'r1', stageId: 's1' }),
+      svc.deleteStage({ actorUserId: 'u1', requestId: 'r1', stageId: 's1' }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('deleteStage удаляет последний опубликованный этап', async () => {
+    const prisma = {
+      request: { findFirst: vi.fn().mockResolvedValue(activeRequest) },
+      requestWorkStage: {
+        findFirst: vi
+          .fn()
+          .mockResolvedValueOnce({
+            id: 's2',
+            files: [{ storageRelPath: 'private/a.bin' }],
+            docSlots: [{ storageRelPath: 'private/b.bin' }, { storageRelPath: null }],
+          })
+          .mockResolvedValueOnce({ id: 's2' }),
+        delete: vi.fn().mockResolvedValue({ id: 's2' }),
+      },
+    };
+    const svc = makeService(prisma);
+    const result = await svc.deleteStage({
+      actorUserId: 'u1',
+      requestId: 'r1',
+      stageId: 's2',
+    });
+    expect(result).toEqual({ ok: true });
+    expect(prisma.requestWorkStage.delete).toHaveBeenCalledWith({
+      where: { id: 's2' },
+      select: { id: true },
+    });
   });
 
   it('replaceCustomStatuses запрещает удаление при ACTIVE использовании', async () => {

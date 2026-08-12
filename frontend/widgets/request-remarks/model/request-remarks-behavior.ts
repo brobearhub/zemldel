@@ -19,6 +19,8 @@ export type RequestRemarksViewModel = {
   collapsible: boolean;
   defaultExpanded: boolean;
   expandedResetKey: string;
+  /** Для текста подтверждения: кого предупреждаем, что увидит статус DONE. */
+  viewerSide: RequestRemarkDto["authorSide"];
   items: RequestRemarksItemViewModel[];
 };
 
@@ -111,6 +113,7 @@ export function createCustomerRequestRemarksBehavior(
         collapsible,
         defaultExpanded: !collapsible,
         expandedResetKey: `${input.request.id}:${input.request.status}`,
+        viewerSide: "CUSTOMER",
         items: mapItems({
           remarks: input.remarks,
           canComplete,
@@ -152,6 +155,7 @@ export function createProviderRequestRemarksBehavior(
         collapsible,
         defaultExpanded: !collapsible,
         expandedResetKey: `${input.request.id}:${input.request.status}`,
+        viewerSide: "PROVIDER",
         items: mapItems({
           remarks: input.remarks,
           canComplete,

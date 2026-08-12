@@ -3,6 +3,13 @@
  * Страницы не добавляют свой `pt`/`py` сверху — иначе снова будет разнобой.
  */
 
+/** Auth-страницы на весь экран: без spacer и footer, фон под fixed header. */
+const FULL_BLEED_AUTH_PATHS = new Set(["/signin", "/signup", "/welcome"]);
+
+export function isFullBleedAuthPath(pathname: string): boolean {
+  return FULL_BLEED_AUTH_PATHS.has(pathname);
+}
+
 /** Высота Toolbar хедера (см. `widgets/header/ui`). */
 export const SITE_HEADER_HEIGHT_PX = {
   xs: 60,

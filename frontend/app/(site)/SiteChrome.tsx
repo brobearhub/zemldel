@@ -5,7 +5,11 @@ import { Box } from "@mui/material";
 import { usePathname } from "next/navigation";
 import { Header } from "@/widgets/header/ui";
 import { Footer } from "@/widgets/footer/ui/Footer";
-import { SITE_CONTENT_GAP_PX, SITE_HEADER_SPACER_PX } from "@/shared/config/site-layout";
+import {
+  isFullBleedAuthPath,
+  SITE_CONTENT_GAP_PX,
+  SITE_HEADER_SPACER_PX,
+} from "@/shared/config/site-layout";
 import { CabinetChrome, CABINET_BOTTOM_NAV_HEIGHT_PX, getCabinetZone } from "@/widgets/cabinet-chrome";
 
 type Props = {
@@ -15,6 +19,7 @@ type Props = {
 export function SiteChrome({ children }: Props) {
   const pathname = usePathname();
   const zone = getCabinetZone(pathname);
+  const fullBleedAuth = isFullBleedAuthPath(pathname);
 
   if (!zone) {
     return (
@@ -23,9 +28,11 @@ export function SiteChrome({ children }: Props) {
           <Header />
         </Box>
         {/* Единый зазор header → контент (см. SITE_HEADER_SPACER_PX). Страницы не дублируют pt сверху. */}
-        <Box sx={{ height: { xs: SITE_HEADER_SPACER_PX.xs, sm: SITE_HEADER_SPACER_PX.sm } }} />
+        {!fullBleedAuth && (
+          <Box sx={{ height: { xs: SITE_HEADER_SPACER_PX.xs, sm: SITE_HEADER_SPACER_PX.sm } }} />
+        )}
         {children}
-        <Footer />
+        {!fullBleedAuth && <Footer />}
       </>
     );
   }

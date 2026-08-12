@@ -34,9 +34,15 @@ export function RequestLifecycleActions(props: RequestLifecycleActionsProps) {
         ) : null}
 
         {vm.note ? (
-          <Typography variant="body2" color="text.secondary">
-            {vm.note}
-          </Typography>
+          vm.actions.some((a) => a.id === "markRendered" && a.disabled) ? (
+            <Alert severity="warning" variant="outlined">
+              <Typography variant="body2">{vm.note}</Typography>
+            </Alert>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              {vm.note}
+            </Typography>
+          )
         ) : null}
 
         {vm.autoAcceptAtLabel ? (

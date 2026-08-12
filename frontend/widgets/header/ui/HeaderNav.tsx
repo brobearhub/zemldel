@@ -62,6 +62,6 @@ export const HeaderNav = () => (
         </Typography>
       </Box>
     ))}
-    <ProfileMenu />
+    <ProfileMenu showLabel />
   </Box>
 );

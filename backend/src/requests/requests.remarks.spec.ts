@@ -105,5 +105,34 @@ describe('RequestsService remarks checklist', () => {
 
     await expect(svc.completeRemarkByProvider('p1', 'r1', 'rm1')).rejects.toBeInstanceOf(ForbiddenException);
   });
+
+  it('markServiceRenderedByProvider блокирует переход при OPEN замечаниях', async () => {
+    const tx = {
+      request: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'ACTIVE',
+          providerId: 'p1',
+        }),
+      },
+      requestRemark: {
+        count: vi.fn().mockResolvedValue(1),
+      },
+      requestEvent: { create: vi.fn() },
+    };
+
+    const prisma = {
+      $transaction: async (fn: any) => await fn(tx),
+    };
+
+    const svc = makeService(prisma);
+
+    await expect(svc.markServiceRenderedByProvider('p1', 'r1')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(tx.requestRemark.count).toHaveBeenCalledWith({
+      where: { requestId: 'r1', status: 'OPEN' },
+    });
+  });
 });
 

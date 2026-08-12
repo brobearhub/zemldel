@@ -28,7 +28,12 @@ function getInitials(name: string | null | undefined): string {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
-export const ProfileMenu = () => {
+type ProfileMenuProps = {
+  /** Подпись «Профиль» под иконкой — только для основного site-хедера. */
+  readonly showLabel?: boolean;
+};
+
+export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
   const router = useRouter();
   const { status, user } = useAppSelector((state) => state.auth);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -95,9 +100,9 @@ export const ProfileMenu = () => {
         aria-expanded={open ? "true" : undefined}
         sx={{
           display: "flex",
-          flexDirection: "row",
+          flexDirection: "column",
           alignItems: "center",
-          gap: 0.75,
+          gap: 0.25,
           px: { xs: 0.75, sm: 1 },
           py: 0.75,
           borderRadius: 1.5,
@@ -107,7 +112,9 @@ export const ProfileMenu = () => {
           border: "none",
           "&:hover": {
             color: "primary.main",
-            "& .nav-label": { opacity: 1 },
+            "& .nav-label": { opacity: 1, color: "info.main" },
+            "& .MuiSvgIcon-root": { color: "info.main" },
+            "& .MuiTypography-root": { color: "info.main" },
           },
         }}
       >
@@ -128,6 +135,22 @@ export const ProfileMenu = () => {
         ) : (
           <PersonOutlineRoundedIcon sx={{ fontSize: { xs: 22, sm: 24 }, color: "info.main" }} />
         )}
+        {showLabel ? (
+          <Typography
+            color="common.gray"
+            className="nav-label"
+            variant="body2"
+            sx={{
+              display: { xs: "none", md: "block" },
+              fontWeight: 600,
+              fontSize: 12,
+              opacity: 1,
+              "&:hover": { color: "info.main" },
+            }}
+          >
+            Профиль
+          </Typography>
+        ) : null}
       </Box>
 
       <Menu

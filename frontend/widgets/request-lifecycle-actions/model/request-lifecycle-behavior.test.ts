@@ -139,5 +139,6 @@ describe("request-lifecycle behavior", () => {
 
     const vm = behavior.getViewModel();
     expect(vm.actions.find((a) => a.id === "markRendered")?.disabled).toBe(true);
+    expect(vm.note).toMatch(/невыполненные замечания/i);
   });
 });

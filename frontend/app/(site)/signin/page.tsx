@@ -16,20 +16,22 @@ export default function SignInPage() {
   );
 }
 
+const signInShellSx = {
+  minHeight: "100dvh",
+  width: "100%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  px: 2,
+  backgroundImage: "url('/hero-bg-house_static_day.jpg')",
+  backgroundSize: "cover",
+  backgroundPosition: "center",
+  backgroundRepeat: "no-repeat",
+} as const;
+
 function SignInPageFallback() {
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        px: 2,
-        backgroundImage: "url('/hero-bg-house_static_day.jpg')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
-    >
+    <Box sx={signInShellSx}>
       <Paper
         elevation={10}
         sx={{
@@ -88,18 +90,7 @@ function SignInPageContent() {
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        px: 2,
-        backgroundImage: "url('/hero-bg-house_static_day.jpg')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
-    >
+    <Box sx={signInShellSx}>
       <Paper
         elevation={10}
         sx={{

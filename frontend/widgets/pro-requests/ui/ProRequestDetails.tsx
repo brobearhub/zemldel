@@ -413,8 +413,20 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
       if (action === "confirm") {
         if (req.status === "ACTIVE") {
           const res = await fetch(`/api/pro/requests/${req.id}/mark-rendered`, { method: "POST" });
-          const payload = (await res.json().catch(() => null)) as { error?: string } | unknown | null;
-          if (!res.ok) throw new Error(payload && typeof payload === "object" && payload && "error" in (payload as any) ? ((payload as any).error as string) : "Не удалось отметить работу");
+          const payload = (await res.json().catch(() => null)) as
+            | { error?: string; message?: string }
+            | null;
+          if (!res.ok) {
+            const apiMessage =
+              payload && typeof payload === "object"
+                ? (typeof payload.message === "string" && payload.message.trim()
+                    ? payload.message
+                    : typeof payload.error === "string" && payload.error.trim()
+                      ? payload.error
+                      : null)
+                : null;
+            throw new Error(apiMessage ?? "Не удалось отметить работу");
+          }
           await refresh();
           setNotice("Услуга передана на принятие клиенту.");
           return;

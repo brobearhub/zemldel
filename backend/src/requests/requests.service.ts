@@ -2088,6 +2088,16 @@ export class RequestsService {
         throw new ForbiddenException('Request must be in work');
       }
 
+      // Why: нельзя уходить в приёмку, пока открыты замечания любой стороны.
+      const openRemarksCount = await tx.requestRemark.count({
+        where: { requestId: current.id, status: 'OPEN' },
+      });
+      if (openRemarksCount > 0) {
+        throw new BadRequestException(
+          'Нельзя отметить услугу выполненной, пока есть невыполненные замечания',
+        );
+      }
+
       return this.transitionToAcceptancePending(tx, current, {
         actorProviderId,
         emitServiceRenderedEvent: true,

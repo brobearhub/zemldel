@@ -17,7 +17,8 @@ export default function WelcomePage() {
   return (
     <Box
       sx={{
-        minHeight: "100vh",
+        minHeight: "100dvh",
+        width: "100%",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -25,6 +26,7 @@ export default function WelcomePage() {
         backgroundImage: "url('/hero-bg-house_static.jpg')",
         backgroundSize: "cover",
         backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
       }}
     >
       <Paper

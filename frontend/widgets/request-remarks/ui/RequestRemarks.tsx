@@ -14,6 +14,7 @@ import {
   Typography,
 } from "@mui/material";
 import { DocumentsSectionShell } from "@/shared/ui/DocumentsSectionShell";
+import { useConfirm } from "@/shared/ui/confirm";
 import type { RequestRemarksBehavior, RequestRemarksViewModel } from "../model/request-remarks-behavior";
 
 export type RequestRemarksProps = {
@@ -22,6 +23,7 @@ export type RequestRemarksProps = {
 };
 
 export function RequestRemarks(props: RequestRemarksProps) {
+  const confirm = useConfirm();
   const [newRemarkText, setNewRemarkText] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [remarksBusy, setRemarksBusy] = useState(false);
@@ -30,6 +32,7 @@ export function RequestRemarks(props: RequestRemarksProps) {
   if (!vm) return null;
 
   const isBusy = Boolean(props.busy) || remarksBusy;
+  const completePeerLabel = vm.viewerSide === "CUSTOMER" ? "исполнитель" : "заказчик";
 
   async function runAction(actionId: string, payload?: unknown) {
     await props.behavior.run({ id: actionId, payload });
@@ -106,6 +109,13 @@ export function RequestRemarks(props: RequestRemarksProps) {
                     disabled={!canToggle}
                     onClick={async () => {
                       if (!canToggle) return;
+                      const ok = await confirm({
+                        title: "Отметить замечание выполненным?",
+                        description: `Замечание станет выполненным, и ${completePeerLabel} это увидит.`,
+                        confirmText: "Выполнено",
+                        confirmColor: "success",
+                      });
+                      if (!ok) return;
                       setRemarksBusy(true);
                       try {
                         await runAction("remarkComplete", { remarkId: item.id });

@@ -182,13 +182,13 @@ export class RequestWorkStagesController {
   @ApiParam({ name: 'requestId', type: String })
   @ApiParam({ name: 'stageId', type: String })
   @ApiOkResponse({ type: OkResponseDto })
-  deleteDraft(
+  deleteStage(
     @Req() request: Request,
     @Param('requestId') requestId: string,
     @Param('stageId') stageId: string,
   ) {
     const actorUserId = this.getRequiredActorUserId(request);
-    return this.stages.deleteDraft({ actorUserId, requestId, stageId });
+    return this.stages.deleteStage({ actorUserId, requestId, stageId });
   }
 
   @Post('pro/requests/:requestId/work-stages/:stageId/files')

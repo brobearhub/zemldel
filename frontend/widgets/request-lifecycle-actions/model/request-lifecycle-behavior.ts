@@ -67,16 +67,22 @@ export function createCustomerRequestLifecycleBehavior(
   };
 }
 
+const MARK_RENDERED_BLOCKED_NOTE =
+  "Нельзя отметить услугу выполненной, пока есть невыполненные замечания.";
+
 export function createProviderRequestLifecycleBehavior(
   input: CreateProviderRequestLifecycleBehaviorInput,
 ): RequestLifecycleBehavior {
   return {
     getViewModel: () => {
       const vm = buildRequestLifecycleViewModel({ side: "provider", request: input.request });
+      const markRenderedBlocked = Boolean(input.isMarkRenderedDisabled);
       return {
         ...vm,
+        // Why: при OPEN-замечаниях кнопка disabled — рядом нужно явное объяснение.
+        note: markRenderedBlocked ? MARK_RENDERED_BLOCKED_NOTE : vm.note,
         actions: vm.actions.map((a) =>
-          a.id === "markRendered" && input.isMarkRenderedDisabled ? { ...a, disabled: true } : a,
+          a.id === "markRendered" && markRenderedBlocked ? { ...a, disabled: true } : a,
         ),
       };
     },

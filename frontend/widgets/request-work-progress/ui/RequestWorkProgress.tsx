@@ -2,8 +2,10 @@
 
 import { useRef, useState } from "react";
 import AddIcon from "@mui/icons-material/Add";
+import CloseIcon from "@mui/icons-material/Close";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import {
   Box,
   Button,
@@ -34,6 +36,8 @@ import {
   uploadProWorkStageFile,
 } from "@/entities/request/api/request-work-stages";
 import { DocumentsSectionShell } from "@/shared/ui/DocumentsSectionShell";
+import { useConfirm } from "@/shared/ui/confirm";
+import { hasClientStageActions } from "../lib/client-stage-actions";
 import { hasStageAttachments, hasStageExpandableContent } from "../lib/has-stage-attachments";
 import type { RequestWorkProgressProps } from "../model/types";
 
@@ -250,6 +254,7 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
               key={stage.id}
               stage={stage}
               order={index + 1}
+              isLastStage={index === props.stages.length - 1}
               mode={props.mode}
               canMutate={canMutate}
               isBusy={isBusy}
@@ -281,6 +286,7 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
 function StageCard(props: {
   stage: WorkStageDto;
   order: number;
+  isLastStage: boolean;
   mode: "provider" | "customer";
   canMutate: boolean;
   isBusy: boolean;
@@ -297,6 +303,7 @@ function StageCard(props: {
   onAction: (fn: () => Promise<void>) => void;
 }) {
   const { stage } = props;
+  const confirm = useConfirm();
   const isDraft = stage.lifecycle === "DRAFT";
   const [expanded, setExpanded] = useState(false);
   const [editTitle, setEditTitle] = useState(stage.title);
@@ -312,6 +319,21 @@ function StageCard(props: {
   // Why: provider всегда может раскрыть (статус/файлы); customer — только если есть контент.
   const canExpand = isProvider || hasStageExpandableContent(stage);
   const isExpanded = canExpand && expanded;
+  // Why: удалять можно только хвост списка — совпадает с правилом бэкенда.
+  const canDeleteStage = isProvider && props.canMutate && props.isLastStage;
+
+  async function confirmDeleteStage() {
+    const ok = await confirm({
+      title: `Удалить этап «${stage.title}»?`,
+      description: "Это действие нельзя отменить.",
+      confirmText: "Удалить",
+      confirmColor: "error",
+    });
+    if (!ok) return;
+    props.onAction(async () => {
+      await deleteProWorkStage(props.requestId, stage.id);
+    });
+  }
 
   return (
     <Box
@@ -350,6 +372,28 @@ function StageCard(props: {
               </Typography>
             </Stack>
             <Stack direction="row" spacing={0.25} alignItems="center" sx={{ flexShrink: 0 }}>
+              {hasClientStageActions(stage) ? (
+                <DescriptionOutlinedIcon
+                  fontSize="small"
+                  color="error"
+                  aria-label="Требуется загрузка документов"
+                  sx={{ display: "block" }}
+                />
+              ) : null}
+              {canDeleteStage ? (
+                <IconButton
+                  size="small"
+                  color="error"
+                  aria-label="Удалить этап"
+                  disabled={props.isBusy}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void confirmDeleteStage();
+                  }}
+                >
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              ) : null}
               {canExpand ? (
                 <IconButton
                   size="small"
@@ -455,18 +499,18 @@ function StageCard(props: {
                   >
                     Опубликовать
                   </Button>
-                  <Button
-                    size="small"
-                    color="error"
-                    disabled={props.isBusy}
-                    onClick={() =>
-                      props.onAction(async () => {
-                        await deleteProWorkStage(props.requestId, stage.id);
-                      })
-                    }
-                  >
-                    Удалить
-                  </Button>
+                  {canDeleteStage ? (
+                    <Button
+                      size="small"
+                      color="error"
+                      disabled={props.isBusy}
+                      onClick={() => {
+                        void confirmDeleteStage();
+                      }}
+                    >
+                      Удалить
+                    </Button>
+                  ) : null}
                 </Stack>
               </>
             ) : null}
@@ -576,7 +620,7 @@ function StageCard(props: {
                                 <Chip
                                   size="small"
                                   label={slot.status === "UPLOADED" ? "Загружено" : "Ожидает"}
-                                  color={slot.status === "UPLOADED" ? "success" : "default"}
+                                  color={slot.status === "UPLOADED" ? "success" : "error"}
                                 />
                               </Stack>
                               {props.mode === "customer" && slot.status === "REQUESTED" ? (

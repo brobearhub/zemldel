@@ -7,7 +7,7 @@
   "license": "private",
   "homepage": "https://zemledel.pro",
   "scripts": {
-    "dev": "next",
+    "dev": "next -p 4000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

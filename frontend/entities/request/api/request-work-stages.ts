@@ -5,10 +5,16 @@ async function safeJson(res: Response) {
 }
 
 function extractError(payload: unknown, fallback: string) {
-  if (payload && typeof payload === "object" && "error" in payload) {
-    const value = (payload as { error?: unknown }).error;
-    if (typeof value === "string" && value.trim().length > 0) return value;
+  if (!payload || typeof payload !== "object") return fallback;
+  // Why: Nest отдаёт message с текстом, а error — общее "Bad Request".
+  const message = (payload as { message?: unknown }).message;
+  if (typeof message === "string" && message.trim().length > 0) return message;
+  if (Array.isArray(message) && message.every((item) => typeof item === "string")) {
+    const joined = message.join("; ").trim();
+    if (joined.length > 0) return joined;
   }
+  const error = (payload as { error?: unknown }).error;
+  if (typeof error === "string" && error.trim().length > 0) return error;
   return fallback;
 }
 

@@ -520,7 +520,11 @@ export class RequestWorkStagesService {
     return toStageDto(updated);
   }
 
-  async deleteDraft(input: {
+  /**
+   * Why: удалять можно только хвост списка — иначе ломается порядок истории этапов.
+   * Черновик и опубликованный — оба ок; файлы в S3 чистим до cascade-delete в БД.
+   */
+  async deleteStage(input: {
     actorUserId: string;
     requestId: string;
     stageId: string;
@@ -540,27 +544,46 @@ export class RequestWorkStagesService {
       },
       select: {
         id: true,
-        lifecycle: true,
-        _count: {
-          select: {
-            files: true,
-            docSlots: { where: { status: 'UPLOADED' } },
-          },
-        },
+        files: { select: { storageRelPath: true } },
+        docSlots: { select: { storageRelPath: true } },
       },
     });
     if (!stage) throw new NotFoundException('Stage not found');
-    if (stage.lifecycle !== 'DRAFT') {
-      throw new BadRequestException('Published stage cannot be deleted');
+
+    const last = await this.prisma.requestWorkStage.findFirst({
+      where: { requestId: input.requestId, providerId },
+      orderBy: [{ sortOrder: 'desc' }, { createdAt: 'desc' }],
+      select: { id: true },
+    });
+    if (!last || last.id !== stage.id) {
+      throw new BadRequestException('Only the last stage can be deleted');
     }
-    if (stage._count.files > 0 || stage._count.docSlots > 0) {
-      throw new BadRequestException('Stage has files or uploaded documents');
-    }
+
+    const storageKeys = [
+      ...stage.files.map((file) => file.storageRelPath),
+      ...stage.docSlots
+        .map((slot) => slot.storageRelPath)
+        .filter((key): key is string => Boolean(key)),
+    ];
 
     await this.prisma.requestWorkStage.delete({
       where: { id: stage.id },
       select: { id: true },
     });
+
+    await Promise.all(
+      storageKeys.map((key) =>
+        this.s3.client
+          .send(
+            new DeleteObjectCommand({
+              Bucket: this.s3.privateBucket,
+              Key: key,
+            }),
+          )
+          .catch(() => null),
+      ),
+    );
+
     return { ok: true as const };
   }
 
