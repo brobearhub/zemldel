@@ -33,7 +33,7 @@ export function MaintenanceScreen({
     >
       <Stack spacing={3} alignItems="center" sx={{ maxWidth: 480, textAlign: "center" }}>
         <Image
-          src="/zemledel_logo_light.svg"
+          src="/zemledel_logo_dark.svg"
           alt="Земледел"
           width={140}
           height={63}

@@ -67,6 +67,9 @@ export type RequestCustomerDto = {
   lockedAt: string | null;
   serviceTitle: string | null;
   providerName: string | null;
+  providerPhone: string | null;
+  providerEmail: string | null;
+  providerImage: string | null;
   customerName: string | null;
   customerEmail: string | null;
   customerUserId: string | null;
@@ -97,6 +100,10 @@ export type RequestProDto = {
   offerDeclinedAt: string | null;
   requestCityId: string | null;
   lockedAt: string | null;
+  customerName: string | null;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  customerImage: string | null;
   conversationsCount: number;
   isLocked: boolean;
   createdAt: string;

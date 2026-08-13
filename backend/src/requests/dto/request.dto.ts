@@ -146,6 +146,12 @@ function toSubjectType(row: {
   return 'FREEFORM';
 }
 
+function nonemptyOrNull(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
 export class RequestUnlinkedCreateDto {
   @ApiPropertyOptional({ nullable: true, minLength: 10, example: null })
   @Expose()
@@ -431,6 +437,24 @@ export class RequestCustomerDto {
   @Expose()
   @IsOptional()
   @IsString()
+  providerPhone!: string | null;
+
+  @ApiProperty({ nullable: true, example: null })
+  @Expose()
+  @IsOptional()
+  @IsString()
+  providerEmail!: string | null;
+
+  @ApiProperty({ nullable: true, example: null })
+  @Expose()
+  @IsOptional()
+  @IsString()
+  providerImage!: string | null;
+
+  @ApiProperty({ nullable: true, example: null })
+  @Expose()
+  @IsOptional()
+  @IsString()
   customerName!: string | null;
 
   @ApiProperty({ nullable: true, example: null })
@@ -579,6 +603,30 @@ export class RequestProDto {
   @IsString()
   acceptedAt!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
+  @Expose()
+  @IsOptional()
+  @IsString()
+  customerName!: string | null;
+
+  @ApiProperty({ nullable: true, example: null })
+  @Expose()
+  @IsOptional()
+  @IsString()
+  customerEmail!: string | null;
+
+  @ApiProperty({ nullable: true, example: null })
+  @Expose()
+  @IsOptional()
+  @IsString()
+  customerPhone!: string | null;
+
+  @ApiProperty({ nullable: true, example: null })
+  @Expose()
+  @IsOptional()
+  @IsString()
+  customerImage!: string | null;
+
   @ApiProperty()
   @Expose()
   conversationsCount!: number;
@@ -606,6 +654,9 @@ export type RequestDbRow = {
   providerId: string | null;
   customerUserId: string | null;
   requestCityId: string | null;
+  customerName?: string | null;
+  customerEmail?: string | null;
+  customerPhone?: string | null;
   message: string | null;
   location: string | null;
   lockedAt: Date | null;
@@ -624,8 +675,13 @@ export type RequestDbRow = {
     customerCityId: string | null;
     name?: string | null;
     email?: string | null;
+    image?: string | null;
   } | null;
-  provider?: { name: string } | null;
+  provider?: {
+    name: string;
+    legalProfile?: { phone: string | null; email: string | null } | null;
+    ownerUser?: { image?: string | null } | null;
+  } | null;
   providerOffers?: Array<{
     providerId: string;
     status: RequestProviderOfferStatus;
@@ -681,6 +737,15 @@ export function requestRowToCustomerDtoPlain(
       acceptedAt: row.acceptedAt ? row.acceptedAt.toISOString() : null,
       serviceTitle: row.service?.title ?? null,
       providerName: row.provider?.name ?? null,
+      providerPhone: hasRequestLock(row)
+        ? nonemptyOrNull(row.provider?.legalProfile?.phone)
+        : null,
+      providerEmail: hasRequestLock(row)
+        ? nonemptyOrNull(row.provider?.legalProfile?.email)
+        : null,
+      providerImage: hasRequestLock(row)
+        ? nonemptyOrNull(row.provider?.ownerUser?.image)
+        : null,
       customerName: row.customerUser?.name ?? null,
       customerEmail: row.customerUser?.email ?? null,
       createdAt: row.createdAt.toISOString(),
@@ -718,6 +783,11 @@ export function requestRowToProDtoPlain(
       : ('FREEFORM' as const)
     : toSubjectType(row);
 
+  const revealCustomerContacts = isExclusiveForActorProvider(
+    row,
+    actorProviderId,
+  );
+
   const inst = plainToInstance(
     RequestProDto,
     {
@@ -751,6 +821,18 @@ export function requestRowToProDtoPlain(
         : null,
       autoAcceptAt: row.autoAcceptAt ? row.autoAcceptAt.toISOString() : null,
       acceptedAt: row.acceptedAt ? row.acceptedAt.toISOString() : null,
+      customerName: revealCustomerContacts
+        ? nonemptyOrNull(row.customerName)
+        : null,
+      customerEmail: revealCustomerContacts
+        ? nonemptyOrNull(row.customerEmail)
+        : null,
+      customerPhone: revealCustomerContacts
+        ? nonemptyOrNull(row.customerPhone)
+        : null,
+      customerImage: revealCustomerContacts
+        ? nonemptyOrNull(row.customerUser?.image)
+        : null,
       conversationsCount,
       isLocked: locked,
       createdAt: row.createdAt.toISOString(),

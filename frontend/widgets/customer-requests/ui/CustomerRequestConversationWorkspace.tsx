@@ -64,6 +64,12 @@ import type { CustomerContractBundleListItem } from "@/features/request-contract
 import { canCustomerAcceptContract } from "@/widgets/customer-requests/lib/can-accept-contract";
 import { CustomerRequestDocumentsSection } from "@/widgets/customer-requests/ui/CustomerRequestDocumentsSection";
 import { useConfirm } from "@/shared/ui/confirm";
+import {
+  canShowCustomerCounterpartyButton,
+  getProviderContactFields,
+  RequestCounterpartyButton,
+  RequestCounterpartyLayer,
+} from "@/features/request-counterparty";
 
 function pickTitle(req: RequestCustomerDto) {
   if (req.subjectType === "SERVICE") return req.serviceTitle ?? "Заявка по услуге";
@@ -92,6 +98,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     mergeWorkStageStatusOptions([])
   );
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
+  const [counterpartyOpen, setCounterpartyOpen] = useState(false);
   const [termsBusy, setTermsBusy] = useState(false);
   const [termsError, setTermsError] = useState<string | null>(null);
   const [termsVersion, setTermsVersion] = useState<string | null>(null);
@@ -566,15 +573,36 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
   }
 
   const requestBody = resolveRequestDetailBody(req.message, req.serviceTitle);
+  const showCounterparty = canShowCustomerCounterpartyButton({ lockedAt: req.lockedAt });
+  const providerFields = getProviderContactFields({
+    providerName: req.providerName,
+    providerPhone: req.providerPhone,
+    providerEmail: req.providerEmail,
+  });
 
   return (
     <ChatBodyWithSidePanelLayout
       middle={
         <Stack spacing={2}>
+          <RequestCounterpartyLayer
+            open={counterpartyOpen}
+            title="Исполнитель"
+            fields={providerFields}
+            avatarSrc={req.providerImage}
+            avatarName={req.providerName}
+            onClose={() => setCounterpartyOpen(false)}
+          >
           <RequestDetailHeaderCard
             subtitle={pickTitle(req)}
             statusLabel={getRequestStatusLabel(req.status)}
             body={requestBody}
+            footerEnd={
+              <RequestCounterpartyButton
+                visible={showCounterparty}
+                label="Исполнитель"
+                onClick={() => setCounterpartyOpen(true)}
+              />
+            }
             details={
               <RequestDetails
                 busy={busy}
@@ -598,6 +626,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
               />
             }
           />
+          </RequestCounterpartyLayer>
 
           {notice ? <Alert severity="success">{notice}</Alert> : null}
           {error ? <Alert severity="error">{error}</Alert> : null}

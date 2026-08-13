@@ -60,8 +60,14 @@ const select = {
   updatedAt: true,
   service: { select: { title: true, providerId: true } },
   category: { select: { name: true } },
-  provider: { select: { name: true } },
-  customerUser: { select: { customerCityId: true, name: true, email: true } },
+  provider: {
+    select: {
+      name: true,
+      legalProfile: { select: { phone: true, email: true } },
+      ownerUser: { select: { image: true } },
+    },
+  },
+  customerUser: { select: { customerCityId: true, name: true, email: true, image: true } },
   providerOffers: {
     select: {
       providerId: true,

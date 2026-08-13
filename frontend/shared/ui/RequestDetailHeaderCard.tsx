@@ -13,6 +13,8 @@ export type RequestDetailHeaderCardProps = {
   details?: ReactNode;
   /** Контент после описания (lifecycle-кнопки/мета); без body — сразу после details */
   afterBody?: ReactNode;
+  /** Контент в нижнем правом углу блока заявки (например иконка клиента/исполнителя) */
+  footerEnd?: ReactNode;
   title?: string;
 };
 
@@ -25,8 +27,12 @@ export function RequestDetailHeaderCard({
   body,
   details,
   afterBody,
+  footerEnd,
   title = "Заявка",
 }: RequestDetailHeaderCardProps) {
+  const hasFooter = Boolean(afterBody || footerEnd);
+  const sideBySide = Boolean(details && body);
+
   return (
     <Box
       sx={(theme) => ({
@@ -36,12 +42,12 @@ export function RequestDetailHeaderCard({
       })}
     >
       <Stack spacing={2}>
-        <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
+        <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2} sx={{ pb: { md: 2 } }}>
           <Stack spacing={0.5} sx={{ minWidth: 0 }}>
             <Typography variant="h4" fontWeight={800} color="text.primary">
               {title}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" sx={{ display: "none" }}>
               {subtitle}
             </Typography>
           </Stack>
@@ -62,26 +68,56 @@ export function RequestDetailHeaderCard({
           />
         </Stack>
 
-        {details ? <Box>{details}</Box> : null}
-
-        {body ? (
-          <Paper
-            elevation={0}
-            sx={(theme) => ({
-              p: 2.5,
-              borderRadius: "10px",
-              bgcolor: "background.paper",
-              border: `1px solid ${alpha(theme.palette.common.black, 0.06)}`,
-              boxShadow: `0 1px 2px ${alpha(theme.palette.common.black, 0.04)}`,
-            })}
+        {details || body ? (
+          <Stack
+            direction={sideBySide ? { xs: "row-reverse", md: "column" } : "column"}
+            spacing={sideBySide ? { xs: 3, md: 2 } : 2}
+            useFlexGap
+            alignItems="stretch"
           >
-            <Typography fontWeight={700} color="text.primary" sx={{ whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
-              {body}
-            </Typography>
-          </Paper>
+            {details ? (
+              <Box sx={sideBySide ? { flexShrink: 0 } : undefined }>{details}</Box>
+            ) : null}
+
+            {body ? (
+              <Paper
+                elevation={0}
+                sx={(theme) => ({
+                  p: { xs: 1.5, sm: 2.5 },
+                  borderRadius: "10px",
+                  bgcolor: "background.paper",
+                  border: `1px solid ${alpha(theme.palette.common.black, 0.06)}`,
+                  boxShadow: `0 1px 2px ${alpha(theme.palette.common.black, 0.04)}`,
+                  ...(sideBySide
+                    ? {
+                        flex: { xs: "1 1 auto", md: "none" },
+                        minWidth: 0,
+                      }
+                    : null),
+                })}
+              >
+                <Typography fontWeight={700} color="text.primary" sx={{ whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
+                  {body}
+                </Typography>
+              </Paper>
+            ) : null}
+          </Stack>
         ) : null}
 
-        {afterBody ? <Box>{afterBody}</Box> : null}
+        {hasFooter ? (
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            justifyContent="space-between"
+            sx={{ width: "100%", pt: { xs: 2, sm: 1 } }}
+          >
+            <Box sx={{ minWidth: 0, flex: "1 1 auto" }}>{afterBody}</Box>
+            {footerEnd ? (
+              <Box sx={{ flexShrink: 0, display: "flex", alignItems: "center" }}>{footerEnd}</Box>
+            ) : null}
+          </Stack>
+        ) : null}
       </Stack>
     </Box>
   );

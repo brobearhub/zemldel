@@ -1,25 +1,19 @@
 "use client";
 
-import FormatListBulletedOutlinedIcon from "@mui/icons-material/FormatListBulletedOutlined";
-import LinearScaleOutlinedIcon from "@mui/icons-material/LinearScaleOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import {
   Box,
   Chip,
-  List,
-  ListItem,
   Paper,
   Stack,
   Step,
   StepLabel,
   Stepper,
   TextField,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { RequestCustomerDto, RequestStatus } from "../dto/request.dto";
 import {
   buildCustomerRequestFlowSteps,
@@ -37,89 +31,43 @@ import { getRequestStatusLabel } from "../dto/request.dto";
 
 export type { StatusProgressStep };
 
-export type StatusProgressView = "chain" | "list";
-
-const STATUS_PROGRESS_VIEW_STORAGE_KEY = "request.statusProgressView";
-
-export function useStatusProgressView(defaultView: StatusProgressView = "chain") {
-  const [view, setView] = useState<StatusProgressView>(defaultView);
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STATUS_PROGRESS_VIEW_STORAGE_KEY);
-      if (raw === "chain" || raw === "list") setView(raw);
-    } catch {
-      // ignore storage errors
-    }
-  }, []);
-
-  const update = useCallback((next: StatusProgressView) => {
-    setView(next);
-    try {
-      window.localStorage.setItem(STATUS_PROGRESS_VIEW_STORAGE_KEY, next);
-    } catch {
-      // ignore storage errors
-    }
-  }, []);
-
-  return [view, update] as const;
-}
-
-type StatusProgressViewToggleProps = {
-  value: StatusProgressView;
-  onChange: (next: StatusProgressView) => void;
-  disabled?: boolean;
-};
-
-export function StatusProgressViewToggle({ value, onChange, disabled }: StatusProgressViewToggleProps) {
-  return (
-    <ToggleButtonGroup
-      size="small"
-      exclusive
-      value={value}
-      disabled={disabled}
-      onChange={(_, next) => {
-        if (next === "chain" || next === "list") onChange(next);
-      }}
-      sx={{
-        bgcolor: "background.paper",
-        "& .MuiToggleButton-root": { px: 1, py: 0.25 },
-      }}
-    >
-      <ToggleButton value="chain" aria-label="Цепочка шагов">
-        <LinearScaleOutlinedIcon fontSize="small" />
-      </ToggleButton>
-      <ToggleButton value="list" aria-label="Список статусов">
-        <FormatListBulletedOutlinedIcon fontSize="small" />
-      </ToggleButton>
-    </ToggleButtonGroup>
-  );
-}
-
 type StatusProgressStepperProps = {
   steps: StatusProgressStep[];
   activeStepId: string;
   muted?: boolean;
+  orientation?: "horizontal" | "vertical";
 };
 
-export function StatusProgressStepper({ steps, activeStepId, muted = false }: StatusProgressStepperProps) {
+export function StatusProgressStepper({
+  steps,
+  activeStepId,
+  muted = false,
+  orientation = "horizontal",
+}: StatusProgressStepperProps) {
   const activeIndex = Math.max(
     steps.findIndex((step) => step.id === activeStepId),
-    0
+    0,
   );
+  const isVertical = orientation === "vertical";
 
   return (
     <Box
       sx={{
-        width: "100%",
-        overflowX: "auto",
+        width: isVertical ? "max-content" : "100%",
+        maxWidth: "100%",
+        display: isVertical ? "flex" : "block",
+        justifyContent: isVertical ? "flex-end" : undefined,
+        overflowX: isVertical ? "visible" : "auto",
         overflowY: "hidden",
-        WebkitOverflowScrolling: "touch",
+        WebkitOverflowScrolling: isVertical ? undefined : "touch",
+        ...(muted ? { opacity: 0.72 } : null),
       }}
     >
       <Stepper
-        alternativeLabel
+        alternativeLabel={!isVertical}
+        orientation={orientation}
         activeStep={activeIndex}
+        sx={isVertical ? { width: "max-content", maxWidth: "100%" } : undefined}
       >
         {steps.map((step, index) => (
           <Step key={step.id} completed={step.completed}>
@@ -128,61 +76,6 @@ export function StatusProgressStepper({ steps, activeStepId, muted = false }: St
         ))}
       </Stepper>
     </Box>
-  );
-}
-
-export function StatusProgressList({ steps, activeStepId, muted = false }: StatusProgressStepperProps) {
-  return (
-    <List dense disablePadding>
-      {steps.map((step, index) => {
-        const isActive = step.id === activeStepId;
-        const isCompleted = step.completed;
-        const badgeBg = muted
-          ? "action.disabledBackground"
-          : isActive
-            ? "primary.main"
-            : isCompleted
-              ? "primary.dark"
-              : "action.hover";
-        const badgeColor = muted ? "text.disabled" : isActive || isCompleted ? "common.white" : "text.secondary";
-        const labelColor = muted ? "text.disabled" : isActive || isCompleted ? "text.primary" : "text.secondary";
-
-        return (
-          <ListItem key={step.id} disableGutters sx={{ py: 0.5 }}>
-            <Stack direction="row" spacing={1.25} alignItems="flex-start" sx={{ width: "100%" }}>
-              <Box
-                sx={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: "50%",
-                  display: "grid",
-                  placeItems: "center",
-                  flexShrink: 0,
-                  bgcolor: badgeBg,
-                  color: badgeColor,
-                  fontSize: 12,
-                  fontWeight: 900,
-                  border: 1,
-                  borderColor: muted ? "action.disabledBackground" : isActive || isCompleted ? "primary.main" : "divider",
-                }}
-              >
-                {index + 1}
-              </Box>
-              <Typography
-                variant="body2"
-                sx={{
-                  pt: "3px",
-                  color: labelColor,
-                  fontWeight: muted ? 700 : isActive ? 900 : isCompleted ? 800 : 700,
-                }}
-              >
-                {step.label}
-              </Typography>
-            </Stack>
-          </ListItem>
-        );
-      })}
-    </List>
   );
 }
 

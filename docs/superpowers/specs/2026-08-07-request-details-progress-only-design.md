@@ -5,7 +5,7 @@
 
 ## Цель
 
-Упростить блок «Детали» на страницах заявки (customer и provider): оставить только линию прогресса (stepper/list). Lifecycle-кнопки и сопутствующую мету перенести под описание заявки.
+Упростить блок «Детали» на страницах заявки (customer и provider): оставить только линию прогресса. Lifecycle-кнопки и сопутствующую мету перенести под описание заявки.
 
 ## Контекст
 
@@ -25,7 +25,7 @@
 
 | Вопрос | Решение |
 |--------|---------|
-| Что остаётся в «Детали» | Только progress UI: заголовок, toggle, stepper/list, `muted` |
+| Что остаётся в «Детали» | Только stepper: горизонтальный на desktop (`md+`), вертикальный на mobile; без заголовка и toggle; `muted` |
 | Куда уходят кнопки | Отдельный блок после описания заявки (`body`) |
 | Куда уходят meta/note/alert/autoAccept | Вместе с кнопками в тот же блок |
 | Нет описания (`body == null`) | Lifecycle-блок сразу после stepper |
@@ -53,8 +53,8 @@ Fallback без `body`: пункты 2 → 4 подряд (stepper, затем l
 
 Ответственность: только progress UI.
 
-- Рендерит: заголовок «Детали», `StatusProgressViewToggle`, stepper или list, учёт `muted`.
-- Не рендерит: actions, infoRows, note, lockedAlert, autoAcceptAtLabel, bottomSlot.
+- Рендерит: `StatusProgressStepper` (горизонтальный на `md+`, вертикальный ниже), учёт `muted`.
+- Не рендерит: заголовок «Детали», toggle вида, actions, infoRows, note, lockedAlert, autoAcceptAtLabel, bottomSlot.
 
 ### `RequestLifecycleActions` (новый widget-slice)
 
@@ -124,7 +124,7 @@ Screen-контейнеры передают:
 
 ## Критерии готовности
 
-- [ ] «Детали» визуально = только линия прогресса (+ заголовок и toggle).
+- [ ] «Детали» визуально = только линия прогресса (без заголовка и toggle; desktop горизонтально, mobile вертикально).
 - [ ] Lifecycle-кнопки и мета под описанием; без описания — сразу под stepper.
 - [ ] Пустой lifecycle не занимает место.
 - [ ] Customer и pro страницы ведут себя одинаково по layout.

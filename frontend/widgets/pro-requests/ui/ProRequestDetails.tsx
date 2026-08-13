@@ -25,6 +25,12 @@ import {
 } from "@/entities/request";
 import { isOrderExecutionStatus } from "@/entities/request";
 import type { RequestDocumentRequestDto } from "@/entities/request";
+import {
+  canShowProviderCounterpartyButton,
+  getCustomerContactFields,
+  RequestCounterpartyButton,
+  RequestCounterpartyLayer,
+} from "@/features/request-counterparty";
 import { RequestRemindersPanel } from "@/widgets/pro-requests/ui/RequestRemindersPanel";
 import Link from "@/shared/ui/Link";
 import { RequestDetailHeaderCard } from "@/shared/ui/RequestDetailHeaderCard";
@@ -94,6 +100,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   const confirm = useConfirm();
   const confirmWithReason = useConfirmWithReason();
   const { socket } = useChatSocket();
+  const [counterpartyOpen, setCounterpartyOpen] = useState(false);
 
   const isBusy = busy || uploadBusy;
   const showContractWorkflow = !req.isLocked && req.offerStatus === "SELECTED";
@@ -505,13 +512,37 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   }
 
   const messageBody = resolveRequestDetailBody(req.message, req.serviceTitle);
+  const showCounterparty = canShowProviderCounterpartyButton({
+    lockedAt: req.lockedAt,
+    isLocked: req.isLocked,
+  });
+  const customerFields = getCustomerContactFields({
+    customerName: req.customerName,
+    customerPhone: req.customerPhone,
+    customerEmail: req.customerEmail,
+  });
 
   return (
     <Stack spacing={2}>
+      <RequestCounterpartyLayer
+        open={counterpartyOpen}
+        title="Клиент"
+        fields={customerFields}
+        avatarSrc={req.customerImage}
+        avatarName={req.customerName}
+        onClose={() => setCounterpartyOpen(false)}
+      >
       <RequestDetailHeaderCard
         subtitle={subtitle}
         statusLabel={getRequestStatusLabel(req.status)}
         body={messageBody}
+        footerEnd={
+          <RequestCounterpartyButton
+            visible={showCounterparty}
+            label="Клиент"
+            onClick={() => setCounterpartyOpen(true)}
+          />
+        }
         details={
           <RequestDetails
             busy={isBusy}
@@ -556,6 +587,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
           />
         }
       />
+      </RequestCounterpartyLayer>
 
       {notice ? <Alert severity="success">{notice}</Alert> : null}
       {error ? <Alert severity="error">{error}</Alert> : null}
