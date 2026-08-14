@@ -5,9 +5,12 @@ import {
   instanceToPlain,
   plainToInstance,
   Transform,
+  Type,
 } from 'class-transformer';
 import {
+  IsArray,
   IsEnum,
+  IsInt,
   IsOptional,
   IsString,
   IsUUID,
@@ -16,6 +19,11 @@ import {
   validateSync,
   type ValidationError,
 } from 'class-validator';
+import {
+  remainingKopecks,
+  sumPaidKopecksByType,
+  type PaymentAmountWithTypeAndPaidAt,
+} from './request-finance';
 
 export type RequestStatus =
   | 'NEW'
@@ -96,6 +104,41 @@ export const ORDER_STATUSES = [
 export type RequestSubjectType = 'FREEFORM' | 'CATEGORY' | 'SERVICE';
 
 export type RequestProviderOfferStatus = 'SELECTED' | 'DECLINED';
+
+export type RequestPaymentType = 'CONTRACT' | 'OTHER';
+
+export class RequestPaymentItemDto {
+  @ApiProperty({ format: 'uuid' })
+  @Expose()
+  @IsUUID()
+  id!: string;
+
+  @ApiProperty({ enum: ['CONTRACT', 'OTHER'], example: 'CONTRACT' })
+  @Expose()
+  @IsEnum(['CONTRACT', 'OTHER'])
+  type!: RequestPaymentType;
+
+  @ApiProperty({ example: 500000 })
+  @Expose()
+  @IsInt()
+  amountKopecks!: number;
+
+  @ApiProperty({ example: 'Аванс' })
+  @Expose()
+  @IsString()
+  comment!: string;
+
+  @ApiProperty({ nullable: true, example: '2026-08-13T10:00:00.000Z' })
+  @Expose()
+  @IsOptional()
+  @IsString()
+  paidAt!: string | null;
+
+  @ApiProperty()
+  @Expose()
+  @IsString()
+  createdAt!: string;
+}
 
 export class RequestCustomerOfferDto {
   @ApiProperty({ format: 'uuid' })
@@ -463,6 +506,29 @@ export class RequestCustomerDto {
   @IsString()
   customerEmail!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
+  @Expose()
+  @IsOptional()
+  @IsInt()
+  totalAmountKopecks!: number | null;
+
+  @ApiProperty({ example: 0 })
+  @Expose()
+  @IsInt()
+  paidAmountKopecks!: number;
+
+  @ApiProperty({ nullable: true, example: null })
+  @Expose()
+  @IsOptional()
+  @IsInt()
+  remainingAmountKopecks!: number | null;
+
+  @ApiProperty({ type: [RequestPaymentItemDto] })
+  @Expose()
+  @Type(() => RequestPaymentItemDto)
+  @IsArray()
+  payments!: RequestPaymentItemDto[];
+
   @ApiProperty()
   @Expose()
   @IsString()
@@ -635,6 +701,29 @@ export class RequestProDto {
   @Expose()
   isLocked!: boolean;
 
+  @ApiProperty({ nullable: true, example: null })
+  @Expose()
+  @IsOptional()
+  @IsInt()
+  totalAmountKopecks!: number | null;
+
+  @ApiProperty({ example: 0 })
+  @Expose()
+  @IsInt()
+  paidAmountKopecks!: number;
+
+  @ApiProperty({ nullable: true, example: null })
+  @Expose()
+  @IsOptional()
+  @IsInt()
+  remainingAmountKopecks!: number | null;
+
+  @ApiProperty({ type: [RequestPaymentItemDto] })
+  @Expose()
+  @Type(() => RequestPaymentItemDto)
+  @IsArray()
+  payments!: RequestPaymentItemDto[];
+
   @ApiProperty()
   @Expose()
   @IsString()
@@ -667,6 +756,7 @@ export type RequestDbRow = {
   acceptanceRequestedAt?: Date | null;
   autoAcceptAt?: Date | null;
   acceptedAt?: Date | null;
+  totalAmountKopecks?: number | null;
   createdAt: Date;
   updatedAt: Date;
   service?: { title: string } | null;
@@ -688,7 +778,41 @@ export type RequestDbRow = {
     selectedAt: Date;
     declinedAt: Date | null;
   }>;
+  payments?: Array<{
+    id: string;
+    type: RequestPaymentType;
+    amountKopecks: number;
+    comment: string;
+    paidAt: Date;
+    createdAt: Date;
+  }>;
 };
+
+function toFinanceDto(row: RequestDbRow, reveal: boolean) {
+  if (!reveal) {
+    return {
+      totalAmountKopecks: null,
+      paidAmountKopecks: 0,
+      remainingAmountKopecks: null,
+      payments: [] as RequestPaymentItemDto[],
+    };
+  }
+  const payments = row.payments ?? [];
+  const paidAmountKopecks = sumPaidKopecksByType(payments as unknown as PaymentAmountWithTypeAndPaidAt[], 'CONTRACT');
+  return {
+    totalAmountKopecks: row.totalAmountKopecks ?? null,
+    paidAmountKopecks,
+    remainingAmountKopecks: remainingKopecks(row.totalAmountKopecks ?? null, paidAmountKopecks),
+    payments: payments.map((payment) => ({
+      id: payment.id,
+      type: payment.type,
+      amountKopecks: payment.amountKopecks,
+      comment: payment.comment,
+      paidAt: payment.paidAt ? payment.paidAt.toISOString() : null,
+      createdAt: payment.createdAt.toISOString(),
+    })),
+  };
+}
 
 export function requestRowToCustomerDtoPlain(
   row: RequestDbRow,
@@ -748,6 +872,7 @@ export function requestRowToCustomerDtoPlain(
         : null,
       customerName: row.customerUser?.name ?? null,
       customerEmail: row.customerUser?.email ?? null,
+      ...toFinanceDto(row, hasRequestLock(row)),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     },
@@ -835,6 +960,7 @@ export function requestRowToProDtoPlain(
         : null,
       conversationsCount,
       isLocked: locked,
+      ...toFinanceDto(row, revealCustomerContacts),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     },

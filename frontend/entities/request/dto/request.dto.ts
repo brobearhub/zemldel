@@ -43,6 +43,17 @@ export type RequestCustomerOfferDto = {
   status: RequestProviderOfferStatus;
 };
 
+export type RequestPaymentType = "CONTRACT" | "OTHER";
+
+export type RequestPaymentItemDto = {
+  id: string;
+  type: RequestPaymentType;
+  amountKopecks: number;
+  comment: string;
+  paidAt: string | null;
+  createdAt: string;
+};
+
 export type RequestCustomerDto = {
   id: string;
   subjectType: RequestSubjectType;
@@ -75,6 +86,10 @@ export type RequestCustomerDto = {
   customerUserId: string | null;
   createdAt: string;
   updatedAt: string;
+  totalAmountKopecks: number | null;
+  paidAmountKopecks: number;
+  remainingAmountKopecks: number | null;
+  payments: RequestPaymentItemDto[];
 };
 
 export type RequestProDto = {
@@ -106,6 +121,10 @@ export type RequestProDto = {
   customerImage: string | null;
   conversationsCount: number;
   isLocked: boolean;
+  totalAmountKopecks: number | null;
+  paidAmountKopecks: number;
+  remainingAmountKopecks: number | null;
+  payments: RequestPaymentItemDto[];
   createdAt: string;
   updatedAt: string;
 };

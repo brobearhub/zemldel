@@ -167,6 +167,7 @@ model User {
   customerConversations     Conversation[]           @relation("ConversationCustomer")
   createdRequestRemarks     RequestRemark[]          @relation("RequestRemarkCreatedByUser")
   doneRequestRemarks        RequestRemark[]          @relation("RequestRemarkDoneByUser")
+  createdRequestPayments    RequestPayment[]         @relation("RequestPaymentCreatedByUser")
   activeProvider            Provider?                @relation("ActiveProvider", fields: [activeProviderId], references: [id], onDelete: SetNull)
   customerCity              City?                    @relation("UserCustomerCity", fields: [customerCityId], references: [id], onDelete: SetNull)
   createdAt                 DateTime                 @default(now())
@@ -250,6 +251,7 @@ model Provider {
   requests          Request[]
   requestOffers     RequestProviderOffer[]
   reminders         RequestReminder[]
+  requestPayments   RequestPayment[]
   createdRequestRemarks RequestRemark[] @relation("RequestRemarkCreatedByProvider")
   doneRequestRemarks    RequestRemark[] @relation("RequestRemarkDoneByProvider")
   activeUsers       User[]                 @relation("ActiveProvider")
@@ -384,6 +386,7 @@ model Request {
   autoAcceptAt             DateTime?
   acceptedAt               DateTime?
   acceptedByUserId         String?   @db.Uuid
+  totalAmountKopecks       Int?
 
   service           Service?               @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   category          ServiceCategory?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -399,6 +402,7 @@ model Request {
   workStages        RequestWorkStage[]
   reminders         RequestReminder[]
   remarks           RequestRemark[]
+  payments          RequestPayment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -501,6 +505,32 @@ model RequestRemark {
   @@index([requestId, createdAt])
   @@index([requestId, status])
   @@index([authorSide, status])
+}
+
+model RequestPayment {
+  id              String   @id @default(uuid()) @db.Uuid
+  requestId       String   @db.Uuid
+  providerId      String   @db.Uuid
+  type            RequestPaymentType @default(CONTRACT)
+  amountKopecks   Int
+  comment         String
+  paidAt          DateTime?
+  createdByUserId String?  @db.Uuid
+
+  request       Request   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  provider      Provider  @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  createdByUser User?     @relation("RequestPaymentCreatedByUser", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([requestId, paidAt])
+  @@index([providerId, paidAt])
+}
+
+enum RequestPaymentType {
+  CONTRACT
+  OTHER
 }
 
 model RequestEvent {

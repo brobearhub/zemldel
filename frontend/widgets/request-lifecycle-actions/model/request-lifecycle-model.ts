@@ -1,5 +1,6 @@
 import type { RequestCustomerDto, RequestProDto, RequestStatus } from "@/entities/request";
 import {
+  formatKopecksRub,
   formatRequestDate,
   hasRequestLock,
   isContractPhase,
@@ -75,6 +76,11 @@ function resolveStateIdFromRequest(req: {
   return "NEW";
 }
 
+function remainingPayNote(remainingAmountKopecks: number | null): string | null {
+  if (remainingAmountKopecks == null || remainingAmountKopecks <= 0) return null;
+  return `Осталось доплатить ${formatKopecksRub(remainingAmountKopecks)}. Перевод вне сайта — исполнитель отметит поступление.`;
+}
+
 function buildCustomerPendingInfo(req: RequestCustomerDto): string | null {
   const selectedCount = req.selectedProviderIds?.length ?? 0;
   if (isOrderExecutionStatus(req.status)) return null;
@@ -133,7 +139,7 @@ function buildCustomerState(id: RequestLifecycleStateId): RequestLifecycleState<
     return {
       id,
       build: ({ request }) => ({
-        note: null,
+        note: remainingPayNote(request.remainingAmountKopecks),
         actions:
           request.status === "ACCEPTANCE_PENDING"
             ? [{ id: "acceptResult", label: "Принять результат", variant: "contained", color: "success" }]
@@ -187,15 +193,27 @@ function buildProviderState(id: RequestLifecycleStateId): RequestLifecycleState<
   if (id === "ACCEPTANCE") {
     return {
       id,
-      build: ({ request }) => ({
-        note: buildProviderPendingInfo(request),
-        actions: request.isLocked
-          ? []
-          : request.status === "ACCEPTED"
-            ? [{ id: "complete", label: "Завершить", variant: "contained", color: "success" }]
-            : [],
-        autoAcceptAtLabel: null,
-      }),
+      build: ({ request }) => {
+        const remainingNote = remainingPayNote(request.remainingAmountKopecks);
+        const completeBlocked = request.remainingAmountKopecks != null && request.remainingAmountKopecks > 0;
+        return {
+          note: remainingNote ?? buildProviderPendingInfo(request),
+          actions: request.isLocked
+            ? []
+            : request.status === "ACCEPTED"
+              ? [
+                  {
+                    id: "complete",
+                    label: "Завершить",
+                    variant: "contained",
+                    color: "success",
+                    disabled: completeBlocked,
+                  },
+                ]
+              : [],
+          autoAcceptAtLabel: null,
+        };
+      },
     };
   }
 

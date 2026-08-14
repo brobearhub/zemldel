@@ -32,6 +32,10 @@ function makeCustomer(overrides: Partial<RequestCustomerDto> = {}): RequestCusto
     customerName: null,
     customerEmail: null,
     customerUserId: "u1",
+    totalAmountKopecks: null,
+    paidAmountKopecks: 0,
+    remainingAmountKopecks: null,
+    payments: [],
     createdAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
     updatedAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
     ...overrides,
@@ -68,6 +72,10 @@ function makeProvider(overrides: Partial<RequestProDto> = {}): RequestProDto {
     customerImage: null,
     conversationsCount: 0,
     isLocked: false,
+    totalAmountKopecks: null,
+    paidAmountKopecks: 0,
+    remainingAmountKopecks: null,
+    payments: [],
     createdAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
     updatedAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
     ...overrides,
@@ -133,6 +141,50 @@ describe("buildRequestLifecycleViewModel", () => {
     const req = makeProvider({ conversationsCount: 1 });
     const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
     expect(vm.infoRows).toContainEqual({ label: "Диалогов", value: "1" });
+  });
+
+  it("provider: disables complete while remaining payment is positive", () => {
+    const req = makeProvider({
+      status: "ACCEPTED",
+      offerStatus: "SELECTED",
+      lockedAt: "2026-08-06T00:00:00.000Z",
+      totalAmountKopecks: 2500000,
+      paidAmountKopecks: 500000,
+      remainingAmountKopecks: 2000000,
+    });
+    const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
+    const complete = vm.actions.find((a) => a.id === "complete");
+    expect(complete?.disabled).toBe(true);
+    expect(vm.note).toContain("Осталось доплатить");
+  });
+
+  it("provider: allows complete when remaining is zero", () => {
+    const req = makeProvider({
+      status: "ACCEPTED",
+      offerStatus: "SELECTED",
+      lockedAt: "2026-08-06T00:00:00.000Z",
+      totalAmountKopecks: 2500000,
+      paidAmountKopecks: 2500000,
+      remainingAmountKopecks: 0,
+    });
+    const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
+    expect(vm.actions.find((a) => a.id === "complete")?.disabled).toBeFalsy();
+    expect(vm.note).toBeNull();
+  });
+
+  it("customer: shows remaining pay note in ACCEPTED", () => {
+    const req = makeCustomer({
+      status: "ACCEPTED",
+      lockedAt: "2026-08-06T00:00:00.000Z",
+      remainingAmountKopecks: 2000000,
+    });
+    const vm = buildRequestLifecycleViewModel({
+      side: "customer",
+      request: req,
+      canAcceptContract: false,
+    });
+    expect(vm.note).toContain("Осталось доплатить");
+    expect(vm.actions).toEqual([]);
   });
 
   it("isLifecycleEmpty: true when nothing to show", () => {

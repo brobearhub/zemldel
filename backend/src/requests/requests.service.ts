@@ -30,6 +30,12 @@ import {
   requestRowToCustomerDtoPlain,
   requestRowToProDtoPlain,
 } from './dto/request.dto';
+import {
+  canCompleteWithFinance,
+  remainingKopecks,
+  sumPaidKopecksByType,
+  type PaymentAmountWithTypeAndPaidAt,
+} from './dto/request-finance';
 import { requestRemarkToDtoPlain, type RequestRemarkDto } from './dto/request-remark.dto';
 import { formatProviderDeclineChatMessage } from './dto/decline-offer.dto';
 import { formatCustomerSelectProviderChatMessage } from './dto/select-provider.dto';
@@ -56,6 +62,7 @@ const select = {
   acceptanceRequestedAt: true,
   autoAcceptAt: true,
   acceptedAt: true,
+  totalAmountKopecks: true,
   createdAt: true,
   updatedAt: true,
   service: { select: { title: true, providerId: true } },
@@ -75,6 +82,17 @@ const select = {
       selectedAt: true,
       declinedAt: true,
     },
+  },
+  payments: {
+    select: {
+      id: true,
+      type: true,
+      amountKopecks: true,
+      comment: true,
+      paidAt: true,
+      createdAt: true,
+    },
+    orderBy: { paidAt: 'asc' },
   },
 } satisfies Prisma.RequestSelect;
 
@@ -2131,6 +2149,20 @@ export class RequestsService {
       if (!current) throw new NotFoundException('Request not found');
       if (current.status !== 'ACCEPTED') {
         throw new ForbiddenException('Request must be accepted before completion');
+      }
+
+      const paidAmountKopecks = sumPaidKopecksByType(current.payments as unknown as PaymentAmountWithTypeAndPaidAt[], 'CONTRACT');
+      const remainingAmountKopecks = remainingKopecks(
+        current.totalAmountKopecks,
+        paidAmountKopecks,
+      );
+      if (
+        !canCompleteWithFinance({
+          status: current.status,
+          remainingAmountKopecks,
+        })
+      ) {
+        throw new ForbiddenException('Remaining payment must be zero before completion');
       }
 
       const now = new Date();

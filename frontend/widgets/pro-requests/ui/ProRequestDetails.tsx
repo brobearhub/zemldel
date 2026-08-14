@@ -28,12 +28,13 @@ import type { RequestDocumentRequestDto } from "@/entities/request";
 import {
   canShowProviderCounterpartyButton,
   getCustomerContactFields,
-  RequestCounterpartyButton,
-  RequestCounterpartyLayer,
+  RequestCounterpartyPanel,
 } from "@/features/request-counterparty";
 import { RequestRemindersPanel } from "@/widgets/pro-requests/ui/RequestRemindersPanel";
 import Link from "@/shared/ui/Link";
 import { RequestDetailHeaderCard } from "@/shared/ui/RequestDetailHeaderCard";
+import { RequestDetailPanelLayer } from "@/shared/ui/RequestDetailPanelLayer";
+import { RequestDetailPanelTriggers } from "@/shared/ui/RequestDetailPanelTriggers";
 import { createProviderRequestDetailsBehavior, RequestDetails } from "@/widgets/request-details";
 import {
   createProviderRequestLifecycleBehavior,
@@ -44,6 +45,7 @@ import {
   RequestRemarks,
 } from "@/widgets/request-remarks";
 import { RequestWorkProgress } from "@/widgets/request-work-progress";
+import { RequestPayments } from "@/widgets/request-payments";
 import {
   fetchProWorkStages,
   fetchWorkStageStatuses,
@@ -72,6 +74,8 @@ import {
 import { ProRequestDocumentsSection } from "@/widgets/pro-requests/ui/ProRequestDocumentsSection";
 import { useConfirm, useConfirmWithReason } from "@/shared/ui/confirm";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
+import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
+import CurrencyRubleIcon from "@mui/icons-material/CurrencyRuble";
 
 type Props = {
   initialRequest: RequestProDto;
@@ -100,7 +104,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   const confirm = useConfirm();
   const confirmWithReason = useConfirmWithReason();
   const { socket } = useChatSocket();
-  const [counterpartyOpen, setCounterpartyOpen] = useState(false);
+  const [activePanelId, setActivePanelId] = useState<"payment" | "counterparty" | null>(null);
 
   const isBusy = busy || uploadBusy;
   const showContractWorkflow = !req.isLocked && req.offerStatus === "SELECTED";
@@ -516,78 +520,94 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     lockedAt: req.lockedAt,
     isLocked: req.isLocked,
   });
+  const showPayment = showCounterparty;
   const customerFields = getCustomerContactFields({
     customerName: req.customerName,
     customerPhone: req.customerPhone,
     customerEmail: req.customerEmail,
   });
 
+  const panelItems = [
+    { id: "payment", label: "Оплата", visible: showPayment, endIcon: <CurrencyRubleIcon /> },
+    { id: "counterparty", label: "Клиент", visible: showCounterparty, endIcon: <AssignmentIndIcon /> },
+  ] as const;
+
+  const activePanel = panelItems.find((p) => p.id === activePanelId && p.visible);
+  const isPanelOpen = Boolean(activePanel);
+  const panelTitle = activePanel?.id === "payment" ? "Оплата" : "Клиент";
+  const panelIcon = activePanel?.id === "payment" ? <CurrencyRubleIcon /> : <AssignmentIndIcon />;
+  const panelContent =
+    activePanel?.id === "payment" ? (
+      <RequestPayments
+        mode="provider"
+        requestId={req.id}
+        status={req.status}
+        lockedAt={req.lockedAt}
+        totalAmountKopecks={req.totalAmountKopecks}
+        paidAmountKopecks={req.paidAmountKopecks}
+        remainingAmountKopecks={req.remainingAmountKopecks}
+        payments={req.payments}
+        busy={isBusy}
+        onChanged={refresh}
+      />
+    ) : (
+      <RequestCounterpartyPanel fields={customerFields} avatarSrc={req.customerImage} avatarName={req.customerName} />
+    );
+
   return (
     <Stack spacing={2}>
-      <RequestCounterpartyLayer
-        open={counterpartyOpen}
-        title="Клиент"
-        fields={customerFields}
-        avatarSrc={req.customerImage}
-        avatarName={req.customerName}
-        onClose={() => setCounterpartyOpen(false)}
+      <RequestDetailPanelLayer
+        open={isPanelOpen}
+        title={panelTitle}
+        icon={panelIcon}
+        panel={panelContent}
+        onClose={() => setActivePanelId(null)}
       >
-      <RequestDetailHeaderCard
-        subtitle={subtitle}
-        statusLabel={getRequestStatusLabel(req.status)}
-        body={messageBody}
-        footerEnd={
-          <RequestCounterpartyButton
-            visible={showCounterparty}
-            label="Клиент"
-            onClick={() => setCounterpartyOpen(true)}
-          />
-        }
-        details={
-          <RequestDetails
-            busy={isBusy}
-            behavior={createProviderRequestDetailsBehavior({ request: req })}
-          />
-        }
-        afterBody={
-          <RequestLifecycleActions
-            busy={isBusy}
-            behavior={createProviderRequestLifecycleBehavior({
-              request: req,
-              isMarkRenderedDisabled: remarks.some((r) => r.status === "OPEN"),
-              actions: {
-                startWork: async () => undefined,
-                markRendered: async () => {
-                  const ok = await confirm({
-                    title: "Услуга выполнена?",
-                    description:
-                      "Заявка перейдёт в статус «Ожидает принятия». Клиент сможет принять результат или отправить замечания. Это действие нельзя отменить.",
-                    confirmText: "Да, выполнена",
-                    confirmColor: "success",
-                  });
-                  if (!ok) return;
-                  await runAction("confirm");
+        <RequestDetailHeaderCard
+          subtitle={subtitle}
+          statusLabel={getRequestStatusLabel(req.status)}
+          body={messageBody}
+          footerEnd={<RequestDetailPanelTriggers items={panelItems} onOpen={(id) => setActivePanelId(id as never)} />}
+          details={<RequestDetails busy={isBusy} behavior={createProviderRequestDetailsBehavior({ request: req })} />}
+          afterBody={
+            <RequestLifecycleActions
+              busy={isBusy}
+              behavior={createProviderRequestLifecycleBehavior({
+                request: req,
+                isMarkRenderedDisabled: remarks.some((r) => r.status === "OPEN"),
+                actions: {
+                  startWork: async () => undefined,
+                  markRendered: async () => {
+                    const ok = await confirm({
+                      title: "Услуга выполнена?",
+                      description:
+                        "Заявка перейдёт в статус «Ожидает принятия». Клиент сможет принять результат или отправить замечания. Это действие нельзя отменить.",
+                      confirmText: "Да, выполнена",
+                      confirmColor: "success",
+                    });
+                    if (!ok) return;
+                    await runAction("confirm");
+                  },
+                  requestAcceptance: async () => undefined,
+                  complete: () => runAction("confirm"),
+                  declineOffer: async () => {
+                    const reason = await confirmWithReason({
+                      title: "Отказаться от заявки?",
+                      description:
+                        "Вы больше не будете исполнителем по этой заявке. Клиент сможет выбрать другого исполнителя. Это действие нельзя отменить.",
+                      reasonLabel: "Причина",
+                      confirmText: "Да, отказаться",
+                      confirmColor: "error",
+                    });
+                    if (reason == null) return;
+                    await runAction("decline", reason);
+                  },
                 },
-                requestAcceptance: async () => undefined,
-                complete: () => runAction("confirm"),
-                declineOffer: async () => {
-                  const reason = await confirmWithReason({
-                    title: "Отказаться от заявки?",
-                    description:
-                      "Вы больше не будете исполнителем по этой заявке. Клиент сможет выбрать другого исполнителя. Это действие нельзя отменить.",
-                    reasonLabel: "Причина",
-                    confirmText: "Да, отказаться",
-                    confirmColor: "error",
-                  });
-                  if (reason == null) return;
-                  await runAction("decline", reason);
-                },
-              },
-            })}
-          />
-        }
-      />
-      </RequestCounterpartyLayer>
+              })}
+            />
+          }
+        />
+      </RequestDetailPanelLayer>
 
       {notice ? <Alert severity="success">{notice}</Alert> : null}
       {error ? <Alert severity="error">{error}</Alert> : null}

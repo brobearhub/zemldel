@@ -55,6 +55,9 @@ import {
   RequestRemarks,
 } from "@/widgets/request-remarks";
 import { RequestWorkProgress } from "@/widgets/request-work-progress";
+import { RequestPayments } from "@/widgets/request-payments";
+import { RequestDetailPanelLayer } from "@/shared/ui/RequestDetailPanelLayer";
+import { RequestDetailPanelTriggers } from "@/shared/ui/RequestDetailPanelTriggers";
 import {
   fetchCustomerRequestDocumentRequests,
   uploadCustomerRequestDocument,
@@ -67,9 +70,10 @@ import { useConfirm } from "@/shared/ui/confirm";
 import {
   canShowCustomerCounterpartyButton,
   getProviderContactFields,
-  RequestCounterpartyButton,
-  RequestCounterpartyLayer,
+  RequestCounterpartyPanel,
 } from "@/features/request-counterparty";
+import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
+import CurrencyRubleIcon from "@mui/icons-material/CurrencyRuble";
 
 function pickTitle(req: RequestCustomerDto) {
   if (req.subjectType === "SERVICE") return req.serviceTitle ?? "Заявка по услуге";
@@ -98,7 +102,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     mergeWorkStageStatusOptions([])
   );
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
-  const [counterpartyOpen, setCounterpartyOpen] = useState(false);
+  const [activePanelId, setActivePanelId] = useState<"payment" | "counterparty" | null>(null);
   const [termsBusy, setTermsBusy] = useState(false);
   const [termsError, setTermsError] = useState<string | null>(null);
   const [termsVersion, setTermsVersion] = useState<string | null>(null);
@@ -574,59 +578,80 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
 
   const requestBody = resolveRequestDetailBody(req.message, req.serviceTitle);
   const showCounterparty = canShowCustomerCounterpartyButton({ lockedAt: req.lockedAt });
+  const showPayment = req.lockedAt != null;
   const providerFields = getProviderContactFields({
     providerName: req.providerName,
     providerPhone: req.providerPhone,
     providerEmail: req.providerEmail,
   });
 
+  const panelItems = [
+    { id: "payment", label: "Оплата", visible: showPayment, endIcon: <CurrencyRubleIcon /> },
+    { id: "counterparty", label: "Исполнитель", visible: showCounterparty, endIcon: <AssignmentIndIcon /> },
+  ] as const;
+
+  const activePanel = panelItems.find((p) => p.id === activePanelId && p.visible);
+  const isPanelOpen = Boolean(activePanel);
+  const panelTitle = activePanel?.id === "payment" ? "Оплата" : "Исполнитель";
+  const panelIcon = activePanel?.id === "payment" ? <CurrencyRubleIcon /> : <AssignmentIndIcon />;
+  const panelContent =
+    activePanel?.id === "payment" ? (
+      <RequestPayments
+        mode="customer"
+        requestId={req.id}
+        status={req.status}
+        lockedAt={req.lockedAt}
+        totalAmountKopecks={req.totalAmountKopecks}
+        paidAmountKopecks={req.paidAmountKopecks}
+        remainingAmountKopecks={req.remainingAmountKopecks}
+        payments={req.payments}
+        busy={busy}
+        onChanged={refreshRequest}
+      />
+    ) : (
+      <RequestCounterpartyPanel fields={providerFields} avatarSrc={req.providerImage} avatarName={req.providerName} />
+    );
+
   return (
     <ChatBodyWithSidePanelLayout
       middle={
         <Stack spacing={2}>
-          <RequestCounterpartyLayer
-            open={counterpartyOpen}
-            title="Исполнитель"
-            fields={providerFields}
-            avatarSrc={req.providerImage}
-            avatarName={req.providerName}
-            onClose={() => setCounterpartyOpen(false)}
+          <RequestDetailPanelLayer
+            open={isPanelOpen}
+            title={panelTitle}
+            icon={panelIcon}
+            panel={panelContent}
+            onClose={() => setActivePanelId(null)}
           >
-          <RequestDetailHeaderCard
-            subtitle={pickTitle(req)}
-            statusLabel={getRequestStatusLabel(req.status)}
-            body={requestBody}
-            footerEnd={
-              <RequestCounterpartyButton
-                visible={showCounterparty}
-                label="Исполнитель"
-                onClick={() => setCounterpartyOpen(true)}
-              />
-            }
-            details={
-              <RequestDetails
-                busy={busy}
-                behavior={createCustomerRequestDetailsBehavior({
-                  request: req,
-                  canAcceptContract,
-                })}
-              />
-            }
-            afterBody={
-              <RequestLifecycleActions
-                busy={busy}
-                behavior={createCustomerRequestLifecycleBehavior({
-                  request: req,
-                  canAcceptContract,
-                  actions: {
-                    openOfferDialog: openContractDialog,
-                    acceptResult,
-                  },
-                })}
-              />
-            }
-          />
-          </RequestCounterpartyLayer>
+            <RequestDetailHeaderCard
+              subtitle={pickTitle(req)}
+              statusLabel={getRequestStatusLabel(req.status)}
+              body={requestBody}
+              footerEnd={<RequestDetailPanelTriggers items={panelItems} onOpen={(id) => setActivePanelId(id as never)} />}
+              details={
+                <RequestDetails
+                  busy={busy}
+                  behavior={createCustomerRequestDetailsBehavior({
+                    request: req,
+                    canAcceptContract,
+                  })}
+                />
+              }
+              afterBody={
+                <RequestLifecycleActions
+                  busy={busy}
+                  behavior={createCustomerRequestLifecycleBehavior({
+                    request: req,
+                    canAcceptContract,
+                    actions: {
+                      openOfferDialog: openContractDialog,
+                      acceptResult,
+                    },
+                  })}
+                />
+              }
+            />
+          </RequestDetailPanelLayer>
 
           {notice ? <Alert severity="success">{notice}</Alert> : null}
           {error ? <Alert severity="error">{error}</Alert> : null}

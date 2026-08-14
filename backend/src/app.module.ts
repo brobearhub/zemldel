@@ -17,6 +17,7 @@ import { RemindersModule } from './reminders/reminders.module';
 import { ContractFilesModule } from './contract-files/contract-files.module';
 import { RequestDocumentRequestsModule } from './request-document-requests/request-document-requests.module';
 import { RequestWorkStagesModule } from './request-work-stages/request-work-stages.module';
+import { RequestPaymentsModule } from './request-payments/request-payments.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { RequestWorkStagesModule } from './request-work-stages/request-work-stag
     ContractFilesModule,
     RequestDocumentRequestsModule,
     RequestWorkStagesModule,
+    RequestPaymentsModule,
     RemindersModule,
   ],
   controllers: [AppController],

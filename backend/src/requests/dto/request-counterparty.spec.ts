@@ -102,3 +102,70 @@ describe('requestRowToCustomerDtoPlain counterparty contacts', () => {
     expect(dto.providerImage).toBe('https://cdn.example/provider.jpg');
   });
 });
+
+describe('request finance mapping', () => {
+  const payment = {
+    id: 'p1',
+    type: 'CONTRACT' as const,
+    amountKopecks: 500000,
+    comment: 'Аванс',
+    paidAt: NOW,
+    createdAt: NOW,
+  };
+
+  it('скрывает журнал до lock у заказчика и исполнителя', () => {
+    const row = makeRow({
+      totalAmountKopecks: 2500000,
+      payments: [payment],
+    });
+    const customer = requestRowToCustomerDtoPlain(row);
+    const provider = requestRowToProDtoPlain(row, 0, PROVIDER_ID);
+    expect(customer.totalAmountKopecks).toBeNull();
+    expect(customer.paidAmountKopecks).toBe(0);
+    expect(customer.remainingAmountKopecks).toBeNull();
+    expect(customer.payments).toEqual([]);
+    expect(provider.totalAmountKopecks).toBeNull();
+    expect(provider.payments).toEqual([]);
+  });
+
+  it('отдаёт журнал после lock эксклюзивному исполнителю и заказчику', () => {
+    const row = makeRow({
+      providerId: PROVIDER_ID,
+      lockedAt: NOW,
+      totalAmountKopecks: 2500000,
+      payments: [payment],
+    });
+    const customer = requestRowToCustomerDtoPlain(row);
+    const provider = requestRowToProDtoPlain(row, 1, PROVIDER_ID);
+    expect(customer.totalAmountKopecks).toBe(2500000);
+    expect(customer.paidAmountKopecks).toBe(500000);
+    expect(customer.remainingAmountKopecks).toBe(2000000);
+    expect(customer.payments).toEqual([
+      {
+        id: 'p1',
+        type: 'CONTRACT',
+        amountKopecks: 500000,
+        comment: 'Аванс',
+        paidAt: NOW.toISOString(),
+        createdAt: NOW.toISOString(),
+      },
+    ]);
+    expect(provider.remainingAmountKopecks).toBe(2000000);
+    expect(provider.payments).toHaveLength(1);
+  });
+
+  it('скрывает журнал у чужого провайдера после lock', () => {
+    const dto = requestRowToProDtoPlain(
+      makeRow({
+        providerId: PROVIDER_ID,
+        lockedAt: NOW,
+        totalAmountKopecks: 2500000,
+        payments: [payment],
+      }),
+      1,
+      OTHER_PROVIDER_ID,
+    );
+    expect(dto.totalAmountKopecks).toBeNull();
+    expect(dto.payments).toEqual([]);
+  });
+});
