@@ -1,18 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import AddIcon from "@mui/icons-material/Add";
 import CheckIcon from "@mui/icons-material/Check";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import CloseIcon from "@mui/icons-material/Close";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import QueueIcon from "@mui/icons-material/Queue";
 import { Alert, Box, Button, Divider, IconButton, Stack, TextField, Typography } from "@mui/material";
 import {
-  formatKopecksRub,
+  formatRubles,
   hasRequestLock,
-  rublesInputToKopecks,
+  parseRublesInput,
   type RequestPaymentItemDto,
   type RequestPaymentType,
   type RequestStatus,
@@ -21,41 +19,91 @@ import { addProRequestPayment, markCustomerRequestPaymentPaid, markProRequestPay
 import { useConfirm } from "@/shared/ui/confirm";
 
 const CLOSED: readonly RequestStatus[] = ["COMPLETED", "CANCELLED", "CLOSED"];
+const PAYMENT_ACTION_SLOT_WIDTH = 32;
+const PAYMENT_SECTION_GRID_SX = {
+  display: "grid",
+  gridTemplateColumns: `minmax(0, 1fr) auto ${PAYMENT_ACTION_SLOT_WIDTH}px`,
+  columnGap: 1,
+  rowGap: 0.75,
+  alignItems: "center",
+} as const;
+
+const PAYMENT_AMOUNT_SX = {
+  gridColumn: 2,
+  justifySelf: "stretch",
+  textAlign: "right",
+  fontVariantNumeric: "tabular-nums",
+  minWidth: 0,
+} as const;
+
+const PAYMENT_ACTION_SLOT_SX = {
+  gridColumn: 3,
+  width: PAYMENT_ACTION_SLOT_WIDTH,
+  minWidth: PAYMENT_ACTION_SLOT_WIDTH,
+  maxWidth: PAYMENT_ACTION_SLOT_WIDTH,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+} as const;
+
+const PAYMENT_AMOUNT_TOTAL_TYPO_SX = {
+  fontWeight: 900,
+  fontSize: 22,
+} as const;
+
+function PaymentAmountCell({
+  children,
+  action,
+  typographySx,
+  sx,
+}: {
+  children: ReactNode;
+  action?: ReactNode;
+  typographySx?: object;
+  sx?: object;
+}) {
+  return (
+    <>
+      <Typography sx={{ ...PAYMENT_AMOUNT_SX, ...typographySx, ...sx }}>{children}</Typography>
+      <Box sx={PAYMENT_ACTION_SLOT_SX}>{action}</Box>
+    </>
+  );
+}
 
 function PaymentListRow({
   comment,
-  amountKopecks,
+  amountRubles,
   paid,
   onMarkPaid,
   markPaidDisabled,
 }: {
   comment: string;
-  amountKopecks: number;
+  amountRubles: number;
   paid: boolean;
   onMarkPaid?: () => void;
   markPaidDisabled?: boolean;
 }) {
   return (
-    <Stack direction="row" spacing={1} alignItems="center">
-      <Typography variant="body2" noWrap title={comment} sx={{ flexShrink: 1, minWidth: 0 }}>
-        {comment}
-      </Typography>
-      <Box sx={{ flex: 1, borderBottom: "1px solid", borderColor: "divider", minWidth: 16, alignSelf: "center" }} />
-      <Typography variant="body2" fontWeight={700} sx={{ flexShrink: 0, color: paid ? "success.main" : undefined }}>
-        {formatKopecksRub(amountKopecks)}
-      </Typography>
-
-      <Box
+    <>
+      <Stack direction="row" alignItems="center" sx={{ minWidth: 0, gridColumn: 1 }}>
+        <Typography variant="body2" noWrap title={comment} sx={{ flexShrink: 1, minWidth: 0 }}>
+          {comment}
+        </Typography>
+        <Box sx={{ flex: 1, borderBottom: "1px solid", borderColor: "divider", minWidth: 16, ml: 1, alignSelf: "center" }} />
+      </Stack>
+      <Typography
+        variant="body2"
+        fontWeight={700}
         sx={{
-          flexShrink: 0,
-          width: 32,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          ...PAYMENT_AMOUNT_SX,
+          color: paid ? "success.main" : undefined,
         }}
       >
+        {formatRubles(amountRubles)}
+      </Typography>
+      <Box sx={PAYMENT_ACTION_SLOT_SX}>
         {paid ? (
-          <CheckCircleIcon fontSize="small" sx={{ color: "success.main" }} />
+          <CheckIcon fontSize="small" sx={{ color: "success.main" }} />
         ) : onMarkPaid ? (
           <IconButton
             aria-label="Отметить как оплачено"
@@ -64,13 +112,13 @@ function PaymentListRow({
             onClick={onMarkPaid}
             sx={{ color: "text.secondary", p: 0 }}
           >
-            <CheckCircleOutlineIcon fontSize="small" />
+            <CheckIcon fontSize="small" />
           </IconButton>
         ) : (
-          <CheckCircleOutlineIcon fontSize="small" sx={{ color: "text.secondary" }} />
+          <CheckIcon fontSize="small" sx={{ color: "text.secondary" }} />
         )}
       </Box>
-    </Stack>
+    </>
   );
 }
 
@@ -78,11 +126,17 @@ function AddPaymentTrigger({ disabled, onClick }: { disabled?: boolean; onClick:
   return (
     <Box sx={{ display: "flex", justifyContent: "center", flexShrink: 0 }}>
       <Button
-        variant="outlined"
+        color="warning"
+        variant="text"
         size="small"
         startIcon={<AddIcon />}
         disabled={disabled}
         onClick={onClick}
+        sx={{
+          bgcolor: "grey.300",
+          px: 2,
+          "&:hover": { bgcolor: "grey.100" },
+        }}
       >
         Платёж
       </Button>
@@ -95,9 +149,9 @@ export type RequestPaymentsProps = {
   requestId: string;
   status: RequestStatus;
   lockedAt: string | null | undefined;
-  totalAmountKopecks: number | null;
-  paidAmountKopecks: number;
-  remainingAmountKopecks: number | null;
+  totalAmountRubles: number | null;
+  paidAmountRubles: number;
+  remainingAmountRubles: number | null;
   payments: readonly RequestPaymentItemDto[];
   busy?: boolean;
   onChanged?: () => Promise<void> | void;
@@ -121,9 +175,9 @@ export function RequestPayments(props: RequestPaymentsProps) {
   if (!locked) return null;
 
   const isBusy = Boolean(props.busy) || saving;
-  const remaining = props.remainingAmountKopecks;
+  const remaining = props.remainingAmountRubles;
   const payments = props.payments ?? [];
-  const total = props.totalAmountKopecks;
+  const total = props.totalAmountRubles;
   const totalIsSet = total != null;
   const canEditTotal = canEdit;
   const isEditingTotal = canEditTotal && (!totalIsSet || totalEditOpen);
@@ -148,26 +202,24 @@ export function RequestPayments(props: RequestPaymentsProps) {
       if (a.paidAt != null && b.paidAt != null) return new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime();
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
-  const otherPaidAmountKopecks = otherPayments.reduce((sum, p) => (p.paidAt ? sum + p.amountKopecks : sum), 0);
-  const canSubmitContract = rublesInputToKopecks(contractAmountInput) != null && contractComment.trim().length > 0;
-  const canSubmitOther = rublesInputToKopecks(otherAmountInput) != null && otherComment.trim().length > 0;
+  const otherPaidAmountRubles = otherPayments.reduce((sum, p) => (p.paidAt ? sum + p.amountRubles : sum), 0);
+  const canSubmitContract = parseRublesInput(contractAmountInput) != null && contractComment.trim().length > 0;
+  const canSubmitOther = parseRublesInput(otherAmountInput) != null && otherComment.trim().length > 0;
 
-  function formatKopecksForInput(kopecks: number): string {
-    const value = kopecks / 100;
-    const fixed = value.toFixed(2);
-    return fixed.endsWith(".00") ? String(Math.trunc(value)) : fixed;
+  function formatRublesForInput(rubles: number): string {
+    return String(rubles);
   }
 
   async function saveTotal() {
-    const kopecks = rublesInputToKopecks(totalInput);
-    if (kopecks == null) {
-      setError("Укажите полную цену больше нуля");
+    const rubles = parseRublesInput(totalInput);
+    if (rubles == null) {
+      setError("Укажите полную цену больше нуля (целое число рублей)");
       return;
     }
     setSaving(true);
     setError(null);
     try {
-      await setProRequestTotal(props.requestId, kopecks);
+      await setProRequestTotal(props.requestId, rubles);
       setTotalInput("");
       setTotalEditOpen(false);
       await props.onChanged?.();
@@ -179,10 +231,10 @@ export function RequestPayments(props: RequestPaymentsProps) {
   }
 
   async function addPayment(input: { type: RequestPaymentType; amountInput: string; comment: string }) {
-    const kopecks = rublesInputToKopecks(input.amountInput);
+    const rubles = parseRublesInput(input.amountInput);
     const trimmed = input.comment.trim();
-    if (kopecks == null) {
-      setError("Укажите сумму поступления больше нуля");
+    if (rubles == null) {
+      setError("Укажите сумму поступления больше нуля (целое число рублей)");
       return;
     }
     if (!trimmed) {
@@ -192,7 +244,7 @@ export function RequestPayments(props: RequestPaymentsProps) {
     setSaving(true);
     setError(null);
     try {
-      await addProRequestPayment(props.requestId, { amountKopecks: kopecks, comment: trimmed, type: input.type });
+      await addProRequestPayment(props.requestId, { amountRubles: rubles, comment: trimmed, type: input.type });
       if (input.type === "CONTRACT") {
         setContractAmountInput("");
         setContractComment("");
@@ -242,48 +294,56 @@ export function RequestPayments(props: RequestPaymentsProps) {
 
       <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="stretch" sx={{ flex: 1 }}>
         <Stack spacing={1.25} sx={{ flex: "1 1 0", minWidth: 0, height: { md: "100%" } }}>
-          <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-            <Typography fontWeight={900}>По договору</Typography>
-            {totalIsSet ? (
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Typography fontWeight={900} sx={{ fontSize: 22 }}>
-                  {formatKopecksRub(total)}
-                </Typography>
-                {canEditTotal ? (
+          <Box sx={PAYMENT_SECTION_GRID_SX}>
+            <Typography fontWeight={900} sx={{ gridColumn: 1, minWidth: 0 }}>
+              По договору
+            </Typography>
+            <PaymentAmountCell
+              typographySx={PAYMENT_AMOUNT_TOTAL_TYPO_SX}
+              action={
+                canEditTotal && totalIsSet ? (
                   <IconButton
                     aria-label="Редактировать цену"
                     size="small"
                     disabled={isBusy}
                     onClick={() => {
-                      setTotalInput(formatKopecksForInput(total));
+                      setTotalInput(formatRublesForInput(total));
                       setTotalEditOpen(true);
                     }}
+                    sx={{ p: 0 }}
                   >
                     <EditOutlinedIcon fontSize="small" />
                   </IconButton>
-                ) : null}
-              </Stack>
-            ) : null}
-          </Stack>
+                ) : null
+              }
+            >
+              {totalIsSet ? formatRubles(total) : null}
+            </PaymentAmountCell>
 
-          {contractPayments.length > 0 ? (
-            <Stack spacing={0.75} sx={{ flex: "1 0 auto" }}>
-              {contractPayments.map((payment) => (
+            {contractPayments.length > 0 ? (
+              contractPayments.map((payment) => (
                 <PaymentListRow
                   key={payment.id}
                   comment={payment.comment}
-                  amountKopecks={payment.amountKopecks}
+                  amountRubles={payment.amountRubles}
                   paid={Boolean(payment.paidAt)}
                   onMarkPaid={!payment.paidAt && canMarkPaid ? () => void markPaid(payment.id) : undefined}
                   markPaidDisabled={isBusy}
                 />
-              ))}
-            </Stack>
-          ) : (
-            <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
-              Поступлений по договору пока нет
+              ))
+            ) : (
+              <Typography variant="body2" color="text.secondary" sx={{ gridColumn: "1 / -1" }}>
+                Поступлений по договору пока нет
+              </Typography>
+            )}
+
+            <Typography fontWeight={700} sx={{ gridColumn: 1, minWidth: 0, pt: 0.5 }}>
+              Остаток:
             </Typography>
-          )}
+            <PaymentAmountCell sx={{ pt: 0.5 }} typographySx={PAYMENT_AMOUNT_TOTAL_TYPO_SX}>
+              {remaining == null ? "—" : formatRubles(remaining)}
+            </PaymentAmountCell>
+          </Box>
 
           {canEditTotal || canAddContractPayments ? (
             <Stack spacing={1.25} sx={{ flexShrink: 0, pt: 1 }}>
@@ -337,7 +397,7 @@ export function RequestPayments(props: RequestPaymentsProps) {
                   />
                   <TextField
                     variant="standard"
-                    label="Назначение (договор)"
+                    label="Назначение платежа (договор)"
                     placeholder="Напр. Аванс"
                     value={contractComment}
                     onChange={(e) => setContractComment(e.target.value)}
@@ -368,44 +428,37 @@ export function RequestPayments(props: RequestPaymentsProps) {
               ) : null}
             </Stack>
           ) : null}
-
-          <Stack direction="row" spacing={1} alignItems="baseline" justifyContent="space-between" sx={{ flexShrink: 0, pt: 0.5 }}>
-            <Typography fontWeight={700}>Остаток:</Typography>
-            <Typography fontWeight={900} sx={{ fontSize: 22 }}>
-              {remaining == null ? "—" : formatKopecksRub(remaining)}
-            </Typography>
-          </Stack>
         </Stack>
 
         <Divider flexItem sx={{ display: { xs: "block", md: "none" } }} />
         <Divider flexItem orientation="vertical" sx={{ display: { xs: "none", md: "block" } }} />
 
         <Stack spacing={1.25} sx={{ flex: "1 1 0", minWidth: 0, height: { md: "100%" } }}>
-          <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-            <Typography fontWeight={900}>Прочие платежи</Typography>
-            <Typography fontWeight={900} sx={{ fontSize: 22 }}>
-              {formatKopecksRub(otherPaidAmountKopecks)}
+          <Box sx={PAYMENT_SECTION_GRID_SX}>
+            <Typography fontWeight={900} sx={{ gridColumn: 1, minWidth: 0 }}>
+              Прочие платежи
             </Typography>
-          </Stack>
+            <PaymentAmountCell typographySx={PAYMENT_AMOUNT_TOTAL_TYPO_SX}>
+              {formatRubles(otherPaidAmountRubles)}
+            </PaymentAmountCell>
 
-          {otherPayments.length > 0 ? (
-            <Stack spacing={0.75} sx={{ flex: "1 0 auto" }}>
-              {otherPayments.map((payment) => (
+            {otherPayments.length > 0 ? (
+              otherPayments.map((payment) => (
                 <PaymentListRow
                   key={payment.id}
                   comment={payment.comment}
-                  amountKopecks={payment.amountKopecks}
+                  amountRubles={payment.amountRubles}
                   paid={Boolean(payment.paidAt)}
                   onMarkPaid={!payment.paidAt && canMarkPaid ? () => void markPaid(payment.id) : undefined}
                   markPaidDisabled={isBusy}
                 />
-              ))}
-            </Stack>
-          ) : (
-            <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
-              Прочих платежей пока нет
-            </Typography>
-          )}
+              ))
+            ) : (
+              <Typography variant="body2" color="text.secondary" sx={{ gridColumn: "1 / -1" }}>
+                Прочих платежей пока нет
+              </Typography>
+            )}
+          </Box>
 
           {canAddOtherPayments && !otherAddOpen ? (
             <Box sx={{ flexShrink: 0, pt: 1 }}>
@@ -427,7 +480,7 @@ export function RequestPayments(props: RequestPaymentsProps) {
               />
               <TextField
                 variant="standard"
-                label="Назначение (прочее)"
+                label="Назначение платежа (прочее)"
                 placeholder="Напр. Кадастровый инженер"
                 value={otherComment}
                 onChange={(e) => setOtherComment(e.target.value)}

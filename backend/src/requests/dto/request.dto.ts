@@ -9,6 +9,7 @@ import {
 } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsEnum,
   IsInt,
   IsOptional,
@@ -20,8 +21,8 @@ import {
   type ValidationError,
 } from 'class-validator';
 import {
-  remainingKopecks,
-  sumPaidKopecksByType,
+  remainingRubles,
+  sumPaidRublesByType,
   type PaymentAmountWithTypeAndPaidAt,
 } from './request-finance';
 
@@ -118,10 +119,10 @@ export class RequestPaymentItemDto {
   @IsEnum(['CONTRACT', 'OTHER'])
   type!: RequestPaymentType;
 
-  @ApiProperty({ example: 500000 })
+  @ApiProperty({ example: 5000 })
   @Expose()
   @IsInt()
-  amountKopecks!: number;
+  amountRubles!: number;
 
   @ApiProperty({ example: 'Аванс' })
   @Expose()
@@ -227,6 +228,13 @@ export class RequestUnlinkedCreateDto {
   @Transform(({ value }) => trimOrUndefined(value), { toClassOnly: true })
   @IsUUID()
   requestCityId?: string;
+
+  @ApiPropertyOptional({ type: [String], example: ['50:12:0000000:51755'] })
+  @Expose()
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  cadastralNumbers?: string[];
 }
 
 export function parseRequestUnlinkedCreateDto(body: unknown): {
@@ -271,6 +279,13 @@ export class RequestCategoryCreateDto {
   @Transform(({ value }) => trimOrUndefined(value), { toClassOnly: true })
   @IsUUID()
   requestCityId?: string;
+
+  @ApiPropertyOptional({ type: [String], example: ['50:12:0000000:51755'] })
+  @Expose()
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  cadastralNumbers?: string[];
 }
 
 export function parseRequestCategoryCreateDto(body: unknown): {
@@ -510,24 +525,30 @@ export class RequestCustomerDto {
   @Expose()
   @IsOptional()
   @IsInt()
-  totalAmountKopecks!: number | null;
+  totalAmountRubles!: number | null;
 
   @ApiProperty({ example: 0 })
   @Expose()
   @IsInt()
-  paidAmountKopecks!: number;
+  paidAmountRubles!: number;
 
   @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsInt()
-  remainingAmountKopecks!: number | null;
+  remainingAmountRubles!: number | null;
 
   @ApiProperty({ type: [RequestPaymentItemDto] })
   @Expose()
   @Type(() => RequestPaymentItemDto)
   @IsArray()
   payments!: RequestPaymentItemDto[];
+
+  @ApiProperty({ type: [String], example: ['50:12:0000000:51755'] })
+  @Expose()
+  @IsArray()
+  @IsString({ each: true })
+  cadastralNumbers!: string[];
 
   @ApiProperty()
   @Expose()
@@ -538,6 +559,14 @@ export class RequestCustomerDto {
   @Expose()
   @IsString()
   updatedAt!: string;
+
+  @ApiProperty({
+    description:
+      'Клиент может закрыть заявку без сделки, если по ней ещё не было ответа исполнителя',
+  })
+  @Expose()
+  @IsBoolean()
+  canDeleteByCustomer!: boolean;
 }
 
 export class RequestProDto {
@@ -705,24 +734,30 @@ export class RequestProDto {
   @Expose()
   @IsOptional()
   @IsInt()
-  totalAmountKopecks!: number | null;
+  totalAmountRubles!: number | null;
 
   @ApiProperty({ example: 0 })
   @Expose()
   @IsInt()
-  paidAmountKopecks!: number;
+  paidAmountRubles!: number;
 
   @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
   @IsInt()
-  remainingAmountKopecks!: number | null;
+  remainingAmountRubles!: number | null;
 
   @ApiProperty({ type: [RequestPaymentItemDto] })
   @Expose()
   @Type(() => RequestPaymentItemDto)
   @IsArray()
   payments!: RequestPaymentItemDto[];
+
+  @ApiProperty({ type: [String], example: ['50:12:0000000:51755'] })
+  @Expose()
+  @IsArray()
+  @IsString({ each: true })
+  cadastralNumbers!: string[];
 
   @ApiProperty()
   @Expose()
@@ -733,6 +768,24 @@ export class RequestProDto {
   @Expose()
   @IsString()
   updatedAt!: string;
+}
+
+export function canCustomerDeleteRequest(
+  row: Pick<
+    RequestDbRow,
+    'status' | 'lockedAt' | 'dealTerms' | 'providerOffers'
+  >,
+  hasProviderResponse: boolean,
+): boolean {
+  if (row.status === 'CLOSED') return false;
+  if (hasRequestLock(row)) return false;
+  if (isOrderExecutionStatus(row.status)) return false;
+  if (row.status !== 'NEW' && row.status !== 'DISCUSSING') return false;
+  if (hasProviderResponse) return false;
+  if (row.dealTerms != null) return false;
+  const offers = row.providerOffers ?? [];
+  if (offers.some((offer) => offer.status === 'SELECTED')) return false;
+  return true;
 }
 
 export type RequestDbRow = {
@@ -748,6 +801,7 @@ export type RequestDbRow = {
   customerPhone?: string | null;
   message: string | null;
   location: string | null;
+  cadastralNumbers?: string[];
   lockedAt: Date | null;
   dealTerms?: unknown | null;
   offerVersion?: string | null;
@@ -756,7 +810,7 @@ export type RequestDbRow = {
   acceptanceRequestedAt?: Date | null;
   autoAcceptAt?: Date | null;
   acceptedAt?: Date | null;
-  totalAmountKopecks?: number | null;
+  totalAmountRubles?: number | null;
   createdAt: Date;
   updatedAt: Date;
   service?: { title: string } | null;
@@ -781,7 +835,7 @@ export type RequestDbRow = {
   payments?: Array<{
     id: string;
     type: RequestPaymentType;
-    amountKopecks: number;
+    amountRubles: number;
     comment: string;
     paidAt: Date;
     createdAt: Date;
@@ -791,22 +845,22 @@ export type RequestDbRow = {
 function toFinanceDto(row: RequestDbRow, reveal: boolean) {
   if (!reveal) {
     return {
-      totalAmountKopecks: null,
-      paidAmountKopecks: 0,
-      remainingAmountKopecks: null,
+      totalAmountRubles: null,
+      paidAmountRubles: 0,
+      remainingAmountRubles: null,
       payments: [] as RequestPaymentItemDto[],
     };
   }
   const payments = row.payments ?? [];
-  const paidAmountKopecks = sumPaidKopecksByType(payments as unknown as PaymentAmountWithTypeAndPaidAt[], 'CONTRACT');
+  const paidAmountRubles = sumPaidRublesByType(payments as unknown as PaymentAmountWithTypeAndPaidAt[], 'CONTRACT');
   return {
-    totalAmountKopecks: row.totalAmountKopecks ?? null,
-    paidAmountKopecks,
-    remainingAmountKopecks: remainingKopecks(row.totalAmountKopecks ?? null, paidAmountKopecks),
+    totalAmountRubles: row.totalAmountRubles ?? null,
+    paidAmountRubles,
+    remainingAmountRubles: remainingRubles(row.totalAmountRubles ?? null, paidAmountRubles),
     payments: payments.map((payment) => ({
       id: payment.id,
       type: payment.type,
-      amountKopecks: payment.amountKopecks,
+      amountRubles: payment.amountRubles,
       comment: payment.comment,
       paidAt: payment.paidAt ? payment.paidAt.toISOString() : null,
       createdAt: payment.createdAt.toISOString(),
@@ -816,7 +870,9 @@ function toFinanceDto(row: RequestDbRow, reveal: boolean) {
 
 export function requestRowToCustomerDtoPlain(
   row: RequestDbRow,
+  options?: { hasProviderResponse?: boolean },
 ): RequestCustomerDto {
+  const hasProviderResponse = options?.hasProviderResponse ?? false;
   const offers = row.providerOffers ?? [];
   const selected = offers.filter((o) => o.status === 'SELECTED');
   const declined = offers.filter((o) => o.status === 'DECLINED');
@@ -872,13 +928,17 @@ export function requestRowToCustomerDtoPlain(
         : null,
       customerName: row.customerUser?.name ?? null,
       customerEmail: row.customerUser?.email ?? null,
+      cadastralNumbers: row.cadastralNumbers ?? [],
       ...toFinanceDto(row, hasRequestLock(row)),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
+      canDeleteByCustomer: canCustomerDeleteRequest(row, hasProviderResponse),
     },
     { excludeExtraneousValues: true, enableImplicitConversion: false },
   );
-  return instanceToPlain(inst) as RequestCustomerDto;
+  const plain = instanceToPlain(inst) as RequestCustomerDto;
+  plain.canDeleteByCustomer = canCustomerDeleteRequest(row, hasProviderResponse);
+  return plain;
 }
 
 export function requestRowToProDtoPlain(
@@ -934,6 +994,7 @@ export function requestRowToProDtoPlain(
       requestCityId: row.requestCityId,
       message: canRevealBasicDetails ? row.message : null,
       location: canRevealBasicDetails ? row.location : null,
+      cadastralNumbers: canRevealBasicDetails ? row.cadastralNumbers ?? [] : [],
       lockedAt: row.lockedAt ? row.lockedAt.toISOString() : null,
       dealTerms: locked ? null : (row.dealTerms ?? null),
       offerVersion: row.offerVersion ?? null,

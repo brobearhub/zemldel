@@ -20,7 +20,7 @@ export function RequestDetailPanelTriggers({ items, onOpen }: RequestDetailPanel
   if (visibleItems.length === 0) return null;
 
   return (
-    <Stack direction="row" spacing={1.25} alignItems="center" useFlexGap>
+    <Stack direction="row" spacing={2.5} alignItems="center" useFlexGap>
       {visibleItems.map((item) => (
         <Button
           key={item.id}
@@ -36,6 +36,7 @@ export function RequestDetailPanelTriggers({ items, onOpen }: RequestDetailPanel
             px: 0,
             py: 0,
             lineHeight: 1.43,
+            "& .MuiButton-endIcon": { ml: "4px" },
           }}
         >
           {item.label}

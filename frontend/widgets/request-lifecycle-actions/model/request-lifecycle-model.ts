@@ -1,6 +1,6 @@
 import type { RequestCustomerDto, RequestProDto, RequestStatus } from "@/entities/request";
 import {
-  formatKopecksRub,
+  formatRubles,
   formatRequestDate,
   hasRequestLock,
   isContractPhase,
@@ -76,9 +76,9 @@ function resolveStateIdFromRequest(req: {
   return "NEW";
 }
 
-function remainingPayNote(remainingAmountKopecks: number | null): string | null {
-  if (remainingAmountKopecks == null || remainingAmountKopecks <= 0) return null;
-  return `Осталось доплатить ${formatKopecksRub(remainingAmountKopecks)}. Перевод вне сайта — исполнитель отметит поступление.`;
+function remainingPayNote(remainingAmountRubles: number | null): string | null {
+  if (remainingAmountRubles == null || remainingAmountRubles <= 0) return null;
+  return `Осталось доплатить ${formatRubles(remainingAmountRubles)}. Перевод вне сайта — исполнитель или клиент отметит поступление.`;
 }
 
 function buildCustomerPendingInfo(req: RequestCustomerDto): string | null {
@@ -139,7 +139,7 @@ function buildCustomerState(id: RequestLifecycleStateId): RequestLifecycleState<
     return {
       id,
       build: ({ request }) => ({
-        note: remainingPayNote(request.remainingAmountKopecks),
+        note: remainingPayNote(request.remainingAmountRubles),
         actions:
           request.status === "ACCEPTANCE_PENDING"
             ? [{ id: "acceptResult", label: "Принять результат", variant: "contained", color: "success" }]
@@ -194,8 +194,8 @@ function buildProviderState(id: RequestLifecycleStateId): RequestLifecycleState<
     return {
       id,
       build: ({ request }) => {
-        const remainingNote = remainingPayNote(request.remainingAmountKopecks);
-        const completeBlocked = request.remainingAmountKopecks != null && request.remainingAmountKopecks > 0;
+        const remainingNote = remainingPayNote(request.remainingAmountRubles);
+        const completeBlocked = request.remainingAmountRubles != null && request.remainingAmountRubles > 0;
         return {
           note: remainingNote ?? buildProviderPendingInfo(request),
           actions: request.isLocked

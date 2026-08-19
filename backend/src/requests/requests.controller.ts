@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   Param,
+  Patch,
   Post,
   Put,
   Query,
@@ -37,6 +39,13 @@ import {
   RequestRemarkCreateDto,
   RequestRemarkDto,
 } from './dto/request-remark.dto';
+import {
+  parseRequestCadastralNumberAppendDto,
+  parseRequestCadastralNumberUpdateDto,
+  parseCadastralNumberIndex,
+  RequestCadastralNumberAppendDto,
+  RequestCadastralNumberUpdateDto,
+} from './dto/request-cadastral-number.dto';
 import { parseDeclineOfferDto } from './dto/decline-offer.dto';
 import { RequestsService } from './requests.service';
 import {
@@ -142,6 +151,21 @@ export class RequestsController {
   async mineById(@Req() request: Request, @Param('id') id: string) {
     const userId = this.requests.getRequiredActorUserId(request);
     return this.requests.getMineById(userId, id);
+  }
+
+  @Delete('requests/mine/:id')
+  @ApiParam({ name: 'id', type: String })
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      properties: { ok: { type: 'boolean', enum: [true] } },
+      required: ['ok'],
+    },
+  })
+  @ApiNotFoundResponse({ type: ApiNotFoundErrorDto, description: 'Request not found' })
+  async deleteMine(@Req() request: Request, @Param('id') id: string) {
+    const userId = this.requests.getRequiredActorUserId(request);
+    return this.requests.deleteMineByCustomer(userId, id);
   }
 
   // --- Customer: pre-order actions ---
@@ -367,6 +391,89 @@ export class RequestsController {
     return this.requests.completeRemarkByCustomer(userId, id, remarkId);
   }
 
+  // --- Customer: cadastral numbers ---
+
+  @Post('requests/mine/:id/cadastral-numbers')
+  @ApiParam({ name: 'id', type: String })
+  @ApiBody({ type: RequestCadastralNumberAppendDto })
+  @ApiOkResponse({ type: RequestCustomerDto })
+  @ApiUnprocessableEntityResponse({
+    type: ApiValidationErrorResponseDto,
+    description: 'Validation failed',
+  })
+  async appendMineCadastralNumber(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const userId = this.requests.getRequiredActorUserId(request);
+    const { data, issues } = parseRequestCadastralNumberAppendDto(body);
+    if (!data) {
+      throw new UnprocessableEntityException({
+        error: 'Validation failed',
+        issues,
+      });
+    }
+    return this.requests.appendCadastralNumberByCustomer(userId, id, {
+      value: data.value,
+    });
+  }
+
+  @Patch('requests/mine/:id/cadastral-numbers/:index')
+  @ApiParam({ name: 'id', type: String })
+  @ApiParam({ name: 'index', type: Number })
+  @ApiBody({ type: RequestCadastralNumberUpdateDto })
+  @ApiOkResponse({ type: RequestCustomerDto })
+  @ApiUnprocessableEntityResponse({
+    type: ApiValidationErrorResponseDto,
+    description: 'Validation failed',
+  })
+  async updateMineCadastralNumber(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Param('index') indexRaw: string,
+    @Body() body: unknown,
+  ) {
+    const userId = this.requests.getRequiredActorUserId(request);
+    const index = parseCadastralNumberIndex(indexRaw);
+    if (Number.isNaN(index)) {
+      throw new UnprocessableEntityException({
+        error: 'Validation failed',
+        issues: [{ path: ['index'], message: 'Invalid cadastral number index' }],
+      });
+    }
+    const { data, issues } = parseRequestCadastralNumberUpdateDto(body);
+    if (!data) {
+      throw new UnprocessableEntityException({
+        error: 'Validation failed',
+        issues,
+      });
+    }
+    return this.requests.updateCadastralNumberByCustomer(userId, id, index, {
+      value: data.value,
+    });
+  }
+
+  @Delete('requests/mine/:id/cadastral-numbers/:index')
+  @ApiParam({ name: 'id', type: String })
+  @ApiParam({ name: 'index', type: Number })
+  @ApiOkResponse({ type: RequestCustomerDto })
+  async deleteMineCadastralNumber(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Param('index') indexRaw: string,
+  ) {
+    const userId = this.requests.getRequiredActorUserId(request);
+    const index = parseCadastralNumberIndex(indexRaw);
+    if (Number.isNaN(index)) {
+      throw new UnprocessableEntityException({
+        error: 'Validation failed',
+        issues: [{ path: ['index'], message: 'Invalid cadastral number index' }],
+      });
+    }
+    return this.requests.deleteCadastralNumberByCustomer(userId, id, index);
+  }
+
   // --- Provider: feed / inbox ---
 
   @Get('pro/requests/feed')
@@ -584,6 +691,89 @@ export class RequestsController {
   ) {
     const ctx = await this.requests.requireProviderContext(request);
     return this.requests.completeRemarkByProvider(ctx.providerId, id, remarkId);
+  }
+
+  // --- Provider: cadastral numbers ---
+
+  @Post('pro/requests/:id/cadastral-numbers')
+  @ApiParam({ name: 'id', type: String })
+  @ApiBody({ type: RequestCadastralNumberAppendDto })
+  @ApiOkResponse({ type: RequestProDto })
+  @ApiUnprocessableEntityResponse({
+    type: ApiValidationErrorResponseDto,
+    description: 'Validation failed',
+  })
+  async appendProCadastralNumber(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const ctx = await this.requests.requireProviderContext(request);
+    const { data, issues } = parseRequestCadastralNumberAppendDto(body);
+    if (!data) {
+      throw new UnprocessableEntityException({
+        error: 'Validation failed',
+        issues,
+      });
+    }
+    return this.requests.appendCadastralNumberByProvider(ctx.providerId, id, {
+      value: data.value,
+    });
+  }
+
+  @Patch('pro/requests/:id/cadastral-numbers/:index')
+  @ApiParam({ name: 'id', type: String })
+  @ApiParam({ name: 'index', type: Number })
+  @ApiBody({ type: RequestCadastralNumberUpdateDto })
+  @ApiOkResponse({ type: RequestProDto })
+  @ApiUnprocessableEntityResponse({
+    type: ApiValidationErrorResponseDto,
+    description: 'Validation failed',
+  })
+  async updateProCadastralNumber(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Param('index') indexRaw: string,
+    @Body() body: unknown,
+  ) {
+    const ctx = await this.requests.requireProviderContext(request);
+    const index = parseCadastralNumberIndex(indexRaw);
+    if (Number.isNaN(index)) {
+      throw new UnprocessableEntityException({
+        error: 'Validation failed',
+        issues: [{ path: ['index'], message: 'Invalid cadastral number index' }],
+      });
+    }
+    const { data, issues } = parseRequestCadastralNumberUpdateDto(body);
+    if (!data) {
+      throw new UnprocessableEntityException({
+        error: 'Validation failed',
+        issues,
+      });
+    }
+    return this.requests.updateCadastralNumberByProvider(ctx.providerId, id, index, {
+      value: data.value,
+    });
+  }
+
+  @Delete('pro/requests/:id/cadastral-numbers/:index')
+  @ApiParam({ name: 'id', type: String })
+  @ApiParam({ name: 'index', type: Number })
+  @ApiOkResponse({ type: RequestProDto })
+  async deleteProCadastralNumber(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Param('index') indexRaw: string,
+  ) {
+    const ctx = await this.requests.requireProviderContext(request);
+    const index = parseCadastralNumberIndex(indexRaw);
+    if (Number.isNaN(index)) {
+      throw new UnprocessableEntityException({
+        error: 'Validation failed',
+        issues: [{ path: ['index'], message: 'Invalid cadastral number index' }],
+      });
+    }
+    return this.requests.deleteCadastralNumberByProvider(ctx.providerId, id, index);
   }
 
   @Get('pro/requests')

@@ -4,6 +4,7 @@ export * from "./dto/request-remark.dto";
 export * from "./dto/reminder.dto";
 export * from "./dto/work-stage.dto";
 export * from "./lib/work-stage-statuses";
+export * from "./lib/cadastral-number";
 export * from "./lib/request-finance";
 export * from "./pending-request";
 export * from "./ui/request-status-flow";

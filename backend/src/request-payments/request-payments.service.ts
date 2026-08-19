@@ -13,8 +13,8 @@ import {
   type RequestPaymentItemDto,
 } from '../requests/dto/request.dto';
 import {
-  remainingKopecks,
-  sumPaidKopecksByType,
+  remainingRubles,
+  sumPaidRublesByType,
   type PaymentAmountWithTypeAndPaidAt,
 } from '../requests/dto/request-finance';
 import type { RequestFinanceDto } from './dto/request-payments.dto';
@@ -24,7 +24,7 @@ const CLOSED_STATUSES = new Set(['COMPLETED', 'CANCELLED', 'CLOSED']);
 const paymentSelect = {
   id: true,
   type: true,
-  amountKopecks: true,
+  amountRubles: true,
   comment: true,
   paidAt: true,
   createdAt: true,
@@ -33,7 +33,7 @@ const paymentSelect = {
 type PaymentRow = {
   id: string;
   type: RequestPaymentType;
-  amountKopecks: number;
+  amountRubles: number;
   comment: string;
   paidAt: Date | null;
   createdAt: Date;
@@ -43,7 +43,7 @@ function toPaymentDto(row: PaymentRow): RequestPaymentItemDto {
   return {
     id: row.id,
     type: row.type,
-    amountKopecks: row.amountKopecks,
+    amountRubles: row.amountRubles,
     comment: row.comment,
     paidAt: row.paidAt ? row.paidAt.toISOString() : null,
     createdAt: row.createdAt.toISOString(),
@@ -51,14 +51,14 @@ function toPaymentDto(row: PaymentRow): RequestPaymentItemDto {
 }
 
 function toFinanceDto(
-  totalAmountKopecks: number | null,
+  totalAmountRubles: number | null,
   payments: PaymentRow[],
 ): RequestFinanceDto {
-  const paidAmountKopecks = sumPaidKopecksByType(payments as unknown as PaymentAmountWithTypeAndPaidAt[], 'CONTRACT');
+  const paidAmountRubles = sumPaidRublesByType(payments as unknown as PaymentAmountWithTypeAndPaidAt[], 'CONTRACT');
   return {
-    totalAmountKopecks,
-    paidAmountKopecks,
-    remainingAmountKopecks: remainingKopecks(totalAmountKopecks, paidAmountKopecks),
+    totalAmountRubles,
+    paidAmountRubles,
+    remainingAmountRubles: remainingRubles(totalAmountRubles, paidAmountRubles),
     payments: payments.map(toPaymentDto),
   };
 }
@@ -85,7 +85,7 @@ export class RequestPaymentsService {
         status: true,
         providerId: true,
         lockedAt: true,
-        totalAmountKopecks: true,
+        totalAmountRubles: true,
         payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
       },
     });
@@ -105,7 +105,7 @@ export class RequestPaymentsService {
   async getForProvider(input: { actorUserId: string; requestId: string }): Promise<RequestFinanceDto> {
     const providerId = await this.requireProviderId(input.actorUserId);
     const request = await this.loadExclusiveRequest({ providerId, requestId: input.requestId });
-    return toFinanceDto(request.totalAmountKopecks, request.payments);
+    return toFinanceDto(request.totalAmountRubles, request.payments);
   }
 
   async getForCustomer(input: { actorUserId: string; requestId: string }): Promise<RequestFinanceDto> {
@@ -113,7 +113,7 @@ export class RequestPaymentsService {
       where: { id: input.requestId, customerUserId: input.actorUserId },
       select: {
         lockedAt: true,
-        totalAmountKopecks: true,
+        totalAmountRubles: true,
         payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
       },
     });
@@ -121,13 +121,13 @@ export class RequestPaymentsService {
     if (!hasRequestLock(request)) {
       return toFinanceDto(null, []);
     }
-    return toFinanceDto(request.totalAmountKopecks, request.payments);
+    return toFinanceDto(request.totalAmountRubles, request.payments);
   }
 
   async setTotalForProvider(input: {
     actorUserId: string;
     requestId: string;
-    totalAmountKopecks: number;
+    totalAmountRubles: number;
   }): Promise<RequestFinanceDto> {
     const providerId = await this.requireProviderId(input.actorUserId);
     const request = await this.loadExclusiveRequest({ providerId, requestId: input.requestId });
@@ -136,9 +136,9 @@ export class RequestPaymentsService {
     const updated = await this.prisma.$transaction(async (tx) => {
       const next = await tx.request.update({
         where: { id: request.id },
-        data: { totalAmountKopecks: input.totalAmountKopecks },
+        data: { totalAmountRubles: input.totalAmountRubles },
         select: {
-          totalAmountKopecks: true,
+          totalAmountRubles: true,
           payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
         },
       });
@@ -148,19 +148,19 @@ export class RequestPaymentsService {
           type: 'FINANCE_TOTAL_SET',
           actorUserId: input.actorUserId,
           actorProviderId: providerId,
-          payload: { totalAmountKopecks: input.totalAmountKopecks },
+          payload: { totalAmountRubles: input.totalAmountRubles },
         },
       });
       return next;
     });
 
-    return toFinanceDto(updated.totalAmountKopecks, updated.payments);
+    return toFinanceDto(updated.totalAmountRubles, updated.payments);
   }
 
   async addPaymentForProvider(input: {
     actorUserId: string;
     requestId: string;
-    amountKopecks: number;
+    amountRubles: number;
     comment: string;
     type?: RequestPaymentType;
     paidAt?: string;
@@ -181,7 +181,7 @@ export class RequestPaymentsService {
           requestId: request.id,
           providerId,
           type,
-          amountKopecks: input.amountKopecks,
+          amountRubles: input.amountRubles,
           comment,
           paidAt,
           createdByUserId: input.actorUserId,
@@ -193,19 +193,19 @@ export class RequestPaymentsService {
           type: 'PAYMENT_ADDED',
           actorUserId: input.actorUserId,
           actorProviderId: providerId,
-          payload: { amountKopecks: input.amountKopecks, comment, type },
+          payload: { amountRubles: input.amountRubles, comment, type },
         },
       });
       return tx.request.findFirstOrThrow({
         where: { id: request.id },
         select: {
-          totalAmountKopecks: true,
+          totalAmountRubles: true,
           payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
         },
       });
     });
 
-    return toFinanceDto(updated.totalAmountKopecks, updated.payments);
+    return toFinanceDto(updated.totalAmountRubles, updated.payments);
   }
 
   async markPaymentPaidForProvider(input: {
@@ -237,7 +237,7 @@ export class RequestPaymentsService {
           actorProviderId: providerId,
           payload: {
             paymentId: payment.id,
-            amountKopecks: payment.amountKopecks,
+            amountRubles: payment.amountRubles,
             comment: payment.comment,
             type: payment.type,
             paidAt: now.toISOString(),
@@ -247,13 +247,13 @@ export class RequestPaymentsService {
       return tx.request.findFirstOrThrow({
         where: { id: request.id },
         select: {
-          totalAmountKopecks: true,
+          totalAmountRubles: true,
           payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
         },
       });
     });
 
-    return toFinanceDto(updated.totalAmountKopecks, updated.payments);
+    return toFinanceDto(updated.totalAmountRubles, updated.payments);
   }
 
   async markPaymentPaidForCustomer(input: {
@@ -268,7 +268,7 @@ export class RequestPaymentsService {
         status: true,
         providerId: true,
         lockedAt: true,
-        totalAmountKopecks: true,
+        totalAmountRubles: true,
         payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
       },
     });
@@ -298,7 +298,7 @@ export class RequestPaymentsService {
           actorProviderId: request.providerId!,
           payload: {
             paymentId: payment.id,
-            amountKopecks: payment.amountKopecks,
+            amountRubles: payment.amountRubles,
             comment: payment.comment,
             type: payment.type,
             paidAt: now.toISOString(),
@@ -308,12 +308,12 @@ export class RequestPaymentsService {
       return tx.request.findFirstOrThrow({
         where: { id: request.id },
         select: {
-          totalAmountKopecks: true,
+          totalAmountRubles: true,
           payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
         },
       });
     });
 
-    return toFinanceDto(updated.totalAmountKopecks, updated.payments);
+    return toFinanceDto(updated.totalAmountRubles, updated.payments);
   }
 }

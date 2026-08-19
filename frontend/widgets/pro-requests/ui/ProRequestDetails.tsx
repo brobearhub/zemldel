@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Backdrop,
@@ -75,7 +75,17 @@ import { ProRequestDocumentsSection } from "@/widgets/pro-requests/ui/ProRequest
 import { useConfirm, useConfirmWithReason } from "@/shared/ui/confirm";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
-import CurrencyRubleIcon from "@mui/icons-material/CurrencyRuble";
+import PaymentIcon from "@mui/icons-material/Payment";
+import PinDropOutlinedIcon from "@mui/icons-material/PinDropOutlined";
+import {
+  appendProCadastralNumber,
+  deleteProCadastralNumber,
+  updateProCadastralNumber,
+} from "@/entities/request/api/request-cadastral-numbers";
+import {
+  createRequestCadastralBehavior,
+  RequestCadastralNumbers,
+} from "@/widgets/request-cadastral-numbers";
 
 type Props = {
   initialRequest: RequestProDto;
@@ -104,7 +114,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   const confirm = useConfirm();
   const confirmWithReason = useConfirmWithReason();
   const { socket } = useChatSocket();
-  const [activePanelId, setActivePanelId] = useState<"payment" | "counterparty" | null>(null);
+  const [activePanelId, setActivePanelId] = useState<"payment" | "counterparty" | "cadastral" | null>(null);
 
   const isBusy = busy || uploadBusy;
   const showContractWorkflow = !req.isLocked && req.offerStatus === "SELECTED";
@@ -528,14 +538,50 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   });
 
   const panelItems = [
-    { id: "payment", label: "Оплата", visible: showPayment, endIcon: <CurrencyRubleIcon /> },
+    { id: "cadastral", label: "Кадастровый номер", visible: true, endIcon: <PinDropOutlinedIcon /> },
+    { id: "payment", label: "Оплата", visible: showPayment, endIcon: <PaymentIcon /> },
     { id: "counterparty", label: "Клиент", visible: showCounterparty, endIcon: <AssignmentIndIcon /> },
   ] as const;
 
-  const activePanel = panelItems.find((p) => p.id === activePanelId && p.visible);
+  const cadastralBehavior = useMemo(
+    () =>
+      createRequestCadastralBehavior({
+        status: req.status,
+        numbers: req.cadastralNumbers ?? [],
+        actions: {
+          add: async (value) => {
+            const next = await appendProCadastralNumber(req.id, value);
+            setReq(next);
+          },
+          edit: async (index, value) => {
+            const next = await updateProCadastralNumber(req.id, index, value);
+            setReq(next);
+          },
+          delete: async (index) => {
+            const next = await deleteProCadastralNumber(req.id, index);
+            setReq(next);
+          },
+        },
+      }),
+    [req.cadastralNumbers, req.id, req.status],
+  );
+
+  const activePanel = panelItems.find((p) => p.id === activePanelId && (p.visible ?? true));
   const isPanelOpen = Boolean(activePanel);
-  const panelTitle = activePanel?.id === "payment" ? "Оплата" : "Клиент";
-  const panelIcon = activePanel?.id === "payment" ? <CurrencyRubleIcon /> : <AssignmentIndIcon />;
+  const panelTitle =
+    activePanel?.id === "payment"
+      ? "Оплата"
+      : activePanel?.id === "counterparty"
+        ? "Клиент"
+        : "Кадастровый номер";
+  const panelIcon =
+    activePanel?.id === "payment" ? (
+      <PaymentIcon />
+    ) : activePanel?.id === "counterparty" ? (
+      <AssignmentIndIcon />
+    ) : (
+      <PinDropOutlinedIcon />
+    );
   const panelContent =
     activePanel?.id === "payment" ? (
       <RequestPayments
@@ -543,15 +589,17 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
         requestId={req.id}
         status={req.status}
         lockedAt={req.lockedAt}
-        totalAmountKopecks={req.totalAmountKopecks}
-        paidAmountKopecks={req.paidAmountKopecks}
-        remainingAmountKopecks={req.remainingAmountKopecks}
+        totalAmountRubles={req.totalAmountRubles}
+        paidAmountRubles={req.paidAmountRubles}
+        remainingAmountRubles={req.remainingAmountRubles}
         payments={req.payments}
         busy={isBusy}
         onChanged={refresh}
       />
-    ) : (
+    ) : activePanel?.id === "counterparty" ? (
       <RequestCounterpartyPanel fields={customerFields} avatarSrc={req.customerImage} avatarName={req.customerName} />
+    ) : (
+      <RequestCadastralNumbers behavior={cadastralBehavior} busy={isBusy} />
     );
 
   return (

@@ -44,7 +44,7 @@ export class RequestPaymentsController {
     return this.payments.setTotalForProvider({
       actorUserId: this.getRequiredActorUserId(request),
       requestId,
-      totalAmountKopecks: body.totalAmountKopecks,
+      totalAmountRubles: body.totalAmountRubles,
     });
   }
 
@@ -59,7 +59,7 @@ export class RequestPaymentsController {
     return this.payments.addPaymentForProvider({
       actorUserId: this.getRequiredActorUserId(request),
       requestId,
-      amountKopecks: body.amountKopecks,
+      amountRubles: body.amountRubles,
       comment: body.comment,
       type: body.type,
       paidAt: body.paidAt,

@@ -100,6 +100,7 @@ export function PublicServiceRequestForm({
         customerPhone: normalizeNullableString(form.customerPhone),
         message: normalizeNullableString(form.message),
         requestCityId: null,
+        cadastralNumbers: [],
       });
 
       if (!isAuthenticated) {

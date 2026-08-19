@@ -373,9 +373,10 @@ model Request {
   customerName  String?
   customerEmail String?
   customerPhone String?
-  message       String?
-  location      String?
-  lockedAt      DateTime?
+  message           String?
+  location          String?
+  cadastralNumbers  String[]  @default([])
+  lockedAt          DateTime?
 
   dealTerms                Json?
   offerVersion             String?
@@ -386,7 +387,7 @@ model Request {
   autoAcceptAt             DateTime?
   acceptedAt               DateTime?
   acceptedByUserId         String?   @db.Uuid
-  totalAmountKopecks       Int?
+  totalAmountRubles        Int?
 
   service           Service?               @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   category          ServiceCategory?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -512,7 +513,7 @@ model RequestPayment {
   requestId       String   @db.Uuid
   providerId      String   @db.Uuid
   type            RequestPaymentType @default(CONTRACT)
-  amountKopecks   Int
+  amountRubles    Int
   comment         String
   paidAt          DateTime?
   createdByUserId String?  @db.Uuid

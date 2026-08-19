@@ -1,9 +1,9 @@
 import type { RequestPaymentItemDto } from "@/entities/request";
 
 export type RequestFinanceDto = {
-  totalAmountKopecks: number | null;
-  paidAmountKopecks: number;
-  remainingAmountKopecks: number | null;
+  totalAmountRubles: number | null;
+  paidAmountRubles: number;
+  remainingAmountRubles: number | null;
   payments: RequestPaymentItemDto[];
 };
 
@@ -24,18 +24,18 @@ export async function fetchProRequestFinance(requestId: string): Promise<Request
   return parseJson<RequestFinanceDto>(res, "Не удалось загрузить оплату");
 }
 
-export async function setProRequestTotal(requestId: string, totalAmountKopecks: number): Promise<RequestFinanceDto> {
+export async function setProRequestTotal(requestId: string, totalAmountRubles: number): Promise<RequestFinanceDto> {
   const res = await fetch(`/api/pro/requests/${requestId}/finance`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ totalAmountKopecks }),
+    body: JSON.stringify({ totalAmountRubles }),
   });
   return parseJson<RequestFinanceDto>(res, "Не удалось сохранить цену");
 }
 
 export async function addProRequestPayment(
   requestId: string,
-  input: { amountKopecks: number; comment: string; type?: "CONTRACT" | "OTHER" },
+  input: { amountRubles: number; comment: string; type?: "CONTRACT" | "OTHER" },
 ): Promise<RequestFinanceDto> {
   const res = await fetch(`/api/pro/requests/${requestId}/payments`, {
     method: "POST",

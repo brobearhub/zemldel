@@ -4,11 +4,11 @@ import { IsArray, IsEnum, IsInt, IsOptional, IsString, MaxLength, Min, MinLength
 import { RequestPaymentItemDto } from '../../requests/dto/request.dto';
 
 export class SetRequestTotalDto {
-  @ApiProperty({ example: 2500000, description: 'Полная цена в копейках' })
+  @ApiProperty({ example: 25000, description: 'Полная цена в рублях' })
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  totalAmountKopecks!: number;
+  totalAmountRubles!: number;
 }
 
 export class CreateRequestPaymentDto {
@@ -18,11 +18,11 @@ export class CreateRequestPaymentDto {
   @IsEnum(['CONTRACT', 'OTHER'])
   type?: 'CONTRACT' | 'OTHER';
 
-  @ApiProperty({ example: 500000, description: 'Сумма поступления в копейках' })
+  @ApiProperty({ example: 5000, description: 'Сумма поступления в рублях' })
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  amountKopecks!: number;
+  amountRubles!: number;
 
   @ApiProperty({ example: 'Аванс', minLength: 1, maxLength: 200 })
   @IsString()
@@ -37,14 +37,14 @@ export class CreateRequestPaymentDto {
 }
 
 export class RequestFinanceDto {
-  @ApiProperty({ nullable: true, example: 2500000 })
-  totalAmountKopecks!: number | null;
+  @ApiProperty({ nullable: true, example: 25000 })
+  totalAmountRubles!: number | null;
 
-  @ApiProperty({ example: 500000 })
-  paidAmountKopecks!: number;
+  @ApiProperty({ example: 5000 })
+  paidAmountRubles!: number;
 
-  @ApiProperty({ nullable: true, example: 2000000 })
-  remainingAmountKopecks!: number | null;
+  @ApiProperty({ nullable: true, example: 20000 })
+  remainingAmountRubles!: number | null;
 
   @ApiProperty({ type: [RequestPaymentItemDto] })
   @Type(() => RequestPaymentItemDto)

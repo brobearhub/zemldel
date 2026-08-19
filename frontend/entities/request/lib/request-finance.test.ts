@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { formatKopecksRub, rublesInputToKopecks } from "./request-finance";
+import { formatRubles, parseRublesInput } from "./request-finance";
 
 describe("request finance helpers", () => {
-  it("formats kopecks as whole rubles", () => {
-    expect(formatKopecksRub(2_500_000)).toMatch(/25[\s\u00a0]?000/);
-    expect(formatKopecksRub(2_500_000)).not.toMatch(/,/);
+  it("formats whole rubles", () => {
+    expect(formatRubles(25_000)).toMatch(/25[\s\u00a0]?000/);
+    expect(formatRubles(25_000)).not.toMatch(/,/);
   });
 
-  it("parses ruble input to kopecks", () => {
-    expect(rublesInputToKopecks("25000")).toBe(2_500_000);
-    expect(rublesInputToKopecks("12,5")).toBe(1_250);
-    expect(rublesInputToKopecks(" 1 000 ")).toBe(100_000);
-    expect(rublesInputToKopecks("0")).toBeNull();
-    expect(rublesInputToKopecks("")).toBeNull();
+  it("parses whole-ruble input", () => {
+    expect(parseRublesInput("25000")).toBe(25_000);
+    expect(parseRublesInput(" 1 000 ")).toBe(1_000);
+    expect(parseRublesInput("12,5")).toBeNull();
+    expect(parseRublesInput("0")).toBeNull();
+    expect(parseRublesInput("")).toBeNull();
   });
 });

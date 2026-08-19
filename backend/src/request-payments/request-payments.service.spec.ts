@@ -23,7 +23,7 @@ describe('RequestPaymentsService', () => {
           status: 'ACTIVE',
           providerId: 'other',
           lockedAt: NOW,
-          totalAmountKopecks: null,
+          totalAmountRubles: null,
           payments: [],
         }),
       },
@@ -32,7 +32,7 @@ describe('RequestPaymentsService', () => {
       makeService(prisma).setTotalForProvider({
         actorUserId: 'u1',
         requestId: 'r1',
-        totalAmountKopecks: 2500000,
+        totalAmountRubles: 25000,
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
@@ -45,7 +45,7 @@ describe('RequestPaymentsService', () => {
           status: 'COMPLETED',
           providerId: PROVIDER_ID,
           lockedAt: NOW,
-          totalAmountKopecks: 2500000,
+          totalAmountRubles: 25000,
           payments: [],
         }),
       },
@@ -54,7 +54,7 @@ describe('RequestPaymentsService', () => {
       makeService(prisma).addPaymentForProvider({
         actorUserId: 'u1',
         requestId: 'r1',
-        amountKopecks: 500000,
+        amountRubles: 5000,
         comment: 'Аванс',
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
@@ -65,16 +65,16 @@ describe('RequestPaymentsService', () => {
       request: {
         findFirst: vi.fn().mockResolvedValue({
           lockedAt: null,
-          totalAmountKopecks: 2500000,
-          payments: [{ id: 'p1', type: 'CONTRACT', amountKopecks: 500000, comment: 'Аванс', paidAt: NOW, createdAt: NOW }],
+          totalAmountRubles: 25000,
+          payments: [{ id: 'p1', type: 'CONTRACT', amountRubles: 5000, comment: 'Аванс', paidAt: NOW, createdAt: NOW }],
         }),
       },
     };
     const dto = await makeService(prisma).getForCustomer({ actorUserId: 'u1', requestId: 'r1' });
     expect(dto).toEqual({
-      totalAmountKopecks: null,
-      paidAmountKopecks: 0,
-      remainingAmountKopecks: null,
+      totalAmountRubles: null,
+      paidAmountRubles: 0,
+      remainingAmountRubles: null,
       payments: [],
     });
   });
@@ -85,7 +85,7 @@ describe('RequestPaymentsService', () => {
       requestEvent: { create: vi.fn().mockResolvedValue(null) },
       request: {
         findFirstOrThrow: vi.fn().mockResolvedValue({
-          totalAmountKopecks: 2500000,
+          totalAmountRubles: 25000,
           payments: [],
         }),
       },
@@ -97,7 +97,7 @@ describe('RequestPaymentsService', () => {
           status: 'ACCEPTED',
           providerId: PROVIDER_ID,
           lockedAt: NOW,
-          totalAmountKopecks: 2500000,
+          totalAmountRubles: 25000,
           payments: [],
         }),
       },
@@ -107,7 +107,7 @@ describe('RequestPaymentsService', () => {
     await makeService(prisma).addPaymentForProvider({
       actorUserId: 'u1',
       requestId: 'r1',
-      amountKopecks: 500000,
+      amountRubles: 5000,
       comment: 'Аванс',
       type: 'CONTRACT',
     });
@@ -118,7 +118,7 @@ describe('RequestPaymentsService', () => {
           requestId: 'r1',
           providerId: PROVIDER_ID,
           type: 'CONTRACT',
-          amountKopecks: 500000,
+          amountRubles: 5000,
           paidAt: null,
           createdByUserId: 'u1',
         }),
@@ -132,7 +132,7 @@ describe('RequestPaymentsService', () => {
       requestEvent: { create: vi.fn().mockResolvedValue(null) },
       request: {
         findFirstOrThrow: vi.fn().mockResolvedValue({
-          totalAmountKopecks: 2500000,
+          totalAmountRubles: 25000,
           payments: [],
         }),
       },
@@ -144,7 +144,7 @@ describe('RequestPaymentsService', () => {
           status: 'ACCEPTED',
           providerId: PROVIDER_ID,
           lockedAt: NOW,
-          totalAmountKopecks: 2500000,
+          totalAmountRubles: 25000,
           payments: [],
         }),
       },
@@ -154,7 +154,7 @@ describe('RequestPaymentsService', () => {
     await makeService(prisma).addPaymentForProvider({
       actorUserId: 'u1',
       requestId: 'r1',
-      amountKopecks: 500000,
+      amountRubles: 5000,
       comment: 'Кадастровый инженер',
       type: 'OTHER',
     });
@@ -165,7 +165,7 @@ describe('RequestPaymentsService', () => {
           requestId: 'r1',
           providerId: PROVIDER_ID,
           type: 'OTHER',
-          amountKopecks: 500000,
+          amountRubles: 5000,
           paidAt: null,
           createdByUserId: 'u1',
         }),
@@ -174,13 +174,13 @@ describe('RequestPaymentsService', () => {
   });
 
   it('markPaymentPaidForCustomer sets paidAt for scheduled CONTRACT payment', async () => {
-    const payment = { id: 'p1', type: 'CONTRACT' as const, amountKopecks: 500000, comment: 'Аванс', paidAt: null, createdAt: NOW };
+    const payment = { id: 'p1', type: 'CONTRACT' as const, amountRubles: 5000, comment: 'Аванс', paidAt: null, createdAt: NOW };
     const tx = {
       requestPayment: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
       requestEvent: { create: vi.fn().mockResolvedValue(null) },
       request: {
         findFirstOrThrow: vi.fn().mockResolvedValue({
-          totalAmountKopecks: 2500000,
+          totalAmountRubles: 25000,
           payments: [{ ...payment, paidAt: NOW }],
         }),
       },
@@ -192,7 +192,7 @@ describe('RequestPaymentsService', () => {
           status: 'ACCEPTED',
           providerId: PROVIDER_ID,
           lockedAt: NOW,
-          totalAmountKopecks: 2500000,
+          totalAmountRubles: 25000,
           payments: [payment],
         }),
       },

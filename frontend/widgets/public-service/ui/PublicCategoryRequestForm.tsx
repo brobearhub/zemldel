@@ -3,11 +3,14 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, Button, CircularProgress, Stack, TextField, Typography } from "@mui/material";
+import { CadastralNumberListEditor } from "@/shared/ui/CadastralNumberListEditor";
 import {
   REQUESTS_PROFILE_URL,
   REQUESTS_PROFILE_RESUME_URL,
   buildRequestAuthHref,
   savePendingRequestDraft,
+  collectCadastralNumbersFromParts,
+  createEmptyCadastralParts,
 } from "@/entities/request";
 import { RequestFormLogo } from "@/widgets/public-service/ui/RequestFormLogo";
 
@@ -16,49 +19,26 @@ type Props = {
   isAuthenticated: boolean;
 };
 
-type FormState = {
-  message: string;
-  cadastralBlock: string;
-};
-
 function normalizeNullableString(value: string) {
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : null;
 }
 
-function normalizeCadastralPart(value: string) {
-  return value
-    .trim()
-    .replace(/\s+/g, "")
-    .replace(/:+/g, ":")
-    .replace(/^:+|:+$/g, "");
-}
-
-function buildCadastralNumber(raw: string): string | null {
-  const normalized = normalizeCadastralPart(raw);
-  return normalized.length > 0 ? normalized : null;
-}
-
-function composeMessage(message: string, cadastralNumber: string | null) {
-  const msg = message.trim();
-  const parts: string[] = [];
-  if (msg) parts.push(msg);
-  if (cadastralNumber) parts.push(`Кадастровый номер: ${cadastralNumber}`);
-  return parts.join("\n\n");
-}
-
 export function PublicCategoryRequestForm({ categoryId, isAuthenticated }: Props) {
   const router = useRouter();
-  const [form, setForm] = useState<FormState>({ message: "", cadastralBlock: "" });
+  const [message, setMessage] = useState("");
+  const [cadastralNumbers, setCadastralNumbers] = useState([createEmptyCadastralParts()]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const validationError = useMemo(() => {
-    if (form.message.trim().length > 0 && form.message.trim().length < 3) {
+    if (message.trim().length > 0 && message.trim().length < 3) {
       return "Сообщение должно быть чуть подробнее.";
     }
+    const cadastral = collectCadastralNumbersFromParts(cadastralNumbers);
+    if (cadastral.partialError) return cadastral.partialError;
     return null;
-  }, [form.message]);
+  }, [cadastralNumbers, message]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -71,14 +51,20 @@ export function PublicCategoryRequestForm({ categoryId, isAuthenticated }: Props
     setError(null);
 
     try {
-      const cadastralNumber = buildCadastralNumber(form.cadastralBlock);
-      const composedMessage = composeMessage(form.message, cadastralNumber);
+      const cadastral = collectCadastralNumbersFromParts(cadastralNumbers);
+      if (cadastral.partialError) {
+        throw new Error(cadastral.partialError);
+      }
 
       if (isAuthenticated) {
         const res = await fetch(`/api/service-categories/${categoryId}/requests`, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ message: normalizeNullableString(composedMessage), requestCityId: null }),
+          body: JSON.stringify({
+            message: normalizeNullableString(message),
+            requestCityId: null,
+            cadastralNumbers: cadastral.numbers,
+          }),
         });
         const payload = (await res.json().catch(() => null)) as { error?: string } | null;
         if (!res.ok) {
@@ -91,8 +77,9 @@ export function PublicCategoryRequestForm({ categoryId, isAuthenticated }: Props
       savePendingRequestDraft({
         kind: "CATEGORY",
         categoryId,
-        message: normalizeNullableString(composedMessage),
+        message: normalizeNullableString(message),
         requestCityId: null,
+        cadastralNumbers: cadastral.numbers,
       });
 
       if (!isAuthenticated) {
@@ -123,8 +110,8 @@ export function PublicCategoryRequestForm({ categoryId, isAuthenticated }: Props
 
         <TextField
           label="Что нужно сделать?"
-          value={form.message}
-          onChange={(event) => setForm((prev) => ({ ...prev, message: event.target.value }))}
+          value={message}
+          onChange={(event) => setMessage(event.target.value)}
           disabled={busy}
           fullWidth
           size="small"
@@ -132,14 +119,10 @@ export function PublicCategoryRequestForm({ categoryId, isAuthenticated }: Props
           minRows={3}
         />
 
-        <TextField
-          label="Кадастровый номер (опционально)"
-          value={form.cadastralBlock}
-          onChange={(event) => setForm((prev) => ({ ...prev, cadastralBlock: event.target.value }))}
+        <CadastralNumberListEditor
+          value={cadastralNumbers}
+          onChange={setCadastralNumbers}
           disabled={busy}
-          fullWidth
-          size="small"
-          placeholder="укажите номер или улицу"
         />
 
         <Button
@@ -156,4 +139,3 @@ export function PublicCategoryRequestForm({ categoryId, isAuthenticated }: Props
     </Stack>
   );
 }
-

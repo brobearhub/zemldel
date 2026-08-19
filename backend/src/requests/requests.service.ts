@@ -27,16 +27,22 @@ import {
   hasRequestLock,
   isLockedToOtherProvider,
   isOrderExecutionStatus,
+  canCustomerDeleteRequest,
   requestRowToCustomerDtoPlain,
   requestRowToProDtoPlain,
 } from './dto/request.dto';
 import {
   canCompleteWithFinance,
-  remainingKopecks,
-  sumPaidKopecksByType,
+  remainingRubles,
+  sumPaidRublesByType,
   type PaymentAmountWithTypeAndPaidAt,
 } from './dto/request-finance';
 import { requestRemarkToDtoPlain, type RequestRemarkDto } from './dto/request-remark.dto';
+import {
+  isTerminalRequestStatus,
+  normalizeCadastralNumberValue,
+  normalizeCadastralNumbers,
+} from './dto/request-cadastral-number.dto';
 import { formatProviderDeclineChatMessage } from './dto/decline-offer.dto';
 import { formatCustomerSelectProviderChatMessage } from './dto/select-provider.dto';
 import { randomUUID } from 'node:crypto';
@@ -54,6 +60,7 @@ const select = {
   customerPhone: true,
   message: true,
   location: true,
+  cadastralNumbers: true,
   lockedAt: true,
   dealTerms: true,
   offerVersion: true,
@@ -62,7 +69,7 @@ const select = {
   acceptanceRequestedAt: true,
   autoAcceptAt: true,
   acceptedAt: true,
-  totalAmountKopecks: true,
+  totalAmountRubles: true,
   createdAt: true,
   updatedAt: true,
   service: { select: { title: true, providerId: true } },
@@ -87,7 +94,7 @@ const select = {
     select: {
       id: true,
       type: true,
-      amountKopecks: true,
+      amountRubles: true,
       comment: true,
       paidAt: true,
       createdAt: true,
@@ -163,6 +170,49 @@ export class RequestsService {
       map.set(row.requestId, (map.get(row.requestId) ?? 0) + 1);
     }
     return map;
+  }
+
+  private async getRequestIdsWithProviderResponse(
+    rows: Array<{ id: string; customerUserId: string | null }>,
+  ): Promise<Set<string>> {
+    const requestIds = rows
+      .filter((row) => row.customerUserId)
+      .map((row) => row.id);
+    if (requestIds.length === 0) return new Set();
+
+    const messages = await this.prisma.message.findMany({
+      where: {
+        conversation: { requestId: { in: requestIds } },
+      },
+      select: {
+        senderUserId: true,
+        conversation: { select: { requestId: true, customerUserId: true } },
+      },
+      take: 5000,
+    });
+
+    const responded = new Set<string>();
+    for (const message of messages) {
+      if (message.senderUserId !== message.conversation.customerUserId) {
+        responded.add(message.conversation.requestId);
+      }
+    }
+    return responded;
+  }
+
+  private async hasProviderResponseForRequest(
+    requestId: string,
+    customerUserId: string,
+    tx: Prisma.TransactionClient = this.prisma,
+  ): Promise<boolean> {
+    const message = await tx.message.findFirst({
+      where: {
+        conversation: { requestId, customerUserId },
+        NOT: { senderUserId: customerUserId },
+      },
+      select: { id: true },
+    });
+    return message != null;
   }
 
   private async getProviderRegionCode(
@@ -375,6 +425,7 @@ export class RequestsService {
         customerPhone: input.customerPhone ?? actor.phone ?? null,
         message: input.message ?? null,
         location: null,
+        cadastralNumbers: normalizeCadastralNumbers(input.cadastralNumbers),
       },
       select,
     });
@@ -479,6 +530,7 @@ export class RequestsService {
         customerPhone: input.customerPhone ?? actor.phone ?? null,
         message,
         location: null,
+        cadastralNumbers: normalizeCadastralNumbers(input.cadastralNumbers),
       },
       select,
     });
@@ -495,8 +547,17 @@ export class RequestsService {
       orderBy: [{ createdAt: 'desc' }],
       take: 200,
     });
-    return rows.map((r) =>
-      requestRowToCustomerDtoPlain(r as unknown as RequestDbRow),
+    const typedRows = rows as unknown as RequestDbRow[];
+    const providerResponses = await this.getRequestIdsWithProviderResponse(
+      typedRows.map((row) => ({
+        id: row.id,
+        customerUserId: row.customerUserId,
+      })),
+    );
+    return typedRows.map((row) =>
+      requestRowToCustomerDtoPlain(row, {
+        hasProviderResponse: providerResponses.has(row.id),
+      }),
     );
   }
 
@@ -514,7 +575,47 @@ export class RequestsService {
     const normalized = await this.prisma.$transaction((tx) =>
       this.normalizeLifecycleIfNeeded(tx, row),
     );
-    return requestRowToCustomerDtoPlain(normalized as unknown as RequestDbRow);
+    const typedRow = normalized as unknown as RequestDbRow;
+    const hasProviderResponse = typedRow.customerUserId
+      ? await this.hasProviderResponseForRequest(
+          typedRow.id,
+          typedRow.customerUserId,
+        )
+      : false;
+    return requestRowToCustomerDtoPlain(typedRow, { hasProviderResponse });
+  }
+
+  async deleteMineByCustomer(
+    actorUserId: string,
+    requestId: string,
+  ): Promise<{ ok: true }> {
+    await this.prisma.$transaction(async (tx) => {
+      const current = await tx.request.findFirst({
+        where: { id: requestId, customerUserId: actorUserId },
+        select,
+      });
+      if (!current) throw new NotFoundException('Request not found');
+
+      const req = current as unknown as RequestDbRow;
+      if (!req.customerUserId) {
+        throw new ForbiddenException('Forbidden');
+      }
+
+      const hasProviderResponse = await this.hasProviderResponseForRequest(
+        req.id,
+        req.customerUserId,
+        tx,
+      );
+      if (!canCustomerDeleteRequest(req, hasProviderResponse)) {
+        throw new ConflictException('Request cannot be deleted');
+      }
+
+      await tx.request.delete({
+        where: { id: req.id },
+      });
+    });
+
+    return { ok: true };
   }
 
   // --- Customer: order-phase actions ---
@@ -1006,6 +1107,165 @@ export class RequestsService {
       doneAt: updated.doneAt,
       sentAt: updated.sentAt,
     });
+  }
+
+  // --- Cadastral numbers ---
+
+  async appendCadastralNumberByCustomer(
+    actorUserId: string,
+    requestId: string,
+    input: { value: string },
+  ): Promise<RequestCustomerDto> {
+    return this.mutateCadastralNumbersForCustomer(actorUserId, requestId, (current) => {
+      const nextValue = normalizeCadastralNumberValue(input.value);
+      if (!nextValue) {
+        throw new BadRequestException('Invalid cadastral number');
+      }
+      if (current.includes(nextValue)) {
+        throw new ConflictException('Cadastral number already exists');
+      }
+      return [...current, nextValue];
+    });
+  }
+
+  async updateCadastralNumberByCustomer(
+    actorUserId: string,
+    requestId: string,
+    index: number,
+    input: { value: string },
+  ): Promise<RequestCustomerDto> {
+    return this.mutateCadastralNumbersForCustomer(actorUserId, requestId, (current) => {
+      if (index < 0 || index >= current.length) {
+        throw new NotFoundException('Cadastral number not found');
+      }
+      const nextValue = normalizeCadastralNumberValue(input.value);
+      if (!nextValue) {
+        throw new BadRequestException('Invalid cadastral number');
+      }
+      const previousValue = current[index];
+      if (nextValue !== previousValue && current.includes(nextValue)) {
+        throw new ConflictException('Cadastral number already exists');
+      }
+      const next = [...current];
+      next[index] = nextValue;
+      return next;
+    });
+  }
+
+  async deleteCadastralNumberByCustomer(
+    actorUserId: string,
+    requestId: string,
+    index: number,
+  ): Promise<RequestCustomerDto> {
+    return this.mutateCadastralNumbersForCustomer(actorUserId, requestId, (current) => {
+      if (index < 0 || index >= current.length) {
+        throw new NotFoundException('Cadastral number not found');
+      }
+      return current.filter((_, itemIndex) => itemIndex !== index);
+    });
+  }
+
+  async appendCadastralNumberByProvider(
+    actorProviderId: string,
+    requestId: string,
+    input: { value: string },
+  ): Promise<RequestProDto> {
+    return this.mutateCadastralNumbersForProvider(actorProviderId, requestId, (current) => {
+      const nextValue = normalizeCadastralNumberValue(input.value);
+      if (!nextValue) {
+        throw new BadRequestException('Invalid cadastral number');
+      }
+      if (current.includes(nextValue)) {
+        throw new ConflictException('Cadastral number already exists');
+      }
+      return [...current, nextValue];
+    });
+  }
+
+  async updateCadastralNumberByProvider(
+    actorProviderId: string,
+    requestId: string,
+    index: number,
+    input: { value: string },
+  ): Promise<RequestProDto> {
+    return this.mutateCadastralNumbersForProvider(actorProviderId, requestId, (current) => {
+      if (index < 0 || index >= current.length) {
+        throw new NotFoundException('Cadastral number not found');
+      }
+      const nextValue = normalizeCadastralNumberValue(input.value);
+      if (!nextValue) {
+        throw new BadRequestException('Invalid cadastral number');
+      }
+      const previousValue = current[index];
+      if (nextValue !== previousValue && current.includes(nextValue)) {
+        throw new ConflictException('Cadastral number already exists');
+      }
+      const next = [...current];
+      next[index] = nextValue;
+      return next;
+    });
+  }
+
+  async deleteCadastralNumberByProvider(
+    actorProviderId: string,
+    requestId: string,
+    index: number,
+  ): Promise<RequestProDto> {
+    return this.mutateCadastralNumbersForProvider(actorProviderId, requestId, (current) => {
+      if (index < 0 || index >= current.length) {
+        throw new NotFoundException('Cadastral number not found');
+      }
+      return current.filter((_, itemIndex) => itemIndex !== index);
+    });
+  }
+
+  private assertCadastralMutationsAllowed(status: string) {
+    if (isTerminalRequestStatus(status)) {
+      throw new ForbiddenException('Cadastral numbers cannot be modified for completed requests');
+    }
+  }
+
+  private async mutateCadastralNumbersForCustomer(
+    actorUserId: string,
+    requestId: string,
+    mutate: (current: string[]) => string[],
+  ): Promise<RequestCustomerDto> {
+    await this.prisma.$transaction(async (tx) => {
+      const current = await tx.request.findFirst({
+        where: { id: requestId, customerUserId: actorUserId },
+        select: { id: true, status: true, cadastralNumbers: true },
+      });
+      if (!current) throw new NotFoundException('Request not found');
+      this.assertCadastralMutationsAllowed(current.status);
+      const next = mutate(current.cadastralNumbers ?? []);
+      await tx.request.update({
+        where: { id: current.id },
+        data: { cadastralNumbers: next },
+      });
+    });
+    return this.getMineById(actorUserId, requestId);
+  }
+
+  private async mutateCadastralNumbersForProvider(
+    actorProviderId: string,
+    requestId: string,
+    mutate: (current: string[]) => string[],
+  ): Promise<RequestProDto> {
+    await this.prisma.$transaction(async (tx) => {
+      const access = await this.requireProviderAccessToRequest(actorProviderId, requestId);
+      this.assertCadastralMutationsAllowed(access.status);
+      const current = await tx.request.findUnique({
+        where: { id: requestId },
+        select: { id: true, cadastralNumbers: true },
+      });
+      if (!current) throw new NotFoundException('Request not found');
+      const next = mutate(current.cadastralNumbers ?? []);
+      await tx.request.update({
+        where: { id: current.id },
+        data: { cadastralNumbers: next },
+      });
+    });
+    return this.getProById(actorProviderId, requestId);
   }
 
   // --- Provider: read ---
@@ -2151,15 +2411,15 @@ export class RequestsService {
         throw new ForbiddenException('Request must be accepted before completion');
       }
 
-      const paidAmountKopecks = sumPaidKopecksByType(current.payments as unknown as PaymentAmountWithTypeAndPaidAt[], 'CONTRACT');
-      const remainingAmountKopecks = remainingKopecks(
-        current.totalAmountKopecks,
-        paidAmountKopecks,
+      const paidAmountRubles = sumPaidRublesByType(current.payments as unknown as PaymentAmountWithTypeAndPaidAt[], 'CONTRACT');
+      const remainingAmountRubles = remainingRubles(
+        current.totalAmountRubles,
+        paidAmountRubles,
       );
       if (
         !canCompleteWithFinance({
           status: current.status,
-          remainingAmountKopecks,
+          remainingAmountRubles,
         })
       ) {
         throw new ForbiddenException('Remaining payment must be zero before completion');

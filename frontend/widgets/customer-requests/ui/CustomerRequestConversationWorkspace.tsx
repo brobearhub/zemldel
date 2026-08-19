@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Alert,
   Box,
@@ -73,7 +74,18 @@ import {
   RequestCounterpartyPanel,
 } from "@/features/request-counterparty";
 import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
-import CurrencyRubleIcon from "@mui/icons-material/CurrencyRuble";
+import PaymentIcon from "@mui/icons-material/Payment";
+import PinDropOutlinedIcon from "@mui/icons-material/PinDropOutlined";
+import { deleteCustomerRequest } from "@/entities/request/api/customer-requests";
+import {
+  appendCustomerCadastralNumber,
+  deleteCustomerCadastralNumber,
+  updateCustomerCadastralNumber,
+} from "@/entities/request/api/request-cadastral-numbers";
+import {
+  createRequestCadastralBehavior,
+  RequestCadastralNumbers,
+} from "@/widgets/request-cadastral-numbers";
 
 function pickTitle(req: RequestCustomerDto) {
   if (req.subjectType === "SERVICE") return req.serviceTitle ?? "Заявка по услуге";
@@ -86,6 +98,7 @@ type Props = {
 };
 
 export function CustomerRequestConversationWorkspace({ initialRequest }: Props) {
+  const router = useRouter();
   const [req, setReq] = useState<RequestCustomerDto>(initialRequest);
   const [conversations, setConversations] = useState<ChatServiceRequestConversationListItemDto[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
@@ -102,7 +115,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     mergeWorkStageStatusOptions([])
   );
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
-  const [activePanelId, setActivePanelId] = useState<"payment" | "counterparty" | null>(null);
+  const [activePanelId, setActivePanelId] = useState<"payment" | "counterparty" | "cadastral" | null>(null);
   const [termsBusy, setTermsBusy] = useState(false);
   const [termsError, setTermsError] = useState<string | null>(null);
   const [termsVersion, setTermsVersion] = useState<string | null>(null);
@@ -411,6 +424,29 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     }
   }
 
+  async function deleteRequest() {
+    const confirmed = await confirm({
+      title: "Удалить заявку?",
+      description: "Заявка будет удалена безвозвратно. Это можно сделать только пока ни один исполнитель не ответил.",
+      confirmText: "Удалить",
+      confirmColor: "error",
+    });
+    if (!confirmed) return;
+
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await deleteCustomerRequest(req.id);
+      router.push("/profile?section=requests");
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось удалить заявку");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function deleteRequestedDocument(docRequestId: string) {
     const ok = await confirm({
       title: "Удалить загруженный документ?",
@@ -586,14 +622,50 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
   });
 
   const panelItems = [
-    { id: "payment", label: "Оплата", visible: showPayment, endIcon: <CurrencyRubleIcon /> },
+    { id: "cadastral", label: "Кадастровый номер", visible: true, endIcon: <PinDropOutlinedIcon /> },
+    { id: "payment", label: "Оплата", visible: showPayment, endIcon: <PaymentIcon /> },
     { id: "counterparty", label: "Исполнитель", visible: showCounterparty, endIcon: <AssignmentIndIcon /> },
   ] as const;
 
-  const activePanel = panelItems.find((p) => p.id === activePanelId && p.visible);
+  const cadastralBehavior = useMemo(
+    () =>
+      createRequestCadastralBehavior({
+        status: req.status,
+        numbers: req.cadastralNumbers ?? [],
+        actions: {
+          add: async (value) => {
+            const next = await appendCustomerCadastralNumber(req.id, value);
+            setReq(next);
+          },
+          edit: async (index, value) => {
+            const next = await updateCustomerCadastralNumber(req.id, index, value);
+            setReq(next);
+          },
+          delete: async (index) => {
+            const next = await deleteCustomerCadastralNumber(req.id, index);
+            setReq(next);
+          },
+        },
+      }),
+    [req.cadastralNumbers, req.id, req.status],
+  );
+
+  const activePanel = panelItems.find((p) => p.id === activePanelId && (p.visible ?? true));
   const isPanelOpen = Boolean(activePanel);
-  const panelTitle = activePanel?.id === "payment" ? "Оплата" : "Исполнитель";
-  const panelIcon = activePanel?.id === "payment" ? <CurrencyRubleIcon /> : <AssignmentIndIcon />;
+  const panelTitle =
+    activePanel?.id === "payment"
+      ? "Оплата"
+      : activePanel?.id === "counterparty"
+        ? "Исполнитель"
+        : "Кадастровый номер";
+  const panelIcon =
+    activePanel?.id === "payment" ? (
+      <PaymentIcon />
+    ) : activePanel?.id === "counterparty" ? (
+      <AssignmentIndIcon />
+    ) : (
+      <PinDropOutlinedIcon />
+    );
   const panelContent =
     activePanel?.id === "payment" ? (
       <RequestPayments
@@ -601,15 +673,17 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
         requestId={req.id}
         status={req.status}
         lockedAt={req.lockedAt}
-        totalAmountKopecks={req.totalAmountKopecks}
-        paidAmountKopecks={req.paidAmountKopecks}
-        remainingAmountKopecks={req.remainingAmountKopecks}
+        totalAmountRubles={req.totalAmountRubles}
+        paidAmountRubles={req.paidAmountRubles}
+        remainingAmountRubles={req.remainingAmountRubles}
         payments={req.payments}
         busy={busy}
         onChanged={refreshRequest}
       />
-    ) : (
+    ) : activePanel?.id === "counterparty" ? (
       <RequestCounterpartyPanel fields={providerFields} avatarSrc={req.providerImage} avatarName={req.providerName} />
+    ) : (
+      <RequestCadastralNumbers behavior={cadastralBehavior} busy={busy} />
     );
 
   return (
@@ -638,17 +712,30 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                 />
               }
               afterBody={
-                <RequestLifecycleActions
-                  busy={busy}
-                  behavior={createCustomerRequestLifecycleBehavior({
-                    request: req,
-                    canAcceptContract,
-                    actions: {
-                      openOfferDialog: openContractDialog,
-                      acceptResult,
-                    },
-                  })}
-                />
+                <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
+                  <RequestLifecycleActions
+                    busy={busy}
+                    behavior={createCustomerRequestLifecycleBehavior({
+                      request: req,
+                      canAcceptContract,
+                      actions: {
+                        openOfferDialog: openContractDialog,
+                        acceptResult,
+                      },
+                    })}
+                  />
+                  {req.canDeleteByCustomer ? (
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      size="small"
+                      disabled={busy}
+                      onClick={() => void deleteRequest()}
+                    >
+                      Удалить заявку
+                    </Button>
+                  ) : null}
+                </Stack>
               }
             />
           </RequestDetailPanelLayer>

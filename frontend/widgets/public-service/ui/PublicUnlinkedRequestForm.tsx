@@ -18,12 +18,16 @@ import {
 } from "@mui/material";
 import type { CitySuggestItemDto } from "@/entities/city";
 import { CityAutocomplete } from "@/shared/ui/CityAutocomplete";
+import { CadastralNumberListEditor } from "@/shared/ui/CadastralNumberListEditor";
 import { useAppSelector } from "@/core/store/hooks";
 import {
   REQUESTS_PROFILE_URL,
   REQUESTS_PROFILE_RESUME_URL,
   buildRequestAuthHref,
   savePendingRequestDraft,
+  collectCadastralNumbersFromParts,
+  createEmptyCadastralParts,
+  type CadastralNumberParts,
 } from "@/entities/request";
 import { RequestFormLogo } from "@/widgets/public-service/ui/RequestFormLogo";
 
@@ -36,7 +40,7 @@ type Props = {
 
 type FormState = {
   message: string;
-  cadastralBlock: string;
+  cadastralNumbers: CadastralNumberParts[];
   city: CitySuggestItemDto | null;
   category: { id: string; name: string } | null;
 };
@@ -44,27 +48,6 @@ type FormState = {
 function normalizeNullableString(value: string) {
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : null;
-}
-
-function normalizeCadastralPart(value: string) {
-  return value
-    .trim()
-    .replace(/\s+/g, "")
-    .replace(/:+/g, ":")
-    .replace(/^:+|:+$/g, "");
-}
-
-function buildCadastralNumber(raw: string): string | null {
-  const normalized = normalizeCadastralPart(raw);
-  return normalized.length > 0 ? normalized : null;
-}
-
-function composeMessage(message: string, extras: { cadastralNumber?: string | null }) {
-  const msg = message.trim();
-  const parts: string[] = [];
-  if (msg) parts.push(msg);
-  if (extras.cadastralNumber) parts.push(`Кадастровый номер: ${extras.cadastralNumber}`);
-  return parts.join("\n\n");
 }
 
 function mapCustomerCityToSuggest(
@@ -92,13 +75,13 @@ export function PublicUnlinkedRequestForm({
 }: Props) {
   const router = useRouter();
 
-  const { status, user } = useAppSelector((s) => s.auth);
+  const { user } = useAppSelector((s) => s.auth);
   const customerCity = useMemo(() => mapCustomerCityToSuggest(user?.customerCity), [user?.customerCity]);
   const didInitCity = useRef(false);
 
   const [form, setForm] = useState<FormState>(() => ({
     message: "",
-    cadastralBlock: "",
+    cadastralNumbers: [createEmptyCadastralParts()],
     city: null,
     category: initialCategory,
   }));
@@ -120,7 +103,6 @@ export function PublicUnlinkedRequestForm({
 
     const msg = form.message.trim();
     if (!msg) {
-      // Поле помечено как required; не показываем отдельное "сообщение обязательно" как дефолтный warning.
       return { validationError: null, isBlocked: true };
     }
 
@@ -135,8 +117,13 @@ export function PublicUnlinkedRequestForm({
       };
     }
 
+    const cadastral = collectCadastralNumbersFromParts(form.cadastralNumbers);
+    if (cadastral.partialError) {
+      return { validationError: cadastral.partialError, isBlocked: true };
+    }
+
     return { validationError: null, isBlocked: false };
-  }, [form.category, form.city, form.message]);
+  }, [form.category, form.city, form.cadastralNumbers, form.message]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -147,18 +134,21 @@ export function PublicUnlinkedRequestForm({
     setBusy(true);
     setError(null);
     try {
-      const cadastralNumber = buildCadastralNumber(form.cadastralBlock);
       const requestCityId = form.city?.id ?? null;
+      const cadastral = collectCadastralNumbersFromParts(form.cadastralNumbers);
+      if (cadastral.partialError) {
+        throw new Error(cadastral.partialError);
+      }
+      const message = normalizeNullableString(form.message.trim());
+      const cadastralNumbers = cadastral.numbers;
 
       const category = form.category;
       if (category) {
-        const composedMessage = composeMessage(form.message, { cadastralNumber });
-
         if (isAuthenticated) {
           const res = await fetch(`/api/service-categories/${category.id}/requests`, {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ message: normalizeNullableString(composedMessage), requestCityId }),
+            body: JSON.stringify({ message, requestCityId, cadastralNumbers }),
           });
           const payload = (await res.json().catch(() => null)) as { error?: string } | null;
           if (!res.ok) {
@@ -171,25 +161,20 @@ export function PublicUnlinkedRequestForm({
         savePendingRequestDraft({
           kind: "CATEGORY",
           categoryId: category.id,
-          message: normalizeNullableString(composedMessage),
+          message,
           requestCityId,
+          cadastralNumbers,
         });
 
-        if (!isAuthenticated) {
-          router.push(buildRequestAuthHref("signup", { kind: "CATEGORY", categoryId: category.id }));
-        } else {
-          router.push(REQUESTS_PROFILE_RESUME_URL);
-        }
+        router.push(buildRequestAuthHref("signup", { kind: "CATEGORY", categoryId: category.id }));
         return;
       }
-
-      const composedMessage = composeMessage(form.message, { cadastralNumber });
 
       if (isAuthenticated) {
         const res = await fetch("/api/requests", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ message: normalizeNullableString(composedMessage), requestCityId }),
+          body: JSON.stringify({ message, requestCityId, cadastralNumbers }),
         });
         const payload = (await res.json().catch(() => null)) as { error?: string } | null;
         if (!res.ok) {
@@ -201,15 +186,12 @@ export function PublicUnlinkedRequestForm({
 
       savePendingRequestDraft({
         kind: "FREEFORM",
-        message: normalizeNullableString(composedMessage),
+        message,
         requestCityId,
+        cadastralNumbers,
       });
 
-      if (!isAuthenticated) {
-        router.push(buildRequestAuthHref("signup", { kind: "FREEFORM" }));
-      } else {
-        router.push(REQUESTS_PROFILE_RESUME_URL);
-      }
+      router.push(buildRequestAuthHref("signup", { kind: "FREEFORM" }));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось создать заявку");
     } finally {
@@ -294,14 +276,10 @@ export function PublicUnlinkedRequestForm({
                 clearOnEscape
               />
 
-              <TextField
-                label="Кадастровый номер (опционально)"
-                value={form.cadastralBlock}
-                onChange={(event) => setForm((prev) => ({ ...prev, cadastralBlock: event.target.value }))}
+              <CadastralNumberListEditor
+                value={form.cadastralNumbers}
+                onChange={(cadastralNumbers) => setForm((prev) => ({ ...prev, cadastralNumbers }))}
                 disabled={busy}
-                fullWidth
-                size="small"
-                placeholder="укажите номер или улицу"
               />
             </Stack>
           </AccordionDetails>
@@ -332,4 +310,3 @@ export function PublicUnlinkedRequestForm({
     </Paper>
   );
 }
-

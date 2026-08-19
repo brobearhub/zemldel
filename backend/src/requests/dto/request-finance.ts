@@ -1,9 +1,9 @@
 export type PaymentAmount = {
-  readonly amountKopecks: number;
+  readonly amountRubles: number;
 };
 
-export function sumPaidKopecks(payments: readonly PaymentAmount[]): number {
-  return payments.reduce((sum, payment) => sum + payment.amountKopecks, 0);
+export function sumPaidRubles(payments: readonly PaymentAmount[]): number {
+  return payments.reduce((sum, payment) => sum + payment.amountRubles, 0);
 }
 
 export type PaymentAmountWithType = PaymentAmount & {
@@ -14,27 +14,27 @@ export type PaymentAmountWithTypeAndPaidAt = PaymentAmountWithType & {
   readonly paidAt: Date | null;
 };
 
-export function sumPaidKopecksByType(payments: readonly PaymentAmountWithTypeAndPaidAt[], type: PaymentAmountWithType['type']): number {
+export function sumPaidRublesByType(payments: readonly PaymentAmountWithTypeAndPaidAt[], type: PaymentAmountWithType['type']): number {
   return payments.reduce((sum, payment) => {
     if (payment.type !== type) return sum;
     if (payment.paidAt == null) return sum;
-    return sum + payment.amountKopecks;
+    return sum + payment.amountRubles;
   }, 0);
 }
 
-export function remainingKopecks(
-  totalAmountKopecks: number | null | undefined,
-  paidAmountKopecks: number,
+export function remainingRubles(
+  totalAmountRubles: number | null | undefined,
+  paidAmountRubles: number,
 ): number | null {
-  if (totalAmountKopecks == null) return null;
-  return totalAmountKopecks - paidAmountKopecks;
+  if (totalAmountRubles == null) return null;
+  return totalAmountRubles - paidAmountRubles;
 }
 
 export function canCompleteWithFinance(input: {
   status: string;
-  remainingAmountKopecks: number | null;
+  remainingAmountRubles: number | null;
 }): boolean {
   if (input.status !== 'ACCEPTED') return false;
-  if (input.remainingAmountKopecks == null) return true;
-  return input.remainingAmountKopecks <= 0;
+  if (input.remainingAmountRubles == null) return true;
+  return input.remainingAmountRubles <= 0;
 }

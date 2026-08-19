@@ -48,7 +48,7 @@ export type RequestPaymentType = "CONTRACT" | "OTHER";
 export type RequestPaymentItemDto = {
   id: string;
   type: RequestPaymentType;
-  amountKopecks: number;
+  amountRubles: number;
   comment: string;
   paidAt: string | null;
   createdAt: string;
@@ -86,10 +86,12 @@ export type RequestCustomerDto = {
   customerUserId: string | null;
   createdAt: string;
   updatedAt: string;
-  totalAmountKopecks: number | null;
-  paidAmountKopecks: number;
-  remainingAmountKopecks: number | null;
+  totalAmountRubles: number | null;
+  paidAmountRubles: number;
+  remainingAmountRubles: number | null;
   payments: RequestPaymentItemDto[];
+  cadastralNumbers: string[];
+  canDeleteByCustomer: boolean;
 };
 
 export type RequestProDto = {
@@ -121,10 +123,11 @@ export type RequestProDto = {
   customerImage: string | null;
   conversationsCount: number;
   isLocked: boolean;
-  totalAmountKopecks: number | null;
-  paidAmountKopecks: number;
-  remainingAmountKopecks: number | null;
+  totalAmountRubles: number | null;
+  paidAmountRubles: number;
+  remainingAmountRubles: number | null;
   payments: RequestPaymentItemDto[];
+  cadastralNumbers: string[];
   createdAt: string;
   updatedAt: string;
 };

@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Alert, Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, IconButton, Paper, Stack, Typography } from "@mui/material";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import {
   clearPendingRequestDraft,
   isPendingRequestSubmitting,
@@ -17,6 +18,8 @@ import {
   type RequestCustomerDto,
   type RequestStatus,
 } from "@/entities/request";
+import { deleteCustomerRequest } from "@/entities/request/api/customer-requests";
+import { useConfirm } from "@/shared/ui/confirm";
 
 type PhaseFilter = "ALL" | "DISCUSSING" | "ORDERS" | "COMPLETED" | "CANCELLED";
 
@@ -75,10 +78,12 @@ type Props = {
 
 export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResumeFinished }: Props) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [items, setItems] = useState<RequestCustomerDto[]>([]);
   const [phase, setPhase] = useState<PhaseFilter>("ALL");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function load(signal?: AbortSignal) {
     setError(null);
@@ -143,8 +148,16 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
                 requestCityId: draft.requestCityId,
               }
             : draft.kind === "CATEGORY"
-              ? { message: draft.message, requestCityId: draft.requestCityId }
-              : { message: draft.message, requestCityId: draft.requestCityId };
+              ? {
+                  message: draft.message,
+                  requestCityId: draft.requestCityId,
+                  cadastralNumbers: draft.cadastralNumbers,
+                }
+              : {
+                  message: draft.message,
+                  requestCityId: draft.requestCityId,
+                  cadastralNumbers: draft.cadastralNumbers,
+                };
 
         const res = await fetch(url, {
           method: "POST",
@@ -194,6 +207,27 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
   function openRequest(id: string, status: RequestStatus) {
     if (status === "CLOSED") return;
     router.push(`/profile/requests/${id}`);
+  }
+
+  async function deleteRequest(item: RequestCustomerDto) {
+    const confirmed = await confirm({
+      title: "Удалить заявку?",
+      description: "Заявка будет удалена безвозвратно. Это можно сделать только пока ни один исполнитель не ответил.",
+      confirmText: "Удалить",
+      confirmColor: "error",
+    });
+    if (!confirmed) return;
+
+    setDeletingId(item.id);
+    setError(null);
+    try {
+      await deleteCustomerRequest(item.id);
+      setItems((current) => current.filter((row) => row.id !== item.id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось удалить заявку");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -298,11 +332,27 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
                     >
                       {title}
                     </Typography>
-                    <Chip
-                      size="small"
-                      label={statusLabel}
-                      sx={{ display: { xs: "none", md: "inline-flex" }, flexShrink: 0 }}
-                    />
+                    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
+                      {item.canDeleteByCustomer ? (
+                        <IconButton
+                          size="small"
+                          color="error"
+                          aria-label="Удалить заявку"
+                          disabled={deletingId === item.id}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void deleteRequest(item);
+                          }}
+                        >
+                          <DeleteOutlineIcon fontSize="small" />
+                        </IconButton>
+                      ) : null}
+                      <Chip
+                        size="small"
+                        label={statusLabel}
+                        sx={{ display: { xs: "none", md: "inline-flex" } }}
+                      />
+                    </Stack>
                   </Stack>
 
                   {subjectSubtitle ? (

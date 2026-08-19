@@ -237,9 +237,10 @@ export function ServiceCard({ item }: Props) {
               customerName: null,
               customerEmail: null,
               customerPhone: null,
-              message: null,
-              requestCityId: null,
-            });
+        message: null,
+        requestCityId: null,
+        cadastralNumbers: [],
+      });
 
             if (status === "authenticated") {
               router.push(SERVICE_REQUESTS_PROFILE_RESUME_URL);

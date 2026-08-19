@@ -17,16 +17,49 @@ CREATE TYPE "ProviderMemberStatus" AS ENUM ('INVITED', 'ACTIVE', 'SUSPENDED');
 CREATE TYPE "ServiceStatus" AS ENUM ('DRAFT', 'PUBLISHED', 'ARCHIVED');
 
 -- CreateEnum
-CREATE TYPE "ServiceRequestStatus" AS ENUM ('NEW', 'DISCUSSING', 'TERMS_AGREED', 'PROVIDER_SELECTED', 'CONTRACT_ACCEPTED', 'LOCKED', 'PAYMENT_PENDING', 'PAYMENT_PROCESSING', 'ACTIVE', 'SERVICE_RENDERED', 'ACCEPTANCE_PENDING', 'ACCEPTED', 'PAID', 'COMPLETED', 'CANCELLED', 'CLOSED');
+CREATE TYPE "RequestStatus" AS ENUM ('NEW', 'DISCUSSING', 'TERMS_AGREED', 'ACTIVE', 'ACCEPTANCE_PENDING', 'ACCEPTED', 'COMPLETED', 'CANCELLED', 'CLOSED');
 
 -- CreateEnum
-CREATE TYPE "ServiceRequestProviderOfferStatus" AS ENUM ('SELECTED', 'DECLINED');
+CREATE TYPE "RequestProviderOfferStatus" AS ENUM ('SELECTED', 'DECLINED');
 
 -- CreateEnum
 CREATE TYPE "ServiceCategoryPlacement" AS ENUM ('HOME');
 
 -- CreateEnum
 CREATE TYPE "ConversationStatus" AS ENUM ('OPEN', 'ARCHIVED');
+
+-- CreateEnum
+CREATE TYPE "AuthProviderKey" AS ENUM ('GOSUSLUGI');
+
+-- CreateEnum
+CREATE TYPE "RequestContractFileStatus" AS ENUM ('PENDING_CUSTOMER', 'APPROVED', 'REVISION_REQUESTED');
+
+-- CreateEnum
+CREATE TYPE "RequestContractFileRole" AS ENUM ('CONTRACT_DOCUMENT', 'CONTRACT_SIGNATURE', 'PROVIDER_MISC');
+
+-- CreateEnum
+CREATE TYPE "RequestDocumentRequestStatus" AS ENUM ('REQUESTED', 'UPLOADED');
+
+-- CreateEnum
+CREATE TYPE "RequestRemarkStatus" AS ENUM ('OPEN', 'DONE');
+
+-- CreateEnum
+CREATE TYPE "RequestRemarkAuthorSide" AS ENUM ('CUSTOMER', 'PROVIDER');
+
+-- CreateEnum
+CREATE TYPE "WorkStageLifecycle" AS ENUM ('DRAFT', 'PUBLISHED');
+
+-- CreateEnum
+CREATE TYPE "WorkStageDocSlotStatus" AS ENUM ('REQUESTED', 'UPLOADED');
+
+-- CreateEnum
+CREATE TYPE "LegalDocId" AS ENUM ('TERMS', 'PRIVACY', 'CONSENT', 'OFFER');
+
+-- CreateEnum
+CREATE TYPE "LegalAcceptanceContext" AS ENUM ('SIGNUP', 'PROVIDER_ONBOARDING', 'CONTRACT');
+
+-- CreateEnum
+CREATE TYPE "RequestPaymentType" AS ENUM ('CONTRACT', 'OTHER');
 
 -- CreateTable
 CREATE TABLE "City" (
@@ -60,6 +93,19 @@ CREATE TABLE "User" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LegalAcceptance" (
+    "id" UUID NOT NULL,
+    "userId" UUID NOT NULL,
+    "docId" "LegalDocId" NOT NULL,
+    "version" TEXT NOT NULL,
+    "context" "LegalAcceptanceContext" NOT NULL,
+    "requestId" UUID,
+    "acceptedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "LegalAcceptance_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -112,6 +158,47 @@ CREATE TABLE "Provider" (
 );
 
 -- CreateTable
+CREATE TABLE "ProviderLegalProfile" (
+    "id" UUID NOT NULL,
+    "providerId" UUID NOT NULL,
+    "legalName" TEXT,
+    "inn" TEXT,
+    "kpp" TEXT,
+    "ogrn" TEXT,
+    "legalAddress" TEXT,
+    "postalAddress" TEXT,
+    "bankName" TEXT,
+    "bankBik" TEXT,
+    "bankAccount" TEXT,
+    "correspondentAccount" TEXT,
+    "signerName" TEXT,
+    "signerTitle" TEXT,
+    "signerBasis" TEXT,
+    "phone" TEXT,
+    "email" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ProviderLegalProfile_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CustomerLegalProfile" (
+    "id" UUID NOT NULL,
+    "userId" UUID NOT NULL,
+    "fullName" TEXT,
+    "inn" TEXT,
+    "registrationAddress" TEXT,
+    "postalAddress" TEXT,
+    "phone" TEXT,
+    "email" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CustomerLegalProfile_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "ProviderMember" (
     "id" UUID NOT NULL,
     "providerId" UUID NOT NULL,
@@ -130,6 +217,7 @@ CREATE TABLE "ProviderUserSettings" (
     "userId" UUID NOT NULL,
     "providerId" UUID NOT NULL,
     "proInboxFilters" JSONB,
+    "workStageStatuses" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -151,9 +239,9 @@ CREATE TABLE "ServiceCategory" (
 );
 
 -- CreateTable
-CREATE TABLE "ServiceRequest" (
+CREATE TABLE "Request" (
     "id" UUID NOT NULL,
-    "status" "ServiceRequestStatus" NOT NULL DEFAULT 'NEW',
+    "status" "RequestStatus" NOT NULL DEFAULT 'NEW',
     "serviceId" UUID,
     "categoryId" UUID,
     "providerId" UUID,
@@ -164,46 +252,137 @@ CREATE TABLE "ServiceRequest" (
     "customerPhone" TEXT,
     "message" TEXT,
     "location" TEXT,
+    "cadastralNumbers" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "lockedAt" TIMESTAMP(3),
     "dealTerms" JSONB,
     "offerVersion" TEXT,
+    "termsVersion" TEXT,
     "contractAcceptedAt" TIMESTAMP(3),
     "contractAcceptedByUserId" UUID,
     "acceptanceRequestedAt" TIMESTAMP(3),
     "autoAcceptAt" TIMESTAMP(3),
     "acceptedAt" TIMESTAMP(3),
     "acceptedByUserId" UUID,
+    "totalAmountRubles" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "ServiceRequest_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Request_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "ServiceRequestEvent" (
+CREATE TABLE "RequestWorkStage" (
     "id" UUID NOT NULL,
-    "serviceRequestId" UUID NOT NULL,
+    "requestId" UUID NOT NULL,
+    "providerId" UUID NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT NOT NULL DEFAULT '',
+    "statusKey" TEXT NOT NULL,
+    "statusLabel" TEXT NOT NULL,
+    "lifecycle" "WorkStageLifecycle" NOT NULL DEFAULT 'DRAFT',
+    "publishedAt" TIMESTAMP(3),
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "RequestWorkStage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RequestWorkStageFile" (
+    "id" UUID NOT NULL,
+    "stageId" UUID NOT NULL,
+    "uploadedByUserId" UUID,
+    "originalName" TEXT NOT NULL,
+    "mimeType" TEXT NOT NULL,
+    "sizeBytes" INTEGER NOT NULL,
+    "sha256" TEXT NOT NULL,
+    "storageRelPath" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "RequestWorkStageFile_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RequestWorkStageDocSlot" (
+    "id" UUID NOT NULL,
+    "stageId" UUID NOT NULL,
+    "title" TEXT NOT NULL,
+    "status" "WorkStageDocSlotStatus" NOT NULL DEFAULT 'REQUESTED',
+    "uploadedByUserId" UUID,
+    "uploadedAt" TIMESTAMP(3),
+    "originalName" TEXT,
+    "mimeType" TEXT,
+    "sizeBytes" INTEGER,
+    "sha256" TEXT,
+    "storageRelPath" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "RequestWorkStageDocSlot_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RequestRemark" (
+    "id" UUID NOT NULL,
+    "requestId" UUID NOT NULL,
+    "authorSide" "RequestRemarkAuthorSide" NOT NULL,
+    "status" "RequestRemarkStatus" NOT NULL DEFAULT 'OPEN',
+    "text" TEXT NOT NULL,
+    "createdByUserId" UUID,
+    "createdByProviderId" UUID,
+    "doneByUserId" UUID,
+    "doneByProviderId" UUID,
+    "doneAt" TIMESTAMP(3),
+    "sentAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "RequestRemark_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RequestPayment" (
+    "id" UUID NOT NULL,
+    "requestId" UUID NOT NULL,
+    "providerId" UUID NOT NULL,
+    "type" "RequestPaymentType" NOT NULL DEFAULT 'CONTRACT',
+    "amountRubles" INTEGER NOT NULL,
+    "comment" TEXT NOT NULL,
+    "paidAt" TIMESTAMP(3),
+    "createdByUserId" UUID,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "RequestPayment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RequestEvent" (
+    "id" UUID NOT NULL,
+    "requestId" UUID NOT NULL,
     "type" TEXT NOT NULL,
     "actorUserId" UUID,
     "actorProviderId" UUID,
     "payload" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "ServiceRequestEvent_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "RequestEvent_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "ServiceRequestProviderOffer" (
+CREATE TABLE "RequestProviderOffer" (
     "id" UUID NOT NULL,
-    "serviceRequestId" UUID NOT NULL,
+    "requestId" UUID NOT NULL,
     "providerId" UUID NOT NULL,
-    "status" "ServiceRequestProviderOfferStatus" NOT NULL DEFAULT 'SELECTED',
+    "status" "RequestProviderOfferStatus" NOT NULL DEFAULT 'SELECTED',
     "selectedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "declinedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "ServiceRequestProviderOffer_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "RequestProviderOffer_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -237,7 +416,7 @@ CREATE TABLE "Service" (
 -- CreateTable
 CREATE TABLE "Conversation" (
     "id" UUID NOT NULL,
-    "serviceRequestId" UUID NOT NULL,
+    "requestId" UUID NOT NULL,
     "providerId" UUID NOT NULL,
     "customerUserId" UUID NOT NULL,
     "status" "ConversationStatus" NOT NULL DEFAULT 'OPEN',
@@ -270,6 +449,116 @@ CREATE TABLE "ConversationReadState" (
     CONSTRAINT "ConversationReadState_pkey" PRIMARY KEY ("conversationId","userId")
 );
 
+-- CreateTable
+CREATE TABLE "UserAuthProviderLink" (
+    "id" UUID NOT NULL,
+    "userId" UUID NOT NULL,
+    "providerKey" "AuthProviderKey" NOT NULL,
+    "externalSubject" TEXT NOT NULL,
+    "linkedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "revokedAt" TIMESTAMP(3),
+
+    CONSTRAINT "UserAuthProviderLink_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "UserStepUpVerification" (
+    "id" UUID NOT NULL,
+    "userId" UUID NOT NULL,
+    "providerKey" "AuthProviderKey" NOT NULL,
+    "verifiedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "UserStepUpVerification_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PassportDocument" (
+    "id" UUID NOT NULL,
+    "userId" UUID NOT NULL,
+    "alg" TEXT NOT NULL,
+    "keyVersion" INTEGER NOT NULL,
+    "iv" BYTEA NOT NULL,
+    "tag" BYTEA NOT NULL,
+    "ciphertext" BYTEA NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PassportDocument_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PassportAccessAudit" (
+    "id" UUID NOT NULL,
+    "passportUserId" UUID NOT NULL,
+    "action" TEXT NOT NULL,
+    "actorUserId" UUID,
+    "actorProviderId" UUID,
+    "requestId" UUID,
+    "ip" TEXT,
+    "userAgent" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PassportAccessAudit_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RequestContractFile" (
+    "id" UUID NOT NULL,
+    "requestId" UUID NOT NULL,
+    "providerId" UUID NOT NULL,
+    "uploadedByUserId" UUID,
+    "decidedByUserId" UUID,
+    "decidedAt" TIMESTAMP(3),
+    "status" "RequestContractFileStatus" NOT NULL DEFAULT 'PENDING_CUSTOMER',
+    "revisionMessage" TEXT,
+    "role" "RequestContractFileRole" NOT NULL DEFAULT 'CONTRACT_DOCUMENT',
+    "bundleId" UUID,
+    "originalName" TEXT NOT NULL,
+    "mimeType" TEXT NOT NULL,
+    "sizeBytes" INTEGER NOT NULL,
+    "sha256" TEXT NOT NULL,
+    "storageRelPath" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "RequestContractFile_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RequestDocumentRequest" (
+    "id" UUID NOT NULL,
+    "requestId" UUID NOT NULL,
+    "providerId" UUID NOT NULL,
+    "uploadedByUserId" UUID,
+    "uploadedAt" TIMESTAMP(3),
+    "status" "RequestDocumentRequestStatus" NOT NULL DEFAULT 'REQUESTED',
+    "title" TEXT NOT NULL,
+    "originalName" TEXT,
+    "mimeType" TEXT,
+    "sizeBytes" INTEGER,
+    "sha256" TEXT,
+    "storageRelPath" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "RequestDocumentRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RequestReminder" (
+    "id" UUID NOT NULL,
+    "requestId" UUID NOT NULL,
+    "providerId" UUID NOT NULL,
+    "text" TEXT NOT NULL,
+    "remindAt" TIMESTAMP(3) NOT NULL,
+    "isDone" BOOLEAN NOT NULL DEFAULT false,
+    "doneAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "RequestReminder_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "City_garObjectId_key" ON "City"("garObjectId");
 
@@ -293,6 +582,15 @@ CREATE INDEX "User_activeProviderId_idx" ON "User"("activeProviderId");
 
 -- CreateIndex
 CREATE INDEX "User_customerCityId_idx" ON "User"("customerCityId");
+
+-- CreateIndex
+CREATE INDEX "LegalAcceptance_userId_docId_idx" ON "LegalAcceptance"("userId", "docId");
+
+-- CreateIndex
+CREATE INDEX "LegalAcceptance_requestId_idx" ON "LegalAcceptance"("requestId");
+
+-- CreateIndex
+CREATE INDEX "LegalAcceptance_context_docId_idx" ON "LegalAcceptance"("context", "docId");
 
 -- CreateIndex
 CREATE INDEX "Account_userId_idx" ON "Account"("userId");
@@ -325,6 +623,18 @@ CREATE INDEX "Provider_type_idx" ON "Provider"("type");
 CREATE INDEX "Provider_cityId_idx" ON "Provider"("cityId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "ProviderLegalProfile_providerId_key" ON "ProviderLegalProfile"("providerId");
+
+-- CreateIndex
+CREATE INDEX "ProviderLegalProfile_providerId_idx" ON "ProviderLegalProfile"("providerId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CustomerLegalProfile_userId_key" ON "CustomerLegalProfile"("userId");
+
+-- CreateIndex
+CREATE INDEX "CustomerLegalProfile_userId_idx" ON "CustomerLegalProfile"("userId");
+
+-- CreateIndex
 CREATE INDEX "ProviderMember_userId_idx" ON "ProviderMember"("userId");
 
 -- CreateIndex
@@ -352,40 +662,73 @@ CREATE INDEX "ServiceCategory_parentId_idx" ON "ServiceCategory"("parentId");
 CREATE INDEX "ServiceCategory_slug_idx" ON "ServiceCategory"("slug");
 
 -- CreateIndex
-CREATE INDEX "ServiceRequest_customerUserId_status_idx" ON "ServiceRequest"("customerUserId", "status");
+CREATE INDEX "Request_customerUserId_status_idx" ON "Request"("customerUserId", "status");
 
 -- CreateIndex
-CREATE INDEX "ServiceRequest_providerId_status_idx" ON "ServiceRequest"("providerId", "status");
+CREATE INDEX "Request_providerId_status_idx" ON "Request"("providerId", "status");
 
 -- CreateIndex
-CREATE INDEX "ServiceRequest_categoryId_status_idx" ON "ServiceRequest"("categoryId", "status");
+CREATE INDEX "Request_categoryId_status_idx" ON "Request"("categoryId", "status");
 
 -- CreateIndex
-CREATE INDEX "ServiceRequest_serviceId_status_idx" ON "ServiceRequest"("serviceId", "status");
+CREATE INDEX "Request_serviceId_status_idx" ON "Request"("serviceId", "status");
 
 -- CreateIndex
-CREATE INDEX "ServiceRequest_requestCityId_status_idx" ON "ServiceRequest"("requestCityId", "status");
+CREATE INDEX "Request_requestCityId_status_idx" ON "Request"("requestCityId", "status");
 
 -- CreateIndex
-CREATE INDEX "ServiceRequestEvent_serviceRequestId_createdAt_idx" ON "ServiceRequestEvent"("serviceRequestId", "createdAt");
+CREATE INDEX "RequestWorkStage_requestId_sortOrder_idx" ON "RequestWorkStage"("requestId", "sortOrder");
 
 -- CreateIndex
-CREATE INDEX "ServiceRequestEvent_type_createdAt_idx" ON "ServiceRequestEvent"("type", "createdAt");
+CREATE INDEX "RequestWorkStage_providerId_statusKey_idx" ON "RequestWorkStage"("providerId", "statusKey");
 
 -- CreateIndex
-CREATE INDEX "ServiceRequestEvent_actorUserId_createdAt_idx" ON "ServiceRequestEvent"("actorUserId", "createdAt");
+CREATE INDEX "RequestWorkStage_requestId_lifecycle_idx" ON "RequestWorkStage"("requestId", "lifecycle");
 
 -- CreateIndex
-CREATE INDEX "ServiceRequestEvent_actorProviderId_createdAt_idx" ON "ServiceRequestEvent"("actorProviderId", "createdAt");
+CREATE INDEX "RequestWorkStageFile_stageId_createdAt_idx" ON "RequestWorkStageFile"("stageId", "createdAt");
 
 -- CreateIndex
-CREATE INDEX "ServiceRequestProviderOffer_serviceRequestId_status_idx" ON "ServiceRequestProviderOffer"("serviceRequestId", "status");
+CREATE INDEX "RequestWorkStageDocSlot_stageId_createdAt_idx" ON "RequestWorkStageDocSlot"("stageId", "createdAt");
 
 -- CreateIndex
-CREATE INDEX "ServiceRequestProviderOffer_providerId_status_idx" ON "ServiceRequestProviderOffer"("providerId", "status");
+CREATE INDEX "RequestWorkStageDocSlot_stageId_status_idx" ON "RequestWorkStageDocSlot"("stageId", "status");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ServiceRequestProviderOffer_serviceRequestId_providerId_key" ON "ServiceRequestProviderOffer"("serviceRequestId", "providerId");
+CREATE INDEX "RequestRemark_requestId_createdAt_idx" ON "RequestRemark"("requestId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "RequestRemark_requestId_status_idx" ON "RequestRemark"("requestId", "status");
+
+-- CreateIndex
+CREATE INDEX "RequestRemark_authorSide_status_idx" ON "RequestRemark"("authorSide", "status");
+
+-- CreateIndex
+CREATE INDEX "RequestPayment_requestId_paidAt_idx" ON "RequestPayment"("requestId", "paidAt");
+
+-- CreateIndex
+CREATE INDEX "RequestPayment_providerId_paidAt_idx" ON "RequestPayment"("providerId", "paidAt");
+
+-- CreateIndex
+CREATE INDEX "RequestEvent_requestId_createdAt_idx" ON "RequestEvent"("requestId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "RequestEvent_type_createdAt_idx" ON "RequestEvent"("type", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "RequestEvent_actorUserId_createdAt_idx" ON "RequestEvent"("actorUserId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "RequestEvent_actorProviderId_createdAt_idx" ON "RequestEvent"("actorProviderId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "RequestProviderOffer_requestId_status_idx" ON "RequestProviderOffer"("requestId", "status");
+
+-- CreateIndex
+CREATE INDEX "RequestProviderOffer_providerId_status_idx" ON "RequestProviderOffer"("providerId", "status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "RequestProviderOffer_requestId_providerId_key" ON "RequestProviderOffer"("requestId", "providerId");
 
 -- CreateIndex
 CREATE INDEX "Service_categoryId_idx" ON "Service"("categoryId");
@@ -406,10 +749,10 @@ CREATE INDEX "Conversation_providerId_idx" ON "Conversation"("providerId");
 CREATE INDEX "Conversation_customerUserId_idx" ON "Conversation"("customerUserId");
 
 -- CreateIndex
-CREATE INDEX "Conversation_serviceRequestId_idx" ON "Conversation"("serviceRequestId");
+CREATE INDEX "Conversation_requestId_idx" ON "Conversation"("requestId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Conversation_serviceRequestId_providerId_key" ON "Conversation"("serviceRequestId", "providerId");
+CREATE UNIQUE INDEX "Conversation_requestId_providerId_key" ON "Conversation"("requestId", "providerId");
 
 -- CreateIndex
 CREATE INDEX "Message_conversationId_createdAt_idx" ON "Message"("conversationId", "createdAt");
@@ -420,11 +763,83 @@ CREATE UNIQUE INDEX "Message_conversationId_senderUserId_clientMessageId_key" ON
 -- CreateIndex
 CREATE INDEX "ConversationReadState_userId_idx" ON "ConversationReadState"("userId");
 
+-- CreateIndex
+CREATE INDEX "UserAuthProviderLink_userId_providerKey_idx" ON "UserAuthProviderLink"("userId", "providerKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserAuthProviderLink_userId_providerKey_key" ON "UserAuthProviderLink"("userId", "providerKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserAuthProviderLink_providerKey_externalSubject_key" ON "UserAuthProviderLink"("providerKey", "externalSubject");
+
+-- CreateIndex
+CREATE INDEX "UserStepUpVerification_userId_providerKey_verifiedAt_idx" ON "UserStepUpVerification"("userId", "providerKey", "verifiedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserStepUpVerification_userId_providerKey_key" ON "UserStepUpVerification"("userId", "providerKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PassportDocument_userId_key" ON "PassportDocument"("userId");
+
+-- CreateIndex
+CREATE INDEX "PassportDocument_userId_idx" ON "PassportDocument"("userId");
+
+-- CreateIndex
+CREATE INDEX "PassportAccessAudit_passportUserId_createdAt_idx" ON "PassportAccessAudit"("passportUserId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "PassportAccessAudit_actorUserId_createdAt_idx" ON "PassportAccessAudit"("actorUserId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "PassportAccessAudit_actorProviderId_createdAt_idx" ON "PassportAccessAudit"("actorProviderId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "PassportAccessAudit_requestId_createdAt_idx" ON "PassportAccessAudit"("requestId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "RequestContractFile_requestId_updatedAt_idx" ON "RequestContractFile"("requestId", "updatedAt");
+
+-- CreateIndex
+CREATE INDEX "RequestContractFile_providerId_updatedAt_idx" ON "RequestContractFile"("providerId", "updatedAt");
+
+-- CreateIndex
+CREATE INDEX "RequestContractFile_status_updatedAt_idx" ON "RequestContractFile"("status", "updatedAt");
+
+-- CreateIndex
+CREATE INDEX "RequestContractFile_bundleId_updatedAt_idx" ON "RequestContractFile"("bundleId", "updatedAt");
+
+-- CreateIndex
+CREATE INDEX "RequestDocumentRequest_requestId_createdAt_idx" ON "RequestDocumentRequest"("requestId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "RequestDocumentRequest_requestId_status_idx" ON "RequestDocumentRequest"("requestId", "status");
+
+-- CreateIndex
+CREATE INDEX "RequestDocumentRequest_providerId_updatedAt_idx" ON "RequestDocumentRequest"("providerId", "updatedAt");
+
+-- CreateIndex
+CREATE INDEX "RequestDocumentRequest_status_updatedAt_idx" ON "RequestDocumentRequest"("status", "updatedAt");
+
+-- CreateIndex
+CREATE INDEX "RequestReminder_requestId_remindAt_idx" ON "RequestReminder"("requestId", "remindAt");
+
+-- CreateIndex
+CREATE INDEX "RequestReminder_providerId_remindAt_idx" ON "RequestReminder"("providerId", "remindAt");
+
+-- CreateIndex
+CREATE INDEX "RequestReminder_providerId_isDone_remindAt_idx" ON "RequestReminder"("providerId", "isDone", "remindAt");
+
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_activeProviderId_fkey" FOREIGN KEY ("activeProviderId") REFERENCES "Provider"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_customerCityId_fkey" FOREIGN KEY ("customerCityId") REFERENCES "City"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LegalAcceptance" ADD CONSTRAINT "LegalAcceptance_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LegalAcceptance" ADD CONSTRAINT "LegalAcceptance_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "Request"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Account" ADD CONSTRAINT "Account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -437,6 +852,12 @@ ALTER TABLE "Provider" ADD CONSTRAINT "Provider_ownerUserId_fkey" FOREIGN KEY ("
 
 -- AddForeignKey
 ALTER TABLE "Provider" ADD CONSTRAINT "Provider_cityId_fkey" FOREIGN KEY ("cityId") REFERENCES "City"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProviderLegalProfile" ADD CONSTRAINT "ProviderLegalProfile_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CustomerLegalProfile" ADD CONSTRAINT "CustomerLegalProfile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ProviderMember" ADD CONSTRAINT "ProviderMember_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -454,28 +875,64 @@ ALTER TABLE "ProviderUserSettings" ADD CONSTRAINT "ProviderUserSettings_provider
 ALTER TABLE "ServiceCategory" ADD CONSTRAINT "ServiceCategory_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "ServiceCategory"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ServiceRequest" ADD CONSTRAINT "ServiceRequest_serviceId_fkey" FOREIGN KEY ("serviceId") REFERENCES "Service"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Request" ADD CONSTRAINT "Request_serviceId_fkey" FOREIGN KEY ("serviceId") REFERENCES "Service"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ServiceRequest" ADD CONSTRAINT "ServiceRequest_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "ServiceCategory"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Request" ADD CONSTRAINT "Request_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "ServiceCategory"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ServiceRequest" ADD CONSTRAINT "ServiceRequest_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Request" ADD CONSTRAINT "Request_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ServiceRequest" ADD CONSTRAINT "ServiceRequest_customerUserId_fkey" FOREIGN KEY ("customerUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Request" ADD CONSTRAINT "Request_customerUserId_fkey" FOREIGN KEY ("customerUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ServiceRequest" ADD CONSTRAINT "ServiceRequest_requestCityId_fkey" FOREIGN KEY ("requestCityId") REFERENCES "City"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Request" ADD CONSTRAINT "Request_requestCityId_fkey" FOREIGN KEY ("requestCityId") REFERENCES "City"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ServiceRequestEvent" ADD CONSTRAINT "ServiceRequestEvent_serviceRequestId_fkey" FOREIGN KEY ("serviceRequestId") REFERENCES "ServiceRequest"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "RequestWorkStage" ADD CONSTRAINT "RequestWorkStage_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "Request"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ServiceRequestProviderOffer" ADD CONSTRAINT "ServiceRequestProviderOffer_serviceRequestId_fkey" FOREIGN KEY ("serviceRequestId") REFERENCES "ServiceRequest"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "RequestWorkStage" ADD CONSTRAINT "RequestWorkStage_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ServiceRequestProviderOffer" ADD CONSTRAINT "ServiceRequestProviderOffer_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "RequestWorkStageFile" ADD CONSTRAINT "RequestWorkStageFile_stageId_fkey" FOREIGN KEY ("stageId") REFERENCES "RequestWorkStage"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequestWorkStageDocSlot" ADD CONSTRAINT "RequestWorkStageDocSlot_stageId_fkey" FOREIGN KEY ("stageId") REFERENCES "RequestWorkStage"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequestRemark" ADD CONSTRAINT "RequestRemark_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "Request"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequestRemark" ADD CONSTRAINT "RequestRemark_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequestRemark" ADD CONSTRAINT "RequestRemark_doneByUserId_fkey" FOREIGN KEY ("doneByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequestRemark" ADD CONSTRAINT "RequestRemark_createdByProviderId_fkey" FOREIGN KEY ("createdByProviderId") REFERENCES "Provider"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequestRemark" ADD CONSTRAINT "RequestRemark_doneByProviderId_fkey" FOREIGN KEY ("doneByProviderId") REFERENCES "Provider"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequestPayment" ADD CONSTRAINT "RequestPayment_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "Request"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequestPayment" ADD CONSTRAINT "RequestPayment_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequestPayment" ADD CONSTRAINT "RequestPayment_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequestEvent" ADD CONSTRAINT "RequestEvent_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "Request"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequestProviderOffer" ADD CONSTRAINT "RequestProviderOffer_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "Request"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequestProviderOffer" ADD CONSTRAINT "RequestProviderOffer_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Service" ADD CONSTRAINT "Service_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -490,7 +947,7 @@ ALTER TABLE "Service" ADD CONSTRAINT "Service_createdByUserId_fkey" FOREIGN KEY 
 ALTER TABLE "Service" ADD CONSTRAINT "Service_updatedByUserId_fkey" FOREIGN KEY ("updatedByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Conversation" ADD CONSTRAINT "Conversation_serviceRequestId_fkey" FOREIGN KEY ("serviceRequestId") REFERENCES "ServiceRequest"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Conversation" ADD CONSTRAINT "Conversation_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "Request"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Conversation" ADD CONSTRAINT "Conversation_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -512,3 +969,42 @@ ALTER TABLE "ConversationReadState" ADD CONSTRAINT "ConversationReadState_conver
 
 -- AddForeignKey
 ALTER TABLE "ConversationReadState" ADD CONSTRAINT "ConversationReadState_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserAuthProviderLink" ADD CONSTRAINT "UserAuthProviderLink_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserStepUpVerification" ADD CONSTRAINT "UserStepUpVerification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PassportDocument" ADD CONSTRAINT "PassportDocument_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PassportAccessAudit" ADD CONSTRAINT "PassportAccessAudit_passportUserId_fkey" FOREIGN KEY ("passportUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequestContractFile" ADD CONSTRAINT "RequestContractFile_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "Request"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequestContractFile" ADD CONSTRAINT "RequestContractFile_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequestContractFile" ADD CONSTRAINT "RequestContractFile_uploadedByUserId_fkey" FOREIGN KEY ("uploadedByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequestContractFile" ADD CONSTRAINT "RequestContractFile_decidedByUserId_fkey" FOREIGN KEY ("decidedByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequestDocumentRequest" ADD CONSTRAINT "RequestDocumentRequest_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "Request"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequestDocumentRequest" ADD CONSTRAINT "RequestDocumentRequest_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequestDocumentRequest" ADD CONSTRAINT "RequestDocumentRequest_uploadedByUserId_fkey" FOREIGN KEY ("uploadedByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequestReminder" ADD CONSTRAINT "RequestReminder_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "Request"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RequestReminder" ADD CONSTRAINT "RequestReminder_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE CASCADE ON UPDATE CASCADE;

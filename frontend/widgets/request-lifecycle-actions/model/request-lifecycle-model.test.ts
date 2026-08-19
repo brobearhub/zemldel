@@ -32,10 +32,12 @@ function makeCustomer(overrides: Partial<RequestCustomerDto> = {}): RequestCusto
     customerName: null,
     customerEmail: null,
     customerUserId: "u1",
-    totalAmountKopecks: null,
-    paidAmountKopecks: 0,
-    remainingAmountKopecks: null,
+    totalAmountRubles: null,
+    paidAmountRubles: 0,
+    remainingAmountRubles: null,
     payments: [],
+    cadastralNumbers: [],
+    canDeleteByCustomer: false,
     createdAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
     updatedAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
     ...overrides,
@@ -72,10 +74,11 @@ function makeProvider(overrides: Partial<RequestProDto> = {}): RequestProDto {
     customerImage: null,
     conversationsCount: 0,
     isLocked: false,
-    totalAmountKopecks: null,
-    paidAmountKopecks: 0,
-    remainingAmountKopecks: null,
+    totalAmountRubles: null,
+    paidAmountRubles: 0,
+    remainingAmountRubles: null,
     payments: [],
+    cadastralNumbers: [],
     createdAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
     updatedAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
     ...overrides,
@@ -148,9 +151,9 @@ describe("buildRequestLifecycleViewModel", () => {
       status: "ACCEPTED",
       offerStatus: "SELECTED",
       lockedAt: "2026-08-06T00:00:00.000Z",
-      totalAmountKopecks: 2500000,
-      paidAmountKopecks: 500000,
-      remainingAmountKopecks: 2000000,
+      totalAmountRubles: 25000,
+      paidAmountRubles: 5000,
+      remainingAmountRubles: 20000,
     });
     const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
     const complete = vm.actions.find((a) => a.id === "complete");
@@ -163,9 +166,9 @@ describe("buildRequestLifecycleViewModel", () => {
       status: "ACCEPTED",
       offerStatus: "SELECTED",
       lockedAt: "2026-08-06T00:00:00.000Z",
-      totalAmountKopecks: 2500000,
-      paidAmountKopecks: 2500000,
-      remainingAmountKopecks: 0,
+      totalAmountRubles: 25000,
+      paidAmountRubles: 25000,
+      remainingAmountRubles: 0,
     });
     const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
     expect(vm.actions.find((a) => a.id === "complete")?.disabled).toBeFalsy();
@@ -176,7 +179,7 @@ describe("buildRequestLifecycleViewModel", () => {
     const req = makeCustomer({
       status: "ACCEPTED",
       lockedAt: "2026-08-06T00:00:00.000Z",
-      remainingAmountKopecks: 2000000,
+      remainingAmountRubles: 20000,
     });
     const vm = buildRequestLifecycleViewModel({
       side: "customer",

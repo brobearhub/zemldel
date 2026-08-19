@@ -16,6 +16,7 @@ export type PendingRequestDraft =
       customerPhone: string | null;
       message: string | null;
       requestCityId: string | null;
+      cadastralNumbers: string[];
       state: "pending" | "submitting";
       updatedAt: number;
       lastError: string | null;
@@ -25,6 +26,7 @@ export type PendingRequestDraft =
       categoryId: string;
       message: string | null;
       requestCityId: string | null;
+      cadastralNumbers: string[];
       state: "pending" | "submitting";
       updatedAt: number;
       lastError: string | null;
@@ -33,6 +35,7 @@ export type PendingRequestDraft =
       kind: "FREEFORM";
       message: string | null;
       requestCityId: string | null;
+      cadastralNumbers: string[];
       state: "pending" | "submitting";
       updatedAt: number;
       lastError: string | null;
@@ -45,6 +48,11 @@ function canUseStorage() {
 function normalizeNullableString(value: string | null | undefined) {
   const normalized = value?.trim() ?? "";
   return normalized.length > 0 ? normalized : null;
+}
+
+function normalizeCadastralNumbers(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
 }
 
 export function readPendingRequestDraft(): PendingRequestDraft | null {
@@ -63,6 +71,7 @@ export function readPendingRequestDraft(): PendingRequestDraft | null {
         customerPhone: normalizeNullableString((parsed as any).customerPhone ?? null),
         message: normalizeNullableString((parsed as any).message ?? null),
         requestCityId: normalizeNullableString((parsed as any).requestCityId ?? null),
+        cadastralNumbers: normalizeCadastralNumbers((parsed as any).cadastralNumbers),
         state: (parsed as any).state === "submitting" ? "submitting" : "pending",
         updatedAt: typeof (parsed as any).updatedAt === "number" ? (parsed as any).updatedAt : Date.now(),
         lastError: normalizeNullableString((parsed as any).lastError ?? null),
@@ -75,6 +84,7 @@ export function readPendingRequestDraft(): PendingRequestDraft | null {
         categoryId: String((parsed as any).categoryId),
         message: normalizeNullableString((parsed as any).message ?? null),
         requestCityId: normalizeNullableString((parsed as any).requestCityId ?? null),
+        cadastralNumbers: normalizeCadastralNumbers((parsed as any).cadastralNumbers),
         state: (parsed as any).state === "submitting" ? "submitting" : "pending",
         updatedAt: typeof (parsed as any).updatedAt === "number" ? (parsed as any).updatedAt : Date.now(),
         lastError: normalizeNullableString((parsed as any).lastError ?? null),
@@ -85,6 +95,7 @@ export function readPendingRequestDraft(): PendingRequestDraft | null {
         kind: "FREEFORM",
         message: normalizeNullableString((parsed as any).message ?? null),
         requestCityId: normalizeNullableString((parsed as any).requestCityId ?? null),
+        cadastralNumbers: normalizeCadastralNumbers((parsed as any).cadastralNumbers),
         state: (parsed as any).state === "submitting" ? "submitting" : "pending",
         updatedAt: typeof (parsed as any).updatedAt === "number" ? (parsed as any).updatedAt : Date.now(),
         lastError: normalizeNullableString((parsed as any).lastError ?? null),
@@ -121,6 +132,7 @@ export function savePendingRequestDraft(
       customerPhone: normalizeNullableString(draft.customerPhone),
       message: normalizeNullableString(draft.message),
       requestCityId: normalizeNullableString(draft.requestCityId),
+      cadastralNumbers: normalizeCadastralNumbers(draft.cadastralNumbers),
       state: "pending",
       updatedAt: Date.now(),
       lastError: null,
@@ -130,6 +142,7 @@ export function savePendingRequestDraft(
       ...draft,
       message: normalizeNullableString(draft.message),
       requestCityId: normalizeNullableString(draft.requestCityId),
+      cadastralNumbers: normalizeCadastralNumbers(draft.cadastralNumbers),
       state: "pending",
       updatedAt: Date.now(),
       lastError: null,
@@ -139,6 +152,7 @@ export function savePendingRequestDraft(
       ...draft,
       message: normalizeNullableString(draft.message),
       requestCityId: normalizeNullableString(draft.requestCityId),
+      cadastralNumbers: normalizeCadastralNumbers(draft.cadastralNumbers),
       state: "pending",
       updatedAt: Date.now(),
       lastError: null,

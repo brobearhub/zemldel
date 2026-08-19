@@ -13,7 +13,7 @@
 
 | Вопрос | Решение |
 |--------|---------|
-| Где сумма сделки | `Request.totalAmountKopecks` (nullable) |
+| Где сумма сделки | `Request.totalAmountRubles` (nullable) |
 | График/строки оплат | `RequestPayment` (сумма + комментарий) |
 | Подтверждение оплаты | `RequestPayment.paidAt` (nullable): `null` — план, дата — подтверждён |
 | Остаток | Производный: `total - sum(confirmed CONTRACT payments)` |
@@ -26,8 +26,8 @@
 
 ## Модель
 
-- `Request.totalAmountKopecks Int?` — полная цена в копейках.
-- `RequestPayment`: `requestId`, `providerId`, `amountKopecks` (> 0), `comment`, `paidAt?`, `createdByUserId`.
+- `Request.totalAmountRubles Int?` — полная цена в рублях (целое число).
+- `RequestPayment`: `requestId`, `providerId`, `amountRubles` (> 0), `comment`, `paidAt?`, `createdByUserId`.
 - Писать можно, пока статус не `COMPLETED` / `CANCELLED` / `CLOSED`.
 - Уменьшать `total` ниже уже внесённого можно (остаток ≤ 0 → complete разрешён). Переплата (`remaining < 0`) complete не блокирует.
 
