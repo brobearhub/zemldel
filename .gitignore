@@ -1,3 +1,47 @@
 .claude/
 .superpowers/
 .vscode/
+
+# Environment
+.env
+.env.*
+!.env.example
+deploy/.env
+deploy/.env.*
+deploy/.deploy.env
+!.deploy.env.example
+
+# Node
+node_modules/
+.next/
+dist/
+coverage/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+backend.hcl
+!backend.hcl.example
+.terraform-state-key.json
+.terraform-outputs.json
+infra/terraform/tfplan
+deploy/terraform-outputs.env
+deploy/.secrets/
+deploy/.secrets/**
+crash.log
+override.tf
+override.tf.json
+
+# Yandex Cloud keys (never commit)
+*-key.json
+authorized_key.json
+*.pem
+!infra/terraform/cloud-certs/.gitkeep
+
+# OS / IDE
+.DS_Store
+*.log
+*.swp

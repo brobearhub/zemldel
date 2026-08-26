@@ -1,0 +1,15 @@
+{
+  email {$CADDY_ADMIN_EMAIL:admin@zemledelpro.ru}
+}
+
+{$DOMAIN:zemledelpro.ru} {
+  encode gzip
+
+  handle /socket.io* {
+    reverse_proxy backend:3003
+  }
+
+  handle {
+    reverse_proxy frontend:3000
+  }
+}

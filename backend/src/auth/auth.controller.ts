@@ -1,6 +1,5 @@
 import { Body, Controller, Get, Post, Req } from '@nestjs/common';
 import {
-  ApiBody,
   ApiOkResponse,
   ApiTags,
   ApiUnprocessableEntityResponse,
@@ -10,7 +9,7 @@ import { AuthService } from './auth.service';
 import { InternalAuthService } from './internal-auth.service';
 import { LoginDto } from './dto/login.dto';
 import { SignupDto } from './dto/signup.dto';
-import { AuthorizedUserDto, LinkedAuthProvidersDto } from './dto/authorized-user.dto';
+import { AuthorizedUserDto } from './dto/authorized-user.dto';
 import { ApiValidationErrorResponseDto } from '../common/dto/api-error-response.dto';
 import { ApiStandardErrors } from '../common/swagger/api-standard-errors.decorator';
 
@@ -48,72 +47,5 @@ export class AuthController {
   async getContext(@Req() request: Request) {
     const userId = this.internalAuthService.getUserIdFromRequest(request);
     return this.authService.getUserAuthContext(userId);
-  }
-
-  @Get('providers')
-  @ApiOkResponse({ type: LinkedAuthProvidersDto })
-  async listLinkedProviders(@Req() request: Request) {
-    const userId = this.internalAuthService.getUserIdFromRequest(request);
-    return { linked: await this.authService.listLinkedAuthProviders(userId) };
-  }
-
-  @Post('providers/gosuslugi/link')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: { externalSubject: { type: 'string' } },
-      required: ['externalSubject'],
-    },
-  })
-  @ApiOkResponse({ type: AuthorizedUserDto })
-  async linkGosuslugi(@Req() request: Request, @Body() body: unknown) {
-    const userId = this.internalAuthService.getUserIdFromRequest(request);
-    const payload = body as { externalSubject?: unknown } | null | undefined;
-    const externalSubject =
-      payload &&
-      typeof payload === 'object' &&
-      typeof payload.externalSubject === 'string'
-        ? payload.externalSubject
-        : '';
-    return this.authService.linkAuthProvider({
-      userId,
-      providerKey: 'GOSUSLUGI',
-      externalSubject,
-    });
-  }
-
-  @Post('providers/gosuslugi/unlink')
-  @ApiOkResponse({ type: AuthorizedUserDto })
-  async unlinkGosuslugi(@Req() request: Request) {
-    const userId = this.internalAuthService.getUserIdFromRequest(request);
-    return this.authService.unlinkAuthProvider({
-      userId,
-      providerKey: 'GOSUSLUGI',
-    });
-  }
-
-  @Post('step-up/gosuslugi/verify')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: { externalSubject: { type: 'string' } },
-      required: ['externalSubject'],
-    },
-  })
-  @ApiOkResponse({ type: AuthorizedUserDto })
-  async verifyGosuslugiStepUp(@Req() request: Request, @Body() body: unknown) {
-    const userId = this.internalAuthService.getUserIdFromRequest(request);
-    const payload = body as { externalSubject?: unknown } | null | undefined;
-    const externalSubject =
-      payload &&
-      typeof payload === 'object' &&
-      typeof payload.externalSubject === 'string'
-        ? payload.externalSubject
-        : null;
-    return this.authService.verifyStepUp({
-      userId,
-      providerKey: 'GOSUSLUGI',
-      externalSubject,
-    });
   }
 }

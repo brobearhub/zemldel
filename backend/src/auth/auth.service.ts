@@ -6,10 +6,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import {
-  AuthProviderKey as DbAuthProviderKey,
-  type Prisma,
-} from '@prisma/client';
+import { type Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { isAllowedLocationRow } from '../cities/location';
@@ -284,98 +281,6 @@ export class AuthService {
     });
 
     return created;
-  }
-
-  async listLinkedAuthProviders(userId: string): Promise<AuthProviderKey[]> {
-    const rows = await this.prisma.userAuthProviderLink.findMany({
-      where: { userId, revokedAt: null },
-      select: { providerKey: true },
-      take: 50,
-    });
-    return rows.map((r) => r.providerKey as unknown as AuthProviderKey);
-  }
-
-  async linkAuthProvider(input: {
-    userId: string;
-    providerKey: AuthProviderKey;
-    externalSubject: string;
-  }) {
-    const externalSubject = input.externalSubject.trim();
-    if (!externalSubject) {
-      throw new BadRequestException('externalSubject is required');
-    }
-
-    const providerKey = input.providerKey as unknown as DbAuthProviderKey;
-
-    await this.prisma.userAuthProviderLink.upsert({
-      where: {
-        userId_providerKey: {
-          userId: input.userId,
-          providerKey,
-        },
-      },
-      create: {
-        userId: input.userId,
-        providerKey,
-        externalSubject,
-        linkedAt: new Date(),
-        revokedAt: null,
-      },
-      update: {
-        externalSubject,
-        revokedAt: null,
-      },
-      select: { id: true },
-    });
-
-    return this.getUserAuthContext(input.userId);
-  }
-
-  async unlinkAuthProvider(input: {
-    userId: string;
-    providerKey: AuthProviderKey;
-  }) {
-    const providerKey = input.providerKey as unknown as DbAuthProviderKey;
-    await this.prisma.userAuthProviderLink.deleteMany({
-      where: { userId: input.userId, providerKey },
-    });
-    await this.prisma.userStepUpVerification.deleteMany({
-      where: { userId: input.userId, providerKey },
-    });
-    return this.getUserAuthContext(input.userId);
-  }
-
-  async verifyStepUp(input: {
-    userId: string;
-    providerKey: AuthProviderKey;
-    externalSubject?: string | null;
-  }) {
-    const providerKey = input.providerKey as unknown as DbAuthProviderKey;
-
-    const link = await this.prisma.userAuthProviderLink.findUnique({
-      where: { userId_providerKey: { userId: input.userId, providerKey } },
-      select: { externalSubject: true },
-    });
-    if (!link) {
-      throw new ForbiddenException('Auth provider is not linked');
-    }
-    if (
-      input.externalSubject &&
-      input.externalSubject.trim().length > 0 &&
-      link.externalSubject !== input.externalSubject.trim()
-    ) {
-      throw new ForbiddenException('Auth provider mismatch');
-    }
-
-    const now = new Date();
-    await this.prisma.userStepUpVerification.upsert({
-      where: { userId_providerKey: { userId: input.userId, providerKey } },
-      create: { userId: input.userId, providerKey, verifiedAt: now },
-      update: { verifiedAt: now },
-      select: { id: true },
-    });
-
-    return this.getUserAuthContext(input.userId);
   }
 
   async getServiceManagementContext(

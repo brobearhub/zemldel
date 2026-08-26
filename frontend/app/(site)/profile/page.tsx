@@ -16,7 +16,7 @@ import {
 } from "@mui/material";
 import EmailIcon from "@mui/icons-material/Email";
 import { useAppSelector } from "@/core/store/hooks";
-import type { AuthMembership, AuthProviderKey } from "@/core/auth/authorization";
+import type { AuthMembership } from "@/core/auth/authorization";
 import { CustomerRequestsSection } from "@/widgets/customer-requests/ui/CustomerRequestsSection";
 import { CustomerPassportSection } from "@/widgets/customer-documents/ui/CustomerPassportSection";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
@@ -63,8 +63,6 @@ interface ProfileOverviewProps {
   customerCity: { id: string; name: string; regionCode: string; regionName: string } | null | undefined;
   memberships: AuthMembership[];
   activeMembership: AuthMembership | null;
-  linkedAuthProviders: AuthProviderKey[];
-  stepUpVerifiedAt: Partial<Record<AuthProviderKey, string>>;
   onOpenProfessionalArea: () => void;
   onCreateProvider: () => void;
   onCityUpdated: () => void;
@@ -77,8 +75,6 @@ function ProfileOverview({
   customerCity,
   memberships,
   activeMembership,
-  linkedAuthProviders,
-  stepUpVerifiedAt,
   onOpenProfessionalArea,
   onCreateProvider,
   onCityUpdated,
@@ -91,12 +87,6 @@ function ProfileOverview({
   const [imageSuccess, setImageSuccess] = useState<string | null>(null);
   const [cityError, setCityError] = useState<string | null>(null);
   const [providerCityError, setProviderCityError] = useState<string | null>(null);
-  const [authProvidersBusy, setAuthProvidersBusy] = useState(false);
-  const [authProvidersError, setAuthProvidersError] = useState<string | null>(null);
-  const [authProvidersSuccess, setAuthProvidersSuccess] = useState<string | null>(null);
-
-  const gosuslugiLinked = linkedAuthProviders.includes("GOSUSLUGI");
-  const gosuslugiVerifiedAt = stepUpVerifiedAt.GOSUSLUGI ?? null;
 
   const customerCityValue = useMemo<CitySuggestItemDto | null>(() => {
     if (!customerCity) return null;
@@ -220,32 +210,6 @@ function ProfileOverview({
     }
   }
 
-  function startGosuslugiFlow(mode: "link" | "verify") {
-    const returnTo = "/profile?section=profile";
-    router.push(`/gosuslugi-mock?mode=${mode}&returnTo=${encodeURIComponent(returnTo)}`);
-  }
-
-  async function unlinkGosuslugi() {
-    setAuthProvidersBusy(true);
-    setAuthProvidersError(null);
-    setAuthProvidersSuccess(null);
-    try {
-      const res = await fetch("/api/auth/providers/gosuslugi/unlink", { method: "POST" });
-      const payload = (await res.json().catch(() => ({}))) as { error?: string } | null;
-      if (!res.ok) {
-        setAuthProvidersError(payload?.error ?? "Не удалось отключить Госуслуги");
-        return;
-      }
-      await updateSession();
-      setAuthProvidersSuccess("Госуслуги отключены");
-      onCityUpdated();
-    } catch {
-      setAuthProvidersError("Не удалось отключить Госуслуги");
-    } finally {
-      setAuthProvidersBusy(false);
-    }
-  }
-
   return (
     <Stack spacing={3}>
       <Box sx={{ display: "flex", gap: 3, alignItems: "center" }}>
@@ -364,58 +328,9 @@ function ProfileOverview({
           <Typography variant="h6" fontWeight={700}>
             Способы входа
           </Typography>
-
-          {authProvidersError ? <Alert severity="error">{authProvidersError}</Alert> : null}
-          {authProvidersSuccess ? <Alert severity="success">{authProvidersSuccess}</Alert> : null}
-
           <Typography variant="body2" color="text.secondary">
             Email и пароль: включено
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Госуслуги: {gosuslugiLinked ? "подключены" : "не подключены"}
-          </Typography>
-          {gosuslugiVerifiedAt ? (
-            <Typography variant="body2" color="text.secondary">
-              Последнее подтверждение:{" "}
-              {new Intl.DateTimeFormat("ru-RU", {
-                day: "2-digit",
-                month: "long",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              }).format(new Date(gosuslugiVerifiedAt))}
-            </Typography>
-          ) : null}
-
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            {!gosuslugiLinked ? (
-              <Button
-                variant="contained"
-                onClick={() => startGosuslugiFlow("link")}
-                disabled={authProvidersBusy}
-              >
-                Подключить Госуслуги
-              </Button>
-            ) : (
-              <>
-                <Button
-                  variant="contained"
-                  onClick={() => startGosuslugiFlow("verify")}
-                  disabled={authProvidersBusy}
-                >
-                  Подтвердить через Госуслуги
-                </Button>
-                <Button
-                  variant="outlined"
-                  color="error"
-                  onClick={() => void unlinkGosuslugi()}
-                  disabled={authProvidersBusy}
-                >
-                  Отключить
-                </Button>
-              </>
-            )}
-          </Stack>
         </Stack>
       </Paper>
 
@@ -548,8 +463,6 @@ function ProfilePageContent() {
             customerCity={user?.customerCity}
             memberships={memberships}
             activeMembership={activeMembership}
-            linkedAuthProviders={user?.linkedAuthProviders ?? []}
-            stepUpVerifiedAt={user?.stepUpVerifiedAt ?? {}}
             onOpenProfessionalArea={() => router.push("/pro")}
             onCreateProvider={() => router.push("/providers/new")}
             onCityUpdated={() => router.refresh()}

@@ -1,0 +1,8 @@
+bucket                      = "prod-zemledel-terraform-state"
+key                         = "prod/terraform.tfstate"
+region                      = "ru-central1"
+endpoint                    = "https://storage.yandexcloud.net"
+access_key                  = "REPLACE_WITH_TF_STATE_ACCESS_KEY_ID"
+secret_key                  = "REPLACE_WITH_TF_STATE_SECRET_ACCESS_KEY"
+skip_region_validation      = true
+skip_credentials_validation = true

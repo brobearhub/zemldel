@@ -1,0 +1,58 @@
+name: Deploy prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Docker tag (по умолчанию — short SHA текущего commit)"
+        required: false
+        type: string
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: meta
+        run: |
+          if [[ -n "${{ inputs.image_tag }}" ]]; then
+            echo "tag=${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure deploy env
+        env:
+          CR_REGISTRY: ${{ secrets.CR_REGISTRY }}
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+          VM_DEPLOY_PATH: ${{ secrets.VM_DEPLOY_PATH }}
+          YC_CR_TOKEN: ${{ secrets.YC_CR_TOKEN }}
+          IMAGE_TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          cat > deploy/.deploy.env <<EOF
+          CR_REGISTRY=${CR_REGISTRY}
+          VM_HOST=${VM_HOST}
+          VM_USER=${VM_USER:-ubuntu}
+          VM_DEPLOY_PATH=${VM_DEPLOY_PATH:-/opt/zemledel}
+          SSH_KEY_PATH=/tmp/deploy_key
+          YC_CR_TOKEN=${YC_CR_TOKEN}
+          IMAGE_TAG=${IMAGE_TAG}
+          EOF
+
+      - name: Write SSH key
+        run: |
+          install -m 600 /dev/null /tmp/deploy_key
+          printf '%s\n' "${{ secrets.VM_SSH_PRIVATE_KEY }}" > /tmp/deploy_key
+
+      - name: Build, push and deploy
+        run: ./deploy/deploy.sh

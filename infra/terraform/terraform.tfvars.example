@@ -1,0 +1,10 @@
+cloud_id       = "b1g40l910a4onvsk2ja2"
+folder_id      = "b1gcdvf6jupvtiplmo6"
+domain         = "zemledelpro.ru"
+cdn_domain     = "cdn.zemledelpro.ru"
+operator_cidr  = "203.0.113.10/32"
+ssh_public_key = "ssh-ed25519 AAAA... user@host"
+
+# Сгенерировать автоматически: ./scripts/generate-tfvars.sh
+# Пароль БД — не коммитить. Задайте через окружение:
+# export TF_VAR_postgres_password='...'

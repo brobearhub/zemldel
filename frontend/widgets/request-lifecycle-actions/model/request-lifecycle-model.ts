@@ -195,7 +195,6 @@ function buildProviderState(id: RequestLifecycleStateId): RequestLifecycleState<
       id,
       build: ({ request }) => {
         const remainingNote = remainingPayNote(request.remainingAmountRubles);
-        const completeBlocked = request.remainingAmountRubles != null && request.remainingAmountRubles > 0;
         return {
           note: remainingNote ?? buildProviderPendingInfo(request),
           actions: request.isLocked
@@ -207,7 +206,6 @@ function buildProviderState(id: RequestLifecycleStateId): RequestLifecycleState<
                     label: "Завершить",
                     variant: "contained",
                     color: "success",
-                    disabled: completeBlocked,
                   },
                 ]
               : [],

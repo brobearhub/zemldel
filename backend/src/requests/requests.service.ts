@@ -31,12 +31,6 @@ import {
   requestRowToCustomerDtoPlain,
   requestRowToProDtoPlain,
 } from './dto/request.dto';
-import {
-  canCompleteWithFinance,
-  remainingRubles,
-  sumPaidRublesByType,
-  type PaymentAmountWithTypeAndPaidAt,
-} from './dto/request-finance';
 import { requestRemarkToDtoPlain, type RequestRemarkDto } from './dto/request-remark.dto';
 import {
   isTerminalRequestStatus,
@@ -2409,20 +2403,6 @@ export class RequestsService {
       if (!current) throw new NotFoundException('Request not found');
       if (current.status !== 'ACCEPTED') {
         throw new ForbiddenException('Request must be accepted before completion');
-      }
-
-      const paidAmountRubles = sumPaidRublesByType(current.payments as unknown as PaymentAmountWithTypeAndPaidAt[], 'CONTRACT');
-      const remainingAmountRubles = remainingRubles(
-        current.totalAmountRubles,
-        paidAmountRubles,
-      );
-      if (
-        !canCompleteWithFinance({
-          status: current.status,
-          remainingAmountRubles,
-        })
-      ) {
-        throw new ForbiddenException('Remaining payment must be zero before completion');
       }
 
       const now = new Date();

@@ -10,7 +10,12 @@ const nextConfig = {
     root: projectRoot,
   },
   images: {
-    domains: ["cdn.zemledel.pro"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "cdn.zemledelpro.ru",
+      },
+    ],
   },
 };
 

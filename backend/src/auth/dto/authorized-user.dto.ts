@@ -73,8 +73,3 @@ export class AuthorizedUserDto {
   stepUpVerifiedAt!: Partial<Record<'GOSUSLUGI', string>>;
 }
 
-export class LinkedAuthProvidersDto {
-  @ApiProperty({ enum: ['GOSUSLUGI'], isArray: true })
-  linked!: Array<'GOSUSLUGI'>;
-}
-

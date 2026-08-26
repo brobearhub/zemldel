@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { Alert, Box, Button, Paper, Stack, TextField, Typography } from "@mui/material";
 
 type PassportDto = {
@@ -26,25 +25,13 @@ const EMPTY: PassportDto = {
   birthDate: null,
 };
 
-function isStepUpRequired(payload: unknown) {
-  return (
-    payload &&
-    typeof payload === "object" &&
-    "code" in payload &&
-    (payload as any).code === "STEP_UP_REQUIRED"
-  );
-}
-
 export function CustomerPassportSection() {
-  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [value, setValue] = useState<PassportDto>(EMPTY);
   const [hasExisting, setHasExisting] = useState(false);
-
-  const returnTo = useMemo(() => "/profile?section=documents", []);
 
   async function load() {
     setLoading(true);
@@ -56,10 +43,6 @@ export function CustomerPassportSection() {
         | { error?: string; code?: string }
         | null;
       if (!res.ok) {
-        if (res.status === 403 && isStepUpRequired(payload)) {
-          router.push(`/gosuslugi-mock?mode=verify&returnTo=${encodeURIComponent(returnTo)}`);
-          return;
-        }
         setError(
           payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
             ? payload.error
@@ -115,10 +98,6 @@ export function CustomerPassportSection() {
       });
       const payload = (await res.json().catch(() => null)) as { error?: string; code?: string } | { ok?: boolean } | null;
       if (!res.ok) {
-        if (res.status === 403 && isStepUpRequired(payload)) {
-          router.push(`/gosuslugi-mock?mode=verify&returnTo=${encodeURIComponent(returnTo)}`);
-          return;
-        }
         setError(
           payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
             ? payload.error
@@ -144,10 +123,6 @@ export function CustomerPassportSection() {
       const res = await fetch("/api/documents/passport", { method: "DELETE" });
       const payload = (await res.json().catch(() => null)) as { error?: string; code?: string } | null;
       if (!res.ok) {
-        if (res.status === 403 && isStepUpRequired(payload)) {
-          router.push(`/gosuslugi-mock?mode=verify&returnTo=${encodeURIComponent(returnTo)}`);
-          return;
-        }
         setError(
           payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
             ? payload.error

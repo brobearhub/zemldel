@@ -146,7 +146,7 @@ describe("buildRequestLifecycleViewModel", () => {
     expect(vm.infoRows).toContainEqual({ label: "Диалогов", value: "1" });
   });
 
-  it("provider: disables complete while remaining payment is positive", () => {
+  it("provider: allows complete while remaining payment is positive", () => {
     const req = makeProvider({
       status: "ACCEPTED",
       offerStatus: "SELECTED",
@@ -157,7 +157,7 @@ describe("buildRequestLifecycleViewModel", () => {
     });
     const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
     const complete = vm.actions.find((a) => a.id === "complete");
-    expect(complete?.disabled).toBe(true);
+    expect(complete?.disabled).toBeFalsy();
     expect(vm.note).toContain("Осталось доплатить");
   });
 

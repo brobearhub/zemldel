@@ -29,12 +29,3 @@ export function remainingRubles(
   if (totalAmountRubles == null) return null;
   return totalAmountRubles - paidAmountRubles;
 }
-
-export function canCompleteWithFinance(input: {
-  status: string;
-  remainingAmountRubles: number | null;
-}): boolean {
-  if (input.status !== 'ACCEPTED') return false;
-  if (input.remainingAmountRubles == null) return true;
-  return input.remainingAmountRubles <= 0;
-}
