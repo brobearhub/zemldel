@@ -43,9 +43,9 @@ export function HeaderCity() {
       <LocationOnOutlinedIcon sx={{ fontSize: { xs: 20, sm: 22 }, color: "common.gray" }} />
       <Typography
         className="city-label"
-        color="common.gray"
         variant="body2"
         sx={{
+          color: "common.gray",
           display: { xs: "none", md: "block" },
           fontWeight: 600,
           fontSize: 12,
@@ -53,9 +53,8 @@ export function HeaderCity() {
           maxWidth: 140,
           overflow: "hidden",
           textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
+          whiteSpace: "nowrap"
+        }}>
         {label}
       </Typography>
     </Box>

@@ -15,7 +15,7 @@ import {
 import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { ruRU } from "@mui/x-date-pickers/locales";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
 import type { RequestReminderDto } from "@/entities/request";
 import dayjs, { type Dayjs } from "dayjs";
 import "dayjs/locale/ru";
@@ -99,22 +99,33 @@ export function RequestRemindersPanel({ requestId }: Props) {
   return (
     <Paper variant="outlined" sx={{ p: 2.5 }}>
       <Stack spacing={1.5}>
-        <Typography variant="h6" fontWeight={800}>
+        <Typography variant="h6" sx={{
+          fontWeight: 800
+        }}>
           Напоминания
         </Typography>
 
         {loading ? (
-          <Box display="flex" justifyContent="center" py={1}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              py: 1
+            }}>
             <CircularProgress size={20} />
           </Box>
         ) : reminders.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             Нет напоминаний по этой заявке.
           </Typography>
         ) : (
           <Stack spacing={0.5}>
             {reminders.map((r) => (
-              <Stack key={r.id} direction="row" alignItems="center" spacing={0.5}>
+              <Stack key={r.id} direction="row" spacing={0.5} sx={{
+                alignItems: "center"
+              }}>
                 <Checkbox
                   size="small"
                   checked={r.isDone}
@@ -131,7 +142,12 @@ export function RequestRemindersPanel({ requestId }: Props) {
                 >
                   {r.text}
                 </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: "nowrap" }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "text.secondary",
+                    whiteSpace: "nowrap"
+                  }}>
                   {formatRemindAt(r.remindAt)}
                 </Typography>
                 <IconButton size="small" onClick={() => void handleDelete(r.id)} sx={{ color: "text.secondary" }}>
@@ -142,7 +158,14 @@ export function RequestRemindersPanel({ requestId }: Props) {
           </Stack>
         )}
 
-        <Stack direction="row" spacing={1} alignItems="flex-start" flexWrap="wrap" useFlexGap>
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          sx={{
+            alignItems: "flex-start",
+            flexWrap: "wrap"
+          }}>
           <TextField
             size="small"
             placeholder="Текст напоминания"

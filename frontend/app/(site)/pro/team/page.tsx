@@ -13,10 +13,14 @@ export default async function ProTeamPage() {
   return (
     <Stack spacing={3}>
       <Box>
-        <Typography variant="h4" fontWeight={700} gutterBottom>
+        <Typography variant="h4" gutterBottom sx={{
+          fontWeight: 700
+        }}>
           Команда
         </Typography>
-        <Typography color="text.secondary">
+        <Typography sx={{
+          color: "text.secondary"
+        }}>
           Здесь сосредоточены управление активным профессиональным профилем, переключение между профилями и работа с
           участниками команды.
         </Typography>

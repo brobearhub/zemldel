@@ -35,10 +35,14 @@ export default async function ProClientsPage() {
   return (
     <Stack spacing={3}>
       <Box>
-        <Typography variant="h4" fontWeight={700} gutterBottom>
+        <Typography variant="h4" gutterBottom sx={{
+          fontWeight: 700
+        }}>
           Клиенты
         </Typography>
-        <Typography color="text.secondary">
+        <Typography sx={{
+          color: "text.secondary"
+        }}>
           Уникальные заказчики активного provider, собранные из всех заказов независимо от их статуса.
         </Typography>
       </Box>

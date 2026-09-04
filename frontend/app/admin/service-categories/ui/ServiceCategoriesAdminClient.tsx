@@ -206,7 +206,9 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
 
       <Box>
         <Typography sx={{ fontWeight: 900, mb: 1.5 }}>Создать категорию</Typography>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="flex-start">
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{
+          alignItems: "flex-start"
+        }}>
           <TextField
             label="name"
             value={createForm.name}
@@ -274,14 +276,13 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
                 key={node.id}
                 direction={{ xs: "column", sm: "row" }}
                 spacing={1.5}
-                alignItems={{ xs: "flex-start", sm: "center" }}
                 sx={{
+                  alignItems: { xs: "flex-start", sm: "center" },
                   p: 1.5,
                   border: "1px solid",
                   borderColor: "divider",
-                  borderRadius: 1,
-                }}
-              >
+                  borderRadius: 1
+                }}>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography sx={{ fontWeight: 800 }}>
                     {"—".repeat(depth)} {node.name}

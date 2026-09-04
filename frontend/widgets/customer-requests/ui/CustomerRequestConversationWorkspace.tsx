@@ -23,6 +23,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { RequestCityInactiveWarning } from "@/shared/ui/RequestCityInactiveWarning";
 import type { ChatServiceRequestConversationListItemDto } from "@/entities/chat/dto/chat.dto";
 import {
   getRequestStatusLabel,
@@ -690,6 +691,9 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     <ChatBodyWithSidePanelLayout
       middle={
         <Stack spacing={2}>
+          {req.fiasInactiveWarning ? (
+            <RequestCityInactiveWarning show={req.fiasInactiveWarning} city={req.requestCity} />
+          ) : null}
           <RequestDetailPanelLayer
             open={isPanelOpen}
             title={panelTitle}
@@ -712,7 +716,14 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                 />
               }
               afterBody={
-                <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
+                <Stack
+                  direction="row"
+                  spacing={1.5}
+                  useFlexGap
+                  sx={{
+                    alignItems: "center",
+                    flexWrap: "wrap"
+                  }}>
                   <RequestLifecycleActions
                     busy={busy}
                     behavior={createCustomerRequestLifecycleBehavior({
@@ -788,15 +799,21 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
 
           <Paper variant="outlined" sx={{ overflow: "hidden" }}>
             <Box sx={{ px: 2, py: 1.5 }}>
-              <Typography fontWeight={800}>Чаты с компаниями</Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography sx={{
+                fontWeight: 800
+              }}>Чаты с компаниями</Typography>
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 Выберите компанию, чтобы продолжить диалог.
               </Typography>
             </Box>
             <Divider />
             {conversations.length === 0 ? (
               <Box sx={{ p: 2 }}>
-                <Typography color="text.secondary">Пока никто не написал.</Typography>
+                <Typography sx={{
+                  color: "text.secondary"
+                }}>Пока никто не написал.</Typography>
               </Box>
             ) : (
               <List dense disablePadding>
@@ -848,8 +865,17 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                       >
                         <ListItemText
                           primary={
-                            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                              <Typography component="span" fontWeight={c.conversationId === selectedConversationId ? 800 : 700}>
+                            <Stack
+                              direction="row"
+                              spacing={1}
+                              useFlexGap
+                              sx={{
+                                alignItems: "center",
+                                flexWrap: "wrap"
+                              }}>
+                              <Typography component="span" sx={{
+                                fontWeight: c.conversationId === selectedConversationId ? 800 : 700
+                              }}>
                                 {c.providerName}
                               </Typography>
                               {isSelected ? <Chip size="small" label="Выбрано" /> : null}
@@ -857,7 +883,9 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                             </Stack>
                           }
                           secondary={c.lastSnippet ?? "—"}
-                          secondaryTypographyProps={{ noWrap: true }}
+                          slotProps={{
+                            secondary: { noWrap: true }
+                          }}
                         />
                       </ListItemButton>
                     </ListItem>
@@ -878,7 +906,9 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
             <DialogTitle>Заключение договора</DialogTitle>
             <DialogContent dividers>
               <Stack spacing={1.5}>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" sx={{
+                  color: "text.secondary"
+                }}>
                   Договор заключается напрямую между вами и исполнителем (по согласованным условиям
                   сделки и файлам договора). Платформа стороной этого договора не является — см.{" "}
                   <Box
@@ -893,7 +923,9 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                   {termsVersion ? ` (версия ${termsVersion})` : ""}.
                 </Typography>
                 {termsError ? <Alert severity="error">{termsError}</Alert> : null}
-                {termsBusy ? <Typography color="text.secondary">Загрузка версии соглашения…</Typography> : null}
+                {termsBusy ? <Typography sx={{
+                  color: "text.secondary"
+                }}>Загрузка версии соглашения…</Typography> : null}
                 <FormControlLabel
                   control={
                     <Checkbox
@@ -931,7 +963,9 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
           />
         ) : (
           <Paper variant="outlined" sx={{ p: 2.5 }}>
-            <Typography color="text.secondary">Выберите чат слева.</Typography>
+            <Typography sx={{
+              color: "text.secondary"
+            }}>Выберите чат слева.</Typography>
           </Paper>
         )
       }

@@ -43,9 +43,13 @@ export function CadastralNumberInput({ value, onChange, disabled = false, size =
   }
 
   return (
-    <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap>
+    <Stack direction="row" spacing={0.75} useFlexGap sx={{
+      alignItems: "center"
+    }}>
       {value.map((part, index) => (
-        <Stack key={index} direction="row" spacing={0.75} alignItems="center">
+        <Stack key={index} direction="row" spacing={0.75} sx={{
+          alignItems: "center"
+        }}>
           <TextField
             inputRef={(element) => {
               inputRefs.current[index] = element;
@@ -66,7 +70,11 @@ export function CadastralNumberInput({ value, onChange, disabled = false, size =
             sx={{ width: index === 2 ? 96 : index === 3 ? 88 : 56 }}
           />
           {index < 3 ? (
-            <Typography color="text.secondary" fontWeight={700}>
+            <Typography
+              sx={{
+                color: "text.secondary",
+                fontWeight: 700
+              }}>
               :
             </Typography>
           ) : null}

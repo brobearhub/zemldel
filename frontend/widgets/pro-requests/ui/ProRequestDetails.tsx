@@ -13,6 +13,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { RequestCityInactiveWarning } from "@/shared/ui/RequestCityInactiveWarning";
 import {
   getRequestStatusLabel,
   mergeWorkStageStatusOptions,
@@ -657,6 +658,10 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
         />
       </RequestDetailPanelLayer>
 
+      {req.fiasInactiveWarning ? (
+        <RequestCityInactiveWarning show={req.fiasInactiveWarning} city={req.requestCity} />
+      ) : null}
+
       {notice ? <Alert severity="success">{notice}</Alert> : null}
       {error ? <Alert severity="error">{error}</Alert> : null}
       {remarksError ? <Alert severity="warning">{remarksError}</Alert> : null}
@@ -678,13 +683,22 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
           }}
         >
           <Stack spacing={1.25}>
-            <Stack direction="row" spacing={1.25} alignItems="center">
+            <Stack direction="row" spacing={1.25} sx={{
+              alignItems: "center"
+            }}>
               <CircularProgress size={18} />
-              <Typography fontWeight={900}>Загружаем файлы…</Typography>
+              <Typography sx={{
+                fontWeight: 900
+              }}>Загружаем файлы…</Typography>
             </Stack>
             <LinearProgress />
             {uploadNames.length > 0 ? (
-              <Typography variant="body2" color="text.secondary" sx={{ wordBreak: "break-word" }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.secondary",
+                  wordBreak: "break-word"
+                }}>
                 {uploadNames.join(", ")}
               </Typography>
             ) : null}

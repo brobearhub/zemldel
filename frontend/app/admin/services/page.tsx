@@ -6,7 +6,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutlined";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 
 export default async function ServicesAdminPage() {

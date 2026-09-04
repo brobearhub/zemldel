@@ -65,10 +65,14 @@ export function WorkStageStatusesSettings() {
 
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Stack spacing={1.5}>
-          <Typography variant="h6" fontWeight={800}>
+          <Typography variant="h6" sx={{
+            fontWeight: 800
+          }}>
             Системные статусы
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             Эти статусы доступны всем и не редактируются.
           </Typography>
           <Stack spacing={0.75}>
@@ -83,16 +87,22 @@ export function WorkStageStatusesSettings() {
 
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Stack spacing={1.5}>
-          <Typography variant="h6" fontWeight={800}>
+          <Typography variant="h6" sx={{
+            fontWeight: 800
+          }}>
             Мои статусы
           </Typography>
           {custom.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               Пока нет собственных статусов.
             </Typography>
           ) : (
             custom.map((item) => (
-              <Stack key={item.key} direction="row" spacing={1} alignItems="center">
+              <Stack key={item.key} direction="row" spacing={1} sx={{
+                alignItems: "center"
+              }}>
                 <TextField
                   size="small"
                   fullWidth
@@ -117,7 +127,9 @@ export function WorkStageStatusesSettings() {
             ))
           )}
 
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Stack direction="row" spacing={1} sx={{
+            alignItems: "center"
+          }}>
             <TextField
               size="small"
               fullWidth

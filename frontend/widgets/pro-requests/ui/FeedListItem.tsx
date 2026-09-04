@@ -35,12 +35,22 @@ export function FeedListItem({ href, disabled, isLast, title, meta, preview }: P
         }}
       >
         <Stack spacing={0.5} sx={{ width: "100%", minWidth: 0 }}>
-          <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-            <Typography variant="caption" color="text.secondary" noWrap>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{
+              alignItems: "center",
+              justifyContent: "space-between"
+            }}>
+            <Typography variant="caption" noWrap sx={{
+              color: "text.secondary"
+            }}>
               {title}
             </Typography>
             {meta ? (
-              <Typography variant="caption" color="text.secondary" noWrap>
+              <Typography variant="caption" noWrap sx={{
+                color: "text.secondary"
+              }}>
                 {meta}
               </Typography>
             ) : null}
@@ -49,15 +59,14 @@ export function FeedListItem({ href, disabled, isLast, title, meta, preview }: P
           {preview ? (
             <Typography
               variant="body2"
-              fontWeight={600}
-              color="text.primary"
               sx={{
+                fontWeight: 600,
+                color: "text.primary",
                 display: "-webkit-box",
                 WebkitLineClamp: 3,
                 WebkitBoxOrient: "vertical",
-                overflow: "hidden",
-              }}
-            >
+                overflow: "hidden"
+              }}>
               {preview}
             </Typography>
           ) : (

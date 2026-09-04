@@ -45,7 +45,9 @@ export default async function ProRequestDetailPage({ params }: Props) {
       right={
         req.status === "CLOSED" ? (
           <Box>
-            <Typography color="text.secondary">Заявка закрыта клиентом. Чат недоступен.</Typography>
+            <Typography sx={{
+              color: "text.secondary"
+            }}>Заявка закрыта клиентом. Чат недоступен.</Typography>
           </Box>
         ) : (
           <ServiceRequestChatPanel serviceRequestId={req.id} title="Чат" subtitle={pickSubtitle(req)} />

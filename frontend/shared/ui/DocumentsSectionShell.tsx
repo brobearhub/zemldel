@@ -43,9 +43,19 @@ export function DocumentsSectionShell({
   return (
     <Paper id={id} variant="outlined" sx={{ p: 2.5, ...paperSx }}>
       <Stack spacing={spacing}>
-        <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap>
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          sx={{
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap"
+          }}>
           {headerLeft}
-          <Stack direction="row" spacing={1} alignItems="center" useFlexGap>
+          <Stack direction="row" spacing={1} useFlexGap sx={{
+            alignItems: "center"
+          }}>
             {headerRight ? headerRight : null}
             {collapsible ? (
               <IconButton

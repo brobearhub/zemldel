@@ -17,7 +17,6 @@ export const Achievements = () => {
       sx={{
         // py: { xs: 5, md: 7 },
         bgcolor: "background.default",
-        backgroundImage: (theme) => theme.custom.gradients.sky,
         borderTop: "1px solid",
         borderBottom: "1px solid",
         borderColor: "divider",

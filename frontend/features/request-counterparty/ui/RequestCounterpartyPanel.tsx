@@ -21,23 +21,37 @@ export function RequestCounterpartyPanel({ fields, avatarSrc, avatarName, emptyT
   const initials = getCounterpartyInitials(avatarName);
 
   return (
-    <Stack direction="row" spacing={2} alignItems="flex-start" justifyContent="space-between">
+    <Stack
+      direction="row"
+      spacing={2}
+      sx={{
+        alignItems: "flex-start",
+        justifyContent: "space-between"
+      }}>
       <Box sx={{ minWidth: 0, flex: "1 1 auto" }}>
         {hasValues ? (
           <Stack spacing={1.5}>
             {fields.map((field) => (
               <Box key={field.label}>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" sx={{
+                  color: "text.secondary"
+                }}>
                   {field.label}
                 </Typography>
-                <Typography fontWeight={700} sx={{ whiteSpace: "pre-wrap" }}>
+                <Typography
+                  sx={{
+                    fontWeight: 700,
+                    whiteSpace: "pre-wrap"
+                  }}>
                   {fieldValue(field.value)}
                 </Typography>
               </Box>
             ))}
           </Stack>
         ) : (
-          <Typography color="text.secondary">{emptyText}</Typography>
+          <Typography sx={{
+            color: "text.secondary"
+          }}>{emptyText}</Typography>
         )}
       </Box>
       <Avatar

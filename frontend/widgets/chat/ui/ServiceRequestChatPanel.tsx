@@ -492,7 +492,9 @@ export function ServiceRequestChatPanel({ serviceRequestId, conversationId: forc
             : null),
         })}
       >
-        <Stack direction="row" alignItems="center" spacing={1}>
+        <Stack direction="row" spacing={1} sx={{
+          alignItems: "center"
+        }}>
           {viewerSide ? (
             <Box
               sx={{
@@ -504,12 +506,16 @@ export function ServiceRequestChatPanel({ serviceRequestId, conversationId: forc
               }}
             />
           ) : null}
-          <Typography variant="h6" fontWeight={800}>
+          <Typography variant="h6" sx={{
+            fontWeight: 800
+          }}>
             {title}
           </Typography>
         </Stack>
         {subtitle ? (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {subtitle}
           </Typography>
         ) : null}
@@ -549,7 +555,9 @@ export function ServiceRequestChatPanel({ serviceRequestId, conversationId: forc
 
       {!socketConnected ? (
         <Stack sx={{ px: 2, py: 1, borderTop: "1px solid", borderTopColor: "divider" }}>
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" sx={{
+            color: "text.secondary"
+          }}>
             Соединение с чатом: нет. Сообщения будут догружаться при возвращении/по таймеру.
           </Typography>
         </Stack>

@@ -214,9 +214,12 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
 
       {mode === "create" ? (
       <Box>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="flex-start">
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{
+          alignItems: "flex-start"
+        }}>
           <TextField
             select
+            id="create-service-category"
             label="category"
             value={createForm.categoryId}
             onChange={(e) =>
@@ -285,14 +288,13 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
                   key={s.id}
                   direction={{ xs: "column", sm: "row" }}
                   spacing={1.5}
-                  alignItems={{ xs: "flex-start", sm: "center" }}
                   sx={{
+                    alignItems: { xs: "flex-start", sm: "center" },
                     p: 1.5,
                     border: "1px solid",
                     borderColor: "divider",
-                    borderRadius: 1,
-                  }}
-                >
+                    borderRadius: 1
+                  }}>
                   <Typography sx={{ flex: 1 }}>{s.title}</Typography>
                   <Typography sx={{ fontWeight: 700, minWidth: 120 }}>{s.price}</Typography>
                   <Stack direction="row" spacing={1}>
@@ -322,14 +324,13 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
                   key={s.id}
                   direction={{ xs: "column", sm: "row" }}
                   spacing={1.5}
-                  alignItems={{ xs: "flex-start", sm: "center" }}
                   sx={{
+                    alignItems: { xs: "flex-start", sm: "center" },
                     p: 1.5,
                     border: "1px solid",
                     borderColor: "divider",
-                    borderRadius: 1,
-                  }}
-                >
+                    borderRadius: 1
+                  }}>
                   <Typography sx={{ flex: 1 }}>{s.title}</Typography>
                   <Typography sx={{ fontWeight: 700, minWidth: 120 }}>{s.price}</Typography>
                   <Stack direction="row" spacing={1}>
@@ -363,6 +364,7 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
               <TextField label="id" value={editDraft.id} size="small" disabled />
               <TextField
                 select
+                id="edit-service-category"
                 label="category"
                 value={editDraft.categoryId}
                 onChange={(e) =>

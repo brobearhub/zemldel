@@ -137,17 +137,16 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
         )}
         {showLabel ? (
           <Typography
-            color="common.gray"
             className="nav-label"
             variant="body2"
             sx={{
+              color: "common.gray",
               display: { xs: "none", md: "block" },
               fontWeight: 600,
               fontSize: 12,
               opacity: 1,
-              "&:hover": { color: "info.main" },
-            }}
-          >
+              "&:hover": { color: "info.main" }
+            }}>
             Профиль
           </Typography>
         ) : null}
@@ -159,10 +158,6 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
         open={open}
         onClose={handleClose}
         disableScrollLock
-        MenuListProps={{
-          onMouseLeave: handleClose,
-          "aria-labelledby": "profile-button",
-        }}
         anchorOrigin={{
           vertical: "bottom",
           horizontal: "center",
@@ -180,8 +175,12 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
               boxShadow: 3,
             },
           },
-        }}
-      >
+
+          list: {
+            onMouseLeave: handleClose,
+            "aria-labelledby": "profile-button",
+          }
+        }}>
         {isAuthenticated ? (
           <Box>
             <Box sx={{ px: 2, py: 1.5 }}>
@@ -199,10 +198,18 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
                   {initials}
                 </Avatar>
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="subtitle2" fontWeight={600} noWrap>
+                  <Typography variant="subtitle2" noWrap sx={{
+                    fontWeight: 600
+                  }}>
                     {user?.name || "Пользователь"}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
+                  <Typography
+                    variant="caption"
+                    noWrap
+                    sx={{
+                      color: "text.secondary",
+                      display: "block"
+                    }}>
                     {user?.email}
                   </Typography>
                 </Box>
@@ -233,10 +240,14 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
         ) : (
           <Box>
             <Box sx={{ px: 2, py: 1.5 }}>
-              <Typography variant="subtitle2" fontWeight={600}>
+              <Typography variant="subtitle2" sx={{
+                fontWeight: 600
+              }}>
                 Добро пожаловать!
               </Typography>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{
+                color: "text.secondary"
+              }}>
                 Войдите или зарегистрируйтесь
               </Typography>
             </Box>

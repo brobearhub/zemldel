@@ -27,7 +27,9 @@ export function RequestLifecycleActions(props: RequestLifecycleActionsProps) {
               "& .MuiAlert-icon": { alignSelf: "flex-start", mt: "2px" },
             }}
           >
-            <Typography variant="body2" fontWeight={800}>
+            <Typography variant="body2" sx={{
+              fontWeight: 800
+            }}>
               {vm.lockedAlert.title}
             </Typography>
           </Alert>
@@ -39,26 +41,39 @@ export function RequestLifecycleActions(props: RequestLifecycleActionsProps) {
               <Typography variant="body2">{vm.note}</Typography>
             </Alert>
           ) : (
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               {vm.note}
             </Typography>
           )
         ) : null}
 
         {vm.autoAcceptAtLabel ? (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {vm.autoAcceptAtLabel}
           </Typography>
         ) : null}
 
         {vm.infoRows.map((row) => (
-          <Typography key={row.label} variant="body2" color="text.secondary">
+          <Typography key={row.label} variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {row.label}: {row.value}
           </Typography>
         ))}
 
         {vm.actions.length > 0 ? (
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ alignSelf: "flex-start" }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            useFlexGap
+            sx={{
+              flexWrap: "wrap",
+              alignSelf: "flex-start"
+            }}>
             {vm.actions.map((a) => (
               <Button
                 key={a.id}

@@ -60,7 +60,11 @@ export function LegalServicesPaper() {
   if (!titles) {
     return (
       <Paper variant="outlined" sx={cardSx}>
-        <Stack alignItems="center" py={4}>
+        <Stack
+          sx={{
+            alignItems: "center",
+            py: 4
+          }}>
           <CircularProgress />
         </Stack>
       </Paper>
@@ -73,9 +77,10 @@ export function LegalServicesPaper() {
         <Stack
           direction="row"
           spacing={1}
-          alignItems="center"
-          justifyContent="space-between"
-        >
+          sx={{
+            alignItems: "center",
+            justifyContent: "space-between"
+          }}>
           <Typography
             component="h3"
             sx={{ fontWeight: 850, fontSize: 22 }}
@@ -133,8 +138,10 @@ export function LegalServicesPaper() {
               </ListItemIcon>
               <ListItemText
                 primary={title}
-                primaryTypographyProps={{
-                  sx: { fontWeight: 600, lineHeight: 1.25 },
+                slotProps={{
+                  primary: {
+                    sx: { fontWeight: 600, lineHeight: 1.25 },
+                  }
                 }}
               />
             </ListItem>

@@ -143,10 +143,14 @@ export function CustomerPassportSection() {
   return (
     <Stack spacing={3} component="section">
       <Box>
-        <Typography variant="h4" fontWeight={800} gutterBottom>
+        <Typography variant="h4" gutterBottom sx={{
+          fontWeight: 800
+        }}>
           Документы
         </Typography>
-        <Typography color="text.secondary">Паспорт хранится в зашифрованном виде и доступен только вам.</Typography>
+        <Typography sx={{
+          color: "text.secondary"
+        }}>Паспорт хранится в зашифрованном виде и доступен только вам.</Typography>
       </Box>
 
       <Paper variant="outlined" sx={{ p: 2.5 }}>
@@ -154,7 +158,9 @@ export function CustomerPassportSection() {
           {error ? <Alert severity="error">{error}</Alert> : null}
           {notice ? <Alert severity="success">{notice}</Alert> : null}
 
-          <Typography variant="h6" fontWeight={800}>
+          <Typography variant="h6" sx={{
+            fontWeight: 800
+          }}>
             Паспорт
           </Typography>
 
@@ -164,7 +170,7 @@ export function CustomerPassportSection() {
               value={value.series ?? ""}
               onChange={setField("series")}
               disabled={busy || loading}
-              inputProps={{ inputMode: "numeric" }}
+              slotProps={{ htmlInput: { inputMode: "numeric" } }}
               placeholder="1234"
               fullWidth
               required
@@ -174,7 +180,7 @@ export function CustomerPassportSection() {
               value={value.number ?? ""}
               onChange={setField("number")}
               disabled={busy || loading}
-              inputProps={{ inputMode: "numeric" }}
+              slotProps={{ htmlInput: { inputMode: "numeric" } }}
               placeholder="123456"
               fullWidth
               required

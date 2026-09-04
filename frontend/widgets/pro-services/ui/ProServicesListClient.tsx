@@ -243,10 +243,14 @@ export function ProServicesListClient({ initialServices }: Props) {
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Stack spacing={2}>
           <Box>
-            <Typography variant="h6" fontWeight={800} gutterBottom>
+            <Typography variant="h6" gutterBottom sx={{
+              fontWeight: 800
+            }}>
               Рабочий поток услуг
             </Typography>
-            <Typography color="text.secondary">
+            <Typography sx={{
+              color: "text.secondary"
+            }}>
               {activeMembership
                 ? `Вы работаете в контексте provider "${activeMembership.providerName}".`
                 : "Управление услугами привязано к активному provider."}{" "}
@@ -274,7 +278,9 @@ export function ProServicesListClient({ initialServices }: Props) {
                 <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.06em" }}>
                   {label}
                 </Typography>
-                <Typography variant="h5" fontWeight={800}>
+                <Typography variant="h5" sx={{
+                  fontWeight: 800
+                }}>
                   {stats[status]}
                 </Typography>
               </Paper>
@@ -283,7 +289,9 @@ export function ProServicesListClient({ initialServices }: Props) {
         </Stack>
       </Paper>
 
-      <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }}>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{
+        alignItems: { md: "center" }
+      }}>
         <TextField
           label="Поиск по названию"
           value={search}
@@ -291,7 +299,9 @@ export function ProServicesListClient({ initialServices }: Props) {
           fullWidth
         />
 
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+        <Stack direction="row" spacing={1} useFlexGap sx={{
+          flexWrap: "wrap"
+        }}>
           {(["ALL", "DRAFT", "PUBLISHED", "ARCHIVED"] as const).map((status) => (
             <Chip
               key={status}
@@ -319,10 +329,14 @@ export function ProServicesListClient({ initialServices }: Props) {
         <Paper variant="outlined" sx={{ p: 3 }}>
           <Stack spacing={2}>
             <Box>
-              <Typography fontWeight={800} gutterBottom>
+              <Typography gutterBottom sx={{
+                fontWeight: 800
+              }}>
                 У вас пока нет услуг
               </Typography>
-              <Typography color="text.secondary">
+              <Typography sx={{
+                color: "text.secondary"
+              }}>
                 Начните с черновика, а потом опубликуйте готовую карточку. После публикации услуга
                 станет основой для будущих заявок.
               </Typography>
@@ -344,12 +358,22 @@ export function ProServicesListClient({ initialServices }: Props) {
               <Stack
                 direction={{ xs: "column", md: "row" }}
                 spacing={1.5}
-                justifyContent="space-between"
-                alignItems={{ md: "center" }}
-              >
+                sx={{
+                  justifyContent: "space-between",
+                  alignItems: { md: "center" }
+                }}>
                 <Box sx={{ minWidth: 0 }}>
-                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                    <Typography variant="h6" fontWeight={700}>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    useFlexGap
+                    sx={{
+                      alignItems: "center",
+                      flexWrap: "wrap"
+                    }}>
+                    <Typography variant="h6" sx={{
+                      fontWeight: 700
+                    }}>
                       {service.title}
                     </Typography>
                     <Chip
@@ -359,16 +383,22 @@ export function ProServicesListClient({ initialServices }: Props) {
                       variant={service.status === "ARCHIVED" ? "outlined" : "filled"}
                     />
                   </Stack>
-                  <Typography color="text.secondary">
+                  <Typography sx={{
+                    color: "text.secondary"
+                  }}>
                     {service.price} · {service.category?.name ?? service.category?.slug ?? "категория"}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" sx={{
+                    color: "text.secondary"
+                  }}>
                     CTA: {service.ctaText}
                     {service.reviewCount ? ` · ${service.reviewCount} отзывов` : ""}
                   </Typography>
                 </Box>
 
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                <Stack direction="row" spacing={1} useFlexGap sx={{
+                  flexWrap: "wrap"
+                }}>
                   <Button
                     component={Link}
                     href={`/pro/services/${service.id}/edit`}
@@ -448,7 +478,9 @@ export function ProServicesListClient({ initialServices }: Props) {
               </Stack>
 
               {service.description ? (
-                <Typography color="text.secondary">{service.description}</Typography>
+                <Typography sx={{
+                  color: "text.secondary"
+                }}>{service.description}</Typography>
               ) : null}
             </Stack>
           </Paper>
@@ -458,10 +490,14 @@ export function ProServicesListClient({ initialServices }: Props) {
           <Paper variant="outlined" sx={{ p: 3 }}>
             <Stack spacing={2}>
               <Box>
-                <Typography fontWeight={700} gutterBottom>
+                <Typography gutterBottom sx={{
+                  fontWeight: 700
+                }}>
                   Услуг по текущему фильтру нет
                 </Typography>
-                <Typography color="text.secondary">
+                <Typography sx={{
+                  color: "text.secondary"
+                }}>
                   Попробуйте изменить статусный фильтр или строку поиска, чтобы вернуться к полному
                   рабочему списку.
                 </Typography>

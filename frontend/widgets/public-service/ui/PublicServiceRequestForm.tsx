@@ -120,7 +120,9 @@ export function PublicServiceRequestForm({
       <RequestFormLogo />
 
       <Stack spacing={2} component="form" onSubmit={handleSubmit}>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{
+          color: "text.secondary"
+        }}>
           {isAuthenticated
             ? "После подтверждения заявка будет зарегистрирована в системе и появится в вашем профиле."
             : "Чтобы отправить заявку, нужно зарегистрироваться или войти. После этого система продолжит оформление автоматически."}

@@ -73,7 +73,9 @@ export function OrderPassportPanel({ orderId }: { orderId: string }) {
           <Stack spacing={1.5} sx={{ pt: 1 }}>
             {error ? <Alert severity="error">{error}</Alert> : null}
             {!error && !passport ? (
-              <Typography color="text.secondary">Загрузка...</Typography>
+              <Typography sx={{
+                color: "text.secondary"
+              }}>Загрузка...</Typography>
             ) : null}
 
             {passport ? (

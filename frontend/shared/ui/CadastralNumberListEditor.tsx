@@ -1,7 +1,7 @@
 "use client";
 
 import AddIcon from "@mui/icons-material/Add";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
 import { Button, IconButton, Stack, Typography } from "@mui/material";
 import {
   createEmptyCadastralParts,
@@ -34,11 +34,15 @@ export function CadastralNumberListEditor({ value, onChange, disabled = false }:
 
   return (
     <Stack spacing={1.5}>
-      <Typography variant="body2" fontWeight={700}>
+      <Typography variant="body2" sx={{
+        fontWeight: 700
+      }}>
         Кадастровые номера (опционально)
       </Typography>
       {rows.map((row, index) => (
-        <Stack key={index} direction="row" spacing={1} alignItems="center">
+        <Stack key={index} direction="row" spacing={1} sx={{
+          alignItems: "center"
+        }}>
           <CadastralNumberInput
             value={row}
             onChange={(next) => updateRow(index, next)}
@@ -56,7 +60,7 @@ export function CadastralNumberListEditor({ value, onChange, disabled = false }:
       ))}
       <Button
         type="button"
-        variant="outlined"
+        variant="text"
         size="small"
         startIcon={<AddIcon />}
         onClick={addRow}

@@ -25,7 +25,9 @@ export function ProRequestsFeedFilters({
   return (
     <Stack spacing={1.25}>
       {!isDesktop && showStatusChips ? (
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+        <Stack direction="row" spacing={1} useFlexGap sx={{
+          flexWrap: "wrap"
+        }}>
           {statusChips.map((chip) => (
             <Chip
               key={chip.id}
@@ -42,12 +44,16 @@ export function ProRequestsFeedFilters({
         </Stack>
       ) : null}
 
-      <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }}>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={1} sx={{
+        alignItems: { md: "center" }
+      }}>
         <Button component={Link} href="/pro/services/create" variant="outlined" sx={{ whiteSpace: "nowrap" }}>
           Добавить категорию
         </Button>
 
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+        <Stack direction="row" spacing={1} useFlexGap sx={{
+          flexWrap: "wrap"
+        }}>
           <Chip
             label="Без категории"
             color={settings.categoryId === null ? "primary" : "default"}

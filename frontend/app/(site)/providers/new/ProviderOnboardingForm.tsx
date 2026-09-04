@@ -108,10 +108,14 @@ export function ProviderOnboardingForm() {
         <Paper sx={{ p: 4 }}>
           <Stack spacing={3}>
             <Stack spacing={1}>
-              <Typography variant="h4" fontWeight={700}>
+              <Typography variant="h4" sx={{
+                fontWeight: 700
+              }}>
                 Профессиональный профиль
               </Typography>
-              <Typography color="text.secondary">
+              <Typography sx={{
+                color: "text.secondary"
+              }}>
                 Можно продолжить как <b>заказчик</b> и вернуться к этому шагу позже.
               </Typography>
             </Stack>
@@ -157,7 +161,9 @@ export function ProviderOnboardingForm() {
                     />
                   }
                   label={
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" sx={{
+                      color: "text.secondary"
+                    }}>
                       Ознакомлен(а) с{" "}
                       <Link
                         href="/offer"

@@ -77,7 +77,9 @@ export function ProContractTemplateEditor({ mode, initial }: Props) {
 
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Stack spacing={2}>
-          <Typography variant="h5" fontWeight={800}>
+          <Typography variant="h5" sx={{
+            fontWeight: 800
+          }}>
             {mode === "edit" ? "Редактор шаблона" : "Новый шаблон"}
           </Typography>
 

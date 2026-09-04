@@ -90,14 +90,24 @@ export function RemindersListView({ initialReminders }: Props) {
 
   function ReminderRow({ r }: { r: RequestReminderDto }) {
     return (
-      <Stack direction="row" alignItems="flex-start" spacing={0.5} py={0.5}>
+      <Stack
+        direction="row"
+        spacing={0.5}
+        sx={{
+          alignItems: "flex-start",
+          py: 0.5
+        }}>
         <Checkbox
           size="small"
           checked={r.isDone}
           onChange={() => void handleToggle(r)}
           sx={{ p: 0.5, flexShrink: 0, mt: 0.25 }}
         />
-        <Box flex={1} minWidth={0}>
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0
+          }}>
           <Typography
             variant="body2"
             sx={{
@@ -108,21 +118,41 @@ export function RemindersListView({ initialReminders }: Props) {
             {r.text}
           </Typography>
           {(r.request.message || r.request.location) && (
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap mt={0.25}>
+            <Stack
+              direction="row"
+              spacing={1}
+              useFlexGap
+              sx={{
+                flexWrap: "wrap",
+                mt: 0.25
+              }}>
               {r.request.message && (
-                <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 320 }}>
+                <Typography
+                  variant="caption"
+                  noWrap
+                  sx={{
+                    color: "text.secondary",
+                    maxWidth: 320
+                  }}>
                   {r.request.message}
                 </Typography>
               )}
               {r.request.location && (
-                <Typography variant="caption" color="text.secondary" noWrap>
+                <Typography variant="caption" noWrap sx={{
+                  color: "text.secondary"
+                }}>
                   📍 {r.request.location}
                 </Typography>
               )}
             </Stack>
           )}
         </Box>
-        <Stack alignItems="flex-end" spacing={0.25} flexShrink={0}>
+        <Stack
+          spacing={0.25}
+          sx={{
+            alignItems: "flex-end",
+            flexShrink: 0
+          }}>
           <Typography
             component={Link}
             href={`/pro/requests/${r.requestId}`}
@@ -136,7 +166,12 @@ export function RemindersListView({ initialReminders }: Props) {
           >
             {getReminderLabel(r)}
           </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: "nowrap" }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: "text.secondary",
+              whiteSpace: "nowrap"
+            }}>
             {formatDateTime(r.remindAt)}
           </Typography>
         </Stack>
@@ -153,9 +188,10 @@ export function RemindersListView({ initialReminders }: Props) {
 
     if (buckets.length === 0) {
       return (
-        <Typography variant="body2" color="text.secondary">
-          Напоминаний пока нет.
-        </Typography>
+        <Typography variant="body2" sx={{
+          color: "text.secondary"
+        }}>Напоминаний пока нет.
+                  </Typography>
       );
     }
 
@@ -163,7 +199,13 @@ export function RemindersListView({ initialReminders }: Props) {
       <Stack spacing={2}>
         {buckets.map(({ key, label, items }) => (
           <Box key={key}>
-            <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{
+                alignItems: "center",
+                mb: 1
+              }}>
               <Typography
                 variant="overline"
                 sx={{
@@ -206,9 +248,10 @@ export function RemindersListView({ initialReminders }: Props) {
 
     if (groups.size === 0) {
       return (
-        <Typography variant="body2" color="text.secondary">
-          Напоминаний пока нет.
-        </Typography>
+        <Typography variant="body2" sx={{
+          color: "text.secondary"
+        }}>Напоминаний пока нет.
+                  </Typography>
       );
     }
 
@@ -217,14 +260,19 @@ export function RemindersListView({ initialReminders }: Props) {
         {[...groups.entries()].map(([requestId, { label, items }]) => (
           <Paper key={requestId} variant="outlined" sx={{ p: 2 }}>
             <Stack spacing={1}>
-              <Stack direction="row" spacing={1} alignItems="center">
+              <Stack direction="row" spacing={1} sx={{
+                alignItems: "center"
+              }}>
                 <Typography
                   component={Link}
                   href={`/pro/requests/${requestId}`}
                   variant="subtitle2"
-                  fontWeight={700}
-                  sx={{ color: "primary.main", textDecoration: "none", "&:hover": { textDecoration: "underline" } }}
-                >
+                  sx={{
+                    fontWeight: 700,
+                    color: "primary.main",
+                    textDecoration: "none",
+                    "&:hover": { textDecoration: "underline" }
+                  }}>
                   {label}
                 </Typography>
                 <Chip size="small" label={items.length} variant="outlined" sx={{ height: 18, fontSize: 11 }} />
@@ -234,14 +282,25 @@ export function RemindersListView({ initialReminders }: Props) {
                   .slice()
                   .sort((a, b) => a.remindAt.localeCompare(b.remindAt))
                   .map((r) => (
-                    <Stack key={r.id} direction="row" alignItems="flex-start" spacing={0.5} py={0.5}>
+                    <Stack
+                      key={r.id}
+                      direction="row"
+                      spacing={0.5}
+                      sx={{
+                        alignItems: "flex-start",
+                        py: 0.5
+                      }}>
                       <Checkbox
                         size="small"
                         checked={r.isDone}
                         onChange={() => void handleToggle(r)}
                         sx={{ p: 0.5, flexShrink: 0, mt: 0.25 }}
                       />
-                      <Box flex={1} minWidth={0}>
+                      <Box
+                        sx={{
+                          flex: 1,
+                          minWidth: 0
+                        }}>
                         <Typography
                           variant="body2"
                           sx={{
@@ -252,21 +311,42 @@ export function RemindersListView({ initialReminders }: Props) {
                           {r.text}
                         </Typography>
                         {(r.request.message || r.request.location) && (
-                          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap mt={0.25}>
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            useFlexGap
+                            sx={{
+                              flexWrap: "wrap",
+                              mt: 0.25
+                            }}>
                             {r.request.message && (
-                              <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 320 }}>
+                              <Typography
+                                variant="caption"
+                                noWrap
+                                sx={{
+                                  color: "text.secondary",
+                                  maxWidth: 320
+                                }}>
                                 {r.request.message}
                               </Typography>
                             )}
                             {r.request.location && (
-                              <Typography variant="caption" color="text.secondary" noWrap>
+                              <Typography variant="caption" noWrap sx={{
+                                color: "text.secondary"
+                              }}>
                                 📍 {r.request.location}
                               </Typography>
                             )}
                           </Stack>
                         )}
                       </Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: "nowrap", flexShrink: 0 }}>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: "text.secondary",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0
+                        }}>
                         {formatDateTime(r.remindAt)}
                       </Typography>
                     </Stack>
@@ -281,8 +361,18 @@ export function RemindersListView({ initialReminders }: Props) {
 
   return (
     <Stack spacing={3}>
-      <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap>
-        <Typography variant="h4" fontWeight={800}>
+      <Stack
+        direction="row"
+        spacing={2}
+        useFlexGap
+        sx={{
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap"
+        }}>
+        <Typography variant="h4" sx={{
+          fontWeight: 800
+        }}>
           Напоминания
         </Typography>
         <ToggleButtonGroup value={view} exclusive onChange={handleViewChange} size="small">

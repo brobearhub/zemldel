@@ -31,7 +31,13 @@ export function MaintenanceScreen({
         backgroundRepeat: "no-repeat",
       }}
     >
-      <Stack spacing={3} alignItems="center" sx={{ maxWidth: 480, textAlign: "center" }}>
+      <Stack
+        spacing={3}
+        sx={{
+          alignItems: "center",
+          maxWidth: 480,
+          textAlign: "center"
+        }}>
         <Image
           src="/zemledel_logo_dark.svg"
           alt="Земледел"
@@ -40,7 +46,9 @@ export function MaintenanceScreen({
           style={{ objectFit: "contain" }}
           priority
         />
-        <Stack spacing={1.5} alignItems="center">
+        <Stack spacing={1.5} sx={{
+          alignItems: "center"
+        }}>
           <Typography
             component="h1"
             variant="h4"

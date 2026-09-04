@@ -94,11 +94,13 @@ export const Footer = () => {
                     <ListItem key={item.id} disableGutters sx={{ py: 0.25 }}>
                       <ListItemText
                         primary={item.title}
-                        primaryTypographyProps={{
-                          sx: {
-                            fontSize: 14,
-                            color: "common.white",
-                          },
+                        slotProps={{
+                          primary: {
+                            sx: {
+                              fontSize: 14,
+                              color: "common.white",
+                            },
+                          }
                         }}
                       />
                     </ListItem>
@@ -107,7 +109,9 @@ export const Footer = () => {
               )}
             </Stack>
 
-            <Stack spacing={1} alignItems="flex-start">
+            <Stack spacing={1} sx={{
+              alignItems: "flex-start"
+            }}>
               <Typography variant="overline" sx={{ opacity: 0.8, fontWeight: 700 }}>
                 Юридические услуги
               </Typography>
@@ -131,11 +135,13 @@ export const Footer = () => {
                     >
                       <ListItemText
                         primary={title}
-                        primaryTypographyProps={{
-                          sx: {
-                            fontSize: 14,
-                            color: "common.white",
-                          },
+                        slotProps={{
+                          primary: {
+                            sx: {
+                              fontSize: 14,
+                              color: "common.white",
+                            },
+                          }
                         }}
                       />
                     </ListItem>
@@ -144,7 +150,9 @@ export const Footer = () => {
               )}
             </Stack>
 
-            <Stack spacing={1} alignItems="flex-start">
+            <Stack spacing={1} sx={{
+              alignItems: "flex-start"
+            }}>
               <Typography variant="overline" sx={{ opacity: 0.8, fontWeight: 700 }}>
                 Документы
               </Typography>

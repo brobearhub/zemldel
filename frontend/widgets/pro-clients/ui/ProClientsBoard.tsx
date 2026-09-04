@@ -149,8 +149,17 @@ export function ProClientsBoard({ initialOrders }: Props) {
         })}
       >
         <Stack spacing={2}>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }}>
-            <Stack direction="row" spacing={1.25} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{
+            alignItems: { md: "center" }
+          }}>
+            <Stack
+              direction="row"
+              spacing={1.25}
+              sx={{
+                alignItems: "center",
+                flex: 1,
+                minWidth: 0
+              }}>
               <Box
                 sx={{
                   width: 42,
@@ -166,10 +175,14 @@ export function ProClientsBoard({ initialOrders }: Props) {
                 <Groups2OutlinedIcon fontSize="small" />
               </Box>
               <Box>
-                <Typography variant="h6" fontWeight={800}>
+                <Typography variant="h6" sx={{
+                  fontWeight: 800
+                }}>
                   База клиентов по заказам
                 </Typography>
-                <Typography color="text.secondary">
+                <Typography sx={{
+                  color: "text.secondary"
+                }}>
                   Здесь собраны все заказчики, которые уже оформили хотя бы один заказ у активного provider.
                 </Typography>
               </Box>
@@ -182,7 +195,9 @@ export function ProClientsBoard({ initialOrders }: Props) {
               <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.06em" }}>
                 Всего клиентов
               </Typography>
-              <Typography variant="h5" fontWeight={800}>
+              <Typography variant="h5" sx={{
+                fontWeight: 800
+              }}>
                 {stats.totalClients}
               </Typography>
             </Paper>
@@ -190,7 +205,9 @@ export function ProClientsBoard({ initialOrders }: Props) {
               <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.06em" }}>
                 Всего заказов
               </Typography>
-              <Typography variant="h5" fontWeight={800}>
+              <Typography variant="h5" sx={{
+                fontWeight: 800
+              }}>
                 {stats.totalOrders}
               </Typography>
             </Paper>
@@ -198,7 +215,9 @@ export function ProClientsBoard({ initialOrders }: Props) {
               <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.06em" }}>
                 Повторные клиенты
               </Typography>
-              <Typography variant="h5" fontWeight={800}>
+              <Typography variant="h5" sx={{
+                fontWeight: 800
+              }}>
                 {stats.repeatClients}
               </Typography>
             </Paper>
@@ -215,10 +234,14 @@ export function ProClientsBoard({ initialOrders }: Props) {
 
       {clients.length === 0 ? (
         <Paper variant="outlined" sx={{ p: 3 }}>
-          <Typography fontWeight={800} gutterBottom>
+          <Typography gutterBottom sx={{
+            fontWeight: 800
+          }}>
             Пока нет клиентов
           </Typography>
-          <Typography color="text.secondary">
+          <Typography sx={{
+            color: "text.secondary"
+          }}>
             Клиенты появятся здесь после того, как по услугам активного provider будут оформлены первые заказы.
           </Typography>
         </Paper>
@@ -245,20 +268,25 @@ export function ProClientsBoard({ initialOrders }: Props) {
               <Stack
                 direction={{ xs: "column", md: "row" }}
                 spacing={2}
-                justifyContent="space-between"
-                alignItems={{ md: "flex-start" }}
-              >
+                sx={{
+                  justifyContent: "space-between",
+                  alignItems: { md: "flex-start" }
+                }}>
                 <Stack spacing={1.25} sx={{ minWidth: 0, flex: 1 }}>
                   <Box>
                     <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.08em" }}>
                       Клиент
                     </Typography>
-                    <Typography variant="h6" fontWeight={700}>
+                    <Typography variant="h6" sx={{
+                      fontWeight: 700
+                    }}>
                       {getClientLabel(client)}
                     </Typography>
                   </Box>
 
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  <Stack direction="row" spacing={1} useFlexGap sx={{
+                    flexWrap: "wrap"
+                  }}>
                     <Chip
                       size="small"
                       variant="outlined"
@@ -274,7 +302,9 @@ export function ProClientsBoard({ initialOrders }: Props) {
                     />
                   </Stack>
 
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  <Stack direction="row" spacing={1} useFlexGap sx={{
+                    flexWrap: "wrap"
+                  }}>
                     {openCount > 0 ? (
                       <Chip size="small" color="info" variant="filled" label={`В работе: ${openCount}`} />
                     ) : null}
@@ -287,7 +317,9 @@ export function ProClientsBoard({ initialOrders }: Props) {
                   </Stack>
 
                   {client.recentServiceTitles.length > 0 ? (
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" sx={{
+                      color: "text.secondary"
+                    }}>
                       Услуги: {client.recentServiceTitles.join(", ")}
                     </Typography>
                   ) : null}
@@ -305,17 +337,23 @@ export function ProClientsBoard({ initialOrders }: Props) {
                   <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.08em" }}>
                     История клиента
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" sx={{
+                    color: "text.secondary"
+                  }}>
                     Последний заказ: {formatRequestDate(client.lastOrderAt)}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" sx={{
+                    color: "text.secondary"
+                  }}>
                     Статусы:{" "}
                     {Object.entries(client.statuses)
                       .filter(([, count]) => (count ?? 0) > 0)
                       .map(([status, count]) => `${getRequestStatusLabel(status as RequestStatus)} ${count}`)
                       .join(", ")}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" sx={{
+                    color: "text.secondary"
+                  }}>
                     Раздел агрегирует клиентов только из заказов активного provider, без отдельной CRM-сущности.
                   </Typography>
                 </Box>
@@ -326,7 +364,9 @@ export function ProClientsBoard({ initialOrders }: Props) {
 
         {clients.length > 0 && filteredClients.length === 0 ? (
           <Paper variant="outlined" sx={{ p: 3 }}>
-            <Typography color="text.secondary">
+            <Typography sx={{
+              color: "text.secondary"
+            }}>
               По текущему запросу клиенты не найдены. Попробуйте изменить строку поиска.
             </Typography>
           </Paper>

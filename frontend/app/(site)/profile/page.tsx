@@ -226,14 +226,23 @@ function ProfileOverview({
           {getInitials(name) || email?.charAt(0)?.toUpperCase() || "U"}
         </Avatar>
         <Box>
-          <Typography variant="h4" fontWeight={600} gutterBottom>
+          <Typography variant="h4" gutterBottom sx={{
+            fontWeight: 600
+          }}>
             {name || "Пользователь"}
           </Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "text.secondary" }}>
             <EmailIcon fontSize="small" />
             <Typography variant="body1">{email || "Email не указан"}</Typography>
           </Box>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 1.5 }} flexWrap="wrap" useFlexGap>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            useFlexGap
+            sx={{
+              flexWrap: "wrap",
+              mt: 1.5
+            }}>
             <Button
               variant="outlined"
               component="label"
@@ -270,27 +279,39 @@ function ProfileOverview({
 
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Stack spacing={1.5}>
-          <Typography variant="h6" fontWeight={700}>
+          <Typography variant="h6" sx={{
+            fontWeight: 700
+          }}>
             Данные аккаунта
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             Статус: {activeMembership ? "профессионал" : "заказчик"}
           </Typography>
           {activeMembership ? (
             <>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 Активный профессиональный профиль: {activeMembership.providerName}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 Роль: {providerRoleLabel(activeMembership.role)}
               </Typography>
             </>
           ) : (
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               Вы используете платформу для поиска и оформления заказов.
             </Typography>
           )}
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             Профессиональных профилей: {memberships.length}
           </Typography>
 
@@ -325,10 +346,14 @@ function ProfileOverview({
 
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Stack spacing={1.5}>
-          <Typography variant="h6" fontWeight={700}>
+          <Typography variant="h6" sx={{
+            fontWeight: 700
+          }}>
             Способы входа
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             Email и пароль: включено
           </Typography>
         </Stack>
@@ -336,12 +361,16 @@ function ProfileOverview({
 
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Stack spacing={1.5}>
-          <Typography variant="h6" fontWeight={700}>
+          <Typography variant="h6" sx={{
+            fontWeight: 700
+          }}>
             Кабинет профессионала
           </Typography>
           {activeMembership ? (
             <>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 Рабочее пространство поставщика услуг вынесено в отдельный кабинет. Активный
                 provider: {activeMembership.providerName}.
               </Typography>
@@ -353,7 +382,9 @@ function ProfileOverview({
             </>
           ) : (
             <>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 Создайте профессиональный профиль, чтобы предлагать услуги и работать от имени
                 компании в отдельном кабинете.
               </Typography>
@@ -381,7 +412,9 @@ export default function ProfilePage() {
 function ProfilePageFallback() {
   return (
     <Container maxWidth="xl" sx={sitePageContainerSx}>
-      <Stack direction={{ xs: "column", md: "row" }} spacing={3} alignItems="flex-start">
+      <Stack direction={{ xs: "column", md: "row" }} spacing={3} sx={{
+        alignItems: "flex-start"
+      }}>
         <Paper variant="outlined" sx={{ width: { xs: "100%", md: CABINET_SIDEBAR_EXPANDED_W }, p: 3 }}>
           <Skeleton variant="text" width="40%" height={28} sx={{ mb: 2 }} />
           <Skeleton variant="rectangular" height={52} sx={{ mb: 2 }} />

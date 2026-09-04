@@ -206,17 +206,26 @@ export function PublicUnlinkedRequestForm({
       <Stack spacing={2} component="form" onSubmit={handleSubmit}>
         {variant === "card" ? (
           <Stack spacing={0.5}>
-            <Typography variant="h5" fontWeight={900} color="text.primary">
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 900,
+                color: "text.primary"
+              }}>
               Нужна помощь? Создайте заявку
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               {isAuthenticated
                 ? "Специалисты свяжутся с вами в ближайшее время."
                 : "Чтобы создать заявку, нужно зарегистрироваться или войти. После этого система продолжит оформление автоматически."}
             </Typography>
           </Stack>
         ) : (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {isAuthenticated
               ? "Специалисты свяжутся с вами в ближайшее время."
               : "Чтобы создать заявку, нужно зарегистрироваться или войти. После этого система продолжит оформление автоматически."}
@@ -246,6 +255,12 @@ export function PublicUnlinkedRequestForm({
           required
         />
 
+        <CadastralNumberListEditor
+          value={form.cadastralNumbers}
+          onChange={(cadastralNumbers) => setForm((prev) => ({ ...prev, cadastralNumbers }))}
+          disabled={busy}
+        />
+
         <Accordion
           expanded={optionalExpanded}
           onChange={(_, next) => setOptionalExpanded(next)}
@@ -254,7 +269,9 @@ export function PublicUnlinkedRequestForm({
           sx={{ border: 1, borderColor: "divider", borderRadius: 1.5, "&:before": { display: "none" } }}
         >
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography fontWeight={800}>Опционально</Typography>
+            <Typography sx={{
+              fontWeight: 800
+            }}>Опционально</Typography>
           </AccordionSummary>
           <AccordionDetails>
             <Stack spacing={2}>
@@ -274,12 +291,6 @@ export function PublicUnlinkedRequestForm({
                 )}
                 disabled={busy}
                 clearOnEscape
-              />
-
-              <CadastralNumberListEditor
-                value={form.cadastralNumbers}
-                onChange={(cadastralNumbers) => setForm((prev) => ({ ...prev, cadastralNumbers }))}
-                disabled={busy}
               />
             </Stack>
           </AccordionDetails>

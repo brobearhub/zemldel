@@ -199,7 +199,9 @@ describe("ServicesAdminClient", () => {
     await user.click(within(confirmDialog).getByRole("button", { name: "Отмена" }));
 
     // The component fetches categories on mount; delete request should not be called.
-    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/admin/services/"))).toBe(false);
+    expect(
+      fetchMock.mock.calls.some((call: unknown[]) => String(call[0]).includes("/api/admin/services/")),
+    ).toBe(false);
   });
 
   it("shows delete error when delete request fails", async () => {

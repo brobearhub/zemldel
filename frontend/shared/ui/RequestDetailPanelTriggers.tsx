@@ -20,7 +20,9 @@ export function RequestDetailPanelTriggers({ items, onOpen }: RequestDetailPanel
   if (visibleItems.length === 0) return null;
 
   return (
-    <Stack direction="row" spacing={2.5} alignItems="center" useFlexGap>
+    <Stack direction="row" spacing={2.5} useFlexGap sx={{
+      alignItems: "center"
+    }}>
       {visibleItems.map((item) => (
         <Button
           key={item.id}

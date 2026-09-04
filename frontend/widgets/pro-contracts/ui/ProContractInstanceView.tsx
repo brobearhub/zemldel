@@ -163,10 +163,18 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
 
           <Paper variant="outlined" sx={{ p: 2.5 }}>
             <Stack spacing={1}>
-              <Typography variant="h5" fontWeight={800}>
+              <Typography variant="h5" sx={{
+                fontWeight: 800
+              }}>
                 {initial.title}
               </Typography>
-              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                  alignItems: "center",
+                  flexWrap: "wrap"
+                }}>
                 <Chip label={statusLabel(initial.status)} />
                 {signedRoles.has("CUSTOMER") ? (
                   <Chip color="success" label="Клиент принял" />
@@ -174,7 +182,9 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
                   <Chip color="warning" label="Клиент ещё не принял" />
                 )}
               </Stack>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1} flexWrap="wrap" useFlexGap>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1} useFlexGap sx={{
+                flexWrap: "wrap"
+              }}>
                 <Button variant="contained" disabled={busy || !canSend} onClick={() => void sendToCustomer()}>
                   Отправить клиенту
                 </Button>
@@ -187,7 +197,9 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
 
           <Paper variant="outlined" sx={{ p: 2.5 }}>
             <Stack spacing={1.5}>
-              <Typography fontWeight={800}>Редактор договора</Typography>
+              <Typography sx={{
+                fontWeight: 800
+              }}>Редактор договора</Typography>
               <TextField
                 label="Название"
                 value={title}
@@ -212,7 +224,9 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
           sx={{ p: 2.5, overflow: "auto", height: { xs: "auto", lg: "100%" }, minHeight: 0 }}
         >
           <Stack spacing={1.5}>
-            <Typography fontWeight={800}>Комментарии</Typography>
+            <Typography sx={{
+              fontWeight: 800
+            }}>Комментарии</Typography>
             {openThreads.length > 0 ? (
               <Alert severity="warning">Перед принятием договора закройте открытые комментарии.</Alert>
             ) : null}
@@ -222,14 +236,22 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
                 {initial.commentThreads.map((thread) => (
                   <Paper key={thread.id} variant="outlined" sx={{ p: 1.5 }}>
                     <Stack spacing={1}>
-                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        sx={{
+                          alignItems: "center",
+                          flexWrap: "wrap"
+                        }}>
                         <Chip
                           size="small"
                           color={thread.status === "OPEN" ? "warning" : "success"}
                           label={thread.status === "OPEN" ? "Открыт" : "Закрыт"}
                         />
                         {thread.quote ? (
-                          <Typography variant="body2" color="text.secondary">
+                          <Typography variant="body2" sx={{
+                            color: "text.secondary"
+                          }}>
                             &quot;{thread.quote}&quot;
                           </Typography>
                         ) : null}
@@ -273,9 +295,17 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
               <Stack spacing={1}>
                 {initial.feedback.map((f) => (
                   <Paper key={f.id} variant="outlined" sx={{ p: 1.5 }}>
-                    <Typography variant="body2" fontWeight={700}>
+                    <Typography variant="body2" sx={{
+                      fontWeight: 700
+                    }}>
                       {f.authorRole === "CUSTOMER" ? "Клиент" : "Провайдер"} ·{" "}
-                      <Typography component="span" variant="body2" color="text.secondary" fontWeight={500}>
+                      <Typography
+                        component="span"
+                        variant="body2"
+                        sx={{
+                          color: "text.secondary",
+                          fontWeight: 500
+                        }}>
                         {formatDateTime(f.createdAt)}
                       </Typography>
                     </Typography>
@@ -286,7 +316,9 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
                 ))}
               </Stack>
             ) : (
-              <Typography color="text.secondary">Комментариев пока нет.</Typography>
+              <Typography sx={{
+                color: "text.secondary"
+              }}>Комментариев пока нет.</Typography>
             )}
           </Stack>
         </Paper>

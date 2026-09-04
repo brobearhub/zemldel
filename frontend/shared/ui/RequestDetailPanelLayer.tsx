@@ -50,10 +50,25 @@ export function RequestDetailPanelLayer({ open, title, icon, onClose, children, 
           })}
         >
           <Stack spacing={2.5} sx={{ flex: 1, minHeight: "100%" }}>
-            <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2} sx={{ flexShrink: 0 }}>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+            <Stack
+              direction="row"
+              spacing={2}
+              sx={{
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                flexShrink: 0
+              }}>
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                  alignItems: "center",
+                  minWidth: 0
+                }}>
                 {icon ? <Box sx={{ display: "flex", alignItems: "center" }}>{icon}</Box> : null}
-                <Typography variant="h5" fontWeight={800}>
+                <Typography variant="h5" sx={{
+                  fontWeight: 800
+                }}>
                   {title}
                 </Typography>
               </Stack>

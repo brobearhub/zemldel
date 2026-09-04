@@ -61,11 +61,6 @@ export default async function ServicePage({ params }: Props) {
           pb: { xs: 4, md: 6 },
           pt: 0,
           bgcolor: "background.default",
-          // Keep `sx` serializable for Server Components (no functions).
-          backgroundImage:
-            "radial-gradient(1200px 800px at 70% 35%, rgb(var(--mui-palette-primary-mainChannel) / 0.22) 0%, rgb(var(--mui-palette-info-mainChannel) / 0.10) 40%, rgb(var(--mui-palette-background-defaultChannel) / 0) 70%)",
-          backgroundRepeat: "no-repeat",
-          backgroundSize: "cover",
         }}
       >
         <Container maxWidth="xl">
@@ -161,7 +156,9 @@ export default async function ServicePage({ params }: Props) {
                   boxShadow: "0 12px 40px rgba(0,0,0,0.08)",
                 }}
               >
-                <Stack spacing={2} alignItems="flex-start">
+                <Stack spacing={2} sx={{
+                  alignItems: "flex-start"
+                }}>
                   <Typography component="span" sx={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.02em" }} color="primary">
                     {service.price}
                   </Typography>

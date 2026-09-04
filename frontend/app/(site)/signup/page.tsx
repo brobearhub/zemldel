@@ -276,10 +276,19 @@ function SignUpPageContent() {
         }}
       >
         <Stack spacing={2.5}>
-          <Typography variant="h4" component="h1" fontWeight={700} align="center" color="text.secondary">
+          <Typography
+            variant="h4"
+            component="h1"
+            align="center"
+            sx={{
+              fontWeight: 700,
+              color: "text.secondary"
+            }}>
             Регистрация
           </Typography>
-          <Typography variant="body2" color="text.secondary" align="center">
+          <Typography variant="body2" align="center" sx={{
+            color: "text.secondary"
+          }}>
             Создайте аккаунт, чтобы начать работу.
           </Typography>
 
@@ -344,7 +353,9 @@ function SignUpPageContent() {
                       />
                     }
                     label={
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" sx={{
+                        color: "text.secondary"
+                      }}>
                         Я принимаю{" "}
                         <Link
                           href="/terms"
@@ -385,7 +396,9 @@ function SignUpPageContent() {
                       />
                     }
                     label={
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" sx={{
+                        color: "text.secondary"
+                      }}>
                         Даю{" "}
                         <Link
                           href="/consent"
@@ -425,7 +438,9 @@ function SignUpPageContent() {
             </Stack>
           </Box>
 
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             Уже есть аккаунт?{" "}
             <Link href={signInHref} style={{ color: "inherit", fontWeight: 600 }}>
               Войти
@@ -445,12 +460,16 @@ function SignUpPageContent() {
         <DialogContent dividers>
           <Stack spacing={1.5}>
             {openDoc?.version ? (
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 Версия: {openDoc.version}
               </Typography>
             ) : null}
             {openDoc?.error ? <Alert severity="error">{openDoc.error}</Alert> : null}
-            {openDoc?.busy ? <Typography color="text.secondary">Загрузка…</Typography> : null}
+            {openDoc?.busy ? <Typography sx={{
+              color: "text.secondary"
+            }}>Загрузка…</Typography> : null}
             {!openDoc?.busy && openDoc?.markdown ? (
               <Markdown markdown={openDoc.markdown} skipFirstH1 />
             ) : null}

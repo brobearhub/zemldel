@@ -13,10 +13,14 @@ export default async function ProServicesCreatePage() {
   return (
     <Stack spacing={3}>
       <Box>
-        <Typography variant="h4" fontWeight={700} gutterBottom>
+        <Typography variant="h4" gutterBottom sx={{
+          fontWeight: 700
+        }}>
           Создать услугу
         </Typography>
-        <Typography color="text.secondary">
+        <Typography sx={{
+          color: "text.secondary"
+        }}>
           Подготовьте черновик или сразу опубликуйте услугу, которая потом будет собирать заявки
           по вашему provider.
         </Typography>

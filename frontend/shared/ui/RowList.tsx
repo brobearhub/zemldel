@@ -35,7 +35,12 @@ export function RowList<T>({ title, items, getKey, renderRow, empty, paperSx }: 
           zIndex: 1,
         }}
       >
-        <Typography variant="caption" fontWeight={600} color="text.disabled">{title}</Typography>
+        <Typography
+          variant="caption"
+          sx={{
+            fontWeight: 600,
+            color: "text.disabled"
+          }}>{title}</Typography>
       </Paper>
 
       <Paper
@@ -104,12 +109,13 @@ export function RowListItem({ isLast, left, right, minHeight = 76, sx }: RowList
           <Stack
             direction="row"
             spacing={1}
-            flexWrap="wrap"
             useFlexGap
-            alignItems="center"
-            justifyContent="flex-end"
-            sx={{ flexShrink: 0 }}
-          >
+            sx={{
+              flexWrap: "wrap",
+              alignItems: "center",
+              justifyContent: "flex-end",
+              flexShrink: 0
+            }}>
             {right}
           </Stack>
         ) : null}

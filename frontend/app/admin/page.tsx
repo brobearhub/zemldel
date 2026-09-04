@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Box, Container, Paper, Stack, Typography } from "@mui/material";
 import BuildIcon from "@mui/icons-material/Build";
 import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
+import LocationCityIcon from "@mui/icons-material/LocationCity";
 
 export default function AdminIndexPage() {
   return (
@@ -66,6 +67,29 @@ export default function AdminIndexPage() {
                   <Typography sx={{ fontWeight: 900 }}>Категории</Typography>
                   <Typography variant="body2" sx={{ color: "text.secondary" }}>
                     Дерево категорий услуг
+                  </Typography>
+                </Box>
+              </Paper>
+            </Link>
+
+            <Link href="/admin/cities/imports" style={{ textDecoration: "none" }}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2.5,
+                  borderRadius: 2,
+                  color: "inherit",
+                  display: "flex",
+                  gap: 2,
+                  alignItems: "center",
+                  "&:hover": { bgcolor: "action.hover" },
+                }}
+              >
+                <LocationCityIcon color="primary" />
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography sx={{ fontWeight: 900 }}>Локации (City)</Typography>
+                  <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                    История импортов из ГАР
                   </Typography>
                 </Box>
               </Paper>

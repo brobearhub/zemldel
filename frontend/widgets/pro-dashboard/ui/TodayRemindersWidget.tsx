@@ -23,11 +23,23 @@ export function TodayRemindersWidget({ reminders }: Props) {
 
   return (
     <Paper variant="outlined" sx={{ p: 2.5, height: "100%" }}>
-      <Stack spacing={1.5} height="100%">
-        <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-          <Stack direction="row" spacing={1} alignItems="center">
+      <Stack spacing={1.5} sx={{
+        height: "100%"
+      }}>
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            alignItems: "center",
+            justifyContent: "space-between"
+          }}>
+          <Stack direction="row" spacing={1} sx={{
+            alignItems: "center"
+          }}>
             <NotificationsNoneOutlinedIcon color="primary" fontSize="small" />
-            <Typography variant="h6" fontWeight={800}>
+            <Typography variant="h6" sx={{
+              fontWeight: 800
+            }}>
               Напоминания на сегодня
             </Typography>
           </Stack>
@@ -37,11 +49,15 @@ export function TodayRemindersWidget({ reminders }: Props) {
         </Stack>
 
         {visible.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             Нет напоминаний на сегодня.
           </Typography>
         ) : (
-          <Stack spacing={1} flex={1}>
+          <Stack spacing={1} sx={{
+            flex: 1
+          }}>
             {visible.map((r) => (
               <Box
                 key={r.id}
@@ -54,16 +70,34 @@ export function TodayRemindersWidget({ reminders }: Props) {
                   "&:hover": { opacity: 0.75 },
                 }}
               >
-                <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="flex-start">
-                  <Box minWidth={0}>
-                    <Typography variant="body2" noWrap fontWeight={500}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{
+                    justifyContent: "space-between",
+                    alignItems: "flex-start"
+                  }}>
+                  <Box sx={{
+                    minWidth: 0
+                  }}>
+                    <Typography variant="body2" noWrap sx={{
+                      fontWeight: 500
+                    }}>
                       {r.text}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" noWrap>
+                    <Typography variant="caption" noWrap sx={{
+                      color: "text.secondary"
+                    }}>
                       {getReminderLabel(r)}
                     </Typography>
                   </Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: "nowrap", flexShrink: 0 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: "text.secondary",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0
+                    }}>
                     {formatTime(r.remindAt)}
                   </Typography>
                 </Stack>

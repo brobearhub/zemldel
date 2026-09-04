@@ -35,7 +35,9 @@ export function DocumentsSecurityInfoIconButton({
   const tooltipTitle = useMemo(() => {
     return (
       <Box sx={{ maxWidth: 320 }}>
-        <Typography fontWeight={900}>Защита документов</Typography>
+        <Typography sx={{
+          fontWeight: 900
+        }}>Защита документов</Typography>
         <Typography variant="body2" sx={{ mt: 0.5 }}>
           Передача — по защищённому каналу (HTTPS/TLS). Хранение — в приватном контуре. Доступ выдаётся только авторизованному пользователю.
         </Typography>
@@ -59,7 +61,7 @@ export function DocumentsSecurityInfoIconButton({
       <Tooltip
         title={tooltipTitle}
         placement="top"
-        componentsProps={{
+        slotProps={{
           tooltip: {
             sx: {
               p: 1,
@@ -88,45 +90,82 @@ export function DocumentsSecurityInfoIconButton({
         <DialogContent dividers>
           <Stack spacing={2}>
             <Box>
-              <Typography fontWeight={900}>Передача данных</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              <Typography sx={{
+                fontWeight: 900
+              }}>Передача данных</Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.secondary",
+                  mt: 0.5
+                }}>
                 Передача документов и действий в личном кабинете выполняется по защищённому соединению (HTTPS/TLS).
               </Typography>
             </Box>
 
             <Box>
-              <Typography fontWeight={900}>Хранение документов и договоров</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              <Typography sx={{
+                fontWeight: 900
+              }}>Хранение документов и договоров</Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.secondary",
+                  mt: 0.5
+                }}>
                 Файлы хранятся в приватном объектном хранилище.
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.secondary",
+                  mt: 0.75
+                }}>
                 В хранилище могут применяться механизмы шифрования на стороне хранилища (шифрование данных «на диске»),
                 а также политики доступа, ограничивающие чтение объектов.
               </Typography>
             </Box>
 
             <Box>
-              <Typography fontWeight={900}>Данные в базе</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              <Typography sx={{
+                fontWeight: 900
+              }}>Данные в базе</Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.secondary",
+                  mt: 0.5
+                }}>
                 Данные заявки и служебные метаданные хранятся в базе данных с разграничением доступа. Сервер применяет
                 проверки ролей и контекста (например, по текущему провайдеру) и не доверяет клиенту в вопросах прав.
               </Typography>
             </Box>
 
             <Box>
-              <Typography fontWeight={900}>Шифрование чувствительных данных</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              <Typography sx={{
+                fontWeight: 900
+              }}>Шифрование чувствительных данных</Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.secondary",
+                  mt: 0.5
+                }}>
                 Для особо чувствительных пользовательских данных может применяться прикладное шифрование — данные
                 хранятся в зашифрованном виде и расшифровываются только при наличии прав доступа.
               </Typography>
             </Box>
 
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" sx={{
+              color: "text.secondary"
+            }}>
               Важно: безопасность зависит не только от технологий, но и от настроек доступа и поведения пользователей.
               Не передавайте документы третьим лицам и используйте надёжные пароли.
             </Typography>
 
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" sx={{
+              color: "text.secondary"
+            }}>
               Если у вас есть вопросы — напишите в поддержку (info@brobear.ru - разработчик платформы).
             </Typography>
           </Stack>

@@ -193,10 +193,17 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
             })}
           >
             <Stack spacing={1}>
-              <Typography fontWeight={800}>Идёт загрузка файлов</Typography>
+              <Typography sx={{
+                fontWeight: 800
+              }}>Идёт загрузка файлов</Typography>
               <LinearProgress />
               {props.uploadNames.length > 0 ? (
-                <Typography variant="body2" color="text.secondary" sx={{ wordBreak: "break-word" }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "text.secondary",
+                    wordBreak: "break-word"
+                  }}>
                   {props.uploadNames.join(", ")}
                 </Typography>
               ) : null}
@@ -231,7 +238,12 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
                         Скачать подпись
                       </Button>
                     ) : (
-                      <Typography variant="body2" color="warning.main" sx={{ px: 1 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: "warning.main",
+                          px: 1
+                        }}>
                         Подпись (.sig) не прикреплена
                       </Typography>
                     )}
@@ -247,7 +259,14 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
           </Stack>
         ) : null}
 
-        <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="center" useFlexGap>
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          sx={{
+            flexWrap: "wrap",
+            justifyContent: "center"
+          }}>
           <Button
             variant="text"
             color="warning"
@@ -295,7 +314,14 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
           <DocumentsNeutralAlert>Нет ваших вложений.</DocumentsNeutralAlert>
         )}
 
-        <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="center" useFlexGap>
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          sx={{
+            flexWrap: "wrap",
+            justifyContent: "center"
+          }}>
           <Button
             component="label"
             variant="text"
@@ -330,14 +356,16 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
         <DialogTitle>Запросить документ у клиента</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={1.5}>
-            <Typography color="text.secondary">Например: «Паспорт (скан)», «Доверенность», «Реквизиты».</Typography>
+            <Typography sx={{
+              color: "text.secondary"
+            }}>Например: «Паспорт (скан)», «Доверенность», «Реквизиты».</Typography>
             <TextField
               label="Название документа"
               value={docTitle}
               onChange={(e) => setDocTitle(e.target.value)}
               disabled={props.isBusy}
               autoFocus
-              inputProps={{ maxLength: 120 }}
+              slotProps={{ htmlInput: { maxLength: 120 } }}
             />
           </Stack>
         </DialogContent>
@@ -372,12 +400,16 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
         <DialogTitle>Загрузить договор</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2}>
-            <Typography color="text.secondary">
+            <Typography sx={{
+              color: "text.secondary"
+            }}>
               Прикрепите файл договора и файл подписи <b>.sig</b>, <b>.sgn</b> или <b>.p7s</b>.
             </Typography>
 
             <Stack spacing={1}>
-              <Typography fontWeight={800}>Договор</Typography>
+              <Typography sx={{
+                fontWeight: 800
+              }}>Договор</Typography>
               <Button component="label" variant="outlined" disabled={props.isBusy} sx={{ alignSelf: "flex-start" }}>
                 {bundleDocument ? bundleDocument.name : "Выбрать файл"}
                 <input
@@ -394,7 +426,9 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
             </Stack>
 
             <Stack spacing={1}>
-              <Typography fontWeight={800}>Подпись</Typography>
+              <Typography sx={{
+                fontWeight: 800
+              }}>Подпись</Typography>
               <Button component="label" variant="outlined" disabled={props.isBusy} sx={{ alignSelf: "flex-start" }}>
                 {bundleSignature ? bundleSignature.name : "Выбрать файл подписи"}
                 <input

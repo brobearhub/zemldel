@@ -80,7 +80,13 @@ function OverviewStatCard({
       }}
     >
       <Stack spacing={1.25}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            justifyContent: "space-between",
+            alignItems: "center"
+          }}>
           <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.08em" }}>
             {label}
           </Typography>
@@ -99,10 +105,14 @@ function OverviewStatCard({
             {icon}
           </Box>
         </Stack>
-        <Typography variant="h4" fontWeight={800}>
+        <Typography variant="h4" sx={{
+          fontWeight: 800
+        }}>
           {value}
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{
+          color: "text.secondary"
+        }}>
           {caption}
         </Typography>
       </Stack>
@@ -112,11 +122,20 @@ function OverviewStatCard({
 
 function MetricRow({ label, value }: { label: string; value: string }) {
   return (
-    <Stack direction="row" justifyContent="space-between" spacing={2}>
-      <Typography variant="body2" color="text.secondary">
+    <Stack direction="row" spacing={2} sx={{
+      justifyContent: "space-between"
+    }}>
+      <Typography variant="body2" sx={{
+        color: "text.secondary"
+      }}>
         {label}
       </Typography>
-      <Typography variant="body2" fontWeight={700} textAlign="right">
+      <Typography
+        variant="body2"
+        sx={{
+          fontWeight: 700,
+          textAlign: "right"
+        }}>
         {value}
       </Typography>
     </Stack>
@@ -227,21 +246,28 @@ export function ProOverviewDashboard({ provider, services, requests, orders, tod
           <Stack
             direction={{ xs: "column", xl: "row" }}
             spacing={2.5}
-            justifyContent="space-between"
-            alignItems={{ xs: "stretch", xl: "flex-start" }}
-          >
+            sx={{
+              justifyContent: "space-between",
+              alignItems: { xs: "stretch", xl: "flex-start" }
+            }}>
             <Stack spacing={1.5} sx={{ minWidth: 0, flex: 1 }}>
               <Box>
-                <Typography variant="h4" fontWeight={800} gutterBottom>
+                <Typography variant="h4" gutterBottom sx={{
+                  fontWeight: 800
+                }}>
                   {provider.providerName}
                 </Typography>
-                <Typography color="text.secondary">
+                <Typography sx={{
+                  color: "text.secondary"
+                }}>
                   Обзор по активному provider: здесь собраны ключевые показатели по услугам, входящим заявкам,
                   заказам и клиентской базе.
                 </Typography>
               </Box>
 
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Stack direction="row" spacing={1} useFlexGap sx={{
+                flexWrap: "wrap"
+              }}>
                 <Chip label={providerTypeLabel(provider.providerType)} variant="outlined" />
                 <Chip label={`Роль: ${providerRoleLabel(provider.role)}`} variant="outlined" />
                 <Chip label={`Последняя активность: ${formatDateTime(latestActivityAt)}`} variant="outlined" />
@@ -261,7 +287,9 @@ export function ProOverviewDashboard({ provider, services, requests, orders, tod
               })}
             >
               <Stack spacing={1.25}>
-                <Typography variant="subtitle2" fontWeight={800}>
+                <Typography variant="subtitle2" sx={{
+                  fontWeight: 800
+                }}>
                   Быстрые действия
                 </Typography>
                 <Stack direction={{ xs: "column", sm: "row", xl: "column" }} spacing={1}>
@@ -329,13 +357,19 @@ export function ProOverviewDashboard({ provider, services, requests, orders, tod
       >
         <Paper variant="outlined" sx={{ p: 2.5, height: "100%" }}>
           <Stack spacing={2}>
-            <Stack direction="row" spacing={1} alignItems="center">
+            <Stack direction="row" spacing={1} sx={{
+              alignItems: "center"
+            }}>
               <BuildOutlinedIcon color="primary" fontSize="small" />
-              <Typography variant="h6" fontWeight={800}>
+              <Typography variant="h6" sx={{
+                fontWeight: 800
+              }}>
                 Услуги
               </Typography>
             </Stack>
-            <Typography color="text.secondary">
+            <Typography sx={{
+              color: "text.secondary"
+            }}>
               Сколько карточек уже создано и какая часть каталога готова к приему заявок.
             </Typography>
             <MetricRow label="Всего создано" value={String(servicesStats.total)} />
@@ -348,13 +382,19 @@ export function ProOverviewDashboard({ provider, services, requests, orders, tod
 
         <Paper variant="outlined" sx={{ p: 2.5, height: "100%" }}>
           <Stack spacing={2}>
-            <Stack direction="row" spacing={1} alignItems="center">
+            <Stack direction="row" spacing={1} sx={{
+              alignItems: "center"
+            }}>
               <AssignmentTurnedInOutlinedIcon color="primary" fontSize="small" />
-              <Typography variant="h6" fontWeight={800}>
+              <Typography variant="h6" sx={{
+                fontWeight: 800
+              }}>
                 Заявки
               </Typography>
             </Stack>
-            <Typography color="text.secondary">
+            <Typography sx={{
+              color: "text.secondary"
+            }}>
               Воронка первых откликов: от новых обращений до перевода в заказ или закрытия без сделки.
             </Typography>
             <MetricRow label="Всего заявок" value={String(requestStats.total)} />
@@ -367,13 +407,19 @@ export function ProOverviewDashboard({ provider, services, requests, orders, tod
 
         <Paper variant="outlined" sx={{ p: 2.5, height: "100%" }}>
           <Stack spacing={2}>
-            <Stack direction="row" spacing={1} alignItems="center">
+            <Stack direction="row" spacing={1} sx={{
+              alignItems: "center"
+            }}>
               <TrendingUpOutlinedIcon color="primary" fontSize="small" />
-              <Typography variant="h6" fontWeight={800}>
+              <Typography variant="h6" sx={{
+                fontWeight: 800
+              }}>
                 Заказы и клиенты
               </Typography>
             </Stack>
-            <Typography color="text.secondary">
+            <Typography sx={{
+              color: "text.secondary"
+            }}>
               Итог по сделкам и клиентской базе, сформированной из заказов активного provider.
             </Typography>
             <MetricRow label="Всего заказов" value={String(ordersStats.total)} />
@@ -394,7 +440,9 @@ export function ProOverviewDashboard({ provider, services, requests, orders, tod
       >
         <Paper variant="outlined" sx={{ p: 2.5 }}>
           <Stack spacing={2}>
-            <Typography variant="h6" fontWeight={800}>
+            <Typography variant="h6" sx={{
+              fontWeight: 800
+            }}>
               Что сейчас требует внимания
             </Typography>
             <Box
@@ -408,10 +456,14 @@ export function ProOverviewDashboard({ provider, services, requests, orders, tod
                 <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.06em" }}>
                   Входящий поток
                 </Typography>
-                <Typography variant="h5" fontWeight={800}>
+                <Typography variant="h5" sx={{
+                  fontWeight: 800
+                }}>
                   {requestStats.NEW}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" sx={{
+                  color: "text.secondary"
+                }}>
                   Новых обращений ожидают первичной реакции.
                 </Typography>
               </Paper>
@@ -419,10 +471,14 @@ export function ProOverviewDashboard({ provider, services, requests, orders, tod
                 <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.06em" }}>
                   Активная работа
                 </Typography>
-                <Typography variant="h5" fontWeight={800}>
+                <Typography variant="h5" sx={{
+                  fontWeight: 800
+                }}>
                   {ordersStats.ACTIVE ?? 0}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" sx={{
+                  color: "text.secondary"
+                }}>
                   Заказов находятся в исполнении прямо сейчас.
                 </Typography>
               </Paper>
@@ -430,10 +486,14 @@ export function ProOverviewDashboard({ provider, services, requests, orders, tod
                 <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.06em" }}>
                   Потенциал каталога
                 </Typography>
-                <Typography variant="h5" fontWeight={800}>
+                <Typography variant="h5" sx={{
+                  fontWeight: 800
+                }}>
                   {servicesStats.DRAFT}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" sx={{
+                  color: "text.secondary"
+                }}>
                   Услуг еще можно подготовить и вывести в публикацию.
                 </Typography>
               </Paper>
@@ -445,10 +505,14 @@ export function ProOverviewDashboard({ provider, services, requests, orders, tod
 
         <Paper variant="outlined" sx={{ p: 2.5 }}>
           <Stack spacing={1.5}>
-            <Typography variant="h6" fontWeight={800}>
+            <Typography variant="h6" sx={{
+              fontWeight: 800
+            }}>
               Быстрые переходы
             </Typography>
-            <Typography color="text.secondary">
+            <Typography sx={{
+              color: "text.secondary"
+            }}>
               Самые важные рабочие разделы профессионального кабинета.
             </Typography>
             <Button component={Link} href="/pro/clients" variant="outlined" fullWidth>

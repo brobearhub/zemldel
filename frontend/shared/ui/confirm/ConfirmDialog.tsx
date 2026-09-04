@@ -66,7 +66,9 @@ export function ConfirmDialog({
           <Stack spacing={2}>
             {description ? (
               typeof description === "string" ? (
-                <Typography color="text.secondary">{description}</Typography>
+                <Typography sx={{
+                  color: "text.secondary"
+                }}>{description}</Typography>
               ) : (
                 <Stack spacing={1}>{description}</Stack>
               )

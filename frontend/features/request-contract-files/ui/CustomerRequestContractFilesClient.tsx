@@ -150,7 +150,9 @@ export function CustomerRequestContractFilesClient({
         revisionLabel="Замечания"
         empty={
           <Box sx={{ p: 2.5 }}>
-            <Typography color="text.secondary">Компания ещё не прикрепила договор.</Typography>
+            <Typography sx={{
+              color: "text.secondary"
+            }}>Компания ещё не прикрепила договор.</Typography>
           </Box>
         }
         getStatusLabel={statusLabel}
@@ -180,7 +182,12 @@ export function CustomerRequestContractFilesClient({
                   </Button>
                 </Link>
               ) : (
-                <Typography variant="body2" color="warning.main" sx={{ px: 1 }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "warning.main",
+                    px: 1
+                  }}>
                   Подпись (.sig) ещё не прикреплена
                 </Typography>
               )}
@@ -214,7 +221,9 @@ export function CustomerRequestContractFilesClient({
       />
 
       {hasPendingCustomerDecision ? (
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{
+          color: "text.secondary"
+        }}>
           После одобрения вы сможете подтвердить заключение договора на странице заявки.
         </Typography>
       ) : null}
@@ -230,7 +239,9 @@ export function CustomerRequestContractFilesClient({
         <DialogTitle>Отправить на доработку</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={1.5}>
-            <Typography color="text.secondary">Опишите, что нужно исправить в договоре.</Typography>
+            <Typography sx={{
+              color: "text.secondary"
+            }}>Опишите, что нужно исправить в договоре.</Typography>
             <TextField
               label="Комментарий"
               value={revisionMessage}

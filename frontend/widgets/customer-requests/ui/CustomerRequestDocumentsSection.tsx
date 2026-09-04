@@ -44,7 +44,9 @@ function CustomerDocumentsBanners(props: {
   return (
     <>
       {Boolean(request.lockedAt) && !hasContractBundles ? (
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{
+          color: "text.secondary"
+        }}>
           Ожидаем договор от компании.
         </Typography>
       ) : null}
@@ -147,7 +149,15 @@ function CustomerAcceptContractActions(props: { canAcceptContract: boolean; busy
       {canAcceptContract ? (
         <>
           <Alert severity="success">Все документы одобрены. Теперь можно перейти к заключению договора.</Alert>
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ alignSelf: "flex-start", pt: 2 }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            useFlexGap
+            sx={{
+              flexWrap: "wrap",
+              alignSelf: "flex-start",
+              pt: 2
+            }}>
             <Button variant="contained" color="success" disabled={busy || docUploadBusy} onClick={() => onOpenOfferDialog()}>
               Заключить договор
             </Button>

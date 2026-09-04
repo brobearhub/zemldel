@@ -42,12 +42,29 @@ export function RequestDetailHeaderCard({
       })}
     >
       <Stack spacing={2}>
-        <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2} sx={{ pb: { md: 2 } }}>
+        <Stack
+          direction="row"
+          spacing={2}
+          sx={{
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            pb: { md: 2 }
+          }}>
           <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-            <Typography variant="h4" fontWeight={800} color="text.primary">
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 800,
+                color: "text.primary"
+              }}>
               {title}
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ display: "none" }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+                display: "none"
+              }}>
               {subtitle}
             </Typography>
           </Stack>
@@ -73,7 +90,9 @@ export function RequestDetailHeaderCard({
             direction={sideBySide ? { xs: "row-reverse", md: "column" } : "column"}
             spacing={sideBySide ? { xs: 3, md: 2 } : 2}
             useFlexGap
-            alignItems="stretch"
+            sx={{
+              alignItems: "stretch"
+            }}
           >
             {details ? (
               <Box sx={sideBySide ? { flexShrink: 0 } : undefined }>{details}</Box>
@@ -96,7 +115,13 @@ export function RequestDetailHeaderCard({
                     : null),
                 })}
               >
-                <Typography fontWeight={700} color="text.primary" sx={{ whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
+                <Typography
+                  sx={{
+                    fontWeight: 700,
+                    color: "text.primary",
+                    whiteSpace: "pre-wrap",
+                    lineHeight: 1.5
+                  }}>
                   {body}
                 </Typography>
               </Paper>
@@ -108,10 +133,12 @@ export function RequestDetailHeaderCard({
           <Stack
             direction="row"
             spacing={1}
-            alignItems="center"
-            justifyContent="space-between"
-            sx={{ width: "100%", pt: { xs: 2, sm: 1 } }}
-          >
+            sx={{
+              alignItems: "center",
+              justifyContent: "space-between",
+              width: "100%",
+              pt: { xs: 2, sm: 1 }
+            }}>
             <Box sx={{ minWidth: 0, flex: "1 1 auto" }}>{afterBody}</Box>
             {footerEnd ? (
               <Box sx={{ flexShrink: 0, display: "flex", alignItems: "center" }}>{footerEnd}</Box>

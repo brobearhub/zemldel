@@ -2,7 +2,7 @@
 
 import ReplyOutlinedIcon from "@mui/icons-material/ReplyOutlined";
 import CloseIcon from "@mui/icons-material/Close";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutlined";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import {
   Box,
@@ -73,10 +73,22 @@ function ReplyPreviewBlock({
         mb: 0.75,
       }}
     >
-      <Typography variant="caption" color="primary" fontWeight={700} display="block">
+      <Typography
+        variant="caption"
+        color="primary"
+        sx={{
+          fontWeight: 700,
+          display: "block"
+        }}>
         {senderLabel}
       </Typography>
-      <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+      <Typography
+        variant="caption"
+        sx={{
+          color: "text.secondary",
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word"
+        }}>
         {snippet}
       </Typography>
     </Box>
@@ -119,7 +131,14 @@ function MessageBubble({
         <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
           {message.body}
         </Typography>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1} sx={{ mt: 0.75 }}>
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            justifyContent: "space-between",
+            alignItems: "center",
+            mt: 0.75
+          }}>
           <Typography variant="caption" sx={{ opacity: 0.85 }}>
             {message.senderName ?? "Без имени"} ·{" "}
             {new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" }).format(new Date(message.createdAt))}
@@ -172,12 +191,19 @@ export function Chat({
         }}
       >
         {loading ? (
-          <Stack alignItems="center" justifyContent="center" sx={{ py: 6 }}>
+          <Stack
+            sx={{
+              alignItems: "center",
+              justifyContent: "center",
+              py: 6
+            }}>
             <CircularProgress size={28} />
           </Stack>
         ) : null}
         {!loading && rows.length === 0 ? (
-          <Typography color="text.secondary" variant="body2">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             Сообщений пока нет. Напишите первое.
           </Typography>
         ) : null}
@@ -203,12 +229,26 @@ export function Chat({
                   {row.replyToPreview ? (
                     <ReplyPreviewBlock senderLabel={row.replyToPreview.senderLabel} snippet={row.replyToPreview.snippet} />
                   ) : null}
-                  <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "text.secondary",
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word"
+                    }}>
                     {row.body}
                   </Typography>
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{
+                      alignItems: "center",
+                      mt: 1
+                    }}>
                     <CircularProgress size={16} />
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" sx={{
+                      color: "text.secondary"
+                    }}>
                       Отправка…
                     </Typography>
                   </Stack>
@@ -225,7 +265,15 @@ export function Chat({
                 <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                   {row.body}
                 </Typography>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }} flexWrap="wrap" useFlexGap>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  useFlexGap
+                  sx={{
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    mt: 1
+                  }}>
                   <ErrorOutlineIcon color="error" fontSize="small" />
                   <Typography variant="caption" color="error">
                     {row.error ?? "Не удалось отправить"}
@@ -259,19 +307,31 @@ export function Chat({
                 borderColor: "divider",
               }}
             >
-              <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                  alignItems: "flex-start",
+                  justifyContent: "space-between"
+                }}>
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" sx={{
+                    color: "text.secondary"
+                  }}>
                     Ответ на
                   </Typography>
-                  <Typography variant="body2" fontWeight={800} noWrap>
+                  <Typography variant="body2" noWrap sx={{
+                    fontWeight: 800
+                  }}>
                     {pendingReply.senderLabel}
                   </Typography>
                   <Typography
                     variant="caption"
-                    sx={{ display: "block", wordBreak: "break-word" }}
-                    color="text.secondary"
-                  >
+                    sx={{
+                      color: "text.secondary",
+                      display: "block",
+                      wordBreak: "break-word"
+                    }}>
                     {pendingReply.bodySnippet}
                   </Typography>
                 </Box>
@@ -286,12 +346,11 @@ export function Chat({
         <Stack
           direction="row"
           spacing={1.5}
-          alignItems="center"
           sx={{
+            alignItems: "center",
             px: { xs: 1.5, sm: 2 },
-            py: { xs: 1.25, sm: 1.5 },
-          }}
-        >
+            py: { xs: 1.25, sm: 1.5 }
+          }}>
           <TextField
             value={draft}
             onChange={(e) => onDraftChange(e.target.value)}

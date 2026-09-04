@@ -51,7 +51,9 @@ export function ChatsInboxPage() {
               <Typography variant="h5" sx={{ fontWeight: 700 }}>
                 Чат
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 Список заявок с последними сообщениями
               </Typography>
             </Box>
@@ -88,7 +90,9 @@ export function ChatsInboxPage() {
                           </Box>
                         }
                         secondary={secondary}
-                        secondaryTypographyProps={{ sx: { display: "block" }, noWrap: true }}
+                        slotProps={{
+                          secondary: { sx: { display: "block" }, noWrap: true }
+                        }}
                       />
                     </ListItemButton>
                   );

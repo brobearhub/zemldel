@@ -33,14 +33,19 @@ export default async function ProServicesListPage() {
       <Stack
         direction={{ xs: "column", md: "row" }}
         spacing={2}
-        justifyContent="space-between"
-        alignItems={{ md: "center" }}
-      >
+        sx={{
+          justifyContent: "space-between",
+          alignItems: { md: "center" }
+        }}>
         <Box>
-          <Typography variant="h4" fontWeight={700} gutterBottom>
+          <Typography variant="h4" gutterBottom sx={{
+            fontWeight: 700
+          }}>
             Список услуг
           </Typography>
-          <Typography color="text.secondary">
+          <Typography sx={{
+            color: "text.secondary"
+          }}>
             Управляйте жизненным циклом услуг provider: черновики, публикация, архив и подготовка
             к заявкам.
           </Typography>

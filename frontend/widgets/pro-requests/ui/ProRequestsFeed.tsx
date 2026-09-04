@@ -77,7 +77,9 @@ export function ProRequestsFeed({ initialItems, initialActiveOrders }: Props) {
       <ProRequestsFeedHeader onRefresh={() => void refreshAll()} />
 
       {!isDesktop ? (
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+        <Stack direction="row" spacing={1} useFlexGap sx={{
+          flexWrap: "wrap"
+        }}>
           {mobileTabs.map((t) => (
             <Chip
               key={t.id}
@@ -113,11 +115,15 @@ export function ProRequestsFeed({ initialItems, initialActiveOrders }: Props) {
       {ordersError ? <Alert severity="error">{ordersError}</Alert> : null}
 
       {isDesktop ? (
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="flex-start">
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{
+          alignItems: "flex-start"
+        }}>
           <FeedColumn
             headerMinHeight={DESKTOP_COL_HEADER_HEIGHT}
             header={
-              <Typography variant="h6" fontWeight={900}>
+              <Typography variant="h6" sx={{
+                fontWeight: 900
+              }}>
                 Новые
               </Typography>
             }
@@ -157,7 +163,9 @@ export function ProRequestsFeed({ initialItems, initialActiveOrders }: Props) {
           <FeedColumn
             headerMinHeight={DESKTOP_COL_HEADER_HEIGHT}
             header={
-              <Typography variant="h6" fontWeight={900}>
+              <Typography variant="h6" sx={{
+                fontWeight: 900
+              }}>
                 В работе
               </Typography>
             }

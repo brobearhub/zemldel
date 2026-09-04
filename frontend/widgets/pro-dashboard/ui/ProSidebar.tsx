@@ -23,7 +23,7 @@ import PeopleOutlineOutlinedIcon from "@mui/icons-material/PeopleOutlineOutlined
 import Groups2OutlinedIcon from "@mui/icons-material/Groups2Outlined";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutlined";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
@@ -31,10 +31,18 @@ import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 
-const NAV_ITEMS = [
+type SidebarNavItem = {
+  readonly href: string;
+  readonly label: string;
+  readonly description?: string;
+  readonly icon: ReactNode;
+};
+
+const NAV_ITEMS: readonly SidebarNavItem[] = [
   {
     href: "/pro",
     label: "Заявки",
@@ -71,7 +79,7 @@ const NAV_ITEMS = [
     description: "Все напоминания по заявкам",
     icon: <NotificationsNoneOutlinedIcon />,
   },
-] as const;
+];
 
 const SERVICES_GROUP = {
   hrefPrefix: "/pro/services",
@@ -289,9 +297,10 @@ export function ProSidebar({ collapsed = false, onToggleCollapsed }: Props) {
                 <ListItemText
                   primary={item.label}
                   secondary={showDescriptions ? item.description : undefined}
-                  primaryTypographyProps={{ fontWeight: selected ? 700 : 600 }}
-                  secondaryTypographyProps={NAV_SECONDARY_TYPOGRAPHY_PROPS}
-                />
+                  slotProps={{
+                    primary: { sx: { fontWeight: selected ? 700 : 600 } },
+                    secondary: NAV_SECONDARY_TYPOGRAPHY_PROPS
+                  }} />
               )}
             </ListItemButton>
           );
@@ -362,9 +371,10 @@ export function ProSidebar({ collapsed = false, onToggleCollapsed }: Props) {
               <ListItemText
                 primary={SERVICES_GROUP.label}
                 secondary={showDescriptions ? SERVICES_GROUP.description : undefined}
-                primaryTypographyProps={{ fontWeight: isServicesRoute ? 700 : 600 }}
-                secondaryTypographyProps={NAV_SECONDARY_TYPOGRAPHY_PROPS}
-              />
+                slotProps={{
+                  primary: { sx: { fontWeight: isServicesRoute ? 700 : 600 } },
+                  secondary: NAV_SECONDARY_TYPOGRAPHY_PROPS
+                }} />
               <IconButton
                 size="small"
                 aria-label={servicesOpen ? "Свернуть" : "Раскрыть"}
@@ -400,7 +410,9 @@ export function ProSidebar({ collapsed = false, onToggleCollapsed }: Props) {
                       <ListItemIcon sx={{ minWidth: 32 }}>{item.icon}</ListItemIcon>
                       <ListItemText
                         primary={item.label}
-                        primaryTypographyProps={{ fontWeight: selected ? 700 : 600 }}
+                        slotProps={{
+                          primary: { sx: { fontWeight: selected ? 700 : 600 } }
+                        }}
                       />
                     </ListItemButton>
                   );

@@ -198,7 +198,12 @@ export const Hero = () => {
       />
 
       <Container sx={{ position: "relative", zIndex: 3 }}>
-        <Stack spacing={{ xs: 2.5, md: 3 }} alignItems="center" textAlign="center">
+        <Stack
+          spacing={{ xs: 2.5, md: 3 }}
+          sx={{
+            alignItems: "center",
+            textAlign: "center"
+          }}>
           <Typography
             component="h1"
             sx={{
@@ -213,12 +218,14 @@ export const Hero = () => {
               position: "relative",
             }}
           >
-            <Box 
-             position="absolute"
-             left={{ xs: "17.5px", sm: "30.4px", md: "41px" }}
-             top={{ xs: "-42px", sm: "-73px", md: "-98px" }}
-             component="span" 
-             sx={{ display: "block" }}>
+            <Box
+              component="span"
+              sx={{
+                position: "absolute",
+                left: { xs: "17.5px", sm: "30.4px", md: "41px" },
+                top: { xs: "-42px", sm: "-73px", md: "-98px" },
+                display: "block"
+              }}>
               Земледел
             </Box>
           </Typography>

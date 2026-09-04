@@ -287,7 +287,9 @@ export function ContractRichEditor({
       {editable ? (
         <Paper variant="outlined" sx={{ p: 1.5 }}>
           <Stack spacing={1.5}>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Stack direction="row" spacing={1} useFlexGap sx={{
+              flexWrap: "wrap"
+            }}>
               <ButtonGroup size="small" variant="outlined">
                 <Button onClick={() => editor.chain().focus().setParagraph().run()}>Текст</Button>
                 <Button onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>Заголовок</Button>
@@ -407,8 +409,16 @@ export function ContractRichEditor({
       {commentable ? (
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Stack spacing={1.5}>
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-              <Typography fontWeight={800}>Комментарий к выделению</Typography>
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{
+                alignItems: "center",
+                flexWrap: "wrap"
+              }}>
+              <Typography sx={{
+                fontWeight: 800
+              }}>Комментарий к выделению</Typography>
               {quote ? <Chip size="small" label={`"${quote.slice(0, 60)}${quote.length > 60 ? "..." : ""}"`} /> : null}
             </Stack>
             <TextField
@@ -430,7 +440,9 @@ export function ContractRichEditor({
         <>
           <Divider />
           <Box>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" sx={{
+              color: "text.secondary"
+            }}>
               Значения реквизитов зафиксированы в договоре при создании экземпляра.
             </Typography>
           </Box>

@@ -93,10 +93,14 @@ export function WorkdayView({ initialReminders }: Props) {
   if (reminders.length === 0) {
     return (
       <Stack spacing={3}>
-        <Typography variant="h4" fontWeight={800}>
+        <Typography variant="h4" sx={{
+          fontWeight: 800
+        }}>
           Рабочий день
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{
+          color: "text.secondary"
+        }}>
           Напоминаний на сегодня нет.
         </Typography>
       </Stack>
@@ -127,7 +131,9 @@ export function WorkdayView({ initialReminders }: Props) {
           opacity: r.isDone ? 0.6 : 1,
         })}
       >
-        <Stack direction="row" alignItems="flex-start" spacing={1.5}>
+        <Stack direction="row" spacing={1.5} sx={{
+          alignItems: "flex-start"
+        }}>
           <Checkbox
             size="small"
             checked={r.isDone}
@@ -135,30 +141,56 @@ export function WorkdayView({ initialReminders }: Props) {
             sx={{ p: 0, mt: 0.25, flexShrink: 0 }}
           />
 
-          <Box flex={1} minWidth={0}>
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap mb={0.5}>
+          <Box
+            sx={{
+              flex: 1,
+              minWidth: 0
+            }}>
+            <Stack
+              direction="row"
+              spacing={1}
+              useFlexGap
+              sx={{
+                alignItems: "center",
+                flexWrap: "wrap",
+                mb: 0.5
+              }}>
               <Typography
                 variant="body1"
-                fontWeight={600}
                 sx={{
+                  fontWeight: 600,
                   textDecoration: r.isDone ? "line-through" : "none",
-                  color: r.isDone ? "text.secondary" : "text.primary",
-                }}
-              >
+                  color: r.isDone ? "text.secondary" : "text.primary"
+                }}>
                 {r.text}
               </Typography>
               <Chip size="small" label={countdown} color={color} variant="outlined" />
             </Stack>
 
             {(r.request.message || r.request.location) && (
-              <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap mb={0.5}>
+              <Stack
+                direction="row"
+                spacing={1.5}
+                useFlexGap
+                sx={{
+                  flexWrap: "wrap",
+                  mb: 0.5
+                }}>
                 {r.request.message && (
-                  <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: 400 }}>
+                  <Typography
+                    variant="body2"
+                    noWrap
+                    sx={{
+                      color: "text.secondary",
+                      maxWidth: 400
+                    }}>
                     {r.request.message}
                   </Typography>
                 )}
                 {r.request.location && (
-                  <Typography variant="body2" color="text.secondary" noWrap>
+                  <Typography variant="body2" noWrap sx={{
+                    color: "text.secondary"
+                  }}>
                     📍 {r.request.location}
                   </Typography>
                 )}
@@ -179,7 +211,13 @@ export function WorkdayView({ initialReminders }: Props) {
             </Typography>
           </Box>
 
-          <Typography variant="h6" fontWeight={700} color="text.secondary" sx={{ flexShrink: 0 }}>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 700,
+              color: "text.secondary",
+              flexShrink: 0
+            }}>
             {formatTime(r.remindAt)}
           </Typography>
         </Stack>
@@ -189,8 +227,18 @@ export function WorkdayView({ initialReminders }: Props) {
 
   return (
     <Stack spacing={3}>
-      <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap>
-        <Typography variant="h4" fontWeight={800}>
+      <Stack
+        direction="row"
+        spacing={2}
+        useFlexGap
+        sx={{
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap"
+        }}>
+        <Typography variant="h4" sx={{
+          fontWeight: 800
+        }}>
           Рабочий день
         </Typography>
         <Stack direction="row" spacing={1}>
@@ -209,7 +257,12 @@ export function WorkdayView({ initialReminders }: Props) {
 
       {done.length > 0 && (
         <Stack spacing={1}>
-          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.08em" }}>
+          <Typography
+            variant="overline"
+            sx={{
+              color: "text.secondary",
+              letterSpacing: "0.08em"
+            }}>
             Выполнено
           </Typography>
           <Stack spacing={1}>

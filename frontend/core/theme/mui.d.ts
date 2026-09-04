@@ -30,9 +30,9 @@ declare module "@mui/material/styles" {
         footer: string;
       };
       bgColors: {
-        /** Background color for dark mode */
+        /** Page background (`background.default`). */
         primary: string;
-        /** Background color for light mode */
+        /** Header/footer chrome. */
         secondary: string;
       };
     };

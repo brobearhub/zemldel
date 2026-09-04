@@ -80,7 +80,9 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
   return (
     <DocumentsSectionShell
       headerLeft={
-        <Typography variant="h6" fontWeight={800}>
+        <Typography variant="h6" sx={{
+          fontWeight: 800
+        }}>
           Прогресс
         </Typography>
       }
@@ -243,7 +245,9 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
         ) : null}
 
         {props.stages.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {props.mode === "provider"
               ? "Этапов пока нет. Добавьте первый этап выполнения работ."
               : "Исполнитель пока не опубликовал этапы."}
@@ -361,17 +365,49 @@ function StageCard(props: {
           }
           sx={{ cursor: canExpand ? "pointer" : "default", outline: "none" }}
         >
-          <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" useFlexGap>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0, flex: 1 }} flexWrap="wrap" useFlexGap>
-              <Typography fontWeight={600} noWrap sx={{ maxWidth: { xs: "100%", sm: 280 } }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            useFlexGap
+            sx={{
+              alignItems: "center",
+              justifyContent: "space-between"
+            }}>
+            <Stack
+              direction="row"
+              spacing={1}
+              useFlexGap
+              sx={{
+                alignItems: "center",
+                flexWrap: "wrap",
+                minWidth: 0,
+                flex: 1
+              }}>
+              <Typography
+                noWrap
+                sx={{
+                  fontWeight: 600,
+                  maxWidth: { xs: "100%", sm: 280 }
+                }}>
                 {stageLabel}
               </Typography>
               {isDraft ? <Chip size="small" label="Черновик" color="warning" /> : null}
-              <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: "nowrap" }}>
+              <Typography
+                variant="caption"
+                sx={{
+                  color: "text.secondary",
+                  whiteSpace: "nowrap"
+                }}>
                 {stageDate}
               </Typography>
             </Stack>
-            <Stack direction="row" spacing={0.25} alignItems="center" sx={{ flexShrink: 0 }}>
+            <Stack
+              direction="row"
+              spacing={0.25}
+              sx={{
+                alignItems: "center",
+                flexShrink: 0
+              }}>
               {hasClientStageActions(stage) ? (
                 <DescriptionOutlinedIcon
                   fontSize="small"
@@ -407,7 +443,13 @@ function StageCard(props: {
                   {isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
                 </IconButton>
               ) : null}
-              <Typography variant="body2" color="primary" fontWeight={700} sx={{ whiteSpace: "nowrap" }}>
+              <Typography
+                variant="body2"
+                color="primary"
+                sx={{
+                  fontWeight: 700,
+                  whiteSpace: "nowrap"
+                }}>
                 {stage.statusLabel}
               </Typography>
             </Stack>
@@ -418,7 +460,12 @@ function StageCard(props: {
           <Stack spacing={1.25} sx={{ pt: 0.5 }}>
             {!(props.mode === "provider" && isDraft && props.canMutate) &&
             stage.description.trim().length > 0 ? (
-              <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-wrap" }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.secondary",
+                  whiteSpace: "pre-wrap"
+                }}>
                 {stage.description}
               </Typography>
             ) : null}
@@ -471,7 +518,9 @@ function StageCard(props: {
                   onChange={(e) => setEditDescription(e.target.value)}
                   disabled={props.isBusy}
                 />
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                <Stack direction="row" spacing={1} useFlexGap sx={{
+                  flexWrap: "wrap"
+                }}>
                   <Button
                     size="small"
                     variant="outlined"
@@ -521,17 +570,23 @@ function StageCard(props: {
                   <>
                     <Divider />
 
-                    <Typography variant="subtitle2" fontWeight={700}>
+                    <Typography variant="subtitle2" sx={{
+                      fontWeight: 700
+                    }}>
                       Файлы исполнителя
                     </Typography>
                     {stage.files.length === 0 ? (
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" sx={{
+                        color: "text.secondary"
+                      }}>
                         Нет файлов
                       </Typography>
                     ) : (
                       <Stack spacing={0.5}>
                         {stage.files.map((file) => (
-                          <Stack key={file.id} direction="row" spacing={1} alignItems="center">
+                          <Stack key={file.id} direction="row" spacing={1} sx={{
+                            alignItems: "center"
+                          }}>
                             <Link
                               href={
                                 isProvider
@@ -588,11 +643,15 @@ function StageCard(props: {
                   <>
                     <Divider />
 
-                    <Typography variant="subtitle2" fontWeight={700}>
+                    <Typography variant="subtitle2" sx={{
+                      fontWeight: 700
+                    }}>
                       Документы от клиента
                     </Typography>
                     {stage.docSlots.length === 0 ? (
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" sx={{
+                        color: "text.secondary"
+                      }}>
                         Запросов нет
                       </Typography>
                     ) : (
@@ -602,19 +661,23 @@ function StageCard(props: {
                             <Stack
                               direction="row"
                               spacing={1}
-                              alignItems="center"
-                              justifyContent="space-between"
                               useFlexGap
-                            >
+                              sx={{
+                                alignItems: "center",
+                                justifyContent: "space-between"
+                              }}>
                               <Stack
                                 direction="row"
                                 spacing={1}
-                                alignItems="center"
-                                flexWrap="wrap"
                                 useFlexGap
-                                sx={{ minWidth: 0 }}
-                              >
-                                <Typography variant="body2" fontWeight={600}>
+                                sx={{
+                                  alignItems: "center",
+                                  flexWrap: "wrap",
+                                  minWidth: 0
+                                }}>
+                                <Typography variant="body2" sx={{
+                                  fontWeight: 600
+                                }}>
                                   {slot.title}
                                 </Typography>
                                 <Chip
@@ -691,7 +754,14 @@ function StageCard(props: {
                 ) : null}
 
                 {isProvider && props.canMutate ? (
-                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    useFlexGap
+                    sx={{
+                      alignItems: "center",
+                      flexWrap: "wrap"
+                    }}>
                     <TextField
                       size="small"
                       label="Запросить документ"

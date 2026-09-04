@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { CabinetNavItem as NavItem } from "@/widgets/cabinet-chrome/model/nav-config";
 import { CabinetNavItem } from "@/widgets/cabinet-chrome/ui/CabinetNavItem";
+import { ColorModeToggle } from "@/core/theme/ColorModeToggle";
 import { HeaderLogo } from "@/widgets/header/ui/HeaderLogo";
 import { ProfileMenu } from "@/widgets/header/ui/ProfileMenu";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
@@ -22,14 +23,7 @@ export function CabinetMobileHeader({ items }: Props) {
   const ctx = useMemo(() => ({ pathname, searchParams: new URLSearchParams(searchParams?.toString() ?? "") }), [pathname, searchParams]);
 
   return (
-    <AppBar
-      position="fixed"
-      elevation={0}
-      sx={{
-        borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
-        backdropFilter: "blur(2px)",
-      }}
-    >
+    <AppBar position="fixed" elevation={0}>
       <Toolbar
         disableGutters
         sx={{
@@ -40,7 +34,6 @@ export function CabinetMobileHeader({ items }: Props) {
           gridTemplateColumns: "auto 1fr auto",
           alignItems: "center",
           width: "100%",
-          backgroundColor: "secondary.main",
           columnGap: 1,
         }}
       >
@@ -62,7 +55,8 @@ export function CabinetMobileHeader({ items }: Props) {
           ))}
         </Box>
 
-        <Box sx={{ display: "flex", alignItems: "center", justifySelf: "end" }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifySelf: "end", gap: 0.25 }}>
+          <ColorModeToggle />
           <ProfileMenu />
         </Box>
       </Toolbar>

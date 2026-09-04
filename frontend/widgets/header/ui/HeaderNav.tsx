@@ -5,6 +5,7 @@ import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import FavoriteBorderRoundedIcon from "@mui/icons-material/FavoriteBorderRounded";
 import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import Link from "next/link";
+import { ColorModeToggle } from "@/core/theme/ColorModeToggle";
 import { ProfileMenu } from "./ProfileMenu";
 
 const NAV_ITEMS = [
@@ -47,21 +48,21 @@ export const HeaderNav = () => (
       >
         <Icon sx={{ fontSize: { xs: 22, sm: 24 }, color: "common.gray", "&:hover": { color: "info.main" } }} />
         <Typography
-          color="common.gray"
           className="nav-label"
           variant="body2"
           sx={{
+            color: "common.gray",
             display: { xs: "none", md: "block" },
             fontWeight: 600,
             fontSize: 12,
             opacity: 1,
-            "&:hover": { color: "info.main" },
-          }}
-        >
+            "&:hover": { color: "info.main" }
+          }}>
           {label}
         </Typography>
       </Box>
     ))}
+    <ColorModeToggle showLabel />
     <ProfileMenu showLabel />
   </Box>
 );

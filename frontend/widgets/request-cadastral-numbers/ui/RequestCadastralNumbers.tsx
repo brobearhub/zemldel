@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import {
   Alert,
@@ -66,7 +66,9 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
       {error ? <Alert severity="error">{error}</Alert> : null}
 
       {viewModel.items.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{
+          color: "text.secondary"
+        }}>
           Кадастровые номера пока не добавлены.
         </Typography>
       ) : (
@@ -91,7 +93,9 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
                   </Stack>
                 </Stack>
               ) : (
-                <Stack direction="row" spacing={1} alignItems="center">
+                <Stack direction="row" spacing={1} sx={{
+                  alignItems: "center"
+                }}>
                   <Typography variant="body2" sx={{ fontFamily: "monospace", flex: 1 }}>
                     {item.value}
                   </Typography>
@@ -127,7 +131,9 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
 
       {viewModel.canMutate ? (
         <Stack spacing={1.25}>
-          <Typography variant="body2" fontWeight={700}>
+          <Typography variant="body2" sx={{
+            fontWeight: 700
+          }}>
             Добавить номер
           </Typography>
           <CadastralNumberInput value={draftParts} onChange={setDraftParts} disabled={isBusy} />

@@ -31,7 +31,7 @@ export const HeaderSearch = () => (
       <InputBase
         placeholder="Найти услуги"
         fullWidth
-        inputProps={{ "aria-label": "Поиск услуг" }}
+        slotProps={{ input: { "aria-label": "Поиск услуг" } }}
         sx={{
           color: "text.primary",
           fontSize: { xs: "0.9375rem", sm: "1rem" },

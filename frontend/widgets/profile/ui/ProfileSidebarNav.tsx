@@ -252,9 +252,10 @@ export function ProfileSidebarNav({
                 <ListItemText
                   primary={item.label}
                   secondary={showDescriptions ? item.description : undefined}
-                  primaryTypographyProps={{ fontWeight: isSelected ? 700 : 600 }}
-                  secondaryTypographyProps={NAV_SECONDARY_TYPOGRAPHY_PROPS}
-                />
+                  slotProps={{
+                    primary: { sx: { fontWeight: isSelected ? 700 : 600 } },
+                    secondary: NAV_SECONDARY_TYPOGRAPHY_PROPS
+                  }} />
               )}
             </ListItemButton>
           );

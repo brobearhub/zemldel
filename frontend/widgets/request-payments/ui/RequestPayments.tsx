@@ -85,7 +85,13 @@ function PaymentListRow({
 }) {
   return (
     <>
-      <Stack direction="row" alignItems="center" sx={{ minWidth: 0, gridColumn: 1 }}>
+      <Stack
+        direction="row"
+        sx={{
+          alignItems: "center",
+          minWidth: 0,
+          gridColumn: 1
+        }}>
         <Typography variant="body2" noWrap title={comment} sx={{ flexShrink: 1, minWidth: 0 }}>
           {comment}
         </Typography>
@@ -93,12 +99,11 @@ function PaymentListRow({
       </Stack>
       <Typography
         variant="body2"
-        fontWeight={700}
         sx={{
+          fontWeight: 700,
           ...PAYMENT_AMOUNT_SX,
-          color: paid ? "success.main" : undefined,
-        }}
-      >
+          color: paid ? "success.main" : undefined
+        }}>
         {formatRubles(amountRubles)}
       </Typography>
       <Box sx={PAYMENT_ACTION_SLOT_SX}>
@@ -292,10 +297,21 @@ export function RequestPayments(props: RequestPaymentsProps) {
     <Stack spacing={1.5} sx={{ flex: 1, minHeight: "100%" }}>
       {error ? <Alert severity="error">{error}</Alert> : null}
 
-      <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="stretch" sx={{ flex: 1 }}>
+      <Stack
+        direction={{ xs: "column", md: "row" }}
+        spacing={2}
+        sx={{
+          alignItems: "stretch",
+          flex: 1
+        }}>
         <Stack spacing={1.25} sx={{ flex: "1 1 0", minWidth: 0, height: { md: "100%" } }}>
           <Box sx={PAYMENT_SECTION_GRID_SX}>
-            <Typography fontWeight={900} sx={{ gridColumn: 1, minWidth: 0 }}>
+            <Typography
+              sx={{
+                fontWeight: 900,
+                gridColumn: 1,
+                minWidth: 0
+              }}>
               По договору
             </Typography>
             <PaymentAmountCell
@@ -332,12 +348,23 @@ export function RequestPayments(props: RequestPaymentsProps) {
                 />
               ))
             ) : (
-              <Typography variant="body2" color="text.secondary" sx={{ gridColumn: "1 / -1" }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.secondary",
+                  gridColumn: "1 / -1"
+                }}>
                 Поступлений по договору пока нет
               </Typography>
             )}
 
-            <Typography fontWeight={700} sx={{ gridColumn: 1, minWidth: 0, pt: 0.5 }}>
+            <Typography
+              sx={{
+                fontWeight: 700,
+                gridColumn: 1,
+                minWidth: 0,
+                pt: 0.5
+              }}>
               Остаток:
             </Typography>
             <PaymentAmountCell sx={{ pt: 0.5 }} typographySx={PAYMENT_AMOUNT_TOTAL_TYPO_SX}>
@@ -348,7 +375,9 @@ export function RequestPayments(props: RequestPaymentsProps) {
           {canEditTotal || canAddContractPayments ? (
             <Stack spacing={1.25} sx={{ flexShrink: 0, pt: 1 }}>
               {isEditingTotal ? (
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "flex-end" }}>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{
+                  alignItems: { sm: "flex-end" }
+                }}>
                   <TextField
                     variant="standard"
                     label="Полная цена, ₽"
@@ -357,7 +386,7 @@ export function RequestPayments(props: RequestPaymentsProps) {
                     onChange={(e) => setTotalInput(e.target.value)}
                     disabled={isBusy}
                     size="small"
-                    inputProps={{ inputMode: "decimal" }}
+                    slotProps={{ htmlInput: { inputMode: "decimal" } }}
                   />
                   <IconButton
                     aria-label="Сохранить цену"
@@ -384,7 +413,9 @@ export function RequestPayments(props: RequestPaymentsProps) {
               ) : null}
 
               {canAddContractPayments && !isEditingTotal && contractAddOpen ? (
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "flex-end" }}>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{
+                  alignItems: { sm: "flex-end" }
+                }}>
                   <TextField
                     variant="standard"
                     label="Сумма, ₽"
@@ -393,7 +424,7 @@ export function RequestPayments(props: RequestPaymentsProps) {
                     onChange={(e) => setContractAmountInput(e.target.value)}
                     disabled={isBusy}
                     size="small"
-                    inputProps={{ inputMode: "decimal" }}
+                    slotProps={{ htmlInput: { inputMode: "decimal" } }}
                   />
                   <TextField
                     variant="standard"
@@ -435,7 +466,12 @@ export function RequestPayments(props: RequestPaymentsProps) {
 
         <Stack spacing={1.25} sx={{ flex: "1 1 0", minWidth: 0, height: { md: "100%" } }}>
           <Box sx={PAYMENT_SECTION_GRID_SX}>
-            <Typography fontWeight={900} sx={{ gridColumn: 1, minWidth: 0 }}>
+            <Typography
+              sx={{
+                fontWeight: 900,
+                gridColumn: 1,
+                minWidth: 0
+              }}>
               Прочие платежи
             </Typography>
             <PaymentAmountCell typographySx={PAYMENT_AMOUNT_TOTAL_TYPO_SX}>
@@ -454,7 +490,12 @@ export function RequestPayments(props: RequestPaymentsProps) {
                 />
               ))
             ) : (
-              <Typography variant="body2" color="text.secondary" sx={{ gridColumn: "1 / -1" }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.secondary",
+                  gridColumn: "1 / -1"
+                }}>
                 Прочих платежей пока нет
               </Typography>
             )}
@@ -467,7 +508,14 @@ export function RequestPayments(props: RequestPaymentsProps) {
           ) : null}
 
           {canAddOtherPayments && otherAddOpen ? (
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "flex-end" }} sx={{ flexShrink: 0, pt: 1 }}>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1}
+              sx={{
+                alignItems: { sm: "flex-end" },
+                flexShrink: 0,
+                pt: 1
+              }}>
               <TextField
                 variant="standard"
                 label="Сумма, ₽"
@@ -476,7 +524,7 @@ export function RequestPayments(props: RequestPaymentsProps) {
                 onChange={(e) => setOtherAmountInput(e.target.value)}
                 disabled={isBusy}
                 size="small"
-                inputProps={{ inputMode: "decimal" }}
+                slotProps={{ htmlInput: { inputMode: "decimal" } }}
               />
               <TextField
                 variant="standard"

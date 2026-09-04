@@ -98,19 +98,25 @@ export function AdminContractBlocksClient({ initialBlocks }: { initialBlocks: Co
   }
 
   return (
-    <Stack direction={{ xs: "column", lg: "row" }} spacing={3} alignItems="flex-start">
+    <Stack direction={{ xs: "column", lg: "row" }} spacing={3} sx={{
+      alignItems: "flex-start"
+    }}>
       <Paper variant="outlined" sx={{ p: 2, width: { xs: "100%", lg: 340 } }}>
         <Stack spacing={1.5}>
           <Button variant="contained" onClick={createNew}>Новый блок</Button>
           {blocks.map((block) => (
             <Paper key={block.id} variant="outlined" sx={{ p: 1.5, cursor: "pointer" }} onClick={() => open(block)}>
               <Stack spacing={0.5}>
-                <Typography fontWeight={800}>{block.title}</Typography>
+                <Typography sx={{
+                  fontWeight: 800
+                }}>{block.title}</Typography>
                 <Stack direction="row" spacing={1}>
                   <Chip size="small" label={block.status} />
                   <Chip size="small" label={`v${block.version}`} />
                 </Stack>
-                {block.category ? <Typography variant="body2" color="text.secondary">{block.category}</Typography> : null}
+                {block.category ? <Typography variant="body2" sx={{
+                  color: "text.secondary"
+                }}>{block.category}</Typography> : null}
               </Stack>
             </Paper>
           ))}
@@ -123,11 +129,15 @@ export function AdminContractBlocksClient({ initialBlocks }: { initialBlocks: Co
 
         <Paper variant="outlined" sx={{ p: 2.5 }}>
           <Stack spacing={2}>
-            <Typography variant="h5" fontWeight={800}>{selected ? "Редактирование блока" : "Новый блок договора"}</Typography>
+            <Typography variant="h5" sx={{
+              fontWeight: 800
+            }}>{selected ? "Редактирование блока" : "Новый блок договора"}</Typography>
             <TextField label="Название" value={title} onChange={(event) => setTitle(event.target.value)} disabled={busy} fullWidth required />
             <TextField label="Категория" value={category} onChange={(event) => setCategory(event.target.value)} disabled={busy} fullWidth />
             <TextField label="Описание" value={description} onChange={(event) => setDescription(event.target.value)} disabled={busy} fullWidth multiline minRows={2} />
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Stack direction="row" spacing={1} useFlexGap sx={{
+              flexWrap: "wrap"
+            }}>
               <Button variant="contained" disabled={busy || title.trim().length < 2} onClick={() => void save()}>Сохранить</Button>
               {selected ? <Button variant="outlined" disabled={busy} onClick={() => void setStatus("PUBLISHED")}>Опубликовать</Button> : null}
               {selected ? <Button variant="outlined" disabled={busy} onClick={() => void setStatus("ARCHIVED")}>В архив</Button> : null}

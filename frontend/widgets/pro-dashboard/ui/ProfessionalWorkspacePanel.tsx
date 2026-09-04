@@ -13,7 +13,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import HighlightOffIcon from "@mui/icons-material/HighlightOff";
 import BusinessCenterOutlinedIcon from "@mui/icons-material/BusinessCenterOutlined";
@@ -280,10 +280,14 @@ export function ProfessionalWorkspacePanel() {
       <Paper variant="outlined" sx={{ p: 3 }}>
         <Stack spacing={2}>
           <Box>
-            <Typography variant="h5" fontWeight={700} gutterBottom>
+            <Typography variant="h5" gutterBottom sx={{
+              fontWeight: 700
+            }}>
               Кабинет профессионала
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               Создайте профессиональный профиль, чтобы предлагать услуги как самозанятый или компания.
             </Typography>
           </Box>
@@ -303,14 +307,22 @@ export function ProfessionalWorkspacePanel() {
         <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.25 }}>
           <BusinessCenterOutlinedIcon color="action" />
           <Box>
-            <Typography variant="subtitle1" fontWeight={800}>
+            <Typography variant="subtitle1" sx={{
+              fontWeight: 800
+            }}>
               Активный профессиональный профиль
             </Typography>
-            <Typography fontWeight={600}>{activeMembership.providerName}</Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography sx={{
+              fontWeight: 600
+            }}>{activeMembership.providerName}</Typography>
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               Тип: {providerTypeLabel(activeMembership.providerType)}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               Роль: {providerRoleLabel(activeMembership.role)}
             </Typography>
             {providerMembers?.slug ? (
@@ -338,16 +350,18 @@ export function ProfessionalWorkspacePanel() {
                           ? `URL: /providers/${slugValue}`
                           : ""
                       }
-                      InputProps={{
-                        endAdornment: slugValue && !slugChecking ? (
-                          <InputAdornment position="end">
-                            {slugAvailable === true ? (
-                              <CheckCircleOutlineIcon color="success" fontSize="small" />
-                            ) : slugAvailable === false ? (
-                              <HighlightOffIcon color="error" fontSize="small" />
-                            ) : null}
-                          </InputAdornment>
-                        ) : undefined,
+                      slotProps={{
+                        input: {
+                          endAdornment: slugValue && !slugChecking ? (
+                            <InputAdornment position="end">
+                              {slugAvailable === true ? (
+                                <CheckCircleOutlineIcon color="success" fontSize="small" />
+                              ) : slugAvailable === false ? (
+                                <HighlightOffIcon color="error" fontSize="small" />
+                              ) : null}
+                            </InputAdornment>
+                          ) : undefined,
+                        },
                       }}
                     />
                     <Stack direction="row" spacing={1}>
@@ -365,8 +379,16 @@ export function ProfessionalWorkspacePanel() {
                     </Stack>
                   </Stack>
                 ) : (
-                  <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.25 }}>
-                    <Typography variant="body2" color="text.secondary">
+                  <Stack
+                    direction="row"
+                    spacing={0.5}
+                    sx={{
+                      alignItems: "center",
+                      mt: 0.25
+                    }}>
+                    <Typography variant="body2" sx={{
+                      color: "text.secondary"
+                    }}>
                       Slug: <b>{providerMembers.slug}</b>
                     </Typography>
                     {isActiveOwner ? (
@@ -390,7 +412,9 @@ export function ProfessionalWorkspacePanel() {
           <>
             <Divider />
             <Stack spacing={1.25}>
-              <Typography variant="subtitle2" fontWeight={800}>
+              <Typography variant="subtitle2" sx={{
+                fontWeight: 800
+              }}>
                 Мои профессиональные профили
               </Typography>
               {memberships.map((membership) => {
@@ -400,12 +424,17 @@ export function ProfessionalWorkspacePanel() {
                     <Stack
                       direction={{ xs: "column", sm: "row" }}
                       spacing={1.5}
-                      justifyContent="space-between"
-                      alignItems={{ xs: "flex-start", sm: "center" }}
-                    >
+                      sx={{
+                        justifyContent: "space-between",
+                        alignItems: { xs: "flex-start", sm: "center" }
+                      }}>
                       <Box>
-                        <Typography fontWeight={600}>{membership.providerName}</Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography sx={{
+                          fontWeight: 600
+                        }}>{membership.providerName}</Typography>
+                        <Typography variant="body2" sx={{
+                          color: "text.secondary"
+                        }}>
                           {providerTypeLabel(membership.providerType)} · {providerRoleLabel(membership.role)}
                         </Typography>
                       </Box>
@@ -430,7 +459,9 @@ export function ProfessionalWorkspacePanel() {
         <Stack spacing={1.25}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <PeopleOutlineOutlinedIcon fontSize="small" color="action" />
-            <Typography variant="subtitle2" fontWeight={800}>
+            <Typography variant="subtitle2" sx={{
+              fontWeight: 800
+            }}>
               Команда профессионального профиля
             </Typography>
           </Box>
@@ -438,7 +469,9 @@ export function ProfessionalWorkspacePanel() {
           {membersError ? <Alert severity="error">{membersError}</Alert> : null}
 
           {membersLoading ? (
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               Загрузка участников...
             </Typography>
           ) : providerMembers?.members?.length ? (
@@ -446,11 +479,17 @@ export function ProfessionalWorkspacePanel() {
               {providerMembers.members.map((member) => (
                 <Paper key={member.id} variant="outlined" sx={{ p: 1.5 }}>
                   <Stack spacing={0.5}>
-                    <Typography fontWeight={600}>{member.user.name || member.user.email}</Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography sx={{
+                      fontWeight: 600
+                    }}>{member.user.name || member.user.email}</Typography>
+                    <Typography variant="body2" sx={{
+                      color: "text.secondary"
+                    }}>
                       {member.user.email}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" sx={{
+                      color: "text.secondary"
+                    }}>
                       {providerRoleLabel(member.role)}
                     </Typography>
                   </Stack>
@@ -458,7 +497,9 @@ export function ProfessionalWorkspacePanel() {
               ))}
             </Stack>
           ) : (
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               В этом профессиональном профиле пока нет участников.
             </Typography>
           )}
@@ -466,7 +507,9 @@ export function ProfessionalWorkspacePanel() {
           {isActiveOwner ? (
             <Paper variant="outlined" sx={{ p: 1.5 }}>
               <Stack component="form" spacing={1.5} onSubmit={handleAddManager}>
-                <Typography fontWeight={700}>Добавить менеджера</Typography>
+                <Typography sx={{
+                  fontWeight: 700
+                }}>Добавить менеджера</Typography>
                 {managerError ? <Alert severity="error">{managerError}</Alert> : null}
                 {managerSuccess ? <Alert severity="success">{managerSuccess}</Alert> : null}
                 <TextField

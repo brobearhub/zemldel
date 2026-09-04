@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Alert, Box, Button, Chip, IconButton, Paper, Stack, Typography } from "@mui/material";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
 import {
   clearPendingRequestDraft,
   isPendingRequestSubmitting,
@@ -232,9 +232,17 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
 
   return (
     <Stack spacing={2}>
-      <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} justifyContent="space-between" alignItems={{ md: "center" }}>
+      <Stack
+        direction={{ xs: "column", md: "row" }}
+        spacing={1.5}
+        sx={{
+          justifyContent: "space-between",
+          alignItems: { md: "center" }
+        }}>
         <Stack spacing={0.25}>
-          <Typography variant="h5" fontWeight={900}>
+          <Typography variant="h5" sx={{
+            fontWeight: 900
+          }}>
             Заявки
           </Typography>
         </Stack>
@@ -243,7 +251,9 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
         </Button>
       </Stack>
 
-      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+      <Stack direction="row" spacing={1} useFlexGap sx={{
+        flexWrap: "wrap"
+      }}>
         {PHASE_TABS.map((t) => (
           <Chip
             key={t.id}
@@ -259,10 +269,14 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
 
       {items.length === 0 && !loading ? (
         <Paper variant="outlined" sx={{ p: 3 }}>
-          <Typography fontWeight={800} gutterBottom>
+          <Typography gutterBottom sx={{
+            fontWeight: 800
+          }}>
             Пока нет заявок
           </Typography>
-          <Typography color="text.secondary">
+          <Typography sx={{
+            color: "text.secondary"
+          }}>
             Вы можете создать свободную заявку на главной странице и она появится в ленте провайдеров.
           </Typography>
           <Button component={Link} href="/" sx={{ mt: 2 }} variant="contained">
@@ -273,7 +287,9 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
         <Stack spacing={2}>
           {filteredItems.length === 0 && !loading ? (
             <Paper variant="outlined" sx={{ p: 2.5 }}>
-              <Typography color="text.secondary">
+              <Typography sx={{
+                color: "text.secondary"
+              }}>
                 Нет заявок в этой категории.
               </Typography>
             </Paper>
@@ -322,17 +338,31 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
                     <Chip size="small" label={statusLabel} />
                   </Box>
 
-                  <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
+                  <Stack
+                    direction="row"
+                    spacing={1.5}
+                    sx={{
+                      alignItems: "center",
+                      justifyContent: "space-between"
+                    }}>
                     <Typography
-                      color="text.primary"
-                      fontWeight={600}
                       noWrap
                       title={title}
-                      sx={{ minWidth: 0, flex: 1 }}
-                    >
+                      sx={{
+                        color: "text.primary",
+                        fontWeight: 600,
+                        minWidth: 0,
+                        flex: 1
+                      }}>
                       {title}
                     </Typography>
-                    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
+                    <Stack
+                      direction="row"
+                      spacing={0.5}
+                      sx={{
+                        alignItems: "center",
+                        flexShrink: 0
+                      }}>
                       {item.canDeleteByCustomer ? (
                         <IconButton
                           size="small"
@@ -356,7 +386,9 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
                   </Stack>
 
                   {subjectSubtitle ? (
-                    <Typography variant="body2" color="text.secondary" noWrap title={subjectSubtitle}>
+                    <Typography variant="body2" noWrap title={subjectSubtitle} sx={{
+                      color: "text.secondary"
+                    }}>
                       {subjectSubtitle}
                     </Typography>
                   ) : null}
@@ -364,36 +396,50 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
                   <Stack
                     direction="row"
                     spacing={1.5}
-                    alignItems="center"
-                    justifyContent="space-between"
-                    sx={{ display: { xs: "none", md: "flex" } }}
-                  >
+                    sx={{
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      display: { xs: "none", md: "flex" }
+                    }}>
                     <Typography
                       variant="body2"
-                      color="text.secondary"
                       noWrap
                       title={desktopMetaLeft || undefined}
-                      sx={{ minWidth: 0, flex: 1 }}
-                    >
+                      sx={{
+                        color: "text.secondary",
+                        minWidth: 0,
+                        flex: 1
+                      }}>
                       {desktopMetaLeft}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: "text.secondary",
+                        flexShrink: 0
+                      }}>
                       {formatDate(item.createdAt)}
                     </Typography>
                   </Stack>
 
                   <Stack spacing={0.5} sx={{ display: { xs: "flex", md: "none" } }}>
                     {item.providerName ? (
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" sx={{
+                        color: "text.secondary"
+                      }}>
                         Исполнитель: {item.providerName}
                       </Typography>
                     ) : null}
                     {item.location ? (
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" sx={{
+                        color: "text.secondary"
+                      }}>
                         Локация: {item.location}
                       </Typography>
                     ) : null}
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" sx={{
+                      color: "text.secondary"
+                    }}>
                       {formatDate(item.createdAt)}
                     </Typography>
                   </Stack>

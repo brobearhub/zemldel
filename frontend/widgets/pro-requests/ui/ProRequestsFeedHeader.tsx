@@ -6,12 +6,22 @@ type Props = {
 
 export function ProRequestsFeedHeader({ onRefresh }: Props) {
   return (
-    <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} justifyContent="space-between" alignItems={{ md: "center" }}>
+    <Stack
+      direction={{ xs: "column", md: "row" }}
+      spacing={1.5}
+      sx={{
+        justifyContent: "space-between",
+        alignItems: { md: "center" }
+      }}>
       <Box>
-        <Typography variant="h4" fontWeight={700} gutterBottom>
+        <Typography variant="h4" gutterBottom sx={{
+          fontWeight: 700
+        }}>
           Лента заявок
         </Typography>
-        <Typography color="text.secondary">
+        <Typography sx={{
+          color: "text.secondary"
+        }}>
           Здесь появляются заявки клиентов: по категориям ваших услуг и свободные заявки с главной страницы.
         </Typography>
       </Box>

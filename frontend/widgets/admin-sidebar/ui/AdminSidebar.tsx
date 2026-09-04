@@ -17,9 +17,10 @@ import {
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import BuildIcon from "@mui/icons-material/Build";
-import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutlined";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
+import LocationCityIcon from "@mui/icons-material/LocationCity";
 import { useMemo, useState } from "react";
 
 const SERVICES_GROUP = {
@@ -30,6 +31,13 @@ const SERVICES_GROUP = {
     { href: "/admin/services/create", label: "Создать", icon: <AddCircleOutlineIcon /> },
     { href: "/admin/services/list", label: "Список", icon: <FormatListBulletedIcon /> },
   ],
+} as const;
+
+const CITIES_GROUP = {
+  hrefPrefix: "/admin/cities",
+  label: "Локации",
+  icon: <LocationCityIcon />,
+  items: [{ href: "/admin/cities/imports", label: "Импорты ГАР", icon: <FormatListBulletedIcon /> }],
 } as const;
 
 const CATEGORIES_GROUP = {
@@ -51,9 +59,14 @@ export function AdminSidebar() {
       pathname === CATEGORIES_GROUP.hrefPrefix || pathname.startsWith(`${CATEGORIES_GROUP.hrefPrefix}/`),
     [pathname]
   );
+  const isCitiesRoute = useMemo(
+    () => pathname === CITIES_GROUP.hrefPrefix || pathname.startsWith(`${CITIES_GROUP.hrefPrefix}/`),
+    [pathname]
+  );
 
   const [servicesOpen, setServicesOpen] = useState<boolean>(false);
   const [categoriesOpen, setCategoriesOpen] = useState<boolean>(false);
+  const [citiesOpen, setCitiesOpen] = useState<boolean>(false);
 
   return (
     <Paper
@@ -88,7 +101,9 @@ export function AdminSidebar() {
           <ListItemIcon sx={{ minWidth: 36 }}>{CATEGORIES_GROUP.icon}</ListItemIcon>
           <ListItemText
             primary={CATEGORIES_GROUP.label}
-            primaryTypographyProps={{ sx: { fontWeight: isCategoriesRoute ? 800 : 700 } }}
+            slotProps={{
+              primary: { sx: { fontWeight: isCategoriesRoute ? 800 : 700 } }
+            }}
           />
           <IconButton
             size="small"
@@ -126,7 +141,75 @@ export function AdminSidebar() {
                   <ListItemIcon sx={{ minWidth: 32 }}>{item.icon}</ListItemIcon>
                   <ListItemText
                     primary={item.label}
-                    primaryTypographyProps={{ sx: { fontWeight: selected ? 800 : 600 } }}
+                    slotProps={{
+                      primary: { sx: { fontWeight: selected ? 800 : 600 } }
+                    }}
+                  />
+                </ListItemButton>
+              );
+            })}
+          </List>
+        </Collapse>
+
+        <ListItemButton
+          component={Link}
+          href={CITIES_GROUP.hrefPrefix}
+          selected={isCitiesRoute}
+          sx={{
+            px: 2,
+            py: 1.25,
+            "&.Mui-selected": {
+              bgcolor: "action.selected",
+              "&:hover": { bgcolor: "action.selected" },
+            },
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 36 }}>{CITIES_GROUP.icon}</ListItemIcon>
+          <ListItemText
+            primary={CITIES_GROUP.label}
+            slotProps={{
+              primary: { sx: { fontWeight: isCitiesRoute ? 800 : 700 } }
+            }}
+          />
+          <IconButton
+            size="small"
+            aria-label={citiesOpen ? "Свернуть" : "Раскрыть"}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setCitiesOpen((v) => !v);
+            }}
+          >
+            {citiesOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+          </IconButton>
+        </ListItemButton>
+
+        <Collapse in={citiesOpen} timeout="auto" unmountOnExit>
+          <List dense disablePadding>
+            {CITIES_GROUP.items.map((item) => {
+              const selected = pathname === item.href;
+              return (
+                <ListItemButton
+                  key={item.href}
+                  component={Link}
+                  href={item.href}
+                  selected={selected}
+                  sx={{
+                    pl: 4,
+                    pr: 2,
+                    py: 1.1,
+                    "&.Mui-selected": {
+                      bgcolor: "action.selected",
+                      "&:hover": { bgcolor: "action.selected" },
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 32 }}>{item.icon}</ListItemIcon>
+                  <ListItemText
+                    primary={item.label}
+                    slotProps={{
+                      primary: { sx: { fontWeight: selected ? 800 : 600 } }
+                    }}
                   />
                 </ListItemButton>
               );
@@ -150,7 +233,9 @@ export function AdminSidebar() {
           <ListItemIcon sx={{ minWidth: 36 }}>{SERVICES_GROUP.icon}</ListItemIcon>
           <ListItemText
             primary={SERVICES_GROUP.label}
-            primaryTypographyProps={{ sx: { fontWeight: isServicesRoute ? 800 : 700 } }}
+            slotProps={{
+              primary: { sx: { fontWeight: isServicesRoute ? 800 : 700 } }
+            }}
           />
           <IconButton
             size="small"
@@ -188,7 +273,9 @@ export function AdminSidebar() {
                   <ListItemIcon sx={{ minWidth: 32 }}>{item.icon}</ListItemIcon>
                   <ListItemText
                     primary={item.label}
-                    primaryTypographyProps={{ sx: { fontWeight: selected ? 800 : 600 } }}
+                    slotProps={{
+                      primary: { sx: { fontWeight: selected ? 800 : 600 } }
+                    }}
                   />
                 </ListItemButton>
               );

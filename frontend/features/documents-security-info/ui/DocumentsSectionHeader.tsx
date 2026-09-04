@@ -8,7 +8,7 @@ import { DocumentsSecurityInfoIconButton } from "./DocumentsSecurityInfoIconButt
 export type DocumentsSectionHeaderProps = {
   title?: ReactNode;
   titleVariant?: TypographyProps["variant"];
-  titleWeight?: TypographyProps["fontWeight"];
+  titleWeight?: number;
 };
 
 export function DocumentsSectionHeader({
@@ -17,9 +17,20 @@ export function DocumentsSectionHeader({
   titleWeight = 800,
 }: DocumentsSectionHeaderProps) {
   return (
-    <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+    <Stack
+      direction="row"
+      spacing={0.75}
+      sx={{
+        alignItems: "center",
+        minWidth: 0
+      }}>
       <DocumentsSecurityInfoIconButton size="small" />
-      <Typography variant={titleVariant} fontWeight={titleWeight} sx={{ minWidth: 0 }}>
+      <Typography
+        variant={titleVariant}
+        sx={{
+          fontWeight: titleWeight,
+          minWidth: 0
+        }}>
         {title}
       </Typography>
       <DocumentsSecurityInfoIconButton

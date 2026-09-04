@@ -1,7 +1,6 @@
 "use client";
 
 import { Box } from "@mui/material";
-import { alpha } from "@mui/material/styles";
 import { useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { CabinetNavItem as NavItem } from "@/widgets/cabinet-chrome/model/nav-config";
@@ -31,7 +30,7 @@ export function CabinetBottomNav({ items }: Props) {
         bottom: 0,
         zIndex: 1200,
         borderTop: (theme) => `1px solid ${theme.palette.divider}`,
-        bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.98),
+        bgcolor: (theme) => theme.custom.bgColors.secondary,
         backdropFilter: "blur(10px)",
         pb: "env(safe-area-inset-bottom)",
       }}

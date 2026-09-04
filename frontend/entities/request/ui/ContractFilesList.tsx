@@ -56,7 +56,14 @@ export function ContractFilesList({
             sx={actionsPlacement === "below" ? { "& > .MuiBox-root": { py: 2.5 } } : undefined}
             left={
               <Stack spacing={actionsPlacement === "below" ? 2.25 : 0} sx={{ width: "100%", minWidth: 0 }}>
-                <Stack direction="row" spacing={1.25} alignItems="flex-start" sx={{ width: "100%", minWidth: 0 }}>
+                <Stack
+                  direction="row"
+                  spacing={1.25}
+                  sx={{
+                    alignItems: "flex-start",
+                    width: "100%",
+                    minWidth: 0
+                  }}>
                   {showDocumentIcon ? (
                     <DescriptionOutlinedIcon
                       fontSize="small"
@@ -69,20 +76,21 @@ export function ContractFilesList({
                     <Stack
                       direction="row"
                       spacing={1.5}
-                      alignItems="center"
-                      justifyContent={actionsPlacement === "below" ? "space-between" : "flex-start"}
-                      flexWrap="wrap"
                       useFlexGap
-                      sx={{ minWidth: 0, width: "100%" }}
-                    >
+                      sx={{
+                        alignItems: "center",
+                        justifyContent: actionsPlacement === "below" ? "space-between" : "flex-start",
+                        flexWrap: "wrap",
+                        minWidth: 0,
+                        width: "100%"
+                      }}>
                       <Typography
-                        fontWeight={600}
                         sx={{
+                          fontWeight: 600,
                           wordBreak: "break-word",
                           minWidth: 0,
-                          flex: actionsPlacement === "below" ? "1 1 auto" : undefined,
-                        }}
-                      >
+                          flex: actionsPlacement === "below" ? "1 1 auto" : undefined
+                        }}>
                         {file.originalName}
                       </Typography>
                       <Chip
@@ -94,7 +102,12 @@ export function ContractFilesList({
                     </Stack>
 
                     {file.status === "REVISION_REQUESTED" && file.revisionMessage ? (
-                      <Typography variant="body1" color="text.primary" fontWeight={600}>
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          color: "text.primary",
+                          fontWeight: 600
+                        }}>
                         {revisionLabel}: {file.revisionMessage}
                       </Typography>
                     ) : null}
@@ -107,15 +120,15 @@ export function ContractFilesList({
                   <Stack
                     direction="row"
                     spacing={3}
-                    flexWrap="wrap"
                     useFlexGap
-                    alignItems="center"
-                    justifyContent="flex-start"
                     sx={{
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      justifyContent: "flex-start",
+
                       // вровень с иконкой/левым краем строки
-                      "& .MuiButton-text": { pl: 0 },
-                    }}
-                  >
+                      "& .MuiButton-text": { pl: 0 }
+                    }}>
                     {actionsNode}
                   </Stack>
                 ) : null}

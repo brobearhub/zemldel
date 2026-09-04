@@ -28,9 +28,6 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories, initialSe
         pb: { xs: 3, md: 4 },
         pt: 0,
         bgcolor: "background.default",
-        backgroundImage: (theme) => theme.custom.gradients.sky,
-        backgroundRepeat: "no-repeat",
-        backgroundSize: "cover",
       }}
     >
       <Container maxWidth="xl">

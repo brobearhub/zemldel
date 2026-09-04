@@ -16,6 +16,8 @@ import {
 import type { Theme } from "@mui/material";
 import { ThemeProvider } from "@mui/material";
 import { createAppTheme } from "@/core/theme/createAppTheme";
+import { ColorModeToggle } from "@/core/theme/ColorModeToggle";
+import { useColorMode } from "@/core/theme/ColorModeContext";
 import { useMemo } from "react";
 
 const BREAKPOINT_KEYS = ["xs", "sm", "md", "lg", "xl", "xxl"] as const;
@@ -178,6 +180,7 @@ function getActiveBreakpointKey(args: {
 
 export default function ThemesPage() {
   const theme = useTheme();
+  const { mode } = useColorMode();
   const isXs = useMediaQuery(theme.breakpoints.only("xs"));
   const isSm = useMediaQuery(theme.breakpoints.only("sm"));
   const isMd = useMediaQuery(theme.breakpoints.only("md"));
@@ -200,18 +203,23 @@ export default function ThemesPage() {
         <Stack spacing={3}>
           <Stack
             direction={{ xs: "column", sm: "row" }}
-            alignItems={{ xs: "flex-start", sm: "center" }}
-            justifyContent="space-between"
-            gap={2}
-          >
+            sx={{
+              alignItems: { xs: "flex-start", sm: "center" },
+              justifyContent: "space-between",
+              gap: 2
+            }}>
             <Box>
               <Typography variant="h4" sx={{ fontWeight: 900 }}>
                 Themes
               </Typography>
               <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                Текущий режим: <Box component="span" sx={{ fontWeight: 800 }}>light</Box>
+                Текущий режим:{" "}
+                <Box component="span" sx={{ fontWeight: 800 }}>
+                  {mode}
+                </Box>
               </Typography>
             </Box>
+            <ColorModeToggle showLabel />
           </Stack>
 
           <Paper
@@ -243,10 +251,11 @@ export default function ThemesPage() {
             <Stack spacing={1.25}>
               <Stack
                 direction={{ xs: "column", sm: "row" }}
-                alignItems={{ xs: "flex-start", sm: "center" }}
-                justifyContent="space-between"
-                gap={1}
-              >
+                sx={{
+                  alignItems: { xs: "flex-start", sm: "center" },
+                  justifyContent: "space-between",
+                  gap: 1
+                }}>
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
                     Breakpoints (theme.breakpoints.values)
@@ -286,7 +295,12 @@ export default function ThemesPage() {
                         }}
                       >
                         <Stack spacing={0.5}>
-                          <Stack direction="row" alignItems="center" gap={1}>
+                          <Stack
+                            direction="row"
+                            sx={{
+                              alignItems: "center",
+                              gap: 1
+                            }}>
                             <Typography variant="body2" sx={{ fontWeight: 800 }}>
                               {key}
                             </Typography>
@@ -409,7 +423,9 @@ export default function ThemesPage() {
                   <Typography variant="body2" sx={{ fontWeight: 700 }}>
                     On background.default
                   </Typography>
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  <Stack direction="row" spacing={1} useFlexGap sx={{
+                    flexWrap: "wrap"
+                  }}>
                     <Button variant="contained" color="primary">
                       Primary
                     </Button>
@@ -471,7 +487,9 @@ export default function ThemesPage() {
                   <Typography variant="body2" sx={{ fontWeight: 700 }}>
                     On background.paper
                   </Typography>
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  <Stack direction="row" spacing={1} useFlexGap sx={{
+                    flexWrap: "wrap"
+                  }}>
                     <Button variant="contained" color="primary">
                       Primary
                     </Button>
@@ -525,6 +543,7 @@ export default function ThemesPage() {
 
           <Stack spacing={2}>
             <ThemePaletteBlock mode="light" />
+            <ThemePaletteBlock mode="dark" />
           </Stack>
         </Stack>
       </Container>

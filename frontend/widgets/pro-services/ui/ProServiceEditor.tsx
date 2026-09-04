@@ -385,22 +385,30 @@ export function ProServiceEditor({ mode, initialService }: Props) {
   }
 
   return (
-    <Stack direction={{ xs: "column", xl: "row" }} spacing={3} alignItems="flex-start">
+    <Stack direction={{ xs: "column", xl: "row" }} spacing={3} sx={{
+      alignItems: "flex-start"
+    }}>
       <Box component="form" onSubmit={onSubmit} sx={{ flex: 1, width: "100%" }}>
         <Stack spacing={3}>
           <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 } }}>
             <Stack spacing={2}>
               <Box>
-                <Typography variant="h6" fontWeight={800} gutterBottom>
+                <Typography variant="h6" gutterBottom sx={{
+                  fontWeight: 800
+                }}>
                   {title}
                 </Typography>
-                <Typography color="text.secondary">
+                <Typography sx={{
+                  color: "text.secondary"
+                }}>
                   Соберите карточку услуги, выберите ее состояние в каталоге и подготовьте основу для
                   дальнейших заявок.
                 </Typography>
               </Box>
 
-              <Stack direction={{ xs: "column", md: "row" }} spacing={1} flexWrap="wrap" useFlexGap>
+              <Stack direction={{ xs: "column", md: "row" }} spacing={1} useFlexGap sx={{
+                flexWrap: "wrap"
+              }}>
                 <Chip
                   label={`Текущий статус: ${statusLabel(form.status)}`}
                   color={form.status === "PUBLISHED" ? "success" : form.status === "ARCHIVED" ? "default" : "warning"}
@@ -424,7 +432,9 @@ export function ProServiceEditor({ mode, initialService }: Props) {
 
           <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 } }}>
             <Stack spacing={2}>
-              <Typography variant="subtitle1" fontWeight={800}>
+              <Typography variant="subtitle1" sx={{
+                fontWeight: 800
+              }}>
                 Основное
               </Typography>
 
@@ -528,7 +538,9 @@ export function ProServiceEditor({ mode, initialService }: Props) {
 
           <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 } }}>
             <Stack spacing={2}>
-              <Typography variant="subtitle1" fontWeight={800}>
+              <Typography variant="subtitle1" sx={{
+                fontWeight: 800
+              }}>
                 Оформление карточки
               </Typography>
 
@@ -574,10 +586,11 @@ export function ProServiceEditor({ mode, initialService }: Props) {
                 <Stack
                   direction={{ xs: "column", sm: "row" }}
                   spacing={1}
-                  alignItems={{ sm: "center" }}
-                  flexWrap="wrap"
                   useFlexGap
-                >
+                  sx={{
+                    alignItems: { sm: "center" },
+                    flexWrap: "wrap"
+                  }}>
                   <Button
                     variant="outlined"
                     component="label"
@@ -642,7 +655,9 @@ export function ProServiceEditor({ mode, initialService }: Props) {
 
           <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 }, display: "none" }}>
             <Stack spacing={2}>
-              <Typography variant="subtitle1" fontWeight={800}>
+              <Typography variant="subtitle1" sx={{
+                fontWeight: 800
+              }}>
                 Социальное доказательство
               </Typography>
 
@@ -654,7 +669,7 @@ export function ProServiceEditor({ mode, initialService }: Props) {
                   onChange={(event) => setForm((current) => ({ ...current, rating: event.target.value }))}
                   disabled={busy}
                   fullWidth
-                  inputProps={{ min: 0, max: 5, step: 0.1 }}
+                  slotProps={{ htmlInput: { min: 0, max: 5, step: 0.1 } }}
                   helperText="Необязательно. Диапазон от 0 до 5."
                 />
                 <TextField
@@ -664,7 +679,7 @@ export function ProServiceEditor({ mode, initialService }: Props) {
                   onChange={(event) => setForm((current) => ({ ...current, reviewCount: event.target.value }))}
                   disabled={busy}
                   fullWidth
-                  inputProps={{ min: 0, step: 1 }}
+                  slotProps={{ htmlInput: { min: 0, step: 1 } }}
                   helperText="Необязательно. Только целое число."
                 />
               </Stack>
@@ -673,11 +688,15 @@ export function ProServiceEditor({ mode, initialService }: Props) {
 
           <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 } }}>
             <Stack spacing={2}>
-              <Typography variant="subtitle1" fontWeight={800}>
+              <Typography variant="subtitle1" sx={{
+                fontWeight: 800
+              }}>
                 Действия
               </Typography>
 
-              <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} flexWrap="wrap" useFlexGap>
+              <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} useFlexGap sx={{
+                flexWrap: "wrap"
+              }}>
                 <Button type="submit" variant="contained" disabled={busy || validationIssues.length > 0}>
                   {mode === "create" ? "Сохранить услугу" : "Сохранить изменения"}
                 </Button>
@@ -728,10 +747,14 @@ export function ProServiceEditor({ mode, initialService }: Props) {
         <Paper variant="outlined" sx={{ p: 2.5, position: { xl: "sticky" }, top: { xl: SITE_STICKY_TOP_PX } }}>
           <Stack spacing={2}>
             <Box>
-              <Typography variant="subtitle1" fontWeight={800} gutterBottom>
+              <Typography variant="subtitle1" gutterBottom sx={{
+                fontWeight: 800
+              }}>
                 Превью карточки
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 Так выглядит публичная карточка услуги при текущем заполнении.
               </Typography>
             </Box>
@@ -746,16 +769,24 @@ export function ProServiceEditor({ mode, initialService }: Props) {
 
         <Paper variant="outlined" sx={{ p: 2.5 }}>
           <Stack spacing={1.5}>
-            <Typography variant="subtitle2" fontWeight={800}>
+            <Typography variant="subtitle2" sx={{
+              fontWeight: 800
+            }}>
               Подсказка по состояниям
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               Черновик: безопасный режим для подготовки карточки внутри provider.
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               Публикация: услуга станет видна клиентам и сможет вести к заявке.
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               Архив: услуга уйдет из публичной витрины, но останется в истории provider.
             </Typography>
           </Stack>

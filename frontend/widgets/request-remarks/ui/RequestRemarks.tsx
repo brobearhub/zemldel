@@ -41,7 +41,9 @@ export function RequestRemarks(props: RequestRemarksProps) {
   return (
     <DocumentsSectionShell
       headerLeft={
-        <Typography variant="h6" fontWeight={800}>
+        <Typography variant="h6" sx={{
+          fontWeight: 800
+        }}>
           Замечания
         </Typography>
       }
@@ -68,7 +70,14 @@ export function RequestRemarks(props: RequestRemarksProps) {
               multiline
               disabled={isBusy}
             />
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ alignSelf: "flex-start" }}>
+            <Stack
+              direction="row"
+              spacing={1}
+              useFlexGap
+              sx={{
+                flexWrap: "wrap",
+                alignSelf: "flex-start"
+              }}>
               <Button
                 variant="contained"
                 disabled={isBusy || newRemarkText.trim().length < 3}
@@ -95,7 +104,9 @@ export function RequestRemarks(props: RequestRemarksProps) {
         <Divider />
 
         {vm.items.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             Пока нет замечаний.
           </Typography>
         ) : (
@@ -157,7 +168,9 @@ export function RequestRemarks(props: RequestRemarksProps) {
                         </Typography>
                       }
                       secondary={item.meta}
-                      secondaryTypographyProps={{ variant: "caption", color: "text.secondary" }}
+                      slotProps={{
+                        secondary: { variant: "caption", color: "text.secondary" }
+                      }}
                     />
                   </ListItemButton>
                 </ListItem>

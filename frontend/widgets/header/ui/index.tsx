@@ -8,14 +8,7 @@ import { HeaderCity } from "./HeaderCity";
 
 export const Header = () => {
   return (
-    <AppBar
-      position="sticky"
-      elevation={0}
-      sx={{
-        borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
-        backdropFilter: "blur(2px)",
-      }}
-    >
+    <AppBar position="sticky" elevation={0}>
       <Toolbar
         disableGutters
         sx={{
@@ -27,7 +20,6 @@ export const Header = () => {
           gap: { xs: 1, sm: 0 },
           alignItems: "center",
           width: "100%",
-          backgroundColor: "secondary.main",
         }}
       >
         <Box

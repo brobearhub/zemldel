@@ -225,7 +225,9 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
         </Tabs>
 
         <Box sx={{ p: 2.5 }}>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{
+            alignItems: { sm: "center" }
+          }}>
             {tab === "templates" ? (
               <Button component={Link} href="/pro/documents/contracts/templates/new" variant="contained" disabled={busy}>
                 Создать шаблон
@@ -246,7 +248,9 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
           <List dense disablePadding>
             {templatesSorted.length === 0 ? (
               <Box sx={{ p: 2.5 }}>
-                <Typography color="text.secondary">Шаблонов пока нет.</Typography>
+                <Typography sx={{
+                  color: "text.secondary"
+                }}>Шаблонов пока нет.</Typography>
               </Box>
             ) : (
               templatesSorted.map((t) => (
@@ -266,8 +270,12 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
                   <ListItemButton component={Link} href={`/pro/documents/contracts/templates/${t.id}/edit`} sx={{ px: 2.5, py: 1.5 }}>
                     <ListItemText
                       primary={
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <Typography fontWeight={700}>{t.title}</Typography>
+                        <Stack direction="row" spacing={1} sx={{
+                          alignItems: "center"
+                        }}>
+                          <Typography sx={{
+                            fontWeight: 700
+                          }}>{t.title}</Typography>
                           <Chip size="small" label={`v${t.version}`} />
                           {t.parentTemplateId ? <Chip size="small" color="info" label="fork" /> : null}
                         </Stack>
@@ -283,7 +291,9 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
           <Stack spacing={2} sx={{ p: 2.5 }}>
             <Paper variant="outlined" sx={{ p: 2 }}>
               <Stack component="form" spacing={1.5} onSubmit={createInstance}>
-                <Typography fontWeight={800}>
+                <Typography sx={{
+                  fontWeight: 800
+                }}>
                   {requestIdFromQuery ? "Создать договор для заявки" : "Создать экземпляр по заявке"}
                 </Typography>
                 <FormControl fullWidth size="small">
@@ -326,7 +336,9 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
               <List dense disablePadding>
                 {instancesSorted.length === 0 ? (
                   <Box sx={{ p: 2 }}>
-                    <Typography color="text.secondary">Экземпляров договоров пока нет.</Typography>
+                    <Typography sx={{
+                      color: "text.secondary"
+                    }}>Экземпляров договоров пока нет.</Typography>
                   </Box>
                 ) : (
                   instancesSorted.map((c) => (
@@ -358,8 +370,12 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
                       <ListItemButton component={Link} href={`/pro/documents/contracts/instances/${c.id}`} sx={{ px: 2.5, py: 1.5 }}>
                         <ListItemText
                           primary={
-                            <Stack direction="row" spacing={1} alignItems="center">
-                              <Typography fontWeight={700}>{c.title}</Typography>
+                            <Stack direction="row" spacing={1} sx={{
+                              alignItems: "center"
+                            }}>
+                              <Typography sx={{
+                                fontWeight: 700
+                              }}>{c.title}</Typography>
                               <Chip size="small" label={statusLabel(c.status)} />
                             </Stack>
                           }

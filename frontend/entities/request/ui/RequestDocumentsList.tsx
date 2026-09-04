@@ -29,14 +29,31 @@ export function RequestDocumentsList({ title, items, renderActions, renderHint, 
             isLast={isLast}
             left={
               <Stack spacing={0.5}>
-                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ minWidth: 0 }}>
-                  <Typography fontWeight={600} sx={{ wordBreak: "break-word" }}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  useFlexGap
+                  sx={{
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    minWidth: 0
+                  }}>
+                  <Typography
+                    sx={{
+                      fontWeight: 600,
+                      wordBreak: "break-word"
+                    }}>
                     {index + 1}. {d.title}
                   </Typography>
                   <Chip size="small" label={statusLabel(d.status)} />
                 </Stack>
                 {hasFile ? (
-                  <Typography variant="body2" color="text.secondary" sx={{ wordBreak: "break-word" }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "text.secondary",
+                      wordBreak: "break-word"
+                    }}>
                     Файл: {d.originalName}
                   </Typography>
                 ) : null}

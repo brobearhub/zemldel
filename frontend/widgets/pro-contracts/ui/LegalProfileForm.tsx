@@ -46,7 +46,9 @@ export function LegalProfileForm({ title, endpoint, fields, initial }: Props) {
   return (
     <Paper variant="outlined" sx={{ p: 2.5 }}>
       <Stack spacing={2}>
-        <Typography variant="h5" fontWeight={800}>{title}</Typography>
+        <Typography variant="h5" sx={{
+          fontWeight: 800
+        }}>{title}</Typography>
         {error ? <Alert severity="error">{error}</Alert> : null}
         {notice ? <Alert severity="success">{notice}</Alert> : null}
         <Stack spacing={1.5}>

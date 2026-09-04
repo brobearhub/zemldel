@@ -39,7 +39,9 @@ export default function WelcomePage() {
           backgroundColor: "background.paper",
         }}
       >
-        <Stack spacing={3} alignItems="center">
+        <Stack spacing={3} sx={{
+          alignItems: "center"
+        }}>
           <Box
             sx={{
               width: 88,
@@ -55,13 +57,19 @@ export default function WelcomePage() {
             <CelebrationRoundedIcon sx={{ fontSize: 48, color: "#fff" }} />
           </Box>
 
-          <Stack spacing={1} alignItems="center">
-            <Typography variant="h4" fontWeight={700} align="center">
+          <Stack spacing={1} sx={{
+            alignItems: "center"
+          }}>
+            <Typography variant="h4" align="center" sx={{
+              fontWeight: 700
+            }}>
               Поздравляем!
             </Typography>
           </Stack>
 
-          <Stack spacing={1.5} width="100%">
+          <Stack spacing={1.5} sx={{
+            width: "100%"
+          }}>
             <Button
               component={Link}
               href="/profile"
@@ -79,8 +87,12 @@ export default function WelcomePage() {
           <Divider sx={{ width: "100%" }} />
 
 
-          <Stack spacing={1.5} width="100%">
-            <Typography variant="body2" color="text.secondary" align="center">
+          <Stack spacing={1.5} sx={{
+            width: "100%"
+          }}>
+            <Typography variant="body2" align="center" sx={{
+              color: "text.secondary"
+            }}>
               Создайте профессиональный профиль, чтобы предлагать услуги и работать от имени компании в отдельном кабинете.
             </Typography>
             <Button
@@ -94,7 +106,9 @@ export default function WelcomePage() {
             >
               Стать исполнителем
             </Button>
-            <Typography variant="caption" color="text.secondary" align="center">
+            <Typography variant="caption" align="center" sx={{
+              color: "text.secondary"
+            }}>
               Самозанятый, ИП или организация
             </Typography>
           </Stack>

@@ -1,39 +1,73 @@
 import { createTheme } from "@mui/material";
 import type { PaletteMode } from "@mui/material";
+import {
+  brown,
+  common,
+  deepOrange,
+  green,
+  grey,
+  lime,
+  red,
+  teal,
+} from "@mui/material/colors";
 import { alpha } from "@mui/material/styles";
 
-/**
- * Single light theme (brand colors).
- */
+/** Semantic palette → MUI primitives (Figma: light `hue/700`, dark `hue/200`). */
 const TOKENS = {
   light: {
-    bg: "#F4F7F6",
-    paper: "#FFFFFF",
+    bg: grey[100],
+    paper: common.white,
+    gray: grey[500],
     primary: {
-      main: "#006E4D",
-      light: "#11805E",
-      dark: "#00523A",
-      contrastText: "#FFFFFF",
+      main: teal[800],
+      light: teal[700],
+      dark: teal[900],
+      contrastText: common.white,
     },
     secondary: {
-      main: "#353438",
-      light: "#5A5960",
-      dark: "#232226",
-      contrastText: "#FFFFFF",
+      main: grey[800],
+      light: grey[700],
+      dark: grey[900],
+      contrastText: common.white,
     },
-    info: { main: "#FA5018", contrastText: "#FFFFFF" },
-    success: { main: "#2D7D46", contrastText: "#FFFFFF" },
-    warning: { main: "#9A6B16", contrastText: "#FFFFFF" },
-    error: { main: "#DC2626", contrastText: "#FFFFFF" },
-    divider: "rgba(53, 52, 56, 0.12)",
-    textPrimary: "#6A4E3A",
-    textSecondary: "rgba(27, 26, 31, 0.65)",
+    info: { main: deepOrange[500], contrastText: common.white },
+    success: { main: green[800], contrastText: common.white },
+    warning: { main: lime[900], contrastText: common.white },
+    error: { main: red[600], contrastText: common.white },
+    divider: alpha(grey[800], 0.12),
+    textPrimary: brown[600],
+    textSecondary: alpha(grey[900], 0.65),
+    footer: grey[800],
+  },
+  dark: {
+    bg: grey[900],
+    paper: grey[800],
+    gray: grey[500],
+    primary: {
+      main: teal[200],
+      light: teal[50],
+      dark: teal[400],
+      contrastText: grey[900],
+    },
+    secondary: {
+      main: grey[200],
+      light: grey[50],
+      dark: grey[400],
+      contrastText: grey[900],
+    },
+    info: { main: deepOrange[200], contrastText: grey[900] },
+    success: { main: green[200], contrastText: grey[900] },
+    warning: { main: lime[200], contrastText: grey[900] },
+    error: { main: red[200], contrastText: grey[900] },
+    divider: alpha(common.white, 0.12),
+    textPrimary: brown[200],
+    textSecondary: alpha(common.white, 0.5),
+    footer: common.black,
   },
 } as const;
 
-export function createAppTheme(_mode: PaletteMode) {
-  const t = TOKENS.light;
-  const resolvedMode: PaletteMode = "light";
+export function createAppTheme(mode: PaletteMode) {
+  const t = TOKENS[mode];
 
   return createTheme({
     cssVariables: true,
@@ -48,9 +82,9 @@ export function createAppTheme(_mode: PaletteMode) {
       },
     },
     palette: {
-      mode: resolvedMode,
+      mode,
       common: {
-        gray: "#a1a4a3",
+        gray: t.gray,
       },
       primary: t.primary,
       secondary: t.secondary,
@@ -77,7 +111,7 @@ export function createAppTheme(_mode: PaletteMode) {
     custom: {
       bgColors: {
         primary: t.bg,
-        secondary: t.secondary.main,
+        secondary: t.footer,
       },
       gradients: {
         sunset:
@@ -85,11 +119,7 @@ export function createAppTheme(_mode: PaletteMode) {
             t.primary.main,
             0.10,
           )} 35%, ${alpha(t.secondary.main, 0.06)} 100%)`,
-        sky:
-          `radial-gradient(1200px 800px at 70% 35%, ${alpha(
-            t.primary.light,
-            0.22,
-          )} 0%, ${alpha(t.info.main, 0.10)} 40%, ${alpha(t.bg, 0)} 70%)`,
+        sky: "none",
         glass:
           `linear-gradient(180deg, ${alpha(t.primary.main, 0.06)} 0%, ${alpha(
             t.primary.main,
@@ -101,10 +131,10 @@ export function createAppTheme(_mode: PaletteMode) {
             0.12,
           )} 40%, ${alpha(t.secondary.main, 0.06)} 100%)`,
         footer:
-          `linear-gradient(170deg, ${alpha(t.secondary.main, 0.94)} 0%, ${alpha(
-            t.secondary.dark,
+          `linear-gradient(170deg, ${alpha(t.footer, 0.94)} 0%, ${alpha(
+            t.footer,
             0.98,
-          )} 55%, ${alpha("#000000", 0.98)} 100%)`,
+          )} 55%, ${alpha(common.black, 0.98)} 100%)`,
       }
     },
     shape: { borderRadius: 16 },
@@ -121,7 +151,7 @@ export function createAppTheme(_mode: PaletteMode) {
     components: {
       MuiCssBaseline: {
         styleOverrides: (theme) => {
-          const autofillBg = "#fff";
+          const autofillBg = theme.palette.background.paper;
 
           return {
             body: {
@@ -158,24 +188,20 @@ export function createAppTheme(_mode: PaletteMode) {
           },
           contained: {
             boxShadow: "none",
-          },
-          containedPrimary: {
-            boxShadow: "none",
-            "&:hover": { boxShadow: "none" },
-          },
-          containedSecondary: {
-            boxShadow: "none",
             "&:hover": { boxShadow: "none" },
           },
         },
       },
       MuiAppBar: {
+        defaultProps: {
+          color: "inherit",
+        },
         styleOverrides: {
           root: ({ theme }) => ({
-            backgroundImage: theme.custom.gradients.glass,
-            backgroundColor: alpha(theme.palette.background.paper, 0.82),
+            backgroundImage: "none",
+            backgroundColor: theme.custom.bgColors.secondary,
+            color: theme.palette.common.white,
             borderBottom: `1px solid ${theme.palette.divider}`,
-            backdropFilter: "blur(14px)",
           }),
         },
       },

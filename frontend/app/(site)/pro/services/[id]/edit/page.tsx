@@ -32,10 +32,14 @@ export default async function ProServicesEditPage({ params }: Props) {
   return (
     <Stack spacing={3}>
       <Box>
-        <Typography variant="h4" fontWeight={700} gutterBottom>
+        <Typography variant="h4" gutterBottom sx={{
+          fontWeight: 700
+        }}>
           Редактировать услугу
         </Typography>
-        <Typography color="text.secondary">
+        <Typography sx={{
+          color: "text.secondary"
+        }}>
           Обновите карточку услуги и при необходимости измените ее статус публикации.
         </Typography>
       </Box>

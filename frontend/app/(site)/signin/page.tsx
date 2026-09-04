@@ -135,7 +135,9 @@ function SignInPageContent() {
             </Stack>
           </Box>
 
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             Нет аккаунта?{" "}
             <Link href={signUpHref} style={{ color: "inherit", fontWeight: 600 }}>
               Регистрация
