@@ -13,6 +13,7 @@ import { AuthService } from '../auth/auth.service';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import type { OrderManagementAction } from '../auth/authorization';
 import { ChatService } from '../chat/chat.service';
+import { assertActiveSelectableCity } from '../cities/city-validation';
 import { LegalDocsService } from '../legal-docs/legal-docs.service';
 import type {
   RequestCategoryCreateDto,
@@ -49,6 +50,15 @@ const select = {
   providerId: true,
   customerUserId: true,
   requestCityId: true,
+  requestCity: {
+    select: {
+      id: true,
+      name: true,
+      regionCode: true,
+      regionName: true,
+      status: true,
+    },
+  },
   customerName: true,
   customerEmail: true,
   customerPhone: true,
@@ -382,6 +392,17 @@ export class RequestsService {
 
   // --- Customer: create ---
 
+  private async resolveRequestCityIdForCreate(
+    inputCityId: string | null | undefined,
+    fallbackCityId: string | null | undefined,
+  ): Promise<string | null> {
+    const resolved = inputCityId ?? fallbackCityId ?? null;
+    if (resolved) {
+      await assertActiveSelectableCity(this.prisma, resolved);
+    }
+    return resolved;
+  }
+
   async createForCategory(
     categoryId: string,
     actorUserId: string,
@@ -406,6 +427,11 @@ export class RequestsService {
     if (!category) throw new NotFoundException('Category not found');
     if (!actor) throw new ForbiddenException('Forbidden');
 
+    const requestCityId = await this.resolveRequestCityIdForCreate(
+      input.requestCityId,
+      actor.customerCityId,
+    );
+
     const created = await this.prisma.request.create({
       data: {
         status: 'NEW',
@@ -413,7 +439,7 @@ export class RequestsService {
         providerId: null,
         serviceId: null,
         customerUserId: actor.id,
-        requestCityId: input.requestCityId ?? actor.customerCityId ?? null,
+        requestCityId,
         customerName: actor.name ?? null,
         customerEmail: actor.email,
         customerPhone: input.customerPhone ?? actor.phone ?? null,
@@ -462,6 +488,11 @@ export class RequestsService {
       throw new BadRequestException('Customer email or phone is required');
     }
 
+    const requestCityId = await this.resolveRequestCityIdForCreate(
+      input.requestCityId,
+      actor?.customerCityId ?? null,
+    );
+
     const created = await this.prisma.request.create({
       data: {
         status: 'NEW',
@@ -475,7 +506,7 @@ export class RequestsService {
           },
         },
         customerUserId: actor?.id ?? null,
-        requestCityId: input.requestCityId ?? actor?.customerCityId ?? null,
+        requestCityId,
         customerName,
         customerEmail,
         customerPhone,
@@ -511,6 +542,11 @@ export class RequestsService {
       throw new BadRequestException('Message is required');
     }
 
+    const requestCityId = await this.resolveRequestCityIdForCreate(
+      input.requestCityId,
+      actor.customerCityId,
+    );
+
     const created = await this.prisma.request.create({
       data: {
         status: 'NEW',
@@ -518,7 +554,7 @@ export class RequestsService {
         categoryId: null,
         providerId: null,
         customerUserId: actor.id,
-        requestCityId: input.requestCityId ?? actor.customerCityId ?? null,
+        requestCityId,
         customerName: actor.name ?? null,
         customerEmail: actor.email,
         customerPhone: input.customerPhone ?? actor.phone ?? null,

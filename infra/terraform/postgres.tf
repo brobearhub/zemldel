@@ -20,13 +20,13 @@ resource "yandex_mdb_postgresql_cluster" "main" {
   host {
     zone             = "ru-central1-a"
     subnet_id        = yandex_vpc_subnet.a.id
-    assign_public_ip = false
+    assign_public_ip = true
   }
 
   host {
     zone             = "ru-central1-b"
     subnet_id        = yandex_vpc_subnet.b.id
-    assign_public_ip = false
+    assign_public_ip = true
   }
 
   security_group_ids = [yandex_vpc_security_group.postgres.id]

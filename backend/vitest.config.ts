@@ -7,6 +7,8 @@ export default defineConfig({
     include: [
       'src/**/*.spec.ts',
       'src/**/*.integration.spec.ts',
+      'scripts/**/*.spec.ts',
+      'scripts/**/*.integration.spec.ts',
       'test/**/*.e2e-spec.ts',
     ],
   },

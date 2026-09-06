@@ -362,6 +362,28 @@ export function parseRequestServiceCreateDto(body: unknown): {
   return { data: inst };
 }
 
+export class RequestCityDto {
+  @ApiProperty({ format: 'uuid' })
+  @Expose()
+  @IsUUID()
+  id!: string;
+
+  @ApiProperty()
+  @Expose()
+  @IsString()
+  name!: string;
+
+  @ApiProperty()
+  @Expose()
+  @IsString()
+  regionCode!: string;
+
+  @ApiProperty()
+  @Expose()
+  @IsString()
+  regionName!: string;
+}
+
 export class RequestCustomerDto {
   @ApiProperty({ format: 'uuid' })
   @Expose()
@@ -420,6 +442,19 @@ export class RequestCustomerDto {
   @IsOptional()
   @IsUUID()
   requestCityId!: string | null;
+
+  @ApiProperty({ type: RequestCityDto, nullable: true })
+  @Expose()
+  @Type(() => RequestCityDto)
+  requestCity!: RequestCityDto | null;
+
+  @ApiProperty({
+    description:
+      'Локация заявки больше не активна в справочнике ФИАС/ГАР (объект исчез из снимка)',
+  })
+  @Expose()
+  @IsBoolean()
+  fiasInactiveWarning!: boolean;
 
   @ApiProperty({ nullable: true, example: null })
   @Expose()
@@ -640,6 +675,19 @@ export class RequestProDto {
   @IsUUID()
   requestCityId!: string | null;
 
+  @ApiProperty({ type: RequestCityDto, nullable: true })
+  @Expose()
+  @Type(() => RequestCityDto)
+  requestCity!: RequestCityDto | null;
+
+  @ApiProperty({
+    description:
+      'Локация заявки больше не активна в справочнике ФИАС/ГАР (объект исчез из снимка)',
+  })
+  @Expose()
+  @IsBoolean()
+  fiasInactiveWarning!: boolean;
+
   @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
@@ -796,6 +844,13 @@ export type RequestDbRow = {
   providerId: string | null;
   customerUserId: string | null;
   requestCityId: string | null;
+  requestCity?: {
+    id: string;
+    name: string;
+    regionCode: string;
+    regionName: string;
+    status: 'ACTIVE' | 'INACTIVE';
+  } | null;
   customerName?: string | null;
   customerEmail?: string | null;
   customerPhone?: string | null;
@@ -841,6 +896,22 @@ export type RequestDbRow = {
     createdAt: Date;
   }>;
 };
+
+function toRequestCityDto(
+  row: RequestDbRow,
+): RequestCityDto | null {
+  if (!row.requestCity) return null;
+  return {
+    id: row.requestCity.id,
+    name: row.requestCity.name,
+    regionCode: row.requestCity.regionCode,
+    regionName: row.requestCity.regionName,
+  };
+}
+
+export function resolveFiasInactiveWarning(row: RequestDbRow): boolean {
+  return row.requestCity?.status === 'INACTIVE';
+}
 
 function toFinanceDto(row: RequestDbRow, reveal: boolean) {
   if (!reveal) {
@@ -901,6 +972,8 @@ export function requestRowToCustomerDtoPlain(
         status: offer.status,
       })),
       requestCityId: row.requestCityId,
+      requestCity: toRequestCityDto(row),
+      fiasInactiveWarning: resolveFiasInactiveWarning(row),
       message: row.message,
       location: row.location,
       lockedAt: row.lockedAt ? row.lockedAt.toISOString() : null,
@@ -992,6 +1065,8 @@ export function requestRowToProDtoPlain(
         ? myOffer.declinedAt.toISOString()
         : null,
       requestCityId: row.requestCityId,
+      requestCity: toRequestCityDto(row),
+      fiasInactiveWarning: resolveFiasInactiveWarning(row),
       message: canRevealBasicDetails ? row.message : null,
       location: canRevealBasicDetails ? row.location : null,
       cadastralNumbers: canRevealBasicDetails ? row.cadastralNumbers ?? [] : [],

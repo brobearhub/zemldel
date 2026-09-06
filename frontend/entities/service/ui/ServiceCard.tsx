@@ -9,6 +9,7 @@ import {
   Typography,
 } from "@mui/material";
 import FavoriteBorderRoundedIcon from "@mui/icons-material/FavoriteBorderRounded";
+import FavoriteRoundedIcon from "@mui/icons-material/FavoriteRounded";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
 import ChatBubbleOutlineRoundedIcon from "@mui/icons-material/ChatBubbleOutlineRounded";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
@@ -116,17 +117,45 @@ export function ServiceCard({ item }: Props) {
         <IconButton
           size="small"
           aria-label="В избранное"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
           sx={{
             position: "absolute",
-            top: 8,
-            right: 8,
-            bgcolor: "background.paper",
-            color: "text.secondary",
-            "&:hover": { bgcolor: "action.selected", color: "text.primary" },
+            top: 6,
+            right: 6,
+            p: 0.5,
+            bgcolor: "transparent",
+            borderRadius: 0,
+            color: "common.white",
+            "&:hover": {
+              bgcolor: "transparent",
+              "& .favorite-heart-fill": { opacity: 0.55 },
+            },
           }}
         >
-          <FavoriteBorderRoundedIcon fontSize="small" />
+          <Box sx={{ position: "relative", width: 22, height: 22 }}>
+            <FavoriteRoundedIcon
+              className="favorite-heart-fill"
+              sx={{
+                position: "absolute",
+                inset: 0,
+                fontSize: 22,
+                color: "common.white",
+                opacity: 0.1,
+              }}
+            />
+            <FavoriteBorderRoundedIcon
+              sx={{
+                position: "absolute",
+                inset: 0,
+                fontSize: 22,
+                color: "common.white",
+                filter: "drop-shadow(0 1px 1px rgba(0,0,0,0.25))",
+              }}
+            />
+          </Box>
         </IconButton>
 
         {item.stockBadge ? (

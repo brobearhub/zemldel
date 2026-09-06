@@ -21,7 +21,7 @@
     "db:migrate:status": "prisma migrate status",
     "db:studio": "prisma studio",
     "cities:update": "tsx scripts/import-gar-cities.ts",
-    "cities:import": "tsx scripts/import-gar-cities.ts",
+    "cities:restore": "tsx scripts/restore-city-dump.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "vitest run",
     "test:unit": "vitest run --dir src",

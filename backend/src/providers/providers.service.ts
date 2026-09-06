@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { isAllowedLocationRow } from '../cities/location';
+import { assertActiveSelectableCity } from '../cities/city-validation';
 import { CreateProviderDto } from './dto/create-provider.dto';
 import { AddProviderManagerDto } from './dto/add-provider-manager.dto';
 import { AuthService } from '../auth/auth.service';
@@ -174,16 +174,7 @@ export class ProvidersService {
     const cityId = body.cityId ?? null;
 
     if (cityId) {
-      const city = await this.prisma.city.findUnique({
-        where: { id: cityId },
-        select: { id: true, typeName: true, level: true },
-      });
-      if (!city) {
-        throw new NotFoundException('City not found');
-      }
-      if (!isAllowedLocationRow(city)) {
-        throw new BadRequestException('Invalid location');
-      }
+      await assertActiveSelectableCity(this.prisma, cityId);
     }
 
     let slug: string;
@@ -302,16 +293,7 @@ export class ProvidersService {
       if (!this.isUuid(nextCityId)) {
         throw new BadRequestException('Invalid cityId');
       }
-      const exists = await this.prisma.city.findUnique({
-        where: { id: nextCityId },
-        select: { id: true, typeName: true, level: true },
-      });
-      if (!exists) {
-        throw new NotFoundException('City not found');
-      }
-      if (!isAllowedLocationRow(exists)) {
-        throw new BadRequestException('Invalid location');
-      }
+      await assertActiveSelectableCity(this.prisma, nextCityId);
     }
 
     const updated = await this.prisma.provider.update({

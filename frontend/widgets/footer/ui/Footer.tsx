@@ -10,6 +10,7 @@ import {
   ListItemText,
   Stack,
   Typography,
+  useTheme,
 } from "@mui/material";
 import Image from "next/image";
 import NextLink from "next/link";
@@ -33,6 +34,9 @@ export const Footer = () => {
       .catch(() => setServices([]));
   }, []);
 
+  const theme = useTheme();
+  const isLight = theme.palette.mode === "light";
+  const logoSrc = isLight ? "/zemledel_logo_dark.svg" : "/zemledel_logo_light.svg";
   const mainServices = useMemo(
     () =>
       (services ?? [])
@@ -50,7 +54,10 @@ export const Footer = () => {
       component="footer"
       sx={{
         bgcolor: (theme) => theme.custom.bgColors.secondary,
-        color: "common.white",
+        color: (theme) =>
+          theme.palette.mode === "light"
+            ? theme.palette.text.primary
+            : theme.palette.common.white,
         pt: { xs: 6, md: 8 },
         pb: 3,
       }}
@@ -73,7 +80,7 @@ export const Footer = () => {
           >
             <Box sx={{ display: "flex", alignItems: "flex-start" }}>
               <Image
-                src="/zemledel_logo_light.svg"
+                src={logoSrc}
                 alt=""
                 width={150}
                 height={100}
@@ -98,7 +105,7 @@ export const Footer = () => {
                           primary: {
                             sx: {
                               fontSize: 14,
-                              color: "common.white",
+                              color: "inherit",
                             },
                           }
                         }}
@@ -139,7 +146,7 @@ export const Footer = () => {
                           primary: {
                             sx: {
                               fontSize: 14,
-                              color: "common.white",
+                              color: "inherit",
                             },
                           }
                         }}
@@ -161,9 +168,9 @@ export const Footer = () => {
                 href="/terms"
                 sx={{
                   fontSize: 14,
-                  color: "common.white",
+                  color: "inherit",
                   textDecoration: "none",
-                  "&:hover": { textDecoration: "underline", color: "rgba(255,255,255,0.95)" },
+                  "&:hover": { textDecoration: "underline", opacity: 0.85 },
                 }}
               >
                 Пользовательское соглашение
@@ -173,9 +180,9 @@ export const Footer = () => {
                 href="/privacy"
                 sx={{
                   fontSize: 14,
-                  color: "common.white",
+                  color: "inherit",
                   textDecoration: "none",
-                  "&:hover": { textDecoration: "underline", color: "rgba(255,255,255,0.95)" },
+                  "&:hover": { textDecoration: "underline", opacity: 0.85 },
                 }}
               >
                 Политика обработки ПДн
@@ -185,9 +192,9 @@ export const Footer = () => {
                 href="/consent"
                 sx={{
                   fontSize: 14,
-                  color: "common.white",
+                  color: "inherit",
                   textDecoration: "none",
-                  "&:hover": { textDecoration: "underline", color: "rgba(255,255,255,0.95)" },
+                  "&:hover": { textDecoration: "underline", opacity: 0.85 },
                 }}
               >
                 Согласие на обработку ПДн
@@ -197,9 +204,9 @@ export const Footer = () => {
                 href="/offer"
                 sx={{
                   fontSize: 14,
-                  color: "common.white",
+                  color: "inherit",
                   textDecoration: "none",
-                  "&:hover": { textDecoration: "underline", color: "rgba(255,255,255,0.95)" },
+                  "&:hover": { textDecoration: "underline", opacity: 0.85 },
                 }}
               >
                 Оферта (платные услуги)
@@ -211,7 +218,10 @@ export const Footer = () => {
             sx={{
               pt: 3,
               borderTop: "1px solid",
-              borderColor: "rgba(255,255,255,0.16)",
+              borderColor: (theme) =>
+                theme.palette.mode === "light"
+                  ? "rgba(0,0,0,0.16)"
+                  : "rgba(255,255,255,0.16)",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
@@ -220,7 +230,10 @@ export const Footer = () => {
             <Typography
               sx={{
                 fontSize: 14,
-                color: "rgba(255,255,255,0.78)",
+                color: (theme) =>
+                  theme.palette.mode === "light"
+                    ? "rgba(0,0,0,0.72)"
+                    : "rgba(255,255,255,0.78)",
               }}
             >
               © {year} <span style={{ fontWeight: 900 }}>{BRAND_NAME}</span>. Все права защищены.
@@ -231,7 +244,10 @@ export const Footer = () => {
               rel="noopener noreferrer"
               sx={{
                 fontSize: 14,
-                color: "rgba(255,255,255,0.78)",
+                color: (theme) =>
+                  theme.palette.mode === "light"
+                    ? "rgba(0,0,0,0.72)"
+                    : "rgba(255,255,255,0.78)",
                 textDecoration: "underline",
                 "&:hover": { textDecoration: "none", color: "info.main" },
               }}

@@ -51,7 +51,8 @@ CONFIRM_APPLY=1 ./scripts/apply.sh
 1. Запишите outputs: IP ВМ, FQDN Postgres, имена бакетов, registry id, lockbox secret id.
 2. Заполните секреты в Lockbox (консоль или `yc lockbox secret add-version`) — см. [`deploy/FIRST-DEPLOY.md`](../../deploy/FIRST-DEPLOY.md).
 3. A-запись `zemledelpro.ru` → IP ВМ; CNAME `cdn.zemledelpro.ru` → CDN (из output).
-4. Первый выкат приложения: [`deploy/deploy.sh`](../../deploy/deploy.sh).
+4. PostgreSQL доступен с вашего IP (`operator_cidr`) на порту **6432** — для `cities:restore` с локальной машины.
+5. Первый выкат приложения: [`deploy/deploy.sh`](../../deploy/deploy.sh).
 
 ## Переменные
 
@@ -61,7 +62,7 @@ CONFIRM_APPLY=1 ./scripts/apply.sh
 | `folder_id` | ID каталога |
 | `domain` | `zemledelpro.ru` |
 | `cdn_domain` | `cdn.zemledelpro.ru` |
-| `operator_cidr` | Ваш IP для SSH (`x.x.x.x/32`) |
+| `operator_cidr` | Ваш IP для SSH и прямого доступа к PostgreSQL (`x.x.x.x/32`) |
 | `ssh_public_key` | Публичный ключ (`ssh-ed25519 ...`) |
 | `postgres_password` | Пароль пользователя БД `zemledel` (через `TF_VAR_postgres_password`, не в git) |
 

@@ -41,6 +41,13 @@ resource "yandex_vpc_security_group" "postgres" {
     security_group_id = yandex_vpc_security_group.vm.id
   }
 
+  ingress {
+    description    = "PostgreSQL from operator (restore cities dump)"
+    protocol       = "TCP"
+    port           = 6432
+    v4_cidr_blocks = [var.operator_cidr]
+  }
+
   egress {
     description    = "Any"
     protocol       = "ANY"

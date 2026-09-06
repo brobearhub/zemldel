@@ -7,7 +7,7 @@ import {
 import { DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { createHash } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { isAllowedLocationRow } from '../cities/location';
+import { assertActiveSelectableCity } from '../cities/city-validation';
 import { CreateUserDto } from './dto/create-user.dto';
 import { S3Service } from '../storage/s3.service';
 
@@ -124,16 +124,7 @@ export class UsersService {
       if (!this.isUuid(nextCustomerCityId)) {
         throw new BadRequestException('Invalid customerCityId');
       }
-      const exists = await this.prisma.city.findUnique({
-        where: { id: nextCustomerCityId },
-        select: { id: true, typeName: true, level: true },
-      });
-      if (!exists) {
-        throw new NotFoundException('City not found');
-      }
-      if (!isAllowedLocationRow(exists)) {
-        throw new BadRequestException('Invalid location');
-      }
+      await assertActiveSelectableCity(this.prisma, nextCustomerCityId);
     }
 
     if (nextCustomerCityId === undefined) {

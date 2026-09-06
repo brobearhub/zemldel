@@ -7,6 +7,7 @@ import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { REQUEST_INTENT as SERVICE_REQUEST_INTENT } from "@/entities/request";
+import { areSignInFieldsFilled } from "./are-sign-in-fields-filled";
 
 export default function SignInPage() {
   return (
@@ -58,8 +59,13 @@ function SignInPageContent() {
   const returnTo = searchParams.get("returnTo");
   const signUpHref = searchParams.toString() ? `/signup?${searchParams.toString()}` : "/signup";
 
+  const canSubmit = areSignInFieldsFilled(email, password);
+
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!areSignInFieldsFilled(email, password)) {
+      return;
+    }
     setError(null);
     setLoading(true);
 
@@ -129,7 +135,14 @@ function SignInPageContent() {
                 helperText={error ?? " "}
               />
 
-              <Button variant="contained" size="large" fullWidth color="secondary" type="submit" disabled={loading}>
+              <Button
+                variant="contained"
+                size="large"
+                fullWidth
+                color="primary"
+                type="submit"
+                disabled={loading || !canSubmit}
+              >
                 Войти
               </Button>
             </Stack>

@@ -12,35 +12,60 @@ import {
 } from "@mui/material/colors";
 import { alpha } from "@mui/material/styles";
 
+/**
+ * Light brand colors from Sotheby's Motorsport screenshots.
+ * Previous tokens: `frontend/docs/theme.md`.
+ */
+const LIGHT_BRAND = {
+  sage: "#a0b4a0",
+  sageLight: "#b3c3b3",
+  sageDark: "#889988",
+  /** Deeper muted sage for success — same family as primary, not MUI grass green. */
+  sageSuccess: "#548a5c",
+  orange: "#FF4B14",
+  cream: "#f0f0e6",
+  paper: "#ffffff",
+  ink: "#000000",
+  /** Deep forest green for body copy. */
+  forest: "#325e49",
+  forestMuted: "#6e7471",
+  gray: "#757575",
+  /** `rgba(0,0,0,.12)` flattened onto white (disabled button fill). */
+  disabledButton: "#e0e0e0",
+} as const;
+
 /** Semantic palette → MUI primitives (Figma: light `hue/700`, dark `hue/200`). */
 const TOKENS = {
   light: {
-    bg: grey[100],
-    paper: common.white,
-    gray: grey[500],
+    bg: LIGHT_BRAND.cream,
+    header: LIGHT_BRAND.cream,
+    paper: LIGHT_BRAND.paper,
+    gray: LIGHT_BRAND.gray,
     primary: {
-      main: teal[800],
-      light: teal[700],
-      dark: teal[900],
-      contrastText: common.white,
+      main: LIGHT_BRAND.sage,
+      light: LIGHT_BRAND.sageLight,
+      dark: LIGHT_BRAND.sageDark,
+      contrastText: LIGHT_BRAND.ink,
     },
     secondary: {
-      main: grey[800],
-      light: grey[700],
-      dark: grey[900],
+      main: LIGHT_BRAND.ink,
+      light: grey[800],
+      dark: LIGHT_BRAND.ink,
       contrastText: common.white,
     },
-    info: { main: deepOrange[500], contrastText: common.white },
-    success: { main: green[800], contrastText: common.white },
+    info: { main: LIGHT_BRAND.orange, contrastText: common.white },
+    success: { main: LIGHT_BRAND.sageSuccess, contrastText: LIGHT_BRAND.cream },
     warning: { main: lime[900], contrastText: common.white },
     error: { main: red[600], contrastText: common.white },
-    divider: alpha(grey[800], 0.12),
-    textPrimary: brown[600],
-    textSecondary: alpha(grey[900], 0.65),
-    footer: grey[800],
+    divider: LIGHT_BRAND.disabledButton,
+    textPrimary: LIGHT_BRAND.forest,
+    textSecondary: LIGHT_BRAND.forestMuted,
+    footer: LIGHT_BRAND.sage,
+    disabledButton: LIGHT_BRAND.disabledButton,
   },
   dark: {
     bg: grey[900],
+    header: common.black,
     paper: grey[800],
     gray: grey[500],
     primary: {
@@ -63,6 +88,7 @@ const TOKENS = {
     textPrimary: brown[200],
     textSecondary: alpha(common.white, 0.5),
     footer: common.black,
+    disabledButton: alpha(common.white, 0.12),
   },
 } as const;
 
@@ -107,10 +133,14 @@ export function createAppTheme(mode: PaletteMode) {
         primary: t.textPrimary,
         secondary: t.textSecondary,
       },
+      action: {
+        disabledBackground: t.disabledButton,
+      },
     },
     custom: {
       bgColors: {
         primary: t.bg,
+        header: t.header,
         secondary: t.footer,
       },
       gradients: {
@@ -131,10 +161,12 @@ export function createAppTheme(mode: PaletteMode) {
             0.12,
           )} 40%, ${alpha(t.secondary.main, 0.06)} 100%)`,
         footer:
-          `linear-gradient(170deg, ${alpha(t.footer, 0.94)} 0%, ${alpha(
-            t.footer,
-            0.98,
-          )} 55%, ${alpha(common.black, 0.98)} 100%)`,
+          mode === "light"
+            ? t.footer
+            : `linear-gradient(170deg, ${alpha(t.footer, 0.94)} 0%, ${alpha(
+                t.footer,
+                0.98,
+              )} 55%, ${alpha(common.black, 0.98)} 100%)`,
       }
     },
     shape: { borderRadius: 16 },
@@ -154,10 +186,14 @@ export function createAppTheme(mode: PaletteMode) {
           const autofillBg = theme.palette.background.paper;
 
           return {
+            html: {
+              backgroundColor: theme.palette.background.default,
+            },
             body: {
               // Improve font rendering on dark backgrounds.
               WebkitFontSmoothing: "antialiased",
               MozOsxFontSmoothing: "grayscale",
+              backgroundColor: theme.palette.background.default,
             },
             // Prevent browser autofill from painting blue/yellow backgrounds.
             // Kept global and minimal to preserve default MUI label/padding behavior.
@@ -189,6 +225,9 @@ export function createAppTheme(mode: PaletteMode) {
           contained: {
             boxShadow: "none",
             "&:hover": { boxShadow: "none" },
+            "&.Mui-disabled": {
+              backgroundColor: t.disabledButton,
+            },
           },
         },
       },
@@ -199,8 +238,11 @@ export function createAppTheme(mode: PaletteMode) {
         styleOverrides: {
           root: ({ theme }) => ({
             backgroundImage: "none",
-            backgroundColor: theme.custom.bgColors.secondary,
-            color: theme.palette.common.white,
+            backgroundColor: theme.custom.bgColors.header,
+            color:
+              theme.palette.mode === "light"
+                ? theme.palette.text.primary
+                : theme.palette.common.white,
             borderBottom: `1px solid ${theme.palette.divider}`,
           }),
         },
@@ -216,8 +258,8 @@ export function createAppTheme(mode: PaletteMode) {
             textUnderlineOffset: "0.18em",
             transition: "color 140ms ease, text-decoration-color 140ms ease",
             "&:hover": {
-              color: theme.palette.secondary.main,
-              textDecorationColor: alpha(theme.palette.secondary.main, 0.8),
+              color: theme.palette.primary.dark,
+              textDecorationColor: alpha(theme.palette.primary.dark, 0.8),
             },
           }),
         },

@@ -113,6 +113,18 @@ enum LegalAcceptanceContext {
   CONTRACT
 }
 
+enum CityStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum CityImportEventType {
+  ADDED
+  DEACTIVATED
+  REACTIVATED
+  UPDATED
+}
+
 model City {
   id          String @id @default(uuid()) @db.Uuid
   garObjectId BigInt @unique
@@ -122,16 +134,51 @@ model City {
   level       Int
   regionCode  String
   regionName  String
+  status      CityStatus @default(ACTIVE)
+  deactivatedAt DateTime?
 
   customerUsers User[]     @relation("UserCustomerCity")
   providers     Provider[] @relation("ProviderCity")
   requests      Request[]  @relation("RequestCity")
+  importEvents  CityImportEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([regionCode])
   @@index([regionCode, name])
+  @@index([status])
+}
+
+model CityImportRun {
+  id               String   @id @default(uuid()) @db.Uuid
+  mode             String
+  sourceLabel      String?
+  startedAt        DateTime @default(now())
+  finishedAt       DateTime?
+  snapshotCount    Int
+  addedCount       Int      @default(0)
+  deactivatedCount Int      @default(0)
+  reactivatedCount Int      @default(0)
+  updatedCount     Int      @default(0)
+  events           CityImportEvent[]
+}
+
+model CityImportEvent {
+  id             String              @id @default(uuid()) @db.Uuid
+  runId          String              @db.Uuid
+  run            CityImportRun       @relation(fields: [runId], references: [id], onDelete: Cascade)
+  cityId         String?             @db.Uuid
+  city           City?               @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  garObjectId    BigInt
+  eventType      CityImportEventType
+  name           String
+  regionCode     String
+  regionName     String
+  previousStatus CityStatus?
+  newStatus      CityStatus
+
+  @@index([runId, eventType])
 }
 
 model User {

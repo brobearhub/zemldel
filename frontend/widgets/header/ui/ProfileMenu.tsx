@@ -125,7 +125,7 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
               width: { xs: 28, sm: 32 },
               height: { xs: 28, sm: 32 },
               bgcolor: "primary.main",
-              color: "common.white",
+              color: "primary.contrastText",
               fontSize: { xs: 12, sm: 13 },
               fontWeight: 600,
             }}

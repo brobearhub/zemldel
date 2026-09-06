@@ -18,9 +18,9 @@ declare module "@mui/material/styles" {
   interface Theme {
     custom: {
       gradients: {
-        /** Warm gold → orange → teal → deep navy */
+        /** Sage → cream atmospheric gradient */
         sunset: string;
-        /** Subtle teal-to-navy atmospheric gradient */
+        /** Subtle atmospheric gradient */
         sky: string;
         /** Glassy overlay for translucent surfaces */
         glass: string;
@@ -32,7 +32,9 @@ declare module "@mui/material/styles" {
       bgColors: {
         /** Page background (`background.default`). */
         primary: string;
-        /** Header/footer chrome. */
+        /** Header chrome (cream in light). */
+        header: string;
+        /** Footer chrome (sage in light). */
         secondary: string;
       };
     };

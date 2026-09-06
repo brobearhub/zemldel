@@ -54,6 +54,13 @@ export type RequestPaymentItemDto = {
   createdAt: string;
 };
 
+export type RequestCityDto = {
+  id: string;
+  name: string;
+  regionCode: string;
+  regionName: string;
+};
+
 export type RequestCustomerDto = {
   id: string;
   subjectType: RequestSubjectType;
@@ -75,6 +82,8 @@ export type RequestCustomerDto = {
   lastSelectionAt: string | null;
   offers: RequestCustomerOfferDto[];
   requestCityId: string | null;
+  requestCity: RequestCityDto | null;
+  fiasInactiveWarning: boolean;
   lockedAt: string | null;
   serviceTitle: string | null;
   providerName: string | null;
@@ -116,6 +125,8 @@ export type RequestProDto = {
   offerSelectedAt: string | null;
   offerDeclinedAt: string | null;
   requestCityId: string | null;
+  requestCity: RequestCityDto | null;
+  fiasInactiveWarning: boolean;
   lockedAt: string | null;
   customerName: string | null;
   customerEmail: string | null;

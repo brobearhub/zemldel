@@ -10,6 +10,10 @@ import * as sax from 'sax';
 import unzipper from 'unzipper';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
+import {
+  reconcileGarCities,
+  type GarCitySnapshotRow,
+} from './import-gar-cities-reconcile';
 
 type CityRow = {
   garObjectId: bigint;
@@ -1016,6 +1020,50 @@ async function parseFromNestedRegionZips(rootDir: string) {
   return { cityByObjectId, cityRegionCode, regionNameByCode };
 }
 
+async function persistGarCities(
+  cities: GarCitySnapshotRow[],
+  opts: { mode: string; sourceLabel: string | null },
+): Promise<void> {
+  console.log(`Ready to reconcile: ${cities.length} city row(s).`);
+
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+  const prisma = new PrismaClient({ adapter });
+  try {
+    const stats = await reconcileGarCities(prisma, cities, opts, 1000);
+
+    console.log('Reconcile stats:');
+    console.log(`  run id:           ${stats.runId}`);
+    console.log(`  snapshot rows:    ${stats.snapshotCount}`);
+    console.log(`  added:            ${stats.addedCount}`);
+    console.log(`  updated:          ${stats.updatedCount}`);
+    console.log(`  deactivated:      ${stats.deactivatedCount}`);
+    console.log(`  reactivated:      ${stats.reactivatedCount}`);
+    console.log('Done.');
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+function buildCitiesFromParsed(
+  cityByObjectId: Map<bigint, Omit<CityRow, 'regionCode' | 'regionName'>>,
+  cityRegionCode: Map<bigint, string>,
+  regionNameByCode: Map<string, string>,
+): GarCitySnapshotRow[] {
+  const cities: GarCitySnapshotRow[] = [];
+  for (const [objectId, city] of cityByObjectId.entries()) {
+    const regionCode = cityRegionCode.get(objectId);
+    if (!regionCode) continue;
+    const regionName = regionNameByCode.get(regionCode);
+    if (!regionName) continue;
+    cities.push({
+      ...city,
+      regionCode,
+      regionName,
+    });
+  }
+  return cities;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
 
@@ -1046,12 +1094,12 @@ async function main() {
     } else if (mode === 'delta') {
       if (cityCount === 0) {
         throw new Error(
-          'City table is empty. Delta dump contains only changes and cannot seed the full cities list. ' +
-            'Run with --mode full (remote partial import from gar_xml.zip) for the initial load.',
+          'City table is empty. Delta/reconcile requires an existing snapshot baseline. ' +
+            'Run with --mode full (gar_xml.zip) for the initial load.',
         );
       }
-      console.log(`City rows in DB: ${cityCount}. Mode: ${mode}. Will download: gar_delta_xml.zip`);
-      args.zip = await downloadGarArchive(outDir, 'gar_delta_xml.zip');
+      console.log(`City rows in DB: ${cityCount}. Mode: ${mode}. Will download: gar_xml.zip`);
+      args.zip = await downloadGarArchive(outDir, 'gar_xml.zip');
     } else {
       // auto
       if (cityCount === 0) {
@@ -1060,68 +1108,25 @@ async function main() {
             '(downloads gar_xml.zip; use --out to store it on an external drive).',
         );
       }
-      console.log(`City rows in DB: ${cityCount}. Mode: ${mode}. Will download: gar_delta_xml.zip`);
-      args.zip = await downloadGarArchive(outDir, 'gar_delta_xml.zip');
+      console.log(`City rows in DB: ${cityCount}. Mode: ${mode}. Will download: gar_xml.zip`);
+      args.zip = await downloadGarArchive(outDir, 'gar_xml.zip');
     }
   }
 
   if (args.zip) {
     const parsed = await parseFromLocalGarXmlZip(args.zip);
-    let cityByObjectId: Map<bigint, Omit<CityRow, 'regionCode' | 'regionName'>> = parsed.cityByObjectId;
-    let cityRegionCode: Map<bigint, string> = parsed.cityRegionCode;
-    let regionNameByCode: Map<string, string> = parsed.regionNameByCode;
 
-    const cities: CityRow[] = [];
-    for (const [objectId, city] of cityByObjectId.entries()) {
-      const regionCode = cityRegionCode.get(objectId);
-      if (!regionCode) continue;
-      const regionName = regionNameByCode.get(regionCode);
-      if (!regionName) continue;
-      cities.push({
-        ...city,
-        regionCode,
-        regionName,
-      });
-    }
+    const cities = buildCitiesFromParsed(
+      parsed.cityByObjectId,
+      parsed.cityRegionCode,
+      parsed.regionNameByCode,
+    );
 
-    console.log(`Ready to upsert: ${cities.length} city row(s).`);
+    await persistGarCities(cities, {
+      mode,
+      sourceLabel: args.zip ?? null,
+    });
 
-    const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
-    const prisma = new PrismaClient({ adapter });
-    try {
-      let done = 0;
-      for (const c of cities) {
-        await prisma.city.upsert({
-          where: { garObjectId: c.garObjectId },
-          update: {
-            objectGuid: c.objectGuid,
-            name: c.name,
-            typeName: c.typeName,
-            level: c.level,
-            regionCode: c.regionCode,
-            regionName: c.regionName,
-          },
-          create: {
-            garObjectId: c.garObjectId,
-            objectGuid: c.objectGuid,
-            name: c.name,
-            typeName: c.typeName,
-            level: c.level,
-            regionCode: c.regionCode,
-            regionName: c.regionName,
-          },
-        });
-        done++;
-        if (done % 100 === 0) {
-          console.log(`Upserted ${done}/${cities.length}...`);
-        }
-      }
-      console.log(`Done. Upserted ${done} city row(s).`);
-    } finally {
-      await prisma.$disconnect();
-    }
-
-    // zip mode done
     return;
   }
 
@@ -1164,58 +1169,16 @@ async function main() {
     console.log(`Mapped city->regionCode: ${cityRegionCode.size}. regionCode->regionName: ${regionNameByCode.size}.`);
   }
 
-  const cities: CityRow[] = [];
-  for (const [objectId, city] of cityByObjectId.entries()) {
-    const regionCode = cityRegionCode.get(objectId);
-    if (!regionCode) continue;
-    const regionName = regionNameByCode.get(regionCode);
-    if (!regionName) continue;
-    cities.push({
-      ...city,
-      regionCode,
-      regionName,
-    });
-  }
+  const cities = buildCitiesFromParsed(cityByObjectId, cityRegionCode, regionNameByCode);
 
-  console.log(`Ready to upsert: ${cities.length} city row(s).`);
+  await persistGarCities(cities, {
+    mode,
+    sourceLabel: rootDir,
+  });
 
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
-  const prisma = new PrismaClient({ adapter });
-  try {
-    let done = 0;
-    for (const c of cities) {
-      await prisma.city.upsert({
-        where: { garObjectId: c.garObjectId },
-        update: {
-          objectGuid: c.objectGuid,
-          name: c.name,
-          typeName: c.typeName,
-          level: c.level,
-          regionCode: c.regionCode,
-          regionName: c.regionName,
-        },
-        create: {
-          garObjectId: c.garObjectId,
-          objectGuid: c.objectGuid,
-          name: c.name,
-          typeName: c.typeName,
-          level: c.level,
-          regionCode: c.regionCode,
-          regionName: c.regionName,
-        },
-      });
-      done++;
-      if (done % 100 === 0) {
-        console.log(`Upserted ${done}/${cities.length}...`);
-      }
-    }
-    console.log(`Done. Upserted ${done} city row(s).`);
-  } finally {
-    await prisma.$disconnect();
-    if (tempDir && cleanup) {
-      console.log(`Cleaning up temp dir: ${tempDir}`);
-      await rm(tempDir, { recursive: true, force: true });
-    }
+  if (tempDir && cleanup) {
+    console.log(`Cleaning up temp dir: ${tempDir}`);
+    await rm(tempDir, { recursive: true, force: true });
   }
 }
 

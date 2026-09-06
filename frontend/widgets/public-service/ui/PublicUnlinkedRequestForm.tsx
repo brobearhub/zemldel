@@ -201,7 +201,7 @@ export function PublicUnlinkedRequestForm({
 
   const content = (
     <Stack spacing={2.5}>
-      <RequestFormLogo />
+      {/* <RequestFormLogo /> */}
 
       <Stack spacing={2} component="form" onSubmit={handleSubmit}>
         {variant === "card" ? (
@@ -210,9 +210,9 @@ export function PublicUnlinkedRequestForm({
               variant="h5"
               sx={{
                 fontWeight: 900,
-                color: "text.primary"
+                textAlign: "center",
               }}>
-              Нужна помощь? Создайте заявку
+              Нужна помощь?
             </Typography>
             <Typography variant="body2" sx={{
               color: "text.secondary"
@@ -232,8 +232,8 @@ export function PublicUnlinkedRequestForm({
           </Typography>
         )}
 
-        {validationError && !error ? <Alert severity="info">{validationError}</Alert> : null}
-        {error ? <Alert severity="error">{error}</Alert> : null}
+        {validationError && !error ? <Alert severity="warning">{validationError}</Alert> : null}
+        {error ? <Alert severity="warning">{error}</Alert> : null}
 
         <CityAutocomplete
           label="Локация"
@@ -297,7 +297,6 @@ export function PublicUnlinkedRequestForm({
         </Accordion>
 
         <Button
-          color="info"
           type="submit"
           variant="contained"
           size="large"

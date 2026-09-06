@@ -423,7 +423,7 @@ function SignUpPageContent() {
                 variant="contained"
                 size="large"
                 fullWidth
-                color="secondary"
+                color="primary"
                 type="submit"
                 disabled={
                   loading ||

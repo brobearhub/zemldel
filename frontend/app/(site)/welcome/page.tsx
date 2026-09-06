@@ -78,7 +78,7 @@ export default function WelcomePage() {
               fullWidth
               startIcon={<PersonRoundedIcon />}
               sx={{ py: 1.5 }}
-              color="secondary"
+              color="primary"
             >
               Перейти в профиль
             </Button>

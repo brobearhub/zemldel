@@ -26,7 +26,7 @@ export function ServiceCardList({ title, subtitle, items, columns }: Props) {
             fontSize: { xs: 24, sm: 26, md: 28 },
             lineHeight: 1.15,
           }}
-          color="primary"
+          // color="primary"
         >
           {title}
         </Typography>

@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import type { CityImportEventDto, CityImportRunDto } from './dto/city-admin.dto';
 import type { CitySuggestItemDto } from './dto/city.dto';
 
 function normalizeQuery(input: string) {
@@ -94,6 +95,7 @@ export class CitiesService {
 
     const rows = await this.prisma.city.findMany({
       where: {
+        status: 'ACTIVE',
         level: { in: [1, 2, 3, 4, 5, 6] },
         name: {
           startsWith: q,
@@ -132,6 +134,55 @@ export class CitiesService {
       regionCode: row.regionCode,
       regionName: row.regionName,
       displayName: buildDisplayName(row),
+    }));
+  }
+
+  async listImportRuns(limitRaw = 50): Promise<CityImportRunDto[]> {
+    const limit = Math.min(100, Math.max(1, Math.floor(limitRaw)));
+    const rows = await this.prisma.cityImportRun.findMany({
+      orderBy: { startedAt: 'desc' },
+      take: limit,
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      mode: row.mode,
+      sourceLabel: row.sourceLabel,
+      startedAt: row.startedAt.toISOString(),
+      finishedAt: row.finishedAt ? row.finishedAt.toISOString() : null,
+      snapshotCount: row.snapshotCount,
+      addedCount: row.addedCount,
+      deactivatedCount: row.deactivatedCount,
+      reactivatedCount: row.reactivatedCount,
+      updatedCount: row.updatedCount,
+    }));
+  }
+
+  async listImportRunEvents(runId: string): Promise<CityImportEventDto[]> {
+    const run = await this.prisma.cityImportRun.findUnique({
+      where: { id: runId },
+      select: { id: true },
+    });
+    if (!run) {
+      throw new NotFoundException('Import run not found');
+    }
+
+    const rows = await this.prisma.cityImportEvent.findMany({
+      where: { runId },
+      orderBy: [{ eventType: 'asc' }, { name: 'asc' }],
+      take: 500,
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      runId: row.runId,
+      cityId: row.cityId,
+      garObjectId: row.garObjectId.toString(),
+      eventType: row.eventType,
+      name: row.name,
+      regionCode: row.regionCode,
+      regionName: row.regionName,
+      previousStatus: row.previousStatus,
+      newStatus: row.newStatus,
     }));
   }
 }

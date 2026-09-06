@@ -9,7 +9,7 @@ import {
 import { type Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
-import { isAllowedLocationRow } from '../cities/location';
+import { assertActiveSelectableCity } from '../cities/city-validation';
 import { LegalDocsService } from '../legal-docs/legal-docs.service';
 import {
   type AuthMembership,
@@ -218,17 +218,7 @@ export class AuthService {
       if (!this.isUuid(customerCityId)) {
         throw new BadRequestException('Invalid customerCityId');
       }
-
-      const city = await this.prisma.city.findUnique({
-        where: { id: customerCityId },
-        select: { id: true, typeName: true, level: true },
-      });
-      if (!city) {
-        throw new NotFoundException('City not found');
-      }
-      if (!isAllowedLocationRow(city)) {
-        throw new BadRequestException('Invalid location');
-      }
+      await assertActiveSelectableCity(this.prisma, customerCityId);
     }
 
     const versions = await this.legalDocs.assertCurrentVersions({

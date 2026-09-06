@@ -61,6 +61,12 @@ CREATE TYPE "LegalAcceptanceContext" AS ENUM ('SIGNUP', 'PROVIDER_ONBOARDING', '
 -- CreateEnum
 CREATE TYPE "RequestPaymentType" AS ENUM ('CONTRACT', 'OTHER');
 
+-- CreateEnum
+CREATE TYPE "CityStatus" AS ENUM ('ACTIVE', 'INACTIVE');
+
+-- CreateEnum
+CREATE TYPE "CityImportEventType" AS ENUM ('ADDED', 'DEACTIVATED', 'REACTIVATED', 'UPDATED');
+
 -- CreateTable
 CREATE TABLE "City" (
     "id" UUID NOT NULL,
@@ -71,10 +77,44 @@ CREATE TABLE "City" (
     "level" INTEGER NOT NULL,
     "regionCode" TEXT NOT NULL,
     "regionName" TEXT NOT NULL,
+    "status" "CityStatus" NOT NULL DEFAULT 'ACTIVE',
+    "deactivatedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "City_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CityImportRun" (
+    "id" UUID NOT NULL,
+    "mode" TEXT NOT NULL,
+    "sourceLabel" TEXT,
+    "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "finishedAt" TIMESTAMP(3),
+    "snapshotCount" INTEGER NOT NULL,
+    "addedCount" INTEGER NOT NULL DEFAULT 0,
+    "deactivatedCount" INTEGER NOT NULL DEFAULT 0,
+    "reactivatedCount" INTEGER NOT NULL DEFAULT 0,
+    "updatedCount" INTEGER NOT NULL DEFAULT 0,
+
+    CONSTRAINT "CityImportRun_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CityImportEvent" (
+    "id" UUID NOT NULL,
+    "runId" UUID NOT NULL,
+    "cityId" UUID,
+    "garObjectId" BIGINT NOT NULL,
+    "eventType" "CityImportEventType" NOT NULL,
+    "name" TEXT NOT NULL,
+    "regionCode" TEXT NOT NULL,
+    "regionName" TEXT NOT NULL,
+    "previousStatus" "CityStatus",
+    "newStatus" "CityStatus" NOT NULL,
+
+    CONSTRAINT "CityImportEvent_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -572,6 +612,12 @@ CREATE INDEX "City_regionCode_idx" ON "City"("regionCode");
 CREATE INDEX "City_regionCode_name_idx" ON "City"("regionCode", "name");
 
 -- CreateIndex
+CREATE INDEX "City_status_idx" ON "City"("status");
+
+-- CreateIndex
+CREATE INDEX "CityImportEvent_runId_eventType_idx" ON "CityImportEvent"("runId", "eventType");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
@@ -834,6 +880,12 @@ ALTER TABLE "User" ADD CONSTRAINT "User_activeProviderId_fkey" FOREIGN KEY ("act
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_customerCityId_fkey" FOREIGN KEY ("customerCityId") REFERENCES "City"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CityImportEvent" ADD CONSTRAINT "CityImportEvent_runId_fkey" FOREIGN KEY ("runId") REFERENCES "CityImportRun"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CityImportEvent" ADD CONSTRAINT "CityImportEvent_cityId_fkey" FOREIGN KEY ("cityId") REFERENCES "City"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "LegalAcceptance" ADD CONSTRAINT "LegalAcceptance_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

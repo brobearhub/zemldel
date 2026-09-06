@@ -425,16 +425,36 @@ API:
 
 Улицы/дома/помещения и другие уровни ниже населённого пункта в продукт не импортируются.
 
+#### Статус локации
+
+- `ACTIVE` — объект есть в актуальном снимке ГАР;
+- `INACTIVE` — объект был в справочнике, но исчез из снимка (soft delete, строка не удаляется).
+
 Правила:
+- в автокомплите (`GET /cities/suggest`) показываются только `ACTIVE`;
+- при выборе локации в формах (заявка, профиль, provider) сервер отклоняет `INACTIVE` (`400 City is not available`);
+- если заявка уже привязана к городу, который стал `INACTIVE`, заявка **не ломается** — в ответе API `fiasInactiveWarning: true` и объект `requestCity`;
+- `City.id` (UUID приложения) **не меняется** при обновлении справочника — FK в заявках и профилях сохраняются.
+
+#### Импорт и prod
+
+- **ГАР не парсится на prod-ВМ** (диск ~30 GB, архив ~50+ GB).
+- Pipeline: локально `npm run cities:update` → `pg_dump` → `npm run cities:restore` на prod PostgreSQL.
+- Подробности: [`docs/cities.md`](cities.md).
+
+Команды (локально, каталог `backend/`):
+- первичная заливка / full reconcile: `npm run cities:update -- --mode full --zip /path/to/gar_xml.zip`;
+- обновление на заполненной БД: `npm run cities:update -- --mode delta --zip /path/to/gar_xml.zip` (тот же **полный** снимок `gar_xml.zip`, не `gar_delta_xml.zip`);
+- reconcile: новые → INSERT, изменившиеся → UPDATE, исчезнувшие из снимка → `INACTIVE`;
+- zаливка на prod: `npm run cities:restore -- --file ../backups/city-YYYYMMDD.dump` (merge по `garObjectId`, без `DELETE`).
+
+Прочее:
 - локация выбирается из списка (автокомплит), без ручного freeform ввода;
 - локация заказчика хранится отдельно от локации провайдера:
   - `User.customerCityId` — локация пользователя в клиентском контексте;
   - `Provider.cityId` — локация активного провайдера в профессиональном контексте;
-- справочник обновляется вручную запуском скрипта импорта;
-- команды:
-  - первичная загрузка: `backend` → `npm run cities:update -- --mode full` (скачивает официальный `gar_xml.zip` ~50+ GB; по умолчанию в `/Volumes/One Touch/Projects/novagor/cities`, либо в ваш путь через `--out`);
-  - обновление: `backend` → `npm run cities:update` (скачивает `gar_delta_xml.zip` и делает upsert изменений);
-- при расширении списка импортируемых уровней нужен backfill через `--mode full` (дельта-архив не содержит полный перечень объектов, только изменения);
+  - `Request.requestCityId` — город, явно указанный в заявке (если не задан при create — подставляется `customerCityId`);
+- история импортов: `CityImportRun` / `CityImportEvent`, admin UI `/admin/cities/imports`;
 - ГАР/ФИАС не содержит координаты; координаты/геопоиск — отдельный слой (позже).
 
 ### Правила для provider

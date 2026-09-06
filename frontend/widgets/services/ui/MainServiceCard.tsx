@@ -84,7 +84,7 @@ export const MainServiceCard = ({ item }: Props) => {
               fontSize: 13,
               lineHeight: 1,
               // bgcolor: (theme) => theme.palette.success.main,
-              bgcolor: "success.main",
+              bgcolor: "info.main",
               border: "1px solid rgba(127,127,127,0.22)",
               boxShadow: "0 14px 40px rgba(0,0,0,0.12)",
               backdropFilter: "blur(10px)",

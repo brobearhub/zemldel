@@ -15,7 +15,7 @@ type Props = {
 };
 
 export function CabinetNavItem({ href, label, icon, selected, badge, size }: Props) {
-  const tone = selected ? "common.white" : "common.gray";
+  const tone = selected ? "text.primary" : "text.secondary";
 
   return (
     <Box
@@ -34,7 +34,7 @@ export function CabinetNavItem({ href, label, icon, selected, badge, size }: Pro
         ...(size === "desktop"
           ? {
               "&:hover": {
-                bgcolor: (theme) => alpha(theme.palette.common.white, 0.06),
+                bgcolor: (theme) => alpha(theme.palette.text.primary, 0.06),
               },
             }
           : {}),

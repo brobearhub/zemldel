@@ -69,8 +69,10 @@ cp deploy/.deploy.env.example deploy/.deploy.env
 ## 6. Данные в БД
 
 ```bash
-./deploy/scripts/post-deploy-data.sh
+./deploy/scripts/post-deploy-data.sh   # db:seed (услуги/категории)
 ```
+
+Справочник **City** — отдельно, с локальной машины: см. [`docs/cities.md`](../docs/cities.md) (`cities:update` → dump → `cities:restore`).
 
 Первый **PLATFORM_ADMIN** — явно.
 

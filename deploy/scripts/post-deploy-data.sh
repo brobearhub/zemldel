@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cities:import + db:seed на prod ВМ.
+# db:seed на prod ВМ (без импорта ГАР — City заливается дампом с локальной машины, см. docs/cities.md).
 
 set -euo pipefail
 
@@ -26,7 +26,7 @@ COMPOSE="docker compose -f ${VM_DEPLOY_PATH}/docker-compose.prod.yml"
 ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${VM_USER}@${VM_HOST}" bash -s <<EOF
 set -euo pipefail
 cd "${VM_DEPLOY_PATH}"
-${COMPOSE} exec -T backend npx tsx scripts/import-gar-cities.ts --mode full
 ${COMPOSE} exec -T backend npm run db:seed
-echo "Готово. Создайте PLATFORM_ADMIN вручную (SQL или admin-flow)."
+echo "Готово. Справочник City — через cities:restore с локальной машины (docs/cities.md)."
+echo "Создайте PLATFORM_ADMIN вручную (SQL или admin-flow)."
 EOF
