@@ -26,7 +26,7 @@ describe("GET /api/services", () => {
       })
     );
 
-    const response = await GET();
+    const response = await GET(new Request("http://localhost/api/services"));
     const json = await response.json();
 
     expect(response.status).toBe(200);
@@ -37,7 +37,7 @@ describe("GET /api/services", () => {
   it("returns 500 when repository throws", async () => {
     mockedFetchBackend.mockRejectedValue(new Error("backend down"));
 
-    const response = await GET();
+    const response = await GET(new Request("http://localhost/api/services"));
     const json = await response.json();
 
     expect(response.status).toBe(500);

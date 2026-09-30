@@ -51,7 +51,7 @@ export default async function ServicePage({ params }: Props) {
 
   const shortDescription =
     service.description ??
-    (service.category?.slug === "main" ? service.title : `${service.title}. ${service.price}.`);
+    `${service.title}. ${service.price}.`;
 
   return (
     <main>

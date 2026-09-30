@@ -71,7 +71,7 @@ output "deploy_checklist" {
     4. Обновить Lockbox secret ${yandex_lockbox_secret.app.id} реальными секретами
     5. Скопировать deploy/* на ВМ в /opt/zemledel, создать .env
     6. ./deploy/deploy.sh
-    7. ./deploy/scripts/post-deploy-data.sh (db:seed)
+    7. ./deploy/scripts/post-deploy-data.sh (db:seed: категории)
     8. City: cities:restore с локальной машины (docs/cities.md; PG доступен с operator_cidr:6432)
     Подробнее: deploy/FIRST-DEPLOY.md
   EOT

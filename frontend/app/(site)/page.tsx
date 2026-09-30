@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import type { ServiceDto } from "@/entities/service";
 import { fetchBackendJson } from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
 import { HomeStickyRequestLayout } from "@/app/(site)/HomeStickyRequestLayout";
@@ -10,19 +9,16 @@ type ServiceCategoryRow = {
   slug: string;
   parentId: string | null;
   sortOrder: number | null;
-  placements: Array<"HOME">;
 };
 
 export default async function IndexPage() {
   const session = await getServerAuthSession();
-  const services = await fetchBackendJson<ServiceDto[]>("/services");
-  const categories = await fetchBackendJson<ServiceCategoryRow[]>("/service-categories?placement=HOME");
+  const categories = await fetchBackendJson<ServiceCategoryRow[]>("/service-categories");
 
   return (
     <HomeStickyRequestLayout
       isAuthenticated={Boolean(session?.user?.id)}
       categories={categories}
-      initialServices={services}
     />
   );
 }

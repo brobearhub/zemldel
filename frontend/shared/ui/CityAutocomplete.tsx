@@ -10,6 +10,7 @@ type Props = {
   onChange: (next: CitySuggestItemDto | null) => void;
   disabled?: boolean;
   placeholder?: string;
+  size?: "small" | "medium";
   error?: boolean;
   helperText?: string;
 };
@@ -23,7 +24,16 @@ function useDebounced(value: string, delayMs: number) {
   return debounced;
 }
 
-export function CityAutocomplete({ label, value, onChange, disabled, placeholder, error, helperText }: Props) {
+export function CityAutocomplete({
+  label,
+  value,
+  onChange,
+  disabled,
+  placeholder,
+  size = "small",
+  error,
+  helperText,
+}: Props) {
   const [inputValue, setInputValue] = useState("");
   const debounced = useDebounced(inputValue, 250);
   const [options, setOptions] = useState<CitySuggestItemDto[]>([]);
@@ -81,7 +91,7 @@ export function CityAutocomplete({ label, value, onChange, disabled, placeholder
           {...params}
           label={label}
           placeholder={placeholder}
-          size="small"
+          size={size}
           error={error}
           helperText={helperText}
           slotProps={{

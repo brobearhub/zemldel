@@ -9,6 +9,7 @@ import { createAppTheme } from "@/core/theme/createAppTheme";
 import { ReduxProvider } from "@/core/providers/ReduxProvider";
 import { AuthProvider } from "@/core/providers/AuthProvider";
 import { ConfirmProvider } from "@/shared/ui/confirm";
+import { CitySelectProvider } from "@/features/select-city";
 
 interface Props {
   readonly children: ReactNode;
@@ -22,7 +23,9 @@ const InnerProviders = ({ children }: Props) => {
     <AppRouterCacheProvider>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <ConfirmProvider>{children}</ConfirmProvider>
+        <ConfirmProvider>
+          <CitySelectProvider>{children}</CitySelectProvider>
+        </ConfirmProvider>
       </ThemeProvider>
     </AppRouterCacheProvider>
   );

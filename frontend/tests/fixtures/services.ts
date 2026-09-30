@@ -1,18 +1,18 @@
 import type { ServiceDto } from "@/entities/service";
 
-const mainCategory = {
-  id: "cat-main",
-  name: "Основные услуги",
-  slug: "main",
-  parentId: null,
+const categoryA = {
+  id: "cat-a",
+  name: "Перераспределение земельного участка",
+  slug: "pereraspredelenie-zu",
+  parentId: "root-1",
   sortOrder: 1,
 };
 
-const legalCategory = {
-  id: "cat-legal",
-  name: "Юридические услуги",
-  slug: "legal",
-  parentId: null,
+const categoryB = {
+  id: "cat-b",
+  name: "Составление исковых заявлений",
+  slug: "iskovye-zayavleniya",
+  parentId: "root-2",
   sortOrder: 2,
 };
 
@@ -29,10 +29,11 @@ const provider = {
 
 export const mainService: ServiceDto = {
   id: "svc-main-1",
-  categoryId: mainCategory.id,
-  category: mainCategory,
+  categoryId: categoryA.id,
+  category: categoryA,
   status: "PUBLISHED",
   title: "Межевание участка",
+  publishedAt: "2026-09-20T10:00:00.000Z",
   price: "от 15 000 ₽",
   provider,
   ctaText: "Записаться",
@@ -50,10 +51,11 @@ export const mainService: ServiceDto = {
 
 export const legalService: ServiceDto = {
   id: "svc-legal-1",
-  categoryId: legalCategory.id,
-  category: legalCategory,
+  categoryId: categoryB.id,
+  category: categoryB,
   status: "DRAFT",
   title: "Судебное сопровождение",
+  publishedAt: null,
   price: "от 30 000 ₽",
   provider,
   ctaText: "Оставить заявку",

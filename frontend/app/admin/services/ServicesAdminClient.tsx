@@ -86,8 +86,8 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
 
   useEffect(() => {
     if (categories && !createForm.categoryId) {
-      const main = categories.find((c) => c.slug === "main") ?? null;
-      const fallback = main ?? categories[0] ?? null;
+      const leaf = categories.find((c) => c.parentId != null) ?? null;
+      const fallback = leaf ?? categories[0] ?? null;
       if (fallback) {
         setCreateForm((s) => ({ ...s, categoryId: fallback.id }));
       }
@@ -97,10 +97,16 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
   const [editOpen, setEditOpen] = useState(false);
   const [editDraft, setEditDraft] = useState<ServiceRow | null>(null);
 
-  const grouped = useMemo(() => {
-    const main = services.filter((s) => s.category?.slug === "main");
-    const legal = services.filter((s) => s.category?.slug === "legal");
-    return { main, legal };
+  const ordered = useMemo(() => {
+    return [...services].sort((a, b) => {
+      const ac = a.category?.name ?? "";
+      const bc = b.category?.name ?? "";
+      const cc = ac.localeCompare(bc, "ru");
+      if (cc !== 0) return cc;
+      const tt = a.title.localeCompare(b.title, "ru");
+      if (tt !== 0) return tt;
+      return a.id.localeCompare(b.id);
+    });
   }, [services]);
 
   async function refresh() {
@@ -281,9 +287,9 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
       <Box>
         <Stack spacing={2}>
           <Box>
-            <Typography sx={{ fontWeight: 800, mb: 1 }}>main ({grouped.main.length})</Typography>
+            <Typography sx={{ fontWeight: 800, mb: 1 }}>Всего услуг: {ordered.length}</Typography>
             <Stack spacing={1}>
-              {grouped.main.map((s) => (
+              {ordered.map((s) => (
                 <Stack
                   key={s.id}
                   direction={{ xs: "column", sm: "row" }}
@@ -293,45 +299,17 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
                     p: 1.5,
                     border: "1px solid",
                     borderColor: "divider",
-                    borderRadius: 1
-                  }}>
-                  <Typography sx={{ flex: 1 }}>{s.title}</Typography>
-                  <Typography sx={{ fontWeight: 700, minWidth: 120 }}>{s.price}</Typography>
-                  <Stack direction="row" spacing={1}>
-                    <Button size="small" variant="outlined" onClick={() => openEdit(s)} disabled={busy}>
-                      Редактировать
-                    </Button>
-                    <Button
-                      size="small"
-                      color="error"
-                      variant="outlined"
-                      onClick={() => onDelete({ id: s.id, title: s.title })}
-                      disabled={busy}
-                    >
-                      Удалить
-                    </Button>
+                    borderRadius: 1,
+                  }}
+                >
+                  <Stack spacing={0.25} sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={{ fontWeight: 800 }} noWrap>
+                      {s.title}
+                    </Typography>
+                    <Typography sx={{ color: "text.secondary", fontSize: 12 }} noWrap>
+                      {s.category?.name ?? "Категория не указана"}
+                    </Typography>
                   </Stack>
-                </Stack>
-              ))}
-            </Stack>
-          </Box>
-
-          <Box>
-            <Typography sx={{ fontWeight: 800, mb: 1 }}>legal ({grouped.legal.length})</Typography>
-            <Stack spacing={1}>
-              {grouped.legal.map((s) => (
-                <Stack
-                  key={s.id}
-                  direction={{ xs: "column", sm: "row" }}
-                  spacing={1.5}
-                  sx={{
-                    alignItems: { xs: "flex-start", sm: "center" },
-                    p: 1.5,
-                    border: "1px solid",
-                    borderColor: "divider",
-                    borderRadius: 1
-                  }}>
-                  <Typography sx={{ flex: 1 }}>{s.title}</Typography>
                   <Typography sx={{ fontWeight: 700, minWidth: 120 }}>{s.price}</Typography>
                   <Stack direction="row" spacing={1}>
                     <Button size="small" variant="outlined" onClick={() => openEdit(s)} disabled={busy}>

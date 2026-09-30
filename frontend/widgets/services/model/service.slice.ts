@@ -26,13 +26,19 @@ const selectServiceState = (state: RootState): ServiceState => state.service;
 
 export const getServices = createSelector([selectServiceState], (state) => state.services);
 
-export const getServicesByCategorySlug = (slug: string) =>
+/** Услуги провайдеров из указанного города. */
+export const getServicesInCity = (cityId: string) =>
   createSelector([getServices], (services) =>
-    services.filter((service) => service.category?.slug === slug)
+    services.filter((service) => service.provider.city?.id === cityId)
   );
 
-// Backward-compatible selectors for current homepage sections.
-export const getMainServices = getServicesByCategorySlug("main");
-export const getLegalServices = getServicesByCategorySlug("legal");
+/** Услуги провайдеров из других городов (с заданным городом, не совпадающим с cityId). */
+export const getServicesInOtherCities = (cityId: string) =>
+  createSelector([getServices], (services) =>
+    services.filter(
+      (service) =>
+        service.provider.city?.id != null && service.provider.city.id !== cityId
+    )
+  );
 
 export default serviceSlice.reducer;

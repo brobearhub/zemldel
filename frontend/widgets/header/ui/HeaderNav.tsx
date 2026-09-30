@@ -5,7 +5,6 @@ import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import FavoriteBorderRoundedIcon from "@mui/icons-material/FavoriteBorderRounded";
 import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import Link from "next/link";
-import { ColorModeToggle } from "@/core/theme/ColorModeToggle";
 import { ProfileMenu } from "./ProfileMenu";
 
 const NAV_ITEMS = [
@@ -62,7 +61,6 @@ export const HeaderNav = () => (
         </Typography>
       </Box>
     ))}
-    <ColorModeToggle showLabel />
     <ProfileMenu showLabel />
   </Box>
 );

@@ -1,31 +1,33 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Box, Typography } from "@mui/material";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import { useAppSelector } from "@/core/store/hooks";
 import { getActiveMembership } from "@/core/auth/authorization";
+import { useCitySelect, useSelectedCity } from "@/features/select-city";
 
 export function HeaderCity() {
   const pathname = usePathname();
   const { status, user } = useAppSelector((s) => s.auth);
-
-  if (status !== "authenticated" || !user) {
-    return null;
-  }
+  const { openCitySelect } = useCitySelect();
 
   const inPro = pathname === "/pro" || pathname.startsWith("/pro/");
-  const activeMembership = getActiveMembership(user);
+  const activeMembership = user ? getActiveMembership(user) : null;
 
-  const city = inPro ? activeMembership?.providerCity ?? null : user.customerCity ?? null;
+  const customerSelected = useSelectedCity("customer");
+  const providerSelected = useSelectedCity("provider");
+
+  const city = inPro ? providerSelected : customerSelected;
   const label = city ? city.name : "Выбрать локацию";
+  const scope = inPro && status === "authenticated" && user && activeMembership?.providerId ? "provider" : "customer";
 
   return (
     <Box
-      component={Link}
-      href="/profile?section=profile"
+      component="button"
+      type="button"
       aria-label="Локация"
+      onClick={() => openCitySelect(scope)}
       sx={{
         display: "flex",
         alignItems: "center",
@@ -33,7 +35,10 @@ export function HeaderCity() {
         px: { xs: 0.75, sm: 1 },
         py: 0.75,
         borderRadius: 1.5,
-        textDecoration: "none",
+        border: 0,
+        cursor: "pointer",
+        bgcolor: "transparent",
+        textAlign: "left",
         "&:hover": {
           color: "primary.main",
           "& .city-label": { opacity: 1 },

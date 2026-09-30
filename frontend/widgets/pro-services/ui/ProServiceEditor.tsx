@@ -162,8 +162,8 @@ export function ProServiceEditor({ mode, initialService }: Props) {
 
   useEffect(() => {
     if (categories && !form.categoryId) {
-      const main = categories.find((c) => c.slug === "main") ?? null;
-      const fallback = main ?? categories[0] ?? null;
+      const leaf = categories.find((c) => c.parentId != null) ?? null;
+      const fallback = leaf ?? categories[0] ?? null;
       if (fallback) {
         setForm((current) => ({ ...current, categoryId: fallback.id }));
       }

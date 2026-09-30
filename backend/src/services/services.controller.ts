@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UnprocessableEntityException,
   UseInterceptors,
@@ -22,10 +23,12 @@ import {
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiParam,
+  ApiQuery,
   ApiTags,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
+import { isUUID } from 'class-validator';
 import { ServiceCreateDto, ServiceDto, ServicePatchDto } from './dto/service.dto';
 import { ServicesService } from './services.service';
 import { OkResponseDto } from '../common/dto/ok-response.dto';
@@ -44,8 +47,28 @@ export class ServicesController {
 
   @Get('services')
   @ApiOkResponse({ type: [ServiceDto] })
-  getPublicServices() {
-    return this.servicesService.getServices();
+  @ApiQuery({ name: 'cityId', required: false, type: String })
+  @ApiQuery({ name: 'excludeCityId', required: false, type: String })
+  getPublicServices(
+    @Query('cityId') cityId?: string,
+    @Query('excludeCityId') excludeCityId?: string,
+  ) {
+    if (cityId && !isUUID(cityId)) {
+      throw new UnprocessableEntityException({ error: 'Invalid cityId' });
+    }
+    if (excludeCityId && !isUUID(excludeCityId)) {
+      throw new UnprocessableEntityException({ error: 'Invalid excludeCityId' });
+    }
+    if (cityId && excludeCityId) {
+      throw new UnprocessableEntityException({
+        error: 'Use either cityId or excludeCityId, not both',
+      });
+    }
+
+    return this.servicesService.getServices({
+      cityId: cityId ?? null,
+      excludeCityId: excludeCityId ?? null,
+    });
   }
 
   @Get('services/:id')

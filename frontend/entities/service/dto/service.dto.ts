@@ -49,6 +49,13 @@ function trimOrNull(v: unknown): string | null | undefined {
   return s.length ? s : null;
 }
 
+function normalizeIsoDateOrNull(v: unknown): string | null {
+  if (v === null || v === undefined) return null;
+  if (v instanceof Date) return v.toISOString();
+  if (typeof v === "string") return v;
+  return null;
+}
+
 export class ServiceCategoryDto {
   @Expose()
   @IsString()
@@ -127,6 +134,12 @@ export class ServiceDto {
   title!: string;
 
   @Expose()
+  @Transform(({ value }) => normalizeIsoDateOrNull(value), { toClassOnly: true })
+  @ValidateIf((_, v) => v !== null && v !== undefined)
+  @IsString()
+  publishedAt!: string | null;
+
+  @Expose()
   @Transform(({ value }) => (value === null ? null : value), { toClassOnly: true })
   @ValidateIf((_, v) => v !== null && v !== undefined)
   @IsString()
@@ -203,6 +216,7 @@ export type ServiceDbRow = {
   };
   status: ServiceStatus;
   title: string;
+  publishedAt: string | null;
   image: string | null;
   stockBadge: string | null;
   price: string;

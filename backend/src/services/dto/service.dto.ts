@@ -66,6 +66,13 @@ function trimOrSame(value: unknown): unknown {
   return typeof value === 'string' ? value.trim() : value;
 }
 
+function normalizeIsoDateOrNull(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string') return value;
+  return null;
+}
+
 export class ServiceCategoryDto {
   @ApiProperty()
   @Expose()
@@ -162,6 +169,13 @@ export class ServiceDto {
 
   @ApiProperty({ nullable: true, example: null })
   @Expose()
+  @Transform(({ value }) => normalizeIsoDateOrNull(value), { toClassOnly: true })
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  @IsString()
+  publishedAt!: string | null;
+
+  @ApiProperty({ nullable: true, example: null })
+  @Expose()
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   image!: string | null;
@@ -253,6 +267,7 @@ export type ServiceDbRow = {
   };
   status: ServiceStatus;
   title: string;
+  publishedAt: Date | null;
   image: string | null;
   stockBadge: string | null;
   price: string;

@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
 import { fetchBackend } from "@/shared/api/backend/server";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const response = await fetchBackend("/services");
+    const url = new URL(request.url);
+    const cityId = url.searchParams.get("cityId");
+    const excludeCityId = url.searchParams.get("excludeCityId");
+
+    const qs = new URLSearchParams();
+    if (cityId) qs.set("cityId", cityId);
+    if (excludeCityId) qs.set("excludeCityId", excludeCityId);
+
+    const response = await fetchBackend(`/services${qs.toString() ? `?${qs.toString()}` : ""}`);
     const payload = await response.json().catch(() => ({ error: "Failed to fetch services" }));
     return NextResponse.json(payload, { status: response.status });
   } catch (error) {

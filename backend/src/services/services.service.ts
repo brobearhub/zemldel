@@ -42,6 +42,7 @@ const serviceSelect = {
   badge: true,
   paletteColor: true,
   icon: true,
+  publishedAt: true,
   provider: {
     select: {
       id: true,
@@ -69,6 +70,8 @@ const serviceSelect = {
 
 type ServiceScope = {
   providerId?: string | null;
+  cityId?: string | null;
+  excludeCityId?: string | null;
   actorUserId?: string;
   canPublish?: boolean;
   canArchive?: boolean;
@@ -145,12 +148,33 @@ export class ServicesService {
   }
 
   async getServices(
-    scope?: Pick<ServiceScope, 'providerId'>,
+    scope?: Pick<ServiceScope, 'providerId' | 'cityId' | 'excludeCityId'>,
   ): Promise<ServiceDto[]> {
+    const where: Prisma.ServiceWhereInput = scope?.providerId
+      ? { providerId: scope.providerId }
+      : { status: 'PUBLISHED' };
+
+    if (scope?.cityId) {
+      where.provider = { cityId: scope.cityId };
+    }
+
+    if (scope?.excludeCityId) {
+      // for "other cities" list we need explicit city to render the badge
+      const existingAnd = where.AND
+        ? Array.isArray(where.AND)
+          ? where.AND
+          : [where.AND]
+        : [];
+
+      where.AND = [
+        ...existingAnd,
+        { provider: { cityId: { not: scope.excludeCityId } } },
+        { provider: { cityId: { not: null } } },
+      ];
+    }
+
     const rows: ServiceDbRow[] = await this.prisma.service.findMany({
-      where: scope?.providerId
-        ? { providerId: scope.providerId }
-        : { status: 'PUBLISHED' },
+      where,
       select: serviceSelect,
       orderBy: [{ category: { slug: 'asc' } }, { title: 'asc' }],
     });

@@ -1,6 +1,8 @@
 export type ServiceCardItem = {
   id: string;
   title: string;
+  /** ISO datetime when service was published (for sorting); null/undefined if unknown */
+  publishedAt?: string | null;
   /** URL or path to image; if not set, placeholder is shown */
   image?: string | null;
   /** Badge overlapping image bottom, e.g. "Осталось 8 шт" */

@@ -15,39 +15,51 @@ import {
 import Image from "next/image";
 import NextLink from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import type { ServiceDto } from "@/entities/service";
+import type { ServiceCategoryRow } from "@/widgets/service-categories/ui/ServiceCategoriesSection";
 
 const BRAND_NAME = "ЗЕМЛЕДЕЛ";
 const DEVELOPED_BY = "OOO «Бурый Медведь»";
 
 export const Footer = () => {
   const year = new Date().getFullYear();
-  const [services, setServices] = useState<ServiceDto[] | null>(null);
+  const [categories, setCategories] = useState<ServiceCategoryRow[] | null>(null);
 
   useEffect(() => {
-    fetch("/api/services")
+    fetch("/api/service-categories")
       .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch services");
-        return res.json() as Promise<ServiceDto[]>;
+        if (!res.ok) throw new Error("Failed to fetch categories");
+        return res.json() as Promise<ServiceCategoryRow[]>;
       })
-      .then(setServices)
-      .catch(() => setServices([]));
+      .then(setCategories)
+      .catch(() => setCategories([]));
   }, []);
 
   const theme = useTheme();
   const isLight = theme.palette.mode === "light";
   const logoSrc = isLight ? "/zemledel_logo_dark.svg" : "/zemledel_logo_light.svg";
-  const mainServices = useMemo(
-    () =>
-      (services ?? [])
-        .filter((s) => s.category?.slug === "main")
-        .map((s) => ({ title: s.title, id: s.id })),
-    [services]
-  );
-  const legalServiceTitles = useMemo(
-    () => (services ?? []).filter((s) => s.category?.slug === "legal").map((s) => s.title),
-    [services]
-  );
+  const rootCategories = useMemo(() => {
+    const roots = (categories ?? []).filter((c) => c.parentId == null);
+    return [...roots]
+      .sort((a, b) => {
+        const ao = a.sortOrder ?? Number.POSITIVE_INFINITY;
+        const bo = b.sortOrder ?? Number.POSITIVE_INFINITY;
+        if (ao !== bo) return ao - bo;
+        return a.name.localeCompare(b.name, "ru");
+      })
+      .slice(0, 8);
+  }, [categories]);
+
+  const templateCategories = useMemo(() => {
+    const leaf = (categories ?? []).filter((c) => c.parentId != null);
+    return [...leaf]
+      .sort((a, b) => {
+        const ao = a.sortOrder ?? Number.POSITIVE_INFINITY;
+        const bo = b.sortOrder ?? Number.POSITIVE_INFINITY;
+        if (ao !== bo) return ao - bo;
+        return a.name.localeCompare(b.name, "ru");
+      })
+      .slice(0, 10);
+  }, [categories]);
 
   return (
     <Box
@@ -89,27 +101,28 @@ export const Footer = () => {
             </Box>
             <Stack spacing={1}>
               <Typography variant="overline" sx={{ opacity: 0.8, fontWeight: 700 }}>
-                Основные услуги
+                Категории
               </Typography>
-              {!services ? (
+              {!categories ? (
                 <Box sx={{ py: 1 }}>
                   <CircularProgress size={18} sx={{ color: "primary.light" }} />
                 </Box>
               ) : (
                 <List dense disablePadding sx={{ listStyle: "none" }}>
-                  {mainServices.map((item) => (
+                  {rootCategories.map((item) => (
                     <ListItem key={item.id} disableGutters sx={{ py: 0.25 }}>
-                      <ListItemText
-                        primary={item.title}
-                        slotProps={{
-                          primary: {
-                            sx: {
-                              fontSize: 14,
-                              color: "inherit",
-                            },
-                          }
+                      <Link
+                        component={NextLink}
+                        href={`/service-categories/${item.id}`}
+                        sx={{
+                          fontSize: 14,
+                          color: "inherit",
+                          textDecoration: "none",
+                          "&:hover": { textDecoration: "underline", opacity: 0.85 },
                         }}
-                      />
+                      >
+                        {item.name}
+                      </Link>
                     </ListItem>
                   ))}
                 </List>
@@ -120,9 +133,9 @@ export const Footer = () => {
               alignItems: "flex-start"
             }}>
               <Typography variant="overline" sx={{ opacity: 0.8, fontWeight: 700 }}>
-                Юридические услуги
+                Шаблоны услуг
               </Typography>
-              {!services ? (
+              {!categories ? (
                 <Box sx={{ py: 1 }}>
                   <CircularProgress size={18} sx={{ color: "primary.light" }} />
                 </Box>
@@ -134,23 +147,24 @@ export const Footer = () => {
                     listStyle: "none",
                   }}
                 >
-                  {legalServiceTitles.map((title) => (
+                  {templateCategories.map((item) => (
                     <ListItem
-                      key={title}
+                      key={item.id}
                       disableGutters
                       sx={{ py: 0.25, alignItems: "flex-start" }}
                     >
-                      <ListItemText
-                        primary={title}
-                        slotProps={{
-                          primary: {
-                            sx: {
-                              fontSize: 14,
-                              color: "inherit",
-                            },
-                          }
+                      <Link
+                        component={NextLink}
+                        href={`/service-categories/${item.id}`}
+                        sx={{
+                          fontSize: 14,
+                          color: "inherit",
+                          textDecoration: "none",
+                          "&:hover": { textDecoration: "underline", opacity: 0.85 },
                         }}
-                      />
+                      >
+                        {item.name}
+                      </Link>
                     </ListItem>
                   ))}
                 </List>

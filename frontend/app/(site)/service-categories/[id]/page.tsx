@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Box, Container, Paper, Stack, Typography } from "@mui/material";
 import { BackendApiError, fetchBackendJson } from "@/shared/api/backend/server";
-import { SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
+import { SITE_HEADER_SPACER_PX, SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
 import { getServerAuthSession } from "@/core/auth";
-import { ServiceCard, type ServiceCardItem } from "@/entities/service";
+import type { ServiceDto } from "@/entities/service";
 import { PublicUnlinkedRequestForm } from "@/widgets/public-service/ui/PublicUnlinkedRequestForm";
+import { ServiceCategoriesBar } from "@/widgets/service-categories/ui/ServiceCategoriesBar";
+import { ServicesByCity } from "@/widgets/services/ui/ServicesByCity";
 
 type ServiceCategoryRow = {
   id: string;
@@ -13,7 +15,6 @@ type ServiceCategoryRow = {
   slug: string;
   parentId: string | null;
   sortOrder: number | null;
-  placements: Array<"HOME">;
 };
 
 type Props = {
@@ -41,12 +42,14 @@ export default async function ServiceCategoryPage({ params }: Props) {
   const session = await getServerAuthSession();
 
   let category: ServiceCategoryRow;
-  let services: ServiceCardItem[];
+  let services: ServiceDto[];
+  let categories: ServiceCategoryRow[];
 
   try {
-    [category, services] = await Promise.all([
+    [category, services, categories] = await Promise.all([
       fetchBackendJson<ServiceCategoryRow>(`/service-categories/${id}`),
-      fetchBackendJson<ServiceCardItem[]>(`/service-categories/${id}/providers`),
+      fetchBackendJson<ServiceDto[]>("/services"),
+      fetchBackendJson<ServiceCategoryRow[]>("/service-categories"),
     ]);
   } catch (e) {
     if (e instanceof BackendApiError && e.status === 404) {
@@ -54,6 +57,20 @@ export default async function ServiceCategoryPage({ params }: Props) {
     }
     throw e;
   }
+
+  const isRoot = category.parentId == null;
+  const templates = categories.filter((c) => c.parentId === category.id);
+  const templateBarItems = [
+    { id: "__back__", name: "←", href: "/" },
+    ...templates.map((t) => ({
+      id: t.id,
+      name: t.name,
+      href: `/service-categories/${t.id}`,
+    })),
+  ];
+  const allowedCategoryIds = isRoot ? new Set(templates.map((c) => c.id)) : new Set([category.id]);
+
+  const scopedServices = services.filter((s) => allowedCategoryIds.has(s.categoryId));
 
   return (
     <main>
@@ -67,6 +84,22 @@ export default async function ServiceCategoryPage({ params }: Props) {
       >
         <Container maxWidth="xl">
           <Stack spacing={3}>
+            {isRoot ? (
+              <Box
+                sx={{
+                  position: "sticky",
+                  top: { xs: SITE_HEADER_SPACER_PX.xs, sm: SITE_HEADER_SPACER_PX.sm },
+                  zIndex: (theme) => theme.zIndex.appBar,
+                  bgcolor: "background.default",
+                  borderBottom: "1px solid",
+                  borderColor: "divider",
+                  py: 1,
+                }}
+              >
+                <ServiceCategoriesBar items={templateBarItems} />
+              </Box>
+            ) : null}
+
             <Box>
               <Typography component="h1" variant="h4" sx={{ fontWeight: 900 }} color="primary">
                 {category.name}
@@ -88,29 +121,14 @@ export default async function ServiceCategoryPage({ params }: Props) {
               }}
             >
               <Box sx={{ minWidth: 0, order: { xs: 2, md: 0 } }}>
-                {!services.length ? (
+                {!scopedServices.length ? (
                   <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 1.5 }}>
                     <Typography sx={{ color: "text.secondary" }}>
                       Пока нет опубликованных услуг в этой категории.
                     </Typography>
                   </Paper>
                 ) : (
-                  <Box
-                    sx={{
-                      display: "grid",
-                      gap: { xs: 2, md: 3 },
-                      gridTemplateColumns: {
-                        xs: "1fr",
-                        sm: "repeat(2, minmax(0, 1fr))",
-                        md: "repeat(3, minmax(0, 1fr))",
-                      },
-                      alignItems: "stretch",
-                    }}
-                  >
-                    {services.map((item) => (
-                      <ServiceCard key={item.id} item={item} />
-                    ))}
-                  </Box>
+                  <ServicesByCity items={scopedServices} />
                 )}
               </Box>
 
@@ -128,8 +146,12 @@ export default async function ServiceCategoryPage({ params }: Props) {
                     <PublicUnlinkedRequestForm
                       variant="bare"
                       isAuthenticated={Boolean(session?.user?.id)}
-                      categories={[{ id: category.id, name: category.name }]}
-                      initialCategory={{ id: category.id, name: category.name }}
+                      categories={
+                        isRoot
+                          ? templates.map((t) => ({ id: t.id, name: t.name }))
+                          : [{ id: category.id, name: category.name }]
+                      }
+                      initialCategory={isRoot ? undefined : { id: category.id, name: category.name }}
                     />
                   </Stack>
                 </Paper>

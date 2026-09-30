@@ -69,7 +69,7 @@ cp deploy/.deploy.env.example deploy/.deploy.env
 ## 6. Данные в БД
 
 ```bash
-./deploy/scripts/post-deploy-data.sh   # db:seed (услуги/категории)
+./deploy/scripts/post-deploy-data.sh   # db:seed (дерево категорий)
 ```
 
 Справочник **City** — отдельно, с локальной машины: см. [`docs/cities.md`](../docs/cities.md) (`cities:update` → dump → `cities:restore`).

@@ -13,8 +13,9 @@ vi.mock("next/navigation", () => ({
 }));
 
 const categories = [
-  { id: "cat-main", name: "Основные услуги", slug: "main", parentId: null, sortOrder: 1 },
-  { id: "cat-legal", name: "Юридические услуги", slug: "legal", parentId: null, sortOrder: 2 },
+  { id: "root-1", name: "Судебные споры", slug: "sudebnye-spory", parentId: null, sortOrder: 1 },
+  { id: "cat-a", name: "Составление исковых заявлений", slug: "iskovye-zayavleniya", parentId: "root-1", sortOrder: 1 },
+  { id: "cat-b", name: "Представительство в суде", slug: "predstavitelstvo-v-sude", parentId: "root-1", sortOrder: 2 },
 ] as const;
 
 describe("ServicesAdminClient", () => {
@@ -26,6 +27,17 @@ describe("ServicesAdminClient", () => {
 
   function renderWithConfirm(ui: ReactElement) {
     return render(<ConfirmProvider>{ui}</ConfirmProvider>);
+  }
+
+  function getRowByTitle(title: string) {
+    const titleEl = screen.getByText(title);
+    let el: HTMLElement | null = titleEl;
+    while (el) {
+      const hasDelete = within(el).queryByRole("button", { name: "Удалить" });
+      if (hasDelete) return el;
+      el = el.parentElement;
+    }
+    throw new Error(`Row for title "${title}" not found`);
   }
 
   it("creates a service and redirects in create mode", async () => {
@@ -40,7 +52,7 @@ describe("ServicesAdminClient", () => {
     renderWithConfirm(<ServicesAdminClient mode="create" />);
 
     await user.click(screen.getByLabelText("category"));
-    await user.click(screen.getByRole("option", { name: /Юридические услуги/i }));
+    await user.click(screen.getByRole("option", { name: /Представительство в суде/i }));
     await user.type(screen.getByLabelText("title"), "Новая услуга");
     await user.type(screen.getByLabelText("price"), "2500 ₽");
     await user.clear(screen.getByLabelText("ctaText"));
@@ -82,8 +94,8 @@ describe("ServicesAdminClient", () => {
       />
     );
 
-    const deleteButtons = screen.getAllByRole("button", { name: "Удалить" });
-    await user.click(deleteButtons[0]);
+    const row = getRowByTitle(mainService.title);
+    await user.click(within(row).getByRole("button", { name: "Удалить" }));
     const confirmDialog = await screen.findByRole("dialog", { name: `Удалить услугу "${mainService.title}"?` });
     await user.click(within(confirmDialog).getByRole("button", { name: "Удалить" }));
 
@@ -111,7 +123,8 @@ describe("ServicesAdminClient", () => {
       />
     );
 
-    await user.click(screen.getAllByRole("button", { name: "Удалить" })[1]);
+    const row = getRowByTitle(legalService.title);
+    await user.click(within(row).getByRole("button", { name: "Удалить" }));
     const confirmDialog = await screen.findByRole("dialog", { name: `Удалить услугу "${legalService.title}"?` });
     await user.click(within(confirmDialog).getByRole("button", { name: "Удалить" }));
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
@@ -138,7 +151,8 @@ describe("ServicesAdminClient", () => {
       />
     );
 
-    await user.click(screen.getAllByRole("button", { name: "Редактировать" })[0]);
+    const row = getRowByTitle(mainService.title);
+    await user.click(within(row).getByRole("button", { name: "Редактировать" }));
     const dialog = await screen.findByRole("dialog", { name: "Редактировать услугу" });
 
     await user.clear(within(dialog).getByLabelText("title"));
@@ -194,7 +208,8 @@ describe("ServicesAdminClient", () => {
       />
     );
 
-    await user.click(screen.getAllByRole("button", { name: "Удалить" })[0]);
+    const row = getRowByTitle(mainService.title);
+    await user.click(within(row).getByRole("button", { name: "Удалить" }));
     const confirmDialog = await screen.findByRole("dialog", { name: `Удалить услугу "${mainService.title}"?` });
     await user.click(within(confirmDialog).getByRole("button", { name: "Отмена" }));
 
@@ -220,7 +235,8 @@ describe("ServicesAdminClient", () => {
       />
     );
 
-    await user.click(screen.getAllByRole("button", { name: "Удалить" })[0]);
+    const row = getRowByTitle(mainService.title);
+    await user.click(within(row).getByRole("button", { name: "Удалить" }));
     const confirmDialog = await screen.findByRole("dialog", { name: `Удалить услугу "${mainService.title}"?` });
     await user.click(within(confirmDialog).getByRole("button", { name: "Удалить" }));
 
@@ -244,7 +260,8 @@ describe("ServicesAdminClient", () => {
       />
     );
 
-    await user.click(screen.getAllByRole("button", { name: "Редактировать" })[0]);
+    const row = getRowByTitle(mainService.title);
+    await user.click(within(row).getByRole("button", { name: "Редактировать" }));
     const dialog = await screen.findByRole("dialog", { name: "Редактировать услугу" });
 
     await user.clear(within(dialog).getByLabelText("ctaHref (null = empty)"));
@@ -294,14 +311,15 @@ describe("ServicesAdminClient", () => {
       />
     );
 
-    await user.click(screen.getAllByRole("button", { name: "Редактировать" })[0]);
+    const row = getRowByTitle(mainService.title);
+    await user.click(within(row).getByRole("button", { name: "Редактировать" }));
     const dialog = await screen.findByRole("dialog", { name: "Редактировать услугу" });
     await user.click(within(dialog).getByRole("button", { name: "Сохранить" }));
 
     expect(await screen.findByText("Failed to update service from API")).toBeInTheDocument();
   });
 
-  it("supports extended legal edit fields and closes dialog on cancel", async () => {
+  it("edits optional fields and keeps palette/icon normalized", async () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation((url: string, init?: RequestInit) => {
       if (url === "/api/admin/service-categories") {
@@ -323,11 +341,12 @@ describe("ServicesAdminClient", () => {
       />
     );
 
-    await user.click(screen.getAllByRole("button", { name: "Редактировать" })[1]);
+    const row = getRowByTitle(legalService.title);
+    await user.click(within(row).getByRole("button", { name: "Редактировать" }));
     const dialog = await screen.findByRole("dialog", { name: "Редактировать услугу" });
 
     await user.click(within(dialog).getByLabelText("category"));
-    await user.click(screen.getByRole("option", { name: /Основные услуги/i }));
+    await user.click(screen.getByRole("option", { name: /Представительство в суде/i }));
     await user.clear(within(dialog).getByLabelText("price"));
     await user.type(within(dialog).getByLabelText("price"), "4500 ₽");
     await user.clear(within(dialog).getByLabelText("ctaText"));
@@ -359,7 +378,7 @@ describe("ServicesAdminClient", () => {
       icon: string | null;
     };
 
-    expect(body.categoryId).toBe("cat-main");
+    expect(body.categoryId).toBe("cat-b");
     expect(body.price).toBe("4500 ₽");
     expect(body.ctaText).toBe("Связаться");
     expect(body.stockBadge).toBe("Осталось5");
@@ -387,7 +406,8 @@ describe("ServicesAdminClient", () => {
       />
     );
 
-    await user.click(screen.getAllByRole("button", { name: "Редактировать" })[0]);
+    const row = getRowByTitle(mainService.title);
+    await user.click(within(row).getByRole("button", { name: "Редактировать" }));
     const dialog = await screen.findByRole("dialog", { name: "Редактировать услугу" });
     await user.click(within(dialog).getByRole("button", { name: "Отмена" }));
 

@@ -59,12 +59,9 @@ export class ServiceCategoriesController {
   }
 
   @Get('service-categories')
-  @ApiQuery({ name: 'placement', required: false, enum: ['HOME'] })
   @ApiOkResponse({ type: [ServiceCategoryDto] })
-  getPublicCategories(@Query('placement') placement?: 'HOME') {
-    return this.serviceCategoriesService.list(
-      placement ? { placement } : undefined,
-    );
+  getPublicCategories() {
+    return this.serviceCategoriesService.list();
   }
 
   @Get('service-categories/:id')

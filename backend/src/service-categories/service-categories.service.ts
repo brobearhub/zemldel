@@ -12,18 +12,14 @@ const select = {
   slug: true,
   parentId: true,
   sortOrder: true,
-  placements: true,
 } satisfies Prisma.ServiceCategorySelect;
 
 @Injectable()
 export class ServiceCategoriesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  list(filter?: { placement?: 'HOME' }) {
+  list() {
     return this.prisma.serviceCategory.findMany({
-      where: filter?.placement
-        ? { placements: { has: filter.placement } }
-        : undefined,
       select,
       orderBy: [{ parentId: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }],
     });
@@ -40,7 +36,6 @@ export class ServiceCategoriesService {
         slug: input.slug,
         parentId: input.parentId ?? null,
         sortOrder: input.sortOrder ?? null,
-        placements: input.placements ?? [],
       },
       select,
     });
@@ -55,9 +50,6 @@ export class ServiceCategoriesService {
         ...(input.parentId !== undefined ? { parentId: input.parentId } : null),
         ...(input.sortOrder !== undefined
           ? { sortOrder: input.sortOrder }
-          : null),
-        ...(input.placements !== undefined
-          ? { placements: input.placements }
           : null),
       },
       select,

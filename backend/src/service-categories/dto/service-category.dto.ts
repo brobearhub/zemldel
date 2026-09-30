@@ -1,15 +1,12 @@
 import { Expose, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsArray,
-  IsEnum,
   IsInt,
   IsOptional,
   IsString,
   MinLength,
   ValidateIf,
 } from 'class-validator';
-import type { ServiceCategoryPlacement } from '@prisma/client';
 
 function trimOrNull(value: unknown): string | null | undefined {
   if (value === undefined) return undefined;
@@ -50,12 +47,6 @@ export class ServiceCategoryDto {
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsInt()
   sortOrder!: number | null;
-
-  @ApiProperty({ enum: ['HOME'], isArray: true })
-  @Expose()
-  @IsArray()
-  @IsEnum(['HOME'], { each: true })
-  placements!: ServiceCategoryPlacement[];
 }
 
 export class ServiceCategoryCreateDto {
@@ -97,13 +88,6 @@ export class ServiceCategoryCreateDto {
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsInt()
   sortOrder?: number | null;
-
-  @ApiPropertyOptional({ enum: ['HOME'], isArray: true })
-  @Expose()
-  @IsOptional()
-  @IsArray()
-  @IsEnum(['HOME'], { each: true })
-  placements?: ServiceCategoryPlacement[];
 }
 
 export class ServiceCategoryPatchDto {
@@ -147,11 +131,4 @@ export class ServiceCategoryPatchDto {
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsInt()
   sortOrder?: number | null;
-
-  @ApiPropertyOptional({ enum: ['HOME'], isArray: true })
-  @Expose()
-  @IsOptional()
-  @IsArray()
-  @IsEnum(['HOME'], { each: true })
-  placements?: ServiceCategoryPlacement[];
 }

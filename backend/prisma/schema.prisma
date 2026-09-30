@@ -50,10 +50,6 @@ enum RequestProviderOfferStatus {
   DECLINED
 }
 
-enum ServiceCategoryPlacement {
-  HOME
-}
-
 enum ConversationStatus {
   OPEN
   ARCHIVED
@@ -392,7 +388,6 @@ model ServiceCategory {
   slug       String                     @unique
   parentId   String?                    @db.Uuid
   sortOrder  Int?
-  placements ServiceCategoryPlacement[] @default([])
 
   parent   ServiceCategory?  @relation("ServiceCategoryParent", fields: [parentId], references: [id], onDelete: SetNull)
   children ServiceCategory[] @relation("ServiceCategoryParent")

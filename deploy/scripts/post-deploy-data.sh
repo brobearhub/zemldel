@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# db:seed на prod ВМ (без импорта ГАР — City заливается дампом с локальной машины, см. docs/cities.md).
+# db:seed на prod ВМ: сидим только дерево категорий.
+# Демо-услуги/провайдеры (db:seed:demo-services) на prod не запускаем.
+# City импортируется отдельно: City заливается дампом с локальной машины, см. docs/cities.md.
 
 set -euo pipefail
 

@@ -20,6 +20,7 @@ import type { CitySuggestItemDto } from "@/entities/city";
 import { CityAutocomplete } from "@/shared/ui/CityAutocomplete";
 import { CadastralNumberListEditor } from "@/shared/ui/CadastralNumberListEditor";
 import { useAppSelector } from "@/core/store/hooks";
+import { useSelectedCity } from "@/features/select-city";
 import {
   REQUESTS_PROFILE_URL,
   REQUESTS_PROFILE_RESUME_URL,
@@ -76,8 +77,14 @@ export function PublicUnlinkedRequestForm({
   const router = useRouter();
 
   const { user } = useAppSelector((s) => s.auth);
-  const customerCity = useMemo(() => mapCustomerCityToSuggest(user?.customerCity), [user?.customerCity]);
+  const selectedCity = useSelectedCity("customer");
+  const customerCity = useMemo(
+    () => mapCustomerCityToSuggest(user?.customerCity),
+    [user?.customerCity]
+  );
+  const effectiveSelectedCity = selectedCity ?? customerCity;
   const didInitCity = useRef(false);
+  const didUserEditCity = useRef(false);
 
   const [form, setForm] = useState<FormState>(() => ({
     message: "",
@@ -90,11 +97,16 @@ export function PublicUnlinkedRequestForm({
   const [optionalExpanded, setOptionalExpanded] = useState(false);
 
   useEffect(() => {
-    if (didInitCity.current) return;
-    if (!customerCity) return;
-    setForm((prev) => (prev.city ? prev : { ...prev, city: customerCity }));
+    if (!effectiveSelectedCity) return;
+    setForm((prev) => {
+      if (didUserEditCity.current) return prev;
+      if (!prev.city || prev.city.id !== effectiveSelectedCity.id) {
+        return { ...prev, city: effectiveSelectedCity };
+      }
+      return prev;
+    });
     didInitCity.current = true;
-  }, [customerCity]);
+  }, [effectiveSelectedCity]);
 
   const { validationError, isBlocked } = useMemo(() => {
     if (!form.city) {
@@ -200,32 +212,33 @@ export function PublicUnlinkedRequestForm({
   }
 
   const content = (
-    <Stack spacing={2.5}>
-      {/* <RequestFormLogo /> */}
-
-      <Stack spacing={2} component="form" onSubmit={handleSubmit}>
+    <Stack
+      spacing={variant === "card" ? 4 : 2.5}
+      sx={variant === "card" ? { flex: 1, justifyContent: "space-between" } : undefined}
+    >
+      <Stack spacing={variant === "card" ? 4 : 2} component="form" onSubmit={handleSubmit}>
         {variant === "card" ? (
-          <Stack spacing={0.5}>
+          <Stack
+            direction="row"
+            spacing={2.5}
+            sx={{ alignItems: "center", justifyContent: "center" }}
+          >
+            <RequestFormLogo compact />
             <Typography
-              variant="h5"
               sx={{
-                fontWeight: 900,
+                fontWeight: 500,
+                fontSize: 20,
+                lineHeight: 1.6,
+                letterSpacing: "0.15px",
+                color: "text.primary",
                 textAlign: "center",
-              }}>
+              }}
+            >
               Нужна помощь?
-            </Typography>
-            <Typography variant="body2" sx={{
-              color: "text.secondary"
-            }}>
-              {isAuthenticated
-                ? "Специалисты свяжутся с вами в ближайшее время."
-                : "Чтобы создать заявку, нужно зарегистрироваться или войти. После этого система продолжит оформление автоматически."}
             </Typography>
           </Stack>
         ) : (
-          <Typography variant="body2" sx={{
-            color: "text.secondary"
-          }}>
+          <Typography variant="body2" sx={{ color: "text.secondary" }}>
             {isAuthenticated
               ? "Специалисты свяжутся с вами в ближайшее время."
               : "Чтобы создать заявку, нужно зарегистрироваться или войти. После этого система продолжит оформление автоматически."}
@@ -235,74 +248,87 @@ export function PublicUnlinkedRequestForm({
         {validationError && !error ? <Alert severity="warning">{validationError}</Alert> : null}
         {error ? <Alert severity="warning">{error}</Alert> : null}
 
-        <CityAutocomplete
-          label="Локация"
-          value={form.city}
-          onChange={(next) => setForm((prev) => ({ ...prev, city: next }))}
-          disabled={busy}
-          placeholder="Начните вводить (минимум 2 символа)"
-        />
+        <Stack spacing={2}>
+          <CityAutocomplete
+            label="Локация"
+            value={form.city}
+            onChange={(next) => {
+              didUserEditCity.current = true;
+              setForm((prev) => ({ ...prev, city: next }));
+            }}
+            disabled={busy}
+            placeholder="Начните вводить (минимум 2 символа)"
+            size="medium"
+          />
 
-        <TextField
-          label="Что нужно сделать?"
-          value={form.message}
-          onChange={(event) => setForm((prev) => ({ ...prev, message: event.target.value }))}
-          disabled={busy}
-          fullWidth
-          size="small"
-          multiline
-          minRows={3}
-          required
-        />
+          <TextField
+            label="Что нужно сделать?"
+            value={form.message}
+            onChange={(event) => setForm((prev) => ({ ...prev, message: event.target.value }))}
+            disabled={busy}
+            fullWidth
+            multiline
+            minRows={3}
+            required
+          />
+        </Stack>
 
         <CadastralNumberListEditor
           value={form.cadastralNumbers}
           onChange={(cadastralNumbers) => setForm((prev) => ({ ...prev, cadastralNumbers }))}
           disabled={busy}
+          variant={variant === "card" ? "sidebar" : "default"}
         />
 
-        <Accordion
-          expanded={optionalExpanded}
-          onChange={(_, next) => setOptionalExpanded(next)}
-          disableGutters
-          elevation={0}
-          sx={{ border: 1, borderColor: "divider", borderRadius: 1.5, "&:before": { display: "none" } }}
-        >
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography sx={{
-              fontWeight: 800
-            }}>Опционально</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <Stack spacing={2}>
-              <Autocomplete
-                options={categories}
-                value={form.category}
-                onChange={(_, next) => setForm((prev) => ({ ...prev, category: next }))}
-                getOptionLabel={(o) => o.name}
-                isOptionEqualToValue={(a, b) => a.id === b.id}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Категория (опционально)"
-                    size="small"
-                    placeholder="Можно оставить пустым"
-                  />
-                )}
-                disabled={busy}
-                clearOnEscape
-              />
-            </Stack>
-          </AccordionDetails>
-        </Accordion>
+        {variant !== "card" ? (
+          <Accordion
+            expanded={optionalExpanded}
+            onChange={(_, next) => setOptionalExpanded(next)}
+            disableGutters
+            elevation={0}
+            sx={{ border: 1, borderColor: "divider", borderRadius: 1.5, "&:before": { display: "none" } }}
+          >
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography sx={{ fontWeight: 800 }}>Опционально</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Stack spacing={2}>
+                <Autocomplete
+                  options={categories}
+                  value={form.category}
+                  onChange={(_, next) => setForm((prev) => ({ ...prev, category: next }))}
+                  getOptionLabel={(o) => o.name}
+                  isOptionEqualToValue={(a, b) => a.id === b.id}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Категория (опционально)" size="small" placeholder="Можно оставить пустым" />
+                  )}
+                  disabled={busy}
+                  clearOnEscape
+                />
+              </Stack>
+            </AccordionDetails>
+          </Accordion>
+        ) : null}
 
         <Button
           type="submit"
           variant="contained"
-          size="large"
+          fullWidth
           disabled={busy || isBlocked}
           startIcon={busy ? <CircularProgress size={18} color="inherit" /> : null}
-          sx={{ fontWeight: 800, textTransform: "none" }}
+          sx={{
+            fontWeight: 500,
+            fontSize: 13,
+            lineHeight: "22px",
+            letterSpacing: "0.46px",
+            textTransform: "none",
+            py: 1,
+            px: 2.75,
+            boxShadow:
+              variant === "card"
+                ? "0px 1px 5px rgba(0,0,0,0.12), 0px 2px 2px rgba(0,0,0,0.14), 0px 3px 1px -2px rgba(0,0,0,0.2)"
+                : undefined,
+          }}
         >
           {isAuthenticated ? "Создать заявку" : "Продолжить"}
         </Button>
@@ -315,7 +341,18 @@ export function PublicUnlinkedRequestForm({
   }
 
   return (
-    <Paper variant="outlined" sx={{ p: 3 }}>
+    <Paper
+      elevation={0}
+      sx={{
+        p: 3,
+        borderRadius: "16px",
+        bgcolor: "background.paper",
+        boxShadow: "none",
+        display: "flex",
+        flexDirection: "column",
+        overflowX: "hidden",
+      }}
+    >
       {content}
     </Paper>
   );

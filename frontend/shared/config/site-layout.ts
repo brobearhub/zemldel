@@ -23,10 +23,7 @@ export const SITE_CONTENT_GAP_PX = {
 } as const;
 
 /** Высота spacer'а под fixed header = высота хедера + единый зазор. */
-export const SITE_HEADER_SPACER_PX = {
-  xs: SITE_HEADER_HEIGHT_PX.xs + SITE_CONTENT_GAP_PX.xs,
-  sm: SITE_HEADER_HEIGHT_PX.sm + SITE_CONTENT_GAP_PX.sm,
-} as const;
+export const SITE_HEADER_SPACER_PX = SITE_HEADER_HEIGHT_PX;
 
 /** sticky `top` для сайдбаров/чата — совпадает со spacer на sm+ (основные трёхколоночные layout'ы). */
 export const SITE_STICKY_TOP_PX = SITE_HEADER_SPACER_PX.sm;

@@ -1,25 +1,65 @@
 "use client";
 
-import { useState } from "react";
-import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
-import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
-import { Box, Container, IconButton, Stack, Tooltip } from "@mui/material";
+import { Box, Container, Stack } from "@mui/material";
+import { useEffect, useRef, useState } from "react";
 
-import type { ServiceDto } from "@/entities/service";
-import { SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
+import { SITE_HEADER_SPACER_PX, SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
 import { PublicUnlinkedRequestForm } from "@/widgets/public-service/ui/PublicUnlinkedRequestForm";
-import { HydrateService } from "@/widgets/services/ui/HydrateService";
-import { Services } from "@/widgets/services/ui/Services";
-import { ServiceCategoriesSection, type ServiceCategoryRow } from "@/widgets/service-categories/ui/ServiceCategoriesSection";
+import { HomeServicesByCity } from "@/widgets/services/ui/HomeServicesByCity";
+import { ServiceCategoriesBar } from "@/widgets/service-categories/ui/ServiceCategoriesBar";
+
+type ServiceCategoryRow = {
+  id: string;
+  name: string;
+  parentId: string | null;
+  sortOrder: number | null;
+};
 
 type Props = {
   isAuthenticated: boolean;
   categories: ServiceCategoryRow[];
-  initialServices: ServiceDto[];
 };
 
-export function HomeStickyRequestLayout({ isAuthenticated, categories, initialServices }: Props) {
-  const [collapsed, setCollapsed] = useState(false);
+/** Ширина основной области по макету Figma (Desktop - 2). */
+const HOME_MAIN_MAX_WIDTH_PX = 1486;
+const HOME_FORM_WIDTH_PX = 356;
+const HOME_COLUMN_GAP_PX = 24;
+/** Высота блока заголовка секции услуг (Figma: `Card Title`). */
+const HOME_SECTION_HEADER_HEIGHT_PX = 52;
+
+export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) {
+  const catsBarRef = useRef<HTMLDivElement | null>(null);
+  const [catsBarHeightPx, setCatsBarHeightPx] = useState(0);
+
+  const rootCategories = [...categories]
+    .filter((c) => c.parentId == null)
+    .sort((a, b) => {
+      const ao = a.sortOrder ?? Number.POSITIVE_INFINITY;
+      const bo = b.sortOrder ?? Number.POSITIVE_INFINITY;
+      if (ao !== bo) return ao - bo;
+      return a.name.localeCompare(b.name, "ru");
+    });
+
+  const barItems = rootCategories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    href: `/service-categories/${c.id}`,
+  }));
+
+  useEffect(() => {
+    const el = catsBarRef.current;
+    if (!el) return;
+    if (typeof ResizeObserver === "undefined") return;
+
+    const update = () => {
+      setCatsBarHeightPx(Math.ceil(el.getBoundingClientRect().height));
+    };
+
+    update();
+    const ro = new ResizeObserver(() => update());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   return (
     <Box
@@ -28,25 +68,47 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories, initialSe
         pb: { xs: 3, md: 4 },
         pt: 0,
         bgcolor: "background.default",
+        "--home-cats-bar-h": `${catsBarHeightPx}px`,
       }}
     >
-      <Container maxWidth="xl">
+      <Container
+        maxWidth="xl"
+        sx={{
+          px: { xs: 2, sm: 3 },
+        }}
+        disableGutters
+      >
+        <Box
+          ref={catsBarRef}
+          sx={{
+            position: "sticky",
+            top: { xs: SITE_HEADER_SPACER_PX.xs, sm: SITE_HEADER_SPACER_PX.sm },
+            zIndex: (theme) => theme.zIndex.appBar,
+            bgcolor: "background.default",
+          }}
+        >
+          <ServiceCategoriesBar items={barItems} />
+        </Box>
+
         <Box
           sx={{
             display: "grid",
-            gap: { xs: 2, md: 3 },
+            gap: `${HOME_COLUMN_GAP_PX}px`,
             alignItems: "start",
             gridTemplateColumns: {
               xs: "1fr",
-              md: collapsed ? "minmax(0, 1fr) 52px" : "minmax(0, 1fr) 420px",
+              md: `minmax(0, 1fr) ${HOME_FORM_WIDTH_PX}px`,
             },
           }}
         >
-          <Box sx={{ minWidth: 0, order: { xs: 2, md: 0 } }}>
-            <Stack spacing={{ xs: 3, md: 4 }}>
-              <ServiceCategoriesSection categories={categories} embedded />
-              <HydrateService initialServices={initialServices} />
-              <Services embedded />
+          <Box
+            sx={{
+              minWidth: 0,
+              order: { xs: 2, md: 0 },
+            }}
+          >
+            <Stack spacing={{ xs: 3, md: 3 }}>
+              <HomeServicesByCity />
             </Stack>
           </Box>
 
@@ -55,38 +117,21 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories, initialSe
               order: { xs: 1, md: 1 },
               alignSelf: "start",
               position: { md: "sticky" },
-              top: { md: SITE_STICKY_TOP_PX },
+              top: {
+                md: `calc(${SITE_STICKY_TOP_PX}px + var(--home-cats-bar-h, 0px))`,
+              },
+              mt: { md: `${HOME_SECTION_HEADER_HEIGHT_PX}px` },
+              width: { md: HOME_FORM_WIDTH_PX },
             }}
           >
-            {collapsed ? (
-              <Tooltip title="Показать форму заявки">
-                <IconButton
-                  onClick={() => setCollapsed(false)}
-                  aria-label="Показать форму заявки"
-                  sx={{ border: 1, borderColor: "divider", bgcolor: "background.paper" }}
-                >
-                  <ChevronLeftRoundedIcon />
-                </IconButton>
-              </Tooltip>
-            ) : (
-              <Stack spacing={1.5}>
-                <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                  <Tooltip title="Свернуть форму">
-                    <IconButton onClick={() => setCollapsed(true)} aria-label="Свернуть форму" size="small">
-                      <ChevronRightRoundedIcon />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-                <PublicUnlinkedRequestForm
-                  isAuthenticated={isAuthenticated}
-                  categories={categories.map((c) => ({ id: c.id, name: c.name }))}
-                />
-              </Stack>
-            )}
+            <PublicUnlinkedRequestForm
+              isAuthenticated={isAuthenticated}
+              categories={rootCategories}
+              variant="card"
+            />
           </Box>
         </Box>
       </Container>
     </Box>
   );
 }
-

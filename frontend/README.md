@@ -60,10 +60,18 @@ docker compose logs -f postgres
 
 ## Prisma seed & admin
 
-### Seed initial services
+### Seed categories tree (backend)
 
 ```bash
+cd ../backend
 npm run db:seed
+```
+
+### Seed demo providers & services (dev only)
+
+```bash
+cd ../backend
+npm run db:seed:demo-services
 ```
 
 ### (Important) Generate Prisma client for Next build

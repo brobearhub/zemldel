@@ -1,297 +1,235 @@
 "use client";
 
-import {
-  Box,
-  Button,
-  IconButton,
-  Paper,
-  Divider,
-  Typography,
-} from "@mui/material";
-import FavoriteBorderRoundedIcon from "@mui/icons-material/FavoriteBorderRounded";
-import FavoriteRoundedIcon from "@mui/icons-material/FavoriteRounded";
+import { Box, Paper, Typography } from "@mui/material";
+import { brown, grey } from "@mui/material/colors";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
-import ChatBubbleOutlineRoundedIcon from "@mui/icons-material/ChatBubbleOutlineRounded";
-import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useAppSelector } from "@/core/store/hooks";
 import type { ServiceCardItem } from "../types";
-import {
-  REQUESTS_PROFILE_RESUME_URL as SERVICE_REQUESTS_PROFILE_RESUME_URL,
-  buildRequestAuthHref as buildServiceRequestAuthHref,
-  savePendingRequestDraft as savePendingServiceRequestDraft,
-} from "@/entities/request";
+
+export type ServiceCardVariant = "myCity" | "otherCities";
 
 type Props = {
   item: ServiceCardItem;
+  variant?: ServiceCardVariant;
 };
 
-function formatReviews(count: number): string {
-  if (count === 1) return "1 отзыв";
-  if (count >= 2 && count <= 4) return `${count} отзыва`;
-  return `${count} отзывов`;
+function ServiceCardImage({ item, imageHeight }: { item: ServiceCardItem; imageHeight: number }) {
+  return (
+    <Box
+      sx={{
+        position: "relative",
+        width: "100%",
+        height: imageHeight,
+        flexShrink: 0,
+        overflow: "hidden",
+        bgcolor: (theme) => theme.custom?.gradients?.glass ?? theme.palette.action.hover,
+      }}
+    >
+      {item.image ? (
+        <Box
+          component="img"
+          src={item.image}
+          alt=""
+          sx={{
+            display: "block",
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            objectPosition: "center",
+          }}
+        />
+      ) : (
+        <Box
+          sx={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "text.disabled",
+            fontSize: 14,
+            fontWeight: 600,
+          }}
+        >
+          Фото
+        </Box>
+      )}
+
+      {item.stockBadge ? (
+        <Box
+          sx={{
+            position: "absolute",
+            left: 12,
+            top: 12,
+            py: 0.75,
+            px: 1.5,
+            borderRadius: "999px",
+            bgcolor: "error.main",
+            color: "error.contrastText",
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          {item.stockBadge}
+        </Box>
+      ) : null}
+    </Box>
+  );
 }
 
-export function ServiceCard({ item }: Props) {
-  const router = useRouter();
-  const { status } = useAppSelector((state) => state.auth);
+function ServiceCardRating({ rating }: { rating: number }) {
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
+      <StarRoundedIcon sx={{ fontSize: 16, color: "info.main" }} />
+      <Typography
+        component="span"
+        sx={{
+          fontSize: 12,
+          lineHeight: 1.66,
+          letterSpacing: "0.4px",
+          color: brown[300],
+        }}
+      >
+        {rating.toFixed(1)}
+      </Typography>
+    </Box>
+  );
+}
 
-  const providerName = item.provider?.name ?? null;
+function ServiceCardPrice({ price }: { price: string }) {
+  return (
+    <Typography
+      sx={{
+        fontWeight: 700,
+        fontSize: 24,
+        lineHeight: 1.334,
+        color: brown[600],
+        whiteSpace: "nowrap",
+      }}
+    >
+      {price}
+    </Typography>
+  );
+}
+
+function ServiceCardTitle({ title }: { title: string }) {
+  return (
+    <Typography
+      sx={{
+        fontSize: 16,
+        lineHeight: 1.5,
+        letterSpacing: "0.15px",
+        color: "text.primary",
+        display: "-webkit-box",
+        WebkitLineClamp: 2,
+        WebkitBoxOrient: "vertical",
+        overflow: "hidden",
+      }}
+    >
+      {title}
+    </Typography>
+  );
+}
+
+export function ServiceCard({ item, variant = "myCity" }: Props) {
   const cityName = item.provider?.city?.name ?? null;
-  const providerLine = [providerName, cityName].filter(Boolean).join(" • ");
+  const imageHeight = variant === "myCity" ? 178 : 210;
 
   return (
     <Paper
       component={Link}
       href={`/services/${item.id}`}
-      variant="outlined"
+      elevation={0}
       sx={{
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        borderRadius: 0.6,
+        borderRadius: "16px",
         overflow: "hidden",
-        borderColor: "divider",
         bgcolor: "background.paper",
-        boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
-        transition: "box-shadow 0.2s ease, transform 0.2s ease",
         textDecoration: "none",
         color: "inherit",
+        transition: "box-shadow 0.2s ease, transform 0.2s ease",
         "&:hover": {
           boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
           transform: "translateY(-2px)",
         },
       }}
     >
-      {/* Image area + favorite */}
-      <Box
-        sx={{
-          position: "relative",
-          width: "100%",
-          aspectRatio: { xs: "16/10", md: "16/10" },
-          bgcolor: (theme) => theme.custom?.gradients?.glass ?? theme.palette.action.hover,
-          overflow: "hidden",
-          "&:after": {
-            content: '""',
-            position: "absolute",
-            inset: 0,
-            backgroundImage:
-              "linear-gradient(180deg, rgba(0,0,0,0.00) 0%, rgba(0,0,0,0.08) 55%, rgba(0,0,0,0.18) 100%)",
-            pointerEvents: "none",
-          },
-        }}
-      >
-        {item.image ? (
-          <Box
-            component="img"
-            src={item.image}
-            alt=""
-            sx={{
-              display: "block",
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              objectPosition: "center",
-              transform: "scale(1.01)",
-            }}
-          />
-        ) : (
-          <Box
-            sx={{
-              width: "100%",
-              height: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "text.disabled",
-              fontSize: 46,
-              letterSpacing: "-0.02em",
-              fontWeight: 800,
-            }}
-          >
-            Фото
-          </Box>
-        )}
+      <ServiceCardImage item={item} imageHeight={imageHeight} />
 
-        <IconButton
-          size="small"
-          aria-label="В избранное"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
+      {variant === "myCity" ? (
+        <Box
           sx={{
-            position: "absolute",
-            top: 6,
-            right: 6,
-            p: 0.5,
-            bgcolor: "transparent",
-            borderRadius: 0,
-            color: "common.white",
-            "&:hover": {
-              bgcolor: "transparent",
-              "& .favorite-heart-fill": { opacity: 0.55 },
-            },
+            display: "flex",
+            flexDirection: "column",
+            gap: 1.25,
+            flex: 1,
+            px: 1.5,
+            pt: 1.75,
+            pb: 2.25,
           }}
         >
-          <Box sx={{ position: "relative", width: 22, height: 22 }}>
-            <FavoriteRoundedIcon
-              className="favorite-heart-fill"
-              sx={{
-                position: "absolute",
-                inset: 0,
-                fontSize: 22,
-                color: "common.white",
-                opacity: 0.1,
-              }}
-            />
-            <FavoriteBorderRoundedIcon
-              sx={{
-                position: "absolute",
-                inset: 0,
-                fontSize: 22,
-                color: "common.white",
-                filter: "drop-shadow(0 1px 1px rgba(0,0,0,0.25))",
-              }}
-            />
-          </Box>
-        </IconButton>
-
-        {item.stockBadge ? (
-          <Box
-            sx={{
-              position: "absolute",
-              left: 12,
-              top: 12,
-              py: 0.75,
-              px: 1.5,
-              borderRadius: "999px",
-              bgcolor: "error.main",
-              color: "error.contrastText",
-              fontSize: 13,
-              fontWeight: 600,
-            }}
-          >
-            {item.stockBadge}
-          </Box>
-        ) : null}
-      </Box>
-
-      <Box sx={{ p: 2, flex: 1, display: "flex", flexDirection: "column" }}>
-        <Typography
-          sx={{
-            fontWeight: 700,
-            fontSize: "1.125rem",
-            color: "success.main",
-            lineHeight: 1.2,
-            mb: 0.75,
-          }}
-        >
-          {item.price}
-        </Typography>
-
-        <Box sx={{ flex: 1, minHeight: 0, mb: 1 }}>
-          <Typography
-            sx={{
-              fontSize: 14,
-              color: "text.primary",
-              lineHeight: 1.35,
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-              mb: 0.5,
-            }}
-          >
-            {item.title}
-          </Typography>
-          {providerLine ? (
-            <Typography
-              sx={{
-                fontSize: 12,
-                color: "text.secondary",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {providerLine}
-            </Typography>
-          ) : null}
-        </Box>
-
-        {(item.rating != null || (item.reviewCount != null && item.reviewCount > 0)) && (
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
+              justifyContent: "space-between",
               gap: 1,
-              mb: 1.5,
-              color: "text.secondary",
-              fontSize: 14,
+              minHeight: 30,
             }}
           >
-            {item.rating != null && (
-              <>
-                <StarRoundedIcon sx={{ fontSize: 18, color: "warning.main" }} />
-                <Typography component="span" sx={{ fontWeight: 600, fontSize: 14 }}>
-                  {item.rating.toFixed(1)}
-                </Typography>
-              </>
-            )}
-            {item.reviewCount != null && item.reviewCount > 0 && (
-              <>
-                <ChatBubbleOutlineRoundedIcon sx={{ fontSize: 16, ml: 0.5 }} />
-                <Typography component="span" sx={{ fontSize: 14 }}>
-                  {formatReviews(item.reviewCount)}
-                </Typography>
-              </>
-            )}
+            <ServiceCardPrice price={item.price} />
+            {item.rating != null ? <ServiceCardRating rating={item.rating} /> : null}
           </Box>
-        )}
-        <Divider />
-        <Button
-          variant="text"
-          fullWidth
-          component="span"
-          startIcon={<ShoppingBagOutlinedIcon />}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-
-            savePendingServiceRequestDraft({
-              kind: "SERVICE",
-              serviceId: item.id,
-              customerName: null,
-              customerEmail: null,
-              customerPhone: null,
-        message: null,
-        requestCityId: null,
-        cadastralNumbers: [],
-      });
-
-            if (status === "authenticated") {
-              router.push(SERVICE_REQUESTS_PROFILE_RESUME_URL);
-              return;
-            }
-
-            router.push(buildServiceRequestAuthHref("signup", { kind: "SERVICE", serviceId: item.id }));
-          }}
+          <ServiceCardTitle title={item.title} />
+        </Box>
+      ) : (
+        <Box
           sx={{
-            mt: 1.5,
-            // py: 1.25,
-            // borderRadius: 2,
-            // fontWeight: 700,
-            // textTransform: "none",
-            // bgcolor: "primary.main",
-            // color: "common.white",
-            // "&:hover": { bgcolor: "primary.light" },
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            flex: 1,
+            minHeight: 143,
+            px: 1.5,
+            py: 1,
           }}
         >
-          {item.ctaText}
-        </Button>
-      </Box>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+            <ServiceCardPrice price={item.price} />
+            <ServiceCardTitle title={item.title} />
+          </Box>
+
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1,
+              minHeight: 30,
+            }}
+          >
+            {cityName ? (
+              <Typography
+                sx={{
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: grey[400],
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {cityName}
+              </Typography>
+            ) : (
+              <Box />
+            )}
+            {item.rating != null ? <ServiceCardRating rating={item.rating} /> : null}
+          </Box>
+        </Box>
+      )}
     </Paper>
   );
 }
