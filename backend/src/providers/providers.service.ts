@@ -13,6 +13,25 @@ import { AddProviderManagerDto } from './dto/add-provider-manager.dto';
 import { AuthService } from '../auth/auth.service';
 import { LegalDocsService } from '../legal-docs/legal-docs.service';
 
+const publicProviderSelect = {
+  id: true,
+  name: true,
+  type: true,
+  city: {
+    select: {
+      id: true,
+      name: true,
+      regionCode: true,
+      regionName: true,
+    },
+  },
+  ownerUser: {
+    select: {
+      image: true,
+    },
+  },
+} as const;
+
 const providerSelect = {
   id: true,
   name: true,
@@ -121,6 +140,41 @@ export class ProvidersService {
       select: { id: true },
     });
     return { available: !existing };
+  }
+
+  async getPublicProviderProfile(providerId: string) {
+    const id = providerId?.trim();
+    if (!id) {
+      throw new BadRequestException('providerId is required');
+    }
+
+    const provider = await this.prisma.provider.findUnique({
+      where: { id },
+      select: publicProviderSelect,
+    });
+
+    if (!provider) {
+      throw new NotFoundException('Provider not found');
+    }
+
+    // Why: Public profile must not leak private/membership/legal data.
+    // Until provider-controlled fields exist, we return safe defaults matching current landing design.
+    return {
+      id: provider.id,
+      name: provider.name,
+      type: provider.type,
+      city: provider.city,
+      image: provider.ownerUser?.image ?? null,
+      subtitle: 'Эксперт сервиса',
+      about:
+        'Разберёмся в вашей ситуации, объясним варианты и предложим понятный путь к результату.',
+      availabilityLabel: 'На связи сегодня',
+      stats: [
+        { value: '12 лет', label: 'практики в недвижимости' },
+        { value: '640+', label: 'сопровождённых сделок' },
+        { value: '98%', label: 'клиентов рекомендуют нас' },
+      ],
+    };
   }
 
   async updateProviderSlug(userId: string, providerId: string, slug: string) {

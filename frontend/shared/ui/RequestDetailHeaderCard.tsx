@@ -37,7 +37,7 @@ export function RequestDetailHeaderCard({
     <Box
       sx={(theme) => ({
         bgcolor: alpha(theme.palette.common.black, 0.035),
-        borderRadius: "16px",
+        borderRadius: 1,
         p: { xs: 2, sm: 2.5 },
       })}
     >
@@ -103,7 +103,7 @@ export function RequestDetailHeaderCard({
                 elevation={0}
                 sx={(theme) => ({
                   p: { xs: 1.5, sm: 2.5 },
-                  borderRadius: "10px",
+                  borderRadius: 1,
                   bgcolor: "background.paper",
                   border: `1px solid ${alpha(theme.palette.common.black, 0.06)}`,
                   boxShadow: `0 1px 2px ${alpha(theme.palette.common.black, 0.04)}`,

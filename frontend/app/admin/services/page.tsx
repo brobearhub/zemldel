@@ -33,7 +33,6 @@ export default async function ServicesAdminPage() {
                 variant="outlined"
                 sx={{
                   p: 2.5,
-                  borderRadius: 2,
                   color: "inherit",
                   display: "flex",
                   gap: 2,
@@ -56,7 +55,6 @@ export default async function ServicesAdminPage() {
                 variant="outlined"
                 sx={{
                   p: 2.5,
-                  borderRadius: 2,
                   color: "inherit",
                   display: "flex",
                   gap: 2,

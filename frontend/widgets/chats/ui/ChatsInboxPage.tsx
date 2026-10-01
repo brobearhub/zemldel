@@ -78,7 +78,7 @@ export function ChatsInboxPage() {
                       key={row.serviceRequestId}
                       component={Link}
                       href={`/chats/${row.serviceRequestId}`}
-                      sx={{ borderRadius: 2, mb: 0.5 }}
+                      sx={{ borderRadius: 1, mb: 0.5 }}
                     >
                       <ListItemText
                         primary={

@@ -286,7 +286,7 @@ export function PublicUnlinkedRequestForm({
             onChange={(_, next) => setOptionalExpanded(next)}
             disableGutters
             elevation={0}
-            sx={{ border: 1, borderColor: "divider", borderRadius: 1.5, "&:before": { display: "none" } }}
+            sx={{ border: 1, borderColor: "divider", borderRadius: 1, "&:before": { display: "none" } }}
           >
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Typography sx={{ fontWeight: 800 }}>Опционально</Typography>
@@ -345,7 +345,6 @@ export function PublicUnlinkedRequestForm({
       elevation={0}
       sx={{
         p: 3,
-        borderRadius: "16px",
         bgcolor: "background.paper",
         boxShadow: "none",
         display: "flex",

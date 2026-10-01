@@ -144,7 +144,6 @@ export function ServiceCard({ item, variant = "myCity" }: Props) {
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        borderRadius: "16px",
         overflow: "hidden",
         bgcolor: "background.paper",
         textDecoration: "none",

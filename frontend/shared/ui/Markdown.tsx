@@ -68,7 +68,7 @@ export function Markdown({ markdown, skipFirstH1 }: Props) {
           bgcolor: "action.hover",
           px: 0.6,
           py: 0.2,
-          borderRadius: 0.75,
+          borderRadius: 1,
         },
         "& pre code": { bgcolor: "transparent", p: 0 },
         "& table": { width: "100%", borderCollapse: "collapse", my: 2 },

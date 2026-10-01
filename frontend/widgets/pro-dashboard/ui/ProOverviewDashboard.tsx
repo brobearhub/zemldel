@@ -94,7 +94,7 @@ function OverviewStatCard({
             sx={(theme) => ({
               width: 38,
               height: 38,
-              borderRadius: 2,
+              borderRadius: 1,
               display: "grid",
               placeItems: "center",
               bgcolor: alpha(theme.palette.primary.main, 0.1),

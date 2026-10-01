@@ -132,7 +132,7 @@ export const Achievements = () => {
                 justifyContent: "center",
                 width: 48,
                 height: 48,
-                borderRadius: 1.5,
+                borderRadius: 1,
                 bgcolor: (theme) =>
                   theme.palette.mode === "dark"
                     ? alpha(theme.palette.primary.main, 0.12)

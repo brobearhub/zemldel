@@ -129,7 +129,7 @@ export function HomeServicesByCity() {
 
   if (error) {
     return (
-      <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 1.5 }}>
+      <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Typography sx={{ color: "error.main" }}>{error}</Typography>
       </Paper>
     );
@@ -140,7 +140,7 @@ export function HomeServicesByCity() {
       <Stack spacing={0}>
         <ServiceSectionHeader title="Услуги" cityLabel={cityName} />
         {myCityItems === null ? null : showEmptyMy ? (
-          <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 1.5 }}>
+          <Paper variant="outlined" sx={{ p: 2.5 }}>
             <Typography sx={{ color: "text.secondary" }}>
               Пока нет опубликованных услуг в выбранном городе.
             </Typography>

@@ -14,7 +14,7 @@ export const HeaderSearch = () => (
       sx={{
         display: "flex",
         alignItems: "center",
-        borderRadius: 1.2,
+        borderRadius: 1,
         bgcolor: "common.white",
         border: (theme) =>
           `3px solid ${theme.palette.primary.light}`,

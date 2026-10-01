@@ -27,6 +27,7 @@ import {
   ProviderMemberDto,
   ProviderMembersResponseDto,
   ProviderMembershipListItemDto,
+  PublicProviderProfileDto,
   ProviderSlugCheckDto,
   ProviderSlugUpdateResponseDto,
 } from './dto/provider-responses.dto';
@@ -69,6 +70,13 @@ export class ProvidersController {
   getMyProviders(@Req() request: Request) {
     const userId = this.internalAuthService.getUserIdFromRequest(request);
     return this.providersService.getMyProviders(userId);
+  }
+
+  @Get(':providerId/public')
+  @ApiParam({ name: 'providerId', type: String })
+  @ApiOkResponse({ type: PublicProviderProfileDto })
+  getPublicProviderProfile(@Param('providerId') providerId: string) {
+    return this.providersService.getPublicProviderProfile(providerId);
   }
 
   @Post(':providerId/activate')

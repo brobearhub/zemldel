@@ -122,7 +122,7 @@ export default async function ServiceCategoryPage({ params }: Props) {
             >
               <Box sx={{ minWidth: 0, order: { xs: 2, md: 0 } }}>
                 {!scopedServices.length ? (
-                  <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 1.5 }}>
+                  <Paper variant="outlined" sx={{ p: 2.5 }}>
                     <Typography sx={{ color: "text.secondary" }}>
                       Пока нет опубликованных услуг в этой категории.
                     </Typography>
@@ -140,7 +140,7 @@ export default async function ServiceCategoryPage({ params }: Props) {
                   top: { md: SITE_STICKY_TOP_PX },
                 }}
               >
-                <Paper variant="outlined" sx={{ p: 3, borderRadius: 1.5 }}>
+                <Paper variant="outlined" sx={{ p: 3 }}>
                   <Stack spacing={2}>
                     <Typography sx={{ fontWeight: 900 }}>Опишите задачу</Typography>
                     <PublicUnlinkedRequestForm

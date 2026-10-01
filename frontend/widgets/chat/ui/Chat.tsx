@@ -119,7 +119,7 @@ function MessageBubble({
           py: 1,
           bgcolor: bg,
           color,
-          borderRadius: 0.5,
+          borderRadius: 1,
         }}
       >
         {message.repliedTo ? (
@@ -368,7 +368,7 @@ export function Chat({
             }}
             sx={(theme) => ({
               "& .MuiOutlinedInput-root": {
-                borderRadius: 1.5,
+                borderRadius: 1,
                 bgcolor: "#FFFFFF",
                 color: theme.palette.text.primary,
                 "& fieldset": {
@@ -412,7 +412,7 @@ export function Chat({
               width: { xs: 52, sm: 56 },
               height: { xs: 52, sm: 56 },
               flexShrink: 0,
-              borderRadius: 2.5,
+              borderRadius: 1,
               bgcolor: theme.palette.primary.main,
               color: "#FFFFFF",
               boxShadow: `0 10px 22px ${alpha(theme.palette.primary.main, 0.26)}`,

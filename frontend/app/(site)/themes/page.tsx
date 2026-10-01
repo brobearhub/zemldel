@@ -34,7 +34,6 @@ const Swatch = ({ label, value }: SwatchProps) => {
       variant="outlined"
       sx={{
         p: 1.25,
-        borderRadius: 2,
         display: "flex",
         alignItems: "center",
         gap: 1.25,
@@ -121,7 +120,6 @@ const ThemePaletteBlock = ({ mode }: { mode: "light" | "dark" }) => {
         variant="outlined"
         sx={{
           p: { xs: 2, md: 2.5 },
-          borderRadius: 3,
           bgcolor: "background.paper",
         }}
       >
@@ -226,7 +224,6 @@ export default function ThemesPage() {
             variant="outlined"
             sx={{
               p: 2,
-              borderRadius: 3,
               bgcolor: "background.paper",
             }}
           >
@@ -244,7 +241,6 @@ export default function ThemesPage() {
             variant="outlined"
             sx={{
               p: { xs: 2, md: 2.5 },
-              borderRadius: 3,
               bgcolor: "background.paper",
             }}
           >
@@ -289,7 +285,6 @@ export default function ThemesPage() {
                         variant="outlined"
                         sx={{
                           p: 1.25,
-                          borderRadius: 2,
                           borderColor: isActive ? "primary.main" : undefined,
                           bgcolor: isActive ? "action.hover" : undefined,
                         }}
@@ -339,7 +334,6 @@ export default function ThemesPage() {
             variant="outlined"
             sx={{
               p: { xs: 2, md: 2.5 },
-              borderRadius: 3,
               bgcolor: "background.paper",
             }}
           >
@@ -352,7 +346,6 @@ export default function ThemesPage() {
                   <Paper
                     variant="outlined"
                     sx={{
-                      borderRadius: 2,
                       overflow: "hidden",
                       height: 92,
                       backgroundImage: theme.custom.gradients.sunset,
@@ -366,7 +359,6 @@ export default function ThemesPage() {
                   <Paper
                     variant="outlined"
                     sx={{
-                      borderRadius: 2,
                       overflow: "hidden",
                       height: 92,
                       bgcolor: "background.default",
@@ -381,7 +373,6 @@ export default function ThemesPage() {
                   <Paper
                     variant="outlined"
                     sx={{
-                      borderRadius: 2,
                       overflow: "hidden",
                       height: 92,
                       bgcolor: "background.default",
@@ -400,7 +391,6 @@ export default function ThemesPage() {
             variant="outlined"
             sx={{
               p: { xs: 2, md: 2.5 },
-              borderRadius: 3,
               overflow: "hidden",
               bgcolor: "background.paper",
             }}
@@ -415,7 +405,7 @@ export default function ThemesPage() {
                   bgcolor: "background.default",
                   border: "1px solid",
                   borderColor: "divider",
-                  borderRadius: 2,
+                  borderRadius: 1,
                   p: 2,
                 }}
               >
@@ -479,7 +469,6 @@ export default function ThemesPage() {
                 variant="outlined"
                 sx={{
                   p: 2,
-                  borderRadius: 2,
                   bgcolor: "background.paper",
                 }}
               >

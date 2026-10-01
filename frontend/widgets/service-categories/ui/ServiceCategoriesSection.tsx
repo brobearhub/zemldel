@@ -43,7 +43,6 @@ export function ServiceCategoriesSection({ categories, embedded }: Props) {
               p: 2.5,
               width: "100%",
               height: "100%",
-              borderRadius: 2,
               bgcolor: "background.paper",
               borderColor: "divider",
               textTransform: "none",

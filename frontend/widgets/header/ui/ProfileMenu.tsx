@@ -105,7 +105,7 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
           gap: 0.25,
           px: { xs: 0.75, sm: 1 },
           py: 0.75,
-          borderRadius: 1.5,
+          borderRadius: 1,
           textDecoration: "none",
           cursor: "pointer",
           background: "none",
@@ -171,7 +171,7 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
             sx: {
               mt: 1,
               minWidth: 220,
-              borderRadius: 2,
+              borderRadius: 1,
               boxShadow: 3,
             },
           },

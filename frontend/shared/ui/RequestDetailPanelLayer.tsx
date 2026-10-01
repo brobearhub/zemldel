@@ -26,7 +26,7 @@ export function RequestDetailPanelLayer({ open, title, icon, onClose, children, 
   }, [open, onClose]);
 
   return (
-    <Box sx={{ display: "grid", borderRadius: "16px" }}>
+    <Box sx={{ display: "grid", borderRadius: 1 }}>
       <Box sx={{ gridArea: "1 / 1", visibility: open ? "hidden" : "visible" }} aria-hidden={open}>
         {children}
       </Box>
@@ -44,7 +44,7 @@ export function RequestDetailPanelLayer({ open, title, icon, onClose, children, 
             minHeight: "100%",
             height: "max-content",
             p: { xs: 2, sm: 2.5 },
-            borderRadius: "16px",
+            borderRadius: 1,
             bgcolor: `color-mix(in srgb, ${theme.palette.common.black} 3.5%, ${theme.palette.background.default})`,
             boxShadow: "none",
           })}

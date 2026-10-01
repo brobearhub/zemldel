@@ -29,7 +29,7 @@ export function CabinetNavItem({ href, label, icon, selected, badge, size }: Pro
         textDecoration: "none",
         px: size === "desktop" ? 1.5 : 1,
         py: size === "desktop" ? 1 : 0.75,
-        borderRadius: 2,
+        borderRadius: 1,
         transition: "background-color 0.2s ease, color 0.2s ease",
         ...(size === "desktop"
           ? {

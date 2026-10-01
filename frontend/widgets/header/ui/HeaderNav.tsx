@@ -35,7 +35,7 @@ export const HeaderNav = () => (
           gap: 0.25,
           px: { xs: 0.75, sm: 1 },
           py: 0.75,
-          borderRadius: 1.5,
+          borderRadius: 1,
           textDecoration: "none",
           "&:hover": {
             color: "primary.main",

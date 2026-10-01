@@ -29,7 +29,7 @@ export function ColorModeToggle({ showLabel = false }: ColorModeToggleProps) {
         gap: 0.25,
         px: { xs: 0.75, sm: 1 },
         py: 0.75,
-        borderRadius: 1.5,
+        borderRadius: 1,
         cursor: "pointer",
         background: "none",
         border: "none",

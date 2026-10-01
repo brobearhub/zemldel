@@ -119,3 +119,40 @@ export class ProviderMembersResponseDto {
   members!: ProviderMemberDto[];
 }
 
+export class PublicProviderStatDto {
+  @ApiProperty({ example: '12 лет' })
+  value!: string;
+
+  @ApiProperty({ example: 'практики в недвижимости' })
+  label!: string;
+}
+
+export class PublicProviderProfileDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiProperty({ enum: ['SELF_EMPLOYED', 'COMPANY'] })
+  type!: 'SELF_EMPLOYED' | 'COMPANY';
+
+  @ApiProperty({ type: AuthCityDto, nullable: true })
+  city!: AuthCityDto | null;
+
+  @ApiProperty({ nullable: true, example: null })
+  image!: string | null;
+
+  @ApiProperty({ example: 'Эксперт сервиса' })
+  subtitle!: string;
+
+  @ApiProperty({ nullable: true, example: null })
+  about!: string | null;
+
+  @ApiProperty({ example: 'На связи сегодня' })
+  availabilityLabel!: string;
+
+  @ApiProperty({ type: [PublicProviderStatDto] })
+  stats!: PublicProviderStatDto[];
+}
+

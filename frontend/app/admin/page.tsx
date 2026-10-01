@@ -31,7 +31,6 @@ export default function AdminIndexPage() {
                 variant="outlined"
                 sx={{
                   p: 2.5,
-                  borderRadius: 2,
                   color: "inherit",
                   display: "flex",
                   gap: 2,
@@ -54,7 +53,6 @@ export default function AdminIndexPage() {
                 variant="outlined"
                 sx={{
                   p: 2.5,
-                  borderRadius: 2,
                   color: "inherit",
                   display: "flex",
                   gap: 2,
@@ -77,7 +75,6 @@ export default function AdminIndexPage() {
                 variant="outlined"
                 sx={{
                   p: 2.5,
-                  borderRadius: 2,
                   color: "inherit",
                   display: "flex",
                   gap: 2,

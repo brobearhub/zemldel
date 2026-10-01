@@ -79,7 +79,7 @@ export function CadastralNumberInput({
                   alignItems: "center",
                   justifyContent: "center",
                   bgcolor: "#f4f6f4",
-                  borderRadius: "4px",
+                  borderRadius: 1,
                   flexShrink: 0,
                 }}
               >

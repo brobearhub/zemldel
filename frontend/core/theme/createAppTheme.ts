@@ -169,7 +169,7 @@ export function createAppTheme(mode: PaletteMode) {
               )} 55%, ${alpha(common.black, 0.98)} 100%)`,
       }
     },
-    shape: { borderRadius: 16 },
+    shape: { borderRadius: 8 },
     typography: {
       fontFamily: "var(--font-nunito-sans)",
       h1: { fontWeight: 900, letterSpacing: "-0.03em" },
@@ -213,11 +213,11 @@ export function createAppTheme(mode: PaletteMode) {
       },
       MuiButton: {
         styleOverrides: {
-          root: {
+          root: ({ theme }) => ({
             textTransform: "none",
-            borderRadius: 14,
+            borderRadius: theme.shape.borderRadius,
             fontWeight: 800,
-          },
+          }),
           outlined: {
             borderWidth: 1,
             borderColor: "currentColor",
@@ -282,9 +282,9 @@ export function createAppTheme(mode: PaletteMode) {
       },
       MuiIconButton: {
         styleOverrides: {
-          root: {
-            borderRadius: 14,
-          },
+          root: ({ theme }) => ({
+            borderRadius: theme.shape.borderRadius,
+          }),
         },
       },
       MuiTooltip: {
@@ -301,9 +301,9 @@ export function createAppTheme(mode: PaletteMode) {
       },
       MuiOutlinedInput: {
         styleOverrides: {
-          root: {
-            borderRadius: 14,
-          },
+          root: ({ theme }) => ({
+            borderRadius: theme.shape.borderRadius,
+          }),
         },
       },
       MuiPaper: {

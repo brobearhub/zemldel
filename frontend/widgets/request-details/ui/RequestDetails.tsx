@@ -20,7 +20,7 @@ export function RequestDetails(props: RequestDetailsProps) {
         ...(vm.muted
           ? {
               bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.03)" : "action.hover",
-              borderRadius: 2,
+              borderRadius: 1,
               p: 2.5,
             }
           : null),

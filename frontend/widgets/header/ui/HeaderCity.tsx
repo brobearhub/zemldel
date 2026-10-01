@@ -34,7 +34,7 @@ export function HeaderCity() {
         gap: 0.75,
         px: { xs: 0.75, sm: 1 },
         py: 0.75,
-        borderRadius: 1.5,
+        borderRadius: 1,
         border: 0,
         cursor: "pointer",
         bgcolor: "transparent",
