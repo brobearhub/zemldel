@@ -165,7 +165,7 @@ export class ProvidersService {
       type: provider.type,
       city: provider.city,
       image: provider.ownerUser?.image ?? null,
-      subtitle: 'Эксперт сервиса',
+      subtitle: 'Эксперт по услуге',
       about:
         'Разберёмся в вашей ситуации, объясним варианты и предложим понятный путь к результату.',
       availabilityLabel: 'На связи сегодня',

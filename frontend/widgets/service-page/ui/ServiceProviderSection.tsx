@@ -1,21 +1,115 @@
 import Image from "next/image";
+import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import { Box, Button, Container, Paper, Stack, Typography } from "@mui/material";
 import type { PublicProviderProfileDto } from "@/entities/provider";
 
+function ProviderImagePlaceholder({ type }: { type: PublicProviderProfileDto["type"] }) {
+  const isCompany = type === "COMPANY";
+
+  return (
+    <Box
+      sx={{
+        position: "absolute",
+        inset: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        bgcolor: "background.default",
+        color: "text.secondary",
+        backgroundImage:
+          "radial-gradient(circle at 50% 40%, rgba(160,180,160,0.22) 0%, rgba(255,255,255,0.32) 55%, rgba(36,71,55,0.10) 100%)",
+      }}
+    >
+      <Box
+        sx={{
+          position: "relative",
+          width: { xs: 180, md: 240 },
+          height: { xs: 140, md: 180 },
+          opacity: 0.95,
+        }}
+      >
+        {isCompany ? (
+          <>
+            <PersonRoundedIcon
+              sx={{
+                position: "absolute",
+                left: "8%",
+                top: "20%",
+                fontSize: { xs: 84, md: 108 },
+                color: "primary.dark",
+                opacity: 0.22,
+              }}
+            />
+            <PersonRoundedIcon
+              sx={{
+                position: "absolute",
+                right: "8%",
+                top: "20%",
+                fontSize: { xs: 84, md: 108 },
+                color: "primary.dark",
+                opacity: 0.22,
+              }}
+            />
+            <PersonRoundedIcon
+              sx={{
+                position: "absolute",
+                left: "50%",
+                top: "10%",
+                transform: "translateX(-50%)",
+                fontSize: { xs: 96, md: 124 },
+                color: "primary.dark",
+                opacity: 0.55,
+                filter: "drop-shadow(0px 10px 20px rgba(0,0,0,0.08))",
+              }}
+            />
+          </>
+        ) : (
+          <PersonRoundedIcon
+            sx={{
+              position: "absolute",
+              left: "50%",
+              top: "8%",
+              transform: "translateX(-50%)",
+              fontSize: { xs: 104, md: 140 },
+              color: "primary.dark",
+              opacity: 0.55,
+              filter: "drop-shadow(0px 10px 20px rgba(0,0,0,0.08))",
+            }}
+          />
+        )}
+      </Box>
+    </Box>
+  );
+}
+
+function providerTypeLabel(type: PublicProviderProfileDto["type"]): string {
+  switch (type) {
+    case "SELF_EMPLOYED":
+      return "Самозанятый / физлицо";
+    case "COMPANY":
+      return "Компания / организация";
+    default:
+      return "";
+  }
+}
+
 type Props = {
   provider: PublicProviderProfileDto;
+  imageSide?: "left" | "right";
 };
 
-export function ServiceProviderSection({ provider }: Props) {
+export function ServiceProviderSection({ provider, imageSide = "left" }: Props) {
+  const isRight = imageSide === "right";
+
   return (
-    <Box component="section" sx={{ bgcolor: "#a0b4a0", py: { xs: 6, md: 12 } }}>
+    <Box component="section" sx={{ bgcolor: "primary.main", py: { xs: "48px", md: "100px" } }}>
       <Container maxWidth="xl">
         <Box
           sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "534px minmax(0, 1fr)" },
+            display: "flex",
+            flexDirection: { xs: "column", md: isRight ? "row-reverse" : "row" },
             gap: { xs: 3, md: 9 },
-            alignItems: { md: "center" },
+            alignItems: { xs: "stretch", md: "center" },
           }}
         >
           <Paper
@@ -24,7 +118,15 @@ export function ServiceProviderSection({ provider }: Props) {
               position: "relative",
               overflow: "hidden",
               bgcolor: "action.hover",
-              aspectRatio: { xs: "390 / 280", md: "534 / 506" },
+              width: "100%",
+              flexGrow: { md: 0 },
+              flexShrink: { md: 1 },
+              flexBasis: { md: "clamp(320px, 38vw, 534px)" },
+              maxWidth: { md: 534 },
+              alignSelf: { md: "flex-start" },
+              height: { xs: 280, md: "auto" },
+              aspectRatio: { md: "534 / 506" },
+              borderRadius: { xs: 2.5, md: 3 },
             }}
           >
             {provider.image ? (
@@ -36,19 +138,7 @@ export function ServiceProviderSection({ provider }: Props) {
                 style={{ objectFit: "cover", objectPosition: "center" }}
               />
             ) : (
-              <Box
-                sx={{
-                  position: "absolute",
-                  inset: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "text.disabled",
-                  fontWeight: 700,
-                }}
-              >
-                Фото
-              </Box>
+              <ProviderImagePlaceholder type={provider.type} />
             )}
 
             <Box
@@ -58,12 +148,11 @@ export function ServiceProviderSection({ provider }: Props) {
                 bottom: { xs: 16, md: 24 },
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 1,
-                px: { xs: 1.5, md: 1.75 },
-                py: { xs: 1, md: 1.25 },
+                gap: { xs: "6px", md: "8px" },
+                px: { xs: "12px", md: "14px" },
+                py: { xs: "8px", md: "10px" },
                 borderRadius: "999px",
                 bgcolor: "rgba(255,255,255,0.93)",
-                color: "primary.main",
               }}
             >
               <Box sx={{ width: { xs: 8, md: 9 }, height: { xs: 8, md: 9 }, borderRadius: "50%", bgcolor: "success.main" }} />
@@ -73,23 +162,18 @@ export function ServiceProviderSection({ provider }: Props) {
             </Box>
           </Paper>
 
-          <Stack spacing={{ xs: 2, md: 3 }} sx={{ minWidth: 0 }}>
+          <Stack spacing={{ xs: 2, md: 3 }} sx={{ minWidth: 0, flex: { md: "1 1 0" } }}>
             <Stack spacing={0.25}>
-              <Typography variant="caption" sx={{ color: "primary.main", letterSpacing: "0.4px" }}>
-                {provider.subtitle}
+              <Typography variant="caption" sx={{ letterSpacing: "0.4px" }}>
+                {providerTypeLabel(provider.type)}
               </Typography>
-              <Typography
-                sx={{
-                  fontWeight: 800,
-                  fontSize: { xs: 44, md: 60 },
-                  lineHeight: 1.2,
-                  letterSpacing: { md: "-0.5px" },
-                  color: "common.white",
-                }}
+              <Typography 
+                variant="h4"
+                sx={{ color: "common.white" }}
               >
                 {provider.name}
               </Typography>
-              <Typography variant="subtitle1" sx={{ color: "primary.main" }}>
+              <Typography sx={{ fontSize: { xs: 14, md: 16 }, lineHeight: { xs: 1.43, md: 1.75 } }}>
                 {provider.subtitle}
               </Typography>
             </Stack>
@@ -134,7 +218,7 @@ export function ServiceProviderSection({ provider }: Props) {
               ))}
             </Box>
 
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ alignItems: { sm: "center" } }}>
+            <Stack direction={{ xs: "column", md: "row" }} spacing={{ xs: 1, md: 3 }} sx={{ alignItems: { md: "center" } }}>
               <Button
                 variant="contained"
                 sx={{
@@ -143,8 +227,9 @@ export function ServiceProviderSection({ provider }: Props) {
                   textTransform: "uppercase",
                   fontWeight: 600,
                   letterSpacing: "0.46px",
-                  py: 1,
-                  px: 3,
+                  py: "8px",
+                  px: "22px",
+                  minWidth: { xs: "100%", md: "auto" },
                   boxShadow:
                     "0px 1px 5px rgba(0,0,0,0.12), 0px 2px 2px rgba(0,0,0,0.14), 0px 3px 1px -2px rgba(0,0,0,0.2)",
                   "&:hover": { bgcolor: "grey.900" },
@@ -162,6 +247,9 @@ export function ServiceProviderSection({ provider }: Props) {
                   textTransform: "uppercase",
                   fontWeight: 600,
                   letterSpacing: "0.46px",
+                  py: { xs: "6px", md: "8px" },
+                  px: { xs: "8px", md: "11px" },
+                  minWidth: { xs: "100%", md: "auto" },
                 }}
                 component="a"
                 href="#consultation"

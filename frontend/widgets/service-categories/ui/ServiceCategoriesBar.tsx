@@ -46,7 +46,7 @@ export function ServiceCategoriesBar({ items, activeId = null }: Props) {
                 height: 24,
                 width: 32,
                 borderRadius: 1,
-                color: "#5d4037",
+                color: "text.secondary",
                 textDecoration: "none",
                 lineHeight: 1,
                 "&:hover": {
@@ -75,7 +75,7 @@ export function ServiceCategoriesBar({ items, activeId = null }: Props) {
               lineHeight: 1.66,
               letterSpacing: "0.4px",
               fontWeight: isActive ? 700 : 600,
-              color: isActive ? "text.primary" : "#5d4037",
+              color: isActive ? "text.primary" : "text.secondary",
               "&:hover": {
                 color: "info.main",
               },

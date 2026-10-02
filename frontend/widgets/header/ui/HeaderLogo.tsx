@@ -27,8 +27,6 @@ export const HeaderLogo = () => {
         alignItems: "center",
         gap: 1,
         textDecoration: "none",
-        color: "primary.main",
-        "&:hover .header-logo-text": { color: "primary.main" },
       }}
     >
       <Image

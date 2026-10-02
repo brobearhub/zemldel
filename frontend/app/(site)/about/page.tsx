@@ -6,6 +6,8 @@ import { Box, Container, Stack } from "@mui/material";
 import { fetchBackendJson } from "@/shared/api/backend/server";
 import { ServiceCategoriesSection, type ServiceCategoryRow } from "@/widgets/service-categories/ui/ServiceCategoriesSection";
 
+export const dynamic = "force-dynamic";
+
 export default async function AboutPage() {
   const categories = await fetchBackendJson<ServiceCategoryRow[]>("/service-categories");
   const rootCategories = categories.filter((c) => c.parentId == null);

@@ -33,7 +33,6 @@ export const HeaderSearch = () => (
         fullWidth
         slotProps={{ input: { "aria-label": "Поиск услуг" } }}
         sx={{
-          color: "text.primary",
           fontSize: { xs: "0.9375rem", sm: "1rem" },
           "& .MuiInputBase-input::placeholder": {
             opacity: 0.8,

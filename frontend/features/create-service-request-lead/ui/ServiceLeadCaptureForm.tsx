@@ -14,7 +14,7 @@ export function ServiceLeadCaptureForm({ serviceId, isAuthenticated, initialCust
   const form = useServiceLeadCapture({ serviceId, isAuthenticated, initialCustomerEmail });
 
   return (
-    <Stack component="form" spacing={2} onSubmit={(e) => { e.preventDefault(); void form.submit(); }}>
+    <Stack component="form" spacing={2.25} onSubmit={(e) => { e.preventDefault(); void form.submit(); }}>
       {form.error ? <Alert severity="warning">{form.error}</Alert> : null}
 
       <TextField
@@ -40,7 +40,8 @@ export function ServiceLeadCaptureForm({ serviceId, isAuthenticated, initialCust
           fontWeight: 500,
           letterSpacing: "0.46px",
           textTransform: "uppercase",
-          py: 1,
+          py: "8px",
+          px: "22px",
           boxShadow:
             "0px 1px 5px rgba(0,0,0,0.12), 0px 2px 2px rgba(0,0,0,0.14), 0px 3px 1px -2px rgba(0,0,0,0.2)",
         }}

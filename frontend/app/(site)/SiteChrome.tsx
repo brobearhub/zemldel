@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { Suspense } from "react";
 import { Box } from "@mui/material";
 import { usePathname } from "next/navigation";
 import { Header } from "@/widgets/header/ui";
@@ -40,7 +41,9 @@ export function SiteChrome({ children }: Props) {
   return (
     <>
       <Box className="mui-fixed" sx={{ position: "fixed", left: 0, top: 0, width: "100%", zIndex: 1200 }}>
-        <CabinetChrome />
+        <Suspense fallback={<Box sx={{ height: { xs: SITE_HEADER_SPACER_PX.xs, sm: SITE_HEADER_SPACER_PX.sm } }} />}>
+          <CabinetChrome />
+        </Suspense>
       </Box>
       {/* На cabinet routes chrome фиксирован, поэтому нужен spacer. */}
       <Box sx={{ height: { xs: SITE_HEADER_SPACER_PX.xs, sm: SITE_HEADER_SPACER_PX.sm } }} />

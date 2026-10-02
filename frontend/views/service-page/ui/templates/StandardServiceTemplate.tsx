@@ -20,13 +20,14 @@ export function StandardServiceTemplate({ service, session }: Props) {
       <ServiceHeroSection vm={heroVm} />
 
       {/* Provider section (public profile). */}
-      {providerId ? <ProviderSection providerId={providerId} /> : null}
+      {providerId ? <ProviderSection providerId={providerId} imageSide="right" /> : null}
 
       <ServiceReviewsSection
         ratingValue={service.rating ?? 4.9}
         reviewCountLabel={
           service.reviewCount != null ? `на основании ${service.reviewCount} отзывов` : "на основании отзывов"
         }
+        cityLabel={service.provider?.city?.name ?? null}
       />
 
       <ServiceLeadSection
@@ -38,9 +39,9 @@ export function StandardServiceTemplate({ service, session }: Props) {
   );
 }
 
-async function ProviderSection({ providerId }: { providerId: string }) {
+async function ProviderSection({ providerId, imageSide = "left" }: { providerId: string, imageSide?: "left" | "right" }) {
   const provider = await getPublicProviderProfile(providerId);
   if (!provider) return null;
-  return <ServiceProviderSection provider={provider} />;
+  return <ServiceProviderSection provider={provider} imageSide={imageSide} />;
 }
 

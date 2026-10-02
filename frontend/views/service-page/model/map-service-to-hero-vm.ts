@@ -21,7 +21,15 @@ function splitBenefits(input: string | null): readonly string[] {
 export function mapServiceToHeroVm(service: ServiceDto): ServiceHeroVm {
   const cityLabel = service.provider?.city?.name ?? null;
   const description = normalizeText(service.description) ?? null;
-  const benefits = splitBenefits(normalizeText(service.highlight));
+  const benefitsFromApi = splitBenefits(normalizeText(service.highlight));
+  const benefits =
+    benefitsFromApi.length > 0
+      ? benefitsFromApi
+      : [
+          "Разберёмся в вашей задаче",
+          "Предложим понятный план действий",
+          "Сопроводим до результата",
+        ];
 
   return {
     backHref: service.categoryId ? `/service-categories/${service.categoryId}` : "/",

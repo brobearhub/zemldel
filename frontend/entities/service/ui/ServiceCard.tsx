@@ -119,7 +119,6 @@ function ServiceCardTitle({ title }: { title: string }) {
         fontSize: 16,
         lineHeight: 1.5,
         letterSpacing: "0.15px",
-        color: "text.primary",
         display: "-webkit-box",
         WebkitLineClamp: 2,
         WebkitBoxOrient: "vertical",

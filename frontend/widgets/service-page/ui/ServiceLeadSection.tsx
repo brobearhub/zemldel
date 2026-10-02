@@ -1,5 +1,5 @@
-import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
 import LockRoundedIcon from "@mui/icons-material/LockRounded";
+import SpeedRoundedIcon from "@mui/icons-material/SpeedRounded";
 import { Box, Container, Paper, Stack, Typography } from "@mui/material";
 import { ServiceLeadCaptureForm } from "@/features/create-service-request-lead";
 
@@ -11,13 +11,21 @@ type Props = {
 
 export function ServiceLeadSection({ serviceId, isAuthenticated, initialCustomerEmail }: Props) {
   return (
-    <Box component="section" id="consultation" sx={{ bgcolor: "#244737", py: { xs: 5, md: 10 } }}>
+    <Box
+      component="section"
+      id="consultation"
+      sx={{
+        bgcolor: "#244737",
+        pt: { xs: "40px", md: "113px" },
+        pb: { xs: "32px", md: "113px" },
+      }}
+    >
       <Container maxWidth="xl">
         <Box
           sx={{
             display: "grid",
             gridTemplateColumns: { xs: "1fr", md: "minmax(0, 806px) 590px" },
-            gap: { xs: 3, md: 6 },
+            gap: { xs: 3, md: "24px" },
             alignItems: { md: "start" },
           }}
         >
@@ -26,8 +34,8 @@ export function ServiceLeadSection({ serviceId, isAuthenticated, initialCustomer
               sx={{
                 display: "inline-flex",
                 alignSelf: "flex-start",
-                px: { xs: 1.5, md: 1.75 },
-                py: { xs: 0.75, md: 0.875 },
+                px: { xs: "12px", md: "14px" },
+                py: { xs: "6px", md: "7px" },
                 borderRadius: "999px",
                 bgcolor: "rgba(255,255,255,0.09)",
                 color: "#e8efea",
@@ -39,30 +47,26 @@ export function ServiceLeadSection({ serviceId, isAuthenticated, initialCustomer
             </Box>
 
             <Typography
-              sx={{
-                fontWeight: 800,
-                fontSize: { xs: 40, sm: 48, md: 60 },
-                lineHeight: { xs: 1.167, md: 1.2 },
-                letterSpacing: { md: "-0.5px" },
-              }}
+              variant="h4"
+              sx={{ color: "common.white" }}
             >
               Обсудим вашу сделку и составим план действий
             </Typography>
 
-            <Typography sx={{ color: "#e8efea", maxWidth: 820, lineHeight: { xs: 1.43, md: 1.5 } }}>
+            <Typography sx={{ color: "#e8efea", maxWidth: 820, fontSize: { xs: 14, md: 16 }, lineHeight: { xs: 1.43, md: 1.5 } }}>
               Укажите электронную почту — юрист свяжется в рабочее время, уточнит задачу и назовёт точную стоимость
               сопровождения.
             </Typography>
 
             <Stack direction={{ xs: "column", sm: "row" }} spacing={{ xs: 1.25, sm: 3 }} sx={{ color: "#e8efea" }}>
               <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                <AccessTimeRoundedIcon sx={{ fontSize: 19, color: "#e8efea" }} />
+                <SpeedRoundedIcon sx={{ fontSize: { xs: 18, md: 19 }, color: "#e8efea" }} />
                 <Typography variant="caption" sx={{ letterSpacing: "0.4px", color: "#e8efea" }}>
                   Ответим в течение часа
                 </Typography>
               </Stack>
               <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                <LockRoundedIcon sx={{ fontSize: 19, color: "#e8efea" }} />
+                <LockRoundedIcon sx={{ fontSize: { xs: 18, md: 19 }, color: "#e8efea" }} />
                 <Typography variant="caption" sx={{ letterSpacing: "0.4px", color: "#e8efea" }}>
                   Данные защищены
                 </Typography>
@@ -73,20 +77,14 @@ export function ServiceLeadSection({ serviceId, isAuthenticated, initialCustomer
           <Paper
             elevation={0}
             sx={{
-              p: { xs: 2.5, md: 4 },
+              p: { xs: "24px 16px", md: "32px" },
               bgcolor: "background.paper",
+              borderRadius: { xs: 0, md: 2.5 },
             }}
           >
             <Stack spacing={2.25}>
               <Stack spacing={0.5}>
-                <Typography
-                  sx={{
-                    fontWeight: 800,
-                    fontSize: { xs: 28, md: 32 },
-                    lineHeight: 1.235,
-                    color: "primary.main",
-                  }}
-                >
+                <Typography variant="h5" >
                   Получить консультацию
                 </Typography>
                 <Typography variant="body2" sx={{ color: "text.secondary" }}>

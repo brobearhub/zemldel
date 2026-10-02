@@ -36,13 +36,14 @@ const REVIEWS: readonly ReviewCard[] = [
 type Props = {
   ratingValue: number;
   reviewCountLabel: string;
+  cityLabel?: string | null;
 };
 
-export function ServiceReviewsSection({ ratingValue, reviewCountLabel }: Props) {
+export function ServiceReviewsSection({ ratingValue, reviewCountLabel, cityLabel = null }: Props) {
   return (
-    <Box component="section" sx={{ bgcolor: "background.default", py: { xs: 6, md: 12 } }}>
+    <Box component="section" sx={{ bgcolor: "background.default", pt: { xs: "48px", md: "96px" }, pb: { xs: "48px", md: "104px" } }}>
       <Container maxWidth="xl">
-        <Stack spacing={{ xs: 3, md: 6 }}>
+        <Stack sx={{ gap: { xs: "24px", md: "50px" } }}>
           <Box
             sx={{
               display: "flex",
@@ -57,8 +58,8 @@ export function ServiceReviewsSection({ ratingValue, reviewCountLabel }: Props) 
                 sx={{
                   display: "inline-flex",
                   alignSelf: "flex-start",
-                  px: { xs: 1.5, md: 1.75 },
-                  py: { xs: 0.75, md: 0.875 },
+                  px: { xs: "12px", md: "14px" },
+                  py: { xs: "5px", md: "7px" },
                   borderRadius: "999px",
                   bgcolor: "#e4ece4",
                 }}
@@ -68,20 +69,12 @@ export function ServiceReviewsSection({ ratingValue, reviewCountLabel }: Props) 
                 </Typography>
               </Box>
 
-              <Typography
-                sx={{
-                  fontWeight: 800,
-                  fontSize: { xs: 44, md: 60 },
-                  lineHeight: { xs: 1.167, md: 1.2 },
-                  letterSpacing: { md: "-0.5px" },
-                  color: "primary.main",
-                }}
-              >
+              <Typography variant="h4" >
                 Клиенты отмечают спокойствие и ясность
               </Typography>
 
-              <Typography sx={{ color: "text.secondary", maxWidth: 820 }}>
-                Проверенные отзывы о сопровождении сделок с недвижимостью.
+              <Typography sx={{ color: "text.secondary", maxWidth: 820, fontSize: { xs: 14, md: 16 }, lineHeight: { xs: 1.43, md: 1.5 } }}>
+                Проверенные отзывы о сопровождении сделок с недвижимостью{cityLabel ? ` в ${cityLabel}.` : "."}
               </Typography>
             </Stack>
 
@@ -90,10 +83,10 @@ export function ServiceReviewsSection({ ratingValue, reviewCountLabel }: Props) 
                 <StarRoundedIcon sx={{ fontSize: { xs: 22, md: 25 }, color: "#ffb400" }} />
                 <Typography
                   sx={{
-                    fontWeight: 800,
-                    fontSize: { xs: 32, md: 48 },
-                    lineHeight: 1.167,
-                    color: "primary.main",
+                    fontWeight: 700,
+                    fontSize: { xs: 32, md: 32 },
+                    lineHeight: 1.235,
+                    letterSpacing: "0.25px",
                   }}
                 >
                   {ratingValue.toFixed(1)}
@@ -118,21 +111,21 @@ export function ServiceReviewsSection({ ratingValue, reviewCountLabel }: Props) 
                 elevation={0}
                 sx={{
                   bgcolor: "background.paper",
-                  p: { xs: 0, md: 0 },
+                  borderRadius: { xs: 2.5, md: 2.5 },
                 }}
               >
                 <CardHeader
                   avatar={<Avatar sx={{ bgcolor: "grey.400", color: "background.paper" }}>{r.initials}</Avatar>}
-                  title={<Typography sx={{ color: "primary.main" }}>{r.author}</Typography>}
+                  title={<Typography>{r.author}</Typography>}
                   subheader={
                     <Typography variant="body2" sx={{ color: "text.secondary" }}>
                       {r.subtitle}
                     </Typography>
                   }
-                  sx={{ px: { xs: 2, md: 3 }, pt: { xs: 2, md: 3 }, pb: 1 }}
+                  sx={{ px: { xs: "16px", md: "28px" }, pt: { xs: "16px", md: "28px" }, pb: 0 }}
                 />
-                <CardContent sx={{ px: { xs: 2, md: 3 }, pb: { xs: 2.5, md: 3 }, pt: 0 }}>
-                  <Stack spacing={1.5}>
+                <CardContent sx={{ px: { xs: "16px", md: "28px" }, pb: { xs: "16px", md: "28px" }, pt: { xs: 2, md: "20px" } }}>
+                  <Stack spacing={{ xs: 1.5, md: 2.5 }}>
                     <Rating
                       value={r.rating}
                       readOnly
@@ -140,7 +133,7 @@ export function ServiceReviewsSection({ ratingValue, reviewCountLabel }: Props) 
                       size="small"
                       sx={{ "& .MuiRating-iconFilled": { color: "#ffb400" } }}
                     />
-                    <Typography sx={{ color: "primary.main", lineHeight: 1.5 }}>
+                    <Typography sx={{ lineHeight: 1.5, fontSize: { xs: 14, md: 16 } }}>
                       {r.text}
                     </Typography>
                   </Stack>

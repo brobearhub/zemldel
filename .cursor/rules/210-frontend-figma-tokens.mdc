@@ -1,0 +1,36 @@
+---
+description: Figma → MUI token mapping (colors) for frontend UI
+globs: frontend/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Figma → MUI color tokens (strict)
+
+## Source of truth
+
+- Use **Figma Dev Mode token name** as the source of truth. Do **not** guess tokens by “similar hue”.
+- For text, prefer semantic palette tokens over hex: `text.*`, `common.*`, `primary.*`, `secondary.*`.
+
+## Mapping rules (colors)
+
+- Figma `text/primary` → `theme.palette.text.primary`
+  - Prefer **not** setting `color` on `Typography` when it matches the default (`text.primary`).
+  - Set `color` only when you need to **override inheritance** (e.g. a parent sets `sx={{ color: ... }}`) or when the node is not a `Typography` (icons, plain `Box`, etc.).
+- Figma `text/secondary` → `color: "text.secondary"`
+- Figma `common/white` → `color: "common.white"`
+- Figma `primary/main` → `color: "primary.main"` (or `bgcolor: "primary.main"` when used as fill)
+- Figma `primary/dark` → `color: "primary.dark"`
+- Figma `secondary/main` → `color: "secondary.main"`
+
+## Hardcoded colors policy
+
+- If Figma uses a token → do **not** hardcode hex in code for that property.
+- If Figma uses a literal color (no token):
+  - Prefer `alpha(theme.palette.<token>, x)` where possible, OR
+  - Add a named token in `core/theme/createAppTheme.ts` under `theme.custom.*` and reference it.
+
+## Common bug (must be caught in review)
+
+- Headings/body text must **not** use `color: "primary.main"` unless the Figma node token is `primary/main`.
+- If Figma node token is `text/primary` but code uses `primary.*` → treat as a bug (visual mismatch).
+

@@ -230,7 +230,6 @@ export function PublicUnlinkedRequestForm({
                 fontSize: 20,
                 lineHeight: 1.6,
                 letterSpacing: "0.15px",
-                color: "text.primary",
                 textAlign: "center",
               }}
             >

@@ -26,7 +26,6 @@ export function ServiceSectionHeader({ title, cityLabel }: Props) {
           fontWeight: 700,
           fontSize: 24,
           lineHeight: 1.334,
-          color: "text.primary",
         }}
       >
         {title}

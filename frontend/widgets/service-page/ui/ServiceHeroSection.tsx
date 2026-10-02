@@ -1,7 +1,9 @@
 import Image from "next/image";
-import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import LocationOnRoundedIcon from "@mui/icons-material/LocationOnRounded";
-import { Box, Button, Container, Divider, Paper, Rating, Stack, Typography } from "@mui/material";
+import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
+import { Box, Button, Container, Rating, Stack, Typography } from "@mui/material";
 import type { ServiceHeroVm } from "@/widgets/service-page/model/service-hero.vm";
 
 type Props = {
@@ -10,20 +12,28 @@ type Props = {
 
 export function ServiceHeroSection({ vm }: Props) {
   return (
-    <Box component="section" sx={{ bgcolor: "background.default", pt: { xs: 2.5, md: 4 }, pb: { xs: 4, md: 6 } }}>
+    <Box
+      component="section"
+      sx={{
+        bgcolor: "background.default",
+        pt: { xs: "20px", md: "34px" },
+        pb: { xs: "32px", md: "82px" },
+      }}
+    >
       <Container maxWidth="xl">
-        <Stack spacing={{ xs: 2, md: 3.5 }}>
+        <Stack spacing={{ xs: "20px", md: "28px" }}>
           <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
             <Button
               component="a"
               href={vm.backHref}
-              variant="outlined"
+              variant="text"
               size="small"
-              startIcon={<ArrowBackRoundedIcon />}
+              startIcon={<ArrowBackIosNewIcon />}
               sx={{
                 alignSelf: "flex-start",
                 textTransform: "none",
                 fontWeight: 500,
+                color: "text.secondary",
               }}
             >
               Назад
@@ -32,19 +42,26 @@ export function ServiceHeroSection({ vm }: Props) {
 
           <Box
             sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "minmax(0, 724px) minmax(0, 1fr)" },
-              gap: { xs: 2.5, md: 8 },
-              alignItems: { md: "center" },
+              display: "flex",
+              flexDirection: { xs: "column", md: "row" },
+              gap: { xs: "20px", md: "64px" },
+              alignItems: { xs: "start", md: "stretch" },
             }}
           >
-            <Paper
-              elevation={0}
+            <Box
               sx={{
                 position: "relative",
                 overflow: "hidden",
                 bgcolor: "action.hover",
-                aspectRatio: { xs: "16/10", md: "724 / 522" },
+                width: "100%",
+                flexGrow: { md: 0 },
+                flexShrink: { md: 1 },
+                flexBasis: { md: "clamp(320px, 42vw, 600px)" },
+                alignSelf: { md: "flex-start" },
+                height: { xs: 220, md: "auto" },
+                aspectRatio: { md: "600 / 522" },
+                maxHeight: { md: 522 },
+                borderRadius: 1,
               }}
             >
               {vm.imageUrl ? (
@@ -52,7 +69,7 @@ export function ServiceHeroSection({ vm }: Props) {
                   src={vm.imageUrl}
                   alt=""
                   fill
-                  sizes="(max-width: 900px) 100vw, 724px"
+                  sizes="(max-width: 900px) 100vw, 600px"
                   style={{ objectFit: "cover", objectPosition: "center" }}
                 />
               ) : (
@@ -75,72 +92,63 @@ export function ServiceHeroSection({ vm }: Props) {
                 <Box
                   sx={{
                     position: "absolute",
-                    left: { xs: 16, md: 28 },
-                    bottom: { xs: 16, md: 28 },
+                    left: { xs: "16px", md: "28px" },
+                    bottom: { xs: "16px", md: "28px" },
                     display: "inline-flex",
-                    px: { xs: 1.5, md: 2 },
-                    py: { xs: 1, md: 1.25 },
+                    alignItems: "center",
+                    gap: { xs: "6px", md: "10px" },
+                    px: { xs: "12px", md: "16px" },
+                    py: { xs: "8px", md: "12px" },
                     borderRadius: "999px",
                     bgcolor: "rgba(255,255,255,0.95)",
-                    color: "primary.main",
-                    fontSize: { xs: 12, md: 14 },
-                    fontWeight: 600,
-                    lineHeight: 1.4,
-                    backdropFilter: "blur(2px)",
                   }}
                 >
-                  {vm.imageBadgeLabel}
+                  <VerifiedUserRoundedIcon sx={{ fontSize: { xs: 16, md: 20 }, color: "text.primary" }} />
+                  <Typography variant="caption" sx={{ letterSpacing: "0.4px" }}>
+                    {vm.imageBadgeLabel}
+                  </Typography>
                 </Box>
               ) : null}
-            </Paper>
+            </Box>
 
-            <Stack spacing={{ xs: 1.5, md: 2.25 }} sx={{ minWidth: 0 }}>
-              <Box
-                sx={{
-                  display: "inline-flex",
-                  alignSelf: "flex-start",
-                  px: { xs: 1.5, md: 1.75 },
-                  py: { xs: 0.75, md: 0.875 },
-                  borderRadius: "999px",
-                  bgcolor: "#e4ece4",
-                }}
-              >
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: "primary.dark",
-                    letterSpacing: "0.4px",
-                  }}
-                >
-                  {vm.categoryLabel}
-                </Typography>
-              </Box>
-
-              <Typography
-                component="h1"
-                sx={{
-                  fontWeight: 600,
-                  letterSpacing: { xs: "-0.5px", md: "-1.5px" },
-                  lineHeight: { xs: 1.2, md: 1.167 },
-                  fontSize: { xs: 28, md: 48 },
-                  color: "primary.main",
-                }}
-              >
-                {vm.title}
-              </Typography>
-
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={{ xs: 1, sm: 2.5 }} sx={{ alignItems: { sm: "center" } }}>
-                {vm.cityLabel ? (
-                  <Stack direction="row" spacing={0.75} sx={{ alignItems: "center" }}>
-                    <LocationOnRoundedIcon sx={{ fontSize: { xs: 18, md: 22 }, color: "primary.main" }} />
-                    <Typography variant="body2" sx={{ color: "primary.main" }}>
-                      {vm.cityLabel}
+            <Box sx={{ minWidth: 0, flex: { md: "1 1 0" }, display: "flex", flexDirection: "column", width: "100%" }}>
+              <Stack spacing={{ xs: "14px", md: "20px" }} sx={{ minWidth: 0 }}>
+                <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
+                  <Box
+                    sx={{
+                      display: "inline-flex",
+                      alignSelf: "flex-start",
+                      px: { xs: "12px", md: "14px" },
+                      py: { xs: "5px", md: "7px" },
+                      borderRadius: "999px",
+                      bgcolor: "#e4ece4",
+                    }}
+                  >
+                    <Typography variant="caption" sx={{ color: "primary.dark", letterSpacing: "0.4px" }}>
+                      {vm.categoryLabel}
                     </Typography>
-                  </Stack>
+                  </Box>
+
+                  {vm.cityLabel ? (
+                    <Stack direction="row" spacing={{ xs: "5px", md: "7px" }} sx={{ alignItems: "center" }}>
+                      <LocationOnRoundedIcon sx={{ fontSize: { xs: 18, md: 22 }, color: "text.primary" }} />
+                      <Typography variant="body2">{vm.cityLabel}</Typography>
+                    </Stack>
+                  ) : null}
+                </Box>
+
+                <Typography variant="h4" >
+                  {vm.title}
+                </Typography>
+
+                {vm.description ? (
+                  <Typography sx={{ color: "text.secondary", fontSize: { xs: 14, md: 16 }, lineHeight: { xs: 1.43, md: 1.5 } }}>
+                    {vm.description}
+                  </Typography>
                 ) : null}
 
                 {vm.rating ? (
-                  <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                  <Stack direction="row" spacing={{ xs: "6px", md: "9px" }} sx={{ alignItems: "center" }}>
                     <Rating
                       value={vm.rating.value}
                       readOnly
@@ -150,68 +158,45 @@ export function ServiceHeroSection({ vm }: Props) {
                         "& .MuiRating-iconFilled": { color: "#ffb400" },
                       }}
                     />
-                    <Typography variant="body2" sx={{ color: "primary.main" }}>
-                      {vm.rating.value.toFixed(1)}
-                    </Typography>
+                    <Typography variant="body2">{vm.rating.value.toFixed(1)}</Typography>
                     {vm.rating.reviewCount != null ? (
-                      <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                      <Typography variant="caption" sx={{ color: "text.secondary", letterSpacing: "0.4px" }}>
                         {vm.rating.reviewCount} отзывов
                       </Typography>
                     ) : null}
                   </Stack>
                 ) : null}
+
+                {vm.benefits.length ? (
+                  <Stack spacing={{ xs: "8px", md: "9px" }} sx={{ py: { md: "25px" }, maxWidth: { md: 322 } }}>
+                    {vm.benefits.map((b) => (
+                      <Stack key={b} direction="row" spacing={{ xs: "8px", md: "10px" }} sx={{ alignItems: "center" }}>
+                        <CheckCircleRoundedIcon sx={{ fontSize: { xs: 18, md: 20 }, color: "success.main" }} />
+                        <Typography variant="body2">{b}</Typography>
+                      </Stack>
+                    ))}
+                  </Stack>
+                ) : null}
               </Stack>
-
-              {vm.description ? (
-                <Typography sx={{ color: "text.secondary", lineHeight: { xs: 1.43, md: 1.5 }, fontSize: { xs: 14, md: 16 } }}>
-                  {vm.description}
-                </Typography>
-              ) : null}
-
-              {vm.benefits.length ? (
-                <Stack spacing={1} sx={{ maxWidth: 360 }}>
-                  {vm.benefits.map((b) => (
-                    <Stack key={b} direction="row" spacing={1} sx={{ alignItems: "flex-start" }}>
-                      <Box
-                        sx={{
-                          mt: "3px",
-                          width: 20,
-                          height: 20,
-                          borderRadius: "50%",
-                          bgcolor: "success.main",
-                          opacity: 0.12,
-                        }}
-                      />
-                      <Typography variant="body2" sx={{ color: "primary.main", lineHeight: 1.43 }}>
-                        {b}
-                      </Typography>
-                    </Stack>
-                  ))}
-                </Stack>
-              ) : null}
-
-              <Divider sx={{ display: { xs: "block", md: "none" }, my: 0.5 }} />
 
               <Box
                 sx={{
+                  mt: { md: "auto" },
                   display: "flex",
-                  alignItems: { xs: "stretch", sm: "center" },
-                  justifyContent: "space-between",
+                  justifyContent: { xs: "flex-start", lg: "space-between" },
+                  alignItems: { xs: "stretch", lg: "flex-end" },
                   gap: 2,
-                  flexDirection: { xs: "column", sm: "row" },
+                  flexDirection: { xs: "column", lg: "row" },
                 }}
               >
-                <Stack spacing={0.25} sx={{ whiteSpace: "nowrap" }}>
+                <Stack spacing={"2px"} sx={{ whiteSpace: "nowrap", alignSelf: { xs: "flex-start", sm: "center", md: "flex-start" } }}>
                   <Typography variant="caption" sx={{ color: "text.secondary", letterSpacing: "0.4px" }}>
                     Стоимость услуги
                   </Typography>
                   <Typography
-                    sx={{
-                      fontWeight: 800,
-                      fontSize: { xs: 36, md: 48 },
-                      lineHeight: 1.167,
-                      color: "#745448",
-                    }}
+                    variant="h4" 
+                    // color="textSecondary"
+                    sx={{ color: "#745448" }}
                   >
                     {vm.priceLabel}
                   </Typography>
@@ -221,15 +206,15 @@ export function ServiceHeroSection({ vm }: Props) {
                   component="a"
                   href={vm.ctaAnchorHref}
                   variant="contained"
-                  size="large"
                   sx={{
-                    px: 3,
-                    py: 1,
+                    px: "22px",
+                    py: "8px",
                     fontWeight: 600,
                     letterSpacing: "0.46px",
                     textTransform: "uppercase",
                     bgcolor: "primary.main",
                     color: "primary.contrastText",
+                    minWidth: { xs: "100%", sm: "auto" },
                     boxShadow:
                       "0px 1px 5px rgba(0,0,0,0.12), 0px 2px 2px rgba(0,0,0,0.14), 0px 3px 1px -2px rgba(0,0,0,0.2)",
                     "&:hover": { bgcolor: "primary.dark" },
@@ -238,7 +223,7 @@ export function ServiceHeroSection({ vm }: Props) {
                   {vm.ctaText}
                 </Button>
               </Box>
-            </Stack>
+            </Box>
           </Box>
         </Stack>
       </Container>
