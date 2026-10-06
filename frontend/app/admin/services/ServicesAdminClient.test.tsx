@@ -354,10 +354,6 @@ describe("ServicesAdminClient", () => {
 
     await user.clear(within(dialog).getByLabelText("stockBadge (null = empty)"));
     await user.type(within(dialog).getByLabelText("stockBadge (null = empty)"), "Осталось 5");
-    await user.clear(within(dialog).getByLabelText("badge (null = empty)"));
-    await user.type(within(dialog).getByLabelText("badge (null = empty)"), "Хит");
-    await user.clear(within(dialog).getByLabelText("highlight (null = empty)"));
-    await user.type(within(dialog).getByLabelText("highlight (null = empty)"), "договор");
     await user.clear(within(dialog).getByLabelText("description (null = empty)"));
     await user.type(within(dialog).getByLabelText("description (null = empty)"), "Подробности");
     // paletteColor/icon are validated and can be null; keep assertions focused on core text fields.
@@ -371,8 +367,6 @@ describe("ServicesAdminClient", () => {
       price: string;
       ctaText: string;
       stockBadge: string | null;
-      badge: string | null;
-      highlight: string | null;
       description: string | null;
       paletteColor: string | null;
       icon: string | null;
@@ -382,8 +376,6 @@ describe("ServicesAdminClient", () => {
     expect(body.price).toBe("4500 ₽");
     expect(body.ctaText).toBe("Связаться");
     expect(body.stockBadge).toBe("Осталось5");
-    expect(body.badge).toBe("Хит");
-    expect(body.highlight).toBe("договор");
     expect(body.description).toBe("Подробности");
     expect(body.paletteColor).toBeNull();
     expect(body.icon).toBeNull();

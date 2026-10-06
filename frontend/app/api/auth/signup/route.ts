@@ -7,6 +7,12 @@ type AcceptedLegal = {
   consent?: unknown;
 };
 
+type FieldErrors = Partial<Record<"name" | "email" | "password" | "customerCityId" | "acceptedLegal", string>>;
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as {
@@ -28,18 +34,16 @@ export async function POST(request: Request) {
     const consent =
       typeof body.acceptedLegal?.consent === "string" ? body.acceptedLegal.consent.trim() : "";
 
-    if (!email) return NextResponse.json({ error: "email is required" }, { status: 400 });
-    if (!password || password.length < 6) {
-      return NextResponse.json({ error: "password must be at least 6 chars" }, { status: 400 });
-    }
-    if (!customerCityId) {
-      return NextResponse.json({ error: "location is required" }, { status: 400 });
-    }
-    if (!terms || !privacy || !consent) {
-      return NextResponse.json(
-        { error: "acceptedLegal versions (terms, privacy, consent) are required" },
-        { status: 400 },
-      );
+    const fieldErrors: FieldErrors = {};
+    if (!email) fieldErrors.email = "Введите email";
+    else if (!isValidEmail(email)) fieldErrors.email = "Введите корректный email";
+    if (!password) fieldErrors.password = "Введите пароль";
+    else if (password.length < 6) fieldErrors.password = "Пароль должен быть не короче 6 символов";
+    if (!customerCityId) fieldErrors.customerCityId = "Выберите локацию из списка";
+    if (!terms || !privacy || !consent) fieldErrors.acceptedLegal = "Нужно принять соглашение, политику и согласие";
+
+    if (Object.keys(fieldErrors).length > 0) {
+      return NextResponse.json({ fieldErrors }, { status: 400 });
     }
 
     const response = await fetchBackend("/auth/signup", {
@@ -55,8 +59,41 @@ export async function POST(request: Request) {
         acceptedLegal: { terms, privacy, consent },
       }),
     });
-    const payload = await response.json().catch(() => ({ error: "Failed to sign up" }));
-    return NextResponse.json(payload, { status: response.status });
+    const payload = (await response.json().catch(() => null)) as unknown;
+
+    if (response.ok) {
+      return NextResponse.json(payload, { status: response.status });
+    }
+
+    // 409 обычно означает конфликт уникальности (чаще всего email уже занят).
+    if (response.status === 409) {
+      return NextResponse.json(
+        { fieldErrors: { email: "Этот email уже зарегистрирован" } satisfies FieldErrors },
+        { status: 409 },
+      );
+    }
+
+    const message =
+      typeof payload === "object" && payload && "error" in payload && typeof payload.error === "string"
+        ? payload.error
+        : typeof payload === "object" && payload && "message" in payload && typeof payload.message === "string"
+          ? payload.message
+          : "Не удалось зарегистрироваться";
+
+    // Best-effort маппинг бэкенд-ошибок на поля (если бэк вернул строку).
+    const backendFieldErrors: FieldErrors = {};
+    const lc = message.toLowerCase();
+    if (lc.includes("email")) backendFieldErrors.email = message;
+    if (lc.includes("password")) backendFieldErrors.password = message;
+    if (lc === "conflict") backendFieldErrors.email = "Этот email уже зарегистрирован";
+
+    return NextResponse.json(
+      {
+        fieldErrors: Object.keys(backendFieldErrors).length > 0 ? backendFieldErrors : undefined,
+        error: message,
+      },
+      { status: response.status },
+    );
   } catch (error) {
     console.error("Error signing up:", error);
     return NextResponse.json({ error: "Failed to sign up" }, { status: 500 });

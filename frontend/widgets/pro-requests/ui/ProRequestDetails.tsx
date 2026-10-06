@@ -118,7 +118,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   const [activePanelId, setActivePanelId] = useState<"payment" | "counterparty" | "cadastral" | null>(null);
 
   const isBusy = busy || uploadBusy;
-  const showContractWorkflow = !req.isLocked && req.offerStatus === "SELECTED";
+  const showContractWorkflow = req.isLocked && req.offerStatus === "SELECTED";
   const hasPendingContractFiles = contractBundles.some((b) => b.status === "PENDING_CUSTOMER");
   const hasRevisionRequested = contractBundles.some((b) => b.status === "REVISION_REQUESTED");
   const hasApproved = contractBundles.some((b) => b.status === "APPROVED");

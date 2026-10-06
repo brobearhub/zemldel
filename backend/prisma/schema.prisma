@@ -282,6 +282,10 @@ model Provider {
   type              ProviderType
   ownerUserId       String?                @db.Uuid
   cityId            String?                @db.Uuid
+  image             String?
+  subtitle          String?
+  about             String?
+  stats             Json?
   ownerUser         User?                  @relation("ProviderOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
   members           ProviderMember[]
   userSettings      ProviderUserSettings[]
@@ -625,8 +629,6 @@ model Service {
   ctaText         String
   ctaHref         String?
   description     String?
-  highlight       String?
-  badge           String?
   paletteColor    String?
   icon            String?
   providerId      String          @db.Uuid

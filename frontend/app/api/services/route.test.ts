@@ -41,6 +41,6 @@ describe("GET /api/services", () => {
     const json = await response.json();
 
     expect(response.status).toBe(500);
-    expect(json).toEqual({ error: "Failed to fetch services" });
+    expect(json).toEqual({ error: "Не удалось загрузить услуги" });
   });
 });

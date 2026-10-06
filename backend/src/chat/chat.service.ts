@@ -1103,14 +1103,24 @@ export class ChatService {
 
       const convRow = await this.prisma.conversation.findUnique({
         where: { id: conversationId },
-        select: { requestId: true },
+        select: {
+          requestId: true,
+          request: { select: { serviceId: true, customerUserId: true } },
+        },
       });
 
       if (convRow?.requestId) {
-        await this.prisma.request.updateMany({
-          where: { id: convRow.requestId, status: 'NEW' },
-          data: { status: 'DISCUSSING' },
-        });
+        const isServiceRequest = Boolean(convRow.request?.serviceId);
+        const isCustomerMessage = convRow.request?.customerUserId === actorUserId;
+        const shouldTransition =
+          !(isServiceRequest && isCustomerMessage) && Boolean(convRow.request);
+
+        if (shouldTransition) {
+          await this.prisma.request.updateMany({
+            where: { id: convRow.requestId, status: 'NEW' },
+            data: { status: 'DISCUSSING' },
+          });
+        }
       }
 
       return { message: dto, alreadyExisted: false };

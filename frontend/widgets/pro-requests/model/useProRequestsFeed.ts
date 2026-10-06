@@ -36,15 +36,15 @@ export function useProRequestsFeed({ initialItems, isDesktop }: UseProRequestsFe
     try {
       if (mode === "both") {
         const [freshNew, freshDiscussing] = await Promise.all([
-          fetchInbox("NEW", nextSettings.categoryId, nextSettings.dialogScope),
-          fetchInbox("DISCUSSING", nextSettings.categoryId, nextSettings.dialogScope),
+          fetchInbox("NEW", nextSettings.dialogScope),
+          fetchInbox("DISCUSSING", nextSettings.dialogScope),
         ]);
         setItemsByStatus({ NEW: freshNew, DISCUSSING: freshDiscussing });
         setLoadedByStatus({ NEW: true, DISCUSSING: true });
         return;
       }
 
-      const fresh = await fetchInbox(nextSettings.status, nextSettings.categoryId, nextSettings.dialogScope);
+      const fresh = await fetchInbox(nextSettings.status, nextSettings.dialogScope);
       setItemsByStatus((current) => ({ ...current, [nextSettings.status]: fresh }));
       setLoadedByStatus((current) => ({ ...current, [nextSettings.status]: true }));
     } catch (e) {
@@ -91,7 +91,7 @@ export function useProRequestsFeed({ initialItems, isDesktop }: UseProRequestsFe
     if (!settingsLoaded) return;
     void refresh(settings, isDesktop ? "both" : "single");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settingsLoaded, settings.status, settings.categoryId, settings.dialogScope, isDesktop]);
+  }, [settingsLoaded, settings.status, settings.dialogScope, isDesktop]);
 
   useEffect(() => {
     if (!settingsLoaded) return;
@@ -102,7 +102,7 @@ export function useProRequestsFeed({ initialItems, isDesktop }: UseProRequestsFe
       window.clearTimeout(t);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settingsLoaded, settings.status, settings.categoryId, settings.dialogScope]);
+  }, [settingsLoaded, settings.status, settings.dialogScope]);
 
   const mobileItems = itemsByStatus[settings.status] ?? [];
   const desktopHasAnyItems = (itemsByStatus.NEW?.length ?? 0) + (itemsByStatus.DISCUSSING?.length ?? 0) > 0;

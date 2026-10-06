@@ -1,14 +1,9 @@
 import type { RequestProDto } from "@/entities/request";
 import type { DialogScope, EligibleCategory, InboxSettings, InboxStatus } from "@/widgets/pro-requests/model/types";
 
-function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-}
-
-export async function fetchInbox(status: InboxStatus, categoryId: string | null, dialogScope: DialogScope) {
+export async function fetchInbox(status: InboxStatus, dialogScope: DialogScope) {
   const params = new URLSearchParams();
   params.set("status", status);
-  params.set("categoryId", categoryId ?? "null");
   if (status === "DISCUSSING") {
     params.set("dialogScope", dialogScope);
   }
@@ -52,9 +47,8 @@ export async function fetchInboxSettings(): Promise<InboxSettings> {
 
   const obj = payload && typeof payload === "object" && !Array.isArray(payload) ? (payload as Partial<InboxSettings>) : null;
   const status = obj?.status === "DISCUSSING" ? "DISCUSSING" : "NEW";
-  const categoryId = obj?.categoryId === null ? null : typeof obj?.categoryId === "string" && isUuid(obj.categoryId) ? obj.categoryId : null;
   const dialogScope = obj?.dialogScope === "ARCHIVE" ? "ARCHIVE" : "ACTIVE";
-  return { status, categoryId, dialogScope };
+  return { status, dialogScope };
 }
 
 export async function putInboxSettings(next: InboxSettings) {

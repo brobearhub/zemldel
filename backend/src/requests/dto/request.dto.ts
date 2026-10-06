@@ -344,6 +344,13 @@ export class RequestServiceCreateDto {
   @Transform(({ value }) => trimOrUndefined(value), { toClassOnly: true })
   @IsUUID()
   requestCityId?: string;
+
+  @ApiPropertyOptional({ type: [String], example: ['50:12:0000000:51755'] })
+  @Expose()
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  cadastralNumbers?: string[];
 }
 
 export function parseRequestServiceCreateDto(body: unknown): {

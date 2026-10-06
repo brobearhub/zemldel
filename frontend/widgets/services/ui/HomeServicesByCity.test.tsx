@@ -71,8 +71,8 @@ describe("HomeServicesByCity", () => {
       </Provider>
     );
 
-    expect(screen.getByText("Услуги")).toBeInTheDocument();
     expect(await screen.findByText("Услуга 1")).toBeInTheDocument();
+    expect(screen.getByText("Услуги")).toBeInTheDocument();
     expect(screen.queryByText("Услуги в других городах")).not.toBeInTheDocument();
   });
 
@@ -159,6 +159,66 @@ describe("HomeServicesByCity", () => {
       expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/services?cityId=c1"));
       expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/services?excludeCityId=c1"));
     });
+  });
+
+  it("hides the my-city section when there are no local services", async () => {
+    const store = createTestStore({
+      status: "authenticated",
+      error: null,
+      user: {
+        id: "u1",
+        email: "a@b.c",
+        name: "User",
+        image: null,
+        systemRole: "CUSTOMER",
+        activeProviderId: null,
+        customerCity: { id: "c1", name: "Екатеринбург", regionCode: "66", regionName: "Свердловская область" },
+        memberships: [],
+        linkedAuthProviders: [],
+        stepUpVerifiedAt: {},
+      },
+    });
+
+    vi.spyOn(global, "fetch").mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/services?cityId=c1")) {
+        return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
+      }
+      if (url.includes("/api/services?excludeCityId=c1")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify([
+              {
+                ...baseService,
+                id: "s2",
+                title: "Чужая услуга",
+                publishedAt: "2026-09-21T10:00:00.000Z",
+                provider: {
+                  id: "p2",
+                  name: "P2",
+                  city: { id: "c2", name: "Москва", regionCode: "77", regionName: "Москва" },
+                },
+              },
+            ]),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          )
+        );
+      }
+      return Promise.resolve(new Response(JSON.stringify([]), { status: 200 }));
+    });
+
+    render(
+      <Provider store={store}>
+        <CitySelectProvider>
+          <HomeServicesByCity />
+        </CitySelectProvider>
+      </Provider>
+    );
+
+    expect(await screen.findByText("Чужая услуга")).toBeInTheDocument();
+    expect(screen.getByText("Услуги в других городах")).toBeInTheDocument();
+    expect(screen.queryByText("Услуги")).not.toBeInTheDocument();
+    expect(screen.queryByText("Екатеринбург")).not.toBeInTheDocument();
   });
 
   it("sorts services inside each section by publishedAt desc", async () => {

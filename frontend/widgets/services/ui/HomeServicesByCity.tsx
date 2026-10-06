@@ -6,6 +6,8 @@ import { ServiceCard, type ServiceCardItem } from "@/entities/service";
 import { useSelectedCity } from "@/features/select-city";
 import { ServiceSectionHeader } from "@/widgets/services/ui/ServiceSectionHeader";
 
+const SERVICES_FETCH_USER_MESSAGE = "Не удалось загрузить список услуг. Попробуйте позже.";
+
 function getPublishedAtTs(value: string | null | undefined): number | null {
   if (!value) return null;
   const ts = Date.parse(value);
@@ -58,21 +60,19 @@ function ServiceGrid({
 
 async function fetchServices(path: string): Promise<ServiceCardItem[]> {
   const res = await fetch(path);
-  const payload = (await res.json().catch(() => null)) as
-    | ServiceCardItem[]
-    | { error?: string }
-    | null;
+  const payload = (await res.json().catch(() => null)) as unknown;
 
   if (!res.ok) {
-    const msg =
-      payload && typeof payload === "object" && !Array.isArray(payload) && payload.error
-        ? payload.error
-        : "Не удалось загрузить услуги";
-    throw new Error(msg);
+    // Не показываем пользователю backend/BFF сообщения (они могут быть техническими и на англ.).
+    // Детали оставляем только в консоли для диагностики.
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.error("[HomeServicesByCity] Failed to fetch services", { path, status: res.status, payload });
+    }
+    throw new Error(SERVICES_FETCH_USER_MESSAGE);
   }
 
-  if (!Array.isArray(payload)) return [];
-  return payload;
+  return Array.isArray(payload) ? (payload as ServiceCardItem[]) : [];
 }
 
 export function HomeServicesByCity() {
@@ -110,7 +110,11 @@ export function HomeServicesByCity() {
         setOtherCityItems([...other].sort(compareByPublishedAtDesc));
       } catch (e) {
         if (!alive) return;
-        setError(e instanceof Error ? e.message : "Не удалось загрузить услуги");
+        if (process.env.NODE_ENV !== "production") {
+          // eslint-disable-next-line no-console
+          console.error("[HomeServicesByCity] Failed to load services", e);
+        }
+        setError(SERVICES_FETCH_USER_MESSAGE);
         setMyCityItems([]);
         setOtherCityItems([]);
       }
@@ -122,7 +126,7 @@ export function HomeServicesByCity() {
   }, [cityId]);
 
   const showOther = (otherCityItems ?? []).length > 0;
-  const showEmptyMy = (myCityItems ?? []).length === 0;
+  const showMy = (myCityItems ?? []).length > 0;
 
   const myItemsSorted = useMemo(() => (myCityItems ?? []), [myCityItems]);
   const otherItemsSorted = useMemo(() => (otherCityItems ?? []), [otherCityItems]);
@@ -137,18 +141,12 @@ export function HomeServicesByCity() {
 
   return (
     <Stack spacing={{ xs: 3, md: 3 }}>
-      <Stack spacing={0}>
-        <ServiceSectionHeader title="Услуги" cityLabel={cityName} />
-        {myCityItems === null ? null : showEmptyMy ? (
-          <Paper variant="outlined" sx={{ p: 2.5 }}>
-            <Typography sx={{ color: "text.secondary" }}>
-              Пока нет опубликованных услуг в выбранном городе.
-            </Typography>
-          </Paper>
-        ) : (
+      {showMy ? (
+        <Stack spacing={0}>
+          <ServiceSectionHeader title="Услуги" cityLabel={cityName} />
           <ServiceGrid items={myItemsSorted} variant="myCity" />
-        )}
-      </Stack>
+        </Stack>
+      ) : null}
 
       {showOther ? (
         <Stack spacing={0}>

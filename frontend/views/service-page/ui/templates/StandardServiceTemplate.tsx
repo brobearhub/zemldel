@@ -20,7 +20,14 @@ export function StandardServiceTemplate({ service, session }: Props) {
       <ServiceHeroSection vm={heroVm} />
 
       {/* Provider section (public profile). */}
-      {providerId ? <ProviderSection providerId={providerId} imageSide="right" /> : null}
+      {providerId ? (
+        <ProviderSection
+          providerId={providerId}
+          serviceId={service.id}
+          isAuthenticated={isAuthenticated}
+          imageSide="right"
+        />
+      ) : null}
 
       <ServiceReviewsSection
         ratingValue={service.rating ?? 4.9}
@@ -32,6 +39,7 @@ export function StandardServiceTemplate({ service, session }: Props) {
 
       <ServiceLeadSection
         serviceId={service.id}
+        serviceTitle={service.title}
         isAuthenticated={isAuthenticated}
         initialCustomerEmail={initialEmail}
       />
@@ -39,9 +47,19 @@ export function StandardServiceTemplate({ service, session }: Props) {
   );
 }
 
-async function ProviderSection({ providerId, imageSide = "left" }: { providerId: string, imageSide?: "left" | "right" }) {
+async function ProviderSection({
+  providerId,
+  serviceId,
+  isAuthenticated,
+  imageSide = "left",
+}: {
+  providerId: string;
+  serviceId: string;
+  isAuthenticated: boolean;
+  imageSide?: "left" | "right";
+}) {
   const provider = await getPublicProviderProfile(providerId);
   if (!provider) return null;
-  return <ServiceProviderSection provider={provider} imageSide={imageSide} />;
+  return <ServiceProviderSection provider={provider} serviceId={serviceId} isAuthenticated={isAuthenticated} imageSide={imageSide} />;
 }
 

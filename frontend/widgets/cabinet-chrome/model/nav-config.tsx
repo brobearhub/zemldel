@@ -177,6 +177,13 @@ export const PROVIDER_NAV: {
       isActive: ({ pathname }) => pathname.startsWith("/pro/services"),
     },
     {
+      key: "profile",
+      label: "Профиль",
+      href: "/pro/profile",
+      icon: <PersonOutlineOutlinedIcon />,
+      isActive: ({ pathname }) => pathname.startsWith("/pro/profile"),
+    },
+    {
       key: "settings",
       label: "Настройки",
       href: "/pro/settings",
@@ -243,6 +250,13 @@ export const PROVIDER_NAV: {
       href: "/pro/services/list",
       icon: <BuildOutlinedIcon />,
       isActive: ({ pathname }) => pathname.startsWith("/pro/services"),
+    },
+    {
+      key: "profile",
+      label: "Профиль",
+      href: "/pro/profile",
+      icon: <PersonOutlineOutlinedIcon />,
+      isActive: ({ pathname }) => pathname.startsWith("/pro/profile"),
     },
     {
       key: "settings",

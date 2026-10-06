@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import CopyAllRoundedIcon from "@mui/icons-material/CopyAllRounded";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import {
@@ -8,9 +9,12 @@ import {
   Button,
   CircularProgress,
   IconButton,
+  Snackbar,
   Stack,
+  Tooltip,
   Typography,
 } from "@mui/material";
+import { SITE_CONTENT_GAP_PX, SITE_HEADER_HEIGHT_PX } from "@/shared/config/site-layout";
 import { CadastralNumberInput } from "@/shared/ui/CadastralNumberInput";
 import {
   createEmptyCadastralParts,
@@ -34,8 +38,14 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
   const [editParts, setEditParts] = useState<CadastralNumberParts>(createEmptyCadastralParts());
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [copiedOpen, setCopiedOpen] = useState(false);
 
   const isBusy = busy || submitting;
+
+  function handleCopiedClose(_e?: unknown, reason?: string) {
+    if (reason === "clickaway") return;
+    setCopiedOpen(false);
+  }
 
   async function run(action: Parameters<RequestCadastralBehavior["run"]>[0]) {
     setSubmitting(true);
@@ -59,6 +69,28 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
     setEditingIndex(index);
     setEditParts(partsFromCadastralValue(value));
     setError(null);
+  }
+
+  async function copyToClipboard(text: string) {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "true");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setCopiedOpen(true);
+    } catch {
+      setError("Не удалось скопировать кадастровый номер");
+    }
   }
 
   return (
@@ -101,6 +133,18 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
                   </Typography>
                   {viewModel.canMutate ? (
                     <>
+                      <Tooltip title="Скопировать">
+                        <span>
+                          <IconButton
+                            aria-label="Скопировать кадастровый номер"
+                            size="small"
+                            disabled={isBusy}
+                            onClick={() => void copyToClipboard(item.value)}
+                          >
+                            <CopyAllRoundedIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
                       <IconButton
                         aria-label="Изменить кадастровый номер"
                         size="small"
@@ -149,6 +193,23 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
           </Button>
         </Stack>
       ) : null}
+
+      <Snackbar
+        open={copiedOpen}
+        autoHideDuration={1500}
+        onClose={handleCopiedClose}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        sx={{
+          top: {
+            xs: `calc(env(safe-area-inset-top) + ${SITE_HEADER_HEIGHT_PX.xs + SITE_CONTENT_GAP_PX.xs}px)`,
+            sm: `calc(env(safe-area-inset-top) + ${SITE_HEADER_HEIGHT_PX.sm + SITE_CONTENT_GAP_PX.sm}px)`,
+          },
+        }}
+      >
+        <Alert onClose={handleCopiedClose} severity="success" variant="filled" sx={{ width: "100%" }}>
+          Скопировано
+        </Alert>
+      </Snackbar>
     </Stack>
   );
 }

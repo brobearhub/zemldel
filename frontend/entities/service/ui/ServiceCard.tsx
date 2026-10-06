@@ -2,9 +2,11 @@
 
 import { Box, Paper, Typography } from "@mui/material";
 import { brown, grey } from "@mui/material/colors";
+import { alpha } from "@mui/material/styles";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
 import Link from "next/link";
 import type { ServiceCardItem } from "../types";
+import { formatRubPriceLabel } from "@/shared/lib/money/format-rub-price-label";
 
 export type ServiceCardVariant = "myCity" | "otherCities";
 
@@ -59,15 +61,22 @@ function ServiceCardImage({ item, imageHeight }: { item: ServiceCardItem; imageH
         <Box
           sx={{
             position: "absolute",
-            left: 12,
+            right: 12,
             top: 12,
-            py: 0.75,
+            py: 0.65,
             px: 1.5,
             borderRadius: "999px",
-            bgcolor: "error.main",
-            color: "error.contrastText",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            bgcolor: (theme) => alpha(theme.palette.primary.main, 0.72),
+            color: "primary.contrastText",
+            border: "1px solid",
+            borderColor: (theme) => alpha(theme.palette.primary.main, 0.28),
+            backdropFilter: "blur(6px)",
             fontSize: 13,
             fontWeight: 600,
+            lineHeight: 1.15,
           }}
         >
           {item.stockBadge}
@@ -100,14 +109,14 @@ function ServiceCardPrice({ price }: { price: string }) {
   return (
     <Typography
       sx={{
-        fontWeight: 700,
-        fontSize: 24,
+        fontWeight: 800,
+        fontSize: 18,
         lineHeight: 1.334,
         color: brown[600],
         whiteSpace: "nowrap",
       }}
     >
-      {price}
+      {formatRubPriceLabel(price)}
     </Typography>
   );
 }
@@ -211,7 +220,7 @@ export function ServiceCard({ item, variant = "myCity" }: Props) {
             {cityName ? (
               <Typography
                 sx={{
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: 600,
                   color: grey[400],
                   whiteSpace: "nowrap",

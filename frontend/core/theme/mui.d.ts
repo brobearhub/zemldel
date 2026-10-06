@@ -17,6 +17,10 @@ declare module "@mui/material/styles" {
 
   interface Theme {
     custom: {
+      colors: {
+        /** Product accent (brand). */
+        accent: string;
+      };
       gradients: {
         /** Sage → cream atmospheric gradient */
         sunset: string;

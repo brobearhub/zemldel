@@ -220,18 +220,6 @@ export class ServiceDto {
   @IsString()
   description!: string | null;
 
-  @ApiProperty({ nullable: true, example: null })
-  @Expose()
-  @ValidateIf((_, value) => value !== null && value !== undefined)
-  @IsString()
-  highlight!: string | null;
-
-  @ApiProperty({ nullable: true, example: null })
-  @Expose()
-  @ValidateIf((_, value) => value !== null && value !== undefined)
-  @IsString()
-  badge!: string | null;
-
   @ApiProperty({ enum: PALETTE_COLORS, nullable: true, example: null })
   @Expose()
   @ValidateIf((_, value) => value !== null && value !== undefined)
@@ -276,8 +264,6 @@ export type ServiceDbRow = {
   ctaText: string;
   ctaHref: string | null;
   description: string | null;
-  highlight: string | null;
-  badge: string | null;
   paletteColor: string | null;
   icon: string | null;
   provider: {
@@ -395,20 +381,6 @@ export class ServiceCreateDto {
   @IsString()
   description?: string | null;
 
-  @ApiPropertyOptional({ nullable: true, example: null })
-  @Expose()
-  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
-  @ValidateIf((_, value) => value !== null && value !== undefined)
-  @IsString()
-  highlight?: string | null;
-
-  @ApiPropertyOptional({ nullable: true, example: null })
-  @Expose()
-  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
-  @ValidateIf((_, value) => value !== null && value !== undefined)
-  @IsString()
-  badge?: string | null;
-
   @ApiPropertyOptional({ enum: PALETTE_COLORS, nullable: true, example: null })
   @Expose()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
@@ -519,22 +491,6 @@ export class ServicePatchDto {
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   description?: string | null;
-
-  @ApiPropertyOptional({ nullable: true, example: null })
-  @Expose()
-  @IsOptional()
-  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
-  @ValidateIf((_, value) => value !== null && value !== undefined)
-  @IsString()
-  highlight?: string | null;
-
-  @ApiPropertyOptional({ nullable: true, example: null })
-  @Expose()
-  @IsOptional()
-  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
-  @ValidateIf((_, value) => value !== null && value !== undefined)
-  @IsString()
-  badge?: string | null;
 
   @ApiPropertyOptional({ enum: PALETTE_COLORS, nullable: true, example: null })
   @Expose()

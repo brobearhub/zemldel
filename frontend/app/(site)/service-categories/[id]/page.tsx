@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Box, Container, Paper, Stack, Typography } from "@mui/material";
 import { BackendApiError, fetchBackendJson } from "@/shared/api/backend/server";
-import { SITE_HEADER_SPACER_PX, SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
+import { SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
 import { getServerAuthSession } from "@/core/auth";
 import type { ServiceDto } from "@/entities/service";
 import { PublicUnlinkedRequestForm } from "@/widgets/public-service/ui/PublicUnlinkedRequestForm";
-import { ServiceCategoriesBar } from "@/widgets/service-categories/ui/ServiceCategoriesBar";
+import { ServiceCategoriesStickyBar } from "@/widgets/service-categories/ui/ServiceCategoriesStickyBar";
 import { ServicesByCity } from "@/widgets/services/ui/ServicesByCity";
 
 type ServiceCategoryRow = {
@@ -60,6 +60,17 @@ export default async function ServiceCategoryPage({ params }: Props) {
 
   const isRoot = category.parentId == null;
   const templates = categories.filter((c) => c.parentId === category.id);
+  const siblings =
+    category.parentId == null
+      ? []
+      : categories
+          .filter((c) => c.parentId === category.parentId)
+          .sort((a, b) => {
+            const ao = a.sortOrder ?? Number.POSITIVE_INFINITY;
+            const bo = b.sortOrder ?? Number.POSITIVE_INFINITY;
+            if (ao !== bo) return ao - bo;
+            return a.name.localeCompare(b.name, "ru");
+          });
   const templateBarItems = [
     { id: "__back__", name: "←", href: "/" },
     ...templates.map((t) => ({
@@ -68,6 +79,20 @@ export default async function ServiceCategoryPage({ params }: Props) {
       href: `/service-categories/${t.id}`,
     })),
   ];
+  const templateSelfBarItems = category.parentId
+    ? [
+        {
+          id: "__back__",
+          name: "←",
+          href: category.parentId ? `/service-categories/${category.parentId}` : "/",
+        },
+        ...siblings.map((s) => ({
+          id: s.id,
+          name: s.name,
+          href: `/service-categories/${s.id}`,
+        })),
+      ]
+    : [];
   const allowedCategoryIds = isRoot ? new Set(templates.map((c) => c.id)) : new Set([category.id]);
 
   const scopedServices = services.filter((s) => allowedCategoryIds.has(s.categoryId));
@@ -85,27 +110,14 @@ export default async function ServiceCategoryPage({ params }: Props) {
         <Container maxWidth="xl">
           <Stack spacing={3}>
             {isRoot ? (
-              <Box
-                sx={{
-                  position: "sticky",
-                  top: { xs: SITE_HEADER_SPACER_PX.xs, sm: SITE_HEADER_SPACER_PX.sm },
-                  zIndex: (theme) => theme.zIndex.appBar,
-                  bgcolor: "background.default",
-                  borderBottom: "1px solid",
-                  borderColor: "divider",
-                  py: 1,
-                }}
-              >
-                <ServiceCategoriesBar items={templateBarItems} />
-              </Box>
+              <ServiceCategoriesStickyBar items={templateBarItems} />
+            ) : category.parentId ? (
+              <ServiceCategoriesStickyBar items={templateSelfBarItems} activeId={category.id} />
             ) : null}
 
             <Box>
               <Typography component="h1" variant="h4" sx={{ fontWeight: 900 }} color="primary">
                 {category.name}
-              </Typography>
-              <Typography sx={{ color: "text.secondary", mt: 1, maxWidth: 860 }}>
-                Выберите исполнителя или оставьте заявку по категории — компании из вашего региона смогут откликнуться.
               </Typography>
             </Box>
 

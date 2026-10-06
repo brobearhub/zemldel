@@ -1,9 +1,9 @@
 /**
- * Единые отступы (site): зазор header → контент задаётся только spacer'ом в `(site)/layout.tsx`.
+ * Единые отступы (site): зазор header → контент задаётся только spacer'ом в `app/(site)/SiteChrome.tsx`.
  * Страницы не добавляют свой `pt`/`py` сверху — иначе снова будет разнобой.
  */
 
-/** Auth-страницы на весь экран: без spacer и footer, фон под fixed header. */
+/** Auth-страницы на весь экран: без spacer (фон под fixed header). */
 const FULL_BLEED_AUTH_PATHS = new Set(["/signin", "/signup", "/welcome"]);
 
 export function isFullBleedAuthPath(pathname: string): boolean {
@@ -23,7 +23,10 @@ export const SITE_CONTENT_GAP_PX = {
 } as const;
 
 /** Высота spacer'а под fixed header = высота хедера + единый зазор. */
-export const SITE_HEADER_SPACER_PX = SITE_HEADER_HEIGHT_PX;
+export const SITE_HEADER_SPACER_PX = {
+  xs: SITE_HEADER_HEIGHT_PX.xs + SITE_CONTENT_GAP_PX.xs,
+  sm: SITE_HEADER_HEIGHT_PX.sm + SITE_CONTENT_GAP_PX.sm,
+} as const;
 
 /** sticky `top` для сайдбаров/чата — совпадает со spacer на sm+ (основные трёхколоночные layout'ы). */
 export const SITE_STICKY_TOP_PX = SITE_HEADER_SPACER_PX.sm;

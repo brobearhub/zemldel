@@ -63,6 +63,17 @@ export class PublicProviderProfileDto {
   @IsString()
   image!: string | null;
 
+  /**
+   * Фото, загруженное именно у провайдера (без фолбэка на user.image).
+   * Нужен, чтобы UI мог отличать "своё" фото провайдера от аватарки владельца.
+   */
+  @Expose()
+  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined)
+  @IsString()
+  providerImage!: string | null;
+
   @Expose()
   @IsString()
   subtitle!: string;

@@ -87,6 +87,7 @@ import {
   createRequestCadastralBehavior,
   RequestCadastralNumbers,
 } from "@/widgets/request-cadastral-numbers";
+import type { ChatEnsureResponse } from "@/entities/chat/dto/chat.dto";
 
 function pickTitle(req: RequestCustomerDto) {
   if (req.subjectType === "SERVICE") return req.serviceTitle ?? "Заявка по услуге";
@@ -138,6 +139,49 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     }
     return payload as ChatServiceRequestConversationListItemDto[];
   }, [req.id]);
+
+  const ensureServiceChat = useCallback(async () => {
+    if (req.subjectType !== "SERVICE") return;
+    if (!req.providerId) {
+      setError("Не удалось открыть чат: у заявки нет исполнителя.");
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/chat/ensure", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serviceRequestId: req.id }),
+      });
+      const payload = (await res.json().catch(() => null)) as ChatEnsureResponse | { error?: string } | null;
+      if (!res.ok) {
+        const msg =
+          payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+            ? payload.error
+            : "Не удалось открыть чат";
+        throw new Error(msg);
+      }
+
+      const ensured = payload as ChatEnsureResponse;
+      const providerName = req.providerName ?? "Исполнитель";
+      const nextItem: ChatServiceRequestConversationListItemDto = {
+        conversationId: ensured.conversationId,
+        providerId: req.providerId,
+        providerName,
+        lastMessageAt: null,
+        lastSnippet: null,
+      };
+
+      setConversations([nextItem]);
+      setSelectedConversationId(ensured.conversationId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось открыть чат");
+    } finally {
+      setBusy(false);
+    }
+  }, [req.id, req.providerId, req.providerName, req.subjectType]);
 
   const refreshRequest = useCallback(async () => {
     const res = await fetch(`/api/requests/${req.id}`, { cache: "no-store" });
@@ -811,9 +855,20 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
             <Divider />
             {conversations.length === 0 ? (
               <Box sx={{ p: 2 }}>
-                <Typography sx={{
-                  color: "text.secondary"
-                }}>Пока никто не написал.</Typography>
+                {req.subjectType === "SERVICE" ? (
+                  <Stack spacing={1.25}>
+                    <Typography sx={{ color: "text.secondary" }}>
+                      Чат ещё не начат. Нажмите кнопку ниже, чтобы открыть диалог с исполнителем.
+                    </Typography>
+                    <Box>
+                      <Button variant="contained" disabled={busy} onClick={() => void ensureServiceChat()}>
+                        Начать чат
+                      </Button>
+                    </Box>
+                  </Stack>
+                ) : (
+                  <Typography sx={{ color: "text.secondary" }}>Пока никто не написал.</Typography>
+                )}
               </Box>
             ) : (
               <List dense disablePadding>

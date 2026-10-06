@@ -17,12 +17,13 @@ export default function WelcomePage() {
   return (
     <Box
       sx={{
-        minHeight: "100dvh",
+        flex: 1,
         width: "100%",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         px: 2,
+        py: { xs: 6, sm: 8, md: 10 },
         backgroundImage: "url('/hero-bg-house_static.jpg')",
         backgroundSize: "cover",
         backgroundPosition: "center",

@@ -1,10 +1,11 @@
 import Image from "next/image";
-import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import LocationOnRoundedIcon from "@mui/icons-material/LocationOnRounded";
 import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
 import { Box, Button, Container, Rating, Stack, Typography } from "@mui/material";
 import type { ServiceHeroVm } from "@/widgets/service-page/model/service-hero.vm";
+import { formatRubPriceLabel } from "@/shared/lib/money/format-rub-price-label";
+import { ServiceBackButton } from "./ServiceBackButton";
 
 type Props = {
   vm: ServiceHeroVm;
@@ -16,28 +17,15 @@ export function ServiceHeroSection({ vm }: Props) {
       component="section"
       sx={{
         bgcolor: "background.default",
-        pt: { xs: "20px", md: "34px" },
+        // Верхний зазор даёт общий spacer под fixed header (см. `SiteChrome`).
+        pt: 0,
         pb: { xs: "32px", md: "82px" },
       }}
     >
       <Container maxWidth="xl">
         <Stack spacing={{ xs: "20px", md: "28px" }}>
           <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
-            <Button
-              component="a"
-              href={vm.backHref}
-              variant="text"
-              size="small"
-              startIcon={<ArrowBackIosNewIcon />}
-              sx={{
-                alignSelf: "flex-start",
-                textTransform: "none",
-                fontWeight: 500,
-                color: "text.secondary",
-              }}
-            >
-              Назад
-            </Button>
+            <ServiceBackButton />
           </Box>
 
           <Box
@@ -69,6 +57,7 @@ export function ServiceHeroSection({ vm }: Props) {
                   src={vm.imageUrl}
                   alt=""
                   fill
+                  unoptimized={process.env.NODE_ENV !== "production"}
                   sizes="(max-width: 900px) 100vw, 600px"
                   style={{ objectFit: "cover", objectPosition: "center" }}
                 />
@@ -198,7 +187,7 @@ export function ServiceHeroSection({ vm }: Props) {
                     // color="textSecondary"
                     sx={{ color: "#745448" }}
                   >
-                    {vm.priceLabel}
+                    {formatRubPriceLabel(vm.priceLabel)}
                   </Typography>
                 </Stack>
 

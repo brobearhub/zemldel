@@ -3,7 +3,7 @@
 import { Box, Container, Stack } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 
-import { SITE_HEADER_SPACER_PX, SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
+import { SITE_CONTENT_GAP_PX, SITE_HEADER_SPACER_PX, SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
 import { PublicUnlinkedRequestForm } from "@/widgets/public-service/ui/PublicUnlinkedRequestForm";
 import { HomeServicesByCity } from "@/widgets/services/ui/HomeServicesByCity";
 import { ServiceCategoriesBar } from "@/widgets/service-categories/ui/ServiceCategoriesBar";
@@ -82,9 +82,22 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) 
           ref={catsBarRef}
           sx={{
             position: "sticky",
+            // Why: spacer = header+gap (нужный визуальный отступ между header и категориями).
+            // При sticky появляется "окно" сверху (gap), через которое видно контент при скролле.
+            // Перекрываем его псевдо-элементом с фоном, не меняя обычную (не-sticky) разметку.
             top: { xs: SITE_HEADER_SPACER_PX.xs, sm: SITE_HEADER_SPACER_PX.sm },
             zIndex: (theme) => theme.zIndex.appBar,
             bgcolor: "background.default",
+            "&::before": {
+              content: '""',
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: { xs: `-${SITE_CONTENT_GAP_PX.xs}px`, sm: `-${SITE_CONTENT_GAP_PX.sm}px` },
+              height: { xs: `${SITE_CONTENT_GAP_PX.xs}px`, sm: `${SITE_CONTENT_GAP_PX.sm}px` },
+              bgcolor: "background.default",
+              pointerEvents: "none",
+            },
           }}
         >
           <ServiceCategoriesBar items={barItems} />

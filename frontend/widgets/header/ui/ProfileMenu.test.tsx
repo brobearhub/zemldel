@@ -9,6 +9,8 @@ const mockPush = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
+  usePathname: () => "/service/123",
+  useSearchParams: () => new URLSearchParams("q=1"),
 }));
 
 vi.mock("next-auth/react", () => ({
@@ -58,8 +60,27 @@ describe("ProfileMenu", () => {
     await user.hover(screen.getByLabelText("Профиль"));
 
     expect(screen.getByText("Войти")).toBeInTheDocument();
+    expect(screen.getByText("Войти исполнителю")).toBeInTheDocument();
     expect(screen.getByText("Регистрация")).toBeInTheDocument();
     expect(screen.queryByText("Админка")).not.toBeInTheDocument();
+  });
+
+  it("navigates to /signin with returnTo=current page on regular sign-in", async () => {
+    const { user } = renderWithAuthState("unauth");
+
+    await user.hover(screen.getByLabelText("Профиль"));
+    await user.click(screen.getByText("Войти"));
+
+    expect(mockPush).toHaveBeenCalledWith("/signin?returnTo=%2Fservice%2F123%3Fq%3D1");
+  });
+
+  it("navigates to /signin with returnTo=/pro on pro sign-in", async () => {
+    const { user } = renderWithAuthState("unauth");
+
+    await user.hover(screen.getByLabelText("Профиль"));
+    await user.click(screen.getByText("Войти исполнителю"));
+
+    expect(mockPush).toHaveBeenCalledWith("/signin?returnTo=%2Fpro");
   });
 
   it("does not show admin link for CUSTOMER", async () => {

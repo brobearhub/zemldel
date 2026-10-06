@@ -15,6 +15,10 @@ const nextConfig = {
         protocol: "https",
         hostname: "cdn.zemledelpro.ru",
       },
+      {
+        protocol: "https",
+        hostname: "cdn.zemledel.pro",
+      },
     ],
   },
 };

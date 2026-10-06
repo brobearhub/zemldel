@@ -58,10 +58,13 @@ type Props = {
 function ReplyPreviewBlock({
   senderLabel,
   snippet,
+  tone = "default",
 }: {
   senderLabel: string;
   snippet: string;
+  tone?: "default" | "onColor";
 }) {
+  const isOnColor = tone === "onColor";
   return (
     <Box
       sx={{
@@ -75,7 +78,6 @@ function ReplyPreviewBlock({
     >
       <Typography
         variant="caption"
-        color="primary"
         sx={{
           fontWeight: 700,
           display: "block"
@@ -85,7 +87,8 @@ function ReplyPreviewBlock({
       <Typography
         variant="caption"
         sx={{
-          color: "text.secondary",
+          color: isOnColor ? "inherit" : "text.secondary",
+          opacity: isOnColor ? 0.78 : 1,
           whiteSpace: "pre-wrap",
           wordBreak: "break-word"
         }}>
@@ -107,25 +110,47 @@ function MessageBubble({
   readOnly?: boolean;
 }) {
   const align = mine ? "flex-end" : "flex-start";
-  const bg = mine ? "secondary.main" : "action.hover";
-  const color = mine ? "primary.contrastText" : "text.primary";
 
   return (
-    <Box sx={{ alignSelf: align, maxWidth: "min(100%, 420px)", width: "100%" }}>
+    <Box
+      sx={{
+        alignSelf: align,
+        display: "inline-flex",
+        flexDirection: "column",
+        maxWidth: "min(100%, 560px)",
+      }}
+    >
       <Paper
         elevation={0}
-        sx={{
-          px: 1.5,
-          py: 1,
-          bgcolor: bg,
-          color,
-          borderRadius: 1,
+        sx={(theme) => {
+          const isDark = theme.palette.mode === "dark";
+          const bg = mine
+            ? alpha(theme.palette.primary.main, isDark ? 0.22 : 0.10)
+            : theme.palette.primary.light;
+          const borderColor = mine
+            ? alpha(theme.palette.primary.main, isDark ? 0.28 : 0.18)
+            : alpha(theme.palette.primary.main, isDark ? 0.22 : 0.16);
+          const textColor = mine ? theme.palette.text.primary : theme.palette.primary.contrastText
+
+          return {
+            px: 1.5,
+            py: 1,
+            bgcolor: bg,
+            color: textColor,
+            border: `1px solid ${borderColor}`,
+            borderTopLeftRadius: 14,
+            borderTopRightRadius: 14,
+            ...(mine
+              ? { borderBottomLeftRadius: 14, borderBottomRightRadius: 6 }
+              : { borderBottomLeftRadius: 6, borderBottomRightRadius: 14 }),
+          };
         }}
       >
         {message.repliedTo ? (
           <ReplyPreviewBlock
             senderLabel={message.repliedTo.senderName ?? "Участник"}
             snippet={message.repliedTo.bodySnippet}
+            tone={mine ? "default" : "onColor"}
           />
         ) : null}
         <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
@@ -224,8 +249,29 @@ export function Chat({
           }
           if (row.kind === "pending") {
             return (
-              <Box key={`p-${row.clientMessageId}`} sx={{ alignSelf: "flex-end", maxWidth: "min(100%, 420px)" }}>
-                <Paper variant="outlined" sx={{ px: 1.5, py: 1, borderStyle: "dashed" }}>
+              <Box
+                key={`p-${row.clientMessageId}`}
+                sx={{
+                  alignSelf: "flex-end",
+                  display: "inline-flex",
+                  flexDirection: "column",
+                  maxWidth: "min(100%, 560px)",
+                }}
+              >
+                <Paper
+                  variant="outlined"
+                  sx={(theme) => ({
+                    px: 1.5,
+                    py: 1,
+                    borderStyle: "dashed",
+                    borderTopLeftRadius: 14,
+                    borderTopRightRadius: 14,
+                    borderBottomLeftRadius: 14,
+                    borderBottomRightRadius: 6,
+                    bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.12 : 0.06),
+                    borderColor: alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.22 : 0.16),
+                  })}
+                >
                   {row.replyToPreview ? (
                     <ReplyPreviewBlock senderLabel={row.replyToPreview.senderLabel} snippet={row.replyToPreview.snippet} />
                   ) : null}
@@ -257,8 +303,28 @@ export function Chat({
             );
           }
           return (
-            <Box key={`f-${row.clientMessageId}`} sx={{ alignSelf: "flex-end", maxWidth: "min(100%, 420px)" }}>
-              <Paper variant="outlined" sx={{ px: 1.5, py: 1, borderColor: "error.light" }}>
+            <Box
+              key={`f-${row.clientMessageId}`}
+              sx={{
+                alignSelf: "flex-end",
+                display: "inline-flex",
+                flexDirection: "column",
+                maxWidth: "min(100%, 560px)",
+              }}
+            >
+              <Paper
+                variant="outlined"
+                sx={(theme) => ({
+                  px: 1.5,
+                  py: 1,
+                  borderColor: alpha(theme.palette.error.main, theme.palette.mode === "dark" ? 0.45 : 0.35),
+                  bgcolor: alpha(theme.palette.error.main, theme.palette.mode === "dark" ? 0.12 : 0.06),
+                  borderTopLeftRadius: 14,
+                  borderTopRightRadius: 14,
+                  borderBottomLeftRadius: 14,
+                  borderBottomRightRadius: 6,
+                })}
+              >
                 {row.replyToPreview ? (
                   <ReplyPreviewBlock senderLabel={row.replyToPreview.senderLabel} snippet={row.replyToPreview.snippet} />
                 ) : null}

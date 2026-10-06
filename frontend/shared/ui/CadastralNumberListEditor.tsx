@@ -42,7 +42,7 @@ export function CadastralNumberListEditor({
     return (
       <Stack spacing={0.75} sx={{ width: "100%", maxWidth: 292, overflowX: "hidden" }}>
         <Typography sx={{ fontSize: 12, color: "#616161" }}>
-          Кадастровые номера (опционально)
+          Кадастровые номера (необязательно)
         </Typography>
 
         {rows.map((row, index) => (
@@ -86,7 +86,7 @@ export function CadastralNumberListEditor({
       <Typography variant="body2" sx={{
         fontWeight: 700
       }}>
-        Кадастровые номера (опционально)
+        Кадастровые номера (необязательно)
       </Typography>
       {rows.map((row, index) => (
         <Stack key={index} direction="row" spacing={1} sx={{

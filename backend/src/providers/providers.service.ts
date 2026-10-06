@@ -1,17 +1,22 @@
 import {
   BadRequestException,
+  BadGatewayException,
   ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import crypto from 'crypto';
+import { createHash } from 'node:crypto';
+import { DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { PrismaService } from '../prisma/prisma.service';
 import { assertActiveSelectableCity } from '../cities/city-validation';
 import { CreateProviderDto } from './dto/create-provider.dto';
 import { AddProviderManagerDto } from './dto/add-provider-manager.dto';
+import { UpdateProviderPublicProfileDto } from './dto/update-provider-public-profile.dto';
 import { AuthService } from '../auth/auth.service';
 import { LegalDocsService } from '../legal-docs/legal-docs.service';
+import { S3Service } from '../storage/s3.service';
 
 const publicProviderSelect = {
   id: true,
@@ -25,6 +30,10 @@ const publicProviderSelect = {
       regionName: true,
     },
   },
+  image: true,
+  subtitle: true,
+  about: true,
+  stats: true,
   ownerUser: {
     select: {
       image: true,
@@ -71,12 +80,86 @@ function slugify(value: string): string {
 
 const slugLength = 3; // 16 000 000 combinations
 
+const ALLOWED_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+function sha256Buffer(buf: Buffer) {
+  return createHash('sha256').update(buf).digest('hex');
+}
+
+function sniffImageExt(buf: Buffer, mimeType: string) {
+  if (!ALLOWED_IMAGE_MIMES.has(mimeType)) return null;
+  if (mimeType === 'image/png') {
+    if (
+      buf.length >= 8 &&
+      buf
+        .subarray(0, 8)
+        .equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+    ) {
+      return '.png';
+    }
+    return null;
+  }
+  if (mimeType === 'image/jpeg') {
+    if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+      return '.jpg';
+    }
+    return null;
+  }
+  if (mimeType === 'image/webp') {
+    if (
+      buf.length >= 12 &&
+      buf.subarray(0, 4).toString('ascii') === 'RIFF' &&
+      buf.subarray(8, 12).toString('ascii') === 'WEBP'
+    ) {
+      return '.webp';
+    }
+    return null;
+  }
+  return null;
+}
+
+function tryExtractKeyFromPublicUrl(input: { url: string; baseUrl: string }) {
+  try {
+    const u = new URL(input.url);
+    const b = new URL(input.baseUrl);
+    if (u.origin !== b.origin) return null;
+    const key = u.pathname.replace(/^\//, '');
+    return key.length > 0 ? key : null;
+  } catch {
+    return null;
+  }
+}
+
+type PublicProviderRow = {
+  id: string;
+  name: string;
+  type: 'SELF_EMPLOYED' | 'COMPANY';
+  city: {
+    id: string;
+    name: string;
+    regionCode: string;
+    regionName: string;
+  } | null;
+  image: string | null;
+  subtitle: string | null;
+  about: string | null;
+  stats: unknown;
+  ownerUser: { image: string | null } | null;
+};
+
+const DEFAULT_PROVIDER_STATS: Array<{ value: string; label: string }> = [
+  { value: '12 лет', label: 'практики в недвижимости' },
+  { value: '640+', label: 'сопровождённых сделок' },
+  { value: '98%', label: 'клиентов рекомендуют нас' },
+];
+
 @Injectable()
 export class ProvidersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
     private readonly legalDocs: LegalDocsService,
+    private readonly s3: S3Service,
   ) {}
 
   private async getActiveMembership(userId: string, providerId: string) {
@@ -157,24 +240,229 @@ export class ProvidersService {
       throw new NotFoundException('Provider not found');
     }
 
+    return this.toPublicProviderProfile(provider as unknown as PublicProviderRow);
+  }
+
+  async updatePublicProviderProfile(
+    actorUserId: string,
+    providerId: string,
+    input: UpdateProviderPublicProfileDto,
+  ) {
+    const id = providerId?.trim();
+    if (!id) {
+      throw new BadRequestException('providerId is required');
+    }
+
+    const hasAnyField =
+      input.name !== undefined ||
+      input.subtitle !== undefined ||
+      input.about !== undefined ||
+      input.stats !== undefined;
+    if (!hasAnyField) {
+      throw new BadRequestException('No fields to update');
+    }
+
+    const nextName =
+      input.name !== undefined
+        ? typeof input.name === 'string' && input.name.trim().length > 0
+          ? input.name.trim()
+          : null
+        : undefined;
+
+    if (nextName === null) {
+      throw new BadRequestException('Invalid name');
+    }
+
+    if (nextName !== undefined) {
+      // Why: provider name is a public identifier in UI; only owner can change it.
+      await this.ensureProviderOwner(actorUserId, id);
+    } else {
+      await this.ensureProviderManagerOrOwner(actorUserId, id);
+    }
+
+    const nextStats =
+      input.stats !== undefined
+        ? input.stats.map((s) => ({
+            value: s.value.trim(),
+            label: s.label.trim(),
+          }))
+        : undefined;
+
+    const updated = await this.prisma.provider.update({
+      where: { id },
+      data: {
+        name: nextName,
+        subtitle: input.subtitle,
+        about: input.about,
+        stats: nextStats,
+      },
+      select: publicProviderSelect,
+    });
+
+    return this.toPublicProviderProfile(updated as unknown as PublicProviderRow);
+  }
+
+  private toPublicProviderProfile(provider: PublicProviderRow) {
+    function isPublicStats(
+      value: unknown,
+    ): value is Array<{ value: string; label: string }> {
+      if (!Array.isArray(value)) return false;
+      if (value.length !== 3) return false;
+      return value.every((item) => {
+        if (typeof item !== 'object' || item === null) return false;
+        const obj = item as Record<string, unknown>;
+        const valueField = obj.value;
+        const labelField = obj.label;
+        if (typeof valueField !== 'string') return false;
+        if (typeof labelField !== 'string') return false;
+        if (valueField.trim().length === 0) return false;
+        if (labelField.trim().length === 0) return false;
+        return true;
+      });
+    }
+
     // Why: Public profile must not leak private/membership/legal data.
     // Until provider-controlled fields exist, we return safe defaults matching current landing design.
+    const subtitle =
+      provider.subtitle?.trim() ? provider.subtitle.trim() : 'Эксперт по услуге';
+    const about = provider.about?.trim()
+      ? provider.about.trim()
+      : 'Разберёмся в вашей ситуации, объясним варианты и предложим понятный путь к результату.';
+    const stats = isPublicStats(provider.stats)
+      ? provider.stats.map((s) => ({ value: s.value.trim(), label: s.label.trim() }))
+      : DEFAULT_PROVIDER_STATS;
+
     return {
       id: provider.id,
       name: provider.name,
       type: provider.type,
       city: provider.city,
-      image: provider.ownerUser?.image ?? null,
-      subtitle: 'Эксперт по услуге',
-      about:
-        'Разберёмся в вашей ситуации, объясним варианты и предложим понятный путь к результату.',
+      providerImage: provider.image ?? null,
+      image: provider.image ?? provider.ownerUser?.image ?? null,
+      subtitle,
+      about,
       availabilityLabel: 'На связи сегодня',
-      stats: [
-        { value: '12 лет', label: 'практики в недвижимости' },
-        { value: '640+', label: 'сопровождённых сделок' },
-        { value: '98%', label: 'клиентов рекомендуют нас' },
-      ],
+      stats,
     };
+  }
+
+  async uploadProviderImage(input: {
+    actorUserId: string;
+    providerId: string;
+    file: Express.Multer.File;
+  }) {
+    const providerId = input.providerId?.trim();
+    if (!providerId) {
+      throw new BadRequestException('providerId is required');
+    }
+
+    await this.ensureProviderManagerOrOwner(input.actorUserId, providerId);
+
+    const bucket = this.s3.requirePublicBucket();
+    const cdnBase = this.s3.requirePublicCdnBaseUrl();
+
+    const buf = input.file.buffer as Buffer | undefined;
+    if (!buf || buf.length === 0) {
+      throw new BadRequestException('file is required');
+    }
+
+    const ext = sniffImageExt(buf, input.file.mimetype);
+    if (!ext) {
+      throw new BadRequestException('Unsupported image type');
+    }
+
+    const prev = await this.prisma.provider.findUnique({
+      where: { id: providerId },
+      select: { image: true },
+    });
+    if (!prev) {
+      throw new NotFoundException('Provider not found');
+    }
+
+    const hash = sha256Buffer(buf);
+    const key = `${this.s3.publicPrefix}providers/${providerId}/${hash}${ext}`;
+    const url = `${cdnBase.replace(/\/+$/, '')}/${key}`;
+
+    try {
+      await this.s3.client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: key,
+          Body: buf,
+          ACL: 'public-read',
+          ContentType: input.file.mimetype,
+          CacheControl: 'public, max-age=31536000, immutable',
+        }),
+      );
+    } catch {
+      throw new BadGatewayException('File storage unavailable');
+    }
+
+    const updated = await this.prisma.provider.update({
+      where: { id: providerId },
+      data: { image: url },
+      select: publicProviderSelect,
+    });
+
+    const prevKey =
+      prev?.image && this.s3.publicCdnBaseUrl
+        ? tryExtractKeyFromPublicUrl({
+            url: prev.image,
+            baseUrl: this.s3.publicCdnBaseUrl,
+          })
+        : null;
+
+    if (
+      prevKey &&
+      prevKey !== key &&
+      prevKey.startsWith(`${this.s3.publicPrefix}providers/${providerId}/`)
+    ) {
+      await this.s3.client
+        .send(new DeleteObjectCommand({ Bucket: bucket, Key: prevKey }))
+        .catch(() => null);
+    }
+
+    return this.toPublicProviderProfile(updated as unknown as PublicProviderRow);
+  }
+
+  async deleteProviderImage(input: { actorUserId: string; providerId: string }) {
+    const providerId = input.providerId?.trim();
+    if (!providerId) {
+      throw new BadRequestException('providerId is required');
+    }
+
+    await this.ensureProviderManagerOrOwner(input.actorUserId, providerId);
+
+    const bucket = this.s3.requirePublicBucket();
+    const prev = await this.prisma.provider.findUnique({
+      where: { id: providerId },
+      select: { image: true },
+    });
+    if (!prev) {
+      throw new NotFoundException('Provider not found');
+    }
+
+    const updated = await this.prisma.provider.update({
+      where: { id: providerId },
+      data: { image: null },
+      select: publicProviderSelect,
+    });
+
+    const prevKey =
+      prev?.image && this.s3.publicCdnBaseUrl
+        ? tryExtractKeyFromPublicUrl({
+            url: prev.image,
+            baseUrl: this.s3.publicCdnBaseUrl,
+          })
+        : null;
+
+    if (prevKey && prevKey.startsWith(`${this.s3.publicPrefix}providers/${providerId}/`)) {
+      await this.s3.client
+        .send(new DeleteObjectCommand({ Bucket: bucket, Key: prevKey }))
+        .catch(() => null);
+    }
+
+    return this.toPublicProviderProfile(updated as unknown as PublicProviderRow);
   }
 
   async updateProviderSlug(userId: string, providerId: string, slug: string) {

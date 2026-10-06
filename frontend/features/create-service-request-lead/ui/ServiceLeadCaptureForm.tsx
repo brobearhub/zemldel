@@ -2,20 +2,44 @@
 
 import Link from "next/link";
 import { Alert, Button, CircularProgress, Stack, TextField, Typography } from "@mui/material";
+import { CadastralNumberListEditor } from "@/shared/ui/CadastralNumberListEditor";
 import { useServiceLeadCapture } from "@/features/create-service-request-lead/model/useServiceLeadCapture";
+import { DEFAULT_SERVICE_QUESTION } from "@/features/create-service-request-lead";
 
 type Props = {
   serviceId: string;
-  isAuthenticated: boolean;
   initialCustomerEmail: string | null;
 };
 
-export function ServiceLeadCaptureForm({ serviceId, isAuthenticated, initialCustomerEmail }: Props) {
-  const form = useServiceLeadCapture({ serviceId, isAuthenticated, initialCustomerEmail });
+export function ServiceLeadCaptureForm({ serviceId, initialCustomerEmail }: Props) {
+  const form = useServiceLeadCapture({ serviceId, initialCustomerEmail });
 
   return (
     <Stack component="form" spacing={2.25} onSubmit={(e) => { e.preventDefault(); void form.submit(); }}>
       {form.error ? <Alert severity="warning">{form.error}</Alert> : null}
+
+      <TextField
+        label="Вопрос (необязательно)"
+        placeholder={DEFAULT_SERVICE_QUESTION}
+        multiline
+        minRows={3}
+        value={form.question}
+        onChange={(e) => {
+          form.setError(null);
+          form.setQuestion(e.target.value);
+        }}
+        disabled={form.busy}
+        fullWidth
+      />
+
+      <CadastralNumberListEditor
+        value={form.cadastralNumbers}
+        onChange={(next) => {
+          form.setError(null);
+          form.setCadastralNumbers(next);
+        }}
+        disabled={form.busy}
+      />
 
       <TextField
         label="Электронная почта"

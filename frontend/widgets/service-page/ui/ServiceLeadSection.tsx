@@ -1,15 +1,16 @@
 import LockRoundedIcon from "@mui/icons-material/LockRounded";
 import SpeedRoundedIcon from "@mui/icons-material/SpeedRounded";
 import { Box, Container, Paper, Stack, Typography } from "@mui/material";
-import { ServiceLeadCaptureForm } from "@/features/create-service-request-lead";
+import { ServiceAskQuestionButton, ServiceLeadCaptureForm } from "@/features/create-service-request-lead";
 
 type Props = {
   serviceId: string;
+  serviceTitle: string;
   isAuthenticated: boolean;
   initialCustomerEmail: string | null;
 };
 
-export function ServiceLeadSection({ serviceId, isAuthenticated, initialCustomerEmail }: Props) {
+export function ServiceLeadSection({ serviceId, serviceTitle, isAuthenticated, initialCustomerEmail }: Props) {
   return (
     <Box
       component="section"
@@ -54,8 +55,9 @@ export function ServiceLeadSection({ serviceId, isAuthenticated, initialCustomer
             </Typography>
 
             <Typography sx={{ color: "#e8efea", maxWidth: 820, fontSize: { xs: 14, md: 16 }, lineHeight: { xs: 1.43, md: 1.5 } }}>
-              Укажите электронную почту — юрист свяжется в рабочее время, уточнит задачу и назовёт точную стоимость
-              сопровождения.
+              {isAuthenticated
+                ? "Просто задайте вопрос по услуге, и заявка появится в вашем профиле."
+                : "Укажите электронную почту — юрист свяжется в рабочее время, уточнит задачу и назовёт точную стоимость сопровождения."}
             </Typography>
 
             <Stack direction={{ xs: "column", sm: "row" }} spacing={{ xs: 1.25, sm: 3 }} sx={{ color: "#e8efea" }}>
@@ -84,19 +86,19 @@ export function ServiceLeadSection({ serviceId, isAuthenticated, initialCustomer
           >
             <Stack spacing={2.25}>
               <Stack spacing={0.5}>
-                <Typography variant="h5" >
-                  Получить консультацию
-                </Typography>
+                <Typography variant="h5">{isAuthenticated ? "Задать вопрос" : "Получить консультацию"}</Typography>
                 <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                  Укажите почту — отправим подтверждение и передадим заявку специалисту.
+                  {isAuthenticated
+                    ? `Мы создадим заявку по услуге «${serviceTitle}» и откроем чат с исполнителем.`
+                    : "Укажите почту — отправим подтверждение и передадим заявку специалисту."}
                 </Typography>
               </Stack>
 
-              <ServiceLeadCaptureForm
-                serviceId={serviceId}
-                isAuthenticated={isAuthenticated}
-                initialCustomerEmail={initialCustomerEmail}
-              />
+              {isAuthenticated ? (
+                <ServiceAskQuestionButton serviceId={serviceId} />
+              ) : (
+                <ServiceLeadCaptureForm serviceId={serviceId} initialCustomerEmail={initialCustomerEmail} />
+              )}
             </Stack>
           </Paper>
         </Box>

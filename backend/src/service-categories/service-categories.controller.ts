@@ -68,8 +68,8 @@ export class ServiceCategoriesController {
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ type: ServiceCategoryDto })
   @ApiNotFoundResponse({ type: ApiNotFoundErrorDto, description: 'Category not found' })
-  async getPublicCategoryById(@Param('id') id: string) {
-    const category = await this.serviceCategoriesService.getById(id);
+  async getPublicCategoryById(@Param('id') idOrSlug: string) {
+    const category = await this.serviceCategoriesService.getById(idOrSlug);
     if (!category) throw new NotFoundException('Category not found');
     return category;
   }
@@ -78,12 +78,12 @@ export class ServiceCategoriesController {
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ type: [CategoryProviderServiceDto] })
   @ApiNotFoundResponse({ type: ApiNotFoundErrorDto, description: 'Category not found' })
-  async getProvidersForCategory(@Param('id') id: string) {
-    const category = await this.serviceCategoriesService.getById(id);
+  async getProvidersForCategory(@Param('id') idOrSlug: string) {
+    const category = await this.serviceCategoriesService.getById(idOrSlug);
     if (!category) throw new NotFoundException('Category not found');
 
     return this.prisma.service.findMany({
-      where: { categoryId: id, status: 'PUBLISHED' },
+      where: { categoryId: category.id, status: 'PUBLISHED' },
       select: {
         id: true,
         title: true,

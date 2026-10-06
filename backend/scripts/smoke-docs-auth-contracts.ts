@@ -151,8 +151,6 @@ async function main() {
       stockBadge: null,
       rating: null,
       reviewCount: null,
-      highlight: null,
-      badge: null,
       paletteColor: 'primary',
       icon: 'map',
     },

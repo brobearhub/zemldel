@@ -208,7 +208,11 @@ export class UsersService {
         ? tryExtractKeyFromPublicUrl({ url: prev.image, baseUrl: this.s3.publicCdnBaseUrl })
         : null;
 
-    if (prevKey && prevKey.startsWith(`${this.s3.publicPrefix}users/${input.actorUserId}/`)) {
+    if (
+      prevKey &&
+      prevKey !== key &&
+      prevKey.startsWith(`${this.s3.publicPrefix}users/${input.actorUserId}/`)
+    ) {
       await this.s3.client
         .send(new DeleteObjectCommand({ Bucket: bucket, Key: prevKey }))
         .catch(() => null);

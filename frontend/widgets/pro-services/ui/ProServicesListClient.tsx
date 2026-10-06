@@ -68,8 +68,6 @@ function buildDuplicatePayload(service: ServiceDto): ServiceCreateDto {
     image: normalizeNullableString(service.image),
     stockBadge: normalizeNullableString(service.stockBadge),
     description: normalizeNullableString(service.description),
-    highlight: normalizeNullableString(service.highlight),
-    badge: normalizeNullableString(service.badge),
     paletteColor: service.paletteColor,
     icon: service.icon,
     rating: null,

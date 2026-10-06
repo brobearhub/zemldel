@@ -1,14 +1,15 @@
 "use client";
 
+import { Suspense } from "react";
 import { Box, Typography } from "@mui/material";
-import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
+import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
 import FavoriteBorderRoundedIcon from "@mui/icons-material/FavoriteBorderRounded";
 import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import Link from "next/link";
 import { ProfileMenu } from "./ProfileMenu";
 
 const NAV_ITEMS = [
-  { label: "Заказы", icon: ShoppingBagOutlinedIcon, href: "#orders" },
+  { label: "Заявки", icon: AssignmentTurnedInOutlinedIcon, href: "/profile?section=requests" },
   { label: "Избранное", icon: FavoriteBorderRoundedIcon, href: "#favorites" },
   { label: "Корзина", icon: ShoppingCartOutlinedIcon, href: "#cart" },
 ] as const;
@@ -55,12 +56,15 @@ export const HeaderNav = () => (
             fontWeight: 600,
             fontSize: 12,
             opacity: 1,
-            "&:hover": { color: "info.main" }
-          }}>
+            "&:hover": { color: "info.main" },
+          }}
+        >
           {label}
         </Typography>
       </Box>
     ))}
-    <ProfileMenu showLabel />
+    <Suspense fallback={null}>
+      <ProfileMenu showLabel />
+    </Suspense>
   </Box>
 );

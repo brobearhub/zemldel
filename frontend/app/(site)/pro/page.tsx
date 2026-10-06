@@ -27,7 +27,7 @@ export default async function ProDashboardPage() {
   try {
     const [feed, orders] = await Promise.all([
       fetchBackendJsonAsUser<RequestProDto[]>(
-        "/pro/requests/inbox?status=NEW&categoryId=null",
+        "/pro/requests/inbox?status=NEW",
         session.user.id
       ),
       fetchBackendJsonAsUser<RequestCustomerDto[]>("/pro/requests", session.user.id),

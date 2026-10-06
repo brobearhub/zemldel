@@ -54,10 +54,6 @@ export type ServiceRecord = ServiceCardItem & {
   status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   /** For main services: full description (about page) */
   description?: string | null;
-  /** Substring to highlight in description */
-  highlight?: string | null;
-  /** For main: badge text (e.g. "90% выгода") — may duplicate stockBadge */
-  badge?: string | null;
   paletteColor?: ServicePaletteColor | null;
   icon?: ServiceIconKey | null;
 };

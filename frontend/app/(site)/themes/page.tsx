@@ -107,6 +107,10 @@ function getPaletteSwatches(theme: Theme) {
         ["action.focus", theme.palette.action.focus],
       ],
     },
+    {
+      title: "Custom",
+      items: [["custom.colors.accent", theme.custom.colors.accent]],
+    },
   ] as const;
 }
 

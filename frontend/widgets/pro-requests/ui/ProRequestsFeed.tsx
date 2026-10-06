@@ -40,6 +40,8 @@ export function ProRequestsFeed({ initialItems, initialActiveOrders }: Props) {
   const feed = useProRequestsFeed({ initialItems, isDesktop });
   const [activeOrders, setActiveOrders] = useState<RequestCustomerDto[]>(initialActiveOrders);
   const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [activeCategoryIds, setActiveCategoryIds] = useState<string[]>([]);
+  const [includeFreeform, setIncludeFreeform] = useState(false);
 
   const [mobileTab, setMobileTab] = useState<MobileTab>(feed.settings.status);
   useEffect(() => {
@@ -58,6 +60,33 @@ export function ProRequestsFeed({ initialItems, initialActiveOrders }: Props) {
       ] as const,
     []
   );
+
+  const filterInboxItems = useMemo(() => {
+    const hasCategoryFilters = activeCategoryIds.length > 0;
+    const hasFreeformFilter = includeFreeform;
+    if (!hasCategoryFilters && !hasFreeformFilter) {
+      return (items: RequestProDto[]) => items;
+    }
+
+    const set = new Set(activeCategoryIds);
+    return (items: RequestProDto[]) =>
+      items.filter((item) => {
+        if (hasCategoryFilters && item.categoryId && set.has(item.categoryId)) return true;
+        if (hasFreeformFilter && item.subjectType === "FREEFORM") return true;
+        return false;
+      });
+  }, [activeCategoryIds, includeFreeform]);
+
+  function handleToggleCategory(categoryId: string) {
+    setActiveCategoryIds((current) =>
+      current.includes(categoryId) ? current.filter((id) => id !== categoryId) : [...current, categoryId]
+    );
+  }
+
+  function handleResetFilters() {
+    setActiveCategoryIds([]);
+    setIncludeFreeform(false);
+  }
 
   async function refreshAll() {
     setOrdersError(null);
@@ -104,10 +133,15 @@ export function ProRequestsFeed({ initialItems, initialActiveOrders }: Props) {
         <ProRequestsFeedFilters
           isDesktop={isDesktop}
           statusChips={feed.statusChips}
-          eligibleCategories={feed.eligibleCategories}
           settings={feed.settings}
           onChangeSettings={feed.setSettings}
           showStatusChips={false}
+          eligibleCategories={feed.eligibleCategories}
+          activeCategoryIds={activeCategoryIds}
+          includeFreeform={includeFreeform}
+          onToggleCategory={handleToggleCategory}
+          onToggleFreeform={() => setIncludeFreeform((v) => !v)}
+          onResetFilters={handleResetFilters}
         />
       ) : null}
 
@@ -128,7 +162,7 @@ export function ProRequestsFeed({ initialItems, initialActiveOrders }: Props) {
               </Typography>
             }
           >
-            <ServiceRequestList items={feed.itemsByStatus.NEW} minRows={desktopRows} />
+            <ServiceRequestList items={filterInboxItems(feed.itemsByStatus.NEW)} minRows={desktopRows} />
           </FeedColumn>
 
           <FeedColumn
@@ -154,7 +188,7 @@ export function ProRequestsFeed({ initialItems, initialActiveOrders }: Props) {
             }
           >
             <ServiceRequestList
-              items={feed.itemsByStatus.DISCUSSING}
+              items={filterInboxItems(feed.itemsByStatus.DISCUSSING)}
               minRows={desktopRows}
               allowLockedClick={feed.settings.dialogScope === "ARCHIVE"}
             />
@@ -194,7 +228,7 @@ export function ProRequestsFeed({ initialItems, initialActiveOrders }: Props) {
             ) : null}
 
             <ServiceRequestList
-              items={feed.mobileItems}
+              items={filterInboxItems(feed.mobileItems)}
               minRows={baseMinRows}
               allowLockedClick={mobileTab === "DISCUSSING" && feed.settings.dialogScope === "ARCHIVE"}
             />

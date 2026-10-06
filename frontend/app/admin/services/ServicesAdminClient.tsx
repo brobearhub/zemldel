@@ -168,8 +168,6 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
           ctaHref: editDraft.ctaHref,
           image: editDraft.image,
           description: editDraft.description,
-          highlight: editDraft.highlight,
-          badge: editDraft.badge,
           stockBadge: editDraft.stockBadge,
           paletteColor: editDraft.paletteColor,
           icon: editDraft.icon,
@@ -406,26 +404,6 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
                 onChange={(e) =>
                   setEditDraft((s) =>
                     s ? { ...s, stockBadge: normalizeNullableString(e.target.value) } : s
-                  )
-                }
-                size="small"
-                fullWidth
-              />
-              <TextField
-                label="badge (null = empty)"
-                value={editDraft.badge ?? ""}
-                onChange={(e) =>
-                  setEditDraft((s) => (s ? { ...s, badge: normalizeNullableString(e.target.value) } : s))
-                }
-                size="small"
-                fullWidth
-              />
-              <TextField
-                label="highlight (null = empty)"
-                value={editDraft.highlight ?? ""}
-                onChange={(e) =>
-                  setEditDraft((s) =>
-                    s ? { ...s, highlight: normalizeNullableString(e.target.value) } : s
                   )
                 }
                 size="small"

@@ -18,12 +18,13 @@
 | Неактивная кнопка | `action.disabledBackground` | `#e0e0e0` (`rgba(0,0,0,.12)` на белом) |
 | Контрастная кнопка (I Agree) | `secondary.main` | `#000000` |
 | Login / акцент логотипа | `info.main` | `#FF4B14` |
+| Accent (брендовый, отдельный от `palette.*`) | `custom.colors.accent` | `#FA5018` |
 | Основной текст | `text.primary` | `#325e49` (глубокий лесной) |
 | Вторичный текст | `text.secondary` | `#6e7471` (серо-зелёный) |
 | Success | `success.main` | `#548a5c` (sage с чуть большим зелёным) |
 | Warning / error | без изменений | MUI semantic |
 
-`info` — оранжевый Login с сайта: это не primary и не secondary.
+`info` — оранжевый Login с сайта: это не primary и не secondary. `custom.colors.accent` — отдельный брендовый акцент, не привязанный к MUI semantic palette.
 
 ## Архив: светлая тема до 2026-09-05
 

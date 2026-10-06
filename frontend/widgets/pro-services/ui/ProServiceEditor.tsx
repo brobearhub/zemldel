@@ -8,6 +8,7 @@ import {
   Button,
   Chip,
   Divider,
+  ListSubheader,
   MenuItem,
   Paper,
   Stack,
@@ -36,8 +37,6 @@ type ServiceFormState = {
   image: string;
   stockBadge: string;
   description: string;
-  highlight: string;
-  badge: string;
   paletteColor: string;
   icon: string;
   rating: string;
@@ -93,8 +92,6 @@ function createInitialState(service?: ServiceDto): ServiceFormState {
     image: service?.image ?? "",
     stockBadge: service?.stockBadge ?? "",
     description: service?.description ?? "",
-    highlight: service?.highlight ?? "",
-    badge: service?.badge ?? "",
     paletteColor: service?.paletteColor ?? "",
     icon: service?.icon ?? "",
     rating: service?.rating == null ? "" : String(service.rating),
@@ -145,6 +142,8 @@ export function ProServiceEditor({ mode, initialService }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [categories, setCategories] = useState<ServiceCategoryRow[] | null>(null);
+  const [autofilledTitle, setAutofilledTitle] = useState<string | null>(null);
+  const [pendingImage, setPendingImage] = useState<{ file: File; previewUrl: string } | null>(null);
 
   useEffect(() => {
     fetch("/api/service-categories")
@@ -170,6 +169,37 @@ export function ProServiceEditor({ mode, initialService }: Props) {
     }
   }, [categories, form.categoryId]);
 
+  useEffect(() => {
+    if (!categories) return;
+    if (!form.categoryId) return;
+
+    const activeCategory = categories.find((c) => c.id === form.categoryId) ?? null;
+    if (!activeCategory) return;
+    if (activeCategory.parentId == null) return;
+
+    const suggestedTitle = activeCategory.name;
+
+    setForm((current) => {
+      const currentTitleTrimmed = current.title.trim();
+      const canOverwrite =
+        currentTitleTrimmed.length === 0 || (autofilledTitle != null && current.title === autofilledTitle);
+
+      if (!canOverwrite) return current;
+      if (current.title === suggestedTitle) return current;
+
+      return { ...current, title: suggestedTitle };
+    });
+    setAutofilledTitle(suggestedTitle);
+  }, [autofilledTitle, categories, form.categoryId]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingImage) {
+        URL.revokeObjectURL(pendingImage.previewUrl);
+      }
+    };
+  }, [pendingImage]);
+
   const activeMembership =
     user?.memberships.find((membership) => membership.providerId === user.activeProviderId) ??
     user?.memberships[0] ??
@@ -194,8 +224,6 @@ export function ProServiceEditor({ mode, initialService }: Props) {
       image: normalizeNullableString(form.image),
       stockBadge: normalizeNullableString(form.stockBadge),
       description: normalizeNullableString(form.description),
-      highlight: normalizeNullableString(form.highlight),
-      badge: normalizeNullableString(form.badge),
       paletteColor: normalizeNullableString(form.paletteColor),
       icon: normalizeNullableString(form.icon),
       rating: rating.length ? Number(rating) : null,
@@ -235,11 +263,13 @@ export function ProServiceEditor({ mode, initialService }: Props) {
     return issues;
   }, [form]);
 
-  const previewItem = useMemo(
-    () => ({
+  const previewItem = useMemo(() => {
+    const previewImage = pendingImage?.previewUrl ?? normalizeNullableString(form.image);
+
+    return {
       id: initialService?.id ?? "preview-service",
       title: form.title.trim() || "Название услуги появится здесь",
-      image: normalizeNullableString(form.image),
+      image: previewImage,
       stockBadge: normalizeNullableString(form.stockBadge),
       price: form.price.trim() || "Цена не указана",
       provider: {
@@ -251,22 +281,22 @@ export function ProServiceEditor({ mode, initialService }: Props) {
       reviewCount: form.reviewCount.trim().length ? Math.trunc(Number(form.reviewCount)) : null,
       ctaText: form.ctaText.trim() || "Оставить заявку",
       ctaHref: normalizeNullableString(form.ctaHref),
-    }),
-    [
-      activeMembership?.providerCity,
-      activeMembership?.providerId,
-      activeMembership?.providerName,
-      form.ctaHref,
-      form.ctaText,
-      form.image,
-      form.price,
-      form.rating,
-      form.reviewCount,
-      form.stockBadge,
-      form.title,
-      initialService?.id,
-    ]
-  );
+    };
+  }, [
+    activeMembership?.providerCity,
+    activeMembership?.providerId,
+    activeMembership?.providerName,
+    form.ctaHref,
+    form.ctaText,
+    form.image,
+    form.price,
+    form.rating,
+    form.reviewCount,
+    form.stockBadge,
+    form.title,
+    initialService?.id,
+    pendingImage?.previewUrl,
+  ]);
 
   const statusOptions: ServiceStatus[] = showArchivedOption
     ? ["DRAFT", "PUBLISHED", "ARCHIVED"]
@@ -307,6 +337,27 @@ export function ProServiceEditor({ mode, initialService }: Props) {
           : "Не удалось сохранить услугу");
       }
 
+      if (mode === "create" && pendingImage) {
+        const createdId =
+          responseBody &&
+          typeof responseBody === "object" &&
+          "id" in responseBody &&
+          typeof responseBody.id === "string"
+            ? responseBody.id
+            : null;
+
+        if (!createdId) {
+          throw new Error("Услуга сохранена, но не удалось определить ее id для загрузки изображения.");
+        }
+
+        const uploadedImageUrl = await uploadImageForService(createdId, pendingImage.file);
+        if (uploadedImageUrl) {
+          setForm((current) => ({ ...current, image: uploadedImageUrl }));
+        }
+        URL.revokeObjectURL(pendingImage.previewUrl);
+        setPendingImage(null);
+      }
+
       router.push(`/pro/services/list?notice=${mode === "create" ? "created" : "updated"}`);
       router.refresh();
     } catch (submitError) {
@@ -316,20 +367,15 @@ export function ProServiceEditor({ mode, initialService }: Props) {
     }
   }
 
-  async function uploadImage(file: File) {
-    if (mode !== "edit" || !initialService?.id) {
-      setError("Сначала сохраните услугу, затем загрузите изображение.");
-      return;
-    }
-
+  async function uploadImageForService(serviceId: string, file: File): Promise<string | null> {
     const allowed = ["image/jpeg", "image/png", "image/webp"];
     if (!allowed.includes(file.type)) {
       setError("Поддерживаются только JPG, PNG или WebP.");
-      return;
+      return null;
     }
     if (file.size > 10 * 1024 * 1024) {
       setError("Максимальный размер изображения — 10 МБ.");
-      return;
+      return null;
     }
 
     setBusy(true);
@@ -337,7 +383,7 @@ export function ProServiceEditor({ mode, initialService }: Props) {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch(`/api/pro/services/${initialService.id}/image`, {
+      const res = await fetch(`/api/pro/services/${serviceId}/image`, {
         method: "POST",
         body: formData,
       });
@@ -347,11 +393,12 @@ export function ProServiceEditor({ mode, initialService }: Props) {
       if (!res.ok) {
         throw new Error(payload?.error || "Не удалось загрузить изображение");
       }
-      if (payload && typeof payload === "object" && typeof payload.image === "string") {
-        setForm((current) => ({ ...current, image: payload.image ?? "" }));
-      }
+      return payload && typeof payload === "object" && typeof payload.image === "string"
+        ? payload.image
+        : null;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось загрузить изображение");
+      return null;
     } finally {
       setBusy(false);
     }
@@ -382,6 +429,36 @@ export function ProServiceEditor({ mode, initialService }: Props) {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await submitForm();
+  }
+
+  function onSelectImage(file: File) {
+    setError(null);
+
+    if (pendingImage) {
+      URL.revokeObjectURL(pendingImage.previewUrl);
+    }
+
+    if (mode === "edit" && initialService?.id) {
+      void (async () => {
+        const uploadedUrl = await uploadImageForService(initialService.id, file);
+        if (uploadedUrl) {
+          setForm((current) => ({ ...current, image: uploadedUrl }));
+        }
+      })();
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setPendingImage({ file, previewUrl });
+  }
+
+  function onRemoveImage() {
+    if (pendingImage) {
+      URL.revokeObjectURL(pendingImage.previewUrl);
+      setPendingImage(null);
+      return;
+    }
+    void deleteImage();
   }
 
   return (
@@ -452,11 +529,27 @@ export function ProServiceEditor({ mode, initialService }: Props) {
                   disabled={busy}
                   fullWidth
                 >
-                  {buildCategoryTree(categories ?? []).map(({ node, depth }) => (
-                    <MenuItem key={node.id} value={node.id}>
-                      {"—".repeat(depth)} {node.name} ({node.slug})
-                    </MenuItem>
-                  ))}
+                  {buildCategoryTree(categories ?? []).map(({ node, depth }) =>
+                    depth === 0 ? (
+                      <ListSubheader
+                        key={`cat-${node.id}`}
+                        disableSticky
+                        sx={{
+                          fontWeight: 900,
+                          fontSize: 14,
+                          lineHeight: 2.2,
+                          color: "text.primary",
+                          bgcolor: "transparent",
+                        }}
+                      >
+                        {node.name}
+                      </ListSubheader>
+                    ) : (
+                      <MenuItem key={node.id} value={node.id}>
+                        {"—".repeat(depth)} {node.name}
+                      </MenuItem>
+                    )
+                  )}
                 </TextField>
 
                 <TextField
@@ -546,22 +639,6 @@ export function ProServiceEditor({ mode, initialService }: Props) {
 
               <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
                 <TextField
-                  label="Highlight"
-                  value={form.highlight}
-                  onChange={(event) => setForm((current) => ({ ...current, highlight: event.target.value }))}
-                  disabled={busy}
-                  fullWidth
-                  helperText="Фрагмент текста, который можно выделить в UI."
-                />
-                <TextField
-                  label="Badge"
-                  value={form.badge}
-                  onChange={(event) => setForm((current) => ({ ...current, badge: event.target.value }))}
-                  disabled={busy}
-                  fullWidth
-                  helperText='Например: "90% выгода"'
-                />
-                <TextField
                   label="Stock badge"
                   value={form.stockBadge}
                   onChange={(event) => setForm((current) => ({ ...current, stockBadge: event.target.value }))}
@@ -572,16 +649,49 @@ export function ProServiceEditor({ mode, initialService }: Props) {
               </Stack>
 
               <Stack spacing={1}>
-                <TextField
-                  label="Изображение (URL)"
-                  value={form.image}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, image: event.target.value }))
-                  }
-                  disabled={busy}
-                  fullWidth
-                  helperText="Можно оставить пустым. Для загрузки файла используйте кнопки ниже (доступно после сохранения услуги)."
-                />
+                {pendingImage ? (
+                  <Stack spacing={1}>
+                    <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                      Изображение выбрано и будет загружено после сохранения услуги.
+                    </Typography>
+                    <Box
+                      component="img"
+                      alt="Выбранное изображение услуги"
+                      src={pendingImage.previewUrl}
+                      sx={{
+                        width: 300,
+                        height: 300,
+                        objectFit: "cover",
+                        borderRadius: 1,
+                        border: "1px solid",
+                        borderColor: "divider",
+                      }}
+                    />
+                  </Stack>
+                ) : form.image.trim().length ? (
+                  <Stack spacing={1}>
+                    <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                      Изображение загружено.
+                    </Typography>
+                    <Box
+                      component="img"
+                      alt="Загруженное изображение услуги"
+                      src={form.image}
+                      sx={{
+                        width: 300,
+                        height: 300,
+                        objectFit: "cover",
+                        borderRadius: 1,
+                        border: "1px solid",
+                        borderColor: "divider",
+                      }}
+                    />
+                  </Stack>
+                ) : (
+                  <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                    Изображение не загружено. Выберите файл кнопкой ниже.
+                  </Typography>
+                )}
 
                 <Stack
                   direction={{ xs: "column", sm: "row" }}
@@ -594,9 +704,9 @@ export function ProServiceEditor({ mode, initialService }: Props) {
                   <Button
                     variant="outlined"
                     component="label"
-                    disabled={busy || mode !== "edit"}
+                    disabled={busy}
                   >
-                    Загрузить файл (JPG/PNG/WebP)
+                    Загрузить изображение (JPG/PNG/WebP)
                     <input
                       type="file"
                       hidden
@@ -604,15 +714,15 @@ export function ProServiceEditor({ mode, initialService }: Props) {
                       onChange={(e) => {
                         const f = e.target.files?.[0] ?? null;
                         e.currentTarget.value = "";
-                        if (f) void uploadImage(f);
+                        if (f) onSelectImage(f);
                       }}
                     />
                   </Button>
                   <Button
                     variant="text"
                     color="error"
-                    disabled={busy || mode !== "edit" || !form.image.trim()}
-                    onClick={() => void deleteImage()}
+                    disabled={busy || (!pendingImage && !form.image.trim()) || (mode !== "edit" && !pendingImage)}
+                    onClick={onRemoveImage}
                   >
                     Удалить изображение
                   </Button>
@@ -743,9 +853,20 @@ export function ProServiceEditor({ mode, initialService }: Props) {
         </Stack>
       </Box>
 
-      <Stack spacing={3} sx={{ width: "100%", maxWidth: { xl: 380 } }}>
-        <Paper variant="outlined" sx={{ p: 2.5, position: { xl: "sticky" }, top: { xl: SITE_STICKY_TOP_PX } }}>
-          <Stack spacing={2}>
+      <Stack
+        spacing={3}
+        sx={{
+          width: "100%",
+          maxWidth: { xl: 380 },
+          alignSelf: { xl: "flex-start" },
+          position: { xl: "sticky" },
+          top: { xl: SITE_STICKY_TOP_PX },
+          maxHeight: { xl: `calc(100dvh - ${SITE_STICKY_TOP_PX}px)` },
+          overflowY: { xl: "auto" },
+          zIndex: 1,
+        }}
+      >
+        <Stack spacing={2}>
             <Box>
               <Typography variant="subtitle1" gutterBottom sx={{
                 fontWeight: 800
@@ -765,7 +886,6 @@ export function ProServiceEditor({ mode, initialService }: Props) {
               <ServiceCard item={previewItem} />
             </Box>
           </Stack>
-        </Paper>
 
         <Paper variant="outlined" sx={{ p: 2.5 }}>
           <Stack spacing={1.5}>

@@ -38,8 +38,6 @@ const serviceSelect = {
   ctaText: true,
   ctaHref: true,
   description: true,
-  highlight: true,
-  badge: true,
   paletteColor: true,
   icon: true,
   publishedAt: true,
@@ -159,7 +157,7 @@ export class ServicesService {
     }
 
     if (scope?.excludeCityId) {
-      // for "other cities" list we need explicit city to render the badge
+      // for "other cities" list we need explicit city to render the card
       const existingAnd = where.AND
         ? Array.isArray(where.AND)
           ? where.AND
@@ -337,7 +335,11 @@ export class ServicesService {
         : null;
 
     // Best-effort cleanup of previous image if it was ours.
-    if (prevKey && prevKey.startsWith(`${this.s3.publicPrefix}services/${serviceId}/`)) {
+    if (
+      prevKey &&
+      prevKey !== key &&
+      prevKey.startsWith(`${this.s3.publicPrefix}services/${serviceId}/`)
+    ) {
       await this.s3.client
         .send(new DeleteObjectCommand({ Bucket: bucket, Key: prevKey }))
         .catch(() => null);

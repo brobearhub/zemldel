@@ -21,7 +21,7 @@ export function ServiceCategoriesBar({ items, activeId = null }: Props) {
   return (
     <Box
       sx={{
-        py: 2,
+        pb: 2,
         display: "flex",
         flexWrap: "wrap",
         alignItems: "center",

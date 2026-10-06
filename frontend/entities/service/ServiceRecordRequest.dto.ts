@@ -14,8 +14,6 @@ export type ServiceRecordRequestDto = {
   image?: string | null;
   stockBadge?: string | null;
   description?: string | null;
-  highlight?: string | null;
-  badge?: string | null;
   paletteColor?: ServicePaletteColor | null;
   icon?: ServiceIconKey | null;
   rating?: number | null;

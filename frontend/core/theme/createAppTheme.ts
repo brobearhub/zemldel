@@ -22,6 +22,8 @@ const LIGHT_BRAND = {
   sageDark: "#889988",
   /** Deeper muted sage for success — same family as primary, not MUI grass green. */
   sageSuccess: "#548a5c",
+  /** Product accent (used outside semantic palette, e.g. highlights). */
+  accent: "#FA5018",
   orange: "#FF4B14",
   cream: "#f0f0e6",
   paper: "#ffffff",
@@ -142,6 +144,9 @@ export function createAppTheme(mode: PaletteMode) {
         primary: t.bg,
         header: t.header,
         secondary: t.footer,
+      },
+      colors: {
+        accent: LIGHT_BRAND.accent,
       },
       gradients: {
         sunset:

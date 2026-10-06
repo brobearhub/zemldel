@@ -86,10 +86,12 @@ export function ServicesByCity({
 
   return (
     <Stack spacing={{ xs: 3, md: 3 }}>
-      <Stack spacing={0}>
-        <ServiceSectionHeader title={myCityTitle} cityLabel={cityName} />
-        <ServiceGrid items={myCityItems} variant="myCity" />
-      </Stack>
+      {myCityItems.length > 0 ? (
+        <Stack spacing={0}>
+          <ServiceSectionHeader title={myCityTitle} cityLabel={cityName} />
+          <ServiceGrid items={myCityItems} variant="myCity" />
+        </Stack>
+      ) : null}
 
       {otherCityItems.length > 0 ? (
         <Stack spacing={0}>

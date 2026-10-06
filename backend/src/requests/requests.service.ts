@@ -408,9 +408,12 @@ export class RequestsService {
     actorUserId: string,
     input: RequestCategoryCreateDto,
   ): Promise<RequestCustomerDto> {
+    const normalizedCategoryId = categoryId.trim();
     const [category, actor] = await Promise.all([
       this.prisma.serviceCategory.findUnique({
-        where: { id: categoryId },
+        where: this.isUuid(normalizedCategoryId)
+          ? { id: normalizedCategoryId }
+          : { slug: normalizedCategoryId },
         select: { id: true },
       }),
       this.prisma.user.findUnique({
@@ -512,6 +515,7 @@ export class RequestsService {
         customerPhone,
         message,
         location: null,
+        cadastralNumbers: normalizeCadastralNumbers(input.cadastralNumbers),
       },
       select,
     });
@@ -1460,20 +1464,35 @@ export class RequestsService {
       this.getProviderEligibleCategoryIds(actorProviderId),
     ]);
 
-    const perProviderConversationHasMessages: Prisma.RequestWhereInput =
+    const nonServiceHasMessages: Prisma.RequestWhereInput = {
+      serviceId: null,
+      conversations: {
+        some: { providerId: actorProviderId, messages: { some: {} } },
+      },
+    };
+    const nonServiceHasNoMessages: Prisma.RequestWhereInput = {
+      serviceId: null,
+      NOT: {
+        conversations: {
+          some: { providerId: actorProviderId, messages: { some: {} } },
+        },
+      },
+    };
+
+    // Why: service requests created via "ask question" already have the first customer message,
+    // but must stay in "NEW" until the provider replies.
+    const serviceByRequestStatus: Prisma.RequestWhereInput =
       status === 'DISCUSSING'
-        ? {
-            conversations: {
-              some: { providerId: actorProviderId, messages: { some: {} } },
-            },
-          }
-        : {
-            NOT: {
-              conversations: {
-                some: { providerId: actorProviderId, messages: { some: {} } },
-              },
-            },
-          };
+        ? { serviceId: { not: null }, status: { not: 'NEW' } }
+        : { serviceId: { not: null }, status: 'NEW' };
+
+    const assignedInboxWhere: Prisma.RequestWhereInput =
+      status === 'DISCUSSING'
+        ? { OR: [serviceByRequestStatus, nonServiceHasMessages] }
+        : { OR: [serviceByRequestStatus, nonServiceHasNoMessages] };
+
+    const poolInboxWhere: Prisma.RequestWhereInput =
+      status === 'DISCUSSING' ? nonServiceHasMessages : nonServiceHasNoMessages;
 
     const categoryWhere =
       categoryId === undefined
@@ -1487,7 +1506,7 @@ export class RequestsService {
       where: {
         providerId: actorProviderId,
         ...categoryWhere,
-        ...perProviderConversationHasMessages,
+        ...assignedInboxWhere,
       },
       select,
       orderBy: [{ createdAt: 'desc' }],
@@ -1501,7 +1520,7 @@ export class RequestsService {
         serviceId: null,
         status: { in: ['NEW', 'DISCUSSING'] },
         ...categoryWhere,
-        ...perProviderConversationHasMessages,
+        ...poolInboxWhere,
       },
       select,
       orderBy: [{ createdAt: 'desc' }],

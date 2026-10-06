@@ -18,8 +18,10 @@ import {
   type RequestCustomerDto,
   type RequestStatus,
 } from "@/entities/request";
+import type { ChatEnsureResponse } from "@/entities/chat/dto/chat.dto";
 import { deleteCustomerRequest } from "@/entities/request/api/customer-requests";
 import { useConfirm } from "@/shared/ui/confirm";
+import { DEFAULT_SERVICE_QUESTION } from "@/features/create-service-request-lead";
 
 type PhaseFilter = "ALL" | "DISCUSSING" | "ORDERS" | "COMPLETED" | "CANCELLED";
 
@@ -146,6 +148,7 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
                 customerPhone: draft.customerPhone,
                 message: draft.message,
                 requestCityId: draft.requestCityId,
+                cadastralNumbers: draft.cadastralNumbers,
               }
             : draft.kind === "CATEGORY"
               ? {
@@ -164,15 +167,43 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        const payload = (await res.json().catch(() => null)) as { error?: string } | null;
-        if (!res.ok) {
-          throw new Error(payload?.error ?? "Не удалось создать заявку");
+        const payload = (await res.json().catch(() => null)) as RequestCustomerDto | { error?: string } | null;
+        if (!res.ok || !payload || typeof payload !== "object" || ("error" in payload && payload.error)) {
+          const errorMessage =
+            payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+              ? payload.error
+              : "Не удалось создать заявку";
+          throw new Error(errorMessage);
+        }
+
+        const created = payload as RequestCustomerDto;
+
+        // Ensure chat + send first message for SERVICE requests (so provider thread appears immediately).
+        if (draft.kind === "SERVICE") {
+          const message = (draft.message ?? "").trim() || DEFAULT_SERVICE_QUESTION;
+          try {
+            const ensureRes = await fetch("/api/chat/ensure", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ serviceRequestId: created.id }),
+            });
+            const ensured = (await ensureRes.json().catch(() => null)) as ChatEnsureResponse | { error?: string } | null;
+            if (ensureRes.ok && ensured && typeof ensured === "object" && "conversationId" in ensured) {
+              await fetch(`/api/chat/conversations/${(ensured as ChatEnsureResponse).conversationId}/messages`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ body: message, clientMessageId: crypto.randomUUID() }),
+              }).catch(() => null);
+            }
+          } catch {
+            // Fallback: request detail page can ensure chat manually.
+          }
         }
 
         clearPendingRequestDraft();
         if (!cancelled) {
-          await load();
-          onAutoResumeFinished?.();
+          router.push(`/profile/requests/${created.id}`);
+          router.refresh();
         }
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Не удалось создать заявку";
@@ -189,7 +220,7 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
     return () => {
       cancelled = true;
     };
-  }, [autoResumeEnabled, onAutoResumeFinished]);
+  }, [autoResumeEnabled, onAutoResumeFinished, router]);
 
   const filteredItems = useMemo(
     () => items.filter((item) => matchesPhase(item, phase)),

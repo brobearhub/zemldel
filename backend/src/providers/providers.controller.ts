@@ -1,15 +1,20 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
   Post,
   Query,
   Req,
+  UnprocessableEntityException,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiBody,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiParam,
@@ -17,6 +22,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import { ProvidersService } from './providers.service';
 import { CreateProviderDto } from './dto/create-provider.dto';
@@ -31,6 +38,7 @@ import {
   ProviderSlugCheckDto,
   ProviderSlugUpdateResponseDto,
 } from './dto/provider-responses.dto';
+import { UpdateProviderPublicProfileDto } from './dto/update-provider-public-profile.dto';
 import { ApiStandardErrors } from '../common/swagger/api-standard-errors.decorator';
 
 @ApiTags('providers')
@@ -155,5 +163,71 @@ export class ProvidersController {
     return this.providersService.updateProviderCity(userId, providerId, {
       cityId: payload?.cityId,
     });
+  }
+
+  @Patch(':providerId/public-profile')
+  @ApiParam({ name: 'providerId', type: String })
+  @ApiOkResponse({ type: PublicProviderProfileDto })
+  updatePublicProviderProfile(
+    @Req() request: Request,
+    @Param('providerId') providerId: string,
+    @Body() body: UpdateProviderPublicProfileDto,
+  ) {
+    const userId = this.internalAuthService.getUserIdFromRequest(request);
+    return this.providersService.updatePublicProviderProfile(userId, providerId, body);
+  }
+
+  @Post(':providerId/image')
+  @ApiParam({ name: 'providerId', type: String })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+      required: ['file'],
+    },
+  })
+  @ApiOkResponse({ type: PublicProviderProfileDto })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+        if (!allowed.includes(file.mimetype)) {
+          cb(new Error('Unsupported file type'), false);
+          return;
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  uploadProviderImage(
+    @Req() request: Request,
+    @Param('providerId') providerId: string,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    const userId = this.internalAuthService.getUserIdFromRequest(request);
+    if (!file) {
+      throw new UnprocessableEntityException({
+        error: 'Validation failed',
+        issues: [{ path: ['file'], message: 'file is required' }],
+      });
+    }
+    return this.providersService.uploadProviderImage({
+      actorUserId: userId,
+      providerId,
+      file,
+    });
+  }
+
+  @Delete(':providerId/image')
+  @ApiParam({ name: 'providerId', type: String })
+  @ApiOkResponse({ type: PublicProviderProfileDto })
+  deleteProviderImage(@Req() request: Request, @Param('providerId') providerId: string) {
+    const userId = this.internalAuthService.getUserIdFromRequest(request);
+    return this.providersService.deleteProviderImage({ actorUserId: userId, providerId });
   }
 }

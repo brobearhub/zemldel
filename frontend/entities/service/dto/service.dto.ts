@@ -180,16 +180,6 @@ export class ServiceDto {
 
   @Expose()
   @ValidateIf((_, v) => v !== null && v !== undefined)
-  @IsString()
-  highlight!: string | null;
-
-  @Expose()
-  @ValidateIf((_, v) => v !== null && v !== undefined)
-  @IsString()
-  badge!: string | null;
-
-  @Expose()
-  @ValidateIf((_, v) => v !== null && v !== undefined)
   @IsEnum(PALETTE_COLORS)
   @Transform(({ value }) => (isPaletteColor(value) ? value : null), { toClassOnly: true })
   paletteColor!: ServicePaletteColor | null;
@@ -225,8 +215,6 @@ export type ServiceDbRow = {
   ctaText: string;
   ctaHref: string | null;
   description: string | null;
-  highlight: string | null;
-  badge: string | null;
   paletteColor: string | null;
   icon: string | null;
   provider: {
@@ -322,18 +310,6 @@ export class ServiceCreateDto {
   @Expose()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
   @ValidateIf((_, v) => v !== null && v !== undefined)
-  @IsString()
-  highlight?: string | null;
-
-  @Expose()
-  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
-  @ValidateIf((_, v) => v !== null && v !== undefined)
-  @IsString()
-  badge?: string | null;
-
-  @Expose()
-  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
-  @ValidateIf((_, v) => v !== null && v !== undefined)
   @IsEnum(PALETTE_COLORS)
   paletteColor?: ServicePaletteColor | null;
 
@@ -416,20 +392,6 @@ export class ServicePatchDto {
   @ValidateIf((_, v) => v !== null && v !== undefined)
   @IsString()
   description?: string | null;
-
-  @Expose()
-  @IsOptional()
-  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
-  @ValidateIf((_, v) => v !== null && v !== undefined)
-  @IsString()
-  highlight?: string | null;
-
-  @Expose()
-  @IsOptional()
-  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
-  @ValidateIf((_, v) => v !== null && v !== undefined)
-  @IsString()
-  badge?: string | null;
 
   @Expose()
   @IsOptional()

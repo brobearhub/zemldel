@@ -2,6 +2,7 @@ import Image from "next/image";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import { Box, Button, Container, Paper, Stack, Typography } from "@mui/material";
 import type { PublicProviderProfileDto } from "@/entities/provider";
+import { ServiceQuickApplyButton } from "@/features/create-service-request-lead";
 
 function ProviderImagePlaceholder({ type }: { type: PublicProviderProfileDto["type"] }) {
   const isCompany = type === "COMPANY";
@@ -95,10 +96,12 @@ function providerTypeLabel(type: PublicProviderProfileDto["type"]): string {
 
 type Props = {
   provider: PublicProviderProfileDto;
+  serviceId: string;
+  isAuthenticated: boolean;
   imageSide?: "left" | "right";
 };
 
-export function ServiceProviderSection({ provider, imageSide = "left" }: Props) {
+export function ServiceProviderSection({ provider, serviceId, isAuthenticated, imageSide = "left" }: Props) {
   const isRight = imageSide === "right";
 
   return (
@@ -121,12 +124,12 @@ export function ServiceProviderSection({ provider, imageSide = "left" }: Props) 
               width: "100%",
               flexGrow: { md: 0 },
               flexShrink: { md: 1 },
-              flexBasis: { md: "clamp(320px, 38vw, 534px)" },
-              maxWidth: { md: 534 },
+              flexBasis: { md: "clamp(120px, 38vw, 300px)" },
+              maxWidth: { md: 300 },
               alignSelf: { md: "flex-start" },
               height: { xs: 280, md: "auto" },
-              aspectRatio: { md: "534 / 506" },
-              borderRadius: { xs: 2.5, md: 3 },
+              aspectRatio: { xs: "280 / 280", md: "300 / 300" },
+              borderRadius: { xs: 2.5, md: 999 },
             }}
           >
             {provider.image ? (
@@ -134,6 +137,7 @@ export function ServiceProviderSection({ provider, imageSide = "left" }: Props) 
                 src={provider.image}
                 alt=""
                 fill
+                unoptimized={process.env.NODE_ENV !== "production"}
                 sizes="(max-width: 900px) 100vw, 534px"
                 style={{ objectFit: "cover", objectPosition: "center" }}
               />
@@ -144,13 +148,14 @@ export function ServiceProviderSection({ provider, imageSide = "left" }: Props) 
             <Box
               sx={{
                 position: "absolute",
-                left: { xs: 16, md: 24 },
-                bottom: { xs: 16, md: 24 },
+                left: "50%",
+                bottom: 18,
+                transform: "translate(-50%, 0)",
                 display: "inline-flex",
                 alignItems: "center",
                 gap: { xs: "6px", md: "8px" },
-                px: { xs: "12px", md: "14px" },
-                py: { xs: "8px", md: "10px" },
+                px: { xs: "1px", md: "10px" },
+                py: { xs: "1px", md: "1px" },
                 borderRadius: "999px",
                 bgcolor: "rgba(255,255,255,0.93)",
               }}
@@ -219,8 +224,9 @@ export function ServiceProviderSection({ provider, imageSide = "left" }: Props) 
             </Box>
 
             <Stack direction={{ xs: "column", md: "row" }} spacing={{ xs: 1, md: 3 }} sx={{ alignItems: { md: "center" } }}>
-              <Button
-                variant="contained"
+              <ServiceQuickApplyButton
+                serviceId={serviceId}
+                isAuthenticated={isAuthenticated}
                 sx={{
                   bgcolor: "secondary.main",
                   color: "secondary.contrastText",
@@ -234,11 +240,7 @@ export function ServiceProviderSection({ provider, imageSide = "left" }: Props) 
                     "0px 1px 5px rgba(0,0,0,0.12), 0px 2px 2px rgba(0,0,0,0.14), 0px 3px 1px -2px rgba(0,0,0,0.2)",
                   "&:hover": { bgcolor: "grey.900" },
                 }}
-                component="a"
-                href="#consultation"
-              >
-                ПОДАТЬ ЗАЯВКУ
-              </Button>
+              />
 
               <Button
                 variant="text"

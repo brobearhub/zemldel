@@ -146,11 +146,19 @@ export function CadastralNumberInput({
             onKeyDown={handleKeyDown(index)}
             disabled={disabled}
             inputMode="numeric"
-            placeholder={"0".repeat(CADASTRAL_PART_MAX_LENGTHS[index])}
+            placeholder={index === 3 ? "0000" : "0".repeat(CADASTRAL_PART_MAX_LENGTHS[index])}
             maxLength={CADASTRAL_PART_MAX_LENGTHS[index]}
             aria-label={`Кадастровый номер, часть ${index + 1}`}
             sx={{
-              width: index === 2 ? 96 : index === 3 ? 88 : 56,
+              width: index === 2 ? 96 : index === 3 ? "auto" : 56,
+              minWidth: index === 3 ? 56 : undefined,
+              ...(index === 3
+                ? {
+                    width: `calc(${Math.max(4, part.length || 0) + 1}ch)`,
+                    // запас +1ch, чтобы последняя цифра не "подъедалась" из‑за метрик шрифта/рендеринга
+                    boxSizing: "content-box",
+                  }
+                : null),
               height: size === "medium" ? 40 : 32,
               border: 1,
               borderColor: "divider",

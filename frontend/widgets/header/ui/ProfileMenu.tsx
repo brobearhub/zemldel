@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type MouseEvent } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Avatar,
   Box,
@@ -33,8 +33,15 @@ type ProfileMenuProps = {
   readonly showLabel?: boolean;
 };
 
+function buildReturnTo(pathname: string, searchParams: { toString(): string }): string {
+  const qs = searchParams.toString();
+  return qs ? `${pathname}?${qs}` : pathname;
+}
+
 export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { status, user } = useAppSelector((state) => state.auth);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
@@ -47,17 +54,17 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
     setAnchorEl(event.currentTarget);
   };
 
+  const handleOpenOnClick = (event: MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
   const handleClose = () => {
     setAnchorEl(null);
   };
 
-  const handleClick = () => {
-    if (status === "authenticated") {
-      router.push("/profile");
-    } else {
-      router.push("/signin");
-    }
+  const handleCustomerProfile = () => {
     handleClose();
+    router.push("/profile");
   };
 
   const handleSignOut = async () => {
@@ -67,7 +74,13 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
 
   const handleSignIn = () => {
     handleClose();
-    router.push("/signin");
+    const returnTo = buildReturnTo(pathname, searchParams);
+    router.push(`/signin?returnTo=${encodeURIComponent(returnTo)}`);
+  };
+
+  const handleSignInPro = () => {
+    handleClose();
+    router.push(`/signin?returnTo=${encodeURIComponent("/pro")}`);
   };
 
   const handleSignUp = () => {
@@ -93,7 +106,8 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
     >
       <Box
         component="button"
-        onClick={handleClick}
+        id="profile-button"
+        onClick={handleOpenOnClick}
         aria-label="Профиль"
         aria-controls={open ? "profile-menu" : undefined}
         aria-haspopup="true"
@@ -216,7 +230,7 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
               </Box>
             </Box>
             <Divider />
-            <MenuItem onClick={handleClick} sx={{ py: 1.5 }}>
+            <MenuItem onClick={handleCustomerProfile} sx={{ py: 1.5 }}>
               <PersonOutlineRoundedIcon sx={{ mr: 1.5, fontSize: 20 }} />
               Мой профиль
             </MenuItem>
@@ -255,6 +269,10 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
             <MenuItem onClick={handleSignIn} sx={{ py: 1.5 }}>
               <LoginIcon sx={{ mr: 1.5, fontSize: 20 }} />
               Войти
+            </MenuItem>
+            <MenuItem onClick={handleSignInPro} sx={{ py: 1.5 }}>
+              <WorkOutlineOutlinedIcon sx={{ mr: 1.5, fontSize: 20 }} />
+              Войти исполнителю
             </MenuItem>
             <MenuItem onClick={handleSignUp} sx={{ py: 1.5 }}>
               <PersonAddIcon sx={{ mr: 1.5, fontSize: 20 }} />
