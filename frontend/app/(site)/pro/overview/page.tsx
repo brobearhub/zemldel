@@ -1,11 +1,11 @@
 import { notFound, redirect } from "next/navigation";
 import { Stack } from "@mui/material";
 import { getActiveMembership } from "@/core/auth/authorization";
-import type { RequestCustomerDto, RequestProDto, RequestReminderDto } from "@/entities/request";
+import type { RequestCustomerDto, RequestReminderDto } from "@/entities/request";
 import type { ServiceDto } from "@/entities/service";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
-import { ProOverviewDashboard } from "@/widgets/pro-dashboard/ui/ProOverviewDashboard";
+import { ProOverviewDashboard, type ProRequestStats } from "@/widgets/pro-dashboard/ui/ProOverviewDashboard";
 import { ProfessionalWorkspacePanel } from "@/widgets/pro-dashboard/ui/ProfessionalWorkspacePanel";
 
 const sortByRecent = <T extends { updatedAt: string; createdAt?: string }>(items: T[]) =>
@@ -33,10 +33,10 @@ export default async function ProOverviewPage() {
   }
 
   try {
-    const [services, orders, feed, todayReminders] = await Promise.all([
+    const [services, orders, requestStats, todayReminders] = await Promise.all([
       fetchBackendJsonAsUser<ServiceDto[]>("/pro/services", session.user.id),
       fetchBackendJsonAsUser<RequestCustomerDto[]>("/pro/requests", session.user.id),
-      fetchBackendJsonAsUser<RequestProDto[]>("/pro/requests/feed", session.user.id),
+      fetchBackendJsonAsUser<ProRequestStats>("/pro/requests/stats", session.user.id),
       fetchBackendJsonAsUser<RequestReminderDto[]>("/pro/reminders/today", session.user.id),
     ]);
 
@@ -45,7 +45,7 @@ export default async function ProOverviewPage() {
         <ProOverviewDashboard
           provider={activeMembership}
           services={services}
-          requests={sortByRecent(feed)}
+          requestStats={requestStats}
           orders={sortByRecent(orders)}
           todayReminders={todayReminders}
         />

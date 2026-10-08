@@ -1,6 +1,6 @@
 import "@/core/server/reflect-metadata";
 import { Expose, instanceToPlain, plainToInstance, Transform } from "class-transformer";
-import { IsArray, IsEnum, IsOptional, IsString, IsUUID, ValidateIf, validateSync, type ValidationError } from "class-validator";
+import { IsArray, IsBoolean, IsEnum, IsInt, IsNumber, IsOptional, IsString, IsUUID, ValidateIf, validateSync, type ValidationError } from "class-validator";
 
 export type ProviderType = "SELF_EMPLOYED" | "COMPANY";
 
@@ -49,8 +49,22 @@ export class PublicProviderProfileDto {
   name!: string;
 
   @Expose()
+  @IsString()
+  slug!: string;
+
+  @Expose()
   @IsEnum(["SELF_EMPLOYED", "COMPANY"])
   type!: ProviderType;
+
+  @Expose()
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  @IsNumber()
+  rating!: number | null;
+
+  @Expose()
+  @IsInt()
+  reviewCount!: number;
 
   @Expose()
   @ValidateIf((_, v) => v !== null && v !== undefined)
@@ -84,6 +98,25 @@ export class PublicProviderProfileDto {
   @ValidateIf((_, v) => v !== null && v !== undefined)
   @IsString()
   about!: string | null;
+
+  @Expose()
+  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined)
+  @IsString()
+  phone!: string | null;
+
+  @Expose()
+  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined)
+  @IsString()
+  email!: string | null;
+
+  @Expose()
+  @IsOptional()
+  @IsBoolean()
+  useOwnEmail!: boolean;
 
   @Expose()
   @IsString()

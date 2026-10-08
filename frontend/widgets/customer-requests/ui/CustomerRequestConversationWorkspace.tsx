@@ -30,7 +30,10 @@ import {
   hasRequestLock,
   isOrderExecutionStatus,
   mergeWorkStageStatusOptions,
+  resolvePaymentTriggerLabel,
+  resolveProviderTriggerLabel,
   resolveRequestDetailBody,
+  resolveRequestDetailTitle,
   type RequestDocumentRequestDto,
   type RequestRemarkDto,
   type RequestCustomerDto,
@@ -58,6 +61,7 @@ import {
 } from "@/widgets/request-remarks";
 import { RequestWorkProgress } from "@/widgets/request-work-progress";
 import { RequestPayments } from "@/widgets/request-payments";
+import { RequestReviewsPanel } from "@/widgets/request-reviews";
 import { RequestDetailPanelLayer } from "@/shared/ui/RequestDetailPanelLayer";
 import { RequestDetailPanelTriggers } from "@/shared/ui/RequestDetailPanelTriggers";
 import {
@@ -658,6 +662,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
   }
 
   const requestBody = resolveRequestDetailBody(req.message, req.serviceTitle);
+  const headerTitle = resolveRequestDetailTitle(req.subjectType, req.serviceTitle);
   const showCounterparty = canShowCustomerCounterpartyButton({ lockedAt: req.lockedAt });
   const showPayment = req.lockedAt != null;
   const providerFields = getProviderContactFields({
@@ -668,8 +673,8 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
 
   const panelItems = [
     { id: "cadastral", label: "Кадастровый номер", visible: true, endIcon: <PinDropOutlinedIcon /> },
-    { id: "payment", label: "Оплата", visible: showPayment, endIcon: <PaymentIcon /> },
-    { id: "counterparty", label: "Исполнитель", visible: showCounterparty, endIcon: <AssignmentIndIcon /> },
+    { id: "payment", label: resolvePaymentTriggerLabel(req.totalAmountRubles), visible: showPayment, endIcon: <PaymentIcon /> },
+    { id: "counterparty", label: resolveProviderTriggerLabel(req.providerName), visible: showCounterparty, endIcon: <AssignmentIndIcon /> },
   ] as const;
 
   const cadastralBehavior = useMemo(
@@ -746,6 +751,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
             onClose={() => setActivePanelId(null)}
           >
             <RequestDetailHeaderCard
+              title={headerTitle}
               subtitle={pickTitle(req)}
               statusLabel={getRequestStatusLabel(req.status)}
               body={requestBody}
@@ -798,6 +804,8 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
           {notice ? <Alert severity="success">{notice}</Alert> : null}
           {error ? <Alert severity="error">{error}</Alert> : null}
           {remarksError ? <Alert severity="warning">{remarksError}</Alert> : null}
+
+          <RequestReviewsPanel requestId={req.id} status={req.status} side="customer" />
 
           <RequestWorkProgress
             mode="customer"

@@ -31,6 +31,8 @@ function makeCustomer(overrides: Partial<RequestCustomerDto> = {}): RequestCusto
     fiasInactiveWarning: false,
     lockedAt: null,
     serviceTitle: null,
+    serviceImage: null,
+    categoryName: null,
     providerName: null,
     providerPhone: null,
     providerEmail: null,

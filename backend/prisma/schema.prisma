@@ -86,6 +86,16 @@ enum RequestRemarkAuthorSide {
   PROVIDER
 }
 
+enum ReviewDirection {
+  CUSTOMER_TO_PROVIDER
+  PROVIDER_TO_CUSTOMER
+}
+
+enum StoryAuthorType {
+  USER
+  PROVIDER
+}
+
 enum WorkStageLifecycle {
   DRAFT
   PUBLISHED
@@ -136,6 +146,8 @@ model City {
   customerUsers User[]     @relation("UserCustomerCity")
   providers     Provider[] @relation("ProviderCity")
   requests      Request[]  @relation("RequestCity")
+  stories         Story[]          @relation("StoryCity")
+  storyViewEvents StoryViewEvent[] @relation("StoryViewCity")
   importEvents  CityImportEvent[]
 
   createdAt DateTime @default(now())
@@ -188,6 +200,7 @@ model User {
   phone                     String?
   activeProviderId          String?                  @db.Uuid
   customerCityId            String?                  @db.Uuid
+  profilePublic             Boolean                  @default(false)
   accounts                  Account[]
   sessions                  Session[]
   authProviderLinks         UserAuthProviderLink[]
@@ -211,6 +224,22 @@ model User {
   createdRequestRemarks     RequestRemark[]          @relation("RequestRemarkCreatedByUser")
   doneRequestRemarks        RequestRemark[]          @relation("RequestRemarkDoneByUser")
   createdRequestPayments    RequestPayment[]         @relation("RequestPaymentCreatedByUser")
+  authoredReviews           Review[]                 @relation("ReviewAuthor")
+  subjectReviews            Review[]                 @relation("ReviewSubject")
+  repliedReviews            Review[]                 @relation("ReviewRepliedBy")
+  authoredStories           Story[]                  @relation("StoryAuthor")
+  storyViewEvents           StoryViewEvent[]
+  storySaves                StorySave[]
+  storyReplies              StoryReply[]
+  storyReplyMessages        StoryReplyMessage[]      @relation("StoryReplyMessageSender")
+  storyProfileOpens         StoryProfileOpen[]
+  storyFollows              StoryAuthorFollow[]      @relation("StoryFollower")
+  storyFollowedBy           StoryAuthorFollow[]      @relation("StoryFollowedUser")
+  storyUnfollows            StoryAuthorUnfollow[]    @relation("StoryUnfollower")
+  storyUnfollowedBy         StoryAuthorUnfollow[]    @relation("StoryUnfollowedUser")
+  storyConversationReads    StoryConversationRead[]
+  customerRating            Float?
+  customerReviewCount       Int                      @default(0)
   activeProvider            Provider?                @relation("ActiveProvider", fields: [activeProviderId], references: [id], onDelete: SetNull)
   customerCity              City?                    @relation("UserCustomerCity", fields: [customerCityId], references: [id], onDelete: SetNull)
   createdAt                 DateTime                 @default(now())
@@ -285,6 +314,9 @@ model Provider {
   image             String?
   subtitle          String?
   about             String?
+  phone             String?
+  email             String?
+  useOwnEmail       Boolean                @default(false)
   stats             Json?
   ownerUser         User?                  @relation("ProviderOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
   members           ProviderMember[]
@@ -299,6 +331,12 @@ model Provider {
   requestOffers     RequestProviderOffer[]
   reminders         RequestReminder[]
   requestPayments   RequestPayment[]
+  reviews           Review[]
+  stories           Story[]
+  storyFollowers    StoryAuthorFollow[]
+  storyUnfollows    StoryAuthorUnfollow[]
+  rating            Float?
+  reviewCount       Int                      @default(0)
   createdRequestRemarks RequestRemark[] @relation("RequestRemarkCreatedByProvider")
   doneRequestRemarks    RequestRemark[] @relation("RequestRemarkDoneByProvider")
   activeUsers       User[]                 @relation("ActiveProvider")
@@ -450,6 +488,7 @@ model Request {
   reminders         RequestReminder[]
   remarks           RequestRemark[]
   payments          RequestPayment[]
+  reviews           Review[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -625,7 +664,8 @@ model Service {
   stockBadge      String?
   price           String
   rating          Float?
-  reviewCount     Int?
+  reviewCount     Int             @default(0)
+  ratingSortScore Float?
   ctaText         String
   ctaHref         String?
   description     String?
@@ -640,6 +680,7 @@ model Service {
   createdByUser   User?           @relation("ServiceCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
   updatedByUser   User?           @relation("ServiceUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
   requests        Request[]
+  reviews         Review[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
@@ -647,6 +688,185 @@ model Service {
   @@index([providerId])
   @@index([status])
   @@index([providerId, status])
+  @@index([ratingSortScore])
+}
+
+model Review {
+  id              String          @id @default(uuid()) @db.Uuid
+  requestId       String          @db.Uuid
+  direction       ReviewDirection
+  providerId      String          @db.Uuid
+  serviceId       String?         @db.Uuid
+  authorUserId    String          @db.Uuid
+  subjectUserId   String?         @db.Uuid
+  rating          Int
+  text            String?
+  replyText       String?
+  repliedAt       DateTime?
+  repliedByUserId String?         @db.Uuid
+  createdAt       DateTime        @default(now())
+
+  request   Request  @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  provider  Provider @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  service   Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  author    User     @relation("ReviewAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+  subject   User?    @relation("ReviewSubject", fields: [subjectUserId], references: [id], onDelete: Restrict)
+  repliedBy User?    @relation("ReviewRepliedBy", fields: [repliedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([requestId, direction])
+  @@index([serviceId, direction, createdAt])
+  @@index([providerId, direction, createdAt])
+  @@index([subjectUserId, direction])
+}
+
+model Story {
+  id            String          @id @default(uuid()) @db.Uuid
+  authorType    StoryAuthorType
+  authorUserId  String          @db.Uuid
+  providerId    String?         @db.Uuid
+  cityId        String?         @db.Uuid
+  sourceStoryId String?         @db.Uuid
+  text          String
+  imageUrl      String?
+  durationDays  Int
+  publishedAt   DateTime        @default(now())
+  expiresAt     DateTime
+  withdrawnAt   DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  authorUser   User      @relation("StoryAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+  provider     Provider? @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  city         City?     @relation("StoryCity", fields: [cityId], references: [id], onDelete: SetNull)
+  sourceStory  Story?    @relation("StoryRepost", fields: [sourceStoryId], references: [id], onDelete: Restrict)
+  reposts      Story[]   @relation("StoryRepost")
+  viewEvents   StoryViewEvent[]
+  saves        StorySave[]
+  replies      StoryReply[]
+  profileOpens StoryProfileOpen[]
+
+  @@index([expiresAt])
+  @@index([cityId, publishedAt])
+  @@index([publishedAt])
+  @@index([authorUserId, publishedAt])
+  @@index([providerId, publishedAt])
+  @@index([sourceStoryId])
+  @@index([withdrawnAt])
+}
+
+model StoryViewEvent {
+  id       String   @id @default(uuid()) @db.Uuid
+  storyId  String   @db.Uuid
+  userId   String?  @db.Uuid
+  cityId   String?  @db.Uuid
+  viewedAt DateTime @default(now())
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  city  City? @relation("StoryViewCity", fields: [cityId], references: [id], onDelete: SetNull)
+
+  @@index([storyId, viewedAt])
+  @@index([storyId, userId])
+  @@index([userId, storyId])
+}
+
+model StorySave {
+  id        String    @id @default(uuid()) @db.Uuid
+  storyId   String    @db.Uuid
+  userId    String    @db.Uuid
+  savedAt   DateTime  @default(now())
+  removedAt DateTime?
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, storyId])
+  @@index([userId, removedAt])
+  @@index([storyId, removedAt])
+}
+
+model StoryReply {
+  id           String   @id @default(uuid()) @db.Uuid
+  storyId      String   @db.Uuid
+  authorUserId String   @db.Uuid
+  text         String
+  createdAt    DateTime @default(now())
+
+  story    Story              @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  author   User               @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
+  messages StoryReplyMessage[]
+
+  @@index([storyId, createdAt])
+}
+
+model StoryReplyMessage {
+  id           String   @id @default(uuid()) @db.Uuid
+  storyReplyId String   @db.Uuid
+  senderUserId String   @db.Uuid
+  text         String
+  createdAt    DateTime @default(now())
+
+  storyReply StoryReply @relation(fields: [storyReplyId], references: [id], onDelete: Cascade)
+  sender     User       @relation("StoryReplyMessageSender", fields: [senderUserId], references: [id], onDelete: Cascade)
+
+  @@index([storyReplyId, createdAt])
+}
+
+model StoryConversationRead {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  inboxKey       String
+  counterpartKey String
+  lastReadAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, inboxKey, counterpartKey])
+  @@index([userId, inboxKey])
+}
+
+model StoryProfileOpen {
+  id       String   @id @default(uuid()) @db.Uuid
+  storyId  String   @db.Uuid
+  userId   String?  @db.Uuid
+  openedAt DateTime @default(now())
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([storyId, openedAt])
+}
+
+model StoryAuthorFollow {
+  id               String    @id @default(uuid()) @db.Uuid
+  followerUserId   String    @db.Uuid
+  targetUserId     String?   @db.Uuid
+  targetProviderId String?   @db.Uuid
+  createdAt        DateTime  @default(now())
+  removedAt        DateTime?
+
+  follower       User      @relation("StoryFollower", fields: [followerUserId], references: [id], onDelete: Cascade)
+  targetUser     User?     @relation("StoryFollowedUser", fields: [targetUserId], references: [id], onDelete: Cascade)
+  targetProvider Provider? @relation(fields: [targetProviderId], references: [id], onDelete: Cascade)
+
+  @@index([followerUserId, removedAt])
+  @@index([targetUserId, removedAt])
+  @@index([targetProviderId, removedAt])
+}
+
+model StoryAuthorUnfollow {
+  id               String   @id @default(uuid()) @db.Uuid
+  followerUserId   String   @db.Uuid
+  targetUserId     String?  @db.Uuid
+  targetProviderId String?  @db.Uuid
+  unfollowedAt     DateTime @default(now())
+
+  follower       User      @relation("StoryUnfollower", fields: [followerUserId], references: [id], onDelete: Cascade)
+  targetUser     User?     @relation("StoryUnfollowedUser", fields: [targetUserId], references: [id], onDelete: Cascade)
+  targetProvider Provider? @relation(fields: [targetProviderId], references: [id], onDelete: Cascade)
+
+  @@index([targetUserId, unfollowedAt])
+  @@index([targetProviderId, unfollowedAt])
 }
 
 model Conversation {

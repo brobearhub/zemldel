@@ -40,12 +40,29 @@ function makeRow(overrides: Partial<RequestDbRow> = {}): RequestDbRow {
 }
 
 describe('requestRowToProDtoPlain counterparty contacts', () => {
-  it('скрывает snapshot клиента до lock', () => {
+  it('отдаёт имя и фото клиента до lock и скрывает телефон и email', () => {
     const dto = requestRowToProDtoPlain(makeRow(), 0, PROVIDER_ID);
-    expect(dto.customerName).toBeNull();
+    expect(dto.customerName).toBe('Иван Иванов');
     expect(dto.customerEmail).toBeNull();
     expect(dto.customerPhone).toBeNull();
-    expect(dto.customerImage).toBeNull();
+    expect(dto.customerImage).toBe('https://cdn.example/customer.jpg');
+  });
+
+  it('берёт имя из профиля, если снимок заявки пустой', () => {
+    const dto = requestRowToProDtoPlain(
+      makeRow({
+        customerName: '  ',
+        customerUser: {
+          customerCityId: null,
+          name: 'Мария Соколова',
+          image: null,
+        },
+      }),
+      0,
+      PROVIDER_ID,
+    );
+    expect(dto.customerName).toBe('Мария Соколова');
+    expect(dto.customerEmail).toBeNull();
   });
 
   it('отдаёт snapshot клиента после lock на этого провайдера', () => {
@@ -98,8 +115,74 @@ describe('requestRowToCustomerDtoPlain counterparty contacts', () => {
     );
     expect(dto.providerName).toBe('Геодезия Плюс');
     expect(dto.providerPhone).toBe('+73431234567');
-    expect(dto.providerEmail).toBe('pro@example.com');
+    expect(dto.providerEmail).toBeNull();
     expect(dto.providerImage).toBe('https://cdn.example/provider.jpg');
+  });
+
+  it('после lock показывает свой email провайдера', () => {
+    const dto = requestRowToCustomerDtoPlain(
+      makeRow({
+        providerId: PROVIDER_ID,
+        lockedAt: NOW,
+        provider: {
+          name: 'Геодезия Плюс',
+          email: 'studio@example.com',
+          useOwnEmail: true,
+          ownerUser: { email: 'owner@example.com' },
+        },
+      }),
+    );
+    expect(dto.providerEmail).toBe('studio@example.com');
+  });
+
+  it('после lock подставляет email владельца, если своего нет и флаг включён', () => {
+    const dto = requestRowToCustomerDtoPlain(
+      makeRow({
+        providerId: PROVIDER_ID,
+        lockedAt: NOW,
+        provider: {
+          name: 'Геодезия Плюс',
+          email: null,
+          useOwnEmail: true,
+          ownerUser: { email: 'owner@example.com' },
+        },
+      }),
+    );
+    expect(dto.providerEmail).toBe('owner@example.com');
+  });
+
+  it('после lock не отдаёт email, если своего нет и флаг выключен', () => {
+    const dto = requestRowToCustomerDtoPlain(
+      makeRow({
+        providerId: PROVIDER_ID,
+        lockedAt: NOW,
+        provider: {
+          name: 'Геодезия Плюс',
+          email: null,
+          useOwnEmail: false,
+          legalProfile: { phone: null, email: 'legal@example.com' },
+          ownerUser: { email: 'owner@example.com' },
+        },
+      }),
+    );
+    expect(dto.providerEmail).toBeNull();
+  });
+
+  it('после lock показывает телефон публичного профиля, даже если в реквизитах его нет', () => {
+    const dto = requestRowToCustomerDtoPlain(
+      makeRow({
+        providerId: PROVIDER_ID,
+        lockedAt: NOW,
+        provider: {
+          name: 'Геодезия Плюс',
+          phone: '+79221000000',
+          legalProfile: { phone: null, email: null },
+          ownerUser: { image: null },
+        },
+      }),
+    );
+    expect(dto.providerPhone).toBe('+79221000000');
+    expect(dto.providerEmail).toBeNull();
   });
 });
 

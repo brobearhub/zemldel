@@ -19,7 +19,9 @@ export function ServiceRequestList({ items, minRows = 6, allowLockedClick }: Pro
       renderRow={(item, { isLast }) => {
         const href = `/pro/requests/${item.id}`;
         const disabled = allowLockedClick ? false : item.isLocked;
-        const meta = formatServiceRequestDate(item.createdAt);
+        const ratingLabel =
+          item.customerRating != null ? ` · заказчик ${item.customerRating.toFixed(1)}` : "";
+        const meta = `${formatServiceRequestDate(item.createdAt)}${ratingLabel}`;
         const preview = item.message
           ? item.message
           : item.location

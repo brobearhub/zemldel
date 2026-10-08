@@ -12,13 +12,20 @@ import {
   Paper,
   Skeleton,
   Stack,
+  FormControlLabel,
+  Switch,
+  TextField,
   Typography,
 } from "@mui/material";
 import EmailIcon from "@mui/icons-material/Email";
+import PhoneIcon from "@mui/icons-material/Phone";
+import { normalizeContactPhoneInput } from "@/shared/lib/contact-phone";
+import { toPublicAssetSrc } from "@/shared/lib/public-asset-src";
 import { useAppSelector } from "@/core/store/hooks";
 import type { AuthMembership } from "@/core/auth/authorization";
 import { CustomerRequestsSection } from "@/widgets/customer-requests/ui/CustomerRequestsSection";
 import { CustomerPassportSection } from "@/widgets/customer-documents/ui/CustomerPassportSection";
+import { StoriesPage } from "@/views/stories-page";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import type { CitySuggestItemDto } from "@/entities/city";
 import { CityAutocomplete } from "@/shared/ui/CityAutocomplete";
@@ -46,10 +53,10 @@ function buildLocationDisplayName(locationName: string, regionName: string) {
   return `${loc}, ${region}`;
 }
 
-type ProfileSection = "profile" | "requests" | "documents";
+type ProfileSection = "profile" | "requests" | "documents" | "stories";
 
 function resolveProfileSection(value: string | null): ProfileSection {
-  if (value === "profile" || value === "requests" || value === "documents") {
+  if (value === "profile" || value === "requests" || value === "documents" || value === "stories") {
     return value;
   }
 
@@ -59,6 +66,7 @@ function resolveProfileSection(value: string | null): ProfileSection {
 interface ProfileOverviewProps {
   name: string | null | undefined;
   email: string | null | undefined;
+  phone: string | null | undefined;
   image: string | null | undefined;
   customerCity: { id: string; name: string; regionCode: string; regionName: string } | null | undefined;
   memberships: AuthMembership[];
@@ -71,6 +79,7 @@ interface ProfileOverviewProps {
 function ProfileOverview({
   name,
   email,
+  phone,
   image,
   customerCity,
   memberships,
@@ -86,7 +95,12 @@ function ProfileOverview({
   const [imageError, setImageError] = useState<string | null>(null);
   const [imageSuccess, setImageSuccess] = useState<string | null>(null);
   const [cityError, setCityError] = useState<string | null>(null);
+  const [phoneDraft, setPhoneDraft] = useState(phone ?? "");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [providerCityError, setProviderCityError] = useState<string | null>(null);
+  const [customerRating, setCustomerRating] = useState<number | null>(null);
+  const [customerReviewCount, setCustomerReviewCount] = useState(0);
+  const [profilePublic, setProfilePublic] = useState(false);
 
   const customerCityValue = useMemo<CitySuggestItemDto | null>(() => {
     if (!customerCity) return null;
@@ -98,6 +112,62 @@ function ProfileOverview({
       displayName: buildLocationDisplayName(customerCity.name, customerCity.regionName),
     };
   }, [customerCity]);
+
+  useEffect(() => {
+    setPhoneDraft(phone ?? "");
+  }, [phone]);
+
+  useEffect(() => {
+    let alive = true;
+    void fetch("/api/users/me", { cache: "no-store" })
+      .then(async (res) => {
+        if (!res.ok) return null;
+        return (await res.json()) as {
+          customerRating?: number | null;
+          customerReviewCount?: number;
+          profilePublic?: boolean;
+        };
+      })
+      .then((payload) => {
+        if (!alive || !payload) return;
+        setCustomerRating(payload.customerRating ?? null);
+        setCustomerReviewCount(payload.customerReviewCount ?? 0);
+        setProfilePublic(payload.profilePublic === true);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  async function updatePhone() {
+    const normalized = normalizeContactPhoneInput(phoneDraft);
+    if (normalized.error) {
+      setPhoneError(normalized.error);
+      return;
+    }
+    if ((normalized.phone ?? "") === (phone ?? "").trim()) return;
+
+    setBusy(true);
+    setPhoneError(null);
+    try {
+      const res = await fetch("/api/users/me", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ phone: normalized.phone }),
+      });
+      if (!res.ok) {
+        const payload = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
+        setPhoneError(payload.message ?? payload.error ?? "Не удалось обновить телефон");
+        return;
+      }
+      await updateSession();
+    } catch {
+      setPhoneError("Не удалось обновить телефон");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function updateCustomerCity(next: CitySuggestItemDto | null) {
     setBusy(true);
@@ -214,7 +284,7 @@ function ProfileOverview({
     <Stack spacing={3}>
       <Box sx={{ display: "flex", gap: 3, alignItems: "center" }}>
         <Avatar
-          src={image || undefined}
+          src={image ? toPublicAssetSrc(image) : undefined}
           sx={{
             width: 100,
             height: 100,
@@ -234,6 +304,31 @@ function ProfileOverview({
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "text.secondary" }}>
             <EmailIcon fontSize="small" />
             <Typography variant="body1">{email || "Email не указан"}</Typography>
+          </Box>
+          <FormControlLabel
+            sx={{ mt: 1 }}
+            control={
+              <Switch
+                checked={profilePublic}
+                onChange={(_event, checked) => {
+                  setProfilePublic(checked);
+                  void fetch("/api/users/me/profile-public", {
+                    method: "PATCH",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ profilePublic: checked }),
+                  })
+                    .then((response) => {
+                      if (!response.ok) setProfilePublic(!checked);
+                    })
+                    .catch(() => setProfilePublic(!checked));
+                }}
+              />
+            }
+            label={profilePublic ? "Профиль виден другим" : "Профиль скрыт"}
+          />
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "text.secondary", mt: 0.5 }}>
+            <PhoneIcon fontSize="small" />
+            <Typography variant="body1">{phone || "Телефон не указан"}</Typography>
           </Box>
           <Stack
             direction={{ xs: "column", sm: "row" }}
@@ -314,8 +409,30 @@ function ProfileOverview({
           }}>
             Профессиональных профилей: {memberships.length}
           </Typography>
+          <Typography variant="body2" sx={{ color: "text.secondary" }}>
+            {customerRating != null
+              ? `Ваш рейтинг заказчика: ${customerRating.toFixed(1)} · ${customerReviewCount} оценок`
+              : "Рейтинг заказчика появится после оценок исполнителей"}
+          </Typography>
 
+          {phoneError ? <Alert severity="error">{phoneError}</Alert> : null}
           {cityError ? <Alert severity="error">{cityError}</Alert> : null}
+
+          <TextField
+            label="Телефон"
+            value={phoneDraft}
+            onChange={(event) => {
+              setPhoneDraft(event.target.value);
+              if (phoneError) setPhoneError(null);
+            }}
+            onBlur={() => {
+              void updatePhone();
+            }}
+            disabled={busy}
+            placeholder="+7 900 000-00-00"
+            autoComplete="tel"
+            fullWidth
+          />
 
           <Box sx={{ pt: 1 }}>
             <CityAutocomplete
@@ -487,35 +604,38 @@ function ProfilePageContent() {
 
   return (
     <Container maxWidth="xl" sx={sitePageContainerSx}>
-      <Paper sx={{ width: "100%", p: { xs: 3, md: 4 } }}>
-        {selectedSection === "profile" ? (
-          <ProfileOverview
-            name={user?.name}
-            email={user?.email}
-            image={user?.image}
-            customerCity={user?.customerCity}
-            memberships={memberships}
-            activeMembership={activeMembership}
-            onOpenProfessionalArea={() => router.push("/pro")}
-            onCreateProvider={() => router.push("/providers/new")}
-            onCityUpdated={() => router.refresh()}
-          />
-        ) : null}
+      {selectedSection === "requests" ? (
+        <CustomerRequestsSection
+          autoResumeEnabled={searchParams.get("requestResume") === "1"}
+          onAutoResumeFinished={() => {
+            const nextParams = new URLSearchParams(searchParams.toString());
+            nextParams.delete("requestResume");
+            const nextQuery = nextParams.toString();
+            router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+          }}
+        />
+      ) : selectedSection === "stories" ? (
+        <StoriesPage scope="user" authorName={user?.name} />
+      ) : (
+        <Paper sx={{ width: "100%", p: { xs: 3, md: 4 } }}>
+          {selectedSection === "profile" ? (
+            <ProfileOverview
+              name={user?.name}
+              email={user?.email}
+              phone={user?.phone}
+              image={user?.image}
+              customerCity={user?.customerCity}
+              memberships={memberships}
+              activeMembership={activeMembership}
+              onOpenProfessionalArea={() => router.push("/pro")}
+              onCreateProvider={() => router.push("/providers/new")}
+              onCityUpdated={() => router.refresh()}
+            />
+          ) : null}
 
-        {selectedSection === "requests" ? (
-          <CustomerRequestsSection
-            autoResumeEnabled={searchParams.get("requestResume") === "1"}
-            onAutoResumeFinished={() => {
-              const nextParams = new URLSearchParams(searchParams.toString());
-              nextParams.delete("requestResume");
-              const nextQuery = nextParams.toString();
-              router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
-            }}
-          />
-        ) : null}
-
-        {selectedSection === "documents" ? <CustomerPassportSection /> : null}
-      </Paper>
+          {selectedSection === "documents" ? <CustomerPassportSection /> : null}
+        </Paper>
+      )}
     </Container>
   );
 }

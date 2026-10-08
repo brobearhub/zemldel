@@ -1,8 +1,10 @@
 import Image from "next/image";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
-import { Box, Button, Container, Paper, Stack, Typography } from "@mui/material";
+import { Box, Button, Container, Paper, Rating, Stack, Typography } from "@mui/material";
 import type { PublicProviderProfileDto } from "@/entities/provider";
+import { formatReviewCount } from "@/entities/review";
 import { ServiceQuickApplyButton } from "@/features/create-service-request-lead";
+import { toPublicAssetSrc } from "@/shared/lib/public-asset-src";
 
 function ProviderImagePlaceholder({ type }: { type: PublicProviderProfileDto["type"] }) {
   const isCompany = type === "COMPANY";
@@ -134,7 +136,7 @@ export function ServiceProviderSection({ provider, serviceId, isAuthenticated, i
           >
             {provider.image ? (
               <Image
-                src={provider.image}
+                src={toPublicAssetSrc(provider.image)}
                 alt=""
                 fill
                 unoptimized={process.env.NODE_ENV !== "production"}
@@ -181,6 +183,14 @@ export function ServiceProviderSection({ provider, serviceId, isAuthenticated, i
               <Typography sx={{ fontSize: { xs: 14, md: 16 }, lineHeight: { xs: 1.43, md: 1.75 } }}>
                 {provider.subtitle}
               </Typography>
+              {provider.rating != null ? (
+                <Stack direction="row" spacing={1} sx={{ alignItems: "center", pt: 0.5 }}>
+                  <Rating value={provider.rating} precision={0.1} readOnly size="small" sx={{ "& .MuiRating-iconFilled": { color: "#ffb400" } }} />
+                  <Typography variant="body2" sx={{ color: "common.white" }}>
+                    {provider.rating.toFixed(1)} · {formatReviewCount(provider.reviewCount)}
+                  </Typography>
+                </Stack>
+              ) : null}
             </Stack>
 
             {provider.about ? (
@@ -254,9 +264,9 @@ export function ServiceProviderSection({ provider, serviceId, isAuthenticated, i
                   minWidth: { xs: "100%", md: "auto" },
                 }}
                 component="a"
-                href="#consultation"
+                href={`/providers/${provider.slug}`}
               >
-                задать вопрос
+                профиль и отзывы
               </Button>
             </Stack>
           </Stack>

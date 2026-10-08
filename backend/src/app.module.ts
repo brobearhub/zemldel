@@ -18,6 +18,8 @@ import { ContractFilesModule } from './contract-files/contract-files.module';
 import { RequestDocumentRequestsModule } from './request-document-requests/request-document-requests.module';
 import { RequestWorkStagesModule } from './request-work-stages/request-work-stages.module';
 import { RequestPaymentsModule } from './request-payments/request-payments.module';
+import { ReviewsModule } from './reviews/reviews.module';
+import { StoriesModule } from './stories/stories.module';
 
 @Module({
   imports: [
@@ -37,6 +39,8 @@ import { RequestPaymentsModule } from './request-payments/request-payments.modul
     RequestDocumentRequestsModule,
     RequestWorkStagesModule,
     RequestPaymentsModule,
+    ReviewsModule,
+    StoriesModule,
     RemindersModule,
   ],
   controllers: [AppController],

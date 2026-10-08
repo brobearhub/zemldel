@@ -1,25 +1,24 @@
 "use client";
 
-import { Box } from "@mui/material";
 import Image from "next/image";
-import Link from "next/link";
 import { useTheme } from "@mui/material/styles";
-
-const LOGO_TEXT = "Земледел";
-const LOGO_LEFT_TEXT = "Ptvkt";
-const LOGO_RIGHT_TEXT = "горизонты";
+import { useAppSelector } from "@/core/store/hooks";
+import Link from "@/shared/ui/Link";
+import { resolveHeaderLogoHref } from "../lib/header-logo-href";
 
 export const HeaderLogo = () => {
   const theme = useTheme();
+  const user = useAppSelector((state) => state.auth.user);
+  const href = resolveHeaderLogoHref(user);
   const logoSrc =
     theme.palette.mode === "light"
       ? "/zemledel_logo_dark.svg"
       : "/zemledel_logo_light.svg";
 
   return (
-    <Box
-      component={Link}
-      href="/"
+    <Link
+      href={href}
+      aria-label="Земледел"
       sx={{
         flexShrink: 0,
         mr: { xs: 1, sm: 2 },
@@ -36,6 +35,6 @@ export const HeaderLogo = () => {
         height={45}
         style={{ objectFit: "contain" }}
       />
-    </Box>
+    </Link>
   );
 };

@@ -4,8 +4,11 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
+  IsEmail,
   IsOptional,
   IsString,
+  MaxLength,
   MinLength,
   ValidateIf,
   ValidateNested,
@@ -59,6 +62,27 @@ export class UpdateProviderPublicProfileDto {
   @IsString()
   @MinLength(1)
   about?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, example: '+7 900 000-00-00' })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => trimOrNull(value), { toClassOnly: true })
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  @IsString()
+  @MaxLength(32)
+  phone?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, example: 'owner@example.com' })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => trimOrNull(value), { toClassOnly: true })
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  @IsEmail()
+  @MaxLength(254)
+  email?: string | null;
+
+  @ApiPropertyOptional({ example: false })
+  @IsOptional()
+  @IsBoolean()
+  useOwnEmail?: boolean;
 
   @ApiPropertyOptional({ type: [UpdateProviderPublicStatDto] })
   @IsOptional()

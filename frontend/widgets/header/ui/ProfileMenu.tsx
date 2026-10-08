@@ -18,6 +18,7 @@ import WorkOutlineOutlinedIcon from "@mui/icons-material/WorkOutlineOutlined";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import { signOut } from "next-auth/react";
 import { useAppSelector } from "@/core/store/hooks";
+import { toPublicAssetSrc } from "@/shared/lib/public-asset-src";
 
 function getInitials(name: string | null | undefined): string {
   if (!name) return "U";
@@ -134,7 +135,7 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
       >
         {isAuthenticated ? (
           <Avatar
-            src={user?.image || undefined}
+            src={user?.image ? toPublicAssetSrc(user.image) : undefined}
             sx={{
               width: { xs: 28, sm: 32 },
               height: { xs: 28, sm: 32 },
@@ -200,7 +201,7 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
             <Box sx={{ px: 2, py: 1.5 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
                 <Avatar
-                  src={user?.image || undefined}
+                  src={user?.image ? toPublicAssetSrc(user.image) : undefined}
                   sx={{
                     width: 40,
                     height: 40,

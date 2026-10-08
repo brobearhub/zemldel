@@ -1,11 +1,12 @@
 import { notFound, redirect } from "next/navigation";
 import { Stack } from "@mui/material";
 import { getActiveMembership } from "@/core/auth/authorization";
-import { isOpenRequestStatus, type RequestCustomerDto, type RequestProDto } from "@/entities/request";
+import type { RequestReminderDto } from "@/entities/request";
+import type { ServiceDto } from "@/entities/service";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
 import { ProfessionalWorkspacePanel } from "@/widgets/pro-dashboard/ui/ProfessionalWorkspacePanel";
-import { ProRequestsFeed } from "@/widgets/pro-requests/ui/ProRequestsFeed";
+import { ProHomePage } from "@/views/pro-home";
 
 export default async function ProDashboardPage() {
   const session = await getServerAuthSession();
@@ -25,19 +26,17 @@ export default async function ProDashboardPage() {
   }
 
   try {
-    const [feed, orders] = await Promise.all([
-      fetchBackendJsonAsUser<RequestProDto[]>(
-        "/pro/requests/inbox?status=NEW",
-        session.user.id
-      ),
-      fetchBackendJsonAsUser<RequestCustomerDto[]>("/pro/requests", session.user.id),
+    // Why: заявки списка грузит клиент по активному шагу. Здесь только услуги и напоминания.
+    const [services, reminders] = await Promise.all([
+      fetchBackendJsonAsUser<ServiceDto[]>("/pro/services", session.user.id),
+      fetchBackendJsonAsUser<RequestReminderDto[]>("/pro/reminders", session.user.id),
     ]);
-    const activeOrders = (orders ?? []).filter((o) => isOpenRequestStatus(o.status));
 
     return (
-      <Stack spacing={3}>
-        <ProRequestsFeed initialItems={feed} initialActiveOrders={activeOrders} />
-      </Stack>
+      <ProHomePage
+        services={Array.isArray(services) ? services : []}
+        reminders={Array.isArray(reminders) ? reminders : []}
+      />
     );
   } catch (error) {
     if (error instanceof BackendApiError && (error.status === 401 || error.status === 403)) {

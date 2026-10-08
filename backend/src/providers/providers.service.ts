@@ -10,6 +10,8 @@ import crypto from 'crypto';
 import { createHash } from 'node:crypto';
 import { DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { PrismaService } from '../prisma/prisma.service';
+import { assertContactPhone } from '../common/contact-phone';
+import { assertContactEmail } from '../common/contact-email';
 import { assertActiveSelectableCity } from '../cities/city-validation';
 import { CreateProviderDto } from './dto/create-provider.dto';
 import { AddProviderManagerDto } from './dto/add-provider-manager.dto';
@@ -30,13 +32,20 @@ const publicProviderSelect = {
       regionName: true,
     },
   },
+  slug: true,
   image: true,
+  rating: true,
+  reviewCount: true,
   subtitle: true,
   about: true,
+  phone: true,
+  email: true,
+  useOwnEmail: true,
   stats: true,
   ownerUser: {
     select: {
       image: true,
+      email: true,
     },
   },
 } as const;
@@ -133,7 +142,10 @@ function tryExtractKeyFromPublicUrl(input: { url: string; baseUrl: string }) {
 type PublicProviderRow = {
   id: string;
   name: string;
+  slug: string;
   type: 'SELF_EMPLOYED' | 'COMPANY';
+  rating: number | null;
+  reviewCount: number;
   city: {
     id: string;
     name: string;
@@ -143,8 +155,11 @@ type PublicProviderRow = {
   image: string | null;
   subtitle: string | null;
   about: string | null;
+  phone: string | null;
+  email: string | null;
+  useOwnEmail: boolean;
   stats: unknown;
-  ownerUser: { image: string | null } | null;
+  ownerUser: { image: string | null; email: string | null } | null;
 };
 
 const DEFAULT_PROVIDER_STATS: Array<{ value: string; label: string }> = [
@@ -182,6 +197,14 @@ export class ProvidersService {
     }
 
     return membership;
+  }
+
+  private async hasActiveMembership(userId: string, providerId: string) {
+    const membership = await this.prisma.providerMember.findFirst({
+      where: { userId, providerId, status: 'ACTIVE' },
+      select: { id: true },
+    });
+    return Boolean(membership);
   }
 
   private isUuid(value: string) {
@@ -225,7 +248,7 @@ export class ProvidersService {
     return { available: !existing };
   }
 
-  async getPublicProviderProfile(providerId: string) {
+  async getPublicProviderProfile(providerId: string, actorUserId?: string | null) {
     const id = providerId?.trim();
     if (!id) {
       throw new BadRequestException('providerId is required');
@@ -240,6 +263,22 @@ export class ProvidersService {
       throw new NotFoundException('Provider not found');
     }
 
+    const revealOwnerEmail = actorUserId
+      ? await this.hasActiveMembership(actorUserId, id)
+      : false;
+    return this.toPublicProviderProfile(provider as unknown as PublicProviderRow, {
+      revealOwnerEmail,
+    });
+  }
+
+  async getPublicProviderProfileBySlug(slug: string) {
+    const normalized = slug.trim().toLowerCase();
+    if (!normalized) throw new NotFoundException('Provider not found');
+    const provider = await this.prisma.provider.findUnique({
+      where: { slug: normalized },
+      select: publicProviderSelect,
+    });
+    if (!provider) throw new NotFoundException('Provider not found');
     return this.toPublicProviderProfile(provider as unknown as PublicProviderRow);
   }
 
@@ -257,6 +296,9 @@ export class ProvidersService {
       input.name !== undefined ||
       input.subtitle !== undefined ||
       input.about !== undefined ||
+      input.phone !== undefined ||
+      input.email !== undefined ||
+      input.useOwnEmail !== undefined ||
       input.stats !== undefined;
     if (!hasAnyField) {
       throw new BadRequestException('No fields to update');
@@ -288,21 +330,43 @@ export class ProvidersService {
           }))
         : undefined;
 
+    const nextPhone =
+      input.phone === undefined
+        ? undefined
+        : input.phone === null
+          ? null
+          : assertContactPhone(input.phone);
+
+    const nextEmail =
+      input.email === undefined
+        ? undefined
+        : input.email === null
+          ? null
+          : assertContactEmail(input.email);
+
     const updated = await this.prisma.provider.update({
       where: { id },
       data: {
         name: nextName,
         subtitle: input.subtitle,
         about: input.about,
+        phone: nextPhone,
+        email: nextEmail,
+        useOwnEmail: input.useOwnEmail,
         stats: nextStats,
       },
       select: publicProviderSelect,
     });
 
-    return this.toPublicProviderProfile(updated as unknown as PublicProviderRow);
+    return this.toPublicProviderProfile(updated as unknown as PublicProviderRow, {
+      revealOwnerEmail: true,
+    });
   }
 
-  private toPublicProviderProfile(provider: PublicProviderRow) {
+  private toPublicProviderProfile(
+    provider: PublicProviderRow,
+    options?: { revealOwnerEmail?: boolean },
+  ) {
     function isPublicStats(
       value: unknown,
     ): value is Array<{ value: string; label: string }> {
@@ -335,12 +399,21 @@ export class ProvidersService {
     return {
       id: provider.id,
       name: provider.name,
+      slug: provider.slug,
       type: provider.type,
+      rating: provider.rating,
+      reviewCount: provider.reviewCount,
       city: provider.city,
       providerImage: provider.image ?? null,
       image: provider.image ?? provider.ownerUser?.image ?? null,
       subtitle,
       about,
+      phone: provider.phone?.trim() ? provider.phone.trim() : null,
+      email: provider.email?.trim() ? provider.email.trim() : null,
+      useOwnEmail: provider.useOwnEmail,
+      ...(options?.revealOwnerEmail
+        ? { ownerEmail: provider.ownerUser?.email?.trim() || null }
+        : {}),
       availabilityLabel: 'На связи сегодня',
       stats,
     };
@@ -422,7 +495,9 @@ export class ProvidersService {
         .catch(() => null);
     }
 
-    return this.toPublicProviderProfile(updated as unknown as PublicProviderRow);
+    return this.toPublicProviderProfile(updated as unknown as PublicProviderRow, {
+      revealOwnerEmail: true,
+    });
   }
 
   async deleteProviderImage(input: { actorUserId: string; providerId: string }) {
@@ -462,7 +537,9 @@ export class ProvidersService {
         .catch(() => null);
     }
 
-    return this.toPublicProviderProfile(updated as unknown as PublicProviderRow);
+    return this.toPublicProviderProfile(updated as unknown as PublicProviderRow, {
+      revealOwnerEmail: true,
+    });
   }
 
   async updateProviderSlug(userId: string, providerId: string, slug: string) {

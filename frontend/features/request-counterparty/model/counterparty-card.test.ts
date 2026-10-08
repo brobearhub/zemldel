@@ -46,7 +46,15 @@ describe("counterparty card", () => {
       providerEmail: null,
     });
     expect(filled[0]?.value).toBe("Геодезия Плюс");
+    expect(filled.some((field) => field.label === "Email")).toBe(false);
     expect(hasAnyCounterpartyValue(filled)).toBe(true);
+
+    const withEmail = getProviderContactFields({
+      providerName: "Геодезия Плюс",
+      providerPhone: null,
+      providerEmail: "studio@example.com",
+    });
+    expect(withEmail.find((field) => field.label === "Email")?.value).toBe("studio@example.com");
   });
 
   it("builds initials from given name then surname", () => {

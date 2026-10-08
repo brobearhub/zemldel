@@ -362,20 +362,6 @@ export class ServiceCreateDto {
 
   @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
-  @IsOptional()
-  @ValidateIf((_, value) => value !== null && value !== undefined)
-  @IsNumber()
-  rating?: number | null;
-
-  @ApiPropertyOptional({ nullable: true, example: null })
-  @Expose()
-  @IsOptional()
-  @ValidateIf((_, value) => value !== null && value !== undefined)
-  @IsInt()
-  reviewCount?: number | null;
-
-  @ApiPropertyOptional({ nullable: true, example: null })
-  @Expose()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
@@ -469,20 +455,6 @@ export class ServicePatchDto {
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   stockBadge?: string | null;
-
-  @ApiPropertyOptional({ nullable: true, example: null })
-  @Expose()
-  @IsOptional()
-  @ValidateIf((_, value) => value !== null && value !== undefined)
-  @IsNumber()
-  rating?: number | null;
-
-  @ApiPropertyOptional({ nullable: true, example: null })
-  @Expose()
-  @IsOptional()
-  @ValidateIf((_, value) => value !== null && value !== undefined)
-  @IsInt()
-  reviewCount?: number | null;
 
   @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()

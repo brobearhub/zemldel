@@ -49,6 +49,7 @@ describe("ServicesByCity", () => {
         email: "a@b.c",
         name: "User",
         image: null,
+        phone: null,
         systemRole: "CUSTOMER",
         activeProviderId: null,
         customerCity: { id: "c1", name: "Екатеринбург", regionCode: "66", regionName: "Свердловская область" },

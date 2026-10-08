@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { Stack } from "@mui/material";
 import { getActiveMembership } from "@/core/auth/authorization";
 import { getServerAuthSession } from "@/core/auth";
-import { BackendApiError, fetchBackendJson } from "@/shared/api/backend/server";
+import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
 import { ProfessionalWorkspacePanel } from "@/widgets/pro-dashboard/ui/ProfessionalWorkspacePanel";
 import { ProviderProfileEditorSection, type PublicProviderProfile } from "@/widgets/provider-profile-editor";
 
@@ -23,8 +23,9 @@ export default async function ProProfilePage() {
   }
 
   try {
-    const profile = await fetchBackendJson<PublicProviderProfile>(
-      `/providers/${activeMembership.providerId}/public`
+    const profile = await fetchBackendJsonAsUser<PublicProviderProfile>(
+      `/providers/${activeMembership.providerId}/public`,
+      session.user.id,
     );
 
     return (

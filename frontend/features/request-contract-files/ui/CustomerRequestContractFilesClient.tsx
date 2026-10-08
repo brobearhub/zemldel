@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Alert,
@@ -50,14 +50,13 @@ function statusLabel(status: ContractBundleStatus) {
 
 export function CustomerRequestContractFilesClient({
   requestId,
-  initialBundles,
+  bundles,
   onBundlesChange,
 }: {
   requestId: string;
-  initialBundles: CustomerContractBundleListItem[];
+  bundles: CustomerContractBundleListItem[];
   onBundlesChange?: (next: CustomerContractBundleListItem[]) => void;
 }) {
-  const [bundles, setBundles] = useState(initialBundles);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -71,18 +70,10 @@ export function CustomerRequestContractFilesClient({
     [bundles],
   );
 
-  useEffect(() => {
-    setBundles(initialBundles);
-  }, [initialBundles]);
-
-  useEffect(() => {
-    onBundlesChange?.(bundles);
-  }, [bundles, onBundlesChange]);
-
   async function refresh() {
     const res = await fetch(`/api/requests/${requestId}/contract-bundles`, { cache: "no-store" });
     const payload = (await res.json().catch(() => null)) as CustomerContractBundleListItem[] | { error?: string } | null;
-    if (res.ok && Array.isArray(payload)) setBundles(payload);
+    if (res.ok && Array.isArray(payload)) onBundlesChange?.(payload);
   }
 
   async function approve(bundleId: string) {

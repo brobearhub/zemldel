@@ -15,12 +15,28 @@ declare module "@mui/material/styles" {
     gray: string;
   }
 
+  interface TypeText {
+    /** Paler than `secondary` — inactive titles, low-emphasis labels. */
+    secondaryLight: string;
+  }
+
+  interface Palette {
+    /** Brand accent, separate from semantic `info`. */
+    accent: {
+      main: string;
+      contrastText: string;
+    };
+  }
+
+  interface PaletteOptions {
+    accent?: {
+      main: string;
+      contrastText?: string;
+    };
+  }
+
   interface Theme {
     custom: {
-      colors: {
-        /** Product accent (brand). */
-        accent: string;
-      };
       gradients: {
         /** Sage → cream atmospheric gradient */
         sunset: string;

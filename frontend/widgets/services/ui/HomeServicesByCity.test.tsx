@@ -85,6 +85,7 @@ describe("HomeServicesByCity", () => {
         email: "a@b.c",
         name: "User",
         image: null,
+        phone: null,
         systemRole: "CUSTOMER",
         activeProviderId: null,
         customerCity: { id: "c1", name: "Екатеринбург", regionCode: "66", regionName: "Свердловская область" },
@@ -170,6 +171,7 @@ describe("HomeServicesByCity", () => {
         email: "a@b.c",
         name: "User",
         image: null,
+        phone: null,
         systemRole: "CUSTOMER",
         activeProviderId: null,
         customerCity: { id: "c1", name: "Екатеринбург", regionCode: "66", regionName: "Свердловская область" },
@@ -221,7 +223,7 @@ describe("HomeServicesByCity", () => {
     expect(screen.queryByText("Екатеринбург")).not.toBeInTheDocument();
   });
 
-  it("sorts services inside each section by publishedAt desc", async () => {
+  it("keeps the catalog order returned by the API", async () => {
     const store = createTestStore({
       status: "authenticated",
       error: null,
@@ -230,6 +232,7 @@ describe("HomeServicesByCity", () => {
         email: "a@b.c",
         name: "User",
         image: null,
+        phone: null,
         systemRole: "CUSTOMER",
         activeProviderId: null,
         customerCity: { id: "c1", name: "Екатеринбург", regionCode: "66", regionName: "Свердловская область" },
@@ -316,12 +319,12 @@ describe("HomeServicesByCity", () => {
       </Provider>
     );
 
-    const myNew = await screen.findByText("Новая в моем городе");
-    const myOld = screen.getByText("Старая в моем городе");
-    expect(myNew.compareDocumentPosition(myOld) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const myOld = await screen.findByText("Старая в моем городе");
+    const myNew = screen.getByText("Новая в моем городе");
+    expect(myOld.compareDocumentPosition(myNew) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    const otherNew = screen.getByText("Новая в другом городе");
     const otherOld = screen.getByText("Старая в другом городе");
-    expect(otherNew.compareDocumentPosition(otherOld) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const otherNew = screen.getByText("Новая в другом городе");
+    expect(otherOld.compareDocumentPosition(otherNew) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

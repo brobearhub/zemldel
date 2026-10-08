@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  Param,
   Patch,
   Post,
   Req,
@@ -22,7 +23,7 @@ import {
 } from '@nestjs/swagger';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UserImageDto, UserListItemDto, UserMeProfileDto } from './dto/user-responses.dto';
+import { UserCustomerRatingDto, UserImageDto, UserListItemDto, UserMeProfileDto } from './dto/user-responses.dto';
 import { UsersService } from './users.service';
 import { ApiValidationErrorResponseDto } from '../common/dto/api-error-response.dto';
 import { ApiStandardErrors } from '../common/swagger/api-standard-errors.decorator';
@@ -48,21 +49,47 @@ export class UsersController {
     return this.usersService.createUser(body);
   }
 
+  @Get('me')
+  @ApiOkResponse({ type: UserCustomerRatingDto })
+  getMe(@Req() request: Request) {
+    const userId = this.internalAuthService.getUserIdFromRequest(request);
+    return this.usersService.getMe(userId);
+  }
+
   @Patch('me')
   @ApiBody({
     schema: {
       type: 'object',
       properties: {
         customerCityId: { type: 'string', format: 'uuid', nullable: true },
+        phone: { type: 'string', nullable: true, example: '+7 900 000-00-00' },
       },
     },
   })
   @ApiOkResponse({ type: UserMeProfileDto })
   updateMe(@Req() request: Request, @Body() body: unknown) {
     const userId = this.internalAuthService.getUserIdFromRequest(request);
-    const payload = body as { customerCityId?: string | null } | null;
+    const payload = body as { customerCityId?: string | null; phone?: unknown } | null;
     return this.usersService.updateMe(userId, {
       customerCityId: payload?.customerCityId,
+      phone: payload && 'phone' in payload ? payload.phone : undefined,
+    });
+  }
+
+  @Patch('me/profile-public')
+  setProfilePublic(@Req() request: Request, @Body() body: { profilePublic?: boolean }) {
+    const userId = this.internalAuthService.getUserIdFromRequest(request);
+    if (typeof body?.profilePublic !== 'boolean') {
+      throw new UnprocessableEntityException({ error: 'profilePublic is required' });
+    }
+    return this.usersService.setProfilePublic(userId, body.profilePublic);
+  }
+
+  @Get(':id/public')
+  getPublicProfile(@Req() request: Request, @Param('id') id: string) {
+    return this.usersService.getPublicProfile({
+      userId: id,
+      viewerUserId: this.internalAuthService.getOptionalUserIdFromRequest(request),
     });
   }
 

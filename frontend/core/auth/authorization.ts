@@ -34,6 +34,7 @@ export type AuthorizedUser = {
   email?: string | null;
   name?: string | null;
   image?: string | null;
+  phone?: string | null;
   systemRole: SystemRole;
   activeProviderId: string | null;
   customerCity: AuthCity | null;

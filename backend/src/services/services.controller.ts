@@ -49,15 +49,20 @@ export class ServicesController {
   @ApiOkResponse({ type: [ServiceDto] })
   @ApiQuery({ name: 'cityId', required: false, type: String })
   @ApiQuery({ name: 'excludeCityId', required: false, type: String })
+  @ApiQuery({ name: 'providerId', required: false, type: String })
   getPublicServices(
     @Query('cityId') cityId?: string,
     @Query('excludeCityId') excludeCityId?: string,
+    @Query('providerId') providerId?: string,
   ) {
     if (cityId && !isUUID(cityId)) {
       throw new UnprocessableEntityException({ error: 'Invalid cityId' });
     }
     if (excludeCityId && !isUUID(excludeCityId)) {
       throw new UnprocessableEntityException({ error: 'Invalid excludeCityId' });
+    }
+    if (providerId && !isUUID(providerId)) {
+      throw new UnprocessableEntityException({ error: 'Invalid providerId' });
     }
     if (cityId && excludeCityId) {
       throw new UnprocessableEntityException({
@@ -68,6 +73,9 @@ export class ServicesController {
     return this.servicesService.getServices({
       cityId: cityId ?? null,
       excludeCityId: excludeCityId ?? null,
+      providerId: providerId ?? null,
+      // Why: страница провайдера публичная, черновики и архив туда не попадают.
+      publishedOnly: Boolean(providerId),
     });
   }
 

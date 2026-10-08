@@ -28,6 +28,7 @@ export function SessionSync() {
           email: user.email ?? null,
           name: user.name ?? null,
           image: user.image ?? null,
+          phone: user.phone ?? null,
           systemRole: user.systemRole,
           activeProviderId: user.activeProviderId,
           customerCity: user.customerCity ?? null,

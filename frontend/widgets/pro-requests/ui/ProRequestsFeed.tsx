@@ -3,7 +3,7 @@
 import { Alert, Chip, Stack, Tab, Tabs, Typography, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { useEffect, useMemo, useState } from "react";
-import { isOpenRequestStatus, type RequestCustomerDto, type RequestProDto } from "@/entities/request";
+import { isOpenRequestStatus, type RequestProDto } from "@/entities/request";
 import { useProRequestsFeed } from "@/widgets/pro-requests/model/useProRequestsFeed";
 import type { DialogScope } from "@/widgets/pro-requests/model/types";
 import { FeedColumn } from "@/widgets/pro-requests/ui/FeedColumn";
@@ -12,7 +12,7 @@ import { ProRequestsFeedHeader } from "@/widgets/pro-requests/ui/ProRequestsFeed
 import { OrderList } from "@/widgets/pro-requests/ui/OrderList";
 import { ServiceRequestList } from "@/widgets/pro-requests/ui/ServiceRequestList";
 
-type Props = { initialItems: RequestProDto[]; initialActiveOrders: RequestCustomerDto[] };
+type Props = { initialItems: RequestProDto[]; initialActiveOrders: RequestProDto[] };
 
 type MobileTab = "NEW" | "DISCUSSING" | "ORDERS";
 function isDialogScope(value: unknown): value is DialogScope {
@@ -21,16 +21,16 @@ function isDialogScope(value: unknown): value is DialogScope {
 
 const DESKTOP_COL_HEADER_HEIGHT = 44;
 
-async function fetchActiveOrders(): Promise<RequestCustomerDto[]> {
+async function fetchActiveOrders(): Promise<RequestProDto[]> {
   const res = await fetch("/api/pro/requests", { cache: "no-store" });
-  const payload = (await res.json().catch(() => null)) as RequestCustomerDto[] | { error?: string } | null;
+  const payload = (await res.json().catch(() => null)) as RequestProDto[] | { error?: string } | null;
   if (!res.ok) {
     throw new Error(
       payload && typeof payload === "object" && !Array.isArray(payload) && payload.error ? payload.error : "Не удалось загрузить заявки"
     );
   }
   const list = Array.isArray(payload) ? payload : [];
-  return list.filter((o) => o && typeof o === "object" && isOpenRequestStatus((o as RequestCustomerDto).status)) as RequestCustomerDto[];
+  return list.filter((o) => o && typeof o === "object" && isOpenRequestStatus(o.status));
 }
 
 export function ProRequestsFeed({ initialItems, initialActiveOrders }: Props) {
@@ -38,7 +38,7 @@ export function ProRequestsFeed({ initialItems, initialActiveOrders }: Props) {
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
 
   const feed = useProRequestsFeed({ initialItems, isDesktop });
-  const [activeOrders, setActiveOrders] = useState<RequestCustomerDto[]>(initialActiveOrders);
+  const [activeOrders, setActiveOrders] = useState<RequestProDto[]>(initialActiveOrders);
   const [ordersError, setOrdersError] = useState<string | null>(null);
   const [activeCategoryIds, setActiveCategoryIds] = useState<string[]>([]);
   const [includeFreeform, setIncludeFreeform] = useState(false);

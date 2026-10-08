@@ -204,7 +204,7 @@ export function CustomerRequestDocumentsSection(props: Props) {
 
       <CustomerRequestContractFilesClient
         requestId={props.request.id}
-        initialBundles={props.contractBundles}
+        bundles={props.contractBundles}
         onBundlesChange={props.onContractBundlesChange}
       />
 

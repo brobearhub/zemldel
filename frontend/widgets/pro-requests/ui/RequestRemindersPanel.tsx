@@ -12,13 +12,11 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { ruRU } from "@mui/x-date-pickers/locales";
+import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
 import type { RequestReminderDto } from "@/entities/request";
+import { AppDateLocalization } from "@/shared/ui/date-field";
 import dayjs, { type Dayjs } from "dayjs";
-import "dayjs/locale/ru";
 
 type Props = { requestId: string };
 
@@ -173,11 +171,7 @@ export function RequestRemindersPanel({ requestId }: Props) {
             onChange={(e) => setText(e.target.value)}
             sx={{ flex: 1, minWidth: 160 }}
           />
-          <LocalizationProvider
-            dateAdapter={AdapterDayjs}
-            adapterLocale="ru"
-            localeText={ruRU.components.MuiLocalizationProvider.defaultProps.localeText}
-          >
+          <AppDateLocalization>
             <DateTimePicker
             views={["hours", "minutes"]}
             openTo="hours"
@@ -208,7 +202,7 @@ export function RequestRemindersPanel({ requestId }: Props) {
                 },
               }}
             />
-          </LocalizationProvider>
+          </AppDateLocalization>
           <Button
             variant="outlined"
             size="small"

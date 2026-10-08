@@ -12,6 +12,7 @@ import {
   IsBoolean,
   IsEnum,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -194,6 +195,30 @@ function nonemptyOrNull(value: string | null | undefined): string | null {
   if (typeof value !== 'string') return null;
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : null;
+}
+
+/** Контактный телефон профиля важнее телефона из юридических реквизитов. */
+function resolveProviderContactPhone(
+  provider: RequestDbRow['provider'],
+): string | null {
+  return (
+    nonemptyOrNull(provider?.phone) ??
+    nonemptyOrNull(provider?.legalProfile?.phone)
+  );
+}
+
+/**
+ * Свой email провайдера важнее email аккаунта.
+ * Аккаунт подставляется только при useOwnEmail.
+ * Иначе поле клиенту не отдаём.
+ */
+function resolveProviderContactEmail(
+  provider: RequestDbRow['provider'],
+): string | null {
+  const ownEmail = nonemptyOrNull(provider?.email);
+  if (ownEmail) return ownEmail;
+  if (!provider?.useOwnEmail) return null;
+  return nonemptyOrNull(provider.ownerUser?.email);
 }
 
 export class RequestUnlinkedCreateDto {
@@ -531,6 +556,18 @@ export class RequestCustomerDto {
   @Expose()
   @IsOptional()
   @IsString()
+  serviceImage!: string | null;
+
+  @ApiProperty({ nullable: true, example: null })
+  @Expose()
+  @IsOptional()
+  @IsString()
+  categoryName!: string | null;
+
+  @ApiProperty({ nullable: true, example: null })
+  @Expose()
+  @IsOptional()
+  @IsString()
   providerName!: string | null;
 
   @ApiProperty({ nullable: true, example: null })
@@ -777,6 +814,17 @@ export class RequestProDto {
   @IsString()
   customerImage!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
+  @Expose()
+  @IsOptional()
+  @IsNumber()
+  customerRating!: number | null;
+
+  @ApiProperty({ example: 0 })
+  @Expose()
+  @IsInt()
+  customerReviewCount!: number;
+
   @ApiProperty()
   @Expose()
   conversationsCount!: number;
@@ -875,18 +923,23 @@ export type RequestDbRow = {
   totalAmountRubles?: number | null;
   createdAt: Date;
   updatedAt: Date;
-  service?: { title: string } | null;
+  service?: { title: string; image?: string | null } | null;
   category?: { name: string } | null;
   customerUser?: {
     customerCityId: string | null;
     name?: string | null;
     email?: string | null;
     image?: string | null;
+    customerRating?: number | null;
+    customerReviewCount?: number | null;
   } | null;
   provider?: {
     name: string;
+    phone?: string | null;
+    email?: string | null;
+    useOwnEmail?: boolean;
     legalProfile?: { phone: string | null; email: string | null } | null;
-    ownerUser?: { image?: string | null } | null;
+    ownerUser?: { image?: string | null; email?: string | null } | null;
   } | null;
   providerOffers?: Array<{
     providerId: string;
@@ -996,12 +1049,14 @@ export function requestRowToCustomerDtoPlain(
       autoAcceptAt: row.autoAcceptAt ? row.autoAcceptAt.toISOString() : null,
       acceptedAt: row.acceptedAt ? row.acceptedAt.toISOString() : null,
       serviceTitle: row.service?.title ?? null,
+      serviceImage: nonemptyOrNull(row.service?.image),
+      categoryName: nonemptyOrNull(row.category?.name),
       providerName: row.provider?.name ?? null,
       providerPhone: hasRequestLock(row)
-        ? nonemptyOrNull(row.provider?.legalProfile?.phone)
+        ? resolveProviderContactPhone(row.provider)
         : null,
       providerEmail: hasRequestLock(row)
-        ? nonemptyOrNull(row.provider?.legalProfile?.email)
+        ? resolveProviderContactEmail(row.provider)
         : null,
       providerImage: hasRequestLock(row)
         ? nonemptyOrNull(row.provider?.ownerUser?.image)
@@ -1089,18 +1144,22 @@ export function requestRowToProDtoPlain(
         : null,
       autoAcceptAt: row.autoAcceptAt ? row.autoAcceptAt.toISOString() : null,
       acceptedAt: row.acceptedAt ? row.acceptedAt.toISOString() : null,
-      customerName: revealCustomerContacts
-        ? nonemptyOrNull(row.customerName)
-        : null,
+      // Why: имя и фото видны в ленте сразу; телефон и email — только после фиксации.
+      customerName: locked
+        ? null
+        : (nonemptyOrNull(row.customerName) ??
+          nonemptyOrNull(row.customerUser?.name)),
       customerEmail: revealCustomerContacts
         ? nonemptyOrNull(row.customerEmail)
         : null,
       customerPhone: revealCustomerContacts
         ? nonemptyOrNull(row.customerPhone)
         : null,
-      customerImage: revealCustomerContacts
-        ? nonemptyOrNull(row.customerUser?.image)
-        : null,
+      customerImage: locked
+        ? null
+        : nonemptyOrNull(row.customerUser?.image),
+      customerRating: row.customerUser?.customerRating ?? null,
+      customerReviewCount: row.customerUser?.customerReviewCount ?? 0,
       conversationsCount,
       isLocked: locked,
       ...toFinanceDto(row, revealCustomerContacts),

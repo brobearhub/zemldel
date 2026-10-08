@@ -15,9 +15,12 @@ import {
 } from "@mui/material";
 import { RequestCityInactiveWarning } from "@/shared/ui/RequestCityInactiveWarning";
 import {
+  canProviderManageDealDocuments,
   getRequestStatusLabel,
   mergeWorkStageStatusOptions,
+  resolvePaymentTriggerLabel,
   resolveRequestDetailBody,
+  resolveRequestDetailTitle,
   SYSTEM_WORK_STAGE_STATUSES,
   type RequestRemarkDto,
   type RequestProDto,
@@ -47,6 +50,7 @@ import {
 } from "@/widgets/request-remarks";
 import { RequestWorkProgress } from "@/widgets/request-work-progress";
 import { RequestPayments } from "@/widgets/request-payments";
+import { RequestReviewsPanel } from "@/widgets/request-reviews";
 import {
   fetchProWorkStages,
   fetchWorkStageStatuses,
@@ -118,7 +122,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   const [activePanelId, setActivePanelId] = useState<"payment" | "counterparty" | "cadastral" | null>(null);
 
   const isBusy = busy || uploadBusy;
-  const showContractWorkflow = req.isLocked && req.offerStatus === "SELECTED";
+  const showContractWorkflow = canProviderManageDealDocuments(req);
   const hasPendingContractFiles = contractBundles.some((b) => b.status === "PENDING_CUSTOMER");
   const hasRevisionRequested = contractBundles.some((b) => b.status === "REVISION_REQUESTED");
   const hasApproved = contractBundles.some((b) => b.status === "APPROVED");
@@ -527,6 +531,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   }
 
   const messageBody = resolveRequestDetailBody(req.message, req.serviceTitle);
+  const headerTitle = resolveRequestDetailTitle(req.subjectType, req.serviceTitle);
   const showCounterparty = canShowProviderCounterpartyButton({
     lockedAt: req.lockedAt,
     isLocked: req.isLocked,
@@ -540,7 +545,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
 
   const panelItems = [
     { id: "cadastral", label: "Кадастровый номер", visible: true, endIcon: <PinDropOutlinedIcon /> },
-    { id: "payment", label: "Оплата", visible: showPayment, endIcon: <PaymentIcon /> },
+    { id: "payment", label: resolvePaymentTriggerLabel(req.totalAmountRubles), visible: showPayment, endIcon: <PaymentIcon /> },
     { id: "counterparty", label: "Клиент", visible: showCounterparty, endIcon: <AssignmentIndIcon /> },
   ] as const;
 
@@ -613,6 +618,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
         onClose={() => setActivePanelId(null)}
       >
         <RequestDetailHeaderCard
+          title={headerTitle}
           subtitle={subtitle}
           statusLabel={getRequestStatusLabel(req.status)}
           body={messageBody}
@@ -705,6 +711,8 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
           </Stack>
         </Paper>
       </Backdrop>
+
+      <RequestReviewsPanel requestId={req.id} status={req.status} side="provider" />
 
       <RequestWorkProgress
         mode="provider"

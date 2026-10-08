@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { Request as ExpressRequest } from 'express';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { InternalAuthService } from '../auth/internal-auth.service';
@@ -38,9 +38,21 @@ import {
   normalizeCadastralNumberValue,
   normalizeCadastralNumbers,
 } from './dto/request-cadastral-number.dto';
+import {
+  addRequestListStageCount,
+  foldRequestListStageCounts,
+  matchesRequestListStage,
+  parseRequestListFeedQuery,
+  requestListScopeWhere,
+  requestListStageWhere,
+  type RequestListFeedQuery,
+  type RequestListScope,
+  type RequestListStageCounts,
+} from './request-list-stage';
 import { formatProviderDeclineChatMessage } from './dto/decline-offer.dto';
 import { formatCustomerSelectProviderChatMessage } from './dto/select-provider.dto';
 import { randomUUID } from 'node:crypto';
+import { foldProRequestStats, type ProRequestStats } from './pro-request-stats';
 
 const select = {
   id: true,
@@ -76,16 +88,28 @@ const select = {
   totalAmountRubles: true,
   createdAt: true,
   updatedAt: true,
-  service: { select: { title: true, providerId: true } },
+  service: { select: { title: true, image: true, providerId: true } },
   category: { select: { name: true } },
   provider: {
     select: {
       name: true,
+      phone: true,
+      email: true,
+      useOwnEmail: true,
       legalProfile: { select: { phone: true, email: true } },
-      ownerUser: { select: { image: true } },
+      ownerUser: { select: { image: true, email: true } },
     },
   },
-  customerUser: { select: { customerCityId: true, name: true, email: true, image: true } },
+  customerUser: {
+    select: {
+      customerCityId: true,
+      name: true,
+      email: true,
+      image: true,
+      customerRating: true,
+      customerReviewCount: true,
+    },
+  },
   providerOffers: {
     select: {
       providerId: true,
@@ -1304,23 +1328,59 @@ export class RequestsService {
 
   // --- Provider: read ---
 
-  async listProFeed(actorProviderId: string): Promise<RequestProDto[]> {
-    const [providerRegionCode, eligibleCategoryIds] = await Promise.all([
+  /**
+   * Why: обзор считает воронку по статусам и не читает карточки заявок.
+   */
+  async countProRequestStats(actorProviderId: string): Promise<ProRequestStats> {
+    const buckets = await this.prisma.$queryRaw<
+      Array<{ status: string; count: number; latest: Date | null }>
+    >`
+      SELECT status::text AS status,
+             COUNT(*)::int AS count,
+             MAX("updatedAt") AS latest
+      FROM "Request"
+      WHERE "providerId" = ${actorProviderId}::uuid
+        AND "serviceId" IS NOT NULL
+      GROUP BY 1
+    `;
+    return foldProRequestStats(
+      buckets.map((bucket) => ({
+        status: bucket.status,
+        count: Number(bucket.count),
+        latestUpdatedAt: bucket.latest,
+      })),
+    );
+  }
+
+  async listProFeed(
+    actorProviderId: string,
+    input: RequestListFeedQuery,
+  ): Promise<{ items: RequestProDto[]; counts: RequestListStageCounts }> {
+    const parsed = parseRequestListFeedQuery(input);
+    if (!parsed.ok) throw new BadRequestException(parsed.message);
+
+    const stageWhere = requestListStageWhere(parsed.stage);
+    const scopeWhere = requestListScopeWhere(parsed.scope);
+    const [providerRegionCode, eligibleCategoryIds, counts] = await Promise.all([
       this.getProviderRegionCode(actorProviderId),
       this.getProviderEligibleCategoryIds(actorProviderId),
+      this.countRequestListStages(actorProviderId, parsed.scope),
     ]);
 
     const [assignedRows, unassignedRows, activeOtherRows] = await Promise.all([
       this.prisma.request.findMany({
-        where: { providerId: actorProviderId },
+        where: { AND: [{ providerId: actorProviderId }, stageWhere, scopeWhere] },
         select,
         orderBy: [{ createdAt: 'desc' }],
         take: 200,
       }),
       this.prisma.request.findMany({
         where: {
-          providerId: null,
-          status: { in: ['NEW', 'DISCUSSING'] },
+          AND: [
+            { providerId: null, status: { in: ['NEW', 'DISCUSSING'] } },
+            stageWhere,
+            scopeWhere,
+          ],
         },
         select,
         orderBy: [{ createdAt: 'desc' }],
@@ -1328,9 +1388,11 @@ export class RequestsService {
       }),
       this.prisma.request.findMany({
         where: {
-          serviceId: null,
-          providerId: { not: null },
-          status: 'ACTIVE',
+          AND: [
+            { serviceId: null, providerId: { not: null }, status: 'ACTIVE' },
+            stageWhere,
+            scopeWhere,
+          ],
         },
         select,
         orderBy: [{ createdAt: 'desc' }],
@@ -1379,19 +1441,99 @@ export class RequestsService {
       }
     }
 
+    const scope = parsed.scope;
     const merged = [
       ...(assignedRows as unknown as RequestDbRow[]),
       ...eligibleUnassigned,
       ...eligibleActiveOther,
     ]
+      .filter(
+        (row) =>
+          matchesRequestListStage(row, parsed.stage) &&
+          (scope.kind === 'free' ? row.serviceId == null : row.serviceId === scope.serviceId),
+      )
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, 200);
 
     const ids = merged.map((r) => r.id);
-    const counts = await this.getConversationCounts(ids);
-    return merged.map((r) =>
-      requestRowToProDtoPlain(r, counts.get(r.id) ?? 0, actorProviderId),
+    const conversationCounts = await this.getConversationCounts(ids);
+    return {
+      items: merged.map((r) =>
+        requestRowToProDtoPlain(r, conversationCounts.get(r.id) ?? 0, actorProviderId),
+      ),
+      counts,
+    };
+  }
+
+  /**
+   * Why: кружки всех шагов не требуют карточек заявок.
+   * Один GROUP BY по своим заявкам, плюс узкий список свободных без исполнителя.
+   */
+  private async countRequestListStages(
+    actorProviderId: string,
+    scope: RequestListScope,
+  ): Promise<RequestListStageCounts> {
+    const scopeSql =
+      scope.kind === 'free'
+        ? Prisma.sql`"serviceId" IS NULL`
+        : Prisma.sql`"serviceId" = ${scope.serviceId}::uuid`;
+    const buckets = await this.prisma.$queryRaw<
+      Array<{ status: string; locked: boolean; count: number }>
+    >`
+      SELECT status::text AS status,
+             ("lockedAt" IS NOT NULL) AS locked,
+             COUNT(*)::int AS count
+      FROM "Request"
+      WHERE "providerId" = ${actorProviderId}::uuid
+        AND ${scopeSql}
+        AND status NOT IN ('CANCELLED', 'CLOSED')
+      GROUP BY 1, 2
+    `;
+    const counts = foldRequestListStageCounts(
+      buckets.map((bucket) => ({
+        status: bucket.status as RequestDbRow['status'],
+        locked: Boolean(bucket.locked),
+        count: Number(bucket.count),
+      })),
     );
+    if (scope.kind !== 'free') return counts;
+
+    const unassigned = await this.prisma.request.findMany({
+      where: {
+        providerId: null,
+        serviceId: null,
+        status: { notIn: ['CANCELLED', 'CLOSED'] },
+      },
+      select: {
+        id: true,
+        status: true,
+        lockedAt: true,
+        categoryId: true,
+        serviceId: true,
+        requestCityId: true,
+        customerUser: { select: { customerCityId: true } },
+      },
+    });
+    const [providerRegionCode, eligibleCategoryIds, regionById] = await Promise.all([
+      this.getProviderRegionCode(actorProviderId),
+      this.getProviderEligibleCategoryIds(actorProviderId),
+      this.resolveRequestsRegionCodes(unassigned),
+    ]);
+    for (const row of unassigned) {
+      try {
+        this.assertProviderEligibleForUnassignedRequest(
+          actorProviderId,
+          row,
+          providerRegionCode,
+          eligibleCategoryIds,
+          regionById,
+        );
+        addRequestListStageCount(counts, row);
+      } catch {
+        // не видна этому исполнителю
+      }
+    }
+    return counts;
   }
 
   async listProInbox(

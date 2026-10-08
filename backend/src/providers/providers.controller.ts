@@ -66,6 +66,13 @@ export class ProvidersController {
     return this.providersService.createProvider(userId, body);
   }
 
+  @Get('by-slug/:slug')
+  @ApiParam({ name: 'slug', type: String })
+  @ApiOkResponse({ type: PublicProviderProfileDto })
+  getPublicProviderProfileBySlug(@Param('slug') slug: string) {
+    return this.providersService.getPublicProviderProfileBySlug(slug);
+  }
+
   @Get('slug-check')
   @ApiQuery({ name: 'slug', required: true, type: String })
   @ApiOkResponse({ type: ProviderSlugCheckDto })
@@ -83,8 +90,9 @@ export class ProvidersController {
   @Get(':providerId/public')
   @ApiParam({ name: 'providerId', type: String })
   @ApiOkResponse({ type: PublicProviderProfileDto })
-  getPublicProviderProfile(@Param('providerId') providerId: string) {
-    return this.providersService.getPublicProviderProfile(providerId);
+  getPublicProviderProfile(@Req() request: Request, @Param('providerId') providerId: string) {
+    const actorUserId = this.internalAuthService.getOptionalUserIdFromRequest(request);
+    return this.providersService.getPublicProviderProfile(providerId, actorUserId);
   }
 
   @Post(':providerId/activate')

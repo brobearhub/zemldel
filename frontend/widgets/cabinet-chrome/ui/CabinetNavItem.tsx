@@ -27,6 +27,8 @@ export function CabinetNavItem({ href, label, icon, selected, badge, size }: Pro
         justifyContent: "center",
         color: tone,
         textDecoration: "none",
+        outline: "none",
+        "&:focus, &:focus-visible": { outline: "none" },
         px: size === "desktop" ? 1.5 : 1,
         py: size === "desktop" ? 1 : 0.75,
         borderRadius: 1,

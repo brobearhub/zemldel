@@ -18,6 +18,7 @@ import {
 import { ServiceCard } from "@/entities/service";
 import type { ServiceDto, ServiceStatus } from "@/entities/service";
 import { SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
+import { toPublicAssetSrc } from "@/shared/lib/public-asset-src";
 import { useAppSelector } from "@/core/store/hooks";
 
 type Props = {
@@ -39,8 +40,6 @@ type ServiceFormState = {
   description: string;
   paletteColor: string;
   icon: string;
-  rating: string;
-  reviewCount: string;
 };
 
 function normalizeNullableString(value: string): string | null {
@@ -94,8 +93,6 @@ function createInitialState(service?: ServiceDto): ServiceFormState {
     description: service?.description ?? "",
     paletteColor: service?.paletteColor ?? "",
     icon: service?.icon ?? "",
-    rating: service?.rating == null ? "" : String(service.rating),
-    reviewCount: service?.reviewCount == null ? "" : String(service.reviewCount),
   };
 }
 
@@ -212,9 +209,6 @@ export function ProServiceEditor({ mode, initialService }: Props) {
   const method = mode === "create" ? "POST" : "PATCH";
 
   const payload = useMemo(() => {
-    const rating = form.rating.trim();
-    const reviewCount = form.reviewCount.trim();
-
     return {
       categoryId: form.categoryId,
       title: form.title,
@@ -226,8 +220,6 @@ export function ProServiceEditor({ mode, initialService }: Props) {
       description: normalizeNullableString(form.description),
       paletteColor: normalizeNullableString(form.paletteColor),
       icon: normalizeNullableString(form.icon),
-      rating: rating.length ? Number(rating) : null,
-      reviewCount: reviewCount.length ? Math.trunc(Number(reviewCount)) : null,
     };
   }, [form]);
 
@@ -242,22 +234,6 @@ export function ProServiceEditor({ mode, initialService }: Props) {
     }
     if (!form.ctaText.trim()) {
       issues.push("Укажите текст CTA.");
-    }
-
-    const normalizedRating = form.rating.trim();
-    if (normalizedRating.length) {
-      const parsedRating = Number(normalizedRating);
-      if (Number.isNaN(parsedRating) || parsedRating < 0 || parsedRating > 5) {
-        issues.push("Рейтинг должен быть числом от 0 до 5.");
-      }
-    }
-
-    const normalizedReviewCount = form.reviewCount.trim();
-    if (normalizedReviewCount.length) {
-      const parsedReviewCount = Number(normalizedReviewCount);
-      if (!Number.isInteger(parsedReviewCount) || parsedReviewCount < 0) {
-        issues.push("Количество отзывов должно быть целым неотрицательным числом.");
-      }
     }
 
     return issues;
@@ -277,8 +253,8 @@ export function ProServiceEditor({ mode, initialService }: Props) {
         name: activeMembership?.providerName ?? "Провайдер",
         city: activeMembership?.providerCity ?? null,
       },
-      rating: form.rating.trim().length ? Number(form.rating) : null,
-      reviewCount: form.reviewCount.trim().length ? Math.trunc(Number(form.reviewCount)) : null,
+      rating: initialService?.rating ?? null,
+      reviewCount: initialService?.reviewCount ?? null,
       ctaText: form.ctaText.trim() || "Оставить заявку",
       ctaHref: normalizeNullableString(form.ctaHref),
     };
@@ -290,11 +266,11 @@ export function ProServiceEditor({ mode, initialService }: Props) {
     form.ctaText,
     form.image,
     form.price,
-    form.rating,
-    form.reviewCount,
     form.stockBadge,
     form.title,
     initialService?.id,
+    initialService?.rating,
+    initialService?.reviewCount,
     pendingImage?.previewUrl,
   ]);
 
@@ -676,7 +652,7 @@ export function ProServiceEditor({ mode, initialService }: Props) {
                     <Box
                       component="img"
                       alt="Загруженное изображение услуги"
-                      src={form.image}
+                      src={toPublicAssetSrc(form.image)}
                       sx={{
                         width: 300,
                         height: 300,
@@ -759,39 +735,6 @@ export function ProServiceEditor({ mode, initialService }: Props) {
                     </MenuItem>
                   ))}
                 </TextField>
-              </Stack>
-            </Stack>
-          </Paper>
-
-          <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 }, display: "none" }}>
-            <Stack spacing={2}>
-              <Typography variant="subtitle1" sx={{
-                fontWeight: 800
-              }}>
-                Социальное доказательство
-              </Typography>
-
-              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                <TextField
-                  label="Rating"
-                  type="number"
-                  value={form.rating}
-                  onChange={(event) => setForm((current) => ({ ...current, rating: event.target.value }))}
-                  disabled={busy}
-                  fullWidth
-                  slotProps={{ htmlInput: { min: 0, max: 5, step: 0.1 } }}
-                  helperText="Необязательно. Диапазон от 0 до 5."
-                />
-                <TextField
-                  label="Review count"
-                  type="number"
-                  value={form.reviewCount}
-                  onChange={(event) => setForm((current) => ({ ...current, reviewCount: event.target.value }))}
-                  disabled={busy}
-                  fullWidth
-                  slotProps={{ htmlInput: { min: 0, step: 1 } }}
-                  helperText="Необязательно. Только целое число."
-                />
               </Stack>
             </Stack>
           </Paper>

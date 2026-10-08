@@ -6,25 +6,6 @@ import { ServiceCard, type ServiceCardItem } from "@/entities/service";
 import { ServiceSectionHeader } from "@/widgets/services/ui/ServiceSectionHeader";
 import { useSelectedCity } from "@/features/select-city";
 
-function getPublishedAtTs(value: string | null | undefined): number | null {
-  if (!value) return null;
-  const ts = Date.parse(value);
-  return Number.isFinite(ts) ? ts : null;
-}
-
-function compareByPublishedAtDesc(a: ServiceCardItem, b: ServiceCardItem) {
-  const ta = getPublishedAtTs(a.publishedAt ?? null);
-  const tb = getPublishedAtTs(b.publishedAt ?? null);
-
-  // Unknown dates go last
-  if (ta === null && tb === null) return a.id.localeCompare(b.id);
-  if (ta === null) return 1;
-  if (tb === null) return -1;
-
-  if (ta !== tb) return tb - ta;
-  return a.id.localeCompare(b.id);
-}
-
 function ServiceGrid({
   items,
   variant,
@@ -72,16 +53,12 @@ export function ServicesByCity({
   const cityName = selectedCity?.name ?? null;
 
   const myCityItems = useMemo(() => {
-    const filtered = cityId ? items.filter((service) => service.provider.city?.id === cityId) : items;
-    return [...filtered].sort(compareByPublishedAtDesc);
+    return cityId ? items.filter((service) => service.provider.city?.id === cityId) : items;
   }, [items, cityId]);
 
   const otherCityItems = useMemo(() => {
     if (!cityId) return [];
-    const filtered = items.filter(
-      (service) => service.provider.city?.id != null && service.provider.city.id !== cityId
-    );
-    return [...filtered].sort(compareByPublishedAtDesc);
+    return items.filter((service) => service.provider.city?.id != null && service.provider.city.id !== cityId);
   }, [items, cityId]);
 
   return (

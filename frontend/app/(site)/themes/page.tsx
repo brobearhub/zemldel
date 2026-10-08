@@ -81,6 +81,7 @@ function getPaletteSwatches(theme: Theme) {
       title: "Semantic",
       items: [
         ["info.main", theme.palette.info.main],
+        ["accent.main", theme.palette.accent.main],
         ["success.main", theme.palette.success.main],
         ["warning.main", theme.palette.warning.main],
         ["error.main", theme.palette.error.main],
@@ -106,10 +107,6 @@ function getPaletteSwatches(theme: Theme) {
         ["action.disabledBackground", theme.palette.action.disabledBackground],
         ["action.focus", theme.palette.action.focus],
       ],
-    },
-    {
-      title: "Custom",
-      items: [["custom.colors.accent", theme.custom.colors.accent]],
     },
   ] as const;
 }

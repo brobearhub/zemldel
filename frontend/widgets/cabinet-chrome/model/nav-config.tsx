@@ -14,6 +14,7 @@ import Groups2OutlinedIcon from "@mui/icons-material/Groups2Outlined";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import BuildOutlinedIcon from "@mui/icons-material/BuildOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import AutoStoriesOutlinedIcon from "@mui/icons-material/AutoStoriesOutlined";
 
 export type CabinetRole = "customer" | "provider";
 
@@ -55,6 +56,14 @@ export const CUSTOMER_NAV: {
         pathname.startsWith("/profile") && isProfileSection(searchParams, "documents"),
     },
     {
+      key: "stories",
+      label: "История",
+      href: "/profile?section=stories",
+      icon: <AutoStoriesOutlinedIcon />,
+      isActive: ({ pathname, searchParams }) =>
+        pathname.startsWith("/profile") && isProfileSection(searchParams, "stories"),
+    },
+    {
       key: "profile",
       label: "Профиль",
       href: "/profile?section=profile",
@@ -102,6 +111,14 @@ export const CUSTOMER_NAV: {
         pathname.startsWith("/profile") && isProfileSection(searchParams, "documents"),
     },
     {
+      key: "stories",
+      label: "История",
+      href: "/profile?section=stories",
+      icon: <AutoStoriesOutlinedIcon />,
+      isActive: ({ pathname, searchParams }) =>
+        pathname.startsWith("/profile") && isProfileSection(searchParams, "stories"),
+    },
+    {
       key: "profile",
       label: "Профиль",
       href: "/profile?section=profile",
@@ -129,9 +146,9 @@ export const PROVIDER_NAV: {
     {
       key: "requests",
       label: "Заявки",
-      href: "/pro",
+      href: "/pro/requests",
       icon: <DynamicFeedOutlinedIcon />,
-      isActive: ({ pathname }) => pathname === "/pro" || pathname.startsWith("/pro/requests"),
+      isActive: ({ pathname }) => pathname === "/pro/requests" || pathname.startsWith("/pro/requests/"),
       badgeKind: "chatUnreadTotal",
     },
     {
@@ -175,6 +192,13 @@ export const PROVIDER_NAV: {
       href: "/pro/services/list",
       icon: <BuildOutlinedIcon />,
       isActive: ({ pathname }) => pathname.startsWith("/pro/services"),
+    },
+    {
+      key: "stories",
+      label: "История",
+      href: "/pro/stories",
+      icon: <AutoStoriesOutlinedIcon />,
+      isActive: ({ pathname }) => pathname.startsWith("/pro/stories"),
     },
     {
       key: "profile",
@@ -195,9 +219,9 @@ export const PROVIDER_NAV: {
     {
       key: "requests",
       label: "Заявки",
-      href: "/pro",
+      href: "/pro/requests",
       icon: <DynamicFeedOutlinedIcon />,
-      isActive: ({ pathname }) => pathname === "/pro" || pathname.startsWith("/pro/requests"),
+      isActive: ({ pathname }) => pathname === "/pro/requests" || pathname.startsWith("/pro/requests/"),
       badgeKind: "chatUnreadTotal",
     },
     {
@@ -212,9 +236,9 @@ export const PROVIDER_NAV: {
     {
       key: "home",
       label: "Домой",
-      href: "/",
+      href: "/pro",
       icon: <HomeOutlinedIcon />,
-      isActive: ({ pathname }) => pathname === "/",
+      isActive: ({ pathname }) => pathname === "/pro",
     },
     {
       key: "overview",
@@ -250,6 +274,13 @@ export const PROVIDER_NAV: {
       href: "/pro/services/list",
       icon: <BuildOutlinedIcon />,
       isActive: ({ pathname }) => pathname.startsWith("/pro/services"),
+    },
+    {
+      key: "stories",
+      label: "История",
+      href: "/pro/stories",
+      icon: <AutoStoriesOutlinedIcon />,
+      isActive: ({ pathname }) => pathname.startsWith("/pro/stories"),
     },
     {
       key: "profile",

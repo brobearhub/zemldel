@@ -7,6 +7,7 @@ declare module "next-auth" {
       id: string;
       systemRole: SystemRole;
       activeProviderId: string | null;
+      phone: string | null;
       customerCity: AuthCity | null;
       memberships: AuthMembership[];
       linkedAuthProviders?: AuthProviderKey[];
@@ -23,6 +24,7 @@ declare module "next-auth/jwt" {
     image?: string | null;
     systemRole?: SystemRole;
     activeProviderId?: string | null;
+    phone?: string | null;
     customerCity?: AuthCity | null;
     memberships?: AuthMembership[];
     linkedAuthProviders?: AuthProviderKey[];

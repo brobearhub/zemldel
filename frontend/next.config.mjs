@@ -8,6 +8,14 @@ const nextConfig = {
   reactStrictMode: true,
   turbopack: {
     root: projectRoot,
+    // Why: @mui/x-chat грузит remend через приватный импорт `#remend`, который webpack/turbopack не резолвят из node_modules.
+    resolveAlias: {
+      "#remend": "./node_modules/remend",
+    },
+  },
+  webpack: (config) => {
+    config.resolve.alias["#remend"] = path.join(projectRoot, "node_modules/remend");
+    return config;
   },
   images: {
     remotePatterns: [

@@ -70,6 +70,8 @@ type ServiceScope = {
   providerId?: string | null;
   cityId?: string | null;
   excludeCityId?: string | null;
+  /** Публичная выборка: вместе с providerId отдаёт только PUBLISHED. */
+  publishedOnly?: boolean;
   actorUserId?: string;
   canPublish?: boolean;
   canArchive?: boolean;
@@ -146,10 +148,17 @@ export class ServicesService {
   }
 
   async getServices(
-    scope?: Pick<ServiceScope, 'providerId' | 'cityId' | 'excludeCityId'>,
+    scope?: Pick<
+      ServiceScope,
+      'providerId' | 'cityId' | 'excludeCityId' | 'publishedOnly'
+    >,
   ): Promise<ServiceDto[]> {
+    // Кабинет провайдера видит все статусы. Публичная витрина — только PUBLISHED.
     const where: Prisma.ServiceWhereInput = scope?.providerId
-      ? { providerId: scope.providerId }
+      ? {
+          providerId: scope.providerId,
+          ...(scope.publishedOnly ? { status: 'PUBLISHED' as const } : {}),
+        }
       : { status: 'PUBLISHED' };
 
     if (scope?.cityId) {
@@ -174,7 +183,14 @@ export class ServicesService {
     const rows: ServiceDbRow[] = await this.prisma.service.findMany({
       where,
       select: serviceSelect,
-      orderBy: [{ category: { slug: 'asc' } }, { title: 'asc' }],
+      orderBy:
+        scope?.providerId && !scope.publishedOnly
+          ? [{ category: { slug: 'asc' } }, { title: 'asc' }]
+          : [
+            { ratingSortScore: { sort: 'desc' as const, nulls: 'last' as const } },
+            { publishedAt: 'desc' },
+            { id: 'asc' },
+          ],
     });
 
     return rows.map((row) => serviceDbRowToDtoPlain(row));

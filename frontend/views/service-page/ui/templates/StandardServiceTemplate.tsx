@@ -1,6 +1,7 @@
 import { Box } from "@mui/material";
 import type { ServiceDto } from "@/entities/service";
 import { getPublicProviderProfile } from "@/entities/provider";
+import { listPublicServiceReviews } from "@/entities/review/api/review.server";
 import { ServiceHeroSection, ServiceLeadSection, ServiceProviderSection, ServiceReviewsSection } from "@/widgets/service-page";
 import { mapServiceToHeroVm } from "@/views/service-page/model/map-service-to-hero-vm";
 
@@ -29,11 +30,10 @@ export function StandardServiceTemplate({ service, session }: Props) {
         />
       ) : null}
 
-      <ServiceReviewsSection
-        ratingValue={service.rating ?? 4.9}
-        reviewCountLabel={
-          service.reviewCount != null ? `на основании ${service.reviewCount} отзывов` : "на основании отзывов"
-        }
+      <ServiceReviewsBlock
+        serviceId={service.id}
+        ratingValue={service.rating ?? null}
+        reviewCount={service.reviewCount ?? 0}
         cityLabel={service.provider?.city?.name ?? null}
       />
 
@@ -44,6 +44,28 @@ export function StandardServiceTemplate({ service, session }: Props) {
         initialCustomerEmail={initialEmail}
       />
     </Box>
+  );
+}
+
+async function ServiceReviewsBlock({
+  serviceId,
+  ratingValue,
+  reviewCount,
+  cityLabel,
+}: {
+  serviceId: string;
+  ratingValue: number | null;
+  reviewCount: number;
+  cityLabel?: string | null;
+}) {
+  const list = await listPublicServiceReviews(serviceId).catch(() => ({ items: [], nextCursor: null }));
+  return (
+    <ServiceReviewsSection
+      ratingValue={ratingValue}
+      reviewCount={reviewCount}
+      reviews={list.items}
+      cityLabel={cityLabel}
+    />
   );
 }
 

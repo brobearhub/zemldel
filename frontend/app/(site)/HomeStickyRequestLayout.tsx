@@ -4,6 +4,7 @@ import { Box, Container, Stack } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 
 import { SITE_CONTENT_GAP_PX, SITE_HEADER_SPACER_PX, SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
+import { HomeStoriesStrip } from "@/widgets/home-stories";
 import { PublicUnlinkedRequestForm } from "@/widgets/public-service/ui/PublicUnlinkedRequestForm";
 import { HomeServicesByCity } from "@/widgets/services/ui/HomeServicesByCity";
 import { ServiceCategoriesBar } from "@/widgets/service-categories/ui/ServiceCategoriesBar";
@@ -78,6 +79,8 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) 
         }}
         disableGutters
       >
+        <HomeStoriesStrip />
+
         <Box
           ref={catsBarRef}
           sx={{

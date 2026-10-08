@@ -171,8 +171,6 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
           stockBadge: editDraft.stockBadge,
           paletteColor: editDraft.paletteColor,
           icon: editDraft.icon,
-          rating: editDraft.rating,
-          reviewCount: editDraft.reviewCount,
         }),
       });
       if (!res.ok) {
@@ -446,38 +444,6 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
                 />
               </Stack>
 
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                <TextField
-                  label="rating (null = empty)"
-                  value={editDraft.rating ?? ""}
-                  onChange={(e) =>
-                    setEditDraft((s) => {
-                      if (!s) return s;
-                      const raw = e.target.value.trim();
-                      if (!raw) return { ...s, rating: null };
-                      const n = Number(raw);
-                      return { ...s, rating: Number.isFinite(n) ? n : s.rating };
-                    })
-                  }
-                  size="small"
-                  fullWidth
-                />
-                <TextField
-                  label="reviewCount (null = empty)"
-                  value={editDraft.reviewCount ?? ""}
-                  onChange={(e) =>
-                    setEditDraft((s) => {
-                      if (!s) return s;
-                      const raw = e.target.value.trim();
-                      if (!raw) return { ...s, reviewCount: null };
-                      const n = Number(raw);
-                      return { ...s, reviewCount: Number.isFinite(n) ? Math.trunc(n) : s.reviewCount };
-                    })
-                  }
-                  size="small"
-                  fullWidth
-                />
-              </Stack>
             </Stack>
           ) : null}
         </DialogContent>

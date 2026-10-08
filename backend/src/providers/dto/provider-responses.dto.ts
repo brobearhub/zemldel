@@ -134,8 +134,17 @@ export class PublicProviderProfileDto {
   @ApiProperty()
   name!: string;
 
+  @ApiProperty()
+  slug!: string;
+
   @ApiProperty({ enum: ['SELF_EMPLOYED', 'COMPANY'] })
   type!: 'SELF_EMPLOYED' | 'COMPANY';
+
+  @ApiProperty({ nullable: true, example: null })
+  rating!: number | null;
+
+  @ApiProperty({ example: 0 })
+  reviewCount!: number;
 
   @ApiProperty({ type: AuthCityDto, nullable: true })
   city!: AuthCityDto | null;
@@ -148,6 +157,18 @@ export class PublicProviderProfileDto {
 
   @ApiProperty({ nullable: true, example: null })
   about!: string | null;
+
+  @ApiProperty({ nullable: true, example: '+7 900 000-00-00' })
+  phone!: string | null;
+
+  @ApiProperty({ nullable: true, example: null })
+  email!: string | null;
+
+  @ApiProperty({ example: false })
+  useOwnEmail!: boolean;
+
+  @ApiProperty({ nullable: true, example: null, required: false })
+  ownerEmail?: string | null;
 
   @ApiProperty({ example: 'На связи сегодня' })
   availabilityLabel!: string;

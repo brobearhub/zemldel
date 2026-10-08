@@ -3,6 +3,7 @@
 import { Avatar, Box, Stack, Typography } from "@mui/material";
 import type { CounterpartyField } from "../model/counterparty-card";
 import { getCounterpartyInitials, hasAnyCounterpartyValue } from "../model/counterparty-card";
+import { toPublicAssetSrc } from "@/shared/lib/public-asset-src";
 
 type Props = {
   fields: readonly CounterpartyField[];
@@ -55,7 +56,7 @@ export function RequestCounterpartyPanel({ fields, avatarSrc, avatarName, emptyT
         )}
       </Box>
       <Avatar
-        src={avatarSrc?.trim() || undefined}
+        src={avatarSrc?.trim() ? toPublicAssetSrc(avatarSrc.trim()) : undefined}
         alt={avatarName?.trim() || "Контрагент"}
         sx={{
           width: 96,

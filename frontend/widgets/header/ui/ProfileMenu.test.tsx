@@ -34,6 +34,7 @@ describe("ProfileMenu", () => {
           email: "user@example.com",
           name: "User Name",
           image: null,
+          phone: null,
           systemRole: state === "platformAdmin" ? "PLATFORM_ADMIN" : "CUSTOMER",
           activeProviderId: null,
           customerCity: null,

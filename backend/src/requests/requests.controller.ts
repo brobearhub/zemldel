@@ -19,6 +19,7 @@ import {
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiParam,
+  ApiProperty,
   ApiQuery,
   ApiTags,
   ApiUnprocessableEntityResponse,
@@ -59,6 +60,77 @@ import {
   ApiValidationErrorResponseDto,
 } from '../common/dto/api-error-response.dto';
 import { ApiStandardErrors } from '../common/swagger/api-standard-errors.decorator';
+
+class ProRequestStatsDto {
+  @ApiProperty()
+  total!: number;
+
+  @ApiProperty({
+    type: 'object',
+    required: [
+      'NEW',
+      'DISCUSSING',
+      'TERMS_AGREED',
+      'ACTIVE',
+      'ACCEPTANCE_PENDING',
+      'ACCEPTED',
+      'COMPLETED',
+      'CANCELLED',
+      'CLOSED',
+    ],
+    properties: {
+      NEW: { type: 'integer' },
+      DISCUSSING: { type: 'integer' },
+      TERMS_AGREED: { type: 'integer' },
+      ACTIVE: { type: 'integer' },
+      ACCEPTANCE_PENDING: { type: 'integer' },
+      ACCEPTED: { type: 'integer' },
+      COMPLETED: { type: 'integer' },
+      CANCELLED: { type: 'integer' },
+      CLOSED: { type: 'integer' },
+    },
+  })
+  byStatus!: {
+    NEW: number;
+    DISCUSSING: number;
+    TERMS_AGREED: number;
+    ACTIVE: number;
+    ACCEPTANCE_PENDING: number;
+    ACCEPTED: number;
+    COMPLETED: number;
+    CANCELLED: number;
+    CLOSED: number;
+  };
+
+  @ApiProperty({ type: String, nullable: true })
+  latestUpdatedAt!: string | null;
+}
+
+class ProRequestListFeedDto {
+  @ApiProperty({ type: [RequestProDto] })
+  items!: RequestProDto[];
+
+  @ApiProperty({
+    type: 'object',
+    required: ['NEW', 'DISCUSSING', 'CONTRACT', 'WORK', 'ACCEPTANCE', 'COMPLETED'],
+    properties: {
+      NEW: { type: 'integer' },
+      DISCUSSING: { type: 'integer' },
+      CONTRACT: { type: 'integer' },
+      WORK: { type: 'integer' },
+      ACCEPTANCE: { type: 'integer' },
+      COMPLETED: { type: 'integer' },
+    },
+  })
+  counts!: {
+    NEW: number;
+    DISCUSSING: number;
+    CONTRACT: number;
+    WORK: number;
+    ACCEPTANCE: number;
+    COMPLETED: number;
+  };
+}
 
 @ApiTags('requests')
 @ApiStandardErrors()
@@ -477,10 +549,23 @@ export class RequestsController {
   // --- Provider: feed / inbox ---
 
   @Get('pro/requests/feed')
-  @ApiOkResponse({ type: [RequestProDto] })
-  async proFeed(@Req() request: Request) {
+  @ApiQuery({ name: 'stage', required: true, type: String })
+  @ApiQuery({ name: 'serviceId', required: false, type: String })
+  @ApiQuery({ name: 'scope', required: false, type: String })
+  @ApiOkResponse({ type: ProRequestListFeedDto })
+  async proFeed(
+    @Req() request: Request,
+    @Query() query: { stage?: string; serviceId?: string; scope?: string },
+  ) {
     const ctx = await this.requests.requireProviderContext(request);
-    return this.requests.listProFeed(ctx.providerId);
+    return this.requests.listProFeed(ctx.providerId, query);
+  }
+
+  @Get('pro/requests/stats')
+  @ApiOkResponse({ type: ProRequestStatsDto })
+  async proRequestStats(@Req() request: Request) {
+    const ctx = await this.requests.requireProviderContext(request);
+    return this.requests.countProRequestStats(ctx.providerId);
   }
 
   @Get('pro/requests/inbox')

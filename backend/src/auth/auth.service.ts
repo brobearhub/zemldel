@@ -27,6 +27,7 @@ const userAuthSelect = {
   email: true,
   name: true,
   image: true,
+  phone: true,
   systemRole: true,
   activeProviderId: true,
   authProviderLinks: {
@@ -151,6 +152,7 @@ export class AuthService {
       email: user.email,
       name: user.name,
       image: user.image,
+      phone: user.phone,
       systemRole: user.systemRole,
       activeProviderId: this.resolveActiveProviderId(
         user.activeProviderId,

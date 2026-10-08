@@ -279,6 +279,8 @@ export const { useGetRequestQuery, useUpdateRequestMutation } = requestApi;
 - Транспорт к бэкенду — сгенерированный swagger-клиент в `shared/api/generated`, руками не редактируется.
 - Не смешивать серверную и клиентскую логику в одном файле. Серверный доступ к данным помечается `'server-only'`.
 - Метаданные, `generateStaticParams`, кэширование — в файлах роутов Next.js, не в FSD-слайсах.
+- Ссылки — только `@/shared/ui/Link`. Прямой импорт `next/link` запрещён. Рендерить `<Link href>`, не передавать ссылку пропом `component={Link}`: из серверного компонента функция не сериализуется и страница падает.
+- В `sx` не передавать функции вида `(theme) => ...`. Цвет фона и текста — токен палитры (`primary.main`, `text.primary`, `action.hover`).
 
 ## Чего избегать
 
@@ -300,3 +302,5 @@ export const { useGetRequestQuery, useUpdateRequestMutation } = requestApi;
 - Redux для эфемерного UI-состояния, которое решается `useState`.
 - `useEffect` для синхронизации состояния, которое можно вычислить.
 - Классы там, где достаточно функции, и наоборот.
+- Импорт `next/link` вместо `@/shared/ui/Link`.
+- `sx` с функцией `(theme) => ...` вместо токена палитры (`primary.main`).

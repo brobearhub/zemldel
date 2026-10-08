@@ -7,6 +7,7 @@ import {
 import { DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { createHash } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { normalizeOptionalContactPhone } from '../common/contact-phone';
 import { assertActiveSelectableCity } from '../cities/city-validation';
 import { CreateUserDto } from './dto/create-user.dto';
 import { S3Service } from '../storage/s3.service';
@@ -102,7 +103,121 @@ export class UsersService {
     });
   }
 
-  async updateMe(userId: string, input: { customerCityId?: string | null }) {
+  async getMe(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, customerRating: true, customerReviewCount: true, profilePublic: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    return {
+      id: user.id,
+      customerRating: user.customerRating,
+      customerReviewCount: user.customerReviewCount,
+      profilePublic: user.profilePublic,
+    };
+  }
+
+  async setProfilePublic(userId: string, profilePublic: boolean) {
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { profilePublic },
+      select: { id: true, profilePublic: true },
+    });
+    return updated;
+  }
+
+  async getPublicProfile(input: { userId: string; viewerUserId: string | null }) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: input.userId },
+      select: {
+        id: true,
+        name: true,
+        image: true,
+        profilePublic: true,
+        customerCity: { select: { name: true } },
+      },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    const allowed =
+      user.profilePublic ||
+      input.viewerUserId === user.id ||
+      (input.viewerUserId ? await this.viewerHasContractAccess(input.viewerUserId, user.id) : false);
+    if (!allowed) throw new NotFoundException('User not found');
+
+    const [written, received] = await Promise.all([
+      this.prisma.review.findMany({
+        where: { authorUserId: user.id, direction: 'CUSTOMER_TO_PROVIDER' },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        select: {
+          id: true,
+          rating: true,
+          text: true,
+          createdAt: true,
+          provider: { select: { name: true } },
+        },
+      }),
+      this.prisma.review.findMany({
+        where: { subjectUserId: user.id, direction: 'PROVIDER_TO_CUSTOMER' },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        select: {
+          id: true,
+          rating: true,
+          text: true,
+          createdAt: true,
+          provider: { select: { name: true } },
+        },
+      }),
+    ]);
+
+    return {
+      id: user.id,
+      name: user.name?.trim() || 'Пользователь',
+      image: user.image,
+      cityName: user.customerCity?.name ?? null,
+      reviewsWritten: written.map((review) => ({
+        id: review.id,
+        rating: review.rating,
+        text: review.text,
+        createdAt: review.createdAt.toISOString(),
+        providerName: review.provider?.name ?? null,
+      })),
+      reviewsReceived: received.map((review) => ({
+        id: review.id,
+        rating: review.rating,
+        text: review.text,
+        createdAt: review.createdAt.toISOString(),
+        providerName: review.provider?.name ?? null,
+      })),
+    };
+  }
+
+  private async viewerHasContractAccess(viewerUserId: string, customerUserId: string) {
+    const memberships = await this.prisma.providerMember.findMany({
+      where: { userId: viewerUserId, status: 'ACTIVE', role: { in: ['OWNER', 'MANAGER'] } },
+      select: { providerId: true },
+    });
+    if (memberships.length === 0) return false;
+    const request = await this.prisma.request.findFirst({
+      where: {
+        customerUserId,
+        providerId: { in: memberships.map((row) => row.providerId) },
+        OR: [
+          { status: { in: ['ACTIVE', 'ACCEPTANCE_PENDING', 'ACCEPTED', 'COMPLETED'] } },
+          { legalAcceptances: { some: { context: 'CONTRACT' } } },
+        ],
+      },
+      select: { id: true },
+    });
+    return Boolean(request);
+  }
+
+  async updateMe(
+    userId: string,
+    input: { customerCityId?: string | null; phone?: unknown },
+  ) {
+    const nextPhone = normalizeOptionalContactPhone(input.phone);
     let nextCustomerCityId: string | null | undefined = input.customerCityId;
 
     if (
@@ -127,7 +242,7 @@ export class UsersService {
       await assertActiveSelectableCity(this.prisma, nextCustomerCityId);
     }
 
-    if (nextCustomerCityId === undefined) {
+    if (nextCustomerCityId === undefined && nextPhone === undefined) {
       throw new BadRequestException('No fields to update');
     }
 
@@ -135,9 +250,11 @@ export class UsersService {
       where: { id: userId },
       data: {
         customerCityId: nextCustomerCityId,
+        phone: nextPhone,
       },
       select: {
         id: true,
+        phone: true,
         customerCityId: true,
         customerCity: {
           select: {
@@ -153,6 +270,7 @@ export class UsersService {
 
     return {
       id: updated.id,
+      phone: updated.phone,
       customerCityId: updated.customerCityId,
       customerCity: updated.customerCity,
       updatedAt: updated.updatedAt.toISOString(),

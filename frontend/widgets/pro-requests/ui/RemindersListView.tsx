@@ -57,9 +57,12 @@ const BUCKET_LABELS: Record<string, string> = {
   later: "Позже",
 };
 
-type Props = { initialReminders: RequestReminderDto[] };
+type Props = {
+  initialReminders: RequestReminderDto[];
+  showTitle?: boolean;
+};
 
-export function RemindersListView({ initialReminders }: Props) {
+export function RemindersListView({ initialReminders, showTitle = true }: Props) {
   const [view, setView] = useState<View>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -367,14 +370,16 @@ export function RemindersListView({ initialReminders }: Props) {
         useFlexGap
         sx={{
           alignItems: "center",
-          justifyContent: "space-between",
+          justifyContent: showTitle ? "space-between" : "flex-start",
           flexWrap: "wrap"
         }}>
-        <Typography variant="h4" sx={{
-          fontWeight: 800
-        }}>
-          Напоминания
-        </Typography>
+        {showTitle ? (
+          <Typography variant="h4" sx={{
+            fontWeight: 800
+          }}>
+            Напоминания
+          </Typography>
+        ) : null}
         <ToggleButtonGroup value={view} exclusive onChange={handleViewChange} size="small">
           <ToggleButton value="byDate">
             <CalendarTodayOutlinedIcon fontSize="small" sx={{ mr: 0.75 }} />

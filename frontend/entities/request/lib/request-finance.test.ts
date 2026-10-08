@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { formatRubles, parseRublesInput } from "./request-finance";
+import { formatRubles, parseRublesInput, resolvePaymentTriggerLabel } from "./request-finance";
 
 describe("request finance helpers", () => {
   it("formats whole rubles", () => {
     expect(formatRubles(25_000)).toMatch(/25[\s\u00a0]?000/);
     expect(formatRubles(25_000)).not.toMatch(/,/);
+  });
+
+  it("shows the set amount on the payment trigger", () => {
+    expect(resolvePaymentTriggerLabel(1000)).toMatch(/1[\s\u00a0]?000/);
+    expect(resolvePaymentTriggerLabel(1000)).toMatch(/₽/);
+    expect(resolvePaymentTriggerLabel(null)).toBe("Оплата");
   });
 
   it("parses whole-ruble input", () => {

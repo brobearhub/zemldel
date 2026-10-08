@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import { toPublicAssetSrc } from "@/shared/lib/public-asset-src";
 import { useRouter } from "next/navigation";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -16,12 +17,16 @@ import {
   Button,
   Container,
   IconButton,
+  FormControlLabel,
   Paper,
   Stack,
+  Switch,
   TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
+import { normalizeContactEmailInput } from "@/shared/lib/contact-email";
+import { normalizeContactPhoneInput } from "@/shared/lib/contact-phone";
 
 type ProviderType = "SELF_EMPLOYED" | "COMPANY";
 
@@ -44,6 +49,11 @@ export type PublicProviderProfile = {
   image: string | null;
   subtitle: string;
   about: string | null;
+  phone: string | null;
+  email: string | null;
+  useOwnEmail: boolean;
+  /** Email аккаунта владельца. Приходит только участнику провайдера. */
+  ownerEmail?: string | null;
   availabilityLabel: string;
   stats: PublicProviderStat[];
 };
@@ -146,7 +156,7 @@ function providerTypeLabel(type: ProviderType): string {
   }
 }
 
-type EditId = "name" | "subtitle" | "about" | `stat-${0 | 1 | 2}` | null;
+type EditId = "name" | "subtitle" | "phone" | "email" | "about" | `stat-${0 | 1 | 2}` | null;
 
 function normalizeNullableString(value: string): string | null {
   const trimmed = value.trim();
@@ -215,7 +225,50 @@ function InlineEditableText(props: {
   const showPlaceholder = !isEditing && (props.value ?? "").trim().length === 0;
 
   return (
-    <Box sx={{ display: "flex", alignItems: props.viewVariant === "h4" ? "baseline" : "center", gap: 1, minWidth: 0 }}>
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: props.isMultiline ? "flex-start" : props.viewVariant === "h4" ? "baseline" : "center",
+        gap: 1,
+        minWidth: 0,
+      }}
+    >
+      {isEditing ? (
+        <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", flexShrink: 0 }}>
+          <Tooltip title="Сохранить">
+            <span>
+              <IconButton size="small" onClick={() => void handleSave()} disabled={props.disabled || saving}>
+                <CheckRoundedIcon fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Tooltip title="Отмена">
+            <span>
+              <IconButton
+                size="small"
+                onClick={() => props.setEditId(null)}
+                disabled={props.disabled || saving}
+              >
+                <CloseRoundedIcon fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
+        </Stack>
+      ) : (
+        <Tooltip title={canEdit ? "Редактировать" : "Только владелец"}>
+          <span>
+            <IconButton
+              size="small"
+              onClick={() => props.setEditId(props.id)}
+              disabled={props.disabled || !canEdit}
+              sx={{ color: "rgba(255,255,255,0.82)" }}
+            >
+              <EditOutlinedIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
+      )}
+
       <Box sx={{ minWidth: 0, flex: "1 1 0" }}>
         {isEditing ? (
           <Stack spacing={0.75}>
@@ -266,42 +319,6 @@ function InlineEditableText(props: {
           </Typography>
         )}
       </Box>
-
-      {isEditing ? (
-        <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", flexShrink: 0 }}>
-          <Tooltip title="Сохранить">
-            <span>
-              <IconButton size="small" onClick={() => void handleSave()} disabled={props.disabled || saving}>
-                <CheckRoundedIcon fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Tooltip title="Отмена">
-            <span>
-              <IconButton
-                size="small"
-                onClick={() => props.setEditId(null)}
-                disabled={props.disabled || saving}
-              >
-                <CloseRoundedIcon fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
-        </Stack>
-      ) : (
-        <Tooltip title={canEdit ? "Редактировать" : "Только владелец"}>
-          <span>
-            <IconButton
-              size="small"
-              onClick={() => props.setEditId(props.id)}
-              disabled={props.disabled || !canEdit}
-              sx={{ color: "rgba(255,255,255,0.82)" }}
-            >
-              <EditOutlinedIcon fontSize="small" />
-            </IconButton>
-          </span>
-        </Tooltip>
-      )}
     </Box>
   );
 }
@@ -360,82 +377,16 @@ function InlineEditableStatCard(props: {
 
   return (
     <Stack
+      direction="row"
       spacing={0.5}
       sx={{
-        position: "relative",
         pt: { xs: 1.5, md: 2.25 },
         borderTop: "1px solid",
         borderColor: "rgba(255,255,255,0.18)",
+        alignItems: "flex-start",
       }}
     >
-      {isEditing ? (
-        <>
-          <TextField
-            variant="outlined"
-            size="small"
-            value={draftValue}
-            onChange={(e) => setDraftValue(e.target.value)}
-            disabled={props.disabled || saving}
-            placeholder="value"
-            sx={{
-              "& .MuiOutlinedInput-root": { bgcolor: "common.white", borderRadius: 1 },
-              "& .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
-              "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
-              "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
-              "& .MuiInputBase-input": {
-                fontWeight: 800,
-                fontSize: { xs: 24, md: 32 },
-                lineHeight: { xs: 1.334, md: 1.235 },
-                color: "text.primary",
-              },
-              "& .MuiInputBase-input::placeholder": { color: "text.secondary", opacity: 1 },
-            }}
-          />
-          <TextField
-            variant="outlined"
-            size="small"
-            value={draftLabel}
-            onChange={(e) => setDraftLabel(e.target.value)}
-            disabled={props.disabled || saving}
-            placeholder="label"
-            sx={{
-              "& .MuiOutlinedInput-root": { bgcolor: "common.white", borderRadius: 1 },
-              "& .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
-              "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
-              "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
-              "& .MuiInputBase-input": {
-                color: "text.primary",
-                letterSpacing: "0.4px",
-                fontSize: 12,
-              },
-              "& .MuiInputBase-input::placeholder": { color: "text.secondary", opacity: 1 },
-            }}
-          />
-          {fieldError ? (
-            <Typography variant="caption" sx={{ color: "#ffe2df" }}>
-              {fieldError}
-            </Typography>
-          ) : null}
-        </>
-      ) : (
-        <>
-          <Typography
-            sx={{
-              fontWeight: 800,
-              fontSize: { xs: 24, md: 32 },
-              lineHeight: { xs: 1.334, md: 1.235 },
-              color: "common.white",
-            }}
-          >
-            {view.value}
-          </Typography>
-          <Typography variant="caption" sx={{ color: "#e8efea", letterSpacing: "0.4px" }}>
-            {view.label}
-          </Typography>
-        </>
-      )}
-
-      <Box sx={{ position: "absolute", right: -4, top: { xs: 6, md: 10 } }}>
+      <Box sx={{ flexShrink: 0 }}>
         {isEditing ? (
           <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
             <Tooltip title="Сохранить">
@@ -468,6 +419,75 @@ function InlineEditableStatCard(props: {
           </Tooltip>
         )}
       </Box>
+
+      <Stack spacing={0.5} sx={{ minWidth: 0, flex: "1 1 0" }}>
+        {isEditing ? (
+          <>
+            <TextField
+              variant="outlined"
+              size="small"
+              value={draftValue}
+              onChange={(e) => setDraftValue(e.target.value)}
+              disabled={props.disabled || saving}
+              placeholder="value"
+              sx={{
+                "& .MuiOutlinedInput-root": { bgcolor: "common.white", borderRadius: 1 },
+                "& .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
+                "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
+                "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
+                "& .MuiInputBase-input": {
+                  fontWeight: 800,
+                  fontSize: { xs: 24, md: 32 },
+                  lineHeight: { xs: 1.334, md: 1.235 },
+                  color: "text.primary",
+                },
+                "& .MuiInputBase-input::placeholder": { color: "text.secondary", opacity: 1 },
+              }}
+            />
+            <TextField
+              variant="outlined"
+              size="small"
+              value={draftLabel}
+              onChange={(e) => setDraftLabel(e.target.value)}
+              disabled={props.disabled || saving}
+              placeholder="label"
+              sx={{
+                "& .MuiOutlinedInput-root": { bgcolor: "common.white", borderRadius: 1 },
+                "& .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
+                "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
+                "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
+                "& .MuiInputBase-input": {
+                  color: "text.primary",
+                  letterSpacing: "0.4px",
+                  fontSize: 12,
+                },
+                "& .MuiInputBase-input::placeholder": { color: "text.secondary", opacity: 1 },
+              }}
+            />
+            {fieldError ? (
+              <Typography variant="caption" sx={{ color: "#ffe2df" }}>
+                {fieldError}
+              </Typography>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <Typography
+              sx={{
+                fontWeight: 800,
+                fontSize: { xs: 24, md: 32 },
+                lineHeight: { xs: 1.334, md: 1.235 },
+                color: "common.white",
+              }}
+            >
+              {view.value}
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#e8efea", letterSpacing: "0.4px" }}>
+              {view.label}
+            </Typography>
+          </>
+        )}
+      </Stack>
     </Stack>
   );
 }
@@ -515,6 +535,9 @@ export function ProviderProfileEditorSection({
     name: string;
     subtitle: string | null;
     about: string | null;
+    phone: string | null;
+    email: string | null;
+    useOwnEmail: boolean;
     stats: PublicProviderStat[];
   }>;
 
@@ -533,7 +556,11 @@ export function ProviderProfileEditorSection({
       throw new Error(msg);
     }
     if (payload && typeof payload === "object" && "id" in payload) {
-      setProfile(payload as PublicProviderProfile);
+      setProfile((current) => ({
+        ...current,
+        ...(payload as PublicProviderProfile),
+        ownerEmail: (payload as PublicProviderProfile).ownerEmail ?? current.ownerEmail,
+      }));
     }
   }
 
@@ -870,7 +897,7 @@ export function ProviderProfileEditorSection({
               >
                 {profile.image ? (
                   <Image
-                    src={profile.image}
+                    src={toPublicAssetSrc(profile.image)}
                     alt=""
                     fill
                     unoptimized={process.env.NODE_ENV !== "production"}
@@ -1079,6 +1106,107 @@ export function ProviderProfileEditorSection({
                   />
                 ))}
               </Box>
+
+              <Stack
+                spacing={1}
+                sx={{
+                  pt: { xs: 2, md: 3 },
+                  borderTop: "1px solid",
+                  borderColor: "rgba(255,255,255,0.28)",
+                }}
+              >
+                <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                  Эта информация будет отображаться только клиенту после заключения договора
+                </Typography>
+                <InlineEditableText
+                  id="phone"
+                  editId={editId}
+                  setEditId={setEditId}
+                  disabled={busy}
+                  value={profile.phone}
+                  viewVariant="body2"
+                  typographySx={{ color: "common.white" }}
+                  placeholderWhenEmpty="Телефон"
+                  normalizeBeforeSave={(draft) => normalizeContactPhoneInput(draft).phone}
+                  validateDraft={(draft) => normalizeContactPhoneInput(draft).error}
+                  onSave={async (next) => {
+                    setBusy(true);
+                    try {
+                      await patchProfile({ phone: next });
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                />
+
+                <InlineEditableText
+                  id="email"
+                  editId={editId}
+                  setEditId={setEditId}
+                  disabled={busy}
+                  value={profile.email}
+                  viewVariant="body2"
+                  typographySx={{ color: "common.white" }}
+                  placeholderWhenEmpty="Email"
+                  normalizeBeforeSave={(draft) => normalizeContactEmailInput(draft).email}
+                  validateDraft={(draft) => normalizeContactEmailInput(draft).error}
+                  onSave={async (next) => {
+                    setBusy(true);
+                    try {
+                      await patchProfile({ email: next });
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                />
+
+                <FormControlLabel
+                  sx={{ alignItems: "flex-start", ml: 0 }}
+                  control={
+                    <Switch
+                      checked={profile.useOwnEmail}
+                      disabled={busy}
+                      onChange={(event) => {
+                        setBusy(true);
+                        setError(null);
+                        void patchProfile({ useOwnEmail: event.target.checked })
+                          .catch((cause: unknown) => {
+                            setError(cause instanceof Error ? cause.message : "Не удалось сохранить email");
+                          })
+                          .finally(() => setBusy(false));
+                      }}
+                      sx={{
+                        "& .MuiSwitch-switchBase": {
+                          color: "rgba(255,255,255,0.85)",
+                        },
+                        "& .MuiSwitch-track": {
+                          backgroundColor: "rgba(255,255,255,0.35)",
+                          opacity: 1,
+                        },
+                        "& .MuiSwitch-switchBase.Mui-checked": {
+                          color: "primary.dark",
+                        },
+                        "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                          backgroundColor: "common.white",
+                          opacity: 1,
+                        },
+                      }}
+                    />
+                  }
+                  label={
+                    <Box>
+                      <Typography variant="body2" sx={{ color: "common.white" }}>
+                        Использовать свой email
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.72)" }}>
+                        {profile.useOwnEmail && profile.ownerEmail
+                          ? `Если email провайдера не указан, клиент увидит ${profile.ownerEmail}`
+                          : "Если email провайдера не указан и переключатель выключен, клиент не увидит email"}
+                      </Typography>
+                    </Box>
+                  }
+                />
+              </Stack>
             </Stack>
           </Box>
         </Container>

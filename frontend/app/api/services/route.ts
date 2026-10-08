@@ -8,10 +8,12 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const cityId = url.searchParams.get("cityId");
     const excludeCityId = url.searchParams.get("excludeCityId");
+    const providerId = url.searchParams.get("providerId");
 
     const qs = new URLSearchParams();
     if (cityId) qs.set("cityId", cityId);
     if (excludeCityId) qs.set("excludeCityId", excludeCityId);
+    if (providerId) qs.set("providerId", providerId);
 
     const response = await fetchBackend(`/services${qs.toString() ? `?${qs.toString()}` : ""}`);
     const payload = await response.json().catch(() => ({ error: SERVICES_FETCH_ERROR_MESSAGE }));

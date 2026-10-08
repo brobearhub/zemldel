@@ -270,11 +270,6 @@ describe("ServicesAdminClient", () => {
     await user.clear(within(dialog).getByLabelText("image (null = empty)"));
     await user.type(within(dialog).getByLabelText("image (null = empty)"), "  ");
 
-    await user.clear(within(dialog).getByLabelText("rating (null = empty)"));
-    await user.type(within(dialog).getByLabelText("rating (null = empty)"), "abc");
-    await user.clear(within(dialog).getByLabelText("reviewCount (null = empty)"));
-    await user.type(within(dialog).getByLabelText("reviewCount (null = empty)"), "12");
-
     await user.click(within(dialog).getByRole("button", { name: "Сохранить" }));
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
 
@@ -282,14 +277,12 @@ describe("ServicesAdminClient", () => {
     const body = JSON.parse((patchInit as RequestInit).body as string) as {
       ctaHref: string | null;
       image: string | null;
-      rating: number | null;
-      reviewCount: number | null;
     };
 
     expect(body.ctaHref).toBeNull();
     expect(body.image).toBeNull();
-    expect(body.rating).toBeNull();
-    expect(body.reviewCount).toBe(12);
+    expect(body).not.toHaveProperty("rating");
+    expect(body).not.toHaveProperty("reviewCount");
   });
 
   it("shows API error when edit fails", async () => {

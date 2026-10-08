@@ -50,6 +50,9 @@ export class AuthorizedUserDto {
   @ApiProperty({ nullable: true, example: null })
   image!: string | null;
 
+  @ApiProperty({ nullable: true, example: '+7 900 000-00-00' })
+  phone!: string | null;
+
   @ApiProperty({ enum: ['PLATFORM_ADMIN', 'CUSTOMER'] })
   systemRole!: 'PLATFORM_ADMIN' | 'CUSTOMER';
 

@@ -14,6 +14,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useAppSelector } from "@/core/store/hooks";
+import { formatReviewCount } from "@/entities/review";
 import type { ServiceCreateDto, ServiceDto, ServiceStatus } from "@/entities/service";
 import { useConfirm } from "@/shared/ui/confirm";
 
@@ -390,7 +391,7 @@ export function ProServicesListClient({ initialServices }: Props) {
                     color: "text.secondary"
                   }}>
                     CTA: {service.ctaText}
-                    {service.reviewCount ? ` · ${service.reviewCount} отзывов` : ""}
+                    {service.reviewCount ? ` · ${formatReviewCount(service.reviewCount)}` : ""}
                   </Typography>
                 </Box>
 

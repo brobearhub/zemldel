@@ -44,7 +44,7 @@ type SidebarNavItem = {
 
 const NAV_ITEMS: readonly SidebarNavItem[] = [
   {
-    href: "/pro",
+    href: "/pro/requests",
     label: "Заявки",
     description: "Поток заявок клиентов",
     icon: <DynamicFeedOutlinedIcon />,
@@ -256,8 +256,9 @@ export function ProSidebar({ collapsed = false, onToggleCollapsed }: Props) {
 
         {NAV_ITEMS.map((item) => {
           const selected =
-            pathname === item.href || (item.href === "/pro" && pathname.startsWith("/pro/requests/"));
-          const badgeEnabled = item.href === "/pro";
+            pathname === item.href ||
+            (item.href === "/pro/requests" && pathname.startsWith("/pro/requests/"));
+          const badgeEnabled = item.href === "/pro/requests";
           const icon = badgeEnabled ? (
             <Badge color="error" badgeContent={unreadTotal} max={99} invisible={unreadTotal === 0}>
               {item.icon}

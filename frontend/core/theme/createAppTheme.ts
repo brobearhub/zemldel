@@ -22,7 +22,7 @@ const LIGHT_BRAND = {
   sageDark: "#889988",
   /** Deeper muted sage for success — same family as primary, not MUI grass green. */
   sageSuccess: "#548a5c",
-  /** Product accent (used outside semantic palette, e.g. highlights). */
+  /** Brand accent. Lives on `palette.accent`, separate from semantic `info`. */
   accent: "#FA5018",
   orange: "#FF4B14",
   cream: "#f0f0e6",
@@ -31,6 +31,8 @@ const LIGHT_BRAND = {
   /** Deep forest green for body copy. */
   forest: "#325e49",
   forestMuted: "#6e7471",
+  /** `forestMuted` shifted ~35% toward cream — lower emphasis than `text.secondary`. */
+  forestMutedLight: "#9c9f9a",
   gray: "#757575",
   /** `rgba(0,0,0,.12)` flattened onto white (disabled button fill). */
   disabledButton: "#e0e0e0",
@@ -56,12 +58,14 @@ const TOKENS = {
       contrastText: common.white,
     },
     info: { main: LIGHT_BRAND.orange, contrastText: common.white },
+    accent: { main: LIGHT_BRAND.accent, contrastText: common.white },
     success: { main: LIGHT_BRAND.sageSuccess, contrastText: LIGHT_BRAND.cream },
     warning: { main: lime[900], contrastText: common.white },
     error: { main: red[600], contrastText: common.white },
     divider: LIGHT_BRAND.disabledButton,
     textPrimary: LIGHT_BRAND.forest,
     textSecondary: LIGHT_BRAND.forestMuted,
+    textSecondaryLight: LIGHT_BRAND.forestMutedLight,
     footer: LIGHT_BRAND.sage,
     disabledButton: LIGHT_BRAND.disabledButton,
   },
@@ -83,12 +87,14 @@ const TOKENS = {
       contrastText: grey[900],
     },
     info: { main: deepOrange[200], contrastText: grey[900] },
+    accent: { main: LIGHT_BRAND.accent, contrastText: common.white },
     success: { main: green[200], contrastText: grey[900] },
     warning: { main: lime[200], contrastText: grey[900] },
     error: { main: red[200], contrastText: grey[900] },
     divider: alpha(common.white, 0.12),
     textPrimary: brown[200],
     textSecondary: alpha(common.white, 0.5),
+    textSecondaryLight: alpha(common.white, 0.35),
     footer: common.black,
     disabledButton: alpha(common.white, 0.12),
   },
@@ -120,6 +126,7 @@ export function createAppTheme(mode: PaletteMode) {
         main: t.info.main,
         contrastText: t.info.contrastText,
       },
+      accent: t.accent,
       success: { main: t.success.main, contrastText: t.success.contrastText },
       warning: {
         main: t.warning.main,
@@ -134,6 +141,7 @@ export function createAppTheme(mode: PaletteMode) {
       text: {
         primary: t.textPrimary,
         secondary: t.textSecondary,
+        secondaryLight: t.textSecondaryLight,
       },
       action: {
         disabledBackground: t.disabledButton,
@@ -144,9 +152,6 @@ export function createAppTheme(mode: PaletteMode) {
         primary: t.bg,
         header: t.header,
         secondary: t.footer,
-      },
-      colors: {
-        accent: LIGHT_BRAND.accent,
       },
       gradients: {
         sunset:

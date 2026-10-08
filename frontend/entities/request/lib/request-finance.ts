@@ -7,6 +7,12 @@ export function formatRubles(rubles: number): string {
   }).format(rubles);
 }
 
+/** Подпись кнопки оплаты: сумма, если провайдер задал полную цену. */
+export function resolvePaymentTriggerLabel(totalAmountRubles: number | null): string {
+  if (totalAmountRubles == null) return "Оплата";
+  return formatRubles(totalAmountRubles);
+}
+
 export function parseRublesInput(value: string): number | null {
   const normalized = value.replace(/\s/g, "").replace(",", ".").trim();
   if (!normalized) return null;

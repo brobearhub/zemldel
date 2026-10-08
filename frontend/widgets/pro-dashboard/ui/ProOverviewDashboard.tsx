@@ -10,16 +10,21 @@ import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 import { Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import type { ReactNode } from "react";
-import { useMemo } from "react";
 import type { AuthMembership } from "@/core/auth/authorization";
-import type { RequestCustomerDto, RequestProDto, RequestReminderDto } from "@/entities/request";
+import type { RequestCustomerDto, RequestReminderDto, RequestStatus } from "@/entities/request";
 import type { ServiceDto } from "@/entities/service";
 import { TodayRemindersWidget } from "./TodayRemindersWidget";
+
+export type ProRequestStats = {
+  total: number;
+  byStatus: Record<RequestStatus, number>;
+  latestUpdatedAt: string | null;
+};
 
 type Props = {
   provider: Pick<AuthMembership, "providerName" | "providerType" | "role">;
   services: ServiceDto[];
-  requests: RequestProDto[];
+  requestStats: ProRequestStats;
   orders: RequestCustomerDto[];
   todayReminders: RequestReminderDto[];
 };
@@ -142,7 +147,7 @@ function MetricRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function ProOverviewDashboard({ provider, services, requests, orders, todayReminders }: Props) {
+export function ProOverviewDashboard({ provider, services, requestStats, orders, todayReminders }: Props) {
 
   const servicesStats = services.reduce(
     (acc, service) => {
@@ -158,26 +163,7 @@ export function ProOverviewDashboard({ provider, services, requests, orders, tod
     }
   );
 
-  const requestStats = requests.reduce(
-    (acc, req) => {
-      if (req.subjectType !== "SERVICE") return acc;
-      acc.total += 1;
-      acc[req.status] += 1;
-      return acc;
-    },
-    {
-      total: 0,
-      NEW: 0,
-      DISCUSSING: 0,
-      TERMS_AGREED: 0,
-      ACTIVE: 0,
-      ACCEPTANCE_PENDING: 0,
-      ACCEPTED: 0,
-      COMPLETED: 0,
-      CANCELLED: 0,
-      CLOSED: 0,
-    } as Record<string, number>
-  );
+  const statusCounts = requestStats.byStatus;
 
   const ordersStats = orders.reduce(
     (acc, order) => {
@@ -216,12 +202,11 @@ export function ProOverviewDashboard({ provider, services, requests, orders, tod
     { total: 0, repeat: 0 }
   );
 
-  const latestActivityAt = [requests[0]?.updatedAt ?? null, orders[0]?.updatedAt ?? null]
-    .filter(Boolean)
-    .sort((left, right) => new Date(String(right)).getTime() - new Date(String(left)).getTime())[0] ?? null;
+  const latestActivityAt = [requestStats.latestUpdatedAt, orders[0]?.updatedAt ?? null]
+    .filter((value): value is string => Boolean(value))
+    .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0] ?? null;
 
-  const requestsInWork =
-    requestStats.NEW + requestStats.DISCUSSING + (requestStats.TERMS_AGREED ?? 0);
+  const requestsInWork = statusCounts.NEW + statusCounts.DISCUSSING + statusCounts.TERMS_AGREED;
 
   return (
     <Stack spacing={3}>
@@ -302,7 +287,7 @@ export function ProOverviewDashboard({ provider, services, requests, orders, tod
                   >
                     К услугам
                   </Button>
-                  <Button component={Link} href="/pro" variant="outlined" fullWidth>
+                  <Button component={Link} href="/pro/requests" variant="outlined" fullWidth>
                     Заявки
                   </Button>
                   <Button component={Link} href="/pro/requests" variant="outlined" fullWidth>
@@ -329,7 +314,7 @@ export function ProOverviewDashboard({ provider, services, requests, orders, tod
             <OverviewStatCard
               label="Заявки в работе"
               value={requestsInWork}
-              caption={`${requestStats.NEW} новых и ${requestStats.DISCUSSING} в обсуждении`}
+              caption={`${statusCounts.NEW} новых и ${statusCounts.DISCUSSING} в обсуждении`}
               icon={<AssignmentTurnedInOutlinedIcon fontSize="small" />}
             />
             <OverviewStatCard
@@ -398,10 +383,10 @@ export function ProOverviewDashboard({ provider, services, requests, orders, tod
               Воронка первых откликов: от новых обращений до перевода в заказ или закрытия без сделки.
             </Typography>
             <MetricRow label="Всего заявок" value={String(requestStats.total)} />
-            <MetricRow label="Новые" value={String(requestStats.NEW)} />
-            <MetricRow label="В обсуждении" value={String(requestStats.DISCUSSING)} />
-            <MetricRow label="Заказы (активные)" value={String(requestStats.ACTIVE)} />
-            <MetricRow label="Закрыто" value={String(requestStats.CLOSED)} />
+            <MetricRow label="Новые" value={String(statusCounts.NEW)} />
+            <MetricRow label="В обсуждении" value={String(statusCounts.DISCUSSING)} />
+            <MetricRow label="Заказы (активные)" value={String(statusCounts.ACTIVE)} />
+            <MetricRow label="Закрыто" value={String(statusCounts.CLOSED)} />
           </Stack>
         </Paper>
 
@@ -459,7 +444,7 @@ export function ProOverviewDashboard({ provider, services, requests, orders, tod
                 <Typography variant="h5" sx={{
                   fontWeight: 800
                 }}>
-                  {requestStats.NEW}
+                  {statusCounts.NEW}
                 </Typography>
                 <Typography variant="body2" sx={{
                   color: "text.secondary"

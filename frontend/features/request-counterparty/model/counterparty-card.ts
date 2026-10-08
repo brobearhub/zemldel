@@ -33,11 +33,13 @@ export function getProviderContactFields(input: {
   providerPhone: string | null;
   providerEmail: string | null;
 }): readonly CounterpartyField[] {
-  return [
+  const fields: CounterpartyField[] = [
     { label: "Название", value: input.providerName },
     { label: "Телефон", value: input.providerPhone },
-    { label: "Email", value: input.providerEmail },
   ];
+  const email = input.providerEmail?.trim() ?? "";
+  if (email) fields.push({ label: "Email", value: email });
+  return fields;
 }
 
 export function hasAnyCounterpartyValue(fields: readonly CounterpartyField[]): boolean {

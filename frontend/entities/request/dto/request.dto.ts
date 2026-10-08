@@ -36,6 +36,17 @@ export function isContractPhase(req: {
   return hasRequestLock(req) && !isOrderExecutionStatus(req.status);
 }
 
+/**
+ * Исполнитель ведёт документы сделки, только если заявка зафиксирована за ним.
+ * `isLocked` в `RequestProDto` — это lock за другим исполнителем (`isLockedToOtherProvider`).
+ */
+export function canProviderManageDealDocuments(req: {
+  lockedAt: string | null | undefined;
+  isLocked: boolean;
+}): boolean {
+  return hasRequestLock(req) && !req.isLocked;
+}
+
 export type RequestProviderOfferStatus = "SELECTED" | "DECLINED";
 
 export type RequestCustomerOfferDto = {
@@ -86,6 +97,8 @@ export type RequestCustomerDto = {
   fiasInactiveWarning: boolean;
   lockedAt: string | null;
   serviceTitle: string | null;
+  serviceImage: string | null;
+  categoryName: string | null;
   providerName: string | null;
   providerPhone: string | null;
   providerEmail: string | null;
@@ -132,6 +145,8 @@ export type RequestProDto = {
   customerEmail: string | null;
   customerPhone: string | null;
   customerImage: string | null;
+  customerRating?: number | null;
+  customerReviewCount?: number;
   conversationsCount: number;
   isLocked: boolean;
   totalAmountRubles: number | null;
@@ -177,4 +192,20 @@ export function resolveRequestDetailBody(message: string | null, serviceTitle: s
   const fromService = serviceTitle?.trim();
   if (fromService) return fromService;
   return null;
+}
+
+/**
+ * Заголовок карточки заявки.
+ * Why: заявка со страницы услуги называется по услуге, остальные остаются «Заявка».
+ */
+export function resolveRequestDetailTitle(subjectType: RequestSubjectType, serviceTitle: string | null): string {
+  if (subjectType !== "SERVICE") return "Заявка";
+  const name = serviceTitle?.trim();
+  return name || "Заявка";
+}
+
+/** Подпись кнопки исполнителя: имя провайдера, если оно есть. */
+export function resolveProviderTriggerLabel(providerName: string | null): string {
+  const name = providerName?.trim();
+  return name || "Исполнитель";
 }

@@ -52,6 +52,12 @@ If a task seems to require the client to know a YC detail — that's a signal to
 - Only variables prefixed `NEXT_PUBLIC_` are safe in client bundles. Anything secret stays server-side (Next.js Route Handlers / Server Actions / a separate backend).
 - Never put YC keys, tokens, or service-account JSON into `NEXT_PUBLIC_*`. If a value would need to be `NEXT_PUBLIC_*` to "work", the design is wrong — route the call through the backend.
 
+## Links and `sx`
+
+- Navigation links use only `@/shared/ui/Link`. Do not import `next/link`.
+- Render `<Link href>`. Do not pass the link as an MUI `component={Link}` prop: a Server Component cannot serialize that function, and the page crashes.
+- Do not put functions in `sx` (`(theme) => ...`). Use palette tokens such as `primary.main`.
+
 ## Response format
 
 Short plan, then code. Add **"Why:"** to non-trivial steps. If several options exist — compare briefly and recommend one.

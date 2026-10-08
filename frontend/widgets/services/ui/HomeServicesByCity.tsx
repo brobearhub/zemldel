@@ -8,25 +8,6 @@ import { ServiceSectionHeader } from "@/widgets/services/ui/ServiceSectionHeader
 
 const SERVICES_FETCH_USER_MESSAGE = "Не удалось загрузить список услуг. Попробуйте позже.";
 
-function getPublishedAtTs(value: string | null | undefined): number | null {
-  if (!value) return null;
-  const ts = Date.parse(value);
-  return Number.isFinite(ts) ? ts : null;
-}
-
-function compareByPublishedAtDesc(a: ServiceCardItem, b: ServiceCardItem) {
-  const ta = getPublishedAtTs(a.publishedAt ?? null);
-  const tb = getPublishedAtTs(b.publishedAt ?? null);
-
-  // Unknown dates go last
-  if (ta === null && tb === null) return a.id.localeCompare(b.id);
-  if (ta === null) return 1;
-  if (tb === null) return -1;
-
-  if (ta !== tb) return tb - ta;
-  return a.id.localeCompare(b.id);
-}
-
 function ServiceGrid({
   items,
   variant,
@@ -95,7 +76,7 @@ export function HomeServicesByCity() {
         if (!cityId) {
           const all = await fetchServices("/api/services");
           if (!alive) return;
-          setMyCityItems([...all].sort(compareByPublishedAtDesc));
+          setMyCityItems(all);
           setOtherCityItems([]);
           return;
         }
@@ -106,8 +87,8 @@ export function HomeServicesByCity() {
         ]);
         if (!alive) return;
 
-        setMyCityItems([...mine].sort(compareByPublishedAtDesc));
-        setOtherCityItems([...other].sort(compareByPublishedAtDesc));
+        setMyCityItems(mine);
+        setOtherCityItems(other);
       } catch (e) {
         if (!alive) return;
         if (process.env.NODE_ENV !== "production") {

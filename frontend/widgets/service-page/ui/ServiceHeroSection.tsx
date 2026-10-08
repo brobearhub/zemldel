@@ -4,7 +4,9 @@ import LocationOnRoundedIcon from "@mui/icons-material/LocationOnRounded";
 import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
 import { Box, Button, Container, Rating, Stack, Typography } from "@mui/material";
 import type { ServiceHeroVm } from "@/widgets/service-page/model/service-hero.vm";
+import { formatReviewCount } from "@/entities/review";
 import { formatRubPriceLabel } from "@/shared/lib/money/format-rub-price-label";
+import { toPublicAssetSrc } from "@/shared/lib/public-asset-src";
 import { ServiceBackButton } from "./ServiceBackButton";
 
 type Props = {
@@ -54,7 +56,7 @@ export function ServiceHeroSection({ vm }: Props) {
             >
               {vm.imageUrl ? (
                 <Image
-                  src={vm.imageUrl}
+                  src={toPublicAssetSrc(vm.imageUrl)}
                   alt=""
                   fill
                   unoptimized={process.env.NODE_ENV !== "production"}
@@ -150,7 +152,7 @@ export function ServiceHeroSection({ vm }: Props) {
                     <Typography variant="body2">{vm.rating.value.toFixed(1)}</Typography>
                     {vm.rating.reviewCount != null ? (
                       <Typography variant="caption" sx={{ color: "text.secondary", letterSpacing: "0.4px" }}>
-                        {vm.rating.reviewCount} отзывов
+                        {formatReviewCount(vm.rating.reviewCount)}
                       </Typography>
                     ) : null}
                   </Stack>
