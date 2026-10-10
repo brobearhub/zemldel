@@ -4,7 +4,7 @@ import { getServerAuthSession } from "@/core/auth";
 
 type Params = { params: Promise<{ id: string; action: string }> };
 
-const ACTIONS = new Set(["view", "save", "reply", "repost", "profile-open", "insights"]);
+const ACTIONS = new Set(["view", "save", "reply", "profile-open", "insights"]);
 
 async function proxy(request: Request, params: Params["params"], method: string) {
   const { id, action } = await params;
@@ -18,8 +18,13 @@ async function proxy(request: Request, params: Params["params"], method: string)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const timeZone = new URL(request.url).searchParams.get("timeZone");
-  const qs = action === "insights" && timeZone ? `?timeZone=${encodeURIComponent(timeZone)}` : "";
+  const incoming = new URL(request.url).searchParams;
+  const forwarded = new URLSearchParams();
+  const timeZone = incoming.get("timeZone");
+  if (action === "insights" && timeZone) forwarded.set("timeZone", timeZone);
+  const scope = incoming.get("scope");
+  if (scope === "user" || scope === "provider") forwarded.set("scope", scope);
+  const qs = forwarded.size > 0 ? `?${forwarded.toString()}` : "";
   // Пустой POST (просмотр, закладка) нельзя слать как application/json:
   // axios превращает пустую строку в невалидный JSON, и бэкенд отвечает 400.
   const rawBody = method === "POST" ? (await request.text()).trim() : "";

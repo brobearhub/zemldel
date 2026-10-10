@@ -18,7 +18,7 @@ import {
 import { ServiceCard } from "@/entities/service";
 import type { ServiceDto, ServiceStatus } from "@/entities/service";
 import { SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
-import { toPublicAssetSrc } from "@/shared/lib/public-asset-src";
+import { CdnImage } from "@/shared/ui/cdn-image";
 import { useAppSelector } from "@/core/store/hooks";
 
 type Props = {
@@ -649,10 +649,9 @@ export function ProServiceEditor({ mode, initialService }: Props) {
                     <Typography variant="body2" sx={{ color: "text.secondary" }}>
                       Изображение загружено.
                     </Typography>
-                    <Box
-                      component="img"
+                    <CdnImage
                       alt="Загруженное изображение услуги"
-                      src={toPublicAssetSrc(form.image)}
+                      src={form.image}
                       sx={{
                         width: 300,
                         height: 300,

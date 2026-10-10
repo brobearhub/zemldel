@@ -1,9 +1,9 @@
 "use client";
 
-import { Avatar, Box, Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import type { StoryDto } from "@/entities/story";
 import { resolveStoryCover, storyAuthorInitials } from "@/entities/story";
-import { toPublicAssetSrc } from "@/shared/lib/public-asset-src";
+import { CdnAvatar } from "@/shared/ui/cdn-image";
 
 type Props = {
   items: StoryDto[];
@@ -57,8 +57,8 @@ export function StoriesRail({ items, onOpen }: Props) {
                 bgcolor: story.viewed ? "transparent" : "primary.main",
               }}
             >
-              <Avatar
-                src={cover.kind === "image" ? toPublicAssetSrc(cover.src) : undefined}
+              <CdnAvatar
+                src={cover.kind === "image" ? cover.src : undefined}
                 alt={story.authorName}
                 sx={{
                   width: "100%",
@@ -72,7 +72,7 @@ export function StoriesRail({ items, onOpen }: Props) {
                 }}
               >
                 {cover.kind === "initials" ? storyAuthorInitials(story.authorName) : null}
-              </Avatar>
+              </CdnAvatar>
             </Box>
             <Typography
               variant="caption"

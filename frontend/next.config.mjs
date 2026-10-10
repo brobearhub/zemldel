@@ -27,6 +27,10 @@ const nextConfig = {
         protocol: "https",
         hostname: "cdn.zemledel.pro",
       },
+      {
+        protocol: "https",
+        hostname: "storage.yandexcloud.net",
+      },
     ],
   },
 };

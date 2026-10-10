@@ -6,6 +6,7 @@ import { Box, Button, Stack, TextField, Typography } from "@mui/material";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useState } from "react";
+import { isSafeReturnToPath } from "@/core/auth/session-recovery";
 import { areSignInFieldsFilled } from "./are-sign-in-fields-filled";
 import { RainGlassPaper } from "@/shared/ui/RainGlassPaper";
 import { LogoFull } from "@/shared/ui/LogoFull";
@@ -31,14 +32,6 @@ const signInShellSx = {
   backgroundPosition: "center",
   backgroundRepeat: "no-repeat",
 } as const;
-
-function isSafeReturnToPath(value: string | null): value is string {
-  if (!value) return false;
-  if (!value.startsWith("/")) return false;
-  if (value.startsWith("//")) return false;
-  if (value.includes("://")) return false;
-  return true;
-}
 
 function SignInPageFallback() {
   return (

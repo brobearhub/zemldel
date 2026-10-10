@@ -1,6 +1,7 @@
 "use client";
 
 // Why: titleFor — функция, серверный компонент не может передать её в клиентский список.
+import { useState } from "react";
 import { Box, Stack, Typography } from "@mui/material";
 import Link from "@/shared/ui/Link";
 import { ServiceCard, type ServiceDto } from "@/entities/service";
@@ -13,6 +14,7 @@ type Props = {
 
 export function ProMyServicesSection({ services }: Props) {
   const visible = services.filter((service) => service.status !== "ARCHIVED");
+  const [expandedServiceId, setExpandedServiceId] = useState<string | null>(null);
 
   return (
     <Stack spacing={2.5}>
@@ -40,6 +42,8 @@ export function ProMyServicesSection({ services }: Props) {
             <ServiceRequestsPanel
               serviceId={service.id}
               showCustomerAvatar
+              expanded={expandedServiceId === service.id}
+              onExpandedChange={(open) => setExpandedServiceId(open ? service.id : null)}
               titleFor={(request) => serviceRequestRowTitle(request.customerName, service.title)}
             />
           </Box>

@@ -1,8 +1,9 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { Box, Stack, Typography } from "@mui/material";
 import type { ServiceDto } from "@/entities/service";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
+import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import { ProServiceEditor } from "@/widgets/pro-services/ui/ProServiceEditor";
 
 type Props = {
@@ -10,13 +11,12 @@ type Props = {
 };
 
 export default async function ProServicesEditPage({ params }: Props) {
+  const { id } = await params;
   const session = await getServerAuthSession();
 
   if (!session?.user?.id) {
-    redirect("/signin");
+    signInRedirect(`/pro/services/${id}/edit`);
   }
-
-  const { id } = await params;
 
   let service: ServiceDto;
 

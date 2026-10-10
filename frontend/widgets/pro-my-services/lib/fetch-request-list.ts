@@ -1,16 +1,9 @@
 import type { RequestProDto } from "@/entities/request";
-import {
-  isRequestListStageCounts,
-  readCachedStageCounts,
-  readRequestListCache,
-  writeRequestListCache,
-  type RequestListQuery,
-  type RequestListStageCounts,
-} from "./request-list-cache";
+import { withoutCompletedRequests } from "./open-request-feed";
+import { readRequestListCache, writeRequestListCache, type RequestListQuery } from "./request-list-cache";
 
 export type RequestListFeed = {
   items: RequestProDto[];
-  counts: RequestListStageCounts;
 };
 
 function errorMessage(payload: unknown): string {
@@ -24,10 +17,9 @@ function errorMessage(payload: unknown): string {
 
 export async function fetchRequestList(query: RequestListQuery, now = Date.now()): Promise<RequestListFeed> {
   const cachedItems = readRequestListCache(query, now);
-  const cachedCounts = readCachedStageCounts(query.serviceId, now);
-  if (cachedItems && cachedCounts) return { items: cachedItems, counts: cachedCounts };
+  if (cachedItems) return { items: withoutCompletedRequests(cachedItems) };
 
-  const params = new URLSearchParams({ stage: query.stage });
+  const params = new URLSearchParams();
   if (query.serviceId) params.set("serviceId", query.serviceId);
   else params.set("scope", "free");
 
@@ -35,12 +27,11 @@ export async function fetchRequestList(query: RequestListQuery, now = Date.now()
   const payload = (await response.json().catch(() => null)) as unknown;
   const record = payload && typeof payload === "object" && !Array.isArray(payload) ? payload : null;
   const items = record && "items" in record ? record.items : null;
-  const counts = record && "counts" in record ? record.counts : null;
-  if (!response.ok || !Array.isArray(items) || !isRequestListStageCounts(counts)) {
+  if (!response.ok || !Array.isArray(items)) {
     throw new Error(errorMessage(payload));
   }
 
-  const feed: RequestListFeed = { items: items as RequestProDto[], counts };
-  writeRequestListCache(query, feed.items, feed.counts, now);
+  const feed: RequestListFeed = { items: withoutCompletedRequests(items as RequestProDto[]) };
+  writeRequestListCache(query, feed.items, now);
   return feed;
 }

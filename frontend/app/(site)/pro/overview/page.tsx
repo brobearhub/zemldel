@@ -1,10 +1,11 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { Stack } from "@mui/material";
 import { getActiveMembership } from "@/core/auth/authorization";
 import type { RequestCustomerDto, RequestReminderDto } from "@/entities/request";
 import type { ServiceDto } from "@/entities/service";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
+import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import { ProOverviewDashboard, type ProRequestStats } from "@/widgets/pro-dashboard/ui/ProOverviewDashboard";
 import { ProfessionalWorkspacePanel } from "@/widgets/pro-dashboard/ui/ProfessionalWorkspacePanel";
 
@@ -19,7 +20,7 @@ export default async function ProOverviewPage() {
   const session = await getServerAuthSession();
 
   if (!session?.user?.id) {
-    redirect("/signin");
+    signInRedirect("/pro/overview");
   }
 
   const activeMembership = getActiveMembership(session.user);

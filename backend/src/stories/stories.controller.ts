@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -25,6 +26,8 @@ import { InternalAuthService } from '../auth/internal-auth.service';
 import { ApiStandardErrors } from '../common/swagger/api-standard-errors.decorator';
 import {
   CreateStoryDto,
+  StoryCommentDto,
+  StoryCommentListDto,
   StoryConversationListDto,
   StoryConversationMessageDto,
   StoryConversationMessagesDto,
@@ -46,16 +49,19 @@ export class StoriesController {
   @Get('stories')
   @ApiQuery({ name: 'cityId', required: false, type: String })
   @ApiQuery({ name: 'providerId', required: false, type: String })
+  @ApiQuery({ name: 'scope', required: false, enum: ['user', 'provider'] })
   @ApiOkResponse({ type: StoryListDto })
   listPublic(
     @Req() request: Request,
     @Query('cityId') cityId?: string,
     @Query('providerId') providerId?: string,
+    @Query('scope') scope?: string,
   ) {
     return this.stories.listPublic(
       cityId?.trim() || null,
       this.internalAuth.getOptionalUserIdFromRequest(request),
       providerId?.trim() || null,
+      scope === 'provider' ? 'provider' : 'user',
     );
   }
 
@@ -110,9 +116,13 @@ export class StoriesController {
   }
 
   @Get('stories/saved')
+  @ApiQuery({ name: 'scope', required: false, enum: ['user', 'provider'] })
   @ApiOkResponse({ type: StoryListDto })
-  listSaved(@Req() request: Request) {
-    return this.stories.listSaved(this.internalAuth.getUserIdFromRequest(request));
+  listSaved(@Req() request: Request, @Query('scope') scope?: string) {
+    return this.stories.listSaved(
+      this.internalAuth.getUserIdFromRequest(request),
+      scope === 'provider' ? 'provider' : 'user',
+    );
   }
 
   @Get('stories/audience')
@@ -168,26 +178,32 @@ export class StoriesController {
 
   @Post('stories/:id/view')
   @ApiParam({ name: 'id', type: String })
-  recordView(@Req() request: Request, @Param('id') id: string) {
+  @ApiQuery({ name: 'scope', required: false, enum: ['user', 'provider'] })
+  recordView(@Req() request: Request, @Param('id') id: string, @Query('scope') scope?: string) {
     return this.stories.recordView({
       storyId: id,
       actorUserId: this.internalAuth.getOptionalUserIdFromRequest(request),
+      scope: scope === 'provider' ? 'provider' : 'user',
     });
   }
 
   @Post('stories/:id/save')
-  save(@Req() request: Request, @Param('id') id: string) {
+  @ApiQuery({ name: 'scope', required: false, enum: ['user', 'provider'] })
+  save(@Req() request: Request, @Param('id') id: string, @Query('scope') scope?: string) {
     return this.stories.saveStory({
       storyId: id,
       actorUserId: this.internalAuth.getUserIdFromRequest(request),
+      scope: scope === 'provider' ? 'provider' : 'user',
     });
   }
 
   @Delete('stories/:id/save')
-  unsave(@Req() request: Request, @Param('id') id: string) {
+  @ApiQuery({ name: 'scope', required: false, enum: ['user', 'provider'] })
+  unsave(@Req() request: Request, @Param('id') id: string, @Query('scope') scope?: string) {
     return this.stories.unsaveStory({
       storyId: id,
       actorUserId: this.internalAuth.getUserIdFromRequest(request),
+      scope: scope === 'provider' ? 'provider' : 'user',
     });
   }
 
@@ -220,11 +236,101 @@ export class StoriesController {
   }
 
   @Post('stories/:id/reply')
-  reply(@Req() request: Request, @Param('id') id: string, @Body() body: { text?: string }) {
+  @ApiQuery({ name: 'scope', required: false, enum: ['user', 'provider'] })
+  reply(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Query('scope') scope?: string,
+    @Body() body?: { text?: string },
+  ) {
     return this.stories.reply({
       storyId: id,
       actorUserId: this.internalAuth.getUserIdFromRequest(request),
       text: body?.text ?? '',
+      scope: scope === 'provider' ? 'provider' : 'user',
+    });
+  }
+
+  @Get('stories/:id/comments')
+  @ApiQuery({ name: 'scope', required: false, enum: ['user', 'provider'] })
+  @ApiOkResponse({ type: StoryCommentListDto })
+  listComments(@Req() request: Request, @Param('id') id: string, @Query('scope') scope?: string) {
+    return this.stories.listComments({
+      storyId: id,
+      actorUserId: this.internalAuth.getOptionalUserIdFromRequest(request),
+      scope: scope === 'provider' ? 'provider' : 'user',
+    });
+  }
+
+  @Post('stories/:id/comments')
+  @ApiQuery({ name: 'scope', required: false, enum: ['user', 'provider'] })
+  @ApiOkResponse({ type: StoryCommentDto })
+  comment(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Query('scope') scope?: string,
+    @Body() body?: { text?: string },
+  ) {
+    return this.stories.comment({
+      storyId: id,
+      actorUserId: this.internalAuth.getUserIdFromRequest(request),
+      text: body?.text ?? '',
+      scope: scope === 'provider' ? 'provider' : 'user',
+    });
+  }
+
+  @Patch('stories/:id/comments/:commentId')
+  @ApiOkResponse({ type: StoryCommentDto })
+  updateComment(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Param('commentId') commentId: string,
+    @Body() body?: { text?: string },
+  ) {
+    return this.stories.updateComment({
+      storyId: id,
+      commentId,
+      actorUserId: this.internalAuth.getUserIdFromRequest(request),
+      text: body?.text ?? '',
+    });
+  }
+
+  @Delete('stories/:id/comments/:commentId')
+  removeComment(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Param('commentId') commentId: string,
+  ) {
+    return this.stories.deleteComment({
+      storyId: id,
+      commentId,
+      actorUserId: this.internalAuth.getUserIdFromRequest(request),
+    });
+  }
+
+  @Post('stories/:id/comments/:commentId/like')
+  likeComment(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Param('commentId') commentId: string,
+  ) {
+    return this.stories.likeComment({
+      storyId: id,
+      commentId,
+      actorUserId: this.internalAuth.getUserIdFromRequest(request),
+    });
+  }
+
+  @Delete('stories/:id/comments/:commentId/like')
+  unlikeComment(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Param('commentId') commentId: string,
+  ) {
+    return this.stories.unlikeComment({
+      storyId: id,
+      commentId,
+      actorUserId: this.internalAuth.getUserIdFromRequest(request),
     });
   }
 
@@ -242,20 +348,23 @@ export class StoriesController {
   }
 
   @Post('stories/:id/profile-open')
-  profileOpen(@Req() request: Request, @Param('id') id: string) {
+  @ApiQuery({ name: 'scope', required: false, enum: ['user', 'provider'] })
+  profileOpen(@Req() request: Request, @Param('id') id: string, @Query('scope') scope?: string) {
     return this.stories.recordProfileOpen({
       storyId: id,
       actorUserId: this.internalAuth.getOptionalUserIdFromRequest(request),
+      scope: scope === 'provider' ? 'provider' : 'user',
     });
   }
 
   @Post('stories/follow')
   follow(
     @Req() request: Request,
-    @Body() body: { targetUserId?: string | null; targetProviderId?: string | null },
+    @Body() body: { targetUserId?: string | null; targetProviderId?: string | null; scope?: string },
   ) {
     return this.stories.followAuthor({
       actorUserId: this.internalAuth.getUserIdFromRequest(request),
+      scope: body?.scope === 'provider' ? 'provider' : 'user',
       targetUserId: body?.targetUserId,
       targetProviderId: body?.targetProviderId,
     });
@@ -264,10 +373,11 @@ export class StoriesController {
   @Post('stories/unfollow')
   unfollow(
     @Req() request: Request,
-    @Body() body: { targetUserId?: string | null; targetProviderId?: string | null },
+    @Body() body: { targetUserId?: string | null; targetProviderId?: string | null; scope?: string },
   ) {
     return this.stories.unfollowAuthor({
       actorUserId: this.internalAuth.getUserIdFromRequest(request),
+      scope: body?.scope === 'provider' ? 'provider' : 'user',
       targetUserId: body?.targetUserId,
       targetProviderId: body?.targetProviderId,
     });

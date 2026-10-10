@@ -1,30 +1,61 @@
-/** Публичные CDN, с которых браузер в dev получает 407, а сервер Next — 200. */
+/** Публичные CDN. Если браузер их не открыл, тот же ключ читается из Object Storage. */
 export const PUBLIC_CDN_HOSTS = ["cdn.zemledel.pro", "cdn.zemledelpro.ru"] as const;
+
+export type DevStorageConfig = {
+  endpoint: string;
+  bucket: string;
+  forcePathStyle: boolean;
+};
 
 const HOSTS = new Set<string>(PUBLIC_CDN_HOSTS);
 
-export function isPublicCdnHost(host: string): boolean {
-  return HOSTS.has(host);
+function publicStorageConfig(): DevStorageConfig | null {
+  const endpoint = process.env.NEXT_PUBLIC_YA_S3_ENDPOINT?.trim() ?? "";
+  const bucket = process.env.NEXT_PUBLIC_YA_S3_PUBLIC_BUCKET?.trim() ?? "";
+  if (!endpoint || !bucket) return null;
+  return {
+    endpoint,
+    bucket,
+    forcePathStyle: process.env.NEXT_PUBLIC_YA_S3_FORCE_PATH_STYLE === "true",
+  };
+}
+
+/** Собирает URL объекта в Object Storage. */
+export function devStorageObjectUrl(config: DevStorageConfig, key: string): string {
+  const encodedKey = key
+    .split("/")
+    .filter((segment) => segment.length > 0)
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  const endpoint = config.endpoint.replace(/\/+$/, "");
+  if (config.forcePathStyle) {
+    return `${endpoint}/${encodeURIComponent(config.bucket)}/${encodedKey}`;
+  }
+  const origin = new URL(endpoint);
+  return `${origin.protocol}//${config.bucket}.${origin.host}/${encodedKey}`;
 }
 
 /**
- * В dev подменяет абсолютный URL публичного CDN на same-origin прокси.
- * Why: Chrome кэширует 407 Proxy Authentication Required на прямой запрос к CDN,
- * серверный fetch того же объекта отвечает 200. В production адрес не меняется.
+ * Тот же ключ, что у CDN, но на публичном бакете.
+ * Why: CDN с dev-машины часто не открывается, объект в Storage при этом читается анонимно.
+ * Чужие адреса и локальные превью не подменяются. Без env фолбека нет.
  */
-export function toPublicAssetSrc(url: string): string {
-  if (process.env.NODE_ENV === "production") return url;
+export function storageFallbackSrc(url: string): string | null {
+  const config = publicStorageConfig();
+  if (!config) return null;
 
   let parsed: URL;
   try {
     parsed = new URL(url);
   } catch {
-    return url;
+    return null;
   }
 
-  if (parsed.protocol !== "https:" || !HOSTS.has(parsed.hostname)) return url;
+  if (parsed.protocol !== "https:" || !HOSTS.has(parsed.hostname)) return null;
 
-  const path = parsed.pathname.replace(/^\/+/, "");
-  const local = `/api/dev-cdn/${parsed.hostname}/${path}`;
-  return parsed.search ? `${local}${parsed.search}` : local;
+  const key = parsed.pathname.replace(/^\/+/, "");
+  if (!key.startsWith("public/")) return null;
+
+  const target = devStorageObjectUrl(config, key);
+  return parsed.search ? `${target}${parsed.search}` : target;
 }

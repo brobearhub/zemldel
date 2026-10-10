@@ -1,5 +1,7 @@
 import { pluralRu } from "@/shared/lib/plural-ru";
 
+const REPLY_SENT_MARK_MS = 5_000;
+const MS_IN_MINUTE = 60_000;
 const MS_IN_HOUR = 3_600_000;
 const MS_IN_DAY = 86_400_000;
 
@@ -8,7 +10,17 @@ export type RequestOpenAge = {
   label: string;
 };
 
-/** Why: «0 дней» не говорит, насколько заявка свежая — до суток считаем целые часы. */
+/** Why: галочка только сразу после своей отправки, дальше снова счётчик от этого времени. */
+export function replySentMarkDelay(sentAt: string | null | undefined, now: Date = new Date()): number | null {
+  if (!sentAt) return null;
+  const sent = new Date(sentAt).getTime();
+  if (Number.isNaN(sent)) return null;
+  const elapsed = now.getTime() - sent;
+  if (elapsed < 0 || elapsed >= REPLY_SENT_MARK_MS) return null;
+  return REPLY_SENT_MARK_MS - elapsed;
+}
+
+/** Why: счётчик идёт от последнего сообщения и опускается до минут, пока не накопится час. */
 export function getRequestOpenAge(createdAt: string, now: Date = new Date()): RequestOpenAge {
   const created = new Date(createdAt).getTime();
   const elapsed = Number.isNaN(created) ? 0 : Math.max(0, now.getTime() - created);
@@ -17,7 +29,11 @@ export function getRequestOpenAge(createdAt: string, now: Date = new Date()): Re
     return { count: days, label: pluralRu(days, ["день", "дня", "дней"]) };
   }
   const hours = Math.floor(elapsed / MS_IN_HOUR);
-  return { count: hours, label: pluralRu(hours, ["час", "часа", "часов"]) };
+  if (hours > 0) {
+    return { count: hours, label: pluralRu(hours, ["час", "часа", "часов"]) };
+  }
+  const minutes = Math.max(1, Math.floor(elapsed / MS_IN_MINUTE));
+  return { count: minutes, label: pluralRu(minutes, ["минута", "минуты", "минут"]) };
 }
 
 /** Why: тот же порядок, что у аватара в карточке заявки — имя, затем фамилия. */
@@ -83,10 +99,6 @@ export function formatRequestOpenedStamp(value: string): RequestOpenedStamp | nu
   if (!day || !month || !hour || !minute) return null;
 
   return { day, month, time: `${hour}:${minute}` };
-}
-
-export function formatRequestCount(count: number): string {
-  return `${count} ${pluralRu(count, ["заявка", "заявки", "заявок"])}`;
 }
 
 export function formatRequestOpenedAt(value: string): string {

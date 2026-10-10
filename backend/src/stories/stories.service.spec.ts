@@ -21,7 +21,7 @@ function storyRow(overrides: Record<string, unknown> = {}) {
     imageUrl: null,
     durationDays: 1,
     publishedAt: new Date('2026-10-06T10:00:00.000Z'),
-    expiresAt: new Date('2026-10-07T10:00:00.000Z'),
+    expiresAt: new Date('2027-10-07T10:00:00.000Z'),
     authorUser: { name: 'Анна Кузнецова', image: null },
     provider: null,
     ...overrides,
@@ -359,7 +359,7 @@ describe('StoriesService.conversations', () => {
       authorType: 'USER' as const,
       authorUserId: USER_ID,
       providerId: null,
-      authorUser: { name: 'Я', customerCity: null },
+      authorUser: { name: 'Я', image: null, customerCity: null },
       provider: null,
     };
   }
@@ -401,8 +401,11 @@ describe('StoriesService.conversations', () => {
         id: 'reply-1',
         text: 'Где это?',
         createdAt: new Date('2026-10-07T13:40:00.000Z'),
+        authorType: 'USER' as const,
         authorUserId: ANNA,
-        author: { name: 'Анна Ким', customerCity: { name: 'Москва' } },
+        providerId: null,
+        author: { name: 'Анна Ким', image: null, customerCity: { name: 'Москва' } },
+        provider: null,
         messages: [],
         story: storyOf('story-1', 'Закат'),
       },
@@ -410,8 +413,11 @@ describe('StoriesService.conversations', () => {
         id: 'reply-2',
         text: 'Хочу туда',
         createdAt: new Date('2026-10-07T14:00:00.000Z'),
+        authorType: 'USER' as const,
         authorUserId: ANNA,
-        author: { name: 'Анна Ким', customerCity: { name: 'Москва' } },
+        providerId: null,
+        author: { name: 'Анна Ким', image: null, customerCity: { name: 'Москва' } },
+        provider: null,
         messages: [],
         story: storyOf('story-2', 'Кофе'),
       },
@@ -453,5 +459,50 @@ describe('StoriesService.conversations', () => {
       }),
     );
     expect(sent).toMatchObject({ text: 'Ответ', mine: true, storyId: 'story-2', storyText: 'Кофе' });
+  });
+});
+
+describe('StoriesService.likeComment', () => {
+  it('не даёт лайкнуть свой комментарий', async () => {
+    const prisma = {
+      storyComment: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'comment-1',
+          storyId: 'story-1',
+          authorUserId: USER_ID,
+        }),
+      },
+      storyCommentLike: { upsert: vi.fn() },
+    };
+
+    await expect(
+      makeService(prisma).likeComment({
+        storyId: 'story-1',
+        commentId: 'comment-1',
+        actorUserId: USER_ID,
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.storyCommentLike.upsert).not.toHaveBeenCalled();
+  });
+
+  it('ставит лайк чужому комментарию', async () => {
+    const prisma = {
+      storyComment: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'comment-1',
+          storyId: 'story-1',
+          authorUserId: '33333333-3333-4333-8333-333333333333',
+        }),
+      },
+      storyCommentLike: { upsert: vi.fn().mockResolvedValue({}) },
+    };
+
+    await makeService(prisma).likeComment({
+      storyId: 'story-1',
+      commentId: 'comment-1',
+      actorUserId: USER_ID,
+    });
+
+    expect(prisma.storyCommentLike.upsert).toHaveBeenCalledTimes(1);
   });
 });

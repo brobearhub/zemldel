@@ -42,12 +42,13 @@ function insights(overrides: Partial<StoryInsightsDto> = {}): StoryInsightsDto {
         createdAt: "2026-10-07T09:00:00.000Z",
       },
     ],
-    reposts: [
+    comments: [
       {
-        storyId: "s2",
+        id: "c1",
         name: "Илья Орлов",
         text: "Закат на Исети",
-        publishedAt: "2026-10-07T07:00:00.000Z",
+        likeCount: 2,
+        createdAt: "2026-10-07T07:00:00.000Z",
       },
     ],
     saveCount: 1,
@@ -105,7 +106,7 @@ describe("buildInsightTiles", () => {
       ["Переходы в профиль", 1],
       ["Гостевые переходы", 1],
       ["Ответы", 1],
-      ["Репосты", 1],
+      ["Комментарии", 1],
     ]);
 
     const viewers = tiles[0].rows[0];
@@ -118,9 +119,9 @@ describe("buildInsightTiles", () => {
     expect(tiles[1].rows[0]).toMatchObject({ name: "Гость", initial: "Г", detail: null, when: "1 ч" });
     expect(tiles[5].rows[0].detail).toBe("«Очень красиво!»");
     expect(tiles[6].rows[0]).toMatchObject({
-      name: "Закат на Исети",
+      name: "Илья Орлов",
       initial: "И",
-      detail: "Репостнул(а) Илья Орлов",
+      detail: "«Закат на Исети» · 2",
     });
   });
 });

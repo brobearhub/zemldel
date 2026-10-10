@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider } from "@mui/material";
 import { useMemo } from "react";
+import { afterEach, vi } from "vitest";
 import { createAppTheme } from "@/core/theme/createAppTheme";
 import {
   COLOR_MODE_STORAGE_KEY,
@@ -31,7 +32,35 @@ describe("ColorModeProvider", () => {
     window.localStorage.clear();
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("starts in light mode", () => {
+    render(
+      <ColorModeProvider>
+        <ModeProbe />
+      </ColorModeProvider>,
+    );
+
+    expect(screen.getByText("light")).toBeInTheDocument();
+  });
+
+  it("stays light when the system prefers dark and nothing is stored", async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockImplementation((query: string) => ({
+        matches: query.includes("dark"),
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      })),
+    );
+
     render(
       <ColorModeProvider>
         <ModeProbe />

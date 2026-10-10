@@ -1,9 +1,10 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { Stack } from "@mui/material";
 import { getActiveMembership } from "@/core/auth/authorization";
-import { isOpenRequestStatus, type RequestProDto } from "@/entities/request";
+import { type RequestProDto } from "@/entities/request";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
+import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import { ProfessionalWorkspacePanel } from "@/widgets/pro-dashboard/ui/ProfessionalWorkspacePanel";
 import { ProRequestsFeed } from "@/widgets/pro-requests/ui/ProRequestsFeed";
 
@@ -11,7 +12,7 @@ export default async function ProRequestsPage() {
   const session = await getServerAuthSession();
 
   if (!session?.user?.id) {
-    redirect("/signin");
+    signInRedirect("/pro/requests");
   }
 
   const activeMembership = getActiveMembership(session.user);
@@ -32,11 +33,10 @@ export default async function ProRequestsPage() {
       ),
       fetchBackendJsonAsUser<RequestProDto[]>("/pro/requests", session.user.id),
     ]);
-    const activeOrders = (orders ?? []).filter((o) => isOpenRequestStatus(o.status));
 
     return (
       <Stack spacing={3}>
-        <ProRequestsFeed initialItems={feed} initialActiveOrders={activeOrders} />
+        <ProRequestsFeed initialItems={feed} initialOrders={orders ?? []} />
       </Stack>
     );
   } catch (error) {

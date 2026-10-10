@@ -42,7 +42,7 @@ export type StoryInsightsDto = {
   profileOpens: Array<{ userId: string; name: string; cityName: string | null; openedAt: string }>;
   guestProfileOpens: Array<{ openedAt: string }>;
   replies: Array<{ id: string; authorUserId: string; text: string; name: string; cityName: string | null; createdAt: string }>;
-  reposts: Array<{ storyId: string; name: string; text: string; publishedAt: string }>;
+  comments: Array<{ id: string; text: string; name: string; likeCount: number; createdAt: string }>;
   saveCount: number;
   saves: Array<{ userId: string; name: string; cityName: string | null; savedAt: string }>;
 };
@@ -86,6 +86,23 @@ export type StoryConversationMessageDto = {
 
 export type StoryConversationMessagesDto = {
   items: StoryConversationMessageDto[];
+};
+
+export type StoryCommentDto = {
+  id: string;
+  text: string;
+  createdAt: string;
+  updatedAt: string;
+  authorName: string;
+  authorType: StoryAuthorType;
+  mine: boolean;
+  likeCount: number;
+  liked: boolean;
+};
+
+export type StoryCommentListDto = {
+  items: StoryCommentDto[];
+  truncated: boolean;
 };
 
 export type StoryAudienceDto = {

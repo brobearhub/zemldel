@@ -4,7 +4,6 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
-  Avatar,
   Alert,
   Box,
   Button,
@@ -20,7 +19,7 @@ import {
 import EmailIcon from "@mui/icons-material/Email";
 import PhoneIcon from "@mui/icons-material/Phone";
 import { normalizeContactPhoneInput } from "@/shared/lib/contact-phone";
-import { toPublicAssetSrc } from "@/shared/lib/public-asset-src";
+import { CdnAvatar } from "@/shared/ui/cdn-image";
 import { useAppSelector } from "@/core/store/hooks";
 import type { AuthMembership } from "@/core/auth/authorization";
 import { CustomerRequestsSection } from "@/widgets/customer-requests/ui/CustomerRequestsSection";
@@ -283,8 +282,8 @@ function ProfileOverview({
   return (
     <Stack spacing={3}>
       <Box sx={{ display: "flex", gap: 3, alignItems: "center" }}>
-        <Avatar
-          src={image ? toPublicAssetSrc(image) : undefined}
+        <CdnAvatar
+          src={image || undefined}
           sx={{
             width: 100,
             height: 100,
@@ -294,7 +293,7 @@ function ProfileOverview({
           }}
         >
           {getInitials(name) || email?.charAt(0)?.toUpperCase() || "U"}
-        </Avatar>
+        </CdnAvatar>
         <Box>
           <Typography variant="h4" gutterBottom sx={{
             fontWeight: 600

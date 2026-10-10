@@ -24,11 +24,13 @@ export function ServiceRequestList({ items, minRows = 6, allowLockedClick }: Pro
         const meta = `${formatServiceRequestDate(item.createdAt)}${ratingLabel}`;
         const preview = item.message
           ? item.message
-          : item.location
-            ? `Локация: ${item.location}`
-            : item.isLocked
-              ? "Клиент уже работает с другой компанией."
-              : "";
+          : item.customerName
+            ? item.customerName
+            : item.location
+              ? `Локация: ${item.location}`
+              : item.isLocked
+                ? "Клиент уже работает с другой компанией."
+                : "";
         return (
           <FeedListItem
             href={href}

@@ -114,6 +114,12 @@ export type RequestCustomerDto = {
   payments: RequestPaymentItemDto[];
   cadastralNumbers: string[];
   canDeleteByCustomer: boolean;
+  /** Превью последней реплики исполнителя. В списке заполнено только для DISCUSSING. */
+  providerLastMessage: string | null;
+  /** Превью последней реплики заказчика в том же диалоге. В списке заполнено только для DISCUSSING. */
+  customerLastMessage: string | null;
+  /** Заказчик уже ответил позже последней реплики исполнителя в том же диалоге. */
+  awaitingProviderReply: boolean;
 };
 
 export type RequestProDto = {
@@ -149,6 +155,14 @@ export type RequestProDto = {
   customerReviewCount?: number;
   conversationsCount: number;
   isLocked: boolean;
+  /** Превью последней реплики заказчика. В ленте есть на всех шагах, кроме «Завершена». */
+  customerLastMessage: string | null;
+  /** Превью последней реплики исполнителя в его диалоге. В ленте есть на всех шагах, кроме «Завершена». */
+  providerLastMessage: string | null;
+  /** Исполнитель уже ответил позже последней реплики заказчика в своём диалоге. */
+  awaitingCustomerReply: boolean;
+  /** Время последнего сообщения в диалоге исполнителя. Для счётчика в ленте. */
+  lastMessageAt: string | null;
   totalAmountRubles: number | null;
   paidAmountRubles: number;
   remainingAmountRubles: number | null;
@@ -173,11 +187,11 @@ export function getRequestStatusLabel(status: RequestStatus): string {
     case "ACCEPTED":
       return "Принято";
     case "COMPLETED":
-      return "Заказ выполнен";
+      return "Заявка выполнена";
     case "CANCELLED":
-      return "Заказ (отменён)";
+      return "Заявка отменена";
     case "CLOSED":
-      return "Закрыто";
+      return "Заявка закрыта";
     default: {
       const _exhaustive: never = status;
       return String(_exhaustive);

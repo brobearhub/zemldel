@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
-import { Chip, Stack } from "@mui/material";
+import { Chip, Stack, Typography } from "@mui/material";
+import type { RequestStatus } from "@/entities/request";
 import type { EligibleCategory, InboxSettings, InboxStatus } from "@/widgets/pro-requests/model/types";
 
 type StatusChip = { id: InboxStatus; label: string };
@@ -16,6 +17,9 @@ type Props = {
   onToggleFreeform: () => void;
   onResetFilters: () => void;
   showStatusChips?: boolean;
+  statusFilters: readonly { status: RequestStatus; label: string }[];
+  enabledStatuses: readonly RequestStatus[];
+  onToggleStatus: (status: RequestStatus) => void;
 };
 
 export function ProRequestsFeedFilters({
@@ -30,6 +34,9 @@ export function ProRequestsFeedFilters({
   onToggleFreeform,
   onResetFilters,
   showStatusChips = true,
+  statusFilters,
+  enabledStatuses,
+  onToggleStatus,
 }: Props) {
   const isResetActive = activeCategoryIds.length === 0 && !includeFreeform;
   return (
@@ -82,6 +89,28 @@ export function ProRequestsFeedFilters({
             />
           ))}
         </Stack>
+      </Stack>
+
+      <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
+        <Typography sx={{ fontWeight: 700, color: "text.secondary", mr: 0.5 }}>Статусы</Typography>
+        {statusFilters.map((filter) => {
+          const enabled = enabledStatuses.includes(filter.status);
+          return (
+            <Chip
+              size="small"
+              sx={{
+                fontWeight: 600,
+                fontSize: 12,
+                opacity: enabled ? 0.5 : 1,
+              }}
+              key={filter.status}
+              label={filter.label}
+              color="warning"
+              variant={enabled ? "filled" : "outlined"}
+              onClick={() => onToggleStatus(filter.status)}
+            />
+          );
+        })}
       </Stack>
     </Stack>
   );

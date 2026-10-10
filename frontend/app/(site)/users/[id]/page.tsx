@@ -1,8 +1,8 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { Avatar, Container, Rating, Stack, Typography } from "@mui/material";
-import { toPublicAssetSrc } from "@/shared/lib/public-asset-src";
+import { Container, Rating, Stack, Typography } from "@mui/material";
+import { CdnAvatar } from "@/shared/ui/cdn-image";
 
 type PublicUser = {
   id: string;
@@ -44,7 +44,7 @@ export default function PublicUserPage({ params }: { params: Promise<{ id: strin
       {profile ? (
         <Stack spacing={3}>
           <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-            <Avatar src={profile.image ? toPublicAssetSrc(profile.image) : undefined} sx={{ width: 96, height: 96 }} />
+            <CdnAvatar src={profile.image ?? undefined} sx={{ width: 96, height: 96 }} />
             <Stack>
               <Typography variant="h4">{profile.name}</Typography>
               {profile.cityName ? <Typography color="text.secondary">{profile.cityName}</Typography> : null}

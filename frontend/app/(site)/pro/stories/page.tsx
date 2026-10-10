@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation";
 import { Stack } from "@mui/material";
 import { getActiveMembership } from "@/core/auth/authorization";
 import { getServerAuthSession } from "@/core/auth";
+import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import { StoriesPage } from "@/views/stories-page";
 import { ProfessionalWorkspacePanel } from "@/widgets/pro-dashboard/ui/ProfessionalWorkspacePanel";
 
@@ -9,7 +9,7 @@ export default async function ProStoriesPage() {
   const session = await getServerAuthSession();
 
   if (!session?.user?.id) {
-    redirect("/signin");
+    signInRedirect("/pro/stories");
   }
 
   const activeMembership = getActiveMembership(session.user);

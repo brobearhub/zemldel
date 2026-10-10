@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
-import { toPublicAssetSrc } from "@/shared/lib/public-asset-src";
+import { CdnFillImage } from "@/shared/ui/cdn-image";
 import { useRouter } from "next/navigation";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -896,12 +895,10 @@ export function ProviderProfileEditorSection({
                 }}
               >
                 {profile.image ? (
-                  <Image
-                    src={toPublicAssetSrc(profile.image)}
-                    alt=""
-                    fill
-                    unoptimized={process.env.NODE_ENV !== "production"}
+                  <CdnFillImage
+                    src={profile.image}
                     sizes="(max-width: 900px) 100vw, 300px"
+                    unoptimized={process.env.NODE_ENV !== "production"}
                     style={{ objectFit: "cover", objectPosition: "center" }}
                   />
                 ) : (

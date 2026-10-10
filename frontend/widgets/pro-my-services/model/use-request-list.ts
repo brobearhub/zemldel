@@ -1,34 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { RequestProDto } from "@/entities/request";
+import { formatReplyPreview, type RequestProDto } from "@/entities/request";
 import { fetchRequestList } from "../lib/fetch-request-list";
-import {
-  emptyRequestListStageCounts,
-  readCachedStageCounts,
-  readRequestListCache,
-  type RequestListStageCounts,
-} from "../lib/request-list-cache";
-import type { RequestListStage } from "../lib/request-list-stage";
+import { withoutCompletedRequests } from "../lib/open-request-feed";
+import { readRequestListCache, writeRequestListCache } from "../lib/request-list-cache";
+
+function readOpenRequestList(serviceId: string | null): RequestProDto[] | null {
+  const cached = readRequestListCache({ serviceId });
+  if (!cached) return null;
+  return withoutCompletedRequests(cached);
+}
 
 export function useRequestList(serviceId: string | null) {
-  const [stage, setStage] = useState<RequestListStage>("NEW");
-  const [requests, setRequests] = useState<RequestProDto[] | null>(() =>
-    readRequestListCache({ serviceId, stage: "NEW" }),
-  );
-  const [counts, setCounts] = useState<RequestListStageCounts>(
-    () => readCachedStageCounts(serviceId) ?? emptyRequestListStageCounts(),
-  );
+  const [requests, setRequests] = useState<RequestProDto[] | null>(() => readOpenRequestList(serviceId));
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    const query = { serviceId, stage };
-    const cachedItems = readRequestListCache(query);
-    const cachedCounts = readCachedStageCounts(serviceId);
-    if (cachedItems && cachedCounts) {
+    const query = { serviceId };
+    const cachedItems = readOpenRequestList(serviceId);
+    if (cachedItems) {
       setRequests(cachedItems);
-      setCounts(cachedCounts);
       setError(null);
       return;
     }
@@ -38,8 +31,7 @@ export function useRequestList(serviceId: string | null) {
     fetchRequestList(query)
       .then((feed) => {
         if (cancelled) return;
-        setRequests(feed.items);
-        setCounts(feed.counts);
+        setRequests(withoutCompletedRequests(feed.items));
         setError(null);
       })
       .catch((reason: unknown) => {
@@ -52,18 +44,31 @@ export function useRequestList(serviceId: string | null) {
     return () => {
       cancelled = true;
     };
-  }, [serviceId, stage]);
+  }, [serviceId]);
 
-  function selectStage(next: RequestListStage) {
-    setStage((current) => (current === next ? current : next));
+  function markAwaitingCustomerReply(requestId: string, body: string) {
+    const providerLastMessage = formatReplyPreview(body);
+    setRequests((current) => {
+      if (!current) return current;
+      const next = current.map((row) =>
+        row.id === requestId
+          ? {
+              ...row,
+              awaitingCustomerReply: true,
+              providerLastMessage: providerLastMessage ?? row.providerLastMessage,
+              lastMessageAt: new Date().toISOString(),
+            }
+          : row,
+      );
+      writeRequestListCache({ serviceId }, next);
+      return next;
+    });
   }
 
   return {
-    stage,
-    selectStage,
     requests,
-    counts,
     error,
     isLoading: requests === null && error === null,
+    markAwaitingCustomerReply,
   };
 }

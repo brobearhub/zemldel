@@ -1,7 +1,8 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import type { RequestCustomerDto } from "@/entities/request";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
+import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import { CustomerRequestDetailClient } from "./CustomerRequestDetailClient";
 
 type Props = {
@@ -13,7 +14,7 @@ export default async function CustomerRequestDetailPage({ params }: Props) {
   const session = await getServerAuthSession();
 
   if (!session?.user?.id) {
-    redirect("/signin");
+    signInRedirect(`/profile/requests/${id}`);
   }
 
   let req: RequestCustomerDto;

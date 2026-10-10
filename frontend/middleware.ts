@@ -5,20 +5,29 @@ function isMaintenanceModeEnabled() {
   return process.env.MAINTENANCE_MODE === "true";
 }
 
+function withRequestPath(request: NextRequest) {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", request.nextUrl.pathname);
+  requestHeaders.set("x-search", request.nextUrl.search);
+  return requestHeaders;
+}
+
 export function middleware(request: NextRequest) {
+  const requestHeaders = withRequestPath(request);
+
   if (!isMaintenanceModeEnabled()) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   const { pathname } = request.nextUrl;
 
   if (pathname === "/maintenance") {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   const url = request.nextUrl.clone();
   url.pathname = "/maintenance";
-  return NextResponse.rewrite(url);
+  return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
 }
 
 export const config = {

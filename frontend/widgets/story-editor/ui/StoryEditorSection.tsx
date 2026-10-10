@@ -77,7 +77,7 @@ export function StoryEditorSection({ scope, providerName, authorName }: Props) {
       .catch((e) => {
         if (alive) setError(e instanceof Error ? e.message : "Не удалось загрузить истории");
       });
-    void fetchSavedStories()
+    void fetchSavedStories(scope)
       .then((payload) => {
         if (alive) setSaved(payload.items);
       })

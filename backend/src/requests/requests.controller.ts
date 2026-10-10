@@ -109,27 +109,6 @@ class ProRequestStatsDto {
 class ProRequestListFeedDto {
   @ApiProperty({ type: [RequestProDto] })
   items!: RequestProDto[];
-
-  @ApiProperty({
-    type: 'object',
-    required: ['NEW', 'DISCUSSING', 'CONTRACT', 'WORK', 'ACCEPTANCE', 'COMPLETED'],
-    properties: {
-      NEW: { type: 'integer' },
-      DISCUSSING: { type: 'integer' },
-      CONTRACT: { type: 'integer' },
-      WORK: { type: 'integer' },
-      ACCEPTANCE: { type: 'integer' },
-      COMPLETED: { type: 'integer' },
-    },
-  })
-  counts!: {
-    NEW: number;
-    DISCUSSING: number;
-    CONTRACT: number;
-    WORK: number;
-    ACCEPTANCE: number;
-    COMPLETED: number;
-  };
 }
 
 @ApiTags('requests')
@@ -549,13 +528,12 @@ export class RequestsController {
   // --- Provider: feed / inbox ---
 
   @Get('pro/requests/feed')
-  @ApiQuery({ name: 'stage', required: true, type: String })
   @ApiQuery({ name: 'serviceId', required: false, type: String })
   @ApiQuery({ name: 'scope', required: false, type: String })
   @ApiOkResponse({ type: ProRequestListFeedDto })
   async proFeed(
     @Req() request: Request,
-    @Query() query: { stage?: string; serviceId?: string; scope?: string },
+    @Query() query: { serviceId?: string; scope?: string },
   ) {
     const ctx = await this.requests.requireProviderContext(request);
     return this.requests.listProFeed(ctx.providerId, query);

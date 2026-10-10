@@ -1,13 +1,13 @@
-import { redirect } from "next/navigation";
 import { Box, Stack, Typography } from "@mui/material";
 import { getServerAuthSession } from "@/core/auth";
+import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import { ProfessionalWorkspacePanel } from "@/widgets/pro-dashboard/ui/ProfessionalWorkspacePanel";
 
 export default async function ProTeamPage() {
   const session = await getServerAuthSession();
 
   if (!session?.user?.id) {
-    redirect("/signin");
+    signInRedirect("/pro/team");
   }
 
   return (

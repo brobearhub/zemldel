@@ -1,7 +1,8 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { Stack } from "@mui/material";
 import { getActiveMembership } from "@/core/auth/authorization";
 import { getServerAuthSession } from "@/core/auth";
+import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
 import { ProfessionalWorkspacePanel } from "@/widgets/pro-dashboard/ui/ProfessionalWorkspacePanel";
 import { ProviderProfileEditorSection, type PublicProviderProfile } from "@/widgets/provider-profile-editor";
@@ -10,7 +11,7 @@ export default async function ProProfilePage() {
   const session = await getServerAuthSession();
 
   if (!session?.user?.id) {
-    redirect("/signin");
+    signInRedirect("/pro/profile");
   }
 
   const activeMembership = getActiveMembership(session.user);

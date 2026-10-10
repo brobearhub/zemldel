@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, forwardRef, useContext, useEffect, useMemo, useState, type ComponentPropsWithoutRef } from "react";
-import { Alert, Avatar, Box, Button, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Stack, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
   ChatBox,
@@ -12,7 +12,7 @@ import {
   chatMessageListClasses,
 } from "@mui/x-chat";
 import type { ChatAdapter, ChatConversation, ChatMessage, ConversationListItemProps } from "@mui/x-chat/headless";
-import { toPublicAssetSrc } from "@/shared/lib/public-asset-src";
+import { CdnAvatar, CdnImg } from "@/shared/ui/cdn-image";
 import {
   fetchStoryConversationMessages,
   fetchStoryConversations,
@@ -36,8 +36,7 @@ function messageText(message: ChatMessage): string {
 }
 
 function avatarSrc(url: string | null | undefined): string | undefined {
-  if (!url) return undefined;
-  return toPublicAssetSrc(url);
+  return url ?? undefined;
 }
 
 function stampSelfAvatar(messages: ChatMessage[], selfImageUrl: string | null): ChatMessage[] {
@@ -123,8 +122,8 @@ const InboxRow = forwardRef<HTMLDivElement, ConversationListItemProps>(function 
         "&:hover": { bgcolor: (theme) => alpha(theme.palette.primary.main, selected ? 0.14 : 0.06) },
       }}
     >
-      <Avatar
-        src={item?.imageUrl ? toPublicAssetSrc(item.imageUrl) : undefined}
+      <CdnAvatar
+        src={item?.imageUrl || undefined}
         sx={{
           width: 40,
           height: 40,
@@ -135,7 +134,7 @@ const InboxRow = forwardRef<HTMLDivElement, ConversationListItemProps>(function 
         }}
       >
         {(conversation.title ?? "?").trim().charAt(0).toLocaleUpperCase("ru-RU") || "?"}
-      </Avatar>
+      </CdnAvatar>
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: "baseline" }}>
           <Typography noWrap sx={{ flex: 1, fontWeight: unreadCount > 0 ? 800 : 700 }}>
@@ -315,6 +314,7 @@ export function StoryInboxSection({ scope }: Props) {
             }}
             slots={{ composerSendButton: SendButton, messageAuthorName: null }}
             slotProps={{
+              messageAvatar: { slots: { image: CdnImg } },
               conversationList: { slots: { item: InboxRow } },
               messageList: { sx: { bgcolor: "primary.light" } },
               composerRoot: {

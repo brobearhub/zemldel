@@ -1,16 +1,17 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { Box, Button, Stack, Typography } from "@mui/material";
 import type { ServiceDto } from "@/entities/service";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
+import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import { ProServicesListClient } from "@/widgets/pro-services/ui/ProServicesListClient";
 
 export default async function ProServicesListPage() {
   const session = await getServerAuthSession();
 
   if (!session?.user?.id) {
-    redirect("/signin");
+    signInRedirect("/pro/services/list");
   }
 
   if ((session.user.memberships?.length ?? 0) === 0) {

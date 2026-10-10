@@ -1,5 +1,7 @@
 import type {
   StoryAudienceDto,
+  StoryCommentDto,
+  StoryCommentListDto,
   StoryConversationListDto,
   StoryConversationMessageDto,
   StoryConversationMessagesDto,
@@ -25,13 +27,21 @@ async function parseJson<T>(res: Response, fallbackMessage: string): Promise<T> 
   return payload as T;
 }
 
+function scopeSuffix(scope: StoryScope | undefined, params = new URLSearchParams()): string {
+  if (scope === "provider") params.set("scope", "provider");
+  const text = params.toString();
+  return text ? `?${text}` : "";
+}
+
 export async function fetchPublicStories(query?: {
   cityId?: string | null;
   providerId?: string | null;
+  scope?: StoryScope;
 }): Promise<StoryListDto> {
   const qs = new URLSearchParams();
   if (query?.providerId) qs.set("providerId", query.providerId);
   else if (query?.cityId) qs.set("cityId", query.cityId);
+  if (query?.scope === "provider") qs.set("scope", "provider");
   const suffix = qs.toString() ? `?${qs.toString()}` : "";
   const res = await fetch(`/api/stories${suffix}`, { cache: "no-store" });
   return parseJson<StoryListDto>(res, "Не удалось загрузить истории");
@@ -62,27 +72,31 @@ export async function deleteStory(storyId: string): Promise<void> {
   await parseJson<{ ok: boolean }>(res, "Не удалось убрать историю из показа");
 }
 
-export async function fetchSavedStories(): Promise<StoryListDto> {
-  const res = await fetch("/api/stories/saved", { cache: "no-store" });
+export async function fetchSavedStories(scope: StoryScope = "user"): Promise<StoryListDto> {
+  const res = await fetch(`/api/stories/saved${scopeSuffix(scope)}`, { cache: "no-store" });
   return parseJson<StoryListDto>(res, "Не удалось загрузить сохранённые истории");
 }
 
-export async function recordStoryView(storyId: string): Promise<void> {
-  const res = await fetch(`/api/stories/${storyId}/view`, { method: "POST" });
+export async function recordStoryView(storyId: string, scope: StoryScope = "user"): Promise<void> {
+  const res = await fetch(`/api/stories/${storyId}/view${scopeSuffix(scope)}`, { method: "POST" });
   await parseJson(res, "Не удалось отметить просмотр");
 }
 
-export async function saveStory(storyId: string): Promise<void> {
-  const res = await fetch(`/api/stories/${storyId}/save`, { method: "POST" });
+export async function saveStory(storyId: string, scope: StoryScope = "user"): Promise<void> {
+  const res = await fetch(`/api/stories/${storyId}/save${scopeSuffix(scope)}`, { method: "POST" });
   await parseJson(res, "Не удалось сохранить историю");
 }
 
-export async function unsaveStory(storyId: string): Promise<void> {
-  const res = await fetch(`/api/stories/${storyId}/save`, { method: "DELETE" });
+export async function unsaveStory(storyId: string, scope: StoryScope = "user"): Promise<void> {
+  const res = await fetch(`/api/stories/${storyId}/save${scopeSuffix(scope)}`, { method: "DELETE" });
   await parseJson(res, "Не удалось убрать закладку");
 }
 
-export async function followStoryAuthor(target: { targetUserId?: string; targetProviderId?: string }): Promise<void> {
+export async function followStoryAuthor(target: {
+  targetUserId?: string;
+  targetProviderId?: string;
+  scope?: StoryScope;
+}): Promise<void> {
   const res = await fetch("/api/stories/follow", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -91,7 +105,11 @@ export async function followStoryAuthor(target: { targetUserId?: string; targetP
   await parseJson(res, "Не удалось подписаться");
 }
 
-export async function unfollowStoryAuthor(target: { targetUserId?: string; targetProviderId?: string }): Promise<void> {
+export async function unfollowStoryAuthor(target: {
+  targetUserId?: string;
+  targetProviderId?: string;
+  scope?: StoryScope;
+}): Promise<void> {
   const res = await fetch("/api/stories/unfollow", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -100,8 +118,8 @@ export async function unfollowStoryAuthor(target: { targetUserId?: string; targe
   await parseJson(res, "Не удалось отписаться");
 }
 
-export async function replyToStory(storyId: string, text: string): Promise<void> {
-  const res = await fetch(`/api/stories/${storyId}/reply`, {
+export async function replyToStory(storyId: string, text: string, scope: StoryScope = "user"): Promise<void> {
+  const res = await fetch(`/api/stories/${storyId}/reply${scopeSuffix(scope)}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ text }),
@@ -109,18 +127,47 @@ export async function replyToStory(storyId: string, text: string): Promise<void>
   await parseJson(res, "Не удалось отправить ответ");
 }
 
-export async function repostStory(storyId: string, durationDays: number): Promise<StoryDto> {
-  const res = await fetch(`/api/stories/${storyId}/repost`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ durationDays }),
-  });
-  return parseJson<StoryDto>(res, "Не удалось сделать репост");
+export async function recordStoryProfileOpen(storyId: string, scope: StoryScope = "user"): Promise<void> {
+  const res = await fetch(`/api/stories/${storyId}/profile-open${scopeSuffix(scope)}`, { method: "POST" });
+  await parseJson(res, "Не удалось открыть профиль");
 }
 
-export async function recordStoryProfileOpen(storyId: string): Promise<void> {
-  const res = await fetch(`/api/stories/${storyId}/profile-open`, { method: "POST" });
-  await parseJson(res, "Не удалось открыть профиль");
+export async function fetchStoryComments(storyId: string, scope: StoryScope = "user"): Promise<StoryCommentListDto> {
+  const res = await fetch(`/api/stories/${storyId}/comments${scopeSuffix(scope)}`, { cache: "no-store" });
+  return parseJson<StoryCommentListDto>(res, "Не удалось загрузить комментарии");
+}
+
+export async function commentOnStory(storyId: string, text: string, scope: StoryScope = "user"): Promise<StoryCommentDto> {
+  const res = await fetch(`/api/stories/${storyId}/comments${scopeSuffix(scope)}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  return parseJson<StoryCommentDto>(res, "Не удалось отправить комментарий");
+}
+
+export async function updateStoryComment(storyId: string, commentId: string, text: string): Promise<StoryCommentDto> {
+  const res = await fetch(`/api/stories/${storyId}/comments/${commentId}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  return parseJson<StoryCommentDto>(res, "Не удалось изменить комментарий");
+}
+
+export async function deleteStoryComment(storyId: string, commentId: string): Promise<void> {
+  const res = await fetch(`/api/stories/${storyId}/comments/${commentId}`, { method: "DELETE" });
+  await parseJson(res, "Не удалось удалить комментарий");
+}
+
+export async function likeStoryComment(storyId: string, commentId: string): Promise<void> {
+  const res = await fetch(`/api/stories/${storyId}/comments/${commentId}/like`, { method: "POST" });
+  await parseJson(res, "Не удалось поставить отметку");
+}
+
+export async function unlikeStoryComment(storyId: string, commentId: string): Promise<void> {
+  const res = await fetch(`/api/stories/${storyId}/comments/${commentId}/like`, { method: "DELETE" });
+  await parseJson(res, "Не удалось убрать отметку");
 }
 
 export async function fetchStoryReplyMessages(storyId: string, replyId: string): Promise<StoryReplyMessagesDto> {

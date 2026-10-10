@@ -158,6 +158,7 @@ export class StoriesService {
     cityId?: string | null,
     viewerUserId?: string | null,
     providerId?: string | null,
+    scope: InboxScope = 'user',
   ): Promise<StoryListDto> {
     const now = new Date();
     const scopedProviderId = providerId?.trim() || null;
@@ -171,7 +172,7 @@ export class StoriesService {
 
     const baseWhere = { withdrawnAt: null, expiresAt: { gt: now } };
     if (viewerUserId) {
-      return this.listPublicForViewer({ cityId: cityId ?? null, viewerUserId, now, baseWhere });
+      return this.listPublicForViewer({ cityId: cityId ?? null, viewerUserId, scope, now, baseWhere });
     }
 
     if (!cityId) {
@@ -340,10 +341,16 @@ export class StoriesService {
     return { ok: true };
   }
 
-  async listSaved(actorUserId: string): Promise<StoryListDto> {
+  async listSaved(actorUserId: string, scope: InboxScope = 'user'): Promise<StoryListDto> {
     const now = new Date();
+    const cabinet = await this.resolveCabinet(actorUserId, scope);
     const saves = await this.prisma.storySave.findMany({
-      where: { userId: actorUserId, removedAt: null },
+      where: {
+        removedAt: null,
+        ...(cabinet.providerId
+          ? { providerId: cabinet.providerId }
+          : { userId: actorUserId, providerId: null }),
+      },
       orderBy: { savedAt: 'desc' },
       include: { story: { include: storyInclude } },
     });
@@ -352,43 +359,67 @@ export class StoriesService {
     };
   }
 
-  async recordView(input: { storyId: string; actorUserId: string | null }) {
+  async recordView(input: { storyId: string; actorUserId: string | null; scope?: InboxScope }) {
     const story = await this.requireStory(input.storyId);
     if (input.actorUserId && (await this.isStoryAuthor(input.actorUserId, story))) {
       return { ok: true as const, counted: false };
     }
-    const cityId = input.actorUserId ? await this.viewerCityId(input.actorUserId) : null;
+    const cabinet = input.actorUserId ? await this.resolveCabinet(input.actorUserId, input.scope ?? 'user') : null;
+    const cityId = cabinet?.provider
+      ? cabinet.provider.cityId
+      : input.actorUserId
+        ? await this.viewerCityId(input.actorUserId)
+        : null;
     await this.prisma.storyViewEvent.create({
       data: {
         id: randomUUID(),
         storyId: story.id,
-        userId: input.actorUserId,
+        userId: cabinet?.providerId ? null : input.actorUserId,
+        providerId: cabinet?.providerId ?? null,
         cityId,
       },
     });
     return { ok: true as const, counted: true };
   }
 
-  async saveStory(input: { storyId: string; actorUserId: string }) {
+  async saveStory(input: { storyId: string; actorUserId: string; scope?: InboxScope }) {
     const story = await this.requireStory(input.storyId);
-    if (await this.isStoryAuthor(input.actorUserId, story)) {
+    const cabinet = await this.resolveCabinet(input.actorUserId, input.scope ?? 'user');
+    if (this.isOwnInScope(input.actorUserId, story, cabinet.providerId)) {
       throw new BadRequestException('Cannot save own story');
     }
-    await this.prisma.storySave.upsert({
-      where: { userId_storyId: { userId: input.actorUserId, storyId: story.id } },
-      create: {
-        id: randomUUID(),
-        userId: input.actorUserId,
-        storyId: story.id,
-      },
-      update: { removedAt: null, savedAt: new Date() },
-    });
+    const where = cabinet.providerId
+      ? { storyId: story.id, providerId: cabinet.providerId }
+      : { storyId: story.id, userId: input.actorUserId, providerId: null };
+    const existing = await this.prisma.storySave.findFirst({ where });
+    if (existing) {
+      await this.prisma.storySave.update({
+        where: { id: existing.id },
+        data: { removedAt: null, savedAt: new Date() },
+      });
+    } else {
+      await this.prisma.storySave.create({
+        data: {
+          id: randomUUID(),
+          storyId: story.id,
+          userId: input.actorUserId,
+          providerId: cabinet.providerId,
+        },
+      });
+    }
     return { ok: true as const };
   }
 
-  async unsaveStory(input: { storyId: string; actorUserId: string }) {
+  async unsaveStory(input: { storyId: string; actorUserId: string; scope?: InboxScope }) {
+    const cabinet = await this.resolveCabinet(input.actorUserId, input.scope ?? 'user');
     await this.prisma.storySave.updateMany({
-      where: { userId: input.actorUserId, storyId: input.storyId, removedAt: null },
+      where: {
+        storyId: input.storyId,
+        removedAt: null,
+        ...(cabinet.providerId
+          ? { providerId: cabinet.providerId }
+          : { userId: input.actorUserId, providerId: null }),
+      },
       data: { removedAt: new Date() },
     });
     return { ok: true as const };
@@ -396,14 +427,19 @@ export class StoriesService {
 
   async followAuthor(input: {
     actorUserId: string;
+    scope?: InboxScope;
     targetUserId?: string | null;
     targetProviderId?: string | null;
   }) {
     const target = this.followTarget(input);
-    if (target.targetUserId === input.actorUserId) {
+    const cabinet = await this.resolveCabinet(input.actorUserId, input.scope ?? 'user');
+    if (!cabinet.providerId && target.targetUserId === input.actorUserId) {
       throw new BadRequestException('Cannot follow yourself');
     }
-    if (target.targetProviderId) {
+    if (cabinet.providerId && target.targetProviderId === cabinet.providerId) {
+      throw new BadRequestException('Cannot follow own provider');
+    }
+    if (!cabinet.providerId && target.targetProviderId) {
       const membership = await this.prisma.providerMember.findFirst({
         where: {
           userId: input.actorUserId,
@@ -416,8 +452,11 @@ export class StoriesService {
         throw new BadRequestException('Cannot follow own provider');
       }
     }
+    const follower = { followerUserId: input.actorUserId, followerProviderId: cabinet.providerId };
     const existing = await this.prisma.storyAuthorFollow.findFirst({
-      where: { followerUserId: input.actorUserId, ...target },
+      where: cabinet.providerId
+        ? { followerProviderId: cabinet.providerId, ...target }
+        : { followerUserId: input.actorUserId, followerProviderId: null, ...target },
     });
     if (existing) {
       await this.prisma.storyAuthorFollow.update({
@@ -428,7 +467,7 @@ export class StoriesService {
       await this.prisma.storyAuthorFollow.create({
         data: {
           id: randomUUID(),
-          followerUserId: input.actorUserId,
+          ...follower,
           ...target,
         },
       });
@@ -438,12 +477,20 @@ export class StoriesService {
 
   async unfollowAuthor(input: {
     actorUserId: string;
+    scope?: InboxScope;
     targetUserId?: string | null;
     targetProviderId?: string | null;
   }) {
     const target = this.followTarget(input);
+    const cabinet = await this.resolveCabinet(input.actorUserId, input.scope ?? 'user');
     const existing = await this.prisma.storyAuthorFollow.findFirst({
-      where: { followerUserId: input.actorUserId, ...target, removedAt: null },
+      where: {
+        ...(cabinet.providerId
+          ? { followerProviderId: cabinet.providerId }
+          : { followerUserId: input.actorUserId, followerProviderId: null }),
+        ...target,
+        removedAt: null,
+      },
     });
     if (!existing) return { ok: true as const };
     const now = new Date();
@@ -455,6 +502,7 @@ export class StoriesService {
       data: {
         id: randomUUID(),
         followerUserId: input.actorUserId,
+        followerProviderId: cabinet.providerId,
         unfollowedAt: now,
         ...target,
       },
@@ -462,9 +510,10 @@ export class StoriesService {
     return { ok: true as const };
   }
 
-  async reply(input: { storyId: string; actorUserId: string; text: string }) {
+  async reply(input: { storyId: string; actorUserId: string; text: string; scope?: InboxScope }) {
     const story = await this.requireStory(input.storyId);
-    if (await this.isStoryAuthor(input.actorUserId, story)) {
+    const cabinet = await this.resolveCabinet(input.actorUserId, input.scope ?? 'user');
+    if (this.isOwnInScope(input.actorUserId, story, cabinet.providerId)) {
       throw new BadRequestException('Cannot reply to own story');
     }
     const text = normalizeStoryText(input.text);
@@ -473,11 +522,106 @@ export class StoriesService {
       data: {
         id: randomUUID(),
         storyId: story.id,
+        authorType: cabinet.providerId ? 'PROVIDER' : 'USER',
         authorUserId: input.actorUserId,
+        providerId: cabinet.providerId,
         text,
       },
     });
     return { id: row.id, text: row.text, createdAt: row.createdAt.toISOString() };
+  }
+
+  async listComments(input: { storyId: string; actorUserId: string | null; scope?: InboxScope }) {
+    const story = await this.requireStory(input.storyId);
+    const cabinet = input.actorUserId
+      ? await this.resolveCabinet(input.actorUserId, input.scope ?? 'user')
+      : null;
+    const rows = await this.prisma.storyComment.findMany({
+      where: { storyId: story.id },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      include: {
+        author: { select: { name: true } },
+        provider: { select: { name: true } },
+        likes: { select: { userId: true } },
+      },
+    });
+    const items = rows.reverse().map((row) => this.toCommentDto(row, input.actorUserId, cabinet?.providerId ?? null));
+    return { items, truncated: rows.length === 100 };
+  }
+
+  async comment(input: { storyId: string; actorUserId: string; text: string; scope?: InboxScope }) {
+    const story = await this.requireStory(input.storyId);
+    const cabinet = await this.resolveCabinet(input.actorUserId, input.scope ?? 'user');
+    const text = normalizeStoryText(input.text);
+    if (!text) throw new BadRequestException('text is required');
+    const row = await this.prisma.storyComment.create({
+      data: {
+        id: randomUUID(),
+        storyId: story.id,
+        authorType: cabinet.providerId ? 'PROVIDER' : 'USER',
+        authorUserId: input.actorUserId,
+        providerId: cabinet.providerId,
+        text,
+      },
+      include: {
+        author: { select: { name: true } },
+        provider: { select: { name: true } },
+        likes: { select: { userId: true } },
+      },
+    });
+    return this.toCommentDto(row, input.actorUserId, cabinet.providerId);
+  }
+
+  async updateComment(input: { storyId: string; commentId: string; actorUserId: string; text: string }) {
+    const comment = await this.requireComment(input.storyId, input.commentId);
+    if (!(await this.canEditComment(input.actorUserId, comment))) {
+      throw new ForbiddenException('Story access denied');
+    }
+    const text = normalizeStoryText(input.text);
+    if (!text) throw new BadRequestException('text is required');
+    const row = await this.prisma.storyComment.update({
+      where: { id: comment.id },
+      data: { text },
+      include: {
+        author: { select: { name: true } },
+        provider: { select: { name: true } },
+        likes: { select: { userId: true } },
+      },
+    });
+    const cabinetProviderId = comment.authorType === 'PROVIDER' ? comment.providerId : null;
+    return this.toCommentDto(row, input.actorUserId, cabinetProviderId);
+  }
+
+  async deleteComment(input: { storyId: string; commentId: string; actorUserId: string }) {
+    const comment = await this.requireComment(input.storyId, input.commentId);
+    const story = await this.requireStory(input.storyId);
+    const canEdit = await this.canEditComment(input.actorUserId, comment);
+    const author = await this.isStoryAuthor(input.actorUserId, story);
+    if (!canEdit && !author) throw new ForbiddenException('Story access denied');
+    await this.prisma.storyComment.delete({ where: { id: comment.id } });
+    return { ok: true as const };
+  }
+
+  async likeComment(input: { storyId: string; commentId: string; actorUserId: string }) {
+    const comment = await this.requireComment(input.storyId, input.commentId);
+    if (comment.authorUserId === input.actorUserId) {
+      throw new ForbiddenException('Story access denied');
+    }
+    await this.prisma.storyCommentLike.upsert({
+      where: { commentId_userId: { commentId: comment.id, userId: input.actorUserId } },
+      create: { id: randomUUID(), commentId: comment.id, userId: input.actorUserId },
+      update: {},
+    });
+    return { ok: true as const };
+  }
+
+  async unlikeComment(input: { storyId: string; commentId: string; actorUserId: string }) {
+    const comment = await this.requireComment(input.storyId, input.commentId);
+    await this.prisma.storyCommentLike.deleteMany({
+      where: { commentId: comment.id, userId: input.actorUserId },
+    });
+    return { ok: true as const };
   }
 
   async listReplyMessages(input: { storyId: string; replyId: string; actorUserId: string }) {
@@ -591,46 +735,11 @@ export class StoriesService {
     };
   }
 
-  async repost(input: { storyId: string; actorUserId: string; durationDays: unknown }): Promise<StoryDto> {
-    const story = await this.requireStory(input.storyId);
-    if (!isStoryInFeed(story)) {
-      throw new BadRequestException('Story is not in feed');
-    }
-    if (await this.isStoryAuthor(input.actorUserId, story)) {
-      throw new BadRequestException('Cannot repost own story');
-    }
-    const durationDays = parseStoryDurationDays(input.durationDays);
-    if (!durationDays) throw new BadRequestException('durationDays must be 1, 2, 3 or 7');
-    const user = await this.prisma.user.findUnique({
-      where: { id: input.actorUserId },
-      select: { id: true, customerCityId: true },
-    });
-    if (!user) throw new NotFoundException('User not found');
-    const publishedAt = new Date();
-    const row = await this.prisma.story.create({
-      data: {
-        id: randomUUID(),
-        authorType: 'USER',
-        authorUserId: input.actorUserId,
-        providerId: null,
-        cityId: user.customerCityId,
-        sourceStoryId: await this.resolveRootStoryId(story.id),
-        text: story.text,
-        imageUrl: story.imageUrl,
-        durationDays,
-        publishedAt,
-        expiresAt: computeStoryExpiresAt(publishedAt, durationDays),
-      },
-      include: storyInclude,
-    });
-    await this.prisma.user.update({
-      where: { id: input.actorUserId },
-      data: { profilePublic: true },
-    });
-    return toDto(row, publishedAt);
+  async repost(_input: { storyId: string; actorUserId: string; durationDays: unknown }): Promise<never> {
+    throw new NotFoundException('Repost is unavailable');
   }
 
-  async recordProfileOpen(input: { storyId: string; actorUserId: string | null }) {
+  async recordProfileOpen(input: { storyId: string; actorUserId: string | null; scope?: InboxScope }) {
     const story = await this.prisma.story.findUnique({
       where: { id: input.storyId },
       include: storyInclude,
@@ -640,11 +749,13 @@ export class StoriesService {
     if (!isProvider && story.authorUser.profilePublic !== true) {
       return { ok: true as const, counted: false };
     }
+    const cabinet = input.actorUserId ? await this.resolveCabinet(input.actorUserId, input.scope ?? 'user') : null;
     await this.prisma.storyProfileOpen.create({
       data: {
         id: randomUUID(),
         storyId: story.id,
-        userId: input.actorUserId,
+        userId: cabinet?.providerId ? null : input.actorUserId,
+        providerId: cabinet?.providerId ?? null,
       },
     });
     return { ok: true as const, counted: true };
@@ -661,24 +772,30 @@ export class StoriesService {
       this.prisma.storyAuthorFollow.findMany({
         where: { ...target, removedAt: null },
         orderBy: { createdAt: 'desc' },
-        include: { follower: { select: { id: true, name: true } } },
+        include: {
+          follower: { select: { id: true, name: true } },
+          followerProvider: { select: { id: true, name: true } },
+        },
       }),
       this.prisma.storyAuthorUnfollow.findMany({
         where: target,
         orderBy: { unfollowedAt: 'desc' },
-        include: { follower: { select: { id: true, name: true } } },
+        include: {
+          follower: { select: { id: true, name: true } },
+          followerProvider: { select: { id: true, name: true } },
+        },
       }),
       this.prisma.storyReply.count({ where: { story: storyWhere } }),
     ]);
     return {
       followers: follows.map((row) => ({
-        userId: row.follower.id,
-        name: row.follower.name?.trim() || 'Пользователь',
+        userId: row.followerProvider?.id ?? row.follower.id,
+        name: row.followerProvider?.name?.trim() || row.follower.name?.trim() || 'Пользователь',
         at: row.createdAt.toISOString(),
       })),
       unfollows: unfollows.map((row) => ({
-        userId: row.follower.id,
-        name: row.follower.name?.trim() || 'Пользователь',
+        userId: row.followerProvider?.id ?? row.follower.id,
+        name: row.followerProvider?.name?.trim() || row.follower.name?.trim() || 'Пользователь',
         at: row.unfollowedAt.toISOString(),
       })),
       replyCount,
@@ -690,24 +807,31 @@ export class StoriesService {
     if (!(await this.isStoryAuthor(input.actorUserId, story))) {
       throw new ForbiddenException('Story access denied');
     }
-    const [views, opens, replies, reposts, saves] = await Promise.all([
+    const [views, opens, replies, reposts, saves, comments] = await Promise.all([
       this.prisma.storyViewEvent.findMany({
         where: { storyId: story.id },
         orderBy: { viewedAt: 'asc' },
         include: {
           user: { select: { id: true, name: true } },
+          provider: { select: { id: true, name: true } },
           city: { select: { id: true, name: true } },
         },
       }),
       this.prisma.storyProfileOpen.findMany({
         where: { storyId: story.id },
         orderBy: { openedAt: 'desc' },
-        include: { user: { select: { id: true, name: true, customerCity: { select: { name: true } } } } },
+        include: {
+          user: { select: { id: true, name: true, customerCity: { select: { name: true } } } },
+          provider: { select: { id: true, name: true, city: { select: { name: true } } } },
+        },
       }),
       this.prisma.storyReply.findMany({
         where: { storyId: story.id },
         orderBy: { createdAt: 'desc' },
-        include: { author: { select: { id: true, name: true, customerCity: { select: { name: true } } } } },
+        include: {
+          author: { select: { id: true, name: true, customerCity: { select: { name: true } } } },
+          provider: { select: { name: true, city: { select: { name: true } } } },
+        },
       }),
       this.prisma.story.findMany({
         where: { sourceStoryId: story.id },
@@ -717,19 +841,34 @@ export class StoriesService {
       this.prisma.storySave.findMany({
         where: { storyId: story.id, removedAt: null },
         orderBy: { savedAt: 'desc' },
-        include: { user: { select: { id: true, name: true, customerCity: { select: { name: true } } } } },
+        include: {
+          user: { select: { id: true, name: true, customerCity: { select: { name: true } } } },
+          provider: { select: { id: true, name: true, city: { select: { name: true } } } },
+        },
+      }),
+      this.prisma.storyComment.findMany({
+        where: { storyId: story.id },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          author: { select: { name: true } },
+          provider: { select: { name: true } },
+          _count: { select: { likes: true } },
+        },
       }),
     ]);
 
-    const loggedInViews = views.filter((view) => view.userId);
+    const loggedInViews = views.filter((view) => view.userId || view.providerId);
+    const guestViews = views.filter((view) => !view.userId && !view.providerId);
     const viewers = new Map<
       string,
       { name: string; viewCount: number; lastViewedAt: Date; cityName: string | null }
     >();
     for (const view of loggedInViews) {
-      if (!view.userId || !view.user) continue;
-      const current = viewers.get(view.userId) ?? {
-        name: view.user.name?.trim() || 'Пользователь',
+      const key = view.providerId ? `provider:${view.providerId}` : view.userId;
+      if (!key) continue;
+      const name = view.provider?.name?.trim() || view.user?.name?.trim() || 'Пользователь';
+      const current = viewers.get(key) ?? {
+        name,
         viewCount: 0,
         lastViewedAt: view.viewedAt,
         cityName: view.city?.name ?? null,
@@ -739,7 +878,7 @@ export class StoriesService {
         current.lastViewedAt = view.viewedAt;
         current.cityName = view.city?.name ?? null;
       }
-      viewers.set(view.userId, current);
+      viewers.set(key, current);
     }
 
     const cities = new Map<string, { name: string; viewCount: number; people: Set<string> }>();
@@ -751,7 +890,8 @@ export class StoriesService {
         people: new Set<string>(),
       };
       bucket.viewCount += 1;
-      if (view.userId) bucket.people.add(view.userId);
+      const personKey = view.providerId ?? view.userId;
+      if (personKey) bucket.people.add(personKey);
       cities.set(key, bucket);
     }
 
@@ -760,7 +900,7 @@ export class StoriesService {
 
     return {
       viewCount: views.length,
-      guestViewCount: views.filter((view) => !view.userId).length,
+      guestViewCount: guestViews.length,
       uniqueViewerCount: viewers.size,
       hourly: buildHourlyViewChart({
         from: story.publishedAt,
@@ -775,35 +915,39 @@ export class StoriesService {
         lastViewedAt: viewer.lastViewedAt.toISOString(),
         cityName: viewer.cityName,
       })),
-      guestViews: views
-        .filter((view) => !view.userId)
-        .map((view) => ({ viewedAt: view.viewedAt.toISOString() }))
-        .reverse(),
+      guestViews: guestViews.map((view) => ({ viewedAt: view.viewedAt.toISOString() })).reverse(),
       cities: [...cities.values()].map((city) => ({
         name: city.name,
         viewCount: city.viewCount,
         uniqueViewerCount: city.people.size,
       })),
       profileOpenCount: opens.length,
-      guestProfileOpenCount: opens.filter((open) => !open.userId).length,
+      guestProfileOpenCount: opens.filter((open) => !open.userId && !open.providerId).length,
       profileOpens: opens
-        .filter((open) => open.user)
+        .filter((open) => open.user || open.provider)
         .map((open) => ({
-          userId: open.user?.id ?? '',
-          name: open.user?.name?.trim() || 'Пользователь',
-          cityName: open.user?.customerCity?.name ?? null,
+          userId: open.provider?.id ?? open.user?.id ?? '',
+          name: open.provider?.name?.trim() || open.user?.name?.trim() || 'Пользователь',
+          cityName: open.provider?.city?.name ?? open.user?.customerCity?.name ?? null,
           openedAt: open.openedAt.toISOString(),
         })),
       guestProfileOpens: opens
-        .filter((open) => !open.userId)
+        .filter((open) => !open.userId && !open.providerId)
         .map((open) => ({ openedAt: open.openedAt.toISOString() })),
       replies: replies.map((reply) => ({
         id: reply.id,
         authorUserId: reply.author.id,
         text: reply.text,
-        name: reply.author.name?.trim() || 'Пользователь',
-        cityName: reply.author.customerCity?.name ?? null,
+        name: reply.provider?.name?.trim() || reply.author.name?.trim() || 'Пользователь',
+        cityName: reply.provider?.city?.name ?? reply.author.customerCity?.name ?? null,
         createdAt: reply.createdAt.toISOString(),
+      })),
+      comments: comments.map((comment) => ({
+        id: comment.id,
+        text: comment.text,
+        name: comment.provider?.name?.trim() || comment.author.name?.trim() || 'Пользователь',
+        likeCount: comment._count.likes,
+        createdAt: comment.createdAt.toISOString(),
       })),
       reposts: reposts.map((repost) => ({
         storyId: repost.id,
@@ -813,9 +957,9 @@ export class StoriesService {
       })),
       saveCount: saves.length,
       saves: saves.map((save) => ({
-        userId: save.user.id,
-        name: save.user.name?.trim() || 'Пользователь',
-        cityName: save.user.customerCity?.name ?? null,
+        userId: save.provider?.id ?? save.user.id,
+        name: save.provider?.name?.trim() || save.user.name?.trim() || 'Пользователь',
+        cityName: save.provider?.city?.name ?? save.user.customerCity?.name ?? null,
         savedAt: save.savedAt.toISOString(),
       })),
     };
@@ -862,10 +1006,11 @@ export class StoriesService {
   private async listPublicForViewer(input: {
     cityId: string | null;
     viewerUserId: string;
+    scope: InboxScope;
     now: Date;
     baseWhere: Prisma.StoryWhereInput;
   }): Promise<StoryListDto> {
-    const viewer = await this.loadViewerContext(input.viewerUserId);
+    const viewer = await this.loadViewerContext(input.viewerUserId, input.scope);
     const followedWhere = this.followedWhere(viewer);
     const followedRows = followedWhere
       ? await this.prisma.story.findMany({
@@ -929,19 +1074,27 @@ export class StoriesService {
     };
   }
 
-  private async loadViewerContext(userId: string) {
+  private async loadViewerContext(userId: string, scope: InboxScope = 'user') {
+    const cabinet = await this.resolveCabinet(userId, scope);
+    const followWhere = cabinet.providerId
+      ? { followerProviderId: cabinet.providerId, removedAt: null }
+      : { followerUserId: userId, followerProviderId: null, removedAt: null };
+    const viewWhere = cabinet.providerId ? { providerId: cabinet.providerId } : { userId, providerId: null };
+    const saveWhere = cabinet.providerId
+      ? { providerId: cabinet.providerId, removedAt: null }
+      : { userId, providerId: null, removedAt: null };
     const [follows, views, saves, memberships] = await Promise.all([
       this.prisma.storyAuthorFollow.findMany({
-        where: { followerUserId: userId, removedAt: null },
+        where: followWhere,
         select: { targetUserId: true, targetProviderId: true },
       }),
       this.prisma.storyViewEvent.findMany({
-        where: { userId },
+        where: viewWhere,
         select: { storyId: true },
         distinct: ['storyId'],
       }),
       this.prisma.storySave.findMany({
-        where: { userId, removedAt: null },
+        where: saveWhere,
         select: { storyId: true },
       }),
       this.prisma.providerMember.findMany({
@@ -1004,16 +1157,22 @@ export class StoriesService {
   }
 
   private async loadInbox(input: { actorUserId: string; scope: InboxScope }) {
-    const providerId =
-      input.scope === 'provider' ? (await this.requireActiveMembership(input.actorUserId)).providerId : null;
+    const membership =
+      input.scope === 'provider' ? await this.requireActiveMembership(input.actorUserId) : null;
+    const providerId = membership?.providerId ?? null;
     const inboxKey = storyInboxKey(input.scope, providerId);
     const where: Prisma.StoryReplyWhereInput =
       input.scope === 'provider'
-        ? { story: { authorType: 'PROVIDER', providerId: providerId ?? undefined } }
+        ? {
+            OR: [
+              { story: { authorType: 'PROVIDER', providerId: providerId ?? undefined } },
+              { authorType: 'PROVIDER', providerId: providerId ?? undefined },
+            ],
+          }
         : {
             OR: [
               { story: { authorType: 'USER', authorUserId: input.actorUserId } },
-              { authorUserId: input.actorUserId },
+              { authorType: 'USER', authorUserId: input.actorUserId },
             ],
           };
     const [rows, reads, actor] = await Promise.all([
@@ -1022,6 +1181,7 @@ export class StoriesService {
         orderBy: { createdAt: 'asc' },
         include: {
           author: { select: { name: true, image: true, customerCity: { select: { name: true } } } },
+          provider: { select: { id: true, name: true, image: true, city: { select: { name: true } } } },
           messages: {
             orderBy: { createdAt: 'asc' },
             select: {
@@ -1058,10 +1218,15 @@ export class StoriesService {
       id: row.id,
       text: row.text,
       createdAt: row.createdAt,
+      authorType: row.authorType,
       authorUserId: row.authorUserId,
       authorName: row.author.name?.trim() || 'Пользователь',
       authorImageUrl: row.author.image ?? null,
       authorCityName: row.author.customerCity?.name ?? null,
+      authorProviderId: row.providerId,
+      authorProviderName: row.provider?.name?.trim() || null,
+      authorProviderImageUrl: row.provider?.image ?? null,
+      authorProviderCityName: row.provider?.city?.name ?? null,
       story: {
         id: row.story.id,
         text: row.story.text,
@@ -1085,7 +1250,7 @@ export class StoriesService {
     }));
     return {
       inboxKey,
-      selfImageUrl: actor?.image ?? null,
+      selfImageUrl: membership?.provider.image ?? actor?.image ?? null,
       conversations: buildInbox({
         scope: input.scope,
         actorUserId: input.actorUserId,
@@ -1103,7 +1268,11 @@ export class StoriesService {
     });
     if (!reply) throw new NotFoundException('Reply not found');
     const author = await this.isStoryAuthor(input.actorUserId, story);
-    if (!author && reply.authorUserId !== input.actorUserId) {
+    const replyOwner =
+      reply.authorType === 'PROVIDER' && reply.providerId
+        ? await this.isProviderManager(input.actorUserId, reply.providerId)
+        : reply.authorUserId === input.actorUserId;
+    if (!author && !replyOwner) {
       throw new ForbiddenException('Story access denied');
     }
     return { story, reply };
@@ -1113,6 +1282,92 @@ export class StoriesService {
     const story = await this.prisma.story.findUnique({ where: { id: storyId } });
     if (!story) throw new NotFoundException('Story not found');
     return story;
+  }
+
+  private async resolveCabinet(userId: string, scope: InboxScope) {
+    if (scope !== 'provider') {
+      return { providerId: null as string | null, provider: null };
+    }
+    const membership = await this.requireActiveMembership(userId);
+    return { providerId: membership.providerId, provider: membership.provider };
+  }
+
+  private isOwnInScope(
+    userId: string,
+    story: { authorType: 'USER' | 'PROVIDER'; authorUserId: string; providerId: string | null },
+    cabinetProviderId: string | null,
+  ) {
+    if (cabinetProviderId) {
+      return story.authorType === 'PROVIDER' && story.providerId === cabinetProviderId;
+    }
+    return story.authorType === 'USER' && story.authorUserId === userId;
+  }
+
+  private async isProviderManager(userId: string, providerId: string) {
+    const membership = await this.prisma.providerMember.findFirst({
+      where: {
+        userId,
+        providerId,
+        status: 'ACTIVE',
+        role: { in: ['OWNER', 'MANAGER'] },
+      },
+      select: { id: true },
+    });
+    return Boolean(membership);
+  }
+
+  private toCommentDto(
+    row: {
+      id: string;
+      text: string;
+      createdAt: Date;
+      updatedAt: Date;
+      authorType: 'USER' | 'PROVIDER';
+      authorUserId: string;
+      providerId: string | null;
+      author: { name: string | null };
+      provider: { name: string | null } | null;
+      likes: { userId: string }[];
+    },
+    actorUserId: string | null,
+    cabinetProviderId: string | null,
+  ) {
+    const mine = cabinetProviderId
+      ? row.authorType === 'PROVIDER' && row.providerId === cabinetProviderId
+      : Boolean(actorUserId) && row.authorType === 'USER' && row.authorUserId === actorUserId;
+    const authorName =
+      row.authorType === 'PROVIDER'
+        ? row.provider?.name?.trim() || 'Пользователь'
+        : row.author.name?.trim() || 'Пользователь';
+    return {
+      id: row.id,
+      text: row.text,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+      authorName,
+      authorType: row.authorType,
+      mine,
+      likeCount: row.likes.length,
+      liked: actorUserId ? row.likes.some((like) => like.userId === actorUserId) : false,
+    };
+  }
+
+  private async requireComment(storyId: string, commentId: string) {
+    const comment = await this.prisma.storyComment.findFirst({
+      where: { id: commentId, storyId },
+    });
+    if (!comment) throw new NotFoundException('Comment not found');
+    return comment;
+  }
+
+  private async canEditComment(
+    userId: string,
+    comment: { authorType: 'USER' | 'PROVIDER'; authorUserId: string; providerId: string | null },
+  ) {
+    if (comment.authorType === 'PROVIDER' && comment.providerId) {
+      return this.isProviderManager(userId, comment.providerId);
+    }
+    return comment.authorUserId === userId;
   }
 
   private async isStoryAuthor(

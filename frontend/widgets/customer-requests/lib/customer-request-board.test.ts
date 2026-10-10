@@ -50,6 +50,9 @@ function request(overrides: Partial<RequestCustomerDto> & Pick<RequestCustomerDt
     payments: [],
     cadastralNumbers: [],
     canDeleteByCustomer: false,
+    providerLastMessage: null,
+    customerLastMessage: null,
+    awaitingProviderReply: false,
     ...overrides,
   };
 }
@@ -134,6 +137,8 @@ describe("getCustomerRequestCardContent", () => {
       letter: "М",
       photo: "https://cdn.example/service.jpg",
       metaName: null,
+      providerReply: null,
+      customerReply: null,
     });
 
     expect(
@@ -152,6 +157,8 @@ describe("getCustomerRequestCardContent", () => {
       letter: "К",
       photo: null,
       metaName: "Петров",
+      providerReply: null,
+      customerReply: null,
     });
   });
 
@@ -172,7 +179,72 @@ describe("getCustomerRequestCardContent", () => {
       letter: "С",
       photo: "/hero-bg-house_static_day.jpg",
       metaName: null,
+      providerReply: null,
+      customerReply: null,
     });
+  });
+
+  it("показывает превью реплики исполнителя только в обсуждении", () => {
+    expect(
+      getCustomerRequestCardContent(
+        request({
+          id: "4",
+          status: "DISCUSSING",
+          subjectType: "SERVICE",
+          serviceTitle: "Подключение электричества",
+          providerLastMessage: "  Могу выехать завтра  ",
+        })
+      ).providerReply
+    ).toBe("Могу выехать завтра");
+
+    expect(
+      getCustomerRequestCardContent(
+        request({
+          id: "4b",
+          status: "DISCUSSING",
+          subjectType: "SERVICE",
+          serviceTitle: "Подключение электричества",
+          customerLastMessage: "  За 1000 сделаешь?  ",
+          providerLastMessage: "Могу выехать завтра",
+        })
+      ).customerReply
+    ).toBe("За 1000 сделаешь?");
+
+    expect(
+      getCustomerRequestCardContent(
+        request({
+          id: "5b",
+          status: "NEW",
+          subjectType: "SERVICE",
+          serviceTitle: "Подключение электричества",
+          customerLastMessage: "За 1000 сделаешь?",
+        })
+      ).customerReply
+    ).toBeNull();
+
+    expect(
+      getCustomerRequestCardContent(
+        request({
+          id: "5",
+          status: "NEW",
+          subjectType: "SERVICE",
+          serviceTitle: "Подключение электричества",
+          providerLastMessage: "Могу выехать завтра",
+        })
+      ).providerReply
+    ).toBeNull();
+
+    expect(
+      getCustomerRequestCardContent(
+        request({
+          id: "6",
+          status: "DISCUSSING",
+          subjectType: "SERVICE",
+          serviceTitle: "Подключение электричества",
+          providerLastMessage: "   ",
+        })
+      ).providerReply
+    ).toBeNull();
   });
 });
 

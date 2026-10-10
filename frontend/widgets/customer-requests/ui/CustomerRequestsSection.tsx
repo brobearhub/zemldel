@@ -10,6 +10,7 @@ import {
   markPendingRequestFailed,
   markPendingRequestSubmitting,
   readPendingRequestDraft,
+  formatReplyPreview,
   type PendingRequestDraft,
   type RequestCustomerDto,
 } from "@/entities/request";
@@ -17,6 +18,7 @@ import type { ChatEnsureResponse } from "@/entities/chat/dto/chat.dto";
 import { deleteCustomerRequest } from "@/entities/request/api/customer-requests";
 import { useConfirm } from "@/shared/ui/confirm";
 import { DEFAULT_SERVICE_QUESTION } from "@/features/create-service-request-lead";
+import { CustomerRequestReplyDialog } from "./CustomerRequestReplyDialog";
 import { CustomerRequestsBoard } from "./CustomerRequestsBoard";
 
 type Props = {
@@ -31,6 +33,8 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [replyItem, setReplyItem] = useState<RequestCustomerDto | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
 
   async function load(signal?: AbortSignal) {
     setError(null);
@@ -230,10 +234,31 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
         <CustomerRequestsBoard
           items={items}
           deletingId={deletingId}
+          sendingId={sendingId}
           onOpen={openRequest}
           onDelete={(item) => void deleteRequest(item)}
+          onReply={setReplyItem}
         />
       )}
+      <CustomerRequestReplyDialog
+        item={replyItem}
+        onClose={() => setReplyItem(null)}
+        onSendingChange={(sending) => setSendingId(sending && replyItem ? replyItem.id : null)}
+        onSent={(sent, body) => {
+          const customerLastMessage = formatReplyPreview(body);
+          setItems((current) =>
+            current.map((row) =>
+              row.id === sent.id
+                ? {
+                    ...row,
+                    awaitingProviderReply: true,
+                    customerLastMessage: customerLastMessage ?? row.customerLastMessage,
+                  }
+                : row,
+            ),
+          );
+        }}
+      />
     </Stack>
   );
 }

@@ -1,8 +1,9 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { Box, Stack, Typography } from "@mui/material";
 import type { RequestCustomerDto } from "@/entities/request";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
+import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import { ProClientsBoard } from "@/widgets/pro-clients/ui/ProClientsBoard";
 
 function sortByCreatedAtDesc(orders: RequestCustomerDto[]) {
@@ -13,7 +14,7 @@ export default async function ProClientsPage() {
   const session = await getServerAuthSession();
 
   if (!session?.user?.id) {
-    redirect("/signin");
+    signInRedirect("/pro/clients");
   }
 
   if ((session.user.memberships?.length ?? 0) === 0) {

@@ -1,4 +1,3 @@
-import Image from "next/image";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import LocationOnRoundedIcon from "@mui/icons-material/LocationOnRounded";
 import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
@@ -6,7 +5,7 @@ import { Box, Button, Container, Rating, Stack, Typography } from "@mui/material
 import type { ServiceHeroVm } from "@/widgets/service-page/model/service-hero.vm";
 import { formatReviewCount } from "@/entities/review";
 import { formatRubPriceLabel } from "@/shared/lib/money/format-rub-price-label";
-import { toPublicAssetSrc } from "@/shared/lib/public-asset-src";
+import { CdnFillImage } from "@/shared/ui/cdn-image";
 import { ServiceBackButton } from "./ServiceBackButton";
 
 type Props = {
@@ -55,12 +54,10 @@ export function ServiceHeroSection({ vm }: Props) {
               }}
             >
               {vm.imageUrl ? (
-                <Image
-                  src={toPublicAssetSrc(vm.imageUrl)}
-                  alt=""
-                  fill
-                  unoptimized={process.env.NODE_ENV !== "production"}
+                <CdnFillImage
+                  src={vm.imageUrl}
                   sizes="(max-width: 900px) 100vw, 600px"
+                  unoptimized={process.env.NODE_ENV !== "production"}
                   style={{ objectFit: "cover", objectPosition: "center" }}
                 />
               ) : (

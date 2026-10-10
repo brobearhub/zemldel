@@ -1,10 +1,9 @@
-import Image from "next/image";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import { Box, Rating, Stack, Typography } from "@mui/material";
 import type { PublicProviderProfileDto } from "@/entities/provider";
 import { formatReviewCount } from "@/entities/review";
 import { providerHeroCaption, providerHeroGreeting, providerHeroIntro } from "../lib/provider-hero-copy";
-import { toPublicAssetSrc } from "@/shared/lib/public-asset-src";
+import { CdnFillImage } from "@/shared/ui/cdn-image";
 
 type Props = {
   provider: PublicProviderProfileDto;
@@ -74,12 +73,11 @@ export function ProviderPublicHero({ provider }: Props) {
           }}
         >
           {provider.image ? (
-            <Image
-              src={toPublicAssetSrc(provider.image)}
+            <CdnFillImage
+              src={provider.image}
               alt={provider.name}
-              fill
-              unoptimized={process.env.NODE_ENV !== "production"}
               sizes="(max-width: 600px) 230px, (max-width: 900px) 270px, 300px"
+              unoptimized={process.env.NODE_ENV !== "production"}
               style={{ objectFit: "cover", objectPosition: "center top" }}
             />
           ) : (

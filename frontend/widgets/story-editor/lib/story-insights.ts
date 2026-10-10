@@ -8,7 +8,7 @@ export type InsightTileId =
   | "profileOpens"
   | "guestProfileOpens"
   | "replies"
-  | "reposts";
+  | "comments";
 
 export type InsightListRow = {
   key: string;
@@ -276,15 +276,15 @@ export function buildInsightTiles(insights: StoryInsightsDto, now: Date): Insigh
       })),
     },
     {
-      id: "reposts",
-      label: "Репосты",
-      count: insights.reposts.length,
-      rows: insights.reposts.map((repost) => ({
-        key: repost.storyId,
-        name: repost.text,
-        initial: firstInitial(repost.name),
-        detail: `Репостнул(а) ${repost.name}`,
-        when: formatInsightAge(repost.publishedAt, now),
+      id: "comments",
+      label: "Комментарии",
+      count: insights.comments.length,
+      rows: insights.comments.map((comment) => ({
+        key: comment.id,
+        name: comment.name,
+        initial: firstInitial(comment.name),
+        detail: `«${comment.text}» · ${comment.likeCount}`,
+        when: formatInsightAge(comment.createdAt, now),
       })),
     },
   ];

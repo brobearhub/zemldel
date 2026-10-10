@@ -53,10 +53,6 @@ export function ColorModeProvider({
     const stored = readStoredMode();
     if (stored) {
       setModeState(stored);
-      return;
-    }
-    if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      setModeState("dark");
     }
   }, []);
 

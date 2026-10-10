@@ -19,7 +19,7 @@ export const Header = () => {
           flexWrap: "wrap",
           gap: { xs: 1, sm: 0 },
           alignItems: "center",
-          width: "100%",
+          width: "100%",          
         }}
       >
         <Box

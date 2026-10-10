@@ -1,6 +1,8 @@
 export type {
   StoryAudienceDto,
   StoryAuthorType,
+  StoryCommentDto,
+  StoryCommentListDto,
   StoryConversationDto,
   StoryConversationListDto,
   StoryConversationMessageDto,
@@ -14,10 +16,13 @@ export type {
   StoryScope,
 } from "./dto/story.dto";
 export {
+  commentOnStory,
   createStory,
   deleteStory,
+  deleteStoryComment,
   fetchMyStories,
   fetchPublicStories,
+  fetchStoryComments,
   fetchStoryConversationMessages,
   fetchStoryConversations,
   fetchSavedStories,
@@ -25,15 +30,17 @@ export {
   fetchStoryInsights,
   fetchStoryReplyMessages,
   followStoryAuthor,
+  likeStoryComment,
   recordStoryProfileOpen,
   recordStoryView,
   replyToStory,
-  repostStory,
   saveStory,
   sendStoryConversationMessage,
   sendStoryReplyMessage,
   unfollowStoryAuthor,
+  unlikeStoryComment,
   unsaveStory,
+  updateStoryComment,
 } from "./api/stories";
 export { liftUnseenStories, markStoriesViewed, readGuestStoryViews, rememberGuestStoryView } from "./lib/guest-story-views";
 export { isOwnStory } from "./lib/own-story";

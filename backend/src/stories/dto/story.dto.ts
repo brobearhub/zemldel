@@ -132,3 +132,40 @@ export class StoryConversationMessagesDto {
   @ApiProperty({ type: [StoryConversationMessageDto] })
   items!: StoryConversationMessageDto[];
 }
+
+export class StoryCommentDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  text!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  updatedAt!: string;
+
+  @ApiProperty()
+  authorName!: string;
+
+  @ApiProperty({ enum: ['USER', 'PROVIDER'] })
+  authorType!: 'USER' | 'PROVIDER';
+
+  @ApiProperty()
+  mine!: boolean;
+
+  @ApiProperty()
+  likeCount!: number;
+
+  @ApiProperty()
+  liked!: boolean;
+}
+
+export class StoryCommentListDto {
+  @ApiProperty({ type: [StoryCommentDto] })
+  items!: StoryCommentDto[];
+
+  @ApiProperty()
+  truncated!: boolean;
+}

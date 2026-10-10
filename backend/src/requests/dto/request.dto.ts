@@ -646,6 +646,36 @@ export class RequestCustomerDto {
   @Expose()
   @IsBoolean()
   canDeleteByCustomer!: boolean;
+
+  @ApiProperty({
+    nullable: true,
+    description:
+      'Превью последней реплики исполнителя. Заполняется в списке заявок со статусом DISCUSSING, иначе null.',
+    example: null,
+  })
+  @Expose()
+  @IsOptional()
+  @IsString()
+  providerLastMessage!: string | null;
+
+  @ApiProperty({
+    nullable: true,
+    description:
+      'Превью последней реплики заказчика в диалоге последней реплики исполнителя. Заполняется в списке заявок со статусом DISCUSSING, иначе null.',
+    example: null,
+  })
+  @Expose()
+  @IsOptional()
+  @IsString()
+  customerLastMessage!: string | null;
+
+  @ApiProperty({
+    description:
+      'Заказчик уже ответил позже последней реплики исполнителя в том же диалоге.',
+  })
+  @Expose()
+  @IsBoolean()
+  awaitingProviderReply!: boolean;
 }
 
 export class RequestProDto {
@@ -833,6 +863,47 @@ export class RequestProDto {
   @Expose()
   isLocked!: boolean;
 
+  @ApiProperty({
+    nullable: true,
+    description:
+      'Превью последней реплики заказчика. В ленте есть на всех шагах, кроме «Завершена».',
+    example: null,
+  })
+  @Expose()
+  @IsOptional()
+  @IsString()
+  customerLastMessage!: string | null;
+
+  @ApiProperty({
+    nullable: true,
+    description:
+      'Превью последней реплики исполнителя в его диалоге. В ленте есть на всех шагах, кроме «Завершена».',
+    example: null,
+  })
+  @Expose()
+  @IsOptional()
+  @IsString()
+  providerLastMessage!: string | null;
+
+  @ApiProperty({
+    description:
+      'Исполнитель уже ответил позже последней реплики заказчика в своём диалоге.',
+  })
+  @Expose()
+  @IsBoolean()
+  awaitingCustomerReply!: boolean;
+
+  @ApiProperty({
+    nullable: true,
+    description:
+      'Время последнего сообщения в диалоге этого исполнителя. Для счётчика в ленте, кроме шага «Завершена».',
+    example: null,
+  })
+  @Expose()
+  @IsOptional()
+  @IsString()
+  lastMessageAt!: string | null;
+
   @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
@@ -1001,9 +1072,17 @@ function toFinanceDto(row: RequestDbRow, reveal: boolean) {
 
 export function requestRowToCustomerDtoPlain(
   row: RequestDbRow,
-  options?: { hasProviderResponse?: boolean },
+  options?: {
+    hasProviderResponse?: boolean;
+    providerLastMessage?: string | null;
+    customerLastMessage?: string | null;
+    awaitingProviderReply?: boolean;
+  },
 ): RequestCustomerDto {
   const hasProviderResponse = options?.hasProviderResponse ?? false;
+  const providerLastMessage = options?.providerLastMessage ?? null;
+  const customerLastMessage = options?.customerLastMessage ?? null;
+  const awaitingProviderReply = options?.awaitingProviderReply ?? false;
   const offers = row.providerOffers ?? [];
   const selected = offers.filter((o) => o.status === 'SELECTED');
   const declined = offers.filter((o) => o.status === 'DECLINED');
@@ -1068,6 +1147,9 @@ export function requestRowToCustomerDtoPlain(
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       canDeleteByCustomer: canCustomerDeleteRequest(row, hasProviderResponse),
+      providerLastMessage,
+      customerLastMessage,
+      awaitingProviderReply,
     },
     { excludeExtraneousValues: true, enableImplicitConversion: false },
   );
@@ -1087,11 +1169,19 @@ export function requestRowToProDtoPlain(
      * still reveal the original request message/location to improve UX.
      */
     revealMessageForLocked?: boolean;
+    customerLastMessage?: string | null;
+    providerLastMessage?: string | null;
+    awaitingCustomerReply?: boolean;
+    lastMessageAt?: string | null;
   },
 ): RequestProDto {
   const locked = isLockedToOtherProvider(row, actorProviderId);
 
   const revealMessageForLocked = Boolean(options?.revealMessageForLocked);
+  const customerLastMessage = options?.customerLastMessage ?? null;
+  const providerLastMessage = options?.providerLastMessage ?? null;
+  const awaitingCustomerReply = options?.awaitingCustomerReply ?? false;
+  const lastMessageAt = options?.lastMessageAt ?? null;
   const canRevealBasicDetails = !locked || revealMessageForLocked;
 
   const offers = row.providerOffers ?? [];
@@ -1162,6 +1252,10 @@ export function requestRowToProDtoPlain(
       customerReviewCount: row.customerUser?.customerReviewCount ?? 0,
       conversationsCount,
       isLocked: locked,
+      customerLastMessage,
+      providerLastMessage,
+      awaitingCustomerReply,
+      lastMessageAt,
       ...toFinanceDto(row, revealCustomerContacts),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),

@@ -39,16 +39,17 @@ import {
   normalizeCadastralNumbers,
 } from './dto/request-cadastral-number.dto';
 import {
-  addRequestListStageCount,
-  foldRequestListStageCounts,
-  matchesRequestListStage,
   parseRequestListFeedQuery,
+  requestListAssignedWhere,
   requestListScopeWhere,
-  requestListStageWhere,
   type RequestListFeedQuery,
-  type RequestListScope,
-  type RequestListStageCounts,
-} from './request-list-stage';
+} from './request-list-query';
+import {
+  pickLatestCustomerMessage,
+  pickLatestProviderMessage,
+  type CustomerReplyPreview,
+  type ProviderReplyPreview,
+} from './dto/request-provider-reply';
 import { formatProviderDeclineChatMessage } from './dto/decline-offer.dto';
 import { formatCustomerSelectProviderChatMessage } from './dto/select-provider.dto';
 import { randomUUID } from 'node:crypto';
@@ -226,6 +227,101 @@ export class RequestsService {
       }
     }
     return responded;
+  }
+
+  private async getLatestProviderMessages(
+    rows: Array<{
+      id: string;
+      customerUserId: string | null;
+      providerId: string | null;
+    }>,
+  ): Promise<Map<string, ProviderReplyPreview>> {
+    const requestIds = rows
+      .filter((row) => row.customerUserId)
+      .map((row) => row.id);
+    if (requestIds.length === 0) return new Map();
+
+    const providerByRequest = new Map(
+      rows.map((row) => [row.id, row.providerId]),
+    );
+    const messages = await this.prisma.message.findMany({
+      where: {
+        conversation: { requestId: { in: requestIds } },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        body: true,
+        createdAt: true,
+        senderUserId: true,
+        conversation: {
+          select: {
+            id: true,
+            requestId: true,
+            customerUserId: true,
+            providerId: true,
+          },
+        },
+      },
+      take: 5000,
+    });
+
+    return pickLatestProviderMessage(
+      messages.map((message) => ({
+        body: message.body,
+        createdAt: message.createdAt,
+        senderUserId: message.senderUserId,
+        requestId: message.conversation.requestId,
+        conversationId: message.conversation.id,
+        customerUserId: message.conversation.customerUserId,
+        conversationProviderId: message.conversation.providerId,
+        requestProviderId:
+          providerByRequest.get(message.conversation.requestId) ?? null,
+      })),
+    );
+  }
+
+  private async getLatestCustomerMessages(
+    requestIds: string[],
+    actorProviderId: string,
+  ): Promise<Map<string, CustomerReplyPreview>> {
+    if (requestIds.length === 0) return new Map();
+
+    const messages = await this.prisma.message.findMany({
+      where: {
+        conversation: {
+          requestId: { in: requestIds },
+          providerId: actorProviderId,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        body: true,
+        createdAt: true,
+        senderUserId: true,
+        conversation: {
+          select: {
+            id: true,
+            requestId: true,
+            customerUserId: true,
+            providerId: true,
+          },
+        },
+      },
+      take: 5000,
+    });
+
+    return pickLatestCustomerMessage(
+      messages.map((message) => ({
+        body: message.body,
+        createdAt: message.createdAt,
+        senderUserId: message.senderUserId,
+        requestId: message.conversation.requestId,
+        conversationId: message.conversation.id,
+        customerUserId: message.conversation.customerUserId,
+        conversationProviderId: message.conversation.providerId,
+        actorProviderId,
+      })),
+    );
   }
 
   private async hasProviderResponseForRequest(
@@ -612,11 +708,18 @@ export class RequestsService {
         customerUserId: row.customerUserId,
       })),
     );
-    return typedRows.map((row) =>
-      requestRowToCustomerDtoPlain(row, {
+    const discussing = typedRows.filter((row) => row.status === 'DISCUSSING');
+    const providerLastMessages =
+      await this.getLatestProviderMessages(discussing);
+    return typedRows.map((row) => {
+      const preview = providerLastMessages.get(row.id);
+      return requestRowToCustomerDtoPlain(row, {
         hasProviderResponse: providerResponses.has(row.id),
-      }),
-    );
+        providerLastMessage: preview?.body ?? null,
+        customerLastMessage: preview?.customerBody ?? null,
+        awaitingProviderReply: preview?.awaitingProviderReply ?? false,
+      });
+    });
   }
 
   async getMineById(
@@ -640,7 +743,12 @@ export class RequestsService {
           typedRow.customerUserId,
         )
       : false;
-    return requestRowToCustomerDtoPlain(typedRow, { hasProviderResponse });
+    return requestRowToCustomerDtoPlain(typedRow, {
+      hasProviderResponse,
+      providerLastMessage: null,
+      customerLastMessage: null,
+      awaitingProviderReply: false,
+    });
   }
 
   async deleteMineByCustomer(
@@ -1355,21 +1463,19 @@ export class RequestsService {
   async listProFeed(
     actorProviderId: string,
     input: RequestListFeedQuery,
-  ): Promise<{ items: RequestProDto[]; counts: RequestListStageCounts }> {
+  ): Promise<{ items: RequestProDto[] }> {
     const parsed = parseRequestListFeedQuery(input);
     if (!parsed.ok) throw new BadRequestException(parsed.message);
 
-    const stageWhere = requestListStageWhere(parsed.stage);
     const scopeWhere = requestListScopeWhere(parsed.scope);
-    const [providerRegionCode, eligibleCategoryIds, counts] = await Promise.all([
+    const [providerRegionCode, eligibleCategoryIds] = await Promise.all([
       this.getProviderRegionCode(actorProviderId),
       this.getProviderEligibleCategoryIds(actorProviderId),
-      this.countRequestListStages(actorProviderId, parsed.scope),
     ]);
 
     const [assignedRows, unassignedRows, activeOtherRows] = await Promise.all([
       this.prisma.request.findMany({
-        where: { AND: [{ providerId: actorProviderId }, stageWhere, scopeWhere] },
+        where: requestListAssignedWhere(actorProviderId, parsed.scope),
         select,
         orderBy: [{ createdAt: 'desc' }],
         take: 200,
@@ -1378,7 +1484,6 @@ export class RequestsService {
         where: {
           AND: [
             { providerId: null, status: { in: ['NEW', 'DISCUSSING'] } },
-            stageWhere,
             scopeWhere,
           ],
         },
@@ -1390,7 +1495,6 @@ export class RequestsService {
         where: {
           AND: [
             { serviceId: null, providerId: { not: null }, status: 'ACTIVE' },
-            stageWhere,
             scopeWhere,
           ],
         },
@@ -1447,93 +1551,33 @@ export class RequestsService {
       ...eligibleUnassigned,
       ...eligibleActiveOther,
     ]
-      .filter(
-        (row) =>
-          matchesRequestListStage(row, parsed.stage) &&
-          (scope.kind === 'free' ? row.serviceId == null : row.serviceId === scope.serviceId),
+      .filter((row) =>
+        scope.kind === 'free' ? row.serviceId == null : row.serviceId === scope.serviceId,
       )
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, 200);
 
     const ids = merged.map((r) => r.id);
-    const conversationCounts = await this.getConversationCounts(ids);
-    return {
-      items: merged.map((r) =>
-        requestRowToProDtoPlain(r, conversationCounts.get(r.id) ?? 0, actorProviderId),
-      ),
-      counts,
-    };
-  }
-
-  /**
-   * Why: кружки всех шагов не требуют карточек заявок.
-   * Один GROUP BY по своим заявкам, плюс узкий список свободных без исполнителя.
-   */
-  private async countRequestListStages(
-    actorProviderId: string,
-    scope: RequestListScope,
-  ): Promise<RequestListStageCounts> {
-    const scopeSql =
-      scope.kind === 'free'
-        ? Prisma.sql`"serviceId" IS NULL`
-        : Prisma.sql`"serviceId" = ${scope.serviceId}::uuid`;
-    const buckets = await this.prisma.$queryRaw<
-      Array<{ status: string; locked: boolean; count: number }>
-    >`
-      SELECT status::text AS status,
-             ("lockedAt" IS NOT NULL) AS locked,
-             COUNT(*)::int AS count
-      FROM "Request"
-      WHERE "providerId" = ${actorProviderId}::uuid
-        AND ${scopeSql}
-        AND status NOT IN ('CANCELLED', 'CLOSED')
-      GROUP BY 1, 2
-    `;
-    const counts = foldRequestListStageCounts(
-      buckets.map((bucket) => ({
-        status: bucket.status as RequestDbRow['status'],
-        locked: Boolean(bucket.locked),
-        count: Number(bucket.count),
-      })),
-    );
-    if (scope.kind !== 'free') return counts;
-
-    const unassigned = await this.prisma.request.findMany({
-      where: {
-        providerId: null,
-        serviceId: null,
-        status: { notIn: ['CANCELLED', 'CLOSED'] },
-      },
-      select: {
-        id: true,
-        status: true,
-        lockedAt: true,
-        categoryId: true,
-        serviceId: true,
-        requestCityId: true,
-        customerUser: { select: { customerCityId: true } },
-      },
-    });
-    const [providerRegionCode, eligibleCategoryIds, regionById] = await Promise.all([
-      this.getProviderRegionCode(actorProviderId),
-      this.getProviderEligibleCategoryIds(actorProviderId),
-      this.resolveRequestsRegionCodes(unassigned),
+    const [conversationCounts, customerReplies] = await Promise.all([
+      this.getConversationCounts(ids),
+      this.getLatestCustomerMessages(ids, actorProviderId),
     ]);
-    for (const row of unassigned) {
-      try {
-        this.assertProviderEligibleForUnassignedRequest(
+    return {
+      items: merged.map((r) => {
+        const preview = customerReplies.get(r.id);
+        return requestRowToProDtoPlain(
+          r,
+          conversationCounts.get(r.id) ?? 0,
           actorProviderId,
-          row,
-          providerRegionCode,
-          eligibleCategoryIds,
-          regionById,
+          {
+            customerLastMessage: preview?.body ?? null,
+            providerLastMessage: preview?.providerBody ?? null,
+            awaitingCustomerReply: preview?.awaitingCustomerReply ?? false,
+            lastMessageAt: preview?.lastMessageAt.toISOString() ?? null,
+          },
         );
-        addRequestListStageCount(counts, row);
-      } catch {
-        // не видна этому исполнителю
-      }
-    }
-    return counts;
+      }),
+    };
   }
 
   async listProInbox(

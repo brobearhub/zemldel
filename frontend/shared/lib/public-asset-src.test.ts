@@ -1,41 +1,45 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { toPublicAssetSrc } from "./public-asset-src";
+import { storageFallbackSrc } from "./public-asset-src";
 
-describe("toPublicAssetSrc", () => {
+describe("storageFallbackSrc", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
   });
 
-  it("в dev проксирует публичный CDN через same-origin", () => {
-    vi.stubEnv("NODE_ENV", "development");
+  it("подменяет CDN на path-style Object Storage", () => {
+    vi.stubEnv("NEXT_PUBLIC_YA_S3_ENDPOINT", "https://storage.yandexcloud.net");
+    vi.stubEnv("NEXT_PUBLIC_YA_S3_PUBLIC_BUCKET", "zemledel-public-test");
+    vi.stubEnv("NEXT_PUBLIC_YA_S3_FORCE_PATH_STYLE", "true");
+
     expect(
-      toPublicAssetSrc(
+      storageFallbackSrc(
         "https://cdn.zemledel.pro/public/stories/80876fbc-864b-4dd7-a02f-095736741903/photo.webp",
       ),
     ).toBe(
-      "/api/dev-cdn/cdn.zemledel.pro/public/stories/80876fbc-864b-4dd7-a02f-095736741903/photo.webp",
+      "https://storage.yandexcloud.net/zemledel-public-test/public/stories/80876fbc-864b-4dd7-a02f-095736741903/photo.webp",
     );
   });
 
-  it("сохраняет query у CDN-адреса", () => {
-    vi.stubEnv("NODE_ENV", "development");
-    expect(toPublicAssetSrc("https://cdn.zemledelpro.ru/public/a.jpg?v=2")).toBe(
-      "/api/dev-cdn/cdn.zemledelpro.ru/public/a.jpg?v=2",
+  it("сохраняет query", () => {
+    vi.stubEnv("NEXT_PUBLIC_YA_S3_ENDPOINT", "https://storage.yandexcloud.net");
+    vi.stubEnv("NEXT_PUBLIC_YA_S3_PUBLIC_BUCKET", "zemledel-public-test");
+    vi.stubEnv("NEXT_PUBLIC_YA_S3_FORCE_PATH_STYLE", "true");
+
+    expect(storageFallbackSrc("https://cdn.zemledelpro.ru/public/a.jpg?v=2")).toBe(
+      "https://storage.yandexcloud.net/zemledel-public-test/public/a.jpg?v=2",
     );
   });
 
   it("не трогает чужие хосты и локальные превью", () => {
-    vi.stubEnv("NODE_ENV", "development");
-    expect(toPublicAssetSrc("https://cdn.example/story.jpg")).toBe("https://cdn.example/story.jpg");
-    expect(toPublicAssetSrc("blob:http://localhost:4000/preview")).toBe(
-      "blob:http://localhost:4000/preview",
-    );
+    vi.stubEnv("NEXT_PUBLIC_YA_S3_ENDPOINT", "https://storage.yandexcloud.net");
+    vi.stubEnv("NEXT_PUBLIC_YA_S3_PUBLIC_BUCKET", "zemledel-public-test");
+    vi.stubEnv("NEXT_PUBLIC_YA_S3_FORCE_PATH_STYLE", "true");
+
+    expect(storageFallbackSrc("https://cdn.example/story.jpg")).toBeNull();
+    expect(storageFallbackSrc("blob:http://localhost:4000/preview")).toBeNull();
   });
 
-  it("в production оставляет CDN-адрес как есть", () => {
-    vi.stubEnv("NODE_ENV", "production");
-    expect(toPublicAssetSrc("https://cdn.zemledel.pro/public/a.webp")).toBe(
-      "https://cdn.zemledel.pro/public/a.webp",
-    );
+  it("без env фолбека нет", () => {
+    expect(storageFallbackSrc("https://cdn.zemledel.pro/public/a.webp")).toBeNull();
   });
 });

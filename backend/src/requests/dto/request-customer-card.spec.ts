@@ -29,6 +29,9 @@ describe('requestRowToCustomerDtoPlain card fields', () => {
     expect(dto.serviceTitle).toBe('Межевание участка');
     expect(dto.serviceImage).toBe('https://cdn.example/service.jpg');
     expect(dto.categoryName).toBe('Кадастр');
+    expect(dto.providerLastMessage).toBeNull();
+    expect(dto.customerLastMessage).toBeNull();
+    expect(dto.awaitingProviderReply).toBe(false);
   });
 
   it('не подставляет пустое фото услуги', () => {

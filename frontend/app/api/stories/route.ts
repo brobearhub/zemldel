@@ -9,8 +9,10 @@ export async function GET(request: Request) {
     const qs = new URLSearchParams();
     const cityId = url.searchParams.get("cityId");
     const providerId = url.searchParams.get("providerId");
+    const scope = url.searchParams.get("scope");
     if (providerId) qs.set("providerId", providerId);
     else if (cityId) qs.set("cityId", cityId);
+    if (scope === "user" || scope === "provider") qs.set("scope", scope);
     const suffix = qs.toString() ? `?${qs.toString()}` : "";
     const response = session?.user?.id
       ? await fetchBackendAsUser(`/stories${suffix}`, session.user.id)

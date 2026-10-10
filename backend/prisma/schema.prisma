@@ -231,6 +231,8 @@ model User {
   storyViewEvents           StoryViewEvent[]
   storySaves                StorySave[]
   storyReplies              StoryReply[]
+  storyComments             StoryComment[]           @relation("StoryCommentAuthor")
+  storyCommentLikes         StoryCommentLike[]
   storyReplyMessages        StoryReplyMessage[]      @relation("StoryReplyMessageSender")
   storyProfileOpens         StoryProfileOpen[]
   storyFollows              StoryAuthorFollow[]      @relation("StoryFollower")
@@ -334,7 +336,14 @@ model Provider {
   reviews           Review[]
   stories           Story[]
   storyFollowers    StoryAuthorFollow[]
+  storyFollowsMade  StoryAuthorFollow[]   @relation("StoryFollowedByProvider")
   storyUnfollows    StoryAuthorUnfollow[]
+  storyUnfollowsMade StoryAuthorUnfollow[] @relation("StoryUnfollowedByProvider")
+  storyReplies      StoryReply[]
+  storyComments     StoryComment[]
+  storySaves        StorySave[]
+  storyViewEvents   StoryViewEvent[]
+  storyProfileOpens StoryProfileOpen[]
   rating            Float?
   reviewCount       Int                      @default(0)
   createdRequestRemarks RequestRemark[] @relation("RequestRemarkCreatedByProvider")
@@ -743,6 +752,7 @@ model Story {
   viewEvents   StoryViewEvent[]
   saves        StorySave[]
   replies      StoryReply[]
+  comments     StoryComment[]
   profileOpens StoryProfileOpen[]
 
   @@index([expiresAt])
@@ -755,15 +765,17 @@ model Story {
 }
 
 model StoryViewEvent {
-  id       String   @id @default(uuid()) @db.Uuid
-  storyId  String   @db.Uuid
-  userId   String?  @db.Uuid
-  cityId   String?  @db.Uuid
-  viewedAt DateTime @default(now())
+  id         String   @id @default(uuid()) @db.Uuid
+  storyId    String   @db.Uuid
+  userId     String?  @db.Uuid
+  providerId String?  @db.Uuid
+  cityId     String?  @db.Uuid
+  viewedAt   DateTime @default(now())
 
-  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
-  user  User? @relation(fields: [userId], references: [id], onDelete: Cascade)
-  city  City? @relation("StoryViewCity", fields: [cityId], references: [id], onDelete: SetNull)
+  story    Story     @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user     User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider Provider? @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  city     City?     @relation("StoryViewCity", fields: [cityId], references: [id], onDelete: SetNull)
 
   @@index([storyId, viewedAt])
   @@index([storyId, userId])
@@ -771,32 +783,67 @@ model StoryViewEvent {
 }
 
 model StorySave {
-  id        String    @id @default(uuid()) @db.Uuid
-  storyId   String    @db.Uuid
-  userId    String    @db.Uuid
-  savedAt   DateTime  @default(now())
-  removedAt DateTime?
+  id         String    @id @default(uuid()) @db.Uuid
+  storyId    String    @db.Uuid
+  userId     String    @db.Uuid
+  providerId String?   @db.Uuid
+  savedAt    DateTime  @default(now())
+  removedAt  DateTime?
 
-  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  story    Story     @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider Provider? @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, storyId])
   @@index([userId, removedAt])
+  @@index([providerId, removedAt])
   @@index([storyId, removedAt])
 }
 
 model StoryReply {
-  id           String   @id @default(uuid()) @db.Uuid
-  storyId      String   @db.Uuid
-  authorUserId String   @db.Uuid
+  id           String          @id @default(uuid()) @db.Uuid
+  storyId      String          @db.Uuid
+  authorType   StoryAuthorType @default(USER)
+  authorUserId String          @db.Uuid
+  providerId   String?         @db.Uuid
   text         String
-  createdAt    DateTime @default(now())
+  createdAt    DateTime        @default(now())
 
-  story    Story              @relation(fields: [storyId], references: [id], onDelete: Cascade)
-  author   User               @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
+  story    Story               @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  author   User                @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
+  provider Provider?           @relation(fields: [providerId], references: [id], onDelete: Restrict)
   messages StoryReplyMessage[]
 
   @@index([storyId, createdAt])
+}
+
+model StoryComment {
+  id           String          @id @default(uuid()) @db.Uuid
+  storyId      String          @db.Uuid
+  authorType   StoryAuthorType
+  authorUserId String          @db.Uuid
+  providerId   String?         @db.Uuid
+  text         String
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  story    Story              @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  author   User               @relation("StoryCommentAuthor", fields: [authorUserId], references: [id], onDelete: Cascade)
+  provider Provider?          @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  likes    StoryCommentLike[]
+
+  @@index([storyId, createdAt])
+}
+
+model StoryCommentLike {
+  id        String   @id @default(uuid()) @db.Uuid
+  commentId String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  comment StoryComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
 }
 
 model StoryReplyMessage {
@@ -826,28 +873,32 @@ model StoryConversationRead {
 }
 
 model StoryProfileOpen {
-  id       String   @id @default(uuid()) @db.Uuid
-  storyId  String   @db.Uuid
-  userId   String?  @db.Uuid
-  openedAt DateTime @default(now())
+  id         String   @id @default(uuid()) @db.Uuid
+  storyId    String   @db.Uuid
+  userId     String?  @db.Uuid
+  providerId String?  @db.Uuid
+  openedAt   DateTime @default(now())
 
-  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
-  user  User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  story    Story     @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user     User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider Provider? @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
   @@index([storyId, openedAt])
 }
 
 model StoryAuthorFollow {
-  id               String    @id @default(uuid()) @db.Uuid
-  followerUserId   String    @db.Uuid
-  targetUserId     String?   @db.Uuid
-  targetProviderId String?   @db.Uuid
-  createdAt        DateTime  @default(now())
-  removedAt        DateTime?
+  id                 String    @id @default(uuid()) @db.Uuid
+  followerUserId     String    @db.Uuid
+  followerProviderId String?   @db.Uuid
+  targetUserId       String?   @db.Uuid
+  targetProviderId   String?   @db.Uuid
+  createdAt          DateTime  @default(now())
+  removedAt          DateTime?
 
-  follower       User      @relation("StoryFollower", fields: [followerUserId], references: [id], onDelete: Cascade)
-  targetUser     User?     @relation("StoryFollowedUser", fields: [targetUserId], references: [id], onDelete: Cascade)
-  targetProvider Provider? @relation(fields: [targetProviderId], references: [id], onDelete: Cascade)
+  follower         User      @relation("StoryFollower", fields: [followerUserId], references: [id], onDelete: Cascade)
+  followerProvider Provider? @relation("StoryFollowedByProvider", fields: [followerProviderId], references: [id], onDelete: Cascade)
+  targetUser       User?     @relation("StoryFollowedUser", fields: [targetUserId], references: [id], onDelete: Cascade)
+  targetProvider   Provider? @relation(fields: [targetProviderId], references: [id], onDelete: Cascade)
 
   @@index([followerUserId, removedAt])
   @@index([targetUserId, removedAt])
@@ -855,15 +906,17 @@ model StoryAuthorFollow {
 }
 
 model StoryAuthorUnfollow {
-  id               String   @id @default(uuid()) @db.Uuid
-  followerUserId   String   @db.Uuid
-  targetUserId     String?  @db.Uuid
-  targetProviderId String?  @db.Uuid
-  unfollowedAt     DateTime @default(now())
+  id                 String   @id @default(uuid()) @db.Uuid
+  followerUserId     String   @db.Uuid
+  followerProviderId String?  @db.Uuid
+  targetUserId       String?  @db.Uuid
+  targetProviderId   String?  @db.Uuid
+  unfollowedAt       DateTime @default(now())
 
-  follower       User      @relation("StoryUnfollower", fields: [followerUserId], references: [id], onDelete: Cascade)
-  targetUser     User?     @relation("StoryUnfollowedUser", fields: [targetUserId], references: [id], onDelete: Cascade)
-  targetProvider Provider? @relation(fields: [targetProviderId], references: [id], onDelete: Cascade)
+  follower         User      @relation("StoryUnfollower", fields: [followerUserId], references: [id], onDelete: Cascade)
+  followerProvider Provider? @relation("StoryUnfollowedByProvider", fields: [followerProviderId], references: [id], onDelete: Cascade)
+  targetUser       User?     @relation("StoryUnfollowedUser", fields: [targetUserId], references: [id], onDelete: Cascade)
+  targetProvider   Provider? @relation(fields: [targetProviderId], references: [id], onDelete: Cascade)
 
   @@index([targetUserId, unfollowedAt])
   @@index([targetProviderId, unfollowedAt])

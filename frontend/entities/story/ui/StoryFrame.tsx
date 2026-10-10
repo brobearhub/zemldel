@@ -1,7 +1,7 @@
 import { useRef, type ReactNode } from "react";
 import { Box } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
-import { toPublicAssetSrc } from "@/shared/lib/public-asset-src";
+import { CdnImage } from "@/shared/ui/cdn-image";
 
 type Props = {
   imageUrl: string | null;
@@ -48,13 +48,12 @@ export function StoryFrame({ imageUrl, imageAlt = "", onImageLoad, onImageError,
       ]}
     >
       {imageUrl ? (
-        <Box
-          component="img"
-          src={toPublicAssetSrc(imageUrl)}
+        <CdnImage
+          src={imageUrl}
           alt={imageAlt}
           onLoad={notifyLoaded}
           onError={notifyError}
-          ref={(node: HTMLImageElement | null) => {
+          ref={(node) => {
             // Уже закэшированное фото не шлёт load повторно, если src успел выставиться до подписки.
             if (node?.complete && node.naturalWidth > 0) notifyLoaded();
           }}

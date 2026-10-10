@@ -1,10 +1,9 @@
-import Image from "next/image";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import { Box, Button, Container, Paper, Rating, Stack, Typography } from "@mui/material";
 import type { PublicProviderProfileDto } from "@/entities/provider";
 import { formatReviewCount } from "@/entities/review";
 import { ServiceQuickApplyButton } from "@/features/create-service-request-lead";
-import { toPublicAssetSrc } from "@/shared/lib/public-asset-src";
+import { CdnFillImage } from "@/shared/ui/cdn-image";
 
 function ProviderImagePlaceholder({ type }: { type: PublicProviderProfileDto["type"] }) {
   const isCompany = type === "COMPANY";
@@ -135,12 +134,10 @@ export function ServiceProviderSection({ provider, serviceId, isAuthenticated, i
             }}
           >
             {provider.image ? (
-              <Image
-                src={toPublicAssetSrc(provider.image)}
-                alt=""
-                fill
-                unoptimized={process.env.NODE_ENV !== "production"}
+              <CdnFillImage
+                src={provider.image}
                 sizes="(max-width: 900px) 100vw, 534px"
+                unoptimized={process.env.NODE_ENV !== "production"}
                 style={{ objectFit: "cover", objectPosition: "center" }}
               />
             ) : (

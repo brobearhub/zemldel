@@ -1,10 +1,11 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { Stack } from "@mui/material";
 import { getActiveMembership } from "@/core/auth/authorization";
 import type { RequestReminderDto } from "@/entities/request";
 import type { ServiceDto } from "@/entities/service";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
+import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import { ProfessionalWorkspacePanel } from "@/widgets/pro-dashboard/ui/ProfessionalWorkspacePanel";
 import { ProHomePage } from "@/views/pro-home";
 
@@ -12,7 +13,7 @@ export default async function ProDashboardPage() {
   const session = await getServerAuthSession();
 
   if (!session?.user?.id) {
-    redirect("/signin");
+    signInRedirect("/pro");
   }
 
   const activeMembership = getActiveMembership(session.user);
@@ -26,7 +27,7 @@ export default async function ProDashboardPage() {
   }
 
   try {
-    // Why: заявки списка грузит клиент по активному шагу. Здесь только услуги и напоминания.
+    // Why: заявки списка грузит клиент целиком. Здесь только услуги и напоминания.
     const [services, reminders] = await Promise.all([
       fetchBackendJsonAsUser<ServiceDto[]>("/pro/services", session.user.id),
       fetchBackendJsonAsUser<RequestReminderDto[]>("/pro/reminders", session.user.id),

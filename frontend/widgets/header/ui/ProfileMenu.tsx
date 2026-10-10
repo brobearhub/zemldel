@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, type MouseEvent } from "react";
+import { useState, type MouseEvent, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  Avatar,
   Box,
   Divider,
   Menu,
@@ -11,14 +10,18 @@ import {
   Typography,
 } from "@mui/material";
 import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
+import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import LogoutIcon from "@mui/icons-material/Logout";
 import LoginIcon from "@mui/icons-material/Login";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import WorkOutlineOutlinedIcon from "@mui/icons-material/WorkOutlineOutlined";
+import WorkIcon from "@mui/icons-material/Work";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
+import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import { signOut } from "next-auth/react";
 import { useAppSelector } from "@/core/store/hooks";
-import { toPublicAssetSrc } from "@/shared/lib/public-asset-src";
+import { CdnAvatar } from "@/shared/ui/cdn-image";
+import { resolveProfileMenuSection } from "../lib/profile-menu-section";
 
 function getInitials(name: string | null | undefined): string {
   if (!name) return "U";
@@ -39,6 +42,54 @@ function buildReturnTo(pathname: string, searchParams: { toString(): string }): 
   return qs ? `${pathname}?${qs}` : pathname;
 }
 
+const menuIconSx = { mr: 1.5, fontSize: 20 } as const;
+
+/** Why: outline не входит в размер аватара и не сдвигает шапку. */
+const proAvatarRingSx = {
+  outline: "2px dashed",
+  outlineColor: "accent.main",
+  outlineOffset: "2px",
+} as const;
+
+function menuItemSx(active: boolean) {
+  return {
+    py: 1.5,
+    fontWeight: active ? 600 : 400,
+    "&&:hover, &&.Mui-focusVisible": {
+      bgcolor: "primary.main",
+      color: "common.black",
+      "& .MuiSvgIcon-root": { color: "common.black" },
+    },
+  };
+}
+
+type SectionMenuItemProps = {
+  readonly active: boolean;
+  readonly onClick: () => void;
+  readonly outlineIcon: ReactNode;
+  readonly filledIcon: ReactNode;
+  readonly children: ReactNode;
+};
+
+function SectionMenuItem({
+  active,
+  onClick,
+  outlineIcon,
+  filledIcon,
+  children,
+}: SectionMenuItemProps) {
+  return (
+    <MenuItem
+      onClick={onClick}
+      aria-current={active ? "page" : undefined}
+      sx={menuItemSx(active)}
+    >
+      {active ? filledIcon : outlineIcon}
+      {children}
+    </MenuItem>
+  );
+}
+
 export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -49,6 +100,7 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
   const isAuthenticated = status === "authenticated";
   const hasProfessionalProfile = (user?.memberships?.length ?? 0) > 0;
   const isPlatformAdmin = user?.systemRole === "PLATFORM_ADMIN";
+  const activeSection = resolveProfileMenuSection(pathname);
   const initials = getInitials(user?.name) || user?.email?.charAt(0)?.toUpperCase() || "U";
 
   const handleMouseEnter = (event: MouseEvent<HTMLElement>) => {
@@ -134,8 +186,8 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
         }}
       >
         {isAuthenticated ? (
-          <Avatar
-            src={user?.image ? toPublicAssetSrc(user.image) : undefined}
+          <CdnAvatar
+            src={user?.image || undefined}
             sx={{
               width: { xs: 28, sm: 32 },
               height: { xs: 28, sm: 32 },
@@ -143,10 +195,11 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
               color: "primary.contrastText",
               fontSize: { xs: 12, sm: 13 },
               fontWeight: 600,
+              ...(activeSection === "pro" ? proAvatarRingSx : null),
             }}
           >
             {initials}
-          </Avatar>
+          </CdnAvatar>
         ) : (
           <PersonOutlineRoundedIcon sx={{ fontSize: { xs: 22, sm: 24 }, color: "info.main" }} />
         )}
@@ -200,18 +253,19 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
           <Box>
             <Box sx={{ px: 2, py: 1.5 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
-                <Avatar
-                  src={user?.image ? toPublicAssetSrc(user.image) : undefined}
+                <CdnAvatar
+                  src={user?.image || undefined}
                   sx={{
                     width: 40,
                     height: 40,
                     bgcolor: "primary.main",
                     fontSize: 16,
                     fontWeight: 600,
+                    ...(activeSection === "pro" ? proAvatarRingSx : null),
                   }}
                 >
                   {initials}
-                </Avatar>
+                </CdnAvatar>
                 <Box sx={{ minWidth: 0 }}>
                   <Typography variant="subtitle2" noWrap sx={{
                     fontWeight: 600
@@ -231,24 +285,36 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
               </Box>
             </Box>
             <Divider />
-            <MenuItem onClick={handleCustomerProfile} sx={{ py: 1.5 }}>
-              <PersonOutlineRoundedIcon sx={{ mr: 1.5, fontSize: 20 }} />
+            <SectionMenuItem
+              active={activeSection === "profile"}
+              onClick={handleCustomerProfile}
+              outlineIcon={<PersonOutlineRoundedIcon sx={menuIconSx} />}
+              filledIcon={<PersonRoundedIcon sx={menuIconSx} />}
+            >
               Мой профиль
-            </MenuItem>
+            </SectionMenuItem>
             {hasProfessionalProfile ? (
-              <MenuItem onClick={handleProDashboard} sx={{ py: 1.5 }}>
-                <WorkOutlineOutlinedIcon sx={{ mr: 1.5, fontSize: 20 }} />
+              <SectionMenuItem
+                active={activeSection === "pro"}
+                onClick={handleProDashboard}
+                outlineIcon={<WorkOutlineOutlinedIcon sx={menuIconSx} />}
+                filledIcon={<WorkIcon sx={menuIconSx} />}
+              >
                 Кабинет профессионала
-              </MenuItem>
+              </SectionMenuItem>
             ) : null}
             {isPlatformAdmin ? (
-              <MenuItem onClick={handleAdmin} sx={{ py: 1.5 }}>
-                <AdminPanelSettingsOutlinedIcon sx={{ mr: 1.5, fontSize: 20 }} />
+              <SectionMenuItem
+                active={activeSection === "admin"}
+                onClick={handleAdmin}
+                outlineIcon={<AdminPanelSettingsOutlinedIcon sx={menuIconSx} />}
+                filledIcon={<AdminPanelSettingsIcon sx={menuIconSx} />}
+              >
                 Админка
-              </MenuItem>
+              </SectionMenuItem>
             ) : null}
-            <MenuItem onClick={handleSignOut} sx={{ py: 1.5, color: "error.main" }}>
-              <LogoutIcon sx={{ mr: 1.5, fontSize: 20 }} />
+            <MenuItem onClick={handleSignOut} sx={{ ...menuItemSx(false), color: "error.main" }}>
+              <LogoutIcon sx={menuIconSx} />
               Выйти
             </MenuItem>
           </Box>
@@ -267,16 +333,16 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
               </Typography>
             </Box>
             <Divider />
-            <MenuItem onClick={handleSignIn} sx={{ py: 1.5 }}>
-              <LoginIcon sx={{ mr: 1.5, fontSize: 20 }} />
+            <MenuItem onClick={handleSignIn} sx={menuItemSx(false)}>
+              <LoginIcon sx={menuIconSx} />
               Войти
             </MenuItem>
-            <MenuItem onClick={handleSignInPro} sx={{ py: 1.5 }}>
-              <WorkOutlineOutlinedIcon sx={{ mr: 1.5, fontSize: 20 }} />
+            <MenuItem onClick={handleSignInPro} sx={menuItemSx(false)}>
+              <WorkOutlineOutlinedIcon sx={menuIconSx} />
               Войти исполнителю
             </MenuItem>
-            <MenuItem onClick={handleSignUp} sx={{ py: 1.5 }}>
-              <PersonAddIcon sx={{ mr: 1.5, fontSize: 20 }} />
+            <MenuItem onClick={handleSignUp} sx={menuItemSx(false)}>
+              <PersonAddIcon sx={menuIconSx} />
               Регистрация
             </MenuItem>
           </Box>

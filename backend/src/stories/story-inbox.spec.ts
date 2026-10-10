@@ -10,9 +10,14 @@ function reply(overrides: Partial<InboxReplyRow> & Pick<InboxReplyRow, 'id' | 'a
   const { story, messages, ...rest } = overrides;
   return {
     text: 'Привет',
+    authorType: 'USER',
     authorName: 'Анна Ким',
     authorImageUrl: null,
     authorCityName: 'Москва',
+    authorProviderId: null,
+    authorProviderName: null,
+    authorProviderImageUrl: null,
+    authorProviderCityName: null,
     ...rest,
     story: {
       id: 'story-1',

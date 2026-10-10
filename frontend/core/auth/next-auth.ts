@@ -4,6 +4,7 @@ import type { NextAuthOptions } from "next-auth";
 import { getServerSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import type { AuthMembership, AuthorizedUser } from "@/core/auth/authorization";
+import { refreshAuthToken } from "@/core/auth/refresh-auth-context";
 import {
   BackendApiError,
   fetchBackendJson,
@@ -79,14 +80,12 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         assignAuthContext(token as Record<string, unknown>, user as UserAuthContext);
-      } else if (token.sub) {
-        const authUser = await getUserAuthContext(token.sub);
-        if (authUser) {
-          assignAuthContext(token as Record<string, unknown>, authUser);
-        }
+        return token;
       }
 
-      return token;
+      return refreshAuthToken(token, (userId) => getUserAuthContext(userId), (current, authUser) => {
+        assignAuthContext(current as Record<string, unknown>, authUser as UserAuthContext);
+      });
     },
     session({ session, token }) {
       if (session.user) {

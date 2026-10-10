@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  formatRequestCount,
   formatRequestOpenedAt,
   getRequestOpenAge,
+  replySentMarkDelay,
   requestCustomerInitials,
   formatRequestOpenedStamp,
   serviceRequestRowBody,
@@ -13,7 +13,10 @@ describe("getRequestOpenAge", () => {
   const now = new Date("2026-10-08T12:00:00.000Z");
 
   it.each([
-    ["2026-10-08T12:00:00.000Z", 0, "часов"],
+    ["2026-10-08T12:00:00.000Z", 1, "минута"],
+    ["2026-10-08T11:59:00.000Z", 1, "минута"],
+    ["2026-10-08T11:58:00.000Z", 2, "минуты"],
+    ["2026-10-08T11:05:00.000Z", 55, "минут"],
     ["2026-10-08T11:00:00.000Z", 1, "час"],
     ["2026-10-08T09:30:00.000Z", 2, "часа"],
     ["2026-10-08T07:00:00.000Z", 5, "часов"],
@@ -22,6 +25,23 @@ describe("getRequestOpenAge", () => {
     ["2026-10-03T12:00:00.000Z", 5, "дней"],
   ])("считает возраст %s", (createdAt, count, label) => {
     expect(getRequestOpenAge(createdAt, now)).toEqual({ count, label });
+  });
+});
+
+describe("replySentMarkDelay", () => {
+  const now = new Date("2026-10-09T15:00:00.000Z");
+
+  it.each([
+    [null, null],
+    ["", null],
+    ["не дата", null],
+    ["2026-10-09T15:00:01.000Z", null],
+    ["2026-10-09T15:00:00.000Z", 5_000],
+    ["2026-10-09T14:59:56.000Z", 1_000],
+    ["2026-10-09T14:59:55.000Z", null],
+    ["2026-10-09T14:00:00.000Z", null],
+  ])("для %s остаётся %s мс", (sentAt, delay) => {
+    expect(replySentMarkDelay(sentAt, now)).toBe(delay);
   });
 });
 
@@ -35,17 +55,6 @@ describe("requestCustomerInitials", () => {
     ["Усов Павел Иванович", "ПУ"],
   ])("для %j даёт %s", (name, initials) => {
     expect(requestCustomerInitials(name)).toBe(initials);
-  });
-});
-
-describe("formatRequestCount", () => {
-  it.each([
-    [0, "0 заявок"],
-    [1, "1 заявка"],
-    [2, "2 заявки"],
-    [5, "5 заявок"],
-  ])("склоняет %i", (count, label) => {
-    expect(formatRequestCount(count)).toBe(label);
   });
 });
 

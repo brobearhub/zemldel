@@ -7,7 +7,7 @@ import StarRoundedIcon from "@mui/icons-material/StarRounded";
 import Link from "next/link";
 import type { ServiceCardItem } from "../types";
 import { formatRubPriceLabel } from "@/shared/lib/money/format-rub-price-label";
-import { toPublicAssetSrc } from "@/shared/lib/public-asset-src";
+import { CdnImage } from "@/shared/ui/cdn-image";
 
 export type ServiceCardVariant = "myCity" | "otherCities";
 
@@ -29,9 +29,8 @@ function ServiceCardImage({ item, imageHeight }: { item: ServiceCardItem; imageH
       }}
     >
       {item.image ? (
-        <Box
-          component="img"
-          src={toPublicAssetSrc(item.image)}
+        <CdnImage
+          src={item.image}
           alt=""
           sx={{
             display: "block",

@@ -24,7 +24,7 @@ const insights: StoryInsightsDto = {
   profileOpens: [],
   guestProfileOpens: [],
   replies: [],
-  reposts: [],
+  comments: [],
   saveCount: 0,
   saves: [],
 };

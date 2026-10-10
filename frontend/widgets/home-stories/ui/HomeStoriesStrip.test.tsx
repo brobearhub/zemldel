@@ -264,10 +264,16 @@ describe("HomeStoriesStrip", () => {
     expect(chrome("story-b")).toHaveAttribute("data-story-chrome", "hidden");
   });
 
-  it("на своей сторис показывает только автора и текст", async () => {
+  it("на своей сторис сразу открывает поле комментария", async () => {
     const mine = { ...story, id: "mine", authorUserId: "user-1", authorName: "Анна", text: "Мой текст" };
     const other = { ...story, id: "other", authorUserId: "user-2", authorName: "Борис", text: "Чужой текст" };
-    vi.spyOn(global, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ items: [mine, other] })));
+    vi.spyOn(global, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url.includes("/comments")) {
+        return Promise.resolve(new Response(JSON.stringify({ items: [], truncated: false })));
+      }
+      return Promise.resolve(new Response(JSON.stringify({ items: [mine, other] })));
+    });
     renderStrip(undefined, true, {
       id: "user-1",
       email: null,
@@ -292,14 +298,18 @@ describe("HomeStoriesStrip", () => {
 
     expect(within(ownSlide).getByText("Анна")).toBeInTheDocument();
     expect(within(ownSlide).getByText("Мой текст")).toBeInTheDocument();
-    expect(within(ownSlide).queryByRole("button", { name: "Ответить" })).not.toBeInTheDocument();
+    expect(within(ownSlide).getByRole("button", { name: "Комментировать" })).toBeInTheDocument();
+    expect(within(ownSlide).queryByRole("button", { name: "Написать" })).not.toBeInTheDocument();
     expect(within(ownSlide).queryByRole("button", { name: "Сохранить" })).not.toBeInTheDocument();
-    expect(within(ownSlide).queryByRole("button", { name: "Репост" })).not.toBeInTheDocument();
     expect(within(ownSlide).queryByRole("button", { name: "Подписаться" })).not.toBeInTheDocument();
 
-    expect(within(otherSlide).getByRole("button", { name: "Ответить" })).toBeInTheDocument();
+    expect(within(otherSlide).getByRole("button", { name: "Написать" })).toBeInTheDocument();
     expect(within(otherSlide).getByRole("button", { name: "Сохранить" })).toBeInTheDocument();
-    expect(within(otherSlide).getByRole("button", { name: "Репост" })).toBeInTheDocument();
+    expect(within(otherSlide).queryByRole("button", { name: "Репост" })).not.toBeInTheDocument();
+
+    await user.click(within(ownSlide).getByRole("button", { name: "Комментировать" }));
+    expect(within(ownSlide).getByPlaceholderText("Комментарий")).toBeInTheDocument();
+    expect(within(ownSlide).getByRole("button", { name: "Отправить комментарий" })).toBeInTheDocument();
   });
 
   it("показывает фото портретным кадром, а не фоном экрана", async () => {
@@ -311,5 +321,59 @@ describe("HomeStoriesStrip", () => {
     await user.click(await screen.findByRole("button", { name: /анна/i }));
     const image = await screen.findByRole("img", { name: "Фото истории" });
     expect(image).toHaveAttribute("src", "https://cdn.example/story.jpg");
+  });
+
+  it("в раскрытой истории поле появляется после выбора комментария", async () => {
+    const other = { ...story, id: "other", authorUserId: "user-2", authorName: "Борис", text: "Чужой текст" };
+    vi.spyOn(global, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url.includes("/comments")) {
+        return Promise.resolve(new Response(JSON.stringify({ items: [], truncated: false })));
+      }
+      return Promise.resolve(new Response(JSON.stringify({ items: [other] })));
+    });
+    renderStrip(undefined, true, {
+      id: "user-1",
+      email: null,
+      name: "Анна",
+      image: null,
+      phone: null,
+      systemRole: "CUSTOMER",
+      activeProviderId: null,
+      customerCity: null,
+      memberships: [],
+      linkedAuthProviders: [],
+      stepUpVerifiedAt: {},
+    });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /борис/i }));
+
+    const slide = document.querySelector('[data-story-id="other"]');
+    if (!(slide instanceof HTMLElement)) throw new Error("Нет кадра сторис");
+
+    await user.click(within(slide).getByRole("button", { name: "Написать" }));
+
+    expect(within(slide).queryByRole("textbox")).not.toBeInTheDocument();
+    expect(within(slide).getByRole("button", { name: "Комментировать" })).toBeInTheDocument();
+    expect(within(slide).getByRole("button", { name: "Ответить" })).toBeInTheDocument();
+
+    await user.click(within(slide).getByRole("button", { name: "Комментировать" }));
+
+    expect(within(slide).getByPlaceholderText("Комментарий")).toBeInTheDocument();
+    expect(within(slide).getByRole("button", { name: "Отправить комментарий" })).toBeInTheDocument();
+    expect(within(slide).queryByRole("button", { name: "Комментировать" })).not.toBeInTheDocument();
+    expect(within(slide).queryByRole("button", { name: "Ответить" })).not.toBeInTheDocument();
+
+    await user.click(within(slide).getByRole("button", { name: "Отменить" }));
+
+    expect(within(slide).queryByRole("textbox")).not.toBeInTheDocument();
+    expect(within(slide).getByRole("button", { name: "Комментировать" })).toBeInTheDocument();
+    expect(within(slide).getByRole("button", { name: "Ответить" })).toBeInTheDocument();
+
+    await user.click(within(slide).getByRole("button", { name: "Закрыть комментарии" }));
+
+    expect(within(slide).queryByRole("button", { name: "Закрыть комментарии" })).not.toBeInTheDocument();
+    expect(within(slide).queryByRole("button", { name: "Комментировать" })).not.toBeInTheDocument();
+    expect(within(slide).getByRole("button", { name: "Написать" })).toBeInTheDocument();
   });
 });

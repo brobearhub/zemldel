@@ -15,7 +15,7 @@ export function ProHomePage({ services, reminders }: Props) {
   return (
     <Container maxWidth="xl" disableGutters>
       <Stack spacing={3}>
-        <HomeStoriesStrip />
+        <HomeStoriesStrip scope="provider" />
         <ProHomeSectionSwitch
           services={<ProMyServicesSection services={services} />}
           freeRequests={<FreeRequestsSection />}

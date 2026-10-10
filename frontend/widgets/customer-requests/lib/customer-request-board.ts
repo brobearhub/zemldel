@@ -85,12 +85,22 @@ export type CustomerRequestCardContent = {
   letter: string;
   photo: string | null;
   metaName: string | null;
+  providerReply: string | null;
+  customerReply: string | null;
 };
 
 export function getCustomerRequestCardContent(
   item: Pick<
     RequestCustomerDto,
-    "serviceTitle" | "categoryName" | "message" | "serviceImage" | "providerImage" | "providerName"
+    | "status"
+    | "serviceTitle"
+    | "categoryName"
+    | "message"
+    | "serviceImage"
+    | "providerImage"
+    | "providerName"
+    | "providerLastMessage"
+    | "customerLastMessage"
   >
 ): CustomerRequestCardContent {
   const subject = nonempty(item.serviceTitle) ?? nonempty(item.categoryName);
@@ -104,6 +114,8 @@ export function getCustomerRequestCardContent(
     letter: firstLetter(title) ?? "З",
     photo,
     metaName: nonempty(item.providerName),
+    providerReply: item.status === "DISCUSSING" ? nonempty(item.providerLastMessage) : null,
+    customerReply: item.status === "DISCUSSING" ? nonempty(item.customerLastMessage) : null,
   };
 }
 

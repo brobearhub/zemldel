@@ -1,9 +1,9 @@
 "use client";
 
-import { Avatar, Box, Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import type { CounterpartyField } from "../model/counterparty-card";
 import { getCounterpartyInitials, hasAnyCounterpartyValue } from "../model/counterparty-card";
-import { toPublicAssetSrc } from "@/shared/lib/public-asset-src";
+import { CdnAvatar } from "@/shared/ui/cdn-image";
 
 type Props = {
   fields: readonly CounterpartyField[];
@@ -55,8 +55,8 @@ export function RequestCounterpartyPanel({ fields, avatarSrc, avatarName, emptyT
           }}>{emptyText}</Typography>
         )}
       </Box>
-      <Avatar
-        src={avatarSrc?.trim() ? toPublicAssetSrc(avatarSrc.trim()) : undefined}
+      <CdnAvatar
+        src={avatarSrc?.trim() || undefined}
         alt={avatarName?.trim() || "Контрагент"}
         sx={{
           width: 96,
@@ -69,7 +69,7 @@ export function RequestCounterpartyPanel({ fields, avatarSrc, avatarName, emptyT
         }}
       >
         {initials}
-      </Avatar>
+      </CdnAvatar>
     </Stack>
   );
 }
