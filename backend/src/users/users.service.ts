@@ -32,7 +32,12 @@ function sniffImageExt(buf: Buffer, mimeType: string) {
     return null;
   }
   if (mimeType === 'image/jpeg') {
-    if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    if (
+      buf.length >= 3 &&
+      buf[0] === 0xff &&
+      buf[1] === 0xd8 &&
+      buf[2] === 0xff
+    ) {
       return '.jpg';
     }
     return null;
@@ -106,7 +111,12 @@ export class UsersService {
   async getMe(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, customerRating: true, customerReviewCount: true, profilePublic: true },
+      select: {
+        id: true,
+        customerRating: true,
+        customerReviewCount: true,
+        profilePublic: true,
+      },
     });
     if (!user) throw new NotFoundException('User not found');
     return {
@@ -126,7 +136,10 @@ export class UsersService {
     return updated;
   }
 
-  async getPublicProfile(input: { userId: string; viewerUserId: string | null }) {
+  async getPublicProfile(input: {
+    userId: string;
+    viewerUserId: string | null;
+  }) {
     const user = await this.prisma.user.findUnique({
       where: { id: input.userId },
       select: {
@@ -141,7 +154,9 @@ export class UsersService {
     const allowed =
       user.profilePublic ||
       input.viewerUserId === user.id ||
-      (input.viewerUserId ? await this.viewerHasContractAccess(input.viewerUserId, user.id) : false);
+      (input.viewerUserId
+        ? await this.viewerHasContractAccess(input.viewerUserId, user.id)
+        : false);
     if (!allowed) throw new NotFoundException('User not found');
 
     const [written, received] = await Promise.all([
@@ -193,9 +208,16 @@ export class UsersService {
     };
   }
 
-  private async viewerHasContractAccess(viewerUserId: string, customerUserId: string) {
+  private async viewerHasContractAccess(
+    viewerUserId: string,
+    customerUserId: string,
+  ) {
     const memberships = await this.prisma.providerMember.findMany({
-      where: { userId: viewerUserId, status: 'ACTIVE', role: { in: ['OWNER', 'MANAGER'] } },
+      where: {
+        userId: viewerUserId,
+        status: 'ACTIVE',
+        role: { in: ['OWNER', 'MANAGER'] },
+      },
       select: { providerId: true },
     });
     if (memberships.length === 0) return false;
@@ -204,7 +226,11 @@ export class UsersService {
         customerUserId,
         providerId: { in: memberships.map((row) => row.providerId) },
         OR: [
-          { status: { in: ['ACTIVE', 'ACCEPTANCE_PENDING', 'ACCEPTED', 'COMPLETED'] } },
+          {
+            status: {
+              in: ['ACTIVE', 'ACCEPTANCE_PENDING', 'ACCEPTED', 'COMPLETED'],
+            },
+          },
           { legalAcceptances: { some: { context: 'CONTRACT' } } },
         ],
       },
@@ -277,7 +303,10 @@ export class UsersService {
     };
   }
 
-  async uploadMyImage(input: { actorUserId: string; file: Express.Multer.File }) {
+  async uploadMyImage(input: {
+    actorUserId: string;
+    file: Express.Multer.File;
+  }) {
     const bucket = this.s3.requirePublicBucket();
     const cdnBase = this.s3.requirePublicCdnBaseUrl();
 
@@ -323,7 +352,10 @@ export class UsersService {
 
     const prevKey =
       prev?.image && this.s3.publicCdnBaseUrl
-        ? tryExtractKeyFromPublicUrl({ url: prev.image, baseUrl: this.s3.publicCdnBaseUrl })
+        ? tryExtractKeyFromPublicUrl({
+            url: prev.image,
+            baseUrl: this.s3.publicCdnBaseUrl,
+          })
         : null;
 
     if (
@@ -358,10 +390,16 @@ export class UsersService {
 
     const prevKey =
       prev?.image && this.s3.publicCdnBaseUrl
-        ? tryExtractKeyFromPublicUrl({ url: prev.image, baseUrl: this.s3.publicCdnBaseUrl })
+        ? tryExtractKeyFromPublicUrl({
+            url: prev.image,
+            baseUrl: this.s3.publicCdnBaseUrl,
+          })
         : null;
 
-    if (prevKey && prevKey.startsWith(`${this.s3.publicPrefix}users/${input.actorUserId}/`)) {
+    if (
+      prevKey &&
+      prevKey.startsWith(`${this.s3.publicPrefix}users/${input.actorUserId}/`)
+    ) {
       await this.s3.client
         .send(new DeleteObjectCommand({ Bucket: bucket, Key: prevKey }))
         .catch(() => null);

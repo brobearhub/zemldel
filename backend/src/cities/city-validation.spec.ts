@@ -11,7 +11,10 @@ describe('assertActiveSelectableCity', () => {
     };
 
     await expect(
-      assertActiveSelectableCity(prisma as never, '00000000-0000-0000-0000-000000000001'),
+      assertActiveSelectableCity(
+        prisma as never,
+        '00000000-0000-0000-0000-000000000001',
+      ),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -28,7 +31,10 @@ describe('assertActiveSelectableCity', () => {
     };
 
     await expect(
-      assertActiveSelectableCity(prisma as never, '00000000-0000-0000-0000-000000000001'),
+      assertActiveSelectableCity(
+        prisma as never,
+        '00000000-0000-0000-0000-000000000001',
+      ),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
@@ -45,7 +51,10 @@ describe('assertActiveSelectableCity', () => {
     };
 
     await expect(
-      assertActiveSelectableCity(prisma as never, '00000000-0000-0000-0000-000000000001'),
+      assertActiveSelectableCity(
+        prisma as never,
+        '00000000-0000-0000-0000-000000000001',
+      ),
     ).resolves.toBeUndefined();
   });
 });

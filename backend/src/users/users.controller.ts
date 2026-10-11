@@ -23,7 +23,12 @@ import {
 } from '@nestjs/swagger';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UserCustomerRatingDto, UserImageDto, UserListItemDto, UserMeProfileDto } from './dto/user-responses.dto';
+import {
+  UserCustomerRatingDto,
+  UserImageDto,
+  UserListItemDto,
+  UserMeProfileDto,
+} from './dto/user-responses.dto';
 import { UsersService } from './users.service';
 import { ApiValidationErrorResponseDto } from '../common/dto/api-error-response.dto';
 import { ApiStandardErrors } from '../common/swagger/api-standard-errors.decorator';
@@ -69,7 +74,10 @@ export class UsersController {
   @ApiOkResponse({ type: UserMeProfileDto })
   updateMe(@Req() request: Request, @Body() body: unknown) {
     const userId = this.internalAuthService.getUserIdFromRequest(request);
-    const payload = body as { customerCityId?: string | null; phone?: unknown } | null;
+    const payload = body as {
+      customerCityId?: string | null;
+      phone?: unknown;
+    } | null;
     return this.usersService.updateMe(userId, {
       customerCityId: payload?.customerCityId,
       phone: payload && 'phone' in payload ? payload.phone : undefined,
@@ -77,10 +85,15 @@ export class UsersController {
   }
 
   @Patch('me/profile-public')
-  setProfilePublic(@Req() request: Request, @Body() body: { profilePublic?: boolean }) {
+  setProfilePublic(
+    @Req() request: Request,
+    @Body() body: { profilePublic?: boolean },
+  ) {
     const userId = this.internalAuthService.getUserIdFromRequest(request);
     if (typeof body?.profilePublic !== 'boolean') {
-      throw new UnprocessableEntityException({ error: 'profilePublic is required' });
+      throw new UnprocessableEntityException({
+        error: 'profilePublic is required',
+      });
     }
     return this.usersService.setProfilePublic(userId, body.profilePublic);
   }
@@ -89,7 +102,8 @@ export class UsersController {
   getPublicProfile(@Req() request: Request, @Param('id') id: string) {
     return this.usersService.getPublicProfile({
       userId: id,
-      viewerUserId: this.internalAuthService.getOptionalUserIdFromRequest(request),
+      viewerUserId:
+        this.internalAuthService.getOptionalUserIdFromRequest(request),
     });
   }
 

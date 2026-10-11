@@ -19,4 +19,3 @@ describe('chat presence helpers', () => {
     ).toBe(true);
   });
 });
-

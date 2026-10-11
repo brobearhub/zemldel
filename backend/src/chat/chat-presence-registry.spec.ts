@@ -61,4 +61,3 @@ describe('ChatPresenceRegistry', () => {
     vi.useRealTimers();
   });
 });
-

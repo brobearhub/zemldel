@@ -1,6 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsEnum, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
+import {
+  IsArray,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
 import { RequestPaymentItemDto } from '../../requests/dto/request.dto';
 
 export class SetRequestTotalDto {
@@ -12,7 +21,12 @@ export class SetRequestTotalDto {
 }
 
 export class CreateRequestPaymentDto {
-  @ApiProperty({ required: false, enum: ['CONTRACT', 'OTHER'], example: 'CONTRACT', description: 'Тип платежа' })
+  @ApiProperty({
+    required: false,
+    enum: ['CONTRACT', 'OTHER'],
+    example: 'CONTRACT',
+    description: 'Тип платежа',
+  })
   @IsOptional()
   @IsString()
   @IsEnum(['CONTRACT', 'OTHER'])

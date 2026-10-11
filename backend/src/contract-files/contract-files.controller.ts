@@ -231,7 +231,10 @@ export class ContractFilesController {
     @Param('requestId') requestId: string,
   ) {
     const actorUserId = this.getRequiredActorUserId(request);
-    return this.contractFiles.listBundlesForProvider({ actorUserId, requestId });
+    return this.contractFiles.listBundlesForProvider({
+      actorUserId,
+      requestId,
+    });
   }
 
   @Post('pro/requests/:requestId/contract-bundles')
@@ -248,7 +251,13 @@ export class ContractFilesController {
       required: ['document', 'signature'],
     },
   })
-  @ApiOkResponse({ schema: { type: 'object', properties: { bundleId: { type: 'string', format: 'uuid' } }, required: ['bundleId'] } })
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      properties: { bundleId: { type: 'string', format: 'uuid' } },
+      required: ['bundleId'],
+    },
+  })
   @ApiUnprocessableEntityResponse({
     type: ApiValidationErrorResponseDto,
     description: 'Validation failed',
@@ -342,7 +351,10 @@ export class ContractFilesController {
     @Param('requestId') requestId: string,
   ) {
     const actorUserId = this.getRequiredActorUserId(request);
-    return this.contractFiles.listBundlesForCustomer({ actorUserId, requestId });
+    return this.contractFiles.listBundlesForCustomer({
+      actorUserId,
+      requestId,
+    });
   }
 
   @Post('requests/mine/:requestId/contract-bundles/:bundleId/approve')
@@ -467,7 +479,10 @@ export class ContractFilesController {
         inline: request.query.inline === '1' || request.query.inline === 'true',
       });
     res.setHeader('content-type', mimeType);
-    res.setHeader('content-disposition', `${disposition}; filename="${fileName}"`);
+    res.setHeader(
+      'content-disposition',
+      `${disposition}; filename="${fileName}"`,
+    );
     res.setHeader('cache-control', 'private, no-store');
     await pipeline(stream, res);
   }
@@ -504,9 +519,11 @@ export class ContractFilesController {
         inline: request.query.inline === '1' || request.query.inline === 'true',
       });
     res.setHeader('content-type', mimeType);
-    res.setHeader('content-disposition', `${disposition}; filename="${fileName}"`);
+    res.setHeader(
+      'content-disposition',
+      `${disposition}; filename="${fileName}"`,
+    );
     res.setHeader('cache-control', 'private, no-store');
     await pipeline(stream, res);
   }
 }
-

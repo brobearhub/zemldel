@@ -176,15 +176,16 @@ const InboxRow = forwardRef<HTMLDivElement, ConversationListItemProps>(function 
   );
 });
 
-const SendButton = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<"button"> & { ownerState?: unknown }>(
-  function SendButton({ ownerState: _ownerState, children: _children, ...props }, ref) {
-    return (
-      <Button ref={ref} variant="contained" {...props} sx={{ flexShrink: 0, px: 2.5 }}>
-        Отправить
-      </Button>
-    );
-  },
-);
+const SendButton = forwardRef<
+  HTMLButtonElement,
+  Omit<ComponentPropsWithoutRef<"button">, "color"> & { ownerState?: unknown }
+>(function SendButton({ ownerState: _ownerState, children: _children, ...props }, ref) {
+  return (
+    <Button ref={ref} variant="contained" {...props} sx={{ flexShrink: 0, px: 2.5 }}>
+      Отправить
+    </Button>
+  );
+});
 
 export function StoryInboxSection({ scope }: Props) {
   const [items, setItems] = useState<StoryConversationDto[]>([]);

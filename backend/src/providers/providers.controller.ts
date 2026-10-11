@@ -90,9 +90,16 @@ export class ProvidersController {
   @Get(':providerId/public')
   @ApiParam({ name: 'providerId', type: String })
   @ApiOkResponse({ type: PublicProviderProfileDto })
-  getPublicProviderProfile(@Req() request: Request, @Param('providerId') providerId: string) {
-    const actorUserId = this.internalAuthService.getOptionalUserIdFromRequest(request);
-    return this.providersService.getPublicProviderProfile(providerId, actorUserId);
+  getPublicProviderProfile(
+    @Req() request: Request,
+    @Param('providerId') providerId: string,
+  ) {
+    const actorUserId =
+      this.internalAuthService.getOptionalUserIdFromRequest(request);
+    return this.providersService.getPublicProviderProfile(
+      providerId,
+      actorUserId,
+    );
   }
 
   @Post(':providerId/activate')
@@ -157,7 +164,9 @@ export class ProvidersController {
   @ApiBody({
     schema: {
       type: 'object',
-      properties: { cityId: { type: 'string', format: 'uuid', nullable: true } },
+      properties: {
+        cityId: { type: 'string', format: 'uuid', nullable: true },
+      },
     },
   })
   @ApiOkResponse({ type: ProviderCityUpdateResponseDto })
@@ -182,7 +191,11 @@ export class ProvidersController {
     @Body() body: UpdateProviderPublicProfileDto,
   ) {
     const userId = this.internalAuthService.getUserIdFromRequest(request);
-    return this.providersService.updatePublicProviderProfile(userId, providerId, body);
+    return this.providersService.updatePublicProviderProfile(
+      userId,
+      providerId,
+      body,
+    );
   }
 
   @Post(':providerId/image')
@@ -234,8 +247,14 @@ export class ProvidersController {
   @Delete(':providerId/image')
   @ApiParam({ name: 'providerId', type: String })
   @ApiOkResponse({ type: PublicProviderProfileDto })
-  deleteProviderImage(@Req() request: Request, @Param('providerId') providerId: string) {
+  deleteProviderImage(
+    @Req() request: Request,
+    @Param('providerId') providerId: string,
+  ) {
     const userId = this.internalAuthService.getUserIdFromRequest(request);
-    return this.providersService.deleteProviderImage({ actorUserId: userId, providerId });
+    return this.providersService.deleteProviderImage({
+      actorUserId: userId,
+      providerId,
+    });
   }
 }

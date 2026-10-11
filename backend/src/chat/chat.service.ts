@@ -13,7 +13,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import { isLockedToOtherProvider } from '../requests/dto/request.dto';
 import { ChatGateway } from './chat.gateway';
-import type { ChatPresenceUpdatedPayload, ChatViewerSide } from './chat-presence';
+import type {
+  ChatPresenceUpdatedPayload,
+  ChatViewerSide,
+} from './chat-presence';
 
 const SNIPPET_LEN = 160;
 type ChatAccessAction = 'read' | 'write';
@@ -891,7 +894,11 @@ export class ChatService {
 
   private async getConversationPresencePayload(
     conversationId: string,
-  ): Promise<{ payload: ChatPresenceUpdatedPayload; customerUserId: string; providerId: string } | null> {
+  ): Promise<{
+    payload: ChatPresenceUpdatedPayload;
+    customerUserId: string;
+    providerId: string;
+  } | null> {
     const conv = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
       select: { id: true, customerUserId: true, providerId: true },
@@ -906,7 +913,9 @@ export class ChatService {
     });
 
     const customerOnline = this.gateway.isUserOnline(conv.customerUserId);
-    const providerOnline = members.some((m) => this.gateway.isUserOnline(m.userId));
+    const providerOnline = members.some((m) =>
+      this.gateway.isUserOnline(m.userId),
+    );
 
     return {
       payload: {
@@ -922,7 +931,10 @@ export class ChatService {
   async getConversationPresenceSnapshot(
     actorUserId: string,
     conversationId: string,
-  ): Promise<{ viewerSide: ChatViewerSide; presence: ChatPresenceUpdatedPayload } | null> {
+  ): Promise<{
+    viewerSide: ChatViewerSide;
+    presence: ChatPresenceUpdatedPayload;
+  } | null> {
     await this.assertConversationAccess(actorUserId, conversationId, 'read');
     const res = await this.getConversationPresencePayload(conversationId);
     if (!res) return null;
@@ -948,16 +960,27 @@ export class ChatService {
             where: { providerId: { in: providerIds }, status: 'OPEN' },
             select: { id: true, customerUserId: true, providerId: true },
           })
-        : Promise.resolve([] as Array<{ id: string; customerUserId: string; providerId: string }>),
+        : Promise.resolve(
+            [] as Array<{
+              id: string;
+              customerUserId: string;
+              providerId: string;
+            }>,
+          ),
     ]);
 
-    const convById = new Map<string, { id: string; customerUserId: string; providerId: string }>();
+    const convById = new Map<
+      string,
+      { id: string; customerUserId: string; providerId: string }
+    >();
     for (const c of customerConvs) convById.set(c.id, c);
     for (const c of providerConvs) convById.set(c.id, c);
     const conversations = [...convById.values()];
     if (conversations.length === 0) return;
 
-    const uniqProviderIds = [...new Set(conversations.map((c) => c.providerId))];
+    const uniqProviderIds = [
+      ...new Set(conversations.map((c) => c.providerId)),
+    ];
     const allMembers = await this.prisma.providerMember.findMany({
       where: { providerId: { in: uniqProviderIds }, status: 'ACTIVE' },
       select: { providerId: true, userId: true },
@@ -1111,7 +1134,8 @@ export class ChatService {
 
       if (convRow?.requestId) {
         const isServiceRequest = Boolean(convRow.request?.serviceId);
-        const isCustomerMessage = convRow.request?.customerUserId === actorUserId;
+        const isCustomerMessage =
+          convRow.request?.customerUserId === actorUserId;
         const shouldTransition =
           !(isServiceRequest && isCustomerMessage) && Boolean(convRow.request);
 

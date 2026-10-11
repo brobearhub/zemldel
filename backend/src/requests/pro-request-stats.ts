@@ -33,7 +33,9 @@ function isRequestStatus(value: string): value is RequestStatus {
 }
 
 /** Why: обзор показывает воронку статусов, а не карточки заявок. */
-export function foldProRequestStats(buckets: readonly ProRequestStatusBucket[]): ProRequestStats {
+export function foldProRequestStats(
+  buckets: readonly ProRequestStatusBucket[],
+): ProRequestStats {
   const byStatus = emptyStatusCounts();
   let total = 0;
   let latestMs: number | null = null;

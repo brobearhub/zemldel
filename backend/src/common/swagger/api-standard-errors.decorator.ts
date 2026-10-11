@@ -20,10 +20,22 @@ import {
 
 export function ApiStandardErrors() {
   return applyDecorators(
-    ApiBadRequestResponse({ type: ApiBadRequestErrorDto, description: 'Bad Request' }),
-    ApiUnauthorizedResponse({ type: ApiUnauthorizedErrorDto, description: 'Unauthorized' }),
-    ApiForbiddenResponse({ type: ApiForbiddenErrorDto, description: 'Forbidden' }),
-    ApiNotFoundResponse({ type: ApiNotFoundErrorDto, description: 'Not Found' }),
+    ApiBadRequestResponse({
+      type: ApiBadRequestErrorDto,
+      description: 'Bad Request',
+    }),
+    ApiUnauthorizedResponse({
+      type: ApiUnauthorizedErrorDto,
+      description: 'Unauthorized',
+    }),
+    ApiForbiddenResponse({
+      type: ApiForbiddenErrorDto,
+      description: 'Forbidden',
+    }),
+    ApiNotFoundResponse({
+      type: ApiNotFoundErrorDto,
+      description: 'Not Found',
+    }),
     ApiConflictResponse({ type: ApiConflictErrorDto, description: 'Conflict' }),
     ApiUnprocessableEntityResponse({
       type: ApiValidationErrorResponseDto,
@@ -35,4 +47,3 @@ export function ApiStandardErrors() {
     }),
   );
 }
-

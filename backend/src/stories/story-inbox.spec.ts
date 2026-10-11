@@ -1,12 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { buildInbox, formatInboxPreview, type InboxReplyRow } from './story-inbox';
+import {
+  buildInbox,
+  formatInboxPreview,
+  type InboxReplyRow,
+} from './story-inbox';
 
 const ME = '22222222-2222-4222-8222-222222222222';
 const ANNA = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const ILYA = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const PROVIDER = '11111111-1111-4111-8111-111111111111';
 
-function reply(overrides: Partial<InboxReplyRow> & Pick<InboxReplyRow, 'id' | 'authorUserId' | 'createdAt'>): InboxReplyRow {
+function reply(
+  overrides: Partial<InboxReplyRow> &
+    Pick<InboxReplyRow, 'id' | 'authorUserId' | 'createdAt'>,
+): InboxReplyRow {
   const { story, messages, ...rest } = overrides;
   return {
     text: 'Привет',
@@ -33,7 +40,10 @@ function reply(overrides: Partial<InboxReplyRow> & Pick<InboxReplyRow, 'id' | 'a
       providerCityName: null,
       ...story,
     },
-    messages: (messages ?? []).map((message) => ({ senderImageUrl: null, ...message })),
+    messages: (messages ?? []).map((message) => ({
+      senderImageUrl: null,
+      ...message,
+    })),
   };
 }
 
@@ -219,7 +229,9 @@ describe('buildInbox', () => {
     expect(result).toHaveLength(1);
     expect(result[0]?.unreadCount).toBe(1);
     expect(result[0]?.preview).toBe('Скиньте трек');
-    expect(result[0]?.messages.find((message) => message.id === 'colleague')?.mine).toBe(true);
+    expect(
+      result[0]?.messages.find((message) => message.id === 'colleague')?.mine,
+    ).toBe(true);
   });
 
   it('продолжает тред, в котором было последнее сообщение', () => {

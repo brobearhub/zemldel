@@ -75,4 +75,3 @@ export class AuthorizedUserDto {
   })
   stepUpVerifiedAt!: Partial<Record<'GOSUSLUGI', string>>;
 }
-

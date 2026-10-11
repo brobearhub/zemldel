@@ -1,16 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { canCustomerDeleteRequest, requestRowToCustomerDtoPlain } from './request.dto';
+import {
+  canCustomerDeleteRequest,
+  requestRowToCustomerDtoPlain,
+} from './request.dto';
 
 describe('canCustomerDeleteRequest', () => {
   const base = {
     status: 'DISCUSSING' as const,
     lockedAt: null,
     dealTerms: null,
-    providerOffers: [] as Array<{ providerId: string; status: 'SELECTED' | 'DECLINED'; selectedAt: Date; declinedAt: Date | null }>,
+    providerOffers: [] as Array<{
+      providerId: string;
+      status: 'SELECTED' | 'DECLINED';
+      selectedAt: Date;
+      declinedAt: Date | null;
+    }>,
   };
 
   it('true для NEW/DISCUSSING без ответа', () => {
-    expect(canCustomerDeleteRequest({ ...base, status: 'NEW' }, false)).toBe(true);
+    expect(canCustomerDeleteRequest({ ...base, status: 'NEW' }, false)).toBe(
+      true,
+    );
     expect(canCustomerDeleteRequest(base, false)).toBe(true);
   });
 

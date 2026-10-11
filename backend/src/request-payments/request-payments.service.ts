@@ -54,7 +54,10 @@ function toFinanceDto(
   totalAmountRubles: number | null,
   payments: PaymentRow[],
 ): RequestFinanceDto {
-  const paidAmountRubles = sumPaidRublesByType(payments as unknown as PaymentAmountWithTypeAndPaidAt[], 'CONTRACT');
+  const paidAmountRubles = sumPaidRublesByType(
+    payments as unknown as PaymentAmountWithTypeAndPaidAt[],
+    'CONTRACT',
+  );
   return {
     totalAmountRubles,
     paidAmountRubles,
@@ -71,13 +74,20 @@ export class RequestPaymentsService {
   ) {}
 
   private async requireProviderId(actorUserId: string) {
-    const ctx = await this.authService.getServiceManagementContext(actorUserId, 'read');
+    const ctx = await this.authService.getServiceManagementContext(
+      actorUserId,
+      'read',
+    );
     if (ctx.isPlatformAdmin) throw new ForbiddenException('Forbidden');
-    if (!ctx.providerId) throw new NotFoundException('Active provider is required');
+    if (!ctx.providerId)
+      throw new NotFoundException('Active provider is required');
     return ctx.providerId;
   }
 
-  private async loadExclusiveRequest(input: { providerId: string; requestId: string }) {
+  private async loadExclusiveRequest(input: {
+    providerId: string;
+    requestId: string;
+  }) {
     const request = await this.prisma.request.findFirst({
       where: { id: input.requestId },
       select: {
@@ -98,17 +108,28 @@ export class RequestPaymentsService {
 
   private assertWritable(status: string) {
     if (CLOSED_STATUSES.has(status)) {
-      throw new ForbiddenException('Finance cannot be changed after the request is closed');
+      throw new ForbiddenException(
+        'Finance cannot be changed after the request is closed',
+      );
     }
   }
 
-  async getForProvider(input: { actorUserId: string; requestId: string }): Promise<RequestFinanceDto> {
+  async getForProvider(input: {
+    actorUserId: string;
+    requestId: string;
+  }): Promise<RequestFinanceDto> {
     const providerId = await this.requireProviderId(input.actorUserId);
-    const request = await this.loadExclusiveRequest({ providerId, requestId: input.requestId });
+    const request = await this.loadExclusiveRequest({
+      providerId,
+      requestId: input.requestId,
+    });
     return toFinanceDto(request.totalAmountRubles, request.payments);
   }
 
-  async getForCustomer(input: { actorUserId: string; requestId: string }): Promise<RequestFinanceDto> {
+  async getForCustomer(input: {
+    actorUserId: string;
+    requestId: string;
+  }): Promise<RequestFinanceDto> {
     const request = await this.prisma.request.findFirst({
       where: { id: input.requestId, customerUserId: input.actorUserId },
       select: {
@@ -130,7 +151,10 @@ export class RequestPaymentsService {
     totalAmountRubles: number;
   }): Promise<RequestFinanceDto> {
     const providerId = await this.requireProviderId(input.actorUserId);
-    const request = await this.loadExclusiveRequest({ providerId, requestId: input.requestId });
+    const request = await this.loadExclusiveRequest({
+      providerId,
+      requestId: input.requestId,
+    });
     this.assertWritable(request.status);
 
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -166,11 +190,15 @@ export class RequestPaymentsService {
     paidAt?: string;
   }): Promise<RequestFinanceDto> {
     const providerId = await this.requireProviderId(input.actorUserId);
-    const request = await this.loadExclusiveRequest({ providerId, requestId: input.requestId });
+    const request = await this.loadExclusiveRequest({
+      providerId,
+      requestId: input.requestId,
+    });
     this.assertWritable(request.status);
 
     const comment = input.comment.trim();
-    if (comment.length < 1) throw new BadRequestException('Comment is required');
+    if (comment.length < 1)
+      throw new BadRequestException('Comment is required');
 
     const type: RequestPaymentType = input.type ?? 'CONTRACT';
     const paidAt = null;
@@ -214,12 +242,16 @@ export class RequestPaymentsService {
     paymentId: string;
   }): Promise<RequestFinanceDto> {
     const providerId = await this.requireProviderId(input.actorUserId);
-    const request = await this.loadExclusiveRequest({ providerId, requestId: input.requestId });
+    const request = await this.loadExclusiveRequest({
+      providerId,
+      requestId: input.requestId,
+    });
     this.assertWritable(request.status);
 
     const payment = request.payments.find((p) => p.id === input.paymentId);
     if (!payment) throw new NotFoundException('Payment not found');
-    if (payment.paidAt != null) throw new BadRequestException('Payment is already marked as paid');
+    if (payment.paidAt != null)
+      throw new BadRequestException('Payment is already marked as paid');
 
     const now = new Date();
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -227,7 +259,8 @@ export class RequestPaymentsService {
         where: { id: input.paymentId, requestId: request.id, paidAt: null },
         data: { paidAt: now },
       });
-      if (changed.count !== 1) throw new BadRequestException('Payment is already marked as paid');
+      if (changed.count !== 1)
+        throw new BadRequestException('Payment is already marked as paid');
 
       await tx.requestEvent.create({
         data: {
@@ -274,13 +307,16 @@ export class RequestPaymentsService {
     });
     if (!request) throw new NotFoundException('Request not found');
     if (!hasRequestLock(request) || !request.providerId) {
-      throw new ForbiddenException('Payments can be marked as paid only after the request is locked');
+      throw new ForbiddenException(
+        'Payments can be marked as paid only after the request is locked',
+      );
     }
     this.assertWritable(request.status);
 
     const payment = request.payments.find((p) => p.id === input.paymentId);
     if (!payment) throw new NotFoundException('Payment not found');
-    if (payment.paidAt != null) throw new BadRequestException('Payment is already marked as paid');
+    if (payment.paidAt != null)
+      throw new BadRequestException('Payment is already marked as paid');
 
     const now = new Date();
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -288,7 +324,8 @@ export class RequestPaymentsService {
         where: { id: input.paymentId, requestId: request.id, paidAt: null },
         data: { paidAt: now },
       });
-      if (changed.count !== 1) throw new BadRequestException('Payment is already marked as paid');
+      if (changed.count !== 1)
+        throw new BadRequestException('Payment is already marked as paid');
 
       await tx.requestEvent.create({
         data: {

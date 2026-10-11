@@ -5,7 +5,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import {
+  GetObjectCommand,
+  PutObjectCommand,
+  DeleteObjectCommand,
+} from '@aws-sdk/client-s3';
 import { createHash, randomUUID } from 'node:crypto';
 import fssync from 'node:fs';
 import path from 'node:path';
@@ -56,7 +60,9 @@ function countCyrillicChars(value: string) {
 }
 
 function decodePossiblyMisencodedFileName(value: string) {
-  const decoded = Buffer.from(value, 'latin1').toString('utf8').normalize('NFC');
+  const decoded = Buffer.from(value, 'latin1')
+    .toString('utf8')
+    .normalize('NFC');
   if (decoded.includes('\uFFFD')) return value;
 
   const originalCyrillic = countCyrillicChars(value);
@@ -156,7 +162,10 @@ export class ContractFilesService {
 
   async listForProvider(input: { actorUserId: string; requestId: string }) {
     const providerId = await this.requireProviderId(input.actorUserId);
-    await this.assertProviderCanManageFiles({ providerId, requestId: input.requestId });
+    await this.assertProviderCanManageFiles({
+      providerId,
+      requestId: input.requestId,
+    });
 
     const rows = await this.prisma.requestContractFile.findMany({
       where: {
@@ -186,7 +195,10 @@ export class ContractFilesService {
     }));
   }
 
-  async listBundlesForProvider(input: { actorUserId: string; requestId: string }) {
+  async listBundlesForProvider(input: {
+    actorUserId: string;
+    requestId: string;
+  }) {
     const providerId = await this.requireProviderId(input.actorUserId);
     await this.assertProviderCanManageFiles({
       providerId,
@@ -225,8 +237,8 @@ export class ContractFilesService {
         status: 'PENDING_CUSTOMER' | 'APPROVED' | 'REVISION_REQUESTED';
         revisionMessage: string | null;
         decidedAt: Date | null;
-        document: any | null;
-        signature: any | null;
+        document: any;
+        signature: any;
         createdAt: Date;
         updatedAt: Date;
       }
@@ -258,7 +270,7 @@ export class ContractFilesService {
         updatedAt: row.updatedAt.toISOString(),
       };
 
-      const next = { ...prev } as any;
+      const next = { ...prev };
       if (row.role === 'CONTRACT_DOCUMENT') {
         next.status = row.status as any;
         next.revisionMessage = row.revisionMessage ?? null;
@@ -267,8 +279,10 @@ export class ContractFilesService {
       } else if (row.role === 'CONTRACT_SIGNATURE') {
         next.signature = fileDto;
       }
-      if (row.updatedAt.getTime() > next.updatedAt.getTime()) next.updatedAt = row.updatedAt;
-      if (row.createdAt.getTime() < next.createdAt.getTime()) next.createdAt = row.createdAt;
+      if (row.updatedAt.getTime() > next.updatedAt.getTime())
+        next.updatedAt = row.updatedAt;
+      if (row.createdAt.getTime() < next.createdAt.getTime())
+        next.createdAt = row.createdAt;
       map.set(bundleId, next);
     }
 
@@ -327,7 +341,10 @@ export class ContractFilesService {
     files: Express.Multer.File[];
   }) {
     const providerId = await this.requireProviderId(input.actorUserId);
-    await this.assertProviderCanManageFiles({ providerId, requestId: input.requestId });
+    await this.assertProviderCanManageFiles({
+      providerId,
+      requestId: input.requestId,
+    });
 
     const out: Array<{ id: string }> = [];
     for (const file of input.files) {
@@ -373,9 +390,14 @@ export class ContractFilesService {
           select: { id: true },
         });
       } catch (e) {
-        await this.s3.client.send(
-          new DeleteObjectCommand({ Bucket: this.s3.privateBucket, Key: key }),
-        ).catch(() => null);
+        await this.s3.client
+          .send(
+            new DeleteObjectCommand({
+              Bucket: this.s3.privateBucket,
+              Key: key,
+            }),
+          )
+          .catch(() => null);
         throw e;
       }
 
@@ -397,7 +419,10 @@ export class ContractFilesService {
       requestId: input.requestId,
     });
 
-    const docExt = normalizeExt(input.document.originalname, input.document.mimetype);
+    const docExt = normalizeExt(
+      input.document.originalname,
+      input.document.mimetype,
+    );
     if (!docExt) throw new BadRequestException('Unsupported document type');
     const sigExt = normalizeSigExt(input.signature.originalname);
     if (!sigExt) throw new BadRequestException('Unsupported signature type');
@@ -416,8 +441,12 @@ export class ContractFilesService {
     const docKey = `${this.s3.privatePrefix}requests/${input.requestId}/contract-bundles/${bundleId}/${documentId}${docExt}`;
     const sigKey = `${this.s3.privatePrefix}requests/${input.requestId}/contract-bundles/${bundleId}/${signatureId}${sigExt}`;
 
-    const docOriginalName = decodePossiblyMisencodedFileName(input.document.originalname);
-    const sigOriginalName = decodePossiblyMisencodedFileName(input.signature.originalname);
+    const docOriginalName = decodePossiblyMisencodedFileName(
+      input.document.originalname,
+    );
+    const sigOriginalName = decodePossiblyMisencodedFileName(
+      input.signature.originalname,
+    );
     const docHash = sha256Buffer(input.document.buffer);
     const sigHash = sha256Buffer(input.signature.buffer);
 
@@ -480,10 +509,20 @@ export class ContractFilesService {
       });
     } catch (e) {
       await this.s3.client
-        .send(new DeleteObjectCommand({ Bucket: this.s3.privateBucket, Key: docKey }))
+        .send(
+          new DeleteObjectCommand({
+            Bucket: this.s3.privateBucket,
+            Key: docKey,
+          }),
+        )
         .catch(() => null);
       await this.s3.client
-        .send(new DeleteObjectCommand({ Bucket: this.s3.privateBucket, Key: sigKey }))
+        .send(
+          new DeleteObjectCommand({
+            Bucket: this.s3.privateBucket,
+            Key: sigKey,
+          }),
+        )
         .catch(() => null);
       throw e;
     }
@@ -491,7 +530,10 @@ export class ContractFilesService {
     return { bundleId };
   }
 
-  async listBundlesForCustomer(input: { actorUserId: string; requestId: string }) {
+  async listBundlesForCustomer(input: {
+    actorUserId: string;
+    requestId: string;
+  }) {
     const request = await this.prisma.request.findFirst({
       where: { id: input.requestId, customerUserId: input.actorUserId },
       select: { id: true, status: true, providerId: true, lockedAt: true },
@@ -556,7 +598,7 @@ export class ContractFilesService {
         updatedAt: row.updatedAt.toISOString(),
       };
 
-      const next = { ...prev } as any;
+      const next = { ...prev };
       if (row.role === 'CONTRACT_DOCUMENT') {
         next.status = row.status as any;
         next.revisionMessage = row.revisionMessage ?? null;
@@ -565,8 +607,10 @@ export class ContractFilesService {
       } else if (row.role === 'CONTRACT_SIGNATURE') {
         next.signature = fileDto;
       }
-      if (row.updatedAt.getTime() > next.updatedAt.getTime()) next.updatedAt = row.updatedAt;
-      if (row.createdAt.getTime() < next.createdAt.getTime()) next.createdAt = row.createdAt;
+      if (row.updatedAt.getTime() > next.updatedAt.getTime())
+        next.updatedAt = row.updatedAt;
+      if (row.createdAt.getTime() < next.createdAt.getTime())
+        next.createdAt = row.createdAt;
       map.set(bundleId, next);
     }
 
@@ -634,7 +678,8 @@ export class ContractFilesService {
       select: { id: true, providerId: true },
     });
     if (!request) throw new NotFoundException('Request not found');
-    if (!request.providerId) throw new BadRequestException('Provider is required');
+    if (!request.providerId)
+      throw new BadRequestException('Provider is required');
 
     const file = await this.prisma.requestContractFile.findFirst({
       where: {
@@ -671,7 +716,8 @@ export class ContractFilesService {
       select: { id: true, providerId: true },
     });
     if (!request) throw new NotFoundException('Request not found');
-    if (!request.providerId) throw new BadRequestException('Provider is required');
+    if (!request.providerId)
+      throw new BadRequestException('Provider is required');
 
     const message = trimMessage(input.message);
     if (!message) throw new BadRequestException('message is required');
@@ -711,7 +757,9 @@ export class ContractFilesService {
       requestId: input.requestId,
     });
     if (isOrderExecutionStatus(request.status)) {
-      throw new ForbiddenException('Cannot delete files after contract accepted');
+      throw new ForbiddenException(
+        'Cannot delete files after contract accepted',
+      );
     }
 
     const rows = await this.prisma.requestContractFile.findMany({
@@ -738,7 +786,7 @@ export class ContractFilesService {
           }),
         );
       } catch (_e) {
-        const e = _e as any;
+        const e = _e;
         const isNotFound =
           e?.name === 'NoSuchKey' || e?.$metadata?.httpStatusCode === 404;
         if (!isNotFound) {
@@ -764,7 +812,8 @@ export class ContractFilesService {
       select: { id: true, providerId: true },
     });
     if (!request) throw new NotFoundException('Request not found');
-    if (!request.providerId) throw new BadRequestException('Provider is required');
+    if (!request.providerId)
+      throw new BadRequestException('Provider is required');
 
     const file = await this.prisma.requestContractFile.findFirst({
       where: {
@@ -801,7 +850,8 @@ export class ContractFilesService {
       select: { id: true, providerId: true },
     });
     if (!request) throw new NotFoundException('Request not found');
-    if (!request.providerId) throw new BadRequestException('Provider is required');
+    if (!request.providerId)
+      throw new BadRequestException('Provider is required');
 
     const message = trimMessage(input.message);
     if (!message) throw new BadRequestException('message is required');
@@ -838,16 +888,27 @@ export class ContractFilesService {
     const providerId = await this.requireProviderId(input.actorUserId);
     const file = await this.prisma.requestContractFile.findFirst({
       where: { id: input.fileId, providerId },
-      select: { id: true, originalName: true, mimeType: true, storageRelPath: true, requestId: true },
+      select: {
+        id: true,
+        originalName: true,
+        mimeType: true,
+        storageRelPath: true,
+        requestId: true,
+      },
     });
     if (!file) throw new NotFoundException('File not found');
 
     // Ensure provider can manage the request (prevents leaking across requests).
-    await this.assertProviderCanManageFiles({ providerId, requestId: file.requestId });
+    await this.assertProviderCanManageFiles({
+      providerId,
+      requestId: file.requestId,
+    });
 
     const fileName = decodePossiblyMisencodedFileName(file.originalName);
     const disposition =
-      input.inline && file.mimeType === 'application/pdf' ? 'inline' : 'attachment';
+      input.inline && file.mimeType === 'application/pdf'
+        ? 'inline'
+        : 'attachment';
 
     try {
       const obj = await this.s3.client.send(
@@ -867,7 +928,7 @@ export class ContractFilesService {
         disposition,
       };
     } catch (_e) {
-      const e = _e as any;
+      const e = _e;
       const isNotFound =
         e?.name === 'NoSuchKey' || e?.$metadata?.httpStatusCode === 404;
 
@@ -901,7 +962,8 @@ export class ContractFilesService {
       select: { id: true, providerId: true, status: true, lockedAt: true },
     });
     if (!request) throw new NotFoundException('Request not found');
-    if (!request.providerId) throw new BadRequestException('Provider is required');
+    if (!request.providerId)
+      throw new BadRequestException('Provider is required');
 
     if (!hasRequestLock(request)) {
       throw new ForbiddenException('Forbidden');
@@ -924,7 +986,9 @@ export class ContractFilesService {
 
     const fileName = decodePossiblyMisencodedFileName(file.originalName);
     const disposition =
-      input.inline && file.mimeType === 'application/pdf' ? 'inline' : 'attachment';
+      input.inline && file.mimeType === 'application/pdf'
+        ? 'inline'
+        : 'attachment';
 
     try {
       const obj = await this.s3.client.send(
@@ -944,7 +1008,7 @@ export class ContractFilesService {
         disposition,
       };
     } catch (_e) {
-      const e = _e as any;
+      const e = _e;
       const isNotFound =
         e?.name === 'NoSuchKey' || e?.$metadata?.httpStatusCode === 404;
 
@@ -989,7 +1053,9 @@ export class ContractFilesService {
       requestId: file.requestId,
     });
     if (isOrderExecutionStatus(request.status)) {
-      throw new ForbiddenException('Cannot delete files after contract accepted');
+      throw new ForbiddenException(
+        'Cannot delete files after contract accepted',
+      );
     }
 
     try {
@@ -1000,7 +1066,7 @@ export class ContractFilesService {
         }),
       );
     } catch (_e) {
-      const e = _e as any;
+      const e = _e;
       const isNotFound =
         e?.name === 'NoSuchKey' || e?.$metadata?.httpStatusCode === 404;
       if (!isNotFound) {
@@ -1016,4 +1082,3 @@ export class ContractFilesService {
     return { ok: true };
   }
 }
-

@@ -8,11 +8,7 @@ import {
   Post,
   Req,
 } from '@nestjs/common';
-import {
-  ApiOkResponse,
-  ApiParam,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOkResponse, ApiParam, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import { RemindersService } from './reminders.service';

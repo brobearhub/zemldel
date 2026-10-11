@@ -62,7 +62,12 @@ describe('canCustomerDeleteRequest', () => {
       canCustomerDeleteRequest(
         makeRequestRow({
           providerOffers: [
-            { providerId: 'p1', status: 'SELECTED', selectedAt: now, declinedAt: null },
+            {
+              providerId: 'p1',
+              status: 'SELECTED',
+              selectedAt: now,
+              declinedAt: null,
+            },
           ],
         }),
         false,

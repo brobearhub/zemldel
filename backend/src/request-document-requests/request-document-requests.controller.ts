@@ -84,7 +84,11 @@ export class RequestDocumentRequestsController {
     @Body() body: CreateRequestDocumentRequestDto,
   ) {
     const actorUserId = this.getRequiredActorUserId(request);
-    return this.requests.createForProvider({ actorUserId, requestId, title: body.title });
+    return this.requests.createForProvider({
+      actorUserId,
+      requestId,
+      title: body.title,
+    });
   }
 
   @Delete('pro/requests/:requestId/document-requests/:docRequestId')
@@ -97,7 +101,11 @@ export class RequestDocumentRequestsController {
     @Param('docRequestId') docRequestId: string,
   ) {
     const actorUserId = this.getRequiredActorUserId(request);
-    return this.requests.deleteForProvider({ actorUserId, requestId, docRequestId });
+    return this.requests.deleteForProvider({
+      actorUserId,
+      requestId,
+      docRequestId,
+    });
   }
 
   @Get('requests/mine/:requestId/document-requests')
@@ -211,7 +219,10 @@ export class RequestDocumentRequestsController {
         inline: request.query.inline === '1' || request.query.inline === 'true',
       });
     res.setHeader('content-type', mimeType);
-    res.setHeader('content-disposition', `${disposition}; filename="${fileName}"`);
+    res.setHeader(
+      'content-disposition',
+      `${disposition}; filename="${fileName}"`,
+    );
     res.setHeader('cache-control', 'private, no-store');
     await pipeline(stream, res);
   }
@@ -240,9 +251,11 @@ export class RequestDocumentRequestsController {
         inline: request.query.inline === '1' || request.query.inline === 'true',
       });
     res.setHeader('content-type', mimeType);
-    res.setHeader('content-disposition', `${disposition}; filename="${fileName}"`);
+    res.setHeader(
+      'content-disposition',
+      `${disposition}; filename="${fileName}"`,
+    );
     res.setHeader('cache-control', 'private, no-store');
     await pipeline(stream, res);
   }
 }
-

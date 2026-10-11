@@ -5,11 +5,31 @@ describe('foldProRequestStats', () => {
   it('раскладывает статусы, суммирует всего и берёт самую позднюю дату', () => {
     expect(
       foldProRequestStats([
-        { status: 'NEW', count: 2, latestUpdatedAt: '2026-10-01T10:00:00.000Z' },
-        { status: 'DISCUSSING', count: 1, latestUpdatedAt: new Date('2026-10-08T12:00:00.000Z') },
-        { status: 'TERMS_AGREED', count: 1, latestUpdatedAt: '2026-10-02T00:00:00.000Z' },
-        { status: 'CLOSED', count: 4, latestUpdatedAt: '2026-09-01T00:00:00.000Z' },
-        { status: 'UNKNOWN', count: 9, latestUpdatedAt: '2026-12-01T00:00:00.000Z' },
+        {
+          status: 'NEW',
+          count: 2,
+          latestUpdatedAt: '2026-10-01T10:00:00.000Z',
+        },
+        {
+          status: 'DISCUSSING',
+          count: 1,
+          latestUpdatedAt: new Date('2026-10-08T12:00:00.000Z'),
+        },
+        {
+          status: 'TERMS_AGREED',
+          count: 1,
+          latestUpdatedAt: '2026-10-02T00:00:00.000Z',
+        },
+        {
+          status: 'CLOSED',
+          count: 4,
+          latestUpdatedAt: '2026-09-01T00:00:00.000Z',
+        },
+        {
+          status: 'UNKNOWN',
+          count: 9,
+          latestUpdatedAt: '2026-12-01T00:00:00.000Z',
+        },
       ]),
     ).toEqual({
       total: 8,

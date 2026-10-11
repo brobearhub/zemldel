@@ -58,4 +58,3 @@ export class ReminderDto {
   @ApiProperty({ type: ReminderRequestSummaryDto })
   request!: ReminderRequestSummaryDto;
 }
-

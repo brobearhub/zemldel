@@ -10,6 +10,7 @@ export function pickPeerOnline(
   viewerSide: ChatViewerSide,
   payload: ChatPresenceUpdatedPayload,
 ): boolean {
-  return viewerSide === 'customer' ? payload.providerOnline : payload.customerOnline;
+  return viewerSide === 'customer'
+    ? payload.providerOnline
+    : payload.customerOnline;
 }
-
