@@ -1,6 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import type { CityImportEventDto, CityImportRunDto } from './dto/city-admin.dto';
+import type {
+  CityImportEventDto,
+  CityImportRunDto,
+} from './dto/city-admin.dto';
 import type { CitySuggestItemDto } from './dto/city.dto';
 
 function normalizeQuery(input: string) {

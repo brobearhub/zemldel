@@ -12,7 +12,10 @@ import type { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 import { SocketJwtService } from './socket-jwt.service';
 import { ChatPresenceRegistry } from './chat-presence-registry';
-import { pickPeerOnline, type ChatPresenceUpdatedPayload } from './chat-presence';
+import {
+  pickPeerOnline,
+  type ChatPresenceUpdatedPayload,
+} from './chat-presence';
 
 const CONVERSATION_PREFIX = 'conversation:';
 const USER_PREFIX = 'user:';
@@ -52,7 +55,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const data = client.data as unknown as { userId?: string };
       data.userId = userId;
       void client.join(`${USER_PREFIX}${userId}`);
-      const { becameOnline } = this.presence.registerConnected(userId, client.id);
+      const { becameOnline } = this.presence.registerConnected(
+        userId,
+        client.id,
+      );
       if (becameOnline) {
         void this.chatService.notifyPresenceChanged(userId);
       }
@@ -133,7 +139,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(`${USER_PREFIX}${userId}`).emit('chat.unreadHint', payload);
   }
 
-  emitPresenceUpdated(conversationId: string, payload: ChatPresenceUpdatedPayload) {
+  emitPresenceUpdated(
+    conversationId: string,
+    payload: ChatPresenceUpdatedPayload,
+  ) {
     this.server
       .to(`${CONVERSATION_PREFIX}${conversationId}`)
       .emit('presence.updated', payload);

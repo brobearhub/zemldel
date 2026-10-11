@@ -198,7 +198,10 @@ export class RequestsController {
   @Get('requests/mine/:id')
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ type: RequestCustomerDto })
-  @ApiNotFoundResponse({ type: ApiNotFoundErrorDto, description: 'Request not found' })
+  @ApiNotFoundResponse({
+    type: ApiNotFoundErrorDto,
+    description: 'Request not found',
+  })
   async mineById(@Req() request: Request, @Param('id') id: string) {
     const userId = this.requests.getRequiredActorUserId(request);
     return this.requests.getMineById(userId, id);
@@ -213,7 +216,10 @@ export class RequestsController {
       required: ['ok'],
     },
   })
-  @ApiNotFoundResponse({ type: ApiNotFoundErrorDto, description: 'Request not found' })
+  @ApiNotFoundResponse({
+    type: ApiNotFoundErrorDto,
+    description: 'Request not found',
+  })
   async deleteMine(@Req() request: Request, @Param('id') id: string) {
     const userId = this.requests.getRequiredActorUserId(request);
     return this.requests.deleteMineByCustomer(userId, id);
@@ -426,7 +432,9 @@ export class RequestsController {
         issues,
       });
     }
-    return this.requests.createRemarkByCustomer(userId, id, { text: data.text });
+    return this.requests.createRemarkByCustomer(userId, id, {
+      text: data.text,
+    });
   }
 
   @Post('requests/mine/:id/remarks/:remarkId/complete')
@@ -490,7 +498,9 @@ export class RequestsController {
     if (Number.isNaN(index)) {
       throw new UnprocessableEntityException({
         error: 'Validation failed',
-        issues: [{ path: ['index'], message: 'Invalid cadastral number index' }],
+        issues: [
+          { path: ['index'], message: 'Invalid cadastral number index' },
+        ],
       });
     }
     const { data, issues } = parseRequestCadastralNumberUpdateDto(body);
@@ -519,7 +529,9 @@ export class RequestsController {
     if (Number.isNaN(index)) {
       throw new UnprocessableEntityException({
         error: 'Validation failed',
-        issues: [{ path: ['index'], message: 'Invalid cadastral number index' }],
+        issues: [
+          { path: ['index'], message: 'Invalid cadastral number index' },
+        ],
       });
     }
     return this.requests.deleteCadastralNumberByCustomer(userId, id, index);
@@ -625,8 +637,14 @@ export class RequestsController {
   @Get('pro/requests/:id')
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ type: RequestProDto })
-  @ApiNotFoundResponse({ type: ApiNotFoundErrorDto, description: 'Request not found' })
-  @ApiForbiddenResponse({ type: ApiForbiddenErrorDto, description: 'Forbidden' })
+  @ApiNotFoundResponse({
+    type: ApiNotFoundErrorDto,
+    description: 'Request not found',
+  })
+  @ApiForbiddenResponse({
+    type: ApiForbiddenErrorDto,
+    description: 'Forbidden',
+  })
   async proById(@Req() request: Request, @Param('id') id: string) {
     const ctx = await this.requests.requireProviderContext(request);
     return this.requests.getProById(ctx.providerId, id);
@@ -697,7 +715,8 @@ export class RequestsController {
         error: 'Validation failed',
         issues: parsed.issues.map((issue) => ({
           path: issue.property ? [issue.property] : [],
-          message: Object.values(issue.constraints ?? {})[0] ?? 'Invalid reason',
+          message:
+            Object.values(issue.constraints ?? {})[0] ?? 'Invalid reason',
         })),
       });
     }
@@ -804,7 +823,9 @@ export class RequestsController {
     if (Number.isNaN(index)) {
       throw new UnprocessableEntityException({
         error: 'Validation failed',
-        issues: [{ path: ['index'], message: 'Invalid cadastral number index' }],
+        issues: [
+          { path: ['index'], message: 'Invalid cadastral number index' },
+        ],
       });
     }
     const { data, issues } = parseRequestCadastralNumberUpdateDto(body);
@@ -814,9 +835,14 @@ export class RequestsController {
         issues,
       });
     }
-    return this.requests.updateCadastralNumberByProvider(ctx.providerId, id, index, {
-      value: data.value,
-    });
+    return this.requests.updateCadastralNumberByProvider(
+      ctx.providerId,
+      id,
+      index,
+      {
+        value: data.value,
+      },
+    );
   }
 
   @Delete('pro/requests/:id/cadastral-numbers/:index')
@@ -833,10 +859,16 @@ export class RequestsController {
     if (Number.isNaN(index)) {
       throw new UnprocessableEntityException({
         error: 'Validation failed',
-        issues: [{ path: ['index'], message: 'Invalid cadastral number index' }],
+        issues: [
+          { path: ['index'], message: 'Invalid cadastral number index' },
+        ],
       });
     }
-    return this.requests.deleteCadastralNumberByProvider(ctx.providerId, id, index);
+    return this.requests.deleteCadastralNumberByProvider(
+      ctx.providerId,
+      id,
+      index,
+    );
   }
 
   @Get('pro/requests')
@@ -922,7 +954,10 @@ export class RequestsController {
 
   @Get('admin/requests')
   @ApiOkResponse({ type: [RequestCustomerDto] })
-  @ApiForbiddenResponse({ type: ApiForbiddenErrorDto, description: 'Forbidden' })
+  @ApiForbiddenResponse({
+    type: ApiForbiddenErrorDto,
+    description: 'Forbidden',
+  })
   async getAdminRequests(@Req() request: Request) {
     const context = await this.requests.getManagementContext(request, 'read');
     if (!context.isPlatformAdmin) {

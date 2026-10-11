@@ -28,7 +28,9 @@ describe('ChatService.createMessage', () => {
       $transaction: vi.fn(async (fn: any) => {
         return await fn({
           message: {
-            create: vi.fn().mockResolvedValue(makeCreatedMessage({ senderUserId: 'cu1' })),
+            create: vi
+              .fn()
+              .mockResolvedValue(makeCreatedMessage({ senderUserId: 'cu1' })),
           },
           conversation: { update: vi.fn().mockResolvedValue({ id: 'c1' }) },
         });
@@ -44,7 +46,9 @@ describe('ChatService.createMessage', () => {
     };
 
     const svc = makeService(prisma);
-    (svc as any).assertConversationAccess = vi.fn().mockResolvedValue(undefined);
+    (svc as any).assertConversationAccess = vi
+      .fn()
+      .mockResolvedValue(undefined);
     (svc as any).broadcastMessageCreated = vi.fn().mockResolvedValue(undefined);
 
     await svc.createMessage('cu1', 'c1', {
@@ -60,7 +64,9 @@ describe('ChatService.createMessage', () => {
       $transaction: vi.fn(async (fn: any) => {
         return await fn({
           message: {
-            create: vi.fn().mockResolvedValue(makeCreatedMessage({ senderUserId: 'pu1' })),
+            create: vi
+              .fn()
+              .mockResolvedValue(makeCreatedMessage({ senderUserId: 'pu1' })),
           },
           conversation: { update: vi.fn().mockResolvedValue({ id: 'c1' }) },
         });
@@ -76,7 +82,9 @@ describe('ChatService.createMessage', () => {
     };
 
     const svc = makeService(prisma);
-    (svc as any).assertConversationAccess = vi.fn().mockResolvedValue(undefined);
+    (svc as any).assertConversationAccess = vi
+      .fn()
+      .mockResolvedValue(undefined);
     (svc as any).broadcastMessageCreated = vi.fn().mockResolvedValue(undefined);
 
     await svc.createMessage('pu1', 'c1', {
@@ -95,7 +103,9 @@ describe('ChatService.createMessage', () => {
       $transaction: vi.fn(async (fn: any) => {
         return await fn({
           message: {
-            create: vi.fn().mockResolvedValue(makeCreatedMessage({ senderUserId: 'cu1' })),
+            create: vi
+              .fn()
+              .mockResolvedValue(makeCreatedMessage({ senderUserId: 'cu1' })),
           },
           conversation: { update: vi.fn().mockResolvedValue({ id: 'c1' }) },
         });
@@ -111,7 +121,9 @@ describe('ChatService.createMessage', () => {
     };
 
     const svc = makeService(prisma);
-    (svc as any).assertConversationAccess = vi.fn().mockResolvedValue(undefined);
+    (svc as any).assertConversationAccess = vi
+      .fn()
+      .mockResolvedValue(undefined);
     (svc as any).broadcastMessageCreated = vi.fn().mockResolvedValue(undefined);
 
     await svc.createMessage('cu1', 'c1', {
@@ -125,4 +137,3 @@ describe('ChatService.createMessage', () => {
     });
   });
 });
-

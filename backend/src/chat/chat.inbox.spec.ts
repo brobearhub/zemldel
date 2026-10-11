@@ -34,7 +34,12 @@ describe('ChatService listInbox', () => {
               service: { title: 'Услуга 1' },
               category: null,
             },
-            messages: [{ body: 'hello', createdAt: new Date('2026-08-07T10:00:00.000Z') }],
+            messages: [
+              {
+                body: 'hello',
+                createdAt: new Date('2026-08-07T10:00:00.000Z'),
+              },
+            ],
           },
           {
             requestId: 'r2',
@@ -49,7 +54,9 @@ describe('ChatService listInbox', () => {
               service: null,
               category: { name: 'Категория 2' },
             },
-            messages: [{ body: 'msg2', createdAt: new Date('2026-08-07T08:00:00.000Z') }],
+            messages: [
+              { body: 'msg2', createdAt: new Date('2026-08-07T08:00:00.000Z') },
+            ],
           },
           {
             requestId: 'r2',
@@ -64,7 +71,12 @@ describe('ChatService listInbox', () => {
               service: null,
               category: { name: 'Категория 2' },
             },
-            messages: [{ body: 'older', createdAt: new Date('2026-08-06T08:00:00.000Z') }],
+            messages: [
+              {
+                body: 'older',
+                createdAt: new Date('2026-08-06T08:00:00.000Z'),
+              },
+            ],
           },
         ]),
       },
@@ -128,4 +140,3 @@ describe('ChatService listInbox', () => {
     );
   });
 });
-

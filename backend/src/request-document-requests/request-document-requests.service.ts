@@ -47,7 +47,9 @@ function countCyrillicChars(value: string) {
 }
 
 function decodePossiblyMisencodedFileName(value: string) {
-  const decoded = Buffer.from(value, 'latin1').toString('utf8').normalize('NFC');
+  const decoded = Buffer.from(value, 'latin1')
+    .toString('utf8')
+    .normalize('NFC');
   if (decoded.includes('\uFFFD')) return value;
 
   const originalCyrillic = countCyrillicChars(value);
@@ -278,7 +280,8 @@ export class RequestDocumentRequestsService {
       select: { id: true, providerId: true, status: true, lockedAt: true },
     });
     if (!request) throw new NotFoundException('Request not found');
-    if (!request.providerId) throw new BadRequestException('Provider is required');
+    if (!request.providerId)
+      throw new BadRequestException('Provider is required');
     if (!hasRequestLock(request)) {
       throw new ForbiddenException('Forbidden');
     }
@@ -302,7 +305,9 @@ export class RequestDocumentRequestsService {
     }
 
     const newKey = `${this.s3.privatePrefix}requests/${request.id}/document-requests/${doc.id}${ext}`;
-    const originalName = decodePossiblyMisencodedFileName(input.file.originalname);
+    const originalName = decodePossiblyMisencodedFileName(
+      input.file.originalname,
+    );
     const hash = sha256Buffer(input.file.buffer);
 
     await this.s3.client.send(
@@ -332,7 +337,12 @@ export class RequestDocumentRequestsService {
       });
     } catch (e) {
       await this.s3.client
-        .send(new DeleteObjectCommand({ Bucket: this.s3.privateBucket, Key: newKey }))
+        .send(
+          new DeleteObjectCommand({
+            Bucket: this.s3.privateBucket,
+            Key: newKey,
+          }),
+        )
         .catch(() => null);
       throw e;
     }
@@ -386,7 +396,9 @@ export class RequestDocumentRequestsService {
 
     const fileName = decodePossiblyMisencodedFileName(doc.originalName);
     const disposition =
-      input.inline && doc.mimeType === 'application/pdf' ? 'inline' : 'attachment';
+      input.inline && doc.mimeType === 'application/pdf'
+        ? 'inline'
+        : 'attachment';
 
     try {
       const obj = await this.s3.client.send(
@@ -406,7 +418,7 @@ export class RequestDocumentRequestsService {
         disposition,
       };
     } catch (_e) {
-      const e = _e as any;
+      const e = _e;
       const isNotFound =
         e?.name === 'NoSuchKey' || e?.$metadata?.httpStatusCode === 404;
       if (isNotFound) {
@@ -427,7 +439,8 @@ export class RequestDocumentRequestsService {
       select: { id: true, providerId: true, status: true, lockedAt: true },
     });
     if (!request) throw new NotFoundException('Request not found');
-    if (!request.providerId) throw new BadRequestException('Provider is required');
+    if (!request.providerId)
+      throw new BadRequestException('Provider is required');
     if (!hasRequestLock(request)) {
       throw new ForbiddenException('Forbidden');
     }
@@ -458,7 +471,9 @@ export class RequestDocumentRequestsService {
 
     const fileName = decodePossiblyMisencodedFileName(doc.originalName);
     const disposition =
-      input.inline && doc.mimeType === 'application/pdf' ? 'inline' : 'attachment';
+      input.inline && doc.mimeType === 'application/pdf'
+        ? 'inline'
+        : 'attachment';
 
     try {
       const obj = await this.s3.client.send(
@@ -478,7 +493,7 @@ export class RequestDocumentRequestsService {
         disposition,
       };
     } catch (_e) {
-      const e = _e as any;
+      const e = _e;
       const isNotFound =
         e?.name === 'NoSuchKey' || e?.$metadata?.httpStatusCode === 404;
       if (isNotFound) {
@@ -498,10 +513,13 @@ export class RequestDocumentRequestsService {
       select: { id: true, providerId: true, status: true, lockedAt: true },
     });
     if (!request) throw new NotFoundException('Request not found');
-    if (!request.providerId) throw new BadRequestException('Provider is required');
+    if (!request.providerId)
+      throw new BadRequestException('Provider is required');
 
     if (isOrderExecutionStatus(request.status)) {
-      throw new ForbiddenException('Cannot delete files after contract accepted');
+      throw new ForbiddenException(
+        'Cannot delete files after contract accepted',
+      );
     }
     if (!hasRequestLock(request)) {
       throw new ForbiddenException('Forbidden');
@@ -536,7 +554,7 @@ export class RequestDocumentRequestsService {
         }),
       );
     } catch (_e) {
-      const e = _e as any;
+      const e = _e;
       const isNotFound =
         e?.name === 'NoSuchKey' || e?.$metadata?.httpStatusCode === 404;
       if (!isNotFound) {
@@ -562,4 +580,3 @@ export class RequestDocumentRequestsService {
     return { ok: true };
   }
 }
-

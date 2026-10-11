@@ -26,7 +26,10 @@ export class RequestPaymentsController {
   @Get('pro/requests/:requestId/payments')
   @ApiParam({ name: 'requestId', type: String })
   @ApiOkResponse({ type: RequestFinanceDto })
-  getForProvider(@Req() request: Request, @Param('requestId') requestId: string) {
+  getForProvider(
+    @Req() request: Request,
+    @Param('requestId') requestId: string,
+  ) {
     return this.payments.getForProvider({
       actorUserId: this.getRequiredActorUserId(request),
       requestId,
@@ -85,7 +88,10 @@ export class RequestPaymentsController {
   @Get('requests/mine/:requestId/payments')
   @ApiParam({ name: 'requestId', type: String })
   @ApiOkResponse({ type: RequestFinanceDto })
-  getForCustomer(@Req() request: Request, @Param('requestId') requestId: string) {
+  getForCustomer(
+    @Req() request: Request,
+    @Param('requestId') requestId: string,
+  ) {
     return this.payments.getForCustomer({
       actorUserId: this.getRequiredActorUserId(request),
       requestId,

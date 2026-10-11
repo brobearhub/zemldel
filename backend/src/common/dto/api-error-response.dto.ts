@@ -46,4 +46,3 @@ export class ApiValidationErrorResponseDto {
   @ApiProperty({ type: [ApiValidationIssueDto] })
   issues!: ApiValidationIssueDto[];
 }
-

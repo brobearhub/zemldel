@@ -41,11 +41,15 @@ describe('ContractFilesService', () => {
       client: { send: vi.fn() },
     };
 
-    const svc = new ContractFilesService(prisma as any, authService as any, s3 as any);
-
-    await expect(svc.deleteForProvider({ actorUserId: 'u1', fileId: 'f1' })).rejects.toBeInstanceOf(
-      ForbiddenException,
+    const svc = new ContractFilesService(
+      prisma as any,
+      authService as any,
+      s3 as any,
     );
+
+    await expect(
+      svc.deleteForProvider({ actorUserId: 'u1', fileId: 'f1' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('deleteForProvider запрещает удаление чужого файла (по uploadedByUserId)', async () => {
@@ -73,11 +77,14 @@ describe('ContractFilesService', () => {
       client: { send: vi.fn() },
     };
 
-    const svc = new ContractFilesService(prisma as any, authService as any, s3 as any);
-
-    await expect(svc.deleteForProvider({ actorUserId: 'u1', fileId: 'f1' })).rejects.toBeInstanceOf(
-      ForbiddenException,
+    const svc = new ContractFilesService(
+      prisma as any,
+      authService as any,
+      s3 as any,
     );
+
+    await expect(
+      svc.deleteForProvider({ actorUserId: 'u1', fileId: 'f1' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });
-

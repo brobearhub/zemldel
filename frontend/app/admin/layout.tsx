@@ -13,8 +13,9 @@ interface Props {
 
 export default async function AdminLayout({ children }: Props) {
   const session = await getServerAuthSession();
+  // return, а не await: после await TypeScript сбрасывает сужение, и session снова possibly null.
   if (!session?.user?.id) {
-    await signInRedirectFromRequest("/admin");
+    return signInRedirectFromRequest("/admin");
   }
   if (session.user.systemRole !== "PLATFORM_ADMIN") {
     forbidden();

@@ -56,4 +56,3 @@ export class UserImageDto {
   @ApiProperty({ format: 'date-time' })
   updatedAt!: string;
 }
-

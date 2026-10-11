@@ -1,13 +1,19 @@
 export class ChatPresenceRegistry {
   private readonly socketIdToUserId = new Map<string, string>();
   private readonly userIdToSocketIds = new Map<string, Set<string>>();
-  private readonly disconnectTimersBySocketId = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly disconnectTimersBySocketId = new Map<
+    string,
+    ReturnType<typeof setTimeout>
+  >();
 
   isOnline(userId: string): boolean {
     return (this.userIdToSocketIds.get(userId)?.size ?? 0) > 0;
   }
 
-  registerConnected(userId: string, socketId: string): { becameOnline: boolean } {
+  registerConnected(
+    userId: string,
+    socketId: string,
+  ): { becameOnline: boolean } {
     const wasOnline = this.isOnline(userId);
 
     const pendingTimer = this.disconnectTimersBySocketId.get(socketId);
@@ -56,4 +62,3 @@ export class ChatPresenceRegistry {
     this.disconnectTimersBySocketId.set(socketId, timer);
   }
 }
-

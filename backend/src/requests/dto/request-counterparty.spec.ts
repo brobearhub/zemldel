@@ -99,7 +99,9 @@ describe('requestRowToProDtoPlain counterparty contacts', () => {
 
 describe('requestRowToCustomerDtoPlain counterparty contacts', () => {
   it('скрывает телефон и email исполнителя до lock', () => {
-    const dto = requestRowToCustomerDtoPlain(makeRow({ providerId: PROVIDER_ID }));
+    const dto = requestRowToCustomerDtoPlain(
+      makeRow({ providerId: PROVIDER_ID }),
+    );
     expect(dto.providerName).toBe('Геодезия Плюс');
     expect(dto.providerPhone).toBeNull();
     expect(dto.providerEmail).toBeNull();

@@ -37,10 +37,15 @@ export class S3Service {
   readonly publicBucket = optionalEnv('YA_S3_PUBLIC_BUCKET');
   readonly publicCdnBaseUrl = optionalEnv('YA_CDN_PUBLIC_BASE_URL');
 
-  readonly publicPrefix = normalizePrefix(process.env.YA_S3_PUBLIC_PREFIX ?? 'public/');
-  readonly privatePrefix = normalizePrefix(process.env.YA_S3_PRIVATE_PREFIX ?? 'private/');
+  readonly publicPrefix = normalizePrefix(
+    process.env.YA_S3_PUBLIC_PREFIX ?? 'public/',
+  );
+  readonly privatePrefix = normalizePrefix(
+    process.env.YA_S3_PRIVATE_PREFIX ?? 'private/',
+  );
 
-  readonly forcePathStyle = (process.env.YA_S3_FORCE_PATH_STYLE ?? 'false') === 'true';
+  readonly forcePathStyle =
+    (process.env.YA_S3_FORCE_PATH_STYLE ?? 'false') === 'true';
 
   /**
    * Yandex Object Storage is S3-compatible; we still enforce timeouts for safety.
@@ -74,4 +79,3 @@ export class S3Service {
     return this.publicCdnBaseUrl;
   }
 }
-

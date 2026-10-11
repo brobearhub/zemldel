@@ -59,7 +59,9 @@ function encodeCursor(createdAt: Date, id: string): string {
   return `${createdAt.toISOString()}|${id}`;
 }
 
-function decodeCursor(cursor: string | undefined): { createdAt: Date; id: string } | null {
+function decodeCursor(
+  cursor: string | undefined,
+): { createdAt: Date; id: string } | null {
   if (!cursor) return null;
   const splitAt = cursor.lastIndexOf('|');
   if (splitAt <= 0) return null;
@@ -92,7 +94,10 @@ function toDto(row: ReviewRow): ReviewDto {
 export class ReviewsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listForService(serviceId: string, query: { limit?: number; cursor?: string }): Promise<ReviewListDto> {
+  async listForService(
+    serviceId: string,
+    query: { limit?: number; cursor?: string },
+  ): Promise<ReviewListDto> {
     const service = await this.prisma.service.findFirst({
       where: { id: serviceId, status: 'PUBLISHED' },
       select: { id: true },
@@ -106,7 +111,10 @@ export class ReviewsService {
     });
   }
 
-  async listForProvider(providerId: string, query: { limit?: number; cursor?: string }): Promise<ReviewListDto> {
+  async listForProvider(
+    providerId: string,
+    query: { limit?: number; cursor?: string },
+  ): Promise<ReviewListDto> {
     const provider = await this.prisma.provider.findUnique({
       where: { id: providerId },
       select: { id: true },
@@ -120,7 +128,10 @@ export class ReviewsService {
     });
   }
 
-  async listForRequest(input: { actorUserId: string; requestId: string }): Promise<ReviewDto[]> {
+  async listForRequest(input: {
+    actorUserId: string;
+    requestId: string;
+  }): Promise<ReviewDto[]> {
     const request = await this.prisma.request.findUnique({
       where: { id: input.requestId },
       select: { id: true, providerId: true, customerUserId: true },
@@ -160,7 +171,11 @@ export class ReviewsService {
       },
     });
     if (!request) throw new NotFoundException('Request not found');
-    if (!REVIEWABLE_STATUSES.has(request.status) || !request.providerId || !request.customerUserId) {
+    if (
+      !REVIEWABLE_STATUSES.has(request.status) ||
+      !request.providerId ||
+      !request.customerUserId
+    ) {
       throw new ForbiddenException('Request is not ready for review');
     }
 
@@ -172,7 +187,11 @@ export class ReviewsService {
     });
     if (selfDeal) throw new ConflictException('Self review is not allowed');
 
-    const direction = await this.resolveDirection(input.actorUserId, customerUserId, providerId);
+    const direction = await this.resolveDirection(
+      input.actorUserId,
+      customerUserId,
+      providerId,
+    );
 
     try {
       const created = await this.prisma.$transaction(async (tx) => {
@@ -181,16 +200,19 @@ export class ReviewsService {
             requestId: request.id,
             direction,
             providerId,
-            serviceId: direction === 'CUSTOMER_TO_PROVIDER' ? request.serviceId : null,
+            serviceId:
+              direction === 'CUSTOMER_TO_PROVIDER' ? request.serviceId : null,
             authorUserId: input.actorUserId,
-            subjectUserId: direction === 'PROVIDER_TO_CUSTOMER' ? customerUserId : null,
+            subjectUserId:
+              direction === 'PROVIDER_TO_CUSTOMER' ? customerUserId : null,
             rating: input.rating,
             text,
           },
           include: reviewInclude,
         });
         if (direction === 'CUSTOMER_TO_PROVIDER') {
-          if (request.serviceId) await recomputeServiceRating(tx, request.serviceId);
+          if (request.serviceId)
+            await recomputeServiceRating(tx, request.serviceId);
           await recomputeProviderRating(tx, providerId);
         } else {
           await recomputeCustomerRating(tx, customerUserId);
@@ -199,15 +221,21 @@ export class ReviewsService {
       });
       return toDto(created);
     } catch (error) {
-      if (isUniqueViolation(error)) throw new ConflictException('Review already exists');
+      if (isUniqueViolation(error))
+        throw new ConflictException('Review already exists');
       throw error;
     }
   }
 
-  async reply(input: { actorUserId: string; reviewId: string; text: string }): Promise<ReviewDto> {
+  async reply(input: {
+    actorUserId: string;
+    reviewId: string;
+    text: string;
+  }): Promise<ReviewDto> {
     const text = normalizeReviewText(input.text);
     if (!text) throw new ConflictException('Reply text is required');
-    if (text.length > REVIEW_TEXT_MAX_LENGTH) throw new ConflictException('Review text is too long');
+    if (text.length > REVIEW_TEXT_MAX_LENGTH)
+      throw new ConflictException('Review text is too long');
 
     const review = await this.prisma.review.findUnique({
       where: { id: input.reviewId },
@@ -271,7 +299,10 @@ export class ReviewsService {
     });
     const page = rows.slice(0, limit);
     const last = page.at(-1);
-    const nextCursor = rows.length > limit && last ? encodeCursor(last.createdAt, last.id) : null;
+    const nextCursor =
+      rows.length > limit && last
+        ? encodeCursor(last.createdAt, last.id)
+        : null;
     return { items: page.map(toDto), nextCursor };
   }
 

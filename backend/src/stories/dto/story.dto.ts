@@ -1,11 +1,23 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
-import { collapseStoryLineEndings, STORY_DURATION_DAYS, STORY_TEXT_MAX_LENGTH } from '../story-rules';
+import {
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+import {
+  collapseStoryLineEndings,
+  STORY_DURATION_DAYS,
+  STORY_TEXT_MAX_LENGTH,
+} from '../story-rules';
 
 export class CreateStoryDto {
   @ApiProperty({ minLength: 1, maxLength: STORY_TEXT_MAX_LENGTH })
-  @Transform(({ value }) => (typeof value === 'string' ? collapseStoryLineEndings(value).trim() : value))
+  @Transform(({ value }) =>
+    typeof value === 'string' ? collapseStoryLineEndings(value).trim() : value,
+  )
   @IsString()
   @MinLength(1)
   @MaxLength(STORY_TEXT_MAX_LENGTH)

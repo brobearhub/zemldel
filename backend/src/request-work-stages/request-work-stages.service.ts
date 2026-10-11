@@ -66,7 +66,9 @@ function countCyrillicChars(value: string) {
 }
 
 function decodePossiblyMisencodedFileName(value: string) {
-  const decoded = Buffer.from(value, 'latin1').toString('utf8').normalize('NFC');
+  const decoded = Buffer.from(value, 'latin1')
+    .toString('utf8')
+    .normalize('NFC');
   if (decoded.includes('\uFFFD')) return value;
   const originalCyrillic = countCyrillicChars(value);
   const decodedCyrillic = countCyrillicChars(decoded);
@@ -404,7 +406,9 @@ export class RequestWorkStagesService {
     });
     if (!stage) throw new NotFoundException('Stage not found');
     if (stage.lifecycle !== 'DRAFT') {
-      throw new BadRequestException('Published stage title/description are immutable');
+      throw new BadRequestException(
+        'Published stage title/description are immutable',
+      );
     }
 
     const data: {
@@ -610,7 +614,9 @@ export class RequestWorkStagesService {
     const next = parseCustomStatuses(input.custom);
     for (const item of next) {
       if (isSystemWorkStageStatusKey(item.key)) {
-        throw new BadRequestException('Custom status key conflicts with system');
+        throw new BadRequestException(
+          'Custom status key conflicts with system',
+        );
       }
     }
 
@@ -631,9 +637,7 @@ export class RequestWorkStagesService {
         select: { id: true },
       });
       if (inUse) {
-        throw new BadRequestException(
-          'Статус используется в активной заявке',
-        );
+        throw new BadRequestException('Статус используется в активной заявке');
       }
     }
 
@@ -798,7 +802,10 @@ export class RequestWorkStagesService {
         disposition,
       };
     } catch (_e) {
-      const e = _e as { name?: string; $metadata?: { httpStatusCode?: number } };
+      const e = _e as {
+        name?: string;
+        $metadata?: { httpStatusCode?: number };
+      };
       const isNotFound =
         e?.name === 'NoSuchKey' || e?.$metadata?.httpStatusCode === 404;
       if (isNotFound) throw new NotFoundException('File not found');
@@ -847,7 +854,8 @@ export class RequestWorkStagesService {
       select: { id: true, providerId: true, status: true },
     });
     if (!request) throw new NotFoundException('Request not found');
-    if (!request.providerId) throw new BadRequestException('Provider is required');
+    if (!request.providerId)
+      throw new BadRequestException('Provider is required');
     if (!READABLE_REQUEST_STATUSES.has(request.status)) {
       throw new BadRequestException('Work stages are not available');
     }
@@ -953,7 +961,8 @@ export class RequestWorkStagesService {
       select: { id: true, providerId: true, status: true },
     });
     if (!request) throw new NotFoundException('Request not found');
-    if (!request.providerId) throw new BadRequestException('Provider is required');
+    if (!request.providerId)
+      throw new BadRequestException('Provider is required');
     if (request.status !== 'ACTIVE') {
       throw new BadRequestException('Request must be ACTIVE');
     }
@@ -1081,7 +1090,8 @@ export class RequestWorkStagesService {
       select: { id: true, providerId: true, status: true },
     });
     if (!request) throw new NotFoundException('Request not found');
-    if (!request.providerId) throw new BadRequestException('Provider is required');
+    if (!request.providerId)
+      throw new BadRequestException('Provider is required');
     if (!READABLE_REQUEST_STATUSES.has(request.status)) {
       throw new BadRequestException('Work stages are not available');
     }

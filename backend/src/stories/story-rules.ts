@@ -7,13 +7,18 @@ export const STORY_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 
 const DURATION_SET = new Set<number>(STORY_DURATION_DAYS);
 
-export function parseStoryDurationDays(value: unknown): StoryDurationDays | null {
+export function parseStoryDurationDays(
+  value: unknown,
+): StoryDurationDays | null {
   const parsed = typeof value === 'number' ? value : Number(value);
   if (!Number.isInteger(parsed) || !DURATION_SET.has(parsed)) return null;
   return parsed as StoryDurationDays;
 }
 
-export function computeStoryExpiresAt(publishedAt: Date, durationDays: StoryDurationDays): Date {
+export function computeStoryExpiresAt(
+  publishedAt: Date,
+  durationDays: StoryDurationDays,
+): Date {
   return new Date(publishedAt.getTime() + durationDays * 24 * 60 * 60 * 1000);
 }
 
@@ -22,10 +27,13 @@ export function collapseStoryLineEndings(value: string): string {
   return value.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 }
 
-export function normalizeStoryText(value: string | null | undefined): string | null {
+export function normalizeStoryText(
+  value: string | null | undefined,
+): string | null {
   if (value == null) return null;
   const trimmed = collapseStoryLineEndings(value).trim();
-  if (trimmed.length === 0 || trimmed.length > STORY_TEXT_MAX_LENGTH) return null;
+  if (trimmed.length === 0 || trimmed.length > STORY_TEXT_MAX_LENGTH)
+    return null;
   return trimmed;
 }
 
@@ -41,7 +49,10 @@ export function isStoryExpired(expiresAt: Date, now = new Date()): boolean {
   return expiresAt.getTime() <= now.getTime();
 }
 
-export function isStoryInFeed(story: { expiresAt: Date; withdrawnAt: Date | null }, now = new Date()): boolean {
+export function isStoryInFeed(
+  story: { expiresAt: Date; withdrawnAt: Date | null },
+  now = new Date(),
+): boolean {
   return story.withdrawnAt == null && story.expiresAt.getTime() > now.getTime();
 }
 
@@ -69,7 +80,8 @@ export function orderStoryFeed(
   cityId: string | null,
   limit = STORY_FEED_LIMIT,
 ): StoryFeedSortItem[] {
-  const byFresh = (left: StoryFeedSortItem, right: StoryFeedSortItem) => right.publishedAt - left.publishedAt;
+  const byFresh = (left: StoryFeedSortItem, right: StoryFeedSortItem) =>
+    right.publishedAt - left.publishedAt;
   const followed = items.filter((item) => item.followed);
   const rest = items.filter((item) => !item.followed);
   const cityThenRest = (group: StoryFeedSortItem[]) => {
@@ -90,7 +102,9 @@ export function orderStoryFeed(
 
 const FALLBACK_TIME_ZONE = 'Europe/Moscow';
 
-export function resolveInsightsTimeZone(value: string | null | undefined): string {
+export function resolveInsightsTimeZone(
+  value: string | null | undefined,
+): string {
   const candidate = value?.trim() || FALLBACK_TIME_ZONE;
   try {
     Intl.DateTimeFormat('en-US', { timeZone: candidate }).format(new Date());
@@ -109,7 +123,8 @@ export function storyHourKey(date: Date, timeZone: string): string {
     hour: '2-digit',
     hourCycle: 'h23',
   }).formatToParts(date);
-  const pick = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? '00';
+  const pick = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? '00';
   return `${pick('year')}-${pick('month')}-${pick('day')}T${pick('hour')}`;
 }
 
@@ -122,14 +137,28 @@ export function buildHourlyViewChart(input: {
   const timeZone = resolveInsightsTimeZone(input.timeZone);
   const counts = new Map<string, number>();
   const end = input.to.getTime() < input.from.getTime() ? input.from : input.to;
-  for (let cursor = input.from.getTime(); cursor <= end.getTime(); cursor += 60 * 60 * 1000) {
+  for (
+    let cursor = input.from.getTime();
+    cursor <= end.getTime();
+    cursor += 60 * 60 * 1000
+  ) {
     counts.set(storyHourKey(new Date(cursor), timeZone), 0);
   }
-  counts.set(storyHourKey(end, timeZone), counts.get(storyHourKey(end, timeZone)) ?? 0);
+  counts.set(
+    storyHourKey(end, timeZone),
+    counts.get(storyHourKey(end, timeZone)) ?? 0,
+  );
   for (const viewedAt of input.viewedAt) {
-    if (viewedAt.getTime() < input.from.getTime() || viewedAt.getTime() > end.getTime()) continue;
+    if (
+      viewedAt.getTime() < input.from.getTime() ||
+      viewedAt.getTime() > end.getTime()
+    )
+      continue;
     const key = storyHourKey(viewedAt, timeZone);
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
-  return [...counts.entries()].map(([hour, viewCount]) => ({ hour, viewCount }));
+  return [...counts.entries()].map(([hour, viewCount]) => ({
+    hour,
+    viewCount,
+  }));
 }

@@ -33,12 +33,18 @@ describe('RequestsService remarks checklist', () => {
 
     const svc = makeService(prisma);
 
-    await expect(svc.sendRemarksByCustomer('u1', 'r1', { remarks: null })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      svc.sendRemarksByCustomer('u1', 'r1', { remarks: null }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('createRemarkByProvider создаёт замечание сразу отправленным (sentAt!=null)', async () => {
     const tx = {
-      request: { findUnique: vi.fn().mockResolvedValue({ id: 'r1', status: 'ACCEPTANCE_PENDING' }) },
+      request: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ id: 'r1', status: 'ACCEPTANCE_PENDING' }),
+      },
       requestRemark: {
         create: vi.fn().mockResolvedValue({
           id: 'rm1',
@@ -54,7 +60,13 @@ describe('RequestsService remarks checklist', () => {
       requestEvent: { create: vi.fn() },
     };
     const prisma = {
-      request: { findUnique: vi.fn().mockResolvedValue({ id: 'r1', status: 'ACCEPTANCE_PENDING', providerId: 'p1' }) },
+      request: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'ACCEPTANCE_PENDING',
+          providerId: 'p1',
+        }),
+      },
       $transaction: async (fn: any) => await fn(tx),
     };
     const svc = makeService(prisma);
@@ -94,7 +106,9 @@ describe('RequestsService remarks checklist', () => {
 
     const prisma = {
       request: {
-        findUnique: vi.fn().mockResolvedValue({ id: 'r1', status: 'ACTIVE', providerId: 'p1' }),
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ id: 'r1', status: 'ACTIVE', providerId: 'p1' }),
       },
       $transaction: async (fn: any) => await fn(tx),
     };
@@ -103,7 +117,9 @@ describe('RequestsService remarks checklist', () => {
     // bypass access guard details; only exercise the rule inside method
     (svc as any).getProById = vi.fn().mockResolvedValue({});
 
-    await expect(svc.completeRemarkByProvider('p1', 'r1', 'rm1')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      svc.completeRemarkByProvider('p1', 'r1', 'rm1'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('markServiceRenderedByProvider блокирует переход при OPEN замечаниях', async () => {
@@ -127,12 +143,11 @@ describe('RequestsService remarks checklist', () => {
 
     const svc = makeService(prisma);
 
-    await expect(svc.markServiceRenderedByProvider('p1', 'r1')).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      svc.markServiceRenderedByProvider('p1', 'r1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
     expect(tx.requestRemark.count).toHaveBeenCalledWith({
       where: { requestId: 'r1', status: 'OPEN' },
     });
   });
 });
-

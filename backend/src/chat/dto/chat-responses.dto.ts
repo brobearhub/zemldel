@@ -13,7 +13,10 @@ export class ChatInboxItemDto {
   @ApiProperty({ nullable: true, example: null })
   lastSnippet!: string | null;
 
-  @ApiPropertyOptional({ example: 0, description: 'Если не поддерживается — поле может отсутствовать.' })
+  @ApiPropertyOptional({
+    example: 0,
+    description: 'Если не поддерживается — поле может отсутствовать.',
+  })
   unreadCount?: number;
 }
 
@@ -108,4 +111,3 @@ export class ChatEnsureResponseDto {
   @ApiProperty({ type: [ChatMessageDto] })
   messages!: ChatMessageDto[];
 }
-

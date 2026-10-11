@@ -14,7 +14,10 @@ export type PaymentAmountWithTypeAndPaidAt = PaymentAmountWithType & {
   readonly paidAt: Date | null;
 };
 
-export function sumPaidRublesByType(payments: readonly PaymentAmountWithTypeAndPaidAt[], type: PaymentAmountWithType['type']): number {
+export function sumPaidRublesByType(
+  payments: readonly PaymentAmountWithTypeAndPaidAt[],
+  type: PaymentAmountWithType['type'],
+): number {
   return payments.reduce((sum, payment) => {
     if (payment.type !== type) return sum;
     if (payment.paidAt == null) return sum;

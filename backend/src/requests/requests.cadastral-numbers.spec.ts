@@ -13,9 +13,15 @@ function makeService(prisma: any) {
   const legalDocs = {} as any;
   const chat = { notifyMessageCreated: vi.fn() } as any;
   const svc = new RequestsService(prisma, auth, internalAuth, legalDocs, chat);
-  (svc as any).getMineById = vi.fn().mockResolvedValue({ id: 'r1', cadastralNumbers: ['50:12:0000000:51755'] });
-  (svc as any).getProById = vi.fn().mockResolvedValue({ id: 'r1', cadastralNumbers: ['50:12:0000000:51755'] });
-  (svc as any).requireProviderAccessToRequest = vi.fn().mockResolvedValue({ id: 'r1', status: 'NEW' });
+  (svc as any).getMineById = vi
+    .fn()
+    .mockResolvedValue({ id: 'r1', cadastralNumbers: ['50:12:0000000:51755'] });
+  (svc as any).getProById = vi
+    .fn()
+    .mockResolvedValue({ id: 'r1', cadastralNumbers: ['50:12:0000000:51755'] });
+  (svc as any).requireProviderAccessToRequest = vi
+    .fn()
+    .mockResolvedValue({ id: 'r1', status: 'NEW' });
   return svc;
 }
 
@@ -37,7 +43,9 @@ describe('RequestsService cadastral numbers', () => {
     const svc = makeService(prisma);
 
     await expect(
-      svc.appendCadastralNumberByCustomer('u1', 'r1', { value: '50:12:0000000:51755' }),
+      svc.appendCadastralNumberByCustomer('u1', 'r1', {
+        value: '50:12:0000000:51755',
+      }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
@@ -84,7 +92,9 @@ describe('RequestsService cadastral numbers', () => {
       .mockResolvedValue({ id: 'r1', status: 'COMPLETED' });
 
     await expect(
-      svc.appendCadastralNumberByProvider('p1', 'r1', { value: '50:12:0000000:51755' }),
+      svc.appendCadastralNumberByProvider('p1', 'r1', {
+        value: '50:12:0000000:51755',
+      }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -105,7 +115,9 @@ describe('RequestsService cadastral numbers', () => {
     const svc = makeService(prisma);
 
     await expect(
-      svc.updateCadastralNumberByCustomer('u1', 'r1', 3, { value: '50:12:0000000:51756' }),
+      svc.updateCadastralNumberByCustomer('u1', 'r1', 3, {
+        value: '50:12:0000000:51756',
+      }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 

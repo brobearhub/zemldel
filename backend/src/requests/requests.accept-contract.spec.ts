@@ -2,7 +2,10 @@ import { BadRequestException, ConflictException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { RequestsService } from './requests.service';
 
-function makeService(prisma: unknown, legalDocs?: { assertCurrentVersions: ReturnType<typeof vi.fn> }) {
+function makeService(
+  prisma: unknown,
+  legalDocs?: { assertCurrentVersions: ReturnType<typeof vi.fn> },
+) {
   const auth = {} as never;
   const internalAuth = {} as never;
   const docs = legalDocs ?? {
@@ -94,7 +97,9 @@ describe('RequestsService acceptContractByCustomer', () => {
     const svc = makeService(prisma);
     await expect(
       svc.acceptContractByCustomer('u1', 'r1', { termsVersion: '2026-08-04' }),
-    ).rejects.toMatchObject({ message: 'All contract bundles must be approved' });
+    ).rejects.toMatchObject({
+      message: 'All contract bundles must be approved',
+    });
   });
 
   it('acceptContract rejects when provider not locked', async () => {
