@@ -14,12 +14,19 @@ const NAV_ITEMS = [
   { label: "Корзина", icon: ShoppingCartOutlinedIcon, href: "#cart" },
 ] as const;
 
-export const HeaderNav = () => (
+type HeaderNavProps = {
+  /** В меню-гамбургере подписи видны и пункты идут столбиком. */
+  readonly showLabels?: boolean;
+  readonly onNavigate?: () => void;
+};
+
+export const HeaderNav = ({ showLabels = false, onNavigate }: HeaderNavProps) => (
   <Box
     sx={{
       display: "flex",
-      alignItems: "center",
-      gap: { xs: 0, sm: 0.5, md: 1 },
+      flexDirection: showLabels ? "column" : "row",
+      alignItems: showLabels ? "stretch" : "center",
+      gap: showLabels ? 0.5 : { xs: 0, sm: 0.5, md: 1 },
       flex: { xs: "0 0 auto", md: "0 0 auto" },
     }}
   >
@@ -29,11 +36,12 @@ export const HeaderNav = () => (
         component={Link}
         href={href}
         aria-label={label}
+        onClick={onNavigate}
         sx={{
           display: "flex",
-          flexDirection: "column",
+          flexDirection: showLabels ? "row" : "column",
           alignItems: "center",
-          gap: 0.25,
+          gap: showLabels ? 1.5 : 0.25,
           px: { xs: 0.75, sm: 1 },
           py: 0.75,
           borderRadius: 1,
@@ -52,7 +60,7 @@ export const HeaderNav = () => (
           variant="body2"
           sx={{
             color: "common.gray",
-            display: { xs: "none", md: "block" },
+            display: showLabels ? "block" : { xs: "none", md: "block" },
             fontWeight: 600,
             fontSize: 12,
             opacity: 1,
@@ -64,7 +72,12 @@ export const HeaderNav = () => (
       </Box>
     ))}
     <Suspense fallback={null}>
-      <ProfileMenu showLabel />
+      <ProfileMenu
+        showLabel
+        forceLabel={showLabels}
+        onNavigate={onNavigate}
+        layout={showLabels ? "inline" : "popover"}
+      />
     </Suspense>
   </Box>
 );

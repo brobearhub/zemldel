@@ -26,6 +26,7 @@ import { REQUEST_INTENT as SERVICE_REQUEST_INTENT } from "@/entities/request";
 import type { CitySuggestItemDto } from "@/entities/city";
 import { CityAutocomplete } from "@/shared/ui/CityAutocomplete";
 import { Markdown } from "@/shared/ui/Markdown";
+import { SITE_HEADER_HEIGHT_PX } from "@/shared/config/site-layout";
 import { RainGlassPaper } from "@/shared/ui/RainGlassPaper";
 import { LogoIcon } from "@/shared/ui/LogoIcon";
 
@@ -57,10 +58,15 @@ const signUpShellSx = {
   flex: 1,
   width: "100%",
   display: "flex",
-  alignItems: "center",
+  alignItems: { xs: "flex-start", md: "center" },
   justifyContent: "center",
   px: 2,
-  py: { xs: 6, sm: 8, md: 10 },
+  pt: {
+    xs: `${SITE_HEADER_HEIGHT_PX.xs + 16}px`,
+    sm: `${SITE_HEADER_HEIGHT_PX.sm + 24}px`,
+    md: 10,
+  },
+  pb: { xs: 4, sm: 6, md: 10 },
   backgroundImage: "url('/hero-bg-house_static.jpg')",
   backgroundSize: "cover",
   backgroundPosition: "center",
