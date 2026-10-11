@@ -36,7 +36,8 @@ export class LegalDocsService {
     const relative = join('legal', docId, 'latest', `${docId}.md`);
     const candidates = [
       join(process.cwd(), relative),
-      // fallback: dist рядом с cwd или от скомпилированного файла
+      // Onreza отдаёт только dist: copy-legal-docs.sh кладёт markdown в dist/legal.
+      // Файл сервиса — dist/src/legal-docs, на два уровня выше лежит dist/legal.
       join(process.cwd(), 'dist', relative),
       join(__dirname, '..', '..', relative),
     ];
