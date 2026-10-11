@@ -36,6 +36,12 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY prisma ./prisma
 COPY prisma.config.ts ./
+# Юридические тексты читаются с диска (cwd/legal/...), в dist их нет.
+COPY legal ./legal
+RUN test -f legal/terms/latest/terms.md \
+  && test -f legal/privacy/latest/privacy.md \
+  && test -f legal/consent/latest/consent.md \
+  && test -f legal/offer/latest/offer.md
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x docker-entrypoint.sh
 
