@@ -90,7 +90,13 @@ export const Footer = () => {
               alignItems: "start",
             }}
           >
-            <Box sx={{ display: "flex", alignItems: "flex-start" }}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: { xs: "center", sm: "flex-start" },
+                alignItems: "flex-start",
+              }}
+            >
               <Image
                 src={logoSrc}
                 alt=""

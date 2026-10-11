@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { SITE_CONTENT_GAP_PX, SITE_HEADER_SPACER_PX, SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
 import { HomeStoriesStrip } from "@/widgets/home-stories";
+import { HomeMobileHelpButton } from "@/widgets/public-service/ui/HomeMobileHelpButton";
 import { PublicUnlinkedRequestForm } from "@/widgets/public-service/ui/PublicUnlinkedRequestForm";
 import { HomeServicesByCity } from "@/widgets/services/ui/HomeServicesByCity";
 import { ServiceCategoriesBar } from "@/widgets/service-categories/ui/ServiceCategoriesBar";
@@ -130,7 +131,8 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) 
 
           <Box
             sx={{
-              order: { xs: 1, md: 1 },
+              display: { xs: "none", md: "block" },
+              order: { md: 1 },
               alignSelf: "start",
               position: { md: "sticky" },
               top: {
@@ -148,6 +150,7 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) 
           </Box>
         </Box>
       </Container>
+      <HomeMobileHelpButton isAuthenticated={isAuthenticated} categories={rootCategories} />
     </Box>
   );
 }
