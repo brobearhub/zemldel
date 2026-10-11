@@ -35,6 +35,16 @@ function getInitials(name: string | null | undefined): string {
 type ProfileMenuProps = {
   /** Подпись «Профиль» под иконкой — только для основного site-хедера. */
   readonly showLabel?: boolean;
+  /** В меню-гамбургере подпись видна и на узком экране. */
+  readonly forceLabel?: boolean;
+  readonly onNavigate?: () => void;
+  /**
+   * В выезжающем меню пункты раскрываются списком.
+   * На десктопе остаётся всплывающее окно.
+   */
+  readonly layout?: "popover" | "inline" | "sheet";
+  /** Кнопка-аватар в шапке: открывает меню, само окно не показывает. */
+  readonly onPress?: () => void;
 };
 
 function buildReturnTo(pathname: string, searchParams: { toString(): string }): string {
@@ -90,7 +100,36 @@ function SectionMenuItem({
   );
 }
 
-export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
+const drawerRowSx = {
+  display: "flex",
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 1.5,
+  width: "100%",
+  px: 1,
+  py: 0.75,
+  border: 0,
+  borderRadius: 1,
+  bgcolor: "transparent",
+  cursor: "pointer",
+  textAlign: "left",
+  textDecoration: "none",
+  color: "common.gray",
+  fontWeight: 600,
+  fontSize: 12,
+  "&:hover": {
+    color: "info.main",
+    "& .MuiSvgIcon-root": { color: "info.main" },
+  },
+} as const;
+
+export const ProfileMenu = ({
+  showLabel = false,
+  forceLabel = false,
+  onNavigate,
+  layout = "popover",
+  onPress,
+}: ProfileMenuProps) => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -102,12 +141,23 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
   const isPlatformAdmin = user?.systemRole === "PLATFORM_ADMIN";
   const activeSection = resolveProfileMenuSection(pathname);
   const initials = getInitials(user?.name) || user?.email?.charAt(0)?.toUpperCase() || "U";
+  const [inlineOpen, setInlineOpen] = useState(false);
+  const isInline = layout === "inline";
 
   const handleMouseEnter = (event: MouseEvent<HTMLElement>) => {
+    if (isInline || onPress) return;
     setAnchorEl(event.currentTarget);
   };
 
   const handleOpenOnClick = (event: MouseEvent<HTMLElement>) => {
+    if (onPress) {
+      onPress();
+      return;
+    }
+    if (isInline) {
+      setInlineOpen((value) => !value);
+      return;
+    }
     setAnchorEl(event.currentTarget);
   };
 
@@ -115,61 +165,106 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
     setAnchorEl(null);
   };
 
-  const handleCustomerProfile = () => {
+  const closeAndGo = (go: () => void) => {
     handleClose();
-    router.push("/profile");
+    onNavigate?.();
+    go();
+  };
+
+  const handleCustomerProfile = () => {
+    closeAndGo(() => router.push("/profile"));
   };
 
   const handleSignOut = async () => {
     handleClose();
+    onNavigate?.();
     await signOut({ redirect: true, callbackUrl: "/" });
   };
 
   const handleSignIn = () => {
-    handleClose();
     const returnTo = buildReturnTo(pathname, searchParams);
-    router.push(`/signin?returnTo=${encodeURIComponent(returnTo)}`);
+    closeAndGo(() => router.push(`/signin?returnTo=${encodeURIComponent(returnTo)}`));
   };
 
   const handleSignInPro = () => {
-    handleClose();
-    router.push(`/signin?returnTo=${encodeURIComponent("/pro")}`);
+    closeAndGo(() => router.push(`/signin?returnTo=${encodeURIComponent("/pro")}`));
   };
 
   const handleSignUp = () => {
-    handleClose();
-    router.push("/signup");
+    closeAndGo(() => router.push("/signup"));
   };
 
   const handleProDashboard = () => {
-    handleClose();
-    router.push("/pro");
+    closeAndGo(() => router.push("/pro"));
   };
 
   const handleAdmin = () => {
-    handleClose();
-    router.push("/admin");
+    closeAndGo(() => router.push("/admin"));
   };
+
+  const inlineActions = isAuthenticated ? (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, pl: 1 }}>
+      <Box component="button" type="button" onClick={handleCustomerProfile} sx={drawerRowSx}>
+        <PersonOutlineRoundedIcon sx={{ fontSize: 22 }} />
+        Мой профиль
+      </Box>
+      {hasProfessionalProfile ? (
+        <Box component="button" type="button" onClick={handleProDashboard} sx={drawerRowSx}>
+          <WorkOutlineOutlinedIcon sx={{ fontSize: 22 }} />
+          Кабинет профессионала
+        </Box>
+      ) : null}
+      {isPlatformAdmin ? (
+        <Box component="button" type="button" onClick={handleAdmin} sx={drawerRowSx}>
+          <AdminPanelSettingsOutlinedIcon sx={{ fontSize: 22 }} />
+          Админка
+        </Box>
+      ) : null}
+      <Box component="button" type="button" onClick={handleSignOut} sx={{ ...drawerRowSx, color: "error.main" }}>
+        <LogoutIcon sx={{ fontSize: 22 }} />
+        Выйти
+      </Box>
+    </Box>
+  ) : (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, pl: 1 }}>
+      <Box component="button" type="button" onClick={handleSignIn} sx={drawerRowSx}>
+        <LoginIcon sx={{ fontSize: 22 }} />
+        Войти
+      </Box>
+      <Box component="button" type="button" onClick={handleSignInPro} sx={drawerRowSx}>
+        <WorkOutlineOutlinedIcon sx={{ fontSize: 22 }} />
+        Войти исполнителю
+      </Box>
+      <Box component="button" type="button" onClick={handleSignUp} sx={drawerRowSx}>
+        <PersonAddIcon sx={{ fontSize: 22 }} />
+        Регистрация
+      </Box>
+    </Box>
+  );
+
+  if (layout === "sheet") {
+    return inlineActions;
+  }
 
   return (
     <Box
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleClose}
+      onMouseEnter={isInline || onPress ? undefined : handleMouseEnter}
+      onMouseLeave={isInline || onPress ? undefined : handleClose}
       sx={{ position: "relative" }}
     >
       <Box
         component="button"
-        id="profile-button"
+        id={onPress ? undefined : "profile-button"}
         onClick={handleOpenOnClick}
         aria-label="Профиль"
-        aria-controls={open ? "profile-menu" : undefined}
-        aria-haspopup="true"
-        aria-expanded={open ? "true" : undefined}
+        aria-controls={!isInline && open ? "profile-menu" : undefined}
+        aria-haspopup={isInline || onPress ? undefined : "true"}
+        aria-expanded={isInline ? inlineOpen : open ? "true" : undefined}
         sx={{
           display: "flex",
-          flexDirection: "column",
+          flexDirection: forceLabel ? "row" : "column",
           alignItems: "center",
-          gap: 0.25,
+          gap: forceLabel ? 1.5 : 0.25,
           px: { xs: 0.75, sm: 1 },
           py: 0.75,
           borderRadius: 1,
@@ -209,7 +304,7 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
             variant="body2"
             sx={{
               color: "common.gray",
-              display: { xs: "none", md: "block" },
+              display: forceLabel ? "block" : { xs: "none", md: "block" },
               fontWeight: 600,
               fontSize: 12,
               opacity: 1,
@@ -220,6 +315,9 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
         ) : null}
       </Box>
 
+      {isInline && inlineOpen ? inlineActions : null}
+
+      {!isInline && !onPress ? (
       <Menu
         id="profile-menu"
         anchorEl={anchorEl}
@@ -348,6 +446,7 @@ export const ProfileMenu = ({ showLabel = false }: ProfileMenuProps) => {
           </Box>
         )}
       </Menu>
+      ) : null}
     </Box>
   );
 };

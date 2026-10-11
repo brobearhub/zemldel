@@ -7,7 +7,12 @@ import { useAppSelector } from "@/core/store/hooks";
 import { getActiveMembership } from "@/core/auth/authorization";
 import { useCitySelect, useSelectedCity } from "@/features/select-city";
 
-export function HeaderCity() {
+type HeaderCityProps = {
+  /** В меню-гамбургере название города видно и на узком экране. */
+  readonly showLabel?: boolean;
+};
+
+export function HeaderCity({ showLabel = false }: HeaderCityProps) {
   const pathname = usePathname();
   const { status, user } = useAppSelector((s) => s.auth);
   const { openCitySelect } = useCitySelect();
@@ -51,11 +56,11 @@ export function HeaderCity() {
         variant="body2"
         sx={{
           color: "common.gray",
-          display: { xs: "none", md: "block" },
+          display: showLabel ? "block" : { xs: "none", md: "block" },
           fontWeight: 600,
           fontSize: 12,
           opacity: 1,
-          maxWidth: 140,
+          maxWidth: showLabel ? "none" : 140,
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap"
