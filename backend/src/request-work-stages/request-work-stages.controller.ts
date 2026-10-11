@@ -322,7 +322,9 @@ export class RequestWorkStagesController {
     });
   }
 
-  @Get('pro/requests/:requestId/work-stages/:stageId/doc-slots/:slotId/download')
+  @Get(
+    'pro/requests/:requestId/work-stages/:stageId/doc-slots/:slotId/download',
+  )
   @ApiParam({ name: 'requestId', type: String })
   @ApiParam({ name: 'stageId', type: String })
   @ApiParam({ name: 'slotId', type: String })
@@ -365,7 +367,9 @@ export class RequestWorkStagesController {
     return this.stages.listForCustomer({ actorUserId, requestId });
   }
 
-  @Post('requests/mine/:requestId/work-stages/:stageId/doc-slots/:slotId/upload')
+  @Post(
+    'requests/mine/:requestId/work-stages/:stageId/doc-slots/:slotId/upload',
+  )
   @ApiParam({ name: 'requestId', type: String })
   @ApiParam({ name: 'stageId', type: String })
   @ApiParam({ name: 'slotId', type: String })

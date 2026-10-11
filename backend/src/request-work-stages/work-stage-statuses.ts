@@ -5,7 +5,10 @@ export const SYSTEM_WORK_STAGE_STATUSES = [
   { key: 'SUBMITTED_TO_AUTHORITY', label: 'Подано в орган' },
   { key: 'AWAITING_RESPONSE', label: 'Ожидание ответа' },
   { key: 'REVISION', label: 'Доработка' },
-  { key: 'ACCEPTANCE_CERTIFICATE_PREP', label: 'Подготовка акта приёма-передачи' },
+  {
+    key: 'ACCEPTANCE_CERTIFICATE_PREP',
+    label: 'Подготовка акта приёма-передачи',
+  },
   { key: 'SERVICE_ACT_PREP', label: 'Подготовка акта об оказании услуг' },
   { key: 'COMPLETED', label: 'Завершено' },
   { key: 'SUSPENDED', label: 'Приостановлено' },

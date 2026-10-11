@@ -179,7 +179,11 @@ export class StoriesController {
   @Post('stories/:id/view')
   @ApiParam({ name: 'id', type: String })
   @ApiQuery({ name: 'scope', required: false, enum: ['user', 'provider'] })
-  recordView(@Req() request: Request, @Param('id') id: string, @Query('scope') scope?: string) {
+  recordView(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Query('scope') scope?: string,
+  ) {
     return this.stories.recordView({
       storyId: id,
       actorUserId: this.internalAuth.getOptionalUserIdFromRequest(request),
@@ -189,7 +193,11 @@ export class StoriesController {
 
   @Post('stories/:id/save')
   @ApiQuery({ name: 'scope', required: false, enum: ['user', 'provider'] })
-  save(@Req() request: Request, @Param('id') id: string, @Query('scope') scope?: string) {
+  save(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Query('scope') scope?: string,
+  ) {
     return this.stories.saveStory({
       storyId: id,
       actorUserId: this.internalAuth.getUserIdFromRequest(request),
@@ -199,7 +207,11 @@ export class StoriesController {
 
   @Delete('stories/:id/save')
   @ApiQuery({ name: 'scope', required: false, enum: ['user', 'provider'] })
-  unsave(@Req() request: Request, @Param('id') id: string, @Query('scope') scope?: string) {
+  unsave(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Query('scope') scope?: string,
+  ) {
     return this.stories.unsaveStory({
       storyId: id,
       actorUserId: this.internalAuth.getUserIdFromRequest(request),
@@ -254,7 +266,11 @@ export class StoriesController {
   @Get('stories/:id/comments')
   @ApiQuery({ name: 'scope', required: false, enum: ['user', 'provider'] })
   @ApiOkResponse({ type: StoryCommentListDto })
-  listComments(@Req() request: Request, @Param('id') id: string, @Query('scope') scope?: string) {
+  listComments(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Query('scope') scope?: string,
+  ) {
     return this.stories.listComments({
       storyId: id,
       actorUserId: this.internalAuth.getOptionalUserIdFromRequest(request),
@@ -349,7 +365,11 @@ export class StoriesController {
 
   @Post('stories/:id/profile-open')
   @ApiQuery({ name: 'scope', required: false, enum: ['user', 'provider'] })
-  profileOpen(@Req() request: Request, @Param('id') id: string, @Query('scope') scope?: string) {
+  profileOpen(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Query('scope') scope?: string,
+  ) {
     return this.stories.recordProfileOpen({
       storyId: id,
       actorUserId: this.internalAuth.getOptionalUserIdFromRequest(request),
@@ -360,7 +380,12 @@ export class StoriesController {
   @Post('stories/follow')
   follow(
     @Req() request: Request,
-    @Body() body: { targetUserId?: string | null; targetProviderId?: string | null; scope?: string },
+    @Body()
+    body: {
+      targetUserId?: string | null;
+      targetProviderId?: string | null;
+      scope?: string;
+    },
   ) {
     return this.stories.followAuthor({
       actorUserId: this.internalAuth.getUserIdFromRequest(request),
@@ -373,7 +398,12 @@ export class StoriesController {
   @Post('stories/unfollow')
   unfollow(
     @Req() request: Request,
-    @Body() body: { targetUserId?: string | null; targetProviderId?: string | null; scope?: string },
+    @Body()
+    body: {
+      targetUserId?: string | null;
+      targetProviderId?: string | null;
+      scope?: string;
+    },
   ) {
     return this.stories.unfollowAuthor({
       actorUserId: this.internalAuth.getUserIdFromRequest(request),
@@ -385,7 +415,11 @@ export class StoriesController {
 
   @Get('stories/:id/insights')
   @ApiQuery({ name: 'timeZone', required: false, type: String })
-  insights(@Req() request: Request, @Param('id') id: string, @Query('timeZone') timeZone?: string) {
+  insights(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Query('timeZone') timeZone?: string,
+  ) {
     return this.stories.insights({
       storyId: id,
       actorUserId: this.internalAuth.getUserIdFromRequest(request),
@@ -395,7 +429,9 @@ export class StoriesController {
 
   @Delete('stories/:id')
   @ApiParam({ name: 'id', type: String })
-  @ApiOkResponse({ schema: { type: 'object', properties: { ok: { type: 'boolean' } } } })
+  @ApiOkResponse({
+    schema: { type: 'object', properties: { ok: { type: 'boolean' } } },
+  })
   remove(@Req() request: Request, @Param('id') id: string) {
     if (!id.trim()) {
       throw new UnprocessableEntityException({ error: 'id is required' });

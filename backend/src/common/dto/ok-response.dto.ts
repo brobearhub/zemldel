@@ -4,4 +4,3 @@ export class OkResponseDto {
   @ApiProperty({ example: true })
   ok!: boolean;
 }
-

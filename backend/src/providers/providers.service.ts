@@ -109,7 +109,12 @@ function sniffImageExt(buf: Buffer, mimeType: string) {
     return null;
   }
   if (mimeType === 'image/jpeg') {
-    if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    if (
+      buf.length >= 3 &&
+      buf[0] === 0xff &&
+      buf[1] === 0xd8 &&
+      buf[2] === 0xff
+    ) {
       return '.jpg';
     }
     return null;
@@ -248,7 +253,10 @@ export class ProvidersService {
     return { available: !existing };
   }
 
-  async getPublicProviderProfile(providerId: string, actorUserId?: string | null) {
+  async getPublicProviderProfile(
+    providerId: string,
+    actorUserId?: string | null,
+  ) {
     const id = providerId?.trim();
     if (!id) {
       throw new BadRequestException('providerId is required');
@@ -266,9 +274,12 @@ export class ProvidersService {
     const revealOwnerEmail = actorUserId
       ? await this.hasActiveMembership(actorUserId, id)
       : false;
-    return this.toPublicProviderProfile(provider as unknown as PublicProviderRow, {
-      revealOwnerEmail,
-    });
+    return this.toPublicProviderProfile(
+      provider as unknown as PublicProviderRow,
+      {
+        revealOwnerEmail,
+      },
+    );
   }
 
   async getPublicProviderProfileBySlug(slug: string) {
@@ -279,7 +290,9 @@ export class ProvidersService {
       select: publicProviderSelect,
     });
     if (!provider) throw new NotFoundException('Provider not found');
-    return this.toPublicProviderProfile(provider as unknown as PublicProviderRow);
+    return this.toPublicProviderProfile(
+      provider as unknown as PublicProviderRow,
+    );
   }
 
   async updatePublicProviderProfile(
@@ -358,9 +371,12 @@ export class ProvidersService {
       select: publicProviderSelect,
     });
 
-    return this.toPublicProviderProfile(updated as unknown as PublicProviderRow, {
-      revealOwnerEmail: true,
-    });
+    return this.toPublicProviderProfile(
+      updated as unknown as PublicProviderRow,
+      {
+        revealOwnerEmail: true,
+      },
+    );
   }
 
   private toPublicProviderProfile(
@@ -387,13 +403,17 @@ export class ProvidersService {
 
     // Why: Public profile must not leak private/membership/legal data.
     // Until provider-controlled fields exist, we return safe defaults matching current landing design.
-    const subtitle =
-      provider.subtitle?.trim() ? provider.subtitle.trim() : 'Эксперт по услуге';
+    const subtitle = provider.subtitle?.trim()
+      ? provider.subtitle.trim()
+      : 'Эксперт по услуге';
     const about = provider.about?.trim()
       ? provider.about.trim()
       : 'Разберёмся в вашей ситуации, объясним варианты и предложим понятный путь к результату.';
     const stats = isPublicStats(provider.stats)
-      ? provider.stats.map((s) => ({ value: s.value.trim(), label: s.label.trim() }))
+      ? provider.stats.map((s) => ({
+          value: s.value.trim(),
+          label: s.label.trim(),
+        }))
       : DEFAULT_PROVIDER_STATS;
 
     return {
@@ -495,12 +515,18 @@ export class ProvidersService {
         .catch(() => null);
     }
 
-    return this.toPublicProviderProfile(updated as unknown as PublicProviderRow, {
-      revealOwnerEmail: true,
-    });
+    return this.toPublicProviderProfile(
+      updated as unknown as PublicProviderRow,
+      {
+        revealOwnerEmail: true,
+      },
+    );
   }
 
-  async deleteProviderImage(input: { actorUserId: string; providerId: string }) {
+  async deleteProviderImage(input: {
+    actorUserId: string;
+    providerId: string;
+  }) {
     const providerId = input.providerId?.trim();
     if (!providerId) {
       throw new BadRequestException('providerId is required');
@@ -531,15 +557,21 @@ export class ProvidersService {
           })
         : null;
 
-    if (prevKey && prevKey.startsWith(`${this.s3.publicPrefix}providers/${providerId}/`)) {
+    if (
+      prevKey &&
+      prevKey.startsWith(`${this.s3.publicPrefix}providers/${providerId}/`)
+    ) {
       await this.s3.client
         .send(new DeleteObjectCommand({ Bucket: bucket, Key: prevKey }))
         .catch(() => null);
     }
 
-    return this.toPublicProviderProfile(updated as unknown as PublicProviderRow, {
-      revealOwnerEmail: true,
-    });
+    return this.toPublicProviderProfile(
+      updated as unknown as PublicProviderRow,
+      {
+        revealOwnerEmail: true,
+      },
+    );
   }
 
   async updateProviderSlug(userId: string, providerId: string, slug: string) {

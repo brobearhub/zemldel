@@ -176,4 +176,3 @@ export class PublicProviderProfileDto {
   @ApiProperty({ type: [PublicProviderStatDto] })
   stats!: PublicProviderStatDto[];
 }
-

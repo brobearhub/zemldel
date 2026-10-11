@@ -20,7 +20,10 @@ export class UpdateReminderDto {
   @MaxLength(500)
   text?: string;
 
-  @ApiPropertyOptional({ format: 'date-time', example: '2026-06-14T12:00:00.000Z' })
+  @ApiPropertyOptional({
+    format: 'date-time',
+    example: '2026-06-14T12:00:00.000Z',
+  })
   @IsOptional()
   @IsDateString()
   remindAt?: string;

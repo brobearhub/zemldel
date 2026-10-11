@@ -58,7 +58,9 @@ describe('normalizeStoryText', () => {
   });
 
   it('отклоняет текст длиннее лимита', () => {
-    expect(normalizeStoryText('а'.repeat(STORY_TEXT_MAX_LENGTH + 1))).toBeNull();
+    expect(
+      normalizeStoryText('а'.repeat(STORY_TEXT_MAX_LENGTH + 1)),
+    ).toBeNull();
   });
 
   it('считает CRLF из multipart одним символом', () => {
@@ -102,15 +104,33 @@ describe('story feed visibility', () => {
   const now = new Date('2026-10-07T12:00:00.000Z');
 
   it('считает сторис в показе, пока срок не вышел и её не сняли', () => {
-    expect(isStoryInFeed({ expiresAt: new Date('2026-10-08T12:00:00.000Z'), withdrawnAt: null }, now)).toBe(true);
-    expect(storyFeedReason({ expiresAt: new Date('2026-10-08T12:00:00.000Z'), withdrawnAt: null }, now)).toBe('visible');
+    expect(
+      isStoryInFeed(
+        { expiresAt: new Date('2026-10-08T12:00:00.000Z'), withdrawnAt: null },
+        now,
+      ),
+    ).toBe(true);
+    expect(
+      storyFeedReason(
+        { expiresAt: new Date('2026-10-08T12:00:00.000Z'), withdrawnAt: null },
+        now,
+      ),
+    ).toBe('visible');
   });
 
   it('отличает срок от снятия автором', () => {
-    expect(storyFeedReason({ expiresAt: new Date('2026-10-01T12:00:00.000Z'), withdrawnAt: null }, now)).toBe('expired');
     expect(
       storyFeedReason(
-        { expiresAt: new Date('2026-10-08T12:00:00.000Z'), withdrawnAt: new Date('2026-10-07T10:00:00.000Z') },
+        { expiresAt: new Date('2026-10-01T12:00:00.000Z'), withdrawnAt: null },
+        now,
+      ),
+    ).toBe('expired');
+    expect(
+      storyFeedReason(
+        {
+          expiresAt: new Date('2026-10-08T12:00:00.000Z'),
+          withdrawnAt: new Date('2026-10-07T10:00:00.000Z'),
+        },
         now,
       ),
     ).toBe('withdrawn');
@@ -134,30 +154,46 @@ describe('orderStoryFeed', () => {
     const ordered = orderStoryFeed(
       [
         item('city-new', '2026-10-07T10:00:00.000Z', { cityId: 'city' }),
-        item('follow-seen', '2026-10-07T11:00:00.000Z', { followed: true, viewed: true }),
+        item('follow-seen', '2026-10-07T11:00:00.000Z', {
+          followed: true,
+          viewed: true,
+        }),
         item('follow-unseen', '2026-10-07T09:00:00.000Z', { followed: true }),
       ],
       'city',
     );
-    expect(ordered.map((entry) => entry.id)).toEqual(['follow-unseen', 'follow-seen', 'city-new']);
+    expect(ordered.map((entry) => entry.id)).toEqual([
+      'follow-unseen',
+      'follow-seen',
+      'city-new',
+    ]);
   });
 
   it('внутри остальных сначала непросмотренные, и уже среди них город', () => {
     const ordered = orderStoryFeed(
       [
         item('other-unseen', '2026-10-07T12:00:00.000Z', {}),
-        item('city-seen', '2026-10-07T11:00:00.000Z', { cityId: 'city', viewed: true }),
+        item('city-seen', '2026-10-07T11:00:00.000Z', {
+          cityId: 'city',
+          viewed: true,
+        }),
         item('city-unseen', '2026-10-07T08:00:00.000Z', { cityId: 'city' }),
       ],
       'city',
     );
-    expect(ordered.map((entry) => entry.id)).toEqual(['city-unseen', 'other-unseen', 'city-seen']);
+    expect(ordered.map((entry) => entry.id)).toEqual([
+      'city-unseen',
+      'other-unseen',
+      'city-seen',
+    ]);
   });
 });
 
 describe('buildHourlyViewChart', () => {
   it('принимает IANA-пояс и падает на Москву, если пояс пустой', () => {
-    expect(resolveInsightsTimeZone('Asia/Yekaterinburg')).toBe('Asia/Yekaterinburg');
+    expect(resolveInsightsTimeZone('Asia/Yekaterinburg')).toBe(
+      'Asia/Yekaterinburg',
+    );
     expect(resolveInsightsTimeZone('Not/AZone')).toBe('Europe/Moscow');
   });
 

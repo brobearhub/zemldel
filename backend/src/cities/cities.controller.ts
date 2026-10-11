@@ -1,9 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import {
-  ApiOkResponse,
-  ApiQuery,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOkResponse, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { CitiesService } from './cities.service';
 import { CitySuggestItemDto } from './dto/city.dto';
 import { ApiStandardErrors } from '../common/swagger/api-standard-errors.decorator';

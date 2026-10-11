@@ -29,7 +29,14 @@ function makeRequestRow(overrides: Record<string, unknown> = {}) {
     acceptedAt: null,
     createdAt: now,
     updatedAt: now,
-    providerOffers: [{ providerId: 'p1', status: 'SELECTED', selectedAt: now, declinedAt: null }],
+    providerOffers: [
+      {
+        providerId: 'p1',
+        status: 'SELECTED',
+        selectedAt: now,
+        declinedAt: null,
+      },
+    ],
     service: null,
     category: { name: 'Cat' },
     provider: null,
@@ -72,7 +79,10 @@ describe('RequestsService.declineOfferByProvider', () => {
   it('пустой reason → BadRequestException', async () => {
     const { svc } = makeService({});
     await expect(
-      svc.declineOfferByProvider('p1', 'r1', { reason: '   ', actorUserId: 'u1' }),
+      svc.declineOfferByProvider('p1', 'r1', {
+        reason: '   ',
+        actorUserId: 'u1',
+      }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
@@ -84,7 +94,10 @@ describe('RequestsService.declineOfferByProvider', () => {
 
     const tx = {
       request: {
-        findUnique: vi.fn().mockResolvedValueOnce(row).mockResolvedValueOnce(row),
+        findUnique: vi
+          .fn()
+          .mockResolvedValueOnce(row)
+          .mockResolvedValueOnce(row),
       },
       requestProviderOffer: {
         findUnique: vi.fn().mockResolvedValue({ id: 'o1', status: 'SELECTED' }),
@@ -99,8 +112,11 @@ describe('RequestsService.declineOfferByProvider', () => {
     };
 
     const prisma = {
-      $transaction: async (fn: (t: typeof tx) => Promise<unknown>) => await fn(tx),
-      conversation: { findMany: vi.fn().mockResolvedValue([{ requestId: 'r1' }]) },
+      $transaction: async (fn: (t: typeof tx) => Promise<unknown>) =>
+        await fn(tx),
+      conversation: {
+        findMany: vi.fn().mockResolvedValue([{ requestId: 'r1' }]),
+      },
     };
 
     const { svc, chat } = makeService(prisma);
@@ -135,7 +151,10 @@ describe('RequestsService.declineOfferByProvider', () => {
 
     const tx = {
       request: {
-        findUnique: vi.fn().mockResolvedValueOnce(row).mockResolvedValueOnce(row),
+        findUnique: vi
+          .fn()
+          .mockResolvedValueOnce(row)
+          .mockResolvedValueOnce(row),
       },
       requestProviderOffer: {
         findUnique: vi.fn().mockResolvedValue({ id: 'o1', status: 'SELECTED' }),
@@ -150,7 +169,8 @@ describe('RequestsService.declineOfferByProvider', () => {
     };
 
     const prisma = {
-      $transaction: async (fn: (t: typeof tx) => Promise<unknown>) => await fn(tx),
+      $transaction: async (fn: (t: typeof tx) => Promise<unknown>) =>
+        await fn(tx),
       conversation: { findMany: vi.fn().mockResolvedValue([]) },
     };
 

@@ -15,7 +15,10 @@ export type AppLinkProps = Omit<BoxProps, "component" | "href"> &
  * Ссылку рендерим этим компонентом: `<Link href>`.
  */
 const Link = forwardRef<HTMLAnchorElement, AppLinkProps>(function Link({ href, ...props }, ref) {
-  return <Box ref={ref} component={NextLink} href={href} {...props} />;
+  // Why: перегрузка Box `component={NextLink}` не сходится с пропсами div (события вроде onCopy).
+  // На рантайме это тот же NextLink, утверждение только для типа.
+  const boxProps = { ...props, ref, component: NextLink, href } as BoxProps;
+  return <Box {...boxProps} />;
 });
 
 export default Link;

@@ -15,7 +15,7 @@ export const TERMINAL_REQUEST_STATUSES = [
   'CLOSED',
 ] as const satisfies readonly RequestStatus[];
 
-export function isTerminalRequestStatus(status: RequestStatus | string): boolean {
+export function isTerminalRequestStatus(status: string): boolean {
   return (TERMINAL_REQUEST_STATUSES as readonly string[]).includes(status);
 }
 
@@ -77,7 +77,10 @@ function parseCadastralValueDto<T extends object>(
   input: unknown,
 ): { data: T | null; issues: ReturnType<typeof toIssues> | null } {
   const dto = plainToInstance(cls, input ?? {});
-  const errors = validateSync(dto, { whitelist: true, forbidNonWhitelisted: true });
+  const errors = validateSync(dto, {
+    whitelist: true,
+    forbidNonWhitelisted: true,
+  });
   if (errors.length > 0) return { data: null, issues: toIssues(errors) };
   return { data: dto, issues: null };
 }

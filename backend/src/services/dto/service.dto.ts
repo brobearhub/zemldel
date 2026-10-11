@@ -1,5 +1,4 @@
 import {
-  IsBoolean,
   IsEnum,
   IsInt,
   IsNumber,
@@ -169,7 +168,9 @@ export class ServiceDto {
 
   @ApiProperty({ nullable: true, example: null })
   @Expose()
-  @Transform(({ value }) => normalizeIsoDateOrNull(value), { toClassOnly: true })
+  @Transform(({ value }) => normalizeIsoDateOrNull(value), {
+    toClassOnly: true,
+  })
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   publishedAt!: string | null;

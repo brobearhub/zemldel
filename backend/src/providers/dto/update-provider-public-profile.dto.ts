@@ -27,29 +27,41 @@ function trimOrSame(value: unknown): unknown {
 }
 
 export class UpdateProviderPublicStatDto {
-  @Transform(({ value }: { value: unknown }) => trimOrSame(value), { toClassOnly: true })
+  @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
+    toClassOnly: true,
+  })
   @IsString()
   @MinLength(1)
   value!: string;
 
-  @Transform(({ value }: { value: unknown }) => trimOrSame(value), { toClassOnly: true })
+  @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
+    toClassOnly: true,
+  })
   @IsString()
   @MinLength(1)
   label!: string;
 }
 
 export class UpdateProviderPublicProfileDto {
-  @ApiPropertyOptional({ minLength: 2, nullable: true, example: "Земледел" })
+  @ApiPropertyOptional({ minLength: 2, nullable: true, example: 'Земледел' })
   @IsOptional()
-  @Transform(({ value }: { value: unknown }) => trimOrNull(value), { toClassOnly: true })
+  @Transform(({ value }: { value: unknown }) => trimOrNull(value), {
+    toClassOnly: true,
+  })
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   @MinLength(2)
   name?: string | null;
 
-  @ApiPropertyOptional({ minLength: 1, nullable: true, example: 'Эксперт по услуге' })
+  @ApiPropertyOptional({
+    minLength: 1,
+    nullable: true,
+    example: 'Эксперт по услуге',
+  })
   @IsOptional()
-  @Transform(({ value }: { value: unknown }) => trimOrNull(value), { toClassOnly: true })
+  @Transform(({ value }: { value: unknown }) => trimOrNull(value), {
+    toClassOnly: true,
+  })
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   @MinLength(1)
@@ -57,7 +69,9 @@ export class UpdateProviderPublicProfileDto {
 
   @ApiPropertyOptional({ minLength: 1, nullable: true, example: null })
   @IsOptional()
-  @Transform(({ value }: { value: unknown }) => trimOrNull(value), { toClassOnly: true })
+  @Transform(({ value }: { value: unknown }) => trimOrNull(value), {
+    toClassOnly: true,
+  })
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   @MinLength(1)
@@ -65,7 +79,9 @@ export class UpdateProviderPublicProfileDto {
 
   @ApiPropertyOptional({ nullable: true, example: '+7 900 000-00-00' })
   @IsOptional()
-  @Transform(({ value }: { value: unknown }) => trimOrNull(value), { toClassOnly: true })
+  @Transform(({ value }: { value: unknown }) => trimOrNull(value), {
+    toClassOnly: true,
+  })
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
   @MaxLength(32)
@@ -73,7 +89,9 @@ export class UpdateProviderPublicProfileDto {
 
   @ApiPropertyOptional({ nullable: true, example: 'owner@example.com' })
   @IsOptional()
-  @Transform(({ value }: { value: unknown }) => trimOrNull(value), { toClassOnly: true })
+  @Transform(({ value }: { value: unknown }) => trimOrNull(value), {
+    toClassOnly: true,
+  })
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsEmail()
   @MaxLength(254)
@@ -94,4 +112,3 @@ export class UpdateProviderPublicProfileDto {
   @Type(() => UpdateProviderPublicStatDto)
   stats?: UpdateProviderPublicStatDto[];
 }
-

@@ -228,7 +228,10 @@ describe('RequestWorkStagesService', () => {
           .mockResolvedValueOnce({
             id: 's2',
             files: [{ storageRelPath: 'private/a.bin' }],
-            docSlots: [{ storageRelPath: 'private/b.bin' }, { storageRelPath: null }],
+            docSlots: [
+              { storageRelPath: 'private/b.bin' },
+              { storageRelPath: null },
+            ],
           })
           .mockResolvedValueOnce({ id: 's2' }),
         delete: vi.fn().mockResolvedValue({ id: 's2' }),

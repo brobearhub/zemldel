@@ -59,7 +59,7 @@ export const ORDER_EXECUTION_STATUSES = [
 ] as const satisfies readonly RequestStatus[];
 
 export function isOrderExecutionStatus(
-  value: RequestStatus | string,
+  value: string,
 ): value is (typeof ORDER_EXECUTION_STATUSES)[number] {
   return (ORDER_EXECUTION_STATUSES as readonly string[]).includes(value);
 }
@@ -508,7 +508,7 @@ export class RequestCustomerDto {
 
   @ApiProperty({ nullable: true, type: Object, example: null })
   @Expose()
-  dealTerms!: unknown | null;
+  dealTerms!: unknown;
 
   @ApiProperty({ nullable: true, example: null })
   @Expose()
@@ -725,7 +725,11 @@ export class RequestProDto {
   @IsUUID()
   providerId!: string | null;
 
-  @ApiProperty({ enum: ['SELECTED', 'DECLINED'], nullable: true, example: null })
+  @ApiProperty({
+    enum: ['SELECTED', 'DECLINED'],
+    nullable: true,
+    example: null,
+  })
   @Expose()
   @IsOptional()
   @IsEnum(['SELECTED', 'DECLINED'])
@@ -782,7 +786,7 @@ export class RequestProDto {
 
   @ApiProperty({ nullable: true, type: Object, example: null })
   @Expose()
-  dealTerms!: unknown | null;
+  dealTerms!: unknown;
 
   @ApiProperty({ nullable: true, example: null })
   @Expose()
@@ -984,7 +988,7 @@ export type RequestDbRow = {
   location: string | null;
   cadastralNumbers?: string[];
   lockedAt: Date | null;
-  dealTerms?: unknown | null;
+  dealTerms?: unknown;
   offerVersion?: string | null;
   termsVersion?: string | null;
   contractAcceptedAt?: Date | null;
@@ -1028,9 +1032,7 @@ export type RequestDbRow = {
   }>;
 };
 
-function toRequestCityDto(
-  row: RequestDbRow,
-): RequestCityDto | null {
+function toRequestCityDto(row: RequestDbRow): RequestCityDto | null {
   if (!row.requestCity) return null;
   return {
     id: row.requestCity.id,
@@ -1054,11 +1056,17 @@ function toFinanceDto(row: RequestDbRow, reveal: boolean) {
     };
   }
   const payments = row.payments ?? [];
-  const paidAmountRubles = sumPaidRublesByType(payments as unknown as PaymentAmountWithTypeAndPaidAt[], 'CONTRACT');
+  const paidAmountRubles = sumPaidRublesByType(
+    payments as unknown as PaymentAmountWithTypeAndPaidAt[],
+    'CONTRACT',
+  );
   return {
     totalAmountRubles: row.totalAmountRubles ?? null,
     paidAmountRubles,
-    remainingAmountRubles: remainingRubles(row.totalAmountRubles ?? null, paidAmountRubles),
+    remainingAmountRubles: remainingRubles(
+      row.totalAmountRubles ?? null,
+      paidAmountRubles,
+    ),
     payments: payments.map((payment) => ({
       id: payment.id,
       type: payment.type,
@@ -1154,7 +1162,10 @@ export function requestRowToCustomerDtoPlain(
     { excludeExtraneousValues: true, enableImplicitConversion: false },
   );
   const plain = instanceToPlain(inst) as RequestCustomerDto;
-  plain.canDeleteByCustomer = canCustomerDeleteRequest(row, hasProviderResponse);
+  plain.canDeleteByCustomer = canCustomerDeleteRequest(
+    row,
+    hasProviderResponse,
+  );
   return plain;
 }
 
@@ -1221,7 +1232,9 @@ export function requestRowToProDtoPlain(
       fiasInactiveWarning: resolveFiasInactiveWarning(row),
       message: canRevealBasicDetails ? row.message : null,
       location: canRevealBasicDetails ? row.location : null,
-      cadastralNumbers: canRevealBasicDetails ? row.cadastralNumbers ?? [] : [],
+      cadastralNumbers: canRevealBasicDetails
+        ? (row.cadastralNumbers ?? [])
+        : [],
       lockedAt: row.lockedAt ? row.lockedAt.toISOString() : null,
       dealTerms: locked ? null : (row.dealTerms ?? null),
       offerVersion: row.offerVersion ?? null,
@@ -1245,9 +1258,7 @@ export function requestRowToProDtoPlain(
       customerPhone: revealCustomerContacts
         ? nonemptyOrNull(row.customerPhone)
         : null,
-      customerImage: locked
-        ? null
-        : nonemptyOrNull(row.customerUser?.image),
+      customerImage: locked ? null : nonemptyOrNull(row.customerUser?.image),
       customerRating: row.customerUser?.customerRating ?? null,
       customerReviewCount: row.customerUser?.customerReviewCount ?? 0,
       conversationsCount,

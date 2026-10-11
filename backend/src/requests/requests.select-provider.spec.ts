@@ -38,7 +38,10 @@ function makeRequestRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function makeService(prisma: unknown, chat = { notifyMessageCreated: vi.fn() }) {
+function makeService(
+  prisma: unknown,
+  chat = { notifyMessageCreated: vi.fn() },
+) {
   return {
     svc: new RequestsService(
       prisma as never,
@@ -101,12 +104,15 @@ describe('RequestsService.selectProviderByCustomer', () => {
     };
 
     const prisma = {
-      $transaction: async (fn: (t: typeof tx) => Promise<unknown>) => await fn(tx),
+      $transaction: async (fn: (t: typeof tx) => Promise<unknown>) =>
+        await fn(tx),
     };
 
     const { svc, chat } = makeService(prisma);
 
-    const dto = await svc.selectProviderByCustomer('cu1', 'r1', { providerId: 'p1' });
+    const dto = await svc.selectProviderByCustomer('cu1', 'r1', {
+      providerId: 'p1',
+    });
 
     expect(offerUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -142,7 +148,8 @@ describe('RequestsService.selectProviderByCustomer', () => {
       },
     };
     const prisma = {
-      $transaction: async (fn: (t: typeof tx) => Promise<unknown>) => await fn(tx),
+      $transaction: async (fn: (t: typeof tx) => Promise<unknown>) =>
+        await fn(tx),
     };
     const { svc } = makeService(prisma);
 
