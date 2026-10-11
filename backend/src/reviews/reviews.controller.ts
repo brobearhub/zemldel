@@ -3,7 +3,12 @@ import { ApiOkResponse, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import { ApiStandardErrors } from '../common/swagger/api-standard-errors.decorator';
-import { CreateReviewDto, ReplyReviewDto, ReviewDto, ReviewListDto } from './dto/review.dto';
+import {
+  CreateReviewDto,
+  ReplyReviewDto,
+  ReviewDto,
+  ReviewListDto,
+} from './dto/review.dto';
 import { ReviewsService } from './reviews.service';
 
 @ApiStandardErrors()
@@ -50,7 +55,10 @@ export class ReviewsController {
   @Get('requests/:requestId/reviews')
   @ApiParam({ name: 'requestId', type: String })
   @ApiOkResponse({ type: [ReviewDto] })
-  listForRequest(@Req() request: Request, @Param('requestId') requestId: string) {
+  listForRequest(
+    @Req() request: Request,
+    @Param('requestId') requestId: string,
+  ) {
     return this.reviews.listForRequest({
       actorUserId: this.internalAuth.getUserIdFromRequest(request),
       requestId,

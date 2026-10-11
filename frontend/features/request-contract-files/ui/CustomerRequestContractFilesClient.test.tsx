@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -28,9 +28,9 @@ function bundle(name: string): CustomerContractBundleListItem {
 
 function ParentThatReplacesBundles() {
   const [bundles, setBundles] = useState<CustomerContractBundleListItem[]>([]);
-  const renders = useState({ n: 0 })[0];
-  renders.n += 1;
-  if (renders.n > 20) {
+  const renders = useRef(0);
+  renders.current += 1;
+  if (renders.current > 20) {
     throw new Error("Maximum update depth exceeded");
   }
 

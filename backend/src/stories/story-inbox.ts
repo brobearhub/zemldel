@@ -1,4 +1,5 @@
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type InboxScope = 'user' | 'provider';
 
@@ -84,7 +85,10 @@ type Counterpart = InboxParty & {
   cityName: string | null;
 };
 
-export function storyInboxKey(scope: InboxScope, providerId: string | null): string {
+export function storyInboxKey(
+  scope: InboxScope,
+  providerId: string | null,
+): string {
   return scope === 'provider' && providerId ? `provider:${providerId}` : 'user';
 }
 
@@ -93,7 +97,8 @@ export function parseConversationId(value: string): InboxParty | null {
   if (separator <= 0) return null;
   const kind = value.slice(0, separator);
   const id = value.slice(separator + 1);
-  if ((kind !== 'user' && kind !== 'provider') || !UUID_PATTERN.test(id)) return null;
+  if ((kind !== 'user' && kind !== 'provider') || !UUID_PATTERN.test(id))
+    return null;
   return { kind, id };
 }
 
@@ -112,7 +117,14 @@ export function buildInbox(input: {
   replies: readonly InboxReplyRow[];
   readAtByCounterpart: ReadonlyMap<string, Date>;
 }): InboxBuiltConversation[] {
-  const grouped = new Map<string, { counterpart: Counterpart; events: InboxEvent[]; replyActivity: Map<string, number> }>();
+  const grouped = new Map<
+    string,
+    {
+      counterpart: Counterpart;
+      events: InboxEvent[];
+      replyActivity: Map<string, number>;
+    }
+  >();
 
   for (const reply of input.replies) {
     const counterpart = counterpartOf(reply, input);
@@ -124,11 +136,17 @@ export function buildInbox(input: {
       replyActivity: new Map<string, number>(),
     };
     if (!bucket.counterpart.imageUrl && counterpart.imageUrl) {
-      bucket.counterpart = { ...bucket.counterpart, imageUrl: counterpart.imageUrl };
+      bucket.counterpart = {
+        ...bucket.counterpart,
+        imageUrl: counterpart.imageUrl,
+      };
     }
     const events = eventsOf(reply, input);
     bucket.events.push(...events);
-    const activity = events.reduce((max, event) => Math.max(max, event.createdAt.getTime()), 0);
+    const activity = events.reduce(
+      (max, event) => Math.max(max, event.createdAt.getTime()),
+      0,
+    );
     const previous = bucket.replyActivity.get(reply.id) ?? 0;
     if (activity >= previous) bucket.replyActivity.set(reply.id, activity);
     grouped.set(key, bucket);
@@ -164,7 +182,10 @@ export function buildInbox(input: {
       storyTitles,
       preview: formatInboxPreview(last.text, last.mine),
       lastMessageAt: last.createdAt.toISOString(),
-      unreadCount: events.filter((event) => !event.mine && (readAt == null || event.createdAt.getTime() > readAt)).length,
+      unreadCount: events.filter(
+        (event) =>
+          !event.mine && (readAt == null || event.createdAt.getTime() > readAt),
+      ).length,
       messages: events.map((event) => ({
         id: event.id,
         text: event.text,
@@ -178,11 +199,17 @@ export function buildInbox(input: {
     });
   }
 
-  return conversations.sort((left, right) => right.lastMessageAt.localeCompare(left.lastMessageAt));
+  return conversations.sort((left, right) =>
+    right.lastMessageAt.localeCompare(left.lastMessageAt),
+  );
 }
 
 function replierParty(reply: InboxReplyRow): Counterpart {
-  if (reply.authorType === 'PROVIDER' && reply.authorProviderId && reply.authorProviderName) {
+  if (
+    reply.authorType === 'PROVIDER' &&
+    reply.authorProviderId &&
+    reply.authorProviderName
+  ) {
     return {
       kind: 'provider',
       id: reply.authorProviderId,
@@ -201,7 +228,11 @@ function replierParty(reply: InboxReplyRow): Counterpart {
 }
 
 function storyAuthorParty(reply: InboxReplyRow): Counterpart | null {
-  if (reply.story.authorType === 'PROVIDER' && reply.story.providerId && reply.story.providerName) {
+  if (
+    reply.story.authorType === 'PROVIDER' &&
+    reply.story.providerId &&
+    reply.story.providerName
+  ) {
     return {
       kind: 'provider',
       id: reply.story.providerId,
@@ -227,9 +258,14 @@ function replyIsMine(
   input: { scope: InboxScope; actorUserId: string; providerId: string | null },
 ) {
   if (input.scope === 'provider') {
-    return reply.authorType === 'PROVIDER' && reply.authorProviderId === input.providerId;
+    return (
+      reply.authorType === 'PROVIDER' &&
+      reply.authorProviderId === input.providerId
+    );
   }
-  return reply.authorType === 'USER' && reply.authorUserId === input.actorUserId;
+  return (
+    reply.authorType === 'USER' && reply.authorUserId === input.actorUserId
+  );
 }
 
 function counterpartOf(
@@ -238,13 +274,17 @@ function counterpartOf(
 ): Counterpart | null {
   const mine = replyIsMine(reply, input);
   if (input.scope === 'provider') {
-    const onOurStory = reply.story.authorType === 'PROVIDER' && reply.story.providerId === input.providerId;
+    const onOurStory =
+      reply.story.authorType === 'PROVIDER' &&
+      reply.story.providerId === input.providerId;
     if (onOurStory && !mine) return replierParty(reply);
     if (mine && !onOurStory) return storyAuthorParty(reply);
     return null;
   }
 
-  const ownUserStory = reply.story.authorType === 'USER' && reply.story.authorUserId === input.actorUserId;
+  const ownUserStory =
+    reply.story.authorType === 'USER' &&
+    reply.story.authorUserId === input.actorUserId;
   if (ownUserStory) {
     if (mine) return null;
     return replierParty(reply);
@@ -258,14 +298,18 @@ function eventsOf(
   input: { scope: InboxScope; actorUserId: string; providerId: string | null },
 ): InboxEvent[] {
   const replyMine = replyIsMine(reply, input);
-  const providerImage = reply.story.providerImageUrl ?? reply.authorProviderImageUrl;
+  const providerImage =
+    reply.story.providerImageUrl ?? reply.authorProviderImageUrl;
   const events: InboxEvent[] = [
     {
       id: reply.id,
       text: reply.text,
       createdAt: reply.createdAt,
       mine: replyMine,
-      imageUrl: reply.authorType === 'PROVIDER' ? reply.authorProviderImageUrl : reply.authorImageUrl,
+      imageUrl:
+        reply.authorType === 'PROVIDER'
+          ? reply.authorProviderImageUrl
+          : reply.authorImageUrl,
       storyId: reply.story.id,
       storyText: reply.story.text,
       replyId: reply.id,
@@ -283,7 +327,10 @@ function eventsOf(
       text: message.text,
       createdAt: message.createdAt,
       mine,
-      imageUrl: input.scope === 'provider' && mine ? providerImage : message.senderImageUrl,
+      imageUrl:
+        input.scope === 'provider' && mine
+          ? providerImage
+          : message.senderImageUrl,
       storyId: reply.story.id,
       storyText: reply.story.text,
       replyId: reply.id,

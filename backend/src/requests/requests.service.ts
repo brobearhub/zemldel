@@ -32,7 +32,10 @@ import {
   requestRowToCustomerDtoPlain,
   requestRowToProDtoPlain,
 } from './dto/request.dto';
-import { requestRemarkToDtoPlain, type RequestRemarkDto } from './dto/request-remark.dto';
+import {
+  requestRemarkToDtoPlain,
+  type RequestRemarkDto,
+} from './dto/request-remark.dto';
 import {
   isTerminalRequestStatus,
   normalizeCadastralNumberValue,
@@ -885,7 +888,9 @@ export class RequestsService {
         requestId: normalized.id,
         type: 'REMARKS',
         actorUserId,
-        payload: trimmed ? { remarks: trimmed, at: now.toISOString() } : { at: now.toISOString() },
+        payload: trimmed
+          ? { remarks: trimmed, at: now.toISOString() }
+          : { at: now.toISOString() },
       });
 
       return next;
@@ -946,8 +951,13 @@ export class RequestsService {
         select: { id: true, status: true },
       });
       if (!current) throw new NotFoundException('Request not found');
-      if (current.status !== 'ACCEPTANCE_PENDING' && current.status !== 'ACTIVE') {
-        throw new ForbiddenException('Remarks can be added only during acceptance or work');
+      if (
+        current.status !== 'ACCEPTANCE_PENDING' &&
+        current.status !== 'ACTIVE'
+      ) {
+        throw new ForbiddenException(
+          'Remarks can be added only during acceptance or work',
+        );
       }
 
       const text = input.text.trim();
@@ -1010,7 +1020,9 @@ export class RequestsService {
       });
       if (!current) throw new NotFoundException('Request not found');
       if (current.status !== 'ACTIVE') {
-        throw new ForbiddenException('Remarks can be completed only during work');
+        throw new ForbiddenException(
+          'Remarks can be completed only during work',
+        );
       }
 
       const remark = await tx.requestRemark.findFirst({
@@ -1031,7 +1043,9 @@ export class RequestsService {
         throw new ConflictException('Remark is already completed');
       }
       if (remark.authorSide !== 'PROVIDER') {
-        throw new ForbiddenException('Only provider remarks can be completed by customer');
+        throw new ForbiddenException(
+          'Only provider remarks can be completed by customer',
+        );
       }
 
       const now = new Date();
@@ -1129,9 +1143,14 @@ export class RequestsService {
     requestId: string,
     input: { text: string },
   ): Promise<RequestRemarkDto> {
-    const req = await this.requireProviderAccessToRequest(actorProviderId, requestId);
+    const req = await this.requireProviderAccessToRequest(
+      actorProviderId,
+      requestId,
+    );
     if (req.status !== 'ACCEPTANCE_PENDING' && req.status !== 'ACTIVE') {
-      throw new ForbiddenException('Remarks can be added only during acceptance or work');
+      throw new ForbiddenException(
+        'Remarks can be added only during acceptance or work',
+      );
     }
 
     const text = input.text.trim();
@@ -1146,7 +1165,9 @@ export class RequestsService {
       });
       if (!row) throw new NotFoundException('Request not found');
       if (row.status !== 'ACCEPTANCE_PENDING' && row.status !== 'ACTIVE') {
-        throw new ForbiddenException('Remarks can be added only during acceptance or work');
+        throw new ForbiddenException(
+          'Remarks can be added only during acceptance or work',
+        );
       }
 
       const next = await tx.requestRemark.create({
@@ -1197,7 +1218,10 @@ export class RequestsService {
     requestId: string,
     remarkId: string,
   ): Promise<RequestRemarkDto> {
-    const req = await this.requireProviderAccessToRequest(actorProviderId, requestId);
+    const req = await this.requireProviderAccessToRequest(
+      actorProviderId,
+      requestId,
+    );
     if (req.status !== 'ACTIVE') {
       throw new ForbiddenException('Remarks can be completed only during work');
     }
@@ -1209,7 +1233,9 @@ export class RequestsService {
       });
       if (!row) throw new NotFoundException('Request not found');
       if (row.status !== 'ACTIVE') {
-        throw new ForbiddenException('Remarks can be completed only during work');
+        throw new ForbiddenException(
+          'Remarks can be completed only during work',
+        );
       }
 
       const remark = await tx.requestRemark.findFirst({
@@ -1230,7 +1256,9 @@ export class RequestsService {
         throw new ConflictException('Remark is already completed');
       }
       if (remark.authorSide !== 'CUSTOMER') {
-        throw new ForbiddenException('Only customer remarks can be completed by provider');
+        throw new ForbiddenException(
+          'Only customer remarks can be completed by provider',
+        );
       }
 
       const now = new Date();
@@ -1282,16 +1310,20 @@ export class RequestsService {
     requestId: string,
     input: { value: string },
   ): Promise<RequestCustomerDto> {
-    return this.mutateCadastralNumbersForCustomer(actorUserId, requestId, (current) => {
-      const nextValue = normalizeCadastralNumberValue(input.value);
-      if (!nextValue) {
-        throw new BadRequestException('Invalid cadastral number');
-      }
-      if (current.includes(nextValue)) {
-        throw new ConflictException('Cadastral number already exists');
-      }
-      return [...current, nextValue];
-    });
+    return this.mutateCadastralNumbersForCustomer(
+      actorUserId,
+      requestId,
+      (current) => {
+        const nextValue = normalizeCadastralNumberValue(input.value);
+        if (!nextValue) {
+          throw new BadRequestException('Invalid cadastral number');
+        }
+        if (current.includes(nextValue)) {
+          throw new ConflictException('Cadastral number already exists');
+        }
+        return [...current, nextValue];
+      },
+    );
   }
 
   async updateCadastralNumberByCustomer(
@@ -1300,22 +1332,26 @@ export class RequestsService {
     index: number,
     input: { value: string },
   ): Promise<RequestCustomerDto> {
-    return this.mutateCadastralNumbersForCustomer(actorUserId, requestId, (current) => {
-      if (index < 0 || index >= current.length) {
-        throw new NotFoundException('Cadastral number not found');
-      }
-      const nextValue = normalizeCadastralNumberValue(input.value);
-      if (!nextValue) {
-        throw new BadRequestException('Invalid cadastral number');
-      }
-      const previousValue = current[index];
-      if (nextValue !== previousValue && current.includes(nextValue)) {
-        throw new ConflictException('Cadastral number already exists');
-      }
-      const next = [...current];
-      next[index] = nextValue;
-      return next;
-    });
+    return this.mutateCadastralNumbersForCustomer(
+      actorUserId,
+      requestId,
+      (current) => {
+        if (index < 0 || index >= current.length) {
+          throw new NotFoundException('Cadastral number not found');
+        }
+        const nextValue = normalizeCadastralNumberValue(input.value);
+        if (!nextValue) {
+          throw new BadRequestException('Invalid cadastral number');
+        }
+        const previousValue = current[index];
+        if (nextValue !== previousValue && current.includes(nextValue)) {
+          throw new ConflictException('Cadastral number already exists');
+        }
+        const next = [...current];
+        next[index] = nextValue;
+        return next;
+      },
+    );
   }
 
   async deleteCadastralNumberByCustomer(
@@ -1323,12 +1359,16 @@ export class RequestsService {
     requestId: string,
     index: number,
   ): Promise<RequestCustomerDto> {
-    return this.mutateCadastralNumbersForCustomer(actorUserId, requestId, (current) => {
-      if (index < 0 || index >= current.length) {
-        throw new NotFoundException('Cadastral number not found');
-      }
-      return current.filter((_, itemIndex) => itemIndex !== index);
-    });
+    return this.mutateCadastralNumbersForCustomer(
+      actorUserId,
+      requestId,
+      (current) => {
+        if (index < 0 || index >= current.length) {
+          throw new NotFoundException('Cadastral number not found');
+        }
+        return current.filter((_, itemIndex) => itemIndex !== index);
+      },
+    );
   }
 
   async appendCadastralNumberByProvider(
@@ -1336,16 +1376,20 @@ export class RequestsService {
     requestId: string,
     input: { value: string },
   ): Promise<RequestProDto> {
-    return this.mutateCadastralNumbersForProvider(actorProviderId, requestId, (current) => {
-      const nextValue = normalizeCadastralNumberValue(input.value);
-      if (!nextValue) {
-        throw new BadRequestException('Invalid cadastral number');
-      }
-      if (current.includes(nextValue)) {
-        throw new ConflictException('Cadastral number already exists');
-      }
-      return [...current, nextValue];
-    });
+    return this.mutateCadastralNumbersForProvider(
+      actorProviderId,
+      requestId,
+      (current) => {
+        const nextValue = normalizeCadastralNumberValue(input.value);
+        if (!nextValue) {
+          throw new BadRequestException('Invalid cadastral number');
+        }
+        if (current.includes(nextValue)) {
+          throw new ConflictException('Cadastral number already exists');
+        }
+        return [...current, nextValue];
+      },
+    );
   }
 
   async updateCadastralNumberByProvider(
@@ -1354,22 +1398,26 @@ export class RequestsService {
     index: number,
     input: { value: string },
   ): Promise<RequestProDto> {
-    return this.mutateCadastralNumbersForProvider(actorProviderId, requestId, (current) => {
-      if (index < 0 || index >= current.length) {
-        throw new NotFoundException('Cadastral number not found');
-      }
-      const nextValue = normalizeCadastralNumberValue(input.value);
-      if (!nextValue) {
-        throw new BadRequestException('Invalid cadastral number');
-      }
-      const previousValue = current[index];
-      if (nextValue !== previousValue && current.includes(nextValue)) {
-        throw new ConflictException('Cadastral number already exists');
-      }
-      const next = [...current];
-      next[index] = nextValue;
-      return next;
-    });
+    return this.mutateCadastralNumbersForProvider(
+      actorProviderId,
+      requestId,
+      (current) => {
+        if (index < 0 || index >= current.length) {
+          throw new NotFoundException('Cadastral number not found');
+        }
+        const nextValue = normalizeCadastralNumberValue(input.value);
+        if (!nextValue) {
+          throw new BadRequestException('Invalid cadastral number');
+        }
+        const previousValue = current[index];
+        if (nextValue !== previousValue && current.includes(nextValue)) {
+          throw new ConflictException('Cadastral number already exists');
+        }
+        const next = [...current];
+        next[index] = nextValue;
+        return next;
+      },
+    );
   }
 
   async deleteCadastralNumberByProvider(
@@ -1377,17 +1425,23 @@ export class RequestsService {
     requestId: string,
     index: number,
   ): Promise<RequestProDto> {
-    return this.mutateCadastralNumbersForProvider(actorProviderId, requestId, (current) => {
-      if (index < 0 || index >= current.length) {
-        throw new NotFoundException('Cadastral number not found');
-      }
-      return current.filter((_, itemIndex) => itemIndex !== index);
-    });
+    return this.mutateCadastralNumbersForProvider(
+      actorProviderId,
+      requestId,
+      (current) => {
+        if (index < 0 || index >= current.length) {
+          throw new NotFoundException('Cadastral number not found');
+        }
+        return current.filter((_, itemIndex) => itemIndex !== index);
+      },
+    );
   }
 
   private assertCadastralMutationsAllowed(status: string) {
     if (isTerminalRequestStatus(status)) {
-      throw new ForbiddenException('Cadastral numbers cannot be modified for completed requests');
+      throw new ForbiddenException(
+        'Cadastral numbers cannot be modified for completed requests',
+      );
     }
   }
 
@@ -1418,7 +1472,10 @@ export class RequestsService {
     mutate: (current: string[]) => string[],
   ): Promise<RequestProDto> {
     await this.prisma.$transaction(async (tx) => {
-      const access = await this.requireProviderAccessToRequest(actorProviderId, requestId);
+      const access = await this.requireProviderAccessToRequest(
+        actorProviderId,
+        requestId,
+      );
       this.assertCadastralMutationsAllowed(access.status);
       const current = await tx.request.findUnique({
         where: { id: requestId },
@@ -1439,7 +1496,9 @@ export class RequestsService {
   /**
    * Why: обзор считает воронку по статусам и не читает карточки заявок.
    */
-  async countProRequestStats(actorProviderId: string): Promise<ProRequestStats> {
+  async countProRequestStats(
+    actorProviderId: string,
+  ): Promise<ProRequestStats> {
     const buckets = await this.prisma.$queryRaw<
       Array<{ status: string; count: number; latest: Date | null }>
     >`
@@ -1552,7 +1611,9 @@ export class RequestsService {
       ...eligibleActiveOther,
     ]
       .filter((row) =>
-        scope.kind === 'free' ? row.serviceId == null : row.serviceId === scope.serviceId,
+        scope.kind === 'free'
+          ? row.serviceId == null
+          : row.serviceId === scope.serviceId,
       )
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, 200);
@@ -1786,10 +1847,7 @@ export class RequestsService {
     const req = row as unknown as RequestDbRow;
     this.assertRequestShape(req);
 
-    const lockedToOtherProvider = isLockedToOtherProvider(
-      req,
-      actorProviderId,
-    );
+    const lockedToOtherProvider = isLockedToOtherProvider(req, actorProviderId);
 
     if (lockedToOtherProvider) {
       const existing = await this.prisma.conversation.findFirst({
@@ -1870,7 +1928,8 @@ export class RequestsService {
 
     const normalized = await this.prisma.$transaction(async (tx) => {
       const out: typeof rows = [];
-      for (const row of rows) out.push(await this.normalizeLifecycleIfNeeded(tx, row));
+      for (const row of rows)
+        out.push(await this.normalizeLifecycleIfNeeded(tx, row));
       return out;
     });
 
@@ -2141,7 +2200,8 @@ export class RequestsService {
         await tx.request.update({
           where: { id: req.id },
           data: {
-            status: req.status === 'TERMS_AGREED' ? 'TERMS_AGREED' : 'DISCUSSING',
+            status:
+              req.status === 'TERMS_AGREED' ? 'TERMS_AGREED' : 'DISCUSSING',
             providerId: null,
             lockedAt: null,
             offerVersion: null,
@@ -2584,10 +2644,10 @@ export class RequestsService {
     return requestRowToCustomerDtoPlain(updated as unknown as RequestDbRow);
   }
 
-  async startWorkByProvider(
-    _actorProviderId: string,
-    _id: string,
-  ): Promise<RequestCustomerDto> {
+  startWorkByProvider(actorProviderId: string, id: string): RequestCustomerDto {
+    // Why: старт работ уже автоматический после принятия договора, аргументы держит контракт контроллера.
+    void actorProviderId;
+    void id;
     throw new BadRequestException(
       'Start work is automatic after contract acceptance',
     );
@@ -2643,7 +2703,9 @@ export class RequestsService {
       });
       if (!current) throw new NotFoundException('Request not found');
       if (current.status !== 'ACCEPTED') {
-        throw new ForbiddenException('Request must be accepted before completion');
+        throw new ForbiddenException(
+          'Request must be accepted before completion',
+        );
       }
 
       const now = new Date();
@@ -2707,4 +2769,3 @@ export class RequestsService {
     return { ...ctx, providerId: ctx.providerId };
   }
 }
-

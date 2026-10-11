@@ -6,12 +6,15 @@ const NOW = new Date('2026-08-13T00:00:00.000Z');
 const PROVIDER_ID = '11111111-1111-1111-1111-111111111111';
 
 function makeService(prisma: object) {
-  return new RequestPaymentsService(prisma as never, {
-    getServiceManagementContext: vi.fn().mockResolvedValue({
-      isPlatformAdmin: false,
-      providerId: PROVIDER_ID,
-    }),
-  } as never);
+  return new RequestPaymentsService(
+    prisma as never,
+    {
+      getServiceManagementContext: vi.fn().mockResolvedValue({
+        isPlatformAdmin: false,
+        providerId: PROVIDER_ID,
+      }),
+    } as never,
+  );
 }
 
 describe('RequestPaymentsService', () => {
@@ -66,11 +69,23 @@ describe('RequestPaymentsService', () => {
         findFirst: vi.fn().mockResolvedValue({
           lockedAt: null,
           totalAmountRubles: 25000,
-          payments: [{ id: 'p1', type: 'CONTRACT', amountRubles: 5000, comment: 'Аванс', paidAt: NOW, createdAt: NOW }],
+          payments: [
+            {
+              id: 'p1',
+              type: 'CONTRACT',
+              amountRubles: 5000,
+              comment: 'Аванс',
+              paidAt: NOW,
+              createdAt: NOW,
+            },
+          ],
         }),
       },
     };
-    const dto = await makeService(prisma).getForCustomer({ actorUserId: 'u1', requestId: 'r1' });
+    const dto = await makeService(prisma).getForCustomer({
+      actorUserId: 'u1',
+      requestId: 'r1',
+    });
     expect(dto).toEqual({
       totalAmountRubles: null,
       paidAmountRubles: 0,
@@ -101,7 +116,7 @@ describe('RequestPaymentsService', () => {
           payments: [],
         }),
       },
-      $transaction: vi.fn(async (fn: (tx: typeof tx) => unknown) => fn(tx)),
+      $transaction: vi.fn((fn: (tx: typeof tx) => unknown) => fn(tx)),
     };
 
     await makeService(prisma).addPaymentForProvider({
@@ -148,7 +163,7 @@ describe('RequestPaymentsService', () => {
           payments: [],
         }),
       },
-      $transaction: vi.fn(async (fn: (tx: typeof tx) => unknown) => fn(tx)),
+      $transaction: vi.fn((fn: (tx: typeof tx) => unknown) => fn(tx)),
     };
 
     await makeService(prisma).addPaymentForProvider({
@@ -174,7 +189,14 @@ describe('RequestPaymentsService', () => {
   });
 
   it('markPaymentPaidForCustomer sets paidAt for scheduled CONTRACT payment', async () => {
-    const payment = { id: 'p1', type: 'CONTRACT' as const, amountRubles: 5000, comment: 'Аванс', paidAt: null, createdAt: NOW };
+    const payment = {
+      id: 'p1',
+      type: 'CONTRACT' as const,
+      amountRubles: 5000,
+      comment: 'Аванс',
+      paidAt: null,
+      createdAt: NOW,
+    };
     const tx = {
       requestPayment: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
       requestEvent: { create: vi.fn().mockResolvedValue(null) },
@@ -196,7 +218,7 @@ describe('RequestPaymentsService', () => {
           payments: [payment],
         }),
       },
-      $transaction: vi.fn(async (fn: (tx: typeof tx) => unknown) => fn(tx)),
+      $transaction: vi.fn((fn: (tx: typeof tx) => unknown) => fn(tx)),
     };
 
     await makeService(prisma).markPaymentPaidForCustomer({

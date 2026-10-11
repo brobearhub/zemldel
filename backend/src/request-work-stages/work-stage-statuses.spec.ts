@@ -19,7 +19,9 @@ describe('work-stage-statuses', () => {
   it('resolves system and custom labels', () => {
     expect(resolveStatusLabel('AWAITING_RESPONSE', [])).toBe('Ожидание ответа');
     expect(
-      resolveStatusLabel('custom_1', [{ key: 'custom_1', label: 'Мой статус' }]),
+      resolveStatusLabel('custom_1', [
+        { key: 'custom_1', label: 'Мой статус' },
+      ]),
     ).toBe('Мой статус');
     expect(resolveStatusLabel('missing', [])).toBeNull();
   });

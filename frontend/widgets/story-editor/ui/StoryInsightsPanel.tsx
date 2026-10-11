@@ -295,6 +295,25 @@ function ViewsMix({ mix, periodLabel }: { mix: ViewMix; periodLabel: string }) {
   );
 }
 
+function buildDonutArcs(
+  slices: ReadonlyArray<{ id: ViewMixSliceId; count: number }>,
+  total: number,
+  circumference: number,
+  gap: number,
+) {
+  let cursor = 0;
+  return slices.map((slice) => {
+    const span = (slice.count / Math.max(total, 1)) * circumference;
+    const arc = {
+      id: slice.id,
+      dash: gap === 0 ? circumference : Math.max(span - gap, 1),
+      offset: cursor,
+    };
+    cursor += span;
+    return arc;
+  });
+}
+
 function ViewDonut({ mix }: { mix: ViewMix }) {
   const theme = useTheme();
   const colorOf = (id: ViewMixSliceId) => {
@@ -306,13 +325,7 @@ function ViewDonut({ mix }: { mix: ViewMix }) {
   const circumference = 2 * Math.PI * radius;
   const visible = mix.slices.filter((slice) => slice.count > 0);
   const gap = visible.length > 1 ? 4 : 0;
-  let cursor = 0;
-  const arcs = visible.map((slice) => {
-    const span = (slice.count / Math.max(mix.total, 1)) * circumference;
-    const arc = { id: slice.id, dash: gap === 0 ? circumference : Math.max(span - gap, 1), offset: cursor };
-    cursor += span;
-    return arc;
-  });
+  const arcs = buildDonutArcs(visible, mix.total, circumference, gap);
   const summary = mix.slices.map((slice) => `${slice.label} ${slice.count}`).join(", ");
 
   return (

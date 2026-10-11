@@ -33,7 +33,10 @@ export class CitiesAdminController {
 
   private async requirePlatformAdmin(request: Request) {
     const userId = this.internalAuthService.getUserIdFromRequest(request);
-    const ctx = await this.authService.getServiceManagementContext(userId, 'read');
+    const ctx = await this.authService.getServiceManagementContext(
+      userId,
+      'read',
+    );
     if (!ctx.isPlatformAdmin) {
       throw new ForbiddenException('Forbidden');
     }
@@ -56,7 +59,10 @@ export class CitiesAdminController {
   @ApiParam({ name: 'runId', type: String })
   @ApiOkResponse({ type: [CityImportEventDto] })
   @ApiForbiddenResponse({ type: ApiForbiddenErrorDto })
-  async listImportRunEvents(@Req() request: Request, @Param('runId') runId: string) {
+  async listImportRunEvents(
+    @Req() request: Request,
+    @Param('runId') runId: string,
+  ) {
     await this.requirePlatformAdmin(request);
     return this.citiesService.listImportRunEvents(runId);
   }

@@ -40,4 +40,3 @@ export class RequestDocumentRequestItemDto {
   @ApiProperty({ format: 'date-time' })
   updatedAt!: string;
 }
-

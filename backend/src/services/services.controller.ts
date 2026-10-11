@@ -29,7 +29,11 @@ import {
 } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { isUUID } from 'class-validator';
-import { ServiceCreateDto, ServiceDto, ServicePatchDto } from './dto/service.dto';
+import {
+  ServiceCreateDto,
+  ServiceDto,
+  ServicePatchDto,
+} from './dto/service.dto';
 import { ServicesService } from './services.service';
 import { OkResponseDto } from '../common/dto/ok-response.dto';
 import {
@@ -59,7 +63,9 @@ export class ServicesController {
       throw new UnprocessableEntityException({ error: 'Invalid cityId' });
     }
     if (excludeCityId && !isUUID(excludeCityId)) {
-      throw new UnprocessableEntityException({ error: 'Invalid excludeCityId' });
+      throw new UnprocessableEntityException({
+        error: 'Invalid excludeCityId',
+      });
     }
     if (providerId && !isUUID(providerId)) {
       throw new UnprocessableEntityException({ error: 'Invalid providerId' });
@@ -82,7 +88,10 @@ export class ServicesController {
   @Get('services/:id')
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ type: ServiceDto })
-  @ApiNotFoundResponse({ type: ApiNotFoundErrorDto, description: 'Service not found' })
+  @ApiNotFoundResponse({
+    type: ApiNotFoundErrorDto,
+    description: 'Service not found',
+  })
   async getPublicServiceById(@Param('id') id: string) {
     const service = await this.servicesService.getServiceById(id);
     if (!service) {
@@ -93,7 +102,10 @@ export class ServicesController {
 
   @Get('admin/services')
   @ApiOkResponse({ type: [ServiceDto] })
-  @ApiForbiddenResponse({ type: ApiForbiddenErrorDto, description: 'Forbidden' })
+  @ApiForbiddenResponse({
+    type: ApiForbiddenErrorDto,
+    description: 'Forbidden',
+  })
   async getAdminServices(@Req() request: Request) {
     const context = await this.servicesService.getManagementContext(
       request,
@@ -108,8 +120,14 @@ export class ServicesController {
   @Get('admin/services/:id')
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ type: ServiceDto })
-  @ApiNotFoundResponse({ type: ApiNotFoundErrorDto, description: 'Service not found' })
-  @ApiForbiddenResponse({ type: ApiForbiddenErrorDto, description: 'Forbidden' })
+  @ApiNotFoundResponse({
+    type: ApiNotFoundErrorDto,
+    description: 'Service not found',
+  })
+  @ApiForbiddenResponse({
+    type: ApiForbiddenErrorDto,
+    description: 'Forbidden',
+  })
   async getAdminServiceById(@Req() request: Request, @Param('id') id: string) {
     const context = await this.servicesService.getManagementContext(
       request,
@@ -129,7 +147,10 @@ export class ServicesController {
 
   @Get('pro/services')
   @ApiOkResponse({ type: [ServiceDto] })
-  @ApiForbiddenResponse({ type: ApiForbiddenErrorDto, description: 'Forbidden' })
+  @ApiForbiddenResponse({
+    type: ApiForbiddenErrorDto,
+    description: 'Forbidden',
+  })
   async getProServices(@Req() request: Request) {
     const context = await this.servicesService.getManagementContext(
       request,
@@ -144,8 +165,14 @@ export class ServicesController {
   @Get('pro/services/:id')
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ type: ServiceDto })
-  @ApiNotFoundResponse({ type: ApiNotFoundErrorDto, description: 'Service not found' })
-  @ApiForbiddenResponse({ type: ApiForbiddenErrorDto, description: 'Forbidden' })
+  @ApiNotFoundResponse({
+    type: ApiNotFoundErrorDto,
+    description: 'Service not found',
+  })
+  @ApiForbiddenResponse({
+    type: ApiForbiddenErrorDto,
+    description: 'Forbidden',
+  })
   async getProServiceById(@Req() request: Request, @Param('id') id: string) {
     const context = await this.servicesService.getManagementContext(
       request,
@@ -165,7 +192,10 @@ export class ServicesController {
 
   @Post('pro/services')
   @ApiCreatedResponse({ type: ServiceDto })
-  @ApiForbiddenResponse({ type: ApiForbiddenErrorDto, description: 'Forbidden' })
+  @ApiForbiddenResponse({
+    type: ApiForbiddenErrorDto,
+    description: 'Forbidden',
+  })
   async createProService(
     @Req() request: Request,
     @Body() body: ServiceCreateDto,
@@ -193,7 +223,10 @@ export class ServicesController {
   @Patch('pro/services/:id')
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ type: ServiceDto })
-  @ApiForbiddenResponse({ type: ApiForbiddenErrorDto, description: 'Forbidden' })
+  @ApiForbiddenResponse({
+    type: ApiForbiddenErrorDto,
+    description: 'Forbidden',
+  })
   async updateProService(
     @Req() request: Request,
     @Param('id') id: string,
@@ -232,7 +265,10 @@ export class ServicesController {
     type: ApiValidationErrorResponseDto,
     description: 'Validation failed',
   })
-  @ApiForbiddenResponse({ type: ApiForbiddenErrorDto, description: 'Forbidden' })
+  @ApiForbiddenResponse({
+    type: ApiForbiddenErrorDto,
+    description: 'Forbidden',
+  })
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
@@ -286,8 +322,14 @@ export class ServicesController {
   @Delete('pro/services/:id/image')
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ type: ServiceDto })
-  @ApiForbiddenResponse({ type: ApiForbiddenErrorDto, description: 'Forbidden' })
-  async deleteProServiceImage(@Req() request: Request, @Param('id') id: string) {
+  @ApiForbiddenResponse({
+    type: ApiForbiddenErrorDto,
+    description: 'Forbidden',
+  })
+  async deleteProServiceImage(
+    @Req() request: Request,
+    @Param('id') id: string,
+  ) {
     const context = await this.servicesService.getManagementContext(
       request,
       'update',
@@ -308,7 +350,10 @@ export class ServicesController {
   @Delete('pro/services/:id')
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ type: OkResponseDto })
-  @ApiForbiddenResponse({ type: ApiForbiddenErrorDto, description: 'Forbidden' })
+  @ApiForbiddenResponse({
+    type: ApiForbiddenErrorDto,
+    description: 'Forbidden',
+  })
   async deleteProService(@Req() request: Request, @Param('id') id: string) {
     const context = await this.servicesService.getManagementContext(
       request,
@@ -327,7 +372,10 @@ export class ServicesController {
 
   @Post('admin/services')
   @ApiCreatedResponse({ type: ServiceDto })
-  @ApiForbiddenResponse({ type: ApiForbiddenErrorDto, description: 'Forbidden' })
+  @ApiForbiddenResponse({
+    type: ApiForbiddenErrorDto,
+    description: 'Forbidden',
+  })
   async createAdminService(
     @Req() request: Request,
     @Body() body: ServiceCreateDto,
@@ -355,7 +403,10 @@ export class ServicesController {
   @Patch('admin/services/:id')
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ type: ServiceDto })
-  @ApiForbiddenResponse({ type: ApiForbiddenErrorDto, description: 'Forbidden' })
+  @ApiForbiddenResponse({
+    type: ApiForbiddenErrorDto,
+    description: 'Forbidden',
+  })
   async updateAdminService(
     @Req() request: Request,
     @Param('id') id: string,
@@ -380,7 +431,10 @@ export class ServicesController {
   @Delete('admin/services/:id')
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ type: OkResponseDto })
-  @ApiForbiddenResponse({ type: ApiForbiddenErrorDto, description: 'Forbidden' })
+  @ApiForbiddenResponse({
+    type: ApiForbiddenErrorDto,
+    description: 'Forbidden',
+  })
   async deleteAdminService(@Req() request: Request, @Param('id') id: string) {
     const context = await this.servicesService.getManagementContext(
       request,

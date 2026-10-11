@@ -96,4 +96,3 @@ export class ContractBundleItemDto {
   @ApiProperty({ format: 'date-time' })
   updatedAt!: string;
 }
-

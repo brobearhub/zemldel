@@ -25,20 +25,34 @@ function makeService(prisma: object) {
 describe('ReviewsService.createReview', () => {
   it('отклоняет отзыв до принятия результата', async () => {
     const prisma = {
-      request: { findUnique: vi.fn().mockResolvedValue(readyRequest({ status: 'ACTIVE' })) },
+      request: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue(readyRequest({ status: 'ACTIVE' })),
+      },
     };
     await expect(
-      makeService(prisma).createReview({ actorUserId: CUSTOMER_ID, requestId: REQUEST_ID, rating: 5 }),
+      makeService(prisma).createReview({
+        actorUserId: CUSTOMER_ID,
+        requestId: REQUEST_ID,
+        rating: 5,
+      }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('запрещает самооценку, если заказчик состоит в провайдере сделки', async () => {
     const prisma = {
       request: { findUnique: vi.fn().mockResolvedValue(readyRequest()) },
-      providerMember: { findFirst: vi.fn().mockResolvedValue({ id: 'member' }) },
+      providerMember: {
+        findFirst: vi.fn().mockResolvedValue({ id: 'member' }),
+      },
     };
     await expect(
-      makeService(prisma).createReview({ actorUserId: CUSTOMER_ID, requestId: REQUEST_ID, rating: 5 }),
+      makeService(prisma).createReview({
+        actorUserId: CUSTOMER_ID,
+        requestId: REQUEST_ID,
+        rating: 5,
+      }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
@@ -56,7 +70,9 @@ describe('ReviewsService.createReview', () => {
           author: { name: 'Анна Кузнецова' },
           service: { title: 'Межевание' },
         }),
-        aggregate: vi.fn().mockResolvedValue({ _avg: { rating: 5 }, _count: { _all: 1 } }),
+        aggregate: vi
+          .fn()
+          .mockResolvedValue({ _avg: { rating: 5 }, _count: { _all: 1 } }),
       },
       service: { update: vi.fn().mockResolvedValue(null) },
       provider: { update: vi.fn().mockResolvedValue(null) },
@@ -66,7 +82,9 @@ describe('ReviewsService.createReview', () => {
     const prisma = {
       request: { findUnique: vi.fn().mockResolvedValue(readyRequest()) },
       providerMember: { findFirst: vi.fn().mockResolvedValue(null) },
-      $transaction: vi.fn(async (fn: (client: typeof tx) => Promise<unknown>) => fn(tx)),
+      $transaction: vi.fn(async (fn: (client: typeof tx) => Promise<unknown>) =>
+        fn(tx),
+      ),
     };
 
     const dto = await makeService(prisma).createReview({
@@ -91,18 +109,22 @@ describe('ReviewsService.createReview', () => {
   it('оценка провайдера пересчитывает только рейтинг заказчика', async () => {
     const tx = {
       review: {
-        create: vi.fn().mockImplementation(async ({ data }: { data: { direction: string } }) => ({
-          id: 'review-2',
-          direction: data.direction,
-          rating: 4,
-          text: 'аккуратно',
-          createdAt: new Date('2026-10-06T00:00:00.000Z'),
-          replyText: null,
-          repliedAt: null,
-          author: { name: 'Пётр' },
-          service: null,
-        })),
-        aggregate: vi.fn().mockResolvedValue({ _avg: { rating: 4 }, _count: { _all: 1 } }),
+        create: vi
+          .fn()
+          .mockImplementation(({ data }: { data: { direction: string } }) => ({
+            id: 'review-2',
+            direction: data.direction,
+            rating: 4,
+            text: 'аккуратно',
+            createdAt: new Date('2026-10-06T00:00:00.000Z'),
+            replyText: null,
+            repliedAt: null,
+            author: { name: 'Пётр' },
+            service: null,
+          })),
+        aggregate: vi
+          .fn()
+          .mockResolvedValue({ _avg: { rating: 4 }, _count: { _all: 1 } }),
       },
       service: { update: vi.fn() },
       provider: { update: vi.fn() },
@@ -110,14 +132,22 @@ describe('ReviewsService.createReview', () => {
       $queryRaw: vi.fn().mockResolvedValue([]),
     };
     const prisma = {
-      request: { findUnique: vi.fn().mockResolvedValue(readyRequest({ serviceId: null })) },
-      providerMember: {
-        findFirst: vi.fn().mockImplementation(async ({ where }: { where: { userId: string } }) => {
-          if (where.userId === CUSTOMER_ID) return null;
-          return { id: 'member' };
-        }),
+      request: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue(readyRequest({ serviceId: null })),
       },
-      $transaction: vi.fn(async (fn: (client: typeof tx) => Promise<unknown>) => fn(tx)),
+      providerMember: {
+        findFirst: vi
+          .fn()
+          .mockImplementation(({ where }: { where: { userId: string } }) => {
+            if (where.userId === CUSTOMER_ID) return null;
+            return { id: 'member' };
+          }),
+      },
+      $transaction: vi.fn(async (fn: (client: typeof tx) => Promise<unknown>) =>
+        fn(tx),
+      ),
     };
 
     const dto = await makeService(prisma).createReview({
@@ -143,7 +173,11 @@ describe('ReviewsService.createReview', () => {
       $transaction: vi.fn().mockRejectedValue({ code: 'P2002' }),
     };
     await expect(
-      makeService(prisma).createReview({ actorUserId: CUSTOMER_ID, requestId: REQUEST_ID, rating: 3 }),
+      makeService(prisma).createReview({
+        actorUserId: CUSTOMER_ID,
+        requestId: REQUEST_ID,
+        rating: 3,
+      }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 });
@@ -171,7 +205,9 @@ describe('ReviewsService.reply', () => {
         }),
         aggregate: vi.fn(),
       },
-      providerMember: { findFirst: vi.fn().mockResolvedValue({ id: 'member' }) },
+      providerMember: {
+        findFirst: vi.fn().mockResolvedValue({ id: 'member' }),
+      },
     };
 
     const dto = await makeService(prisma).reply({

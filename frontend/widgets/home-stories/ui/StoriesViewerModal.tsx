@@ -801,7 +801,6 @@ export function StoriesViewerModal({ items, startId, scope = "user", onClose, on
                   ...(textExpanded
                     ? {
                         top: 0,
-                        bottom: 0,
                         overflow: "hidden",
                         justifyContent: "flex-start",
                         bgcolor: "rgba(0,0,0,0.4)",

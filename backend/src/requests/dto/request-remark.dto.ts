@@ -44,7 +44,12 @@ export class RequestRemarkDto {
   @Expose()
   doneAt!: string | null;
 
-  @ApiProperty({ required: false, nullable: true, description: 'Когда замечание стало видимым другой стороне (null = черновик).' })
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description:
+      'Когда замечание стало видимым другой стороне (null = черновик).',
+  })
   @Expose()
   sentAt!: string | null;
 }
@@ -75,7 +80,10 @@ export function parseRequestRemarkCreateDto(input: unknown): {
   issues: ValidationIssue[] | null;
 } {
   const dto = plainToInstance(RequestRemarkCreateDto, input ?? {});
-  const errors = validateSync(dto, { whitelist: true, forbidNonWhitelisted: true });
+  const errors = validateSync(dto, {
+    whitelist: true,
+    forbidNonWhitelisted: true,
+  });
   if (errors.length > 0) return { data: null, issues: toIssues(errors) };
   return { data: dto, issues: null };
 }
@@ -103,4 +111,3 @@ export function requestRemarkToDtoPlain(input: {
     }),
   ) as unknown as RequestRemarkDto;
 }
-

@@ -62,7 +62,11 @@ describe('RequestDocumentRequestsService', () => {
     const svc = new RequestDocumentRequestsService(
       prisma as any,
       {} as any,
-      { privatePrefix: 'private/', privateBucket: 'b', client: { send: vi.fn() } } as any,
+      {
+        privatePrefix: 'private/',
+        privateBucket: 'b',
+        client: { send: vi.fn() },
+      } as any,
     );
 
     await expect(

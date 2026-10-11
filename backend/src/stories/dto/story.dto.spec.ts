@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import 'reflect-metadata';
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
@@ -11,7 +12,10 @@ describe('CreateStoryDto', () => {
     expect(text).toHaveLength(STORY_TEXT_MAX_LENGTH);
     expect(wire.length).toBeGreaterThan(STORY_TEXT_MAX_LENGTH);
 
-    const dto = plainToInstance(CreateStoryDto, { text: wire, durationDays: 1 });
+    const dto = plainToInstance(CreateStoryDto, {
+      text: wire,
+      durationDays: 1,
+    });
     expect(validateSync(dto)).toEqual([]);
     expect(dto.text).toBe(text);
   });

@@ -8,7 +8,6 @@ import {
   Param,
   Patch,
   Post,
-  Query,
   Req,
 } from '@nestjs/common';
 import {
@@ -17,7 +16,6 @@ import {
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiParam,
-  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
@@ -32,7 +30,10 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { OkResponseDto } from '../common/dto/ok-response.dto';
 import { CategoryProviderServiceDto } from './dto/category-provider-service.dto';
-import { ApiForbiddenErrorDto, ApiNotFoundErrorDto } from '../common/dto/api-error-response.dto';
+import {
+  ApiForbiddenErrorDto,
+  ApiNotFoundErrorDto,
+} from '../common/dto/api-error-response.dto';
 import { ApiStandardErrors } from '../common/swagger/api-standard-errors.decorator';
 
 @ApiTags('service-categories')
@@ -67,7 +68,10 @@ export class ServiceCategoriesController {
   @Get('service-categories/:id')
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ type: ServiceCategoryDto })
-  @ApiNotFoundResponse({ type: ApiNotFoundErrorDto, description: 'Category not found' })
+  @ApiNotFoundResponse({
+    type: ApiNotFoundErrorDto,
+    description: 'Category not found',
+  })
   async getPublicCategoryById(@Param('id') idOrSlug: string) {
     const category = await this.serviceCategoriesService.getById(idOrSlug);
     if (!category) throw new NotFoundException('Category not found');
@@ -77,7 +81,10 @@ export class ServiceCategoriesController {
   @Get('service-categories/:id/providers')
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ type: [CategoryProviderServiceDto] })
-  @ApiNotFoundResponse({ type: ApiNotFoundErrorDto, description: 'Category not found' })
+  @ApiNotFoundResponse({
+    type: ApiNotFoundErrorDto,
+    description: 'Category not found',
+  })
   async getProvidersForCategory(@Param('id') idOrSlug: string) {
     const category = await this.serviceCategoriesService.getById(idOrSlug);
     if (!category) throw new NotFoundException('Category not found');
@@ -115,7 +122,10 @@ export class ServiceCategoriesController {
 
   @Get('admin/service-categories')
   @ApiOkResponse({ type: [ServiceCategoryDto] })
-  @ApiForbiddenResponse({ type: ApiForbiddenErrorDto, description: 'Forbidden' })
+  @ApiForbiddenResponse({
+    type: ApiForbiddenErrorDto,
+    description: 'Forbidden',
+  })
   async getAdminCategories(@Req() request: Request) {
     await this.requirePlatformAdmin(request);
     return this.serviceCategoriesService.list();
@@ -123,7 +133,10 @@ export class ServiceCategoriesController {
 
   @Post('admin/service-categories')
   @ApiCreatedResponse({ type: ServiceCategoryDto })
-  @ApiForbiddenResponse({ type: ApiForbiddenErrorDto, description: 'Forbidden' })
+  @ApiForbiddenResponse({
+    type: ApiForbiddenErrorDto,
+    description: 'Forbidden',
+  })
   async createAdminCategory(
     @Req() request: Request,
     @Body() body: ServiceCategoryCreateDto,
@@ -135,8 +148,14 @@ export class ServiceCategoriesController {
   @Patch('admin/service-categories/:id')
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ type: ServiceCategoryDto })
-  @ApiNotFoundResponse({ type: ApiNotFoundErrorDto, description: 'Category not found' })
-  @ApiForbiddenResponse({ type: ApiForbiddenErrorDto, description: 'Forbidden' })
+  @ApiNotFoundResponse({
+    type: ApiNotFoundErrorDto,
+    description: 'Category not found',
+  })
+  @ApiForbiddenResponse({
+    type: ApiForbiddenErrorDto,
+    description: 'Forbidden',
+  })
   async patchAdminCategory(
     @Req() request: Request,
     @Param('id') id: string,
@@ -153,7 +172,10 @@ export class ServiceCategoriesController {
   @Delete('admin/service-categories/:id')
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ type: OkResponseDto })
-  @ApiForbiddenResponse({ type: ApiForbiddenErrorDto, description: 'Forbidden' })
+  @ApiForbiddenResponse({
+    type: ApiForbiddenErrorDto,
+    description: 'Forbidden',
+  })
   async deleteAdminCategory(@Req() request: Request, @Param('id') id: string) {
     await this.requirePlatformAdmin(request);
     await this.serviceCategoriesService.remove(id);

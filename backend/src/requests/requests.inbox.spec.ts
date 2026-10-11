@@ -13,7 +13,9 @@ function makeService(prisma: unknown) {
   // Avoid touching unrelated logic in this unit test.
   (svc as any).getProviderRegionCode = vi.fn().mockResolvedValue('77');
   (svc as any).getProviderEligibleCategoryIds = vi.fn().mockResolvedValue([]);
-  (svc as any).resolveRequestsRegionCodes = vi.fn().mockResolvedValue(new Map());
+  (svc as any).resolveRequestsRegionCodes = vi
+    .fn()
+    .mockResolvedValue(new Map());
   (svc as any).getConversationCounts = vi.fn().mockResolvedValue(new Map());
   (svc as any).assertProviderEligibleForUnassignedRequest = vi.fn();
 
@@ -78,7 +80,10 @@ describe('RequestsService.listProInbox', () => {
     const prisma = { request: { findMany } };
 
     const svc = makeService(prisma);
-    await svc.listProInbox('p1', { status: 'DISCUSSING', dialogScope: 'ACTIVE' });
+    await svc.listProInbox('p1', {
+      status: 'DISCUSSING',
+      dialogScope: 'ACTIVE',
+    });
 
     const firstCall = findMany.mock.calls[0]?.[0];
     const secondCall = findMany.mock.calls[1]?.[0];
@@ -120,4 +125,3 @@ describe('RequestsService.listProInbox', () => {
     );
   });
 });
-

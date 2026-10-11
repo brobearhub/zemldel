@@ -1,4 +1,8 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { StoriesService } from './stories.service';
 
@@ -72,7 +76,10 @@ describe('StoriesService.listPublic', () => {
 
     const result = await makeService(prisma).listPublic(CITY_ID);
 
-    expect(result.items.map((item) => item.id)).toEqual(['city-old', 'other-new']);
+    expect(result.items.map((item) => item.id)).toEqual([
+      'city-old',
+      'other-new',
+    ]);
     expect(result.items[1]?.authorName).toBe('Межа');
     expect(result.items[1]?.authorHref).toBe('/providers/mezha');
   });
@@ -91,7 +98,11 @@ describe('StoriesService.listPublic', () => {
       },
     };
 
-    const result = await makeService(prisma).listPublic(CITY_ID, null, PROVIDER_ID);
+    const result = await makeService(prisma).listPublic(
+      CITY_ID,
+      null,
+      PROVIDER_ID,
+    );
 
     expect(prisma.story.findMany).toHaveBeenCalledTimes(1);
     expect(prisma.story.findMany).toHaveBeenCalledWith(
@@ -112,7 +123,11 @@ describe('StoriesService.listPublic', () => {
   it('невалидный providerId даёт пустой список и не ходит в базу', async () => {
     const prisma = { story: { findMany: vi.fn() } };
 
-    const result = await makeService(prisma).listPublic(null, null, 'not-a-uuid');
+    const result = await makeService(prisma).listPublic(
+      null,
+      null,
+      'not-a-uuid',
+    );
 
     expect(result.items).toEqual([]);
     expect(prisma.story.findMany).not.toHaveBeenCalled();
@@ -179,7 +194,13 @@ describe('StoriesService.create', () => {
         findFirst: vi.fn().mockResolvedValue({
           providerId: PROVIDER_ID,
           role: 'OWNER',
-          provider: { id: PROVIDER_ID, name: 'Межа', slug: 'mezha', image: 'https://cdn/p.png', cityId: CITY_ID },
+          provider: {
+            id: PROVIDER_ID,
+            name: 'Межа',
+            slug: 'mezha',
+            image: 'https://cdn/p.png',
+            cityId: CITY_ID,
+          },
         }),
       },
       story: { create: vi.fn().mockResolvedValue(created) },
@@ -246,7 +267,10 @@ describe('StoriesService.recordView', () => {
       storyViewEvent: { create: vi.fn() },
     };
 
-    const result = await makeService(prisma).recordView({ storyId: 'story-1', actorUserId: USER_ID });
+    const result = await makeService(prisma).recordView({
+      storyId: 'story-1',
+      actorUserId: USER_ID,
+    });
 
     expect(result.counted).toBe(false);
     expect(prisma.storyViewEvent.create).not.toHaveBeenCalled();
@@ -260,7 +284,10 @@ describe('StoriesService.remove', () => {
     };
 
     await expect(
-      makeService(prisma).remove({ actorUserId: '99999999-9999-4999-8999-999999999999', storyId: 'story-1' }),
+      makeService(prisma).remove({
+        actorUserId: '99999999-9999-4999-8999-999999999999',
+        storyId: 'story-1',
+      }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });
@@ -282,7 +309,10 @@ describe('StoriesService.replyMessages', () => {
   it('автор пишет в тред и не создаёт новый StoryReply', async () => {
     const prisma = {
       story: { findUnique: vi.fn().mockResolvedValue(storyRow()) },
-      storyReply: { findFirst: vi.fn().mockResolvedValue(replyRow()), create: vi.fn() },
+      storyReply: {
+        findFirst: vi.fn().mockResolvedValue(replyRow()),
+        create: vi.fn(),
+      },
       storyReplyMessage: {
         create: vi.fn().mockResolvedValue({
           id: 'msg-1',
@@ -340,7 +370,10 @@ describe('StoriesService.listAudience', () => {
       storyReply: { count: vi.fn().mockResolvedValue(4) },
     };
 
-    const result = await makeService(prisma).listAudience({ actorUserId: USER_ID, scope: 'user' });
+    const result = await makeService(prisma).listAudience({
+      actorUserId: USER_ID,
+      scope: 'user',
+    });
 
     expect(prisma.storyReply.count).toHaveBeenCalledWith({
       where: { story: { authorType: 'USER', authorUserId: USER_ID } },
@@ -367,7 +400,11 @@ describe('StoriesService.conversations', () => {
   function inboxPrisma(rows: unknown[]) {
     return {
       storyReply: { findMany: vi.fn().mockResolvedValue(rows) },
-      user: { findUnique: vi.fn().mockResolvedValue({ image: 'https://cdn.example/me.jpg' }) },
+      user: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ image: 'https://cdn.example/me.jpg' }),
+      },
       storyConversationRead: {
         findMany: vi.fn().mockResolvedValue([]),
         upsert: vi.fn().mockResolvedValue({}),
@@ -404,7 +441,11 @@ describe('StoriesService.conversations', () => {
         authorType: 'USER' as const,
         authorUserId: ANNA,
         providerId: null,
-        author: { name: 'Анна Ким', image: null, customerCity: { name: 'Москва' } },
+        author: {
+          name: 'Анна Ким',
+          image: null,
+          customerCity: { name: 'Москва' },
+        },
         provider: null,
         messages: [],
         story: storyOf('story-1', 'Закат'),
@@ -416,7 +457,11 @@ describe('StoriesService.conversations', () => {
         authorType: 'USER' as const,
         authorUserId: ANNA,
         providerId: null,
-        author: { name: 'Анна Ким', image: null, customerCity: { name: 'Москва' } },
+        author: {
+          name: 'Анна Ким',
+          image: null,
+          customerCity: { name: 'Москва' },
+        },
         provider: null,
         messages: [],
         story: storyOf('story-2', 'Кофе'),
@@ -429,7 +474,10 @@ describe('StoriesService.conversations', () => {
       conversationId: `user:${ANNA}`,
     });
 
-    expect(messages.items.map((item) => item.text)).toEqual(['Где это?', 'Хочу туда']);
+    expect(messages.items.map((item) => item.text)).toEqual([
+      'Где это?',
+      'Хочу туда',
+    ]);
     expect(prisma.storyConversationRead.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
@@ -458,7 +506,12 @@ describe('StoriesService.conversations', () => {
         }),
       }),
     );
-    expect(sent).toMatchObject({ text: 'Ответ', mine: true, storyId: 'story-2', storyText: 'Кофе' });
+    expect(sent).toMatchObject({
+      text: 'Ответ',
+      mine: true,
+      storyId: 'story-2',
+      storyText: 'Кофе',
+    });
   });
 });
 
