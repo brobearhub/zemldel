@@ -12,12 +12,16 @@ const ICON_COLOR = {
 
 export type LocationIconColor = keyof typeof ICON_COLOR;
 
+/** `light` — цвет родителя. На тёмном стекле серый текст и пин не читаются. */
+export type LocationTone = "default" | "light";
+
 type Props = {
   label: string;
   onClick: () => void;
   disabled?: boolean;
   error?: boolean;
   iconColor?: LocationIconColor;
+  tone?: LocationTone;
   /** В шапке текст прячется на узком экране, в меню и формах остаётся видимым. */
   labelDisplay?: "always" | "fromMd";
   /** Сброс выбранного города. В шапке не передаётся. */
@@ -30,11 +34,15 @@ export function LocationButton({
   disabled,
   error,
   iconColor = "gray",
+  tone = "default",
   labelDisplay = "always",
   onClear,
 }: Props) {
-  const textColor = error ? "error.main" : "common.gray";
-  const pinColor = error ? "error.main" : ICON_COLOR[iconColor];
+  const onLight = tone === "light";
+  const textColor = error ? "error.main" : onLight ? "inherit" : "common.gray";
+  const pinColor = error ? "error.main" : onLight && iconColor === "gray" ? "inherit" : ICON_COLOR[iconColor];
+  const idleColor = onLight ? "inherit" : "common.gray";
+  const hoverColor = onLight ? "common.white" : "primary.main";
 
   return (
     <Box sx={{ display: "inline-flex", alignItems: "center", maxWidth: "100%", minWidth: 0 }}>
@@ -62,7 +70,7 @@ export function LocationButton({
           color: textColor,
           "&:focus, &:focus-visible": { outline: "none" },
           "&:hover": {
-            color: disabled ? textColor : "primary.main",
+            color: disabled ? textColor : hoverColor,
           },
           "&:disabled": { opacity: 0.6 },
         }}
@@ -102,10 +110,10 @@ export function LocationButton({
             borderRadius: 1,
             outline: "none",
             bgcolor: "transparent",
-            color: "common.gray",
+            color: idleColor,
             cursor: disabled ? "default" : "pointer",
             "&:focus, &:focus-visible": { outline: "none" },
-            "&:hover": { color: disabled ? "common.gray" : "primary.main" },
+            "&:hover": { color: disabled ? idleColor : hoverColor },
             "&:disabled": { opacity: 0.6 },
           }}
         >

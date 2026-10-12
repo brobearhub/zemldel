@@ -3,7 +3,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, Button, CircularProgress, Stack, TextField, Typography } from "@mui/material";
-import { CadastralNumberListEditor } from "@/shared/ui/CadastralNumberListEditor";
+import { CadastralNumberChipsField } from "@/shared/ui/CadastralNumberChipsField";
 import {
   REQUESTS_PROFILE_URL,
   REQUESTS_PROFILE_RESUME_URL,
@@ -121,7 +121,7 @@ export function PublicCategoryRequestForm({ categoryId, isAuthenticated }: Props
           minRows={3}
         />
 
-        <CadastralNumberListEditor
+        <CadastralNumberChipsField
           value={cadastralNumbers}
           onChange={setCadastralNumbers}
           disabled={busy}

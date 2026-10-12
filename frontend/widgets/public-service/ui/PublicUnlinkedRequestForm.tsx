@@ -2,15 +2,13 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
   Alert,
-  Autocomplete,
   Button,
   CircularProgress,
+  FormControlLabel,
+  Radio,
+  RadioGroup,
   Paper,
   Stack,
   TextField,
@@ -19,7 +17,6 @@ import {
 import type { CitySuggestItemDto } from "@/entities/city";
 import { LocationField, useSelectedCity } from "@/features/select-city";
 import { CadastralNumberChipsField } from "@/shared/ui/CadastralNumberChipsField";
-import { CadastralNumberListEditor } from "@/shared/ui/CadastralNumberListEditor";
 import {
   REQUESTS_PROFILE_URL,
   REQUESTS_PROFILE_RESUME_URL,
@@ -31,17 +28,21 @@ import {
 } from "@/entities/request";
 import { RequestFormLogo } from "@/widgets/public-service/ui/RequestFormLogo";
 
+type CategoryOption = { id: string; name: string };
+
 type Props = {
   isAuthenticated: boolean;
-  categories?: Array<{ id: string; name: string }>;
-  initialCategory?: { id: string; name: string } | null;
+  categories?: CategoryOption[];
+  initialCategory?: CategoryOption | null;
+  /** Категория раздела. Выбрана, пока не отмечена ни одна подкатегория. */
+  sectionCategory?: CategoryOption | null;
   variant?: "card" | "bare";
 };
 
 type FormState = {
   message: string;
   cadastralNumbers: CadastralNumberParts[];
-  category: { id: string; name: string } | null;
+  category: CategoryOption | null;
 };
 
 function normalizeNullableString(value: string) {
@@ -53,6 +54,7 @@ export function PublicUnlinkedRequestForm({
   isAuthenticated,
   categories = [],
   initialCategory = null,
+  sectionCategory = null,
   variant = "card",
 }: Props) {
   const router = useRouter();
@@ -67,7 +69,9 @@ export function PublicUnlinkedRequestForm({
   }));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [optionalExpanded, setOptionalExpanded] = useState(false);
+
+  const subcategory = categories.find((option) => option.id === form.category?.id) ?? null;
+  const category = subcategory ?? sectionCategory;
 
   const { validationError, isBlocked } = useMemo(() => {
     if (!city) {
@@ -79,7 +83,7 @@ export function PublicUnlinkedRequestForm({
       return { validationError: null, isBlocked: true };
     }
 
-    const minLen = form.category ? 3 : 10;
+    const minLen = category ? 3 : 10;
     if (msg.length < minLen) {
       return {
         validationError:
@@ -96,7 +100,7 @@ export function PublicUnlinkedRequestForm({
     }
 
     return { validationError: null, isBlocked: false };
-  }, [city, form.category, form.cadastralNumbers, form.message]);
+  }, [category, city, form.cadastralNumbers, form.message]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -115,7 +119,6 @@ export function PublicUnlinkedRequestForm({
       const message = normalizeNullableString(form.message.trim());
       const cadastralNumbers = cadastral.numbers;
 
-      const category = form.category;
       if (category) {
         if (isAuthenticated) {
           const res = await fetch(`/api/service-categories/${category.id}/requests`, {
@@ -228,53 +231,62 @@ export function PublicUnlinkedRequestForm({
                 setCityOverride(next);
               }}
               disabled={busy}
-              iconColor="accent"
+              iconColor={city ? "primary" : "accent"}
             />
 
-            {variant === "card" ? (
-              <CadastralNumberChipsField
-                value={form.cadastralNumbers}
-                onChange={(cadastralNumbers) => setForm((prev) => ({ ...prev, cadastralNumbers }))}
-                disabled={busy}
-              />
-            ) : (
-              <CadastralNumberListEditor
-                value={form.cadastralNumbers}
-                onChange={(cadastralNumbers) => setForm((prev) => ({ ...prev, cadastralNumbers }))}
-                disabled={busy}
-              />
-            )}
+            <CadastralNumberChipsField
+              value={form.cadastralNumbers}
+              onChange={(cadastralNumbers) => setForm((prev) => ({ ...prev, cadastralNumbers }))}
+              disabled={busy}
+            />
           </Stack>
         </Stack>
 
-        {variant !== "card" ? (
-          <Accordion
-            expanded={optionalExpanded}
-            onChange={(_, next) => setOptionalExpanded(next)}
-            disableGutters
-            elevation={0}
-            sx={{ border: 1, borderColor: "divider", borderRadius: 1, "&:before": { display: "none" } }}
-          >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography sx={{ fontWeight: 800 }}>Опционально</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Stack spacing={2}>
-                <Autocomplete
-                  options={categories}
-                  value={form.category}
-                  onChange={(_, next) => setForm((prev) => ({ ...prev, category: next }))}
-                  getOptionLabel={(o) => o.name}
-                  isOptionEqualToValue={(a, b) => a.id === b.id}
-                  renderInput={(params) => (
-                    <TextField {...params} label="Категория (опционально)" size="small" placeholder="Можно оставить пустым" />
-                  )}
-                  disabled={busy}
-                  clearOnEscape
-                />
-              </Stack>
-            </AccordionDetails>
-          </Accordion>
+        {variant !== "card" && (sectionCategory || categories.length > 0) ? (
+          <Stack spacing={0.5}>
+            {sectionCategory || categories.length === 1 ? (
+              <Typography variant="body2" sx={{ color: "primary.main", fontWeight: 700, py: 0.5 }}>
+                {sectionCategory?.name ?? categories[0]?.name}
+              </Typography>
+            ) : null}
+            {categories.length > 1 ? (
+              <RadioGroup
+                value={subcategory?.id ?? ""}
+                onChange={(_, id) => {
+                  const next = categories.find((option) => option.id === id) ?? null;
+                  setForm((prev) => ({ ...prev, category: next }));
+                }}
+              >
+                {categories.map((option) => (
+                  <FormControlLabel
+                    key={option.id}
+                    value={option.id}
+                    control={
+                      <Radio
+                        size="small"
+                        disabled={busy}
+                        onClick={() => {
+                          if (form.category?.id !== option.id) return;
+                          setForm((prev) => ({ ...prev, category: null }));
+                        }}
+                      />
+                    }
+                    label={
+                      <Typography variant="body2" sx={{ pt: 0.25, color: "text.secondary" }}>
+                        {option.name}
+                      </Typography>
+                    }
+                    sx={{
+                      alignItems: "flex-start",
+                      mr: 0,
+                      "& .MuiRadio-root": { py: 0.25, color: "divider" },
+                      "& .MuiRadio-root.Mui-checked": { color: "primary.main" },
+                    }}
+                  />
+                ))}
+              </RadioGroup>
+            ) : null}
+          </Stack>
         ) : null}
 
         <Button

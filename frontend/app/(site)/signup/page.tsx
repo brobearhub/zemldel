@@ -464,6 +464,7 @@ function SignUpPageContent() {
             <Stack spacing={2.5}>
               <LocationField
                 label="Ваша локация"
+                tone="light"
                 value={customerCity}
                 onChange={(next) => {
                   setCustomerCity(next);
