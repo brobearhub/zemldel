@@ -5,14 +5,14 @@ import {
   Box,
   Button,
   Divider,
-  Paper,
   Stack,
   Typography,
 } from "@mui/material";
 import { SITE_HEADER_HEIGHT_PX } from "@/shared/config/site-layout";
-import CelebrationRoundedIcon from "@mui/icons-material/CelebrationRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import BusinessCenterRoundedIcon from "@mui/icons-material/BusinessCenterRounded";
+import { RainGlassPaper } from "@/shared/ui/RainGlassPaper";
+import { LogoIcon } from "@/shared/ui/LogoIcon";
 
 export default function WelcomePage() {
   return (
@@ -30,53 +30,27 @@ export default function WelcomePage() {
           md: 10,
         },
         pb: { xs: 4, sm: 6, md: 10 },
-        backgroundImage: "url('/hero-bg-house_static.jpg')",
+        backgroundImage: "url('/hero-bg-house_static_welcome.jpg?v=4')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
       }}
     >
-      <Paper
-        elevation={10}
+      <RainGlassPaper
         sx={{
           width: "100%",
           maxWidth: 440,
           p: 4,
-          backdropFilter: "blur(3px)",
-          backgroundColor: "background.paper",
         }}
       >
-        <Stack spacing={3} sx={{
-          alignItems: "center"
-        }}>
-          <Box
-            sx={{
-              width: 88,
-              height: 88,
-              borderRadius: "50%",
-              background: "linear-gradient(135deg, #FF6B35 0%, #F7C59F 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 8px 24px rgba(255, 107, 53, 0.35)",
-            }}
-          >
-            <CelebrationRoundedIcon sx={{ fontSize: 48, color: "#fff" }} />
-          </Box>
+        <Stack spacing={3} sx={{ alignItems: "center" }}>
+          <LogoIcon size={88} tone="light" priority />
 
-          <Stack spacing={1} sx={{
-            alignItems: "center"
-          }}>
-            <Typography variant="h4" align="center" sx={{
-              fontWeight: 700
-            }}>
-              Поздравляем!
-            </Typography>
-          </Stack>
+          <Typography variant="h4" align="center" sx={{ fontWeight: 700 }}>
+            Поздравляем!
+          </Typography>
 
-          <Stack spacing={1.5} sx={{
-            width: "100%"
-          }}>
+          <Stack spacing={1.5} sx={{ width: "100%" }}>
             <Button
               component={Link}
               href="/profile"
@@ -84,43 +58,42 @@ export default function WelcomePage() {
               size="large"
               fullWidth
               startIcon={<PersonRoundedIcon />}
-              sx={{ py: 1.5 }}
-              color="primary"
+              color="secondary"
             >
               Перейти в профиль
             </Button>
           </Stack>
 
-          <Divider sx={{ width: "100%" }} />
+          <Divider sx={{ width: "100%", borderColor: "common.white", opacity: 0.28 }} />
 
-
-          <Stack spacing={1.5} sx={{
-            width: "100%"
-          }}>
-            <Typography variant="body2" align="center" sx={{
-              color: "text.secondary"
-            }}>
+          <Stack spacing={1.5} sx={{ width: "100%" }}>
+            <Typography variant="body2" align="center" sx={{ opacity: 0.9 }}>
               Создайте профессиональный профиль, чтобы предлагать услуги и работать от имени компании в отдельном кабинете.
             </Typography>
             <Button
               component={Link}
               href="/providers/new"
               variant="outlined"
-              size="large"
+              size="medium"
               fullWidth
               startIcon={<BusinessCenterRoundedIcon />}
-              sx={{ py: 1.5 }}
+              color="primary"
+              sx={{
+                
+                "&&": {
+                  color: "primary.main",
+                  borderColor: "primary.main",
+                },
+              }}
             >
               Стать исполнителем
             </Button>
-            <Typography variant="caption" align="center" sx={{
-              color: "text.secondary"
-            }}>
+            <Typography variant="caption" align="center" sx={{ opacity: 0.75 }}>
               Самозанятый, ИП или организация
             </Typography>
           </Stack>
         </Stack>
-      </Paper>
+      </RainGlassPaper>
     </Box>
   );
 }

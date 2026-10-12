@@ -1,11 +1,9 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Box, Typography } from "@mui/material";
-import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import { useAppSelector } from "@/core/store/hooks";
 import { getActiveMembership } from "@/core/auth/authorization";
-import { useCitySelect, useSelectedCity } from "@/features/select-city";
+import { LocationButton, useCitySelect, useHeaderCity, useSelectedCity } from "@/features/select-city";
 
 type HeaderCityProps = {
   /** В меню-гамбургере название города видно и на узком экране. */
@@ -20,7 +18,7 @@ export function HeaderCity({ showLabel = false }: HeaderCityProps) {
   const inPro = pathname === "/pro" || pathname.startsWith("/pro/");
   const activeMembership = user ? getActiveMembership(user) : null;
 
-  const customerSelected = useSelectedCity("customer");
+  const customerSelected = useHeaderCity();
   const providerSelected = useSelectedCity("provider");
 
   const city = inPro ? providerSelected : customerSelected;
@@ -28,46 +26,11 @@ export function HeaderCity({ showLabel = false }: HeaderCityProps) {
   const scope = inPro && status === "authenticated" && user && activeMembership?.providerId ? "provider" : "customer";
 
   return (
-    <Box
-      component="button"
-      type="button"
-      aria-label="Локация"
+    <LocationButton
+      label={label}
       onClick={() => openCitySelect(scope)}
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        gap: 0.75,
-        px: { xs: 0.75, sm: 1 },
-        py: 0.75,
-        borderRadius: 1,
-        border: 0,
-        cursor: "pointer",
-        bgcolor: "transparent",
-        textAlign: "left",
-        "&:hover": {
-          color: "primary.main",
-          "& .city-label": { opacity: 1 },
-        },
-      }}
-    >
-      <LocationOnOutlinedIcon sx={{ fontSize: { xs: 20, sm: 22 }, color: "common.gray" }} />
-      <Typography
-        className="city-label"
-        variant="body2"
-        sx={{
-          color: "common.gray",
-          display: showLabel ? "block" : { xs: "none", md: "block" },
-          fontWeight: 600,
-          fontSize: 12,
-          opacity: 1,
-          maxWidth: showLabel ? "none" : 140,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap"
-        }}>
-        {label}
-      </Typography>
-    </Box>
+      labelDisplay={showLabel ? "always" : "fromMd"}
+    />
   );
 }
 

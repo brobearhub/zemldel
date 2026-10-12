@@ -37,7 +37,10 @@ const CITIES_GROUP = {
   hrefPrefix: "/admin/cities",
   label: "Локации",
   icon: <LocationCityIcon />,
-  items: [{ href: "/admin/cities/imports", label: "Импорты ГАР", icon: <FormatListBulletedIcon /> }],
+  items: [
+    { href: "/admin/cities/imports", label: "Импорты ГАР", icon: <FormatListBulletedIcon /> },
+    { href: "/admin/cities/capitals", label: "Столицы", icon: <LocationCityIcon /> },
+  ],
 } as const;
 
 const CATEGORIES_GROUP = {

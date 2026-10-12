@@ -2,20 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { CitySuggestItemDto } from "@/entities/city";
+import { formatCityLabel } from "@/shared/lib/format-city-label";
 import { useAppSelector } from "@/core/store/hooks";
 import { getActiveMembership } from "@/core/auth/authorization";
 import { readGuestCity, subscribeGuestCity } from "./guest-city.storage";
 
 export type CitySelectScope = "customer" | "provider";
-
-function buildLocationDisplayName(locationName: string, regionName: string) {
-  const loc = locationName.trim();
-  const region = regionName.trim();
-  const locKey = loc.toLowerCase();
-  const regionKey = region.toLowerCase();
-  if (regionKey.includes(locKey)) return loc;
-  return `${loc}, ${region}`;
-}
 
 function mapAuthCityToSuggest(
   city: { id: string; name: string; regionCode: string; regionName: string } | null | undefined
@@ -26,7 +18,7 @@ function mapAuthCityToSuggest(
     name: city.name,
     regionCode: city.regionCode,
     regionName: city.regionName,
-    displayName: buildLocationDisplayName(city.name, city.regionName),
+    displayName: formatCityLabel(city.name, city.regionName),
   };
 }
 
@@ -39,7 +31,7 @@ function mapGuestCityToSuggest(
     name: city.name,
     regionCode: city.regionCode,
     regionName: city.regionName,
-    displayName: buildLocationDisplayName(city.name, city.regionName),
+    displayName: formatCityLabel(city.name, city.regionName),
   };
 }
 
@@ -47,6 +39,7 @@ function useGuestCustomerCity(): CitySuggestItemDto | null {
   const [guestCity, setGuestCity] = useState(() => readGuestCity());
 
   useEffect(() => {
+    setGuestCity(readGuestCity());
     return subscribeGuestCity(() => setGuestCity(readGuestCity()));
   }, []);
 
@@ -66,8 +59,7 @@ export function useSelectedCity(scope: CitySelectScope): CitySuggestItemDto | nu
 
     // customer scope
     if (status === "authenticated" && user) {
-      const profileCity = mapAuthCityToSuggest(user.customerCity);
-      return profileCity ?? guestCustomerCity;
+      return mapAuthCityToSuggest(user.customerCity);
     }
 
     return guestCustomerCity;
