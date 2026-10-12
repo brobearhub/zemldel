@@ -103,6 +103,31 @@ export const RUSSIAN_CAPITALS: readonly RegionalCapitalSeed[] = [
   { name: 'Геническ', regionCode: '95' },
 ];
 
+/**
+ * Первый эшелон окна «Локация».
+ * Порядок здесь — порядок чипов и `sortOrder` в сиде столиц.
+ */
+export const FEATURED_REGIONAL_CAPITALS: readonly string[] = [
+  'Москва',
+  'Санкт-Петербург',
+  'Новосибирск',
+  'Екатеринбург',
+  'Казань',
+  'Красноярск',
+  'Нижний Новгород',
+  'Челябинск',
+  'Уфа',
+  'Самара',
+  'Ростов-на-Дону',
+  'Краснодар',
+  'Омск',
+  'Воронеж',
+  'Пермь',
+  'Волгоград',
+  'Тюмень',
+  'Хабаровск',
+];
+
 const FEDERAL_CITY_REGION_CODES = new Set(['77', '78', '92']);
 
 export type CapitalCityCandidate = {
@@ -194,6 +219,23 @@ export function missingRegionalCapitals(
   rows: readonly CapitalCityCandidate[],
 ): RegionalCapitalSeed[] {
   return RUSSIAN_CAPITALS.filter((capital) => !bestCapitalMatch(capital, rows));
+}
+
+export function featuredRegionalCapitalIds(
+  rows: readonly CapitalCityCandidate[],
+): { cityId: string; sortOrder: number }[] {
+  const byName = new Map(
+    RUSSIAN_CAPITALS.map((capital) => [foldCityName(capital.name), capital]),
+  );
+  const assigned: { cityId: string; sortOrder: number }[] = [];
+  FEATURED_REGIONAL_CAPITALS.forEach((name, sortOrder) => {
+    const capital = byName.get(foldCityName(name));
+    if (!capital) return;
+    const best = bestCapitalMatch(capital, rows);
+    if (!best) return;
+    assigned.push({ cityId: best.id, sortOrder });
+  });
+  return assigned;
 }
 
 export function capitalIdsToInsert(

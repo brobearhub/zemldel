@@ -34,6 +34,11 @@ export class ServiceCategoryDto {
   @ApiProperty()
   @Expose()
   @IsString()
+  shortName!: string;
+
+  @ApiProperty()
+  @Expose()
+  @IsString()
   slug!: string;
 
   @ApiProperty({ nullable: true, example: null })
@@ -58,6 +63,16 @@ export class ServiceCategoryCreateDto {
   @IsString()
   @MinLength(1)
   name!: string;
+
+  @ApiPropertyOptional({ minLength: 1 })
+  @Expose()
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
+    toClassOnly: true,
+  })
+  @IsString()
+  @MinLength(1)
+  shortName?: string;
 
   @ApiProperty({ minLength: 1 })
   @Expose()
@@ -100,6 +115,16 @@ export class ServiceCategoryPatchDto {
   @IsString()
   @MinLength(1)
   name?: string;
+
+  @ApiPropertyOptional({ minLength: 1 })
+  @Expose()
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
+    toClassOnly: true,
+  })
+  @IsString()
+  @MinLength(1)
+  shortName?: string;
 
   @ApiPropertyOptional({ minLength: 1 })
   @Expose()

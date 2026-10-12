@@ -4,6 +4,7 @@ import { getPublicProviderProfile } from "@/entities/provider";
 import { listPublicServiceReviews } from "@/entities/review/api/review.server";
 import { ServiceHeroSection, ServiceLeadSection, ServiceProviderSection, ServiceReviewsSection } from "@/widgets/service-page";
 import { mapServiceToHeroVm } from "@/views/service-page/model/map-service-to-hero-vm";
+import { displayCityName } from "@/shared/lib/format-city-label";
 
 type Props = {
   service: ServiceDto;
@@ -34,7 +35,7 @@ export function StandardServiceTemplate({ service, session }: Props) {
         serviceId={service.id}
         ratingValue={service.rating ?? null}
         reviewCount={service.reviewCount ?? 0}
-        cityLabel={service.provider?.city?.name ?? null}
+        cityLabel={service.provider?.city?.name ? displayCityName(service.provider.city.name) : null}
       />
 
       <ServiceLeadSection

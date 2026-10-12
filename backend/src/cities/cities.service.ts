@@ -9,6 +9,7 @@ import {
   buildDisplayName,
   locationRowRank,
   normalizeCityNameForKey,
+  publicCityName,
 } from './city-suggest.lib';
 import { compareRegionalCapitals } from './regional-capital-order';
 import type {
@@ -51,6 +52,17 @@ function normalizeQuery(input: string) {
   }
 }
 
+function cityNameQuery(q: string) {
+  const honorific = 'город-герой ';
+  const clauses = [{ name: { startsWith: q, mode: 'insensitive' as const } }];
+  if (!q.toLowerCase().startsWith(honorific.trim())) {
+    clauses.push({
+      name: { startsWith: `${honorific}${q}`, mode: 'insensitive' as const },
+    });
+  }
+  return clauses;
+}
+
 function clampLimit(value: number) {
   if (!Number.isFinite(value)) return 10;
   return Math.min(20, Math.max(1, Math.floor(value)));
@@ -65,12 +77,13 @@ type SuggestCityRow = {
 };
 
 function toSuggestItem(row: SuggestCityRow): CitySuggestItemDto {
+  const name = publicCityName(row.name);
   return {
     id: row.id,
-    name: row.name,
+    name,
     regionCode: row.regionCode,
     regionName: row.regionName,
-    displayName: buildDisplayName(row),
+    displayName: buildDisplayName({ ...row, name }),
   };
 }
 
@@ -121,8 +134,16 @@ function toAdminItem(row: RegionalCapitalRow): RegionalCapitalAdminItemDto {
 function sortRegionalCapitalRows(rows: RegionalCapitalRow[]) {
   return [...rows].sort((a, b) =>
     compareRegionalCapitals(
-      { featured: a.featured, sortOrder: a.sortOrder, name: a.city.name },
-      { featured: b.featured, sortOrder: b.sortOrder, name: b.city.name },
+      {
+        featured: a.featured,
+        sortOrder: a.sortOrder,
+        name: publicCityName(a.city.name),
+      },
+      {
+        featured: b.featured,
+        sortOrder: b.sortOrder,
+        name: publicCityName(b.city.name),
+      },
     ),
   );
 }
@@ -143,10 +164,7 @@ export class CitiesService {
       where: {
         status: 'ACTIVE',
         level: { in: [1, 2, 3, 4, 5, 6] },
-        name: {
-          startsWith: q,
-          mode: 'insensitive',
-        },
+        OR: cityNameQuery(q),
       },
       select: {
         id: true,

@@ -2,6 +2,16 @@ export function normalizeCityNameForKey(name: string) {
   return name.trim().toLowerCase();
 }
 
+/** ГАР пишет Волгоград как «город-герой Волгоград». В ответах API остаётся обиходное имя. */
+export function publicCityName(name: string) {
+  return name.trim().replace(/^город-герой\s+/iu, '');
+}
+
+export function publicCityNameOrNull(name: string | null | undefined) {
+  if (!name?.trim()) return null;
+  return publicCityName(name);
+}
+
 export function locationRowRank(row: { typeName: string; level: number }) {
   const t = row.typeName.trim().toLowerCase();
 
@@ -30,7 +40,7 @@ export function buildDisplayName(row: {
   typeName: string;
   regionName: string;
 }) {
-  const name = row.name.trim();
+  const name = publicCityName(row.name);
   const region = row.regionName.trim();
   const type = row.typeName.trim();
   const prefix = type ? `${type} ` : '';

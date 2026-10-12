@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { CitySuggestItemDto } from "@/entities/city";
-import { formatCityLabel } from "@/shared/lib/format-city-label";
+import { displayCityName, formatCityLabel } from "@/shared/lib/format-city-label";
 import { useAppSelector } from "@/core/store/hooks";
 import { getActiveMembership } from "@/core/auth/authorization";
 import { readGuestCity, subscribeGuestCity } from "./guest-city.storage";
@@ -15,7 +15,7 @@ function mapAuthCityToSuggest(
   if (!city) return null;
   return {
     id: city.id,
-    name: city.name,
+    name: displayCityName(city.name),
     regionCode: city.regionCode,
     regionName: city.regionName,
     displayName: formatCityLabel(city.name, city.regionName),
@@ -28,7 +28,7 @@ function mapGuestCityToSuggest(
   if (!city) return null;
   return {
     id: city.id,
-    name: city.name,
+    name: displayCityName(city.name),
     regionCode: city.regionCode,
     regionName: city.regionName,
     displayName: formatCityLabel(city.name, city.regionName),

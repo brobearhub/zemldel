@@ -3,6 +3,7 @@ import { Box, Rating, Stack, Typography } from "@mui/material";
 import type { PublicProviderProfileDto } from "@/entities/provider";
 import { formatReviewCount } from "@/entities/review";
 import { providerHeroCaption, providerHeroGreeting, providerHeroIntro } from "../lib/provider-hero-copy";
+import { displayCityName } from "@/shared/lib/format-city-label";
 import { CdnFillImage } from "@/shared/ui/cdn-image";
 
 type Props = {
@@ -12,7 +13,7 @@ type Props = {
 export function ProviderPublicHero({ provider }: Props) {
   const greeting = providerHeroGreeting(provider.name, provider.type);
   const caption = providerHeroCaption(provider.name, provider.type);
-  const cityName = provider.city?.name;
+  const cityName = provider.city?.name ? displayCityName(provider.city.name) : "";
   const intro = providerHeroIntro(provider.about, provider.subtitle);
   const stats = provider.stats.filter((stat) => stat.value.trim() && stat.label.trim()).slice(0, 3);
 

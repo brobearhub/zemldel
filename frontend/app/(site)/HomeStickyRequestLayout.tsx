@@ -13,6 +13,7 @@ import { ServiceCategoriesBar } from "@/widgets/service-categories/ui/ServiceCat
 type ServiceCategoryRow = {
   id: string;
   name: string;
+  shortName?: string | null;
   parentId: string | null;
   sortOrder: number | null;
 };
@@ -45,6 +46,7 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) 
   const barItems = rootCategories.map((c) => ({
     id: c.id,
     name: c.name,
+    shortName: c.shortName,
     href: `/service-categories/${c.id}`,
   }));
 

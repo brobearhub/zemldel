@@ -32,6 +32,10 @@ describe("location list", () => {
   it("filters capitals by name prefix", () => {
     expect(filterByPrefix(cities, " ка").map((city) => city.name)).toEqual(["Казань"]);
     expect(filterByPrefix(cities, "е").map((city) => city.name)).toEqual(["Екатеринбург", "Ёлкино"]);
+    expect(filterByPrefix([{ name: "город-герой Волгоград" }], "вол").map((city) => city.name)).toEqual([
+      "город-герой Волгоград",
+    ]);
+    expect(cityLetter("город-герой Волгоград")).toBe("В");
   });
 
   it("groups cities under a letter in Russian alphabetical order", () => {

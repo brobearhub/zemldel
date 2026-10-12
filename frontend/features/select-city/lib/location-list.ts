@@ -1,4 +1,4 @@
-import { formatRegionLabel } from "@/shared/lib/format-city-label";
+import { displayCityName, formatRegionLabel } from "@/shared/lib/format-city-label";
 
 export type NamedCity = {
   name: string;
@@ -14,7 +14,7 @@ export function foldCityName(value: string) {
 }
 
 export function cityLetter(name: string) {
-  const first = foldCityName(name).charAt(0);
+  const first = foldCityName(displayCityName(name)).charAt(0);
   return first ? first.toLocaleUpperCase("ru-RU") : "";
 }
 
@@ -36,11 +36,13 @@ export function filterByLetter<T extends NamedCity>(cities: readonly T[], letter
 export function filterByPrefix<T extends NamedCity>(cities: readonly T[], query: string) {
   const q = foldCityName(query);
   if (!q) return [...cities];
-  return cities.filter((city) => foldCityName(city.name).startsWith(q));
+  return cities.filter((city) => foldCityName(displayCityName(city.name)).startsWith(q));
 }
 
 export function groupCitiesByLetter<T extends NamedCity>(cities: readonly T[]): LetterGroup<T>[] {
-  const sorted = [...cities].sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  const sorted = [...cities].sort((a, b) =>
+    displayCityName(a.name).localeCompare(displayCityName(b.name), "ru"),
+  );
   const groups: LetterGroup<T>[] = [];
   for (const city of sorted) {
     const letter = cityLetter(city.name);
@@ -73,7 +75,7 @@ export function formatRegionShort(regionName: string, cityName: string) {
     .replace(/\s+автономная область(?=\s|$)/gi, " авт. обл.")
     .replace(/\s+область(?=\s|$)/gi, " обл.");
 
-  const cityKey = foldCityName(cityName);
+  const cityKey = foldCityName(displayCityName(cityName));
   if (cityKey && (foldCityName(short) === cityKey || foldCityName(full) === cityKey)) return "";
   return short;
 }
