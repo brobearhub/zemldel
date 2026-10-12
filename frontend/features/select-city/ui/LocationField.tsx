@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Box, Typography } from "@mui/material";
 import type { CitySuggestItemDto } from "@/entities/city";
-import { LocationButton, type LocationIconColor } from "./LocationButton";
+import { LocationButton, type LocationIconColor, type LocationTone } from "./LocationButton";
 import { LocationDialog } from "./LocationDialog";
 
 type Props = {
@@ -16,6 +16,8 @@ type Props = {
   /** Подпись над кнопкой, если рядом несколько локаций. */
   caption?: string;
   iconColor?: LocationIconColor;
+  /** `light` — цвет родителя, чтобы локация читалась на тёмном стекле. */
+  tone?: LocationTone;
   /** Крестик сброса рядом с выбранным городом. В шапке не используется. */
   clearable?: boolean;
 };
@@ -31,6 +33,7 @@ export function LocationField({
   helperText,
   caption,
   iconColor,
+  tone = "default",
   clearable = true,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -43,7 +46,7 @@ export function LocationField({
   return (
     <Box>
       {caption ? (
-        <Typography variant="body2" sx={{ color: "text.secondary", mb: 0.25 }}>
+        <Typography variant="body2" sx={{ color: tone === "light" ? "inherit" : "text.secondary", mb: 0.25 }}>
           {caption}
         </Typography>
       ) : null}
@@ -53,10 +56,18 @@ export function LocationField({
         disabled={disabled}
         error={error}
         iconColor={iconColor}
+        tone={tone}
         onClear={clearable && value ? () => onChange(null) : undefined}
       />
       {hint ? (
-        <Typography variant="caption" sx={{ display: "block", mt: 0.5, color: error ? "error.main" : "text.secondary" }}>
+        <Typography
+          variant="caption"
+          sx={{
+            display: "block",
+            mt: 0.5,
+            color: error ? "error.main" : tone === "light" ? "inherit" : "text.secondary",
+          }}
+        >
           {hint}
         </Typography>
       ) : null}

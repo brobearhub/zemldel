@@ -167,6 +167,7 @@ export default async function ServiceCategoryPage({ params }: Props) {
                           ? templates.map((t) => ({ id: t.id, name: t.name }))
                           : [{ id: category.id, name: category.name }]
                       }
+                      sectionCategory={isRoot ? { id: category.id, name: category.name } : null}
                       initialCategory={isRoot ? undefined : { id: category.id, name: category.name }}
                     />
                   </Stack>

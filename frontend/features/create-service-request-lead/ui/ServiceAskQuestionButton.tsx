@@ -7,7 +7,7 @@ import {
   createEmptyCadastralParts,
   type CadastralNumberParts,
 } from "@/entities/request";
-import { CadastralNumberListEditor } from "@/shared/ui/CadastralNumberListEditor";
+import { CadastralNumberChipsField } from "@/shared/ui/CadastralNumberChipsField";
 import { useServiceAskQuestion } from "@/features/create-service-request-lead/model/useServiceAskQuestion";
 import { DEFAULT_SERVICE_QUESTION } from "@/features/create-service-request-lead";
 
@@ -38,7 +38,7 @@ export function ServiceAskQuestionButton({ serviceId }: Props) {
         fullWidth
       />
 
-      <CadastralNumberListEditor
+      <CadastralNumberChipsField
         value={cadastralNumbers}
         onChange={(next) => {
           form.setError(null);

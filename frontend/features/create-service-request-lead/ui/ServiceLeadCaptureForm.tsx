@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Alert, Button, CircularProgress, Stack, TextField, Typography } from "@mui/material";
-import { CadastralNumberListEditor } from "@/shared/ui/CadastralNumberListEditor";
+import { CadastralNumberChipsField } from "@/shared/ui/CadastralNumberChipsField";
 import { useServiceLeadCapture } from "@/features/create-service-request-lead/model/useServiceLeadCapture";
 import { DEFAULT_SERVICE_QUESTION } from "@/features/create-service-request-lead";
 
@@ -32,7 +32,7 @@ export function ServiceLeadCaptureForm({ serviceId, initialCustomerEmail }: Prop
         fullWidth
       />
 
-      <CadastralNumberListEditor
+      <CadastralNumberChipsField
         value={form.cadastralNumbers}
         onChange={(next) => {
           form.setError(null);
