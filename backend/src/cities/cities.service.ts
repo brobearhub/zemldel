@@ -1,5 +1,20 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  buildDisplayName,
+  locationRowRank,
+  normalizeCityNameForKey,
+} from './city-suggest.lib';
+import { compareRegionalCapitals } from './regional-capital-order';
+import type {
+  RegionalCapitalAdminItemDto,
+  RegionalCapitalItemDto,
+} from './dto/regional-capital.dto';
 import type {
   CityImportEventDto,
   CityImportRunDto,
@@ -41,47 +56,75 @@ function clampLimit(value: number) {
   return Math.min(20, Math.max(1, Math.floor(value)));
 }
 
-function normalizeCityNameForKey(name: string) {
-  return name.trim().toLowerCase();
-}
-
-function locationRowRank(row: { typeName: string; level: number }) {
-  const t = row.typeName.trim().toLowerCase();
-
-  // Some GAR types are technically "locations" but are rarely useful for users in UI.
-  // Keep them searchable, but push them down in suggestions.
-  const lowPriorityTypePenalty = t === 'автодорога' ? 50 : 0;
-
-  // Prefer concrete city records over administrative shells.
-  let base = 99;
-  if (row.typeName === 'г' && row.level === 5) base = 0;
-  else if (row.typeName === 'г' && row.level === 1)
-    base = 1; // federal cities (subjects)
-  else if (row.level === 6)
-    base = 2; // locality / населённый пункт
-  else if (row.level === 4)
-    base = 3; // settlement
-  else if (row.level === 3)
-    base = 4; // municipal area / city district
-  else if (row.level === 2) base = 5; // admin area
-
-  return base + lowPriorityTypePenalty;
-}
-
-function buildDisplayName(row: {
+type SuggestCityRow = {
+  id: string;
   name: string;
-  typeName: string;
+  regionCode: string;
   regionName: string;
-}) {
-  const name = row.name.trim();
-  const region = row.regionName.trim();
-  const type = row.typeName.trim();
-  const prefix = type ? `${type} ` : '';
+  typeName: string;
+};
 
-  const nameKey = normalizeCityNameForKey(name);
-  const regionKey = normalizeCityNameForKey(region);
-  if (regionKey.includes(nameKey)) return `${prefix}${name}`;
-  return `${prefix}${name}, ${region}`;
+function toSuggestItem(row: SuggestCityRow): CitySuggestItemDto {
+  return {
+    id: row.id,
+    name: row.name,
+    regionCode: row.regionCode,
+    regionName: row.regionName,
+    displayName: buildDisplayName(row),
+  };
+}
+
+function isPrismaUniqueViolation(error: unknown) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'P2002'
+  );
+}
+
+const capitalCitySelect = {
+  id: true,
+  name: true,
+  regionCode: true,
+  regionName: true,
+  typeName: true,
+  status: true,
+} as const;
+
+type RegionalCapitalRow = {
+  featured: boolean;
+  sortOrder: number;
+  city: SuggestCityRow;
+};
+
+const regionalCapitalSelect = {
+  featured: true,
+  sortOrder: true,
+  city: { select: capitalCitySelect },
+} as const;
+
+function toPublicCapital(row: RegionalCapitalRow): RegionalCapitalItemDto {
+  return {
+    ...toSuggestItem(row.city),
+    featured: row.featured === true,
+  };
+}
+
+function toAdminItem(row: RegionalCapitalRow): RegionalCapitalAdminItemDto {
+  return {
+    ...toPublicCapital(row),
+    sortOrder: row.sortOrder,
+  };
+}
+
+function sortRegionalCapitalRows(rows: RegionalCapitalRow[]) {
+  return [...rows].sort((a, b) =>
+    compareRegionalCapitals(
+      { featured: a.featured, sortOrder: a.sortOrder, name: a.city.name },
+      { featured: b.featured, sortOrder: b.sortOrder, name: b.city.name },
+    ),
+  );
 }
 
 @Injectable()
@@ -131,13 +174,133 @@ export class CitiesService {
       if (r !== 0) return r;
       return a.name.localeCompare(b.name, 'ru');
     });
-    return deduped.slice(0, limit).map((row) => ({
-      id: row.id,
-      name: row.name,
-      regionCode: row.regionCode,
-      regionName: row.regionName,
-      displayName: buildDisplayName(row),
-    }));
+    return deduped.slice(0, limit).map((row) => toSuggestItem(row));
+  }
+
+  async listCapitals(): Promise<RegionalCapitalItemDto[]> {
+    const rows = await this.prisma.regionalCapital.findMany({
+      where: { city: { status: 'ACTIVE' } },
+      select: regionalCapitalSelect,
+    });
+    return sortRegionalCapitalRows(rows).map((row) => toPublicCapital(row));
+  }
+
+  async listAdminRegionalCapitals(): Promise<RegionalCapitalAdminItemDto[]> {
+    const rows = await this.prisma.regionalCapital.findMany({
+      select: regionalCapitalSelect,
+    });
+    return sortRegionalCapitalRows(rows).map((row) => toAdminItem(row));
+  }
+
+  async setRegionalCapitalFeatured(
+    cityId: string,
+    featured: boolean,
+  ): Promise<RegionalCapitalAdminItemDto> {
+    const row = await this.prisma.regionalCapital.findUnique({
+      where: { cityId },
+      select: regionalCapitalSelect,
+    });
+    if (!row) {
+      throw new NotFoundException('Regional capital not found');
+    }
+    if (row.featured === featured) {
+      return toAdminItem(row);
+    }
+
+    let sortOrder = 0;
+    if (featured) {
+      const max = await this.prisma.regionalCapital.aggregate({
+        where: { featured: true },
+        _max: { sortOrder: true },
+      });
+      sortOrder = (max._max.sortOrder ?? 0) + 1;
+    }
+
+    const updated = await this.prisma.regionalCapital.update({
+      where: { cityId },
+      data: { featured, sortOrder },
+      select: regionalCapitalSelect,
+    });
+    return toAdminItem(updated);
+  }
+
+  async moveRegionalCapital(
+    cityId: string,
+    direction: 'up' | 'down',
+  ): Promise<RegionalCapitalAdminItemDto> {
+    const row = await this.prisma.regionalCapital.findUnique({
+      where: { cityId },
+      select: regionalCapitalSelect,
+    });
+    if (!row) {
+      throw new NotFoundException('Regional capital not found');
+    }
+    if (!row.featured) {
+      throw new BadRequestException('City is not in the first tier');
+    }
+
+    const featured = sortRegionalCapitalRows(
+      await this.prisma.regionalCapital.findMany({
+        where: { featured: true },
+        select: regionalCapitalSelect,
+      }),
+    );
+    const index = featured.findIndex((item) => item.city.id === cityId);
+    const swapIndex = direction === 'up' ? index - 1 : index + 1;
+    if (index < 0 || swapIndex < 0 || swapIndex >= featured.length) {
+      return toAdminItem(row);
+    }
+
+    const ordered = [...featured];
+    const [moved] = ordered.splice(index, 1);
+    if (!moved) return toAdminItem(row);
+    ordered.splice(swapIndex, 0, moved);
+
+    await this.prisma.$transaction(
+      ordered.map((item, position) =>
+        this.prisma.regionalCapital.update({
+          where: { cityId: item.city.id },
+          data: { sortOrder: position + 1 },
+        }),
+      ),
+    );
+
+    return toAdminItem({ ...row, sortOrder: swapIndex + 1 });
+  }
+
+  async addRegionalCapital(
+    cityId: string,
+  ): Promise<RegionalCapitalAdminItemDto> {
+    const city = await this.prisma.city.findUnique({
+      where: { id: cityId },
+      select: capitalCitySelect,
+    });
+    if (!city || city.status !== 'ACTIVE') {
+      throw new BadRequestException('City is not available');
+    }
+
+    try {
+      await this.prisma.regionalCapital.create({ data: { cityId } });
+    } catch (error) {
+      if (isPrismaUniqueViolation(error)) {
+        throw new ConflictException('City is already a regional capital');
+      }
+      throw error;
+    }
+
+    return { ...toSuggestItem(city), featured: false, sortOrder: 0 };
+  }
+
+  async removeRegionalCapital(cityId: string): Promise<CitySuggestItemDto> {
+    const row = await this.prisma.regionalCapital.findUnique({
+      where: { cityId },
+      select: { city: { select: capitalCitySelect } },
+    });
+    if (!row) {
+      throw new NotFoundException('Regional capital not found');
+    }
+    await this.prisma.regionalCapital.delete({ where: { cityId } });
+    return toSuggestItem(row.city);
   }
 
   async listImportRuns(limitRaw = 50): Promise<CityImportRunDto[]> {

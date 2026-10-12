@@ -2,38 +2,30 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import {
-  Alert,
-  Box,
-  Button,
-  CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Stack,
-  Typography,
-} from "@mui/material";
 import type { CitySuggestItemDto } from "@/entities/city";
-import { CityAutocomplete } from "@/shared/ui/CityAutocomplete";
 import { useAppSelector } from "@/core/store/hooks";
 import { getActiveMembership } from "@/core/auth/authorization";
-import type { CitySelectScope } from "@/features/select-city/model/use-selected-city";
-import { useSelectedCity } from "@/features/select-city/model/use-selected-city";
-import { writeGuestCity } from "@/features/select-city/model/guest-city.storage";
+import { LocationDialog } from "./LocationDialog";
+import type { CitySelectScope } from "../model/use-selected-city";
+import { useSelectedCity } from "../model/use-selected-city";
+import { writeGuestCity } from "../model/guest-city.storage";
 
 type Props = {
   open: boolean;
   scope: CitySelectScope;
+  browseCity: CitySuggestItemDto | null;
+  onBrowseCity: (city: CitySuggestItemDto | null) => void;
   onClose: () => void;
   onSaved: (city: CitySuggestItemDto | null) => void;
 };
 
-export function CitySelectDialog({ open, scope, onClose, onSaved }: Props) {
+export function CitySelectDialog({ open, scope, browseCity, onBrowseCity, onClose, onSaved }: Props) {
   const { status, user } = useAppSelector((s) => s.auth);
   const { update: updateSession } = useSession();
 
-  const selected = useSelectedCity(scope);
+  const saved = useSelectedCity(scope);
+  const hasProfileCity = status === "authenticated" && Boolean(user?.customerCity);
+  const selected = scope === "customer" && hasProfileCity ? (browseCity ?? saved) : saved;
   const [value, setValue] = useState<CitySuggestItemDto | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,8 +69,13 @@ export function CitySelectDialog({ open, scope, onClose, onSaved }: Props) {
         return;
       }
 
-      // customer scope
       if (status === "authenticated" && user) {
+        if (user.customerCity) {
+          onBrowseCity(next);
+          onSaved(next);
+          return;
+        }
+
         const res = await fetch("/api/users/me", {
           method: "PATCH",
           headers: { "content-type": "application/json" },
@@ -93,7 +90,6 @@ export function CitySelectDialog({ open, scope, onClose, onSaved }: Props) {
         return;
       }
 
-      // guest
       writeGuestCity(
         next
           ? {
@@ -113,49 +109,20 @@ export function CitySelectDialog({ open, scope, onClose, onSaved }: Props) {
   }
 
   return (
-    <Dialog open={open} onClose={busy ? undefined : onClose} fullWidth maxWidth="xs">
-      <DialogTitle sx={{ pb: 1.5 }}>
-        <Typography sx={{ fontWeight: 800 }}>{title}</Typography>
-      </DialogTitle>
-
-      <DialogContent>
-        <Stack spacing={2}>
-          {error ? <Alert severity="warning">{error}</Alert> : null}
-          <CityAutocomplete
-            label="Локация"
-            value={value}
-            onChange={(next) => {
-              setValue(next);
-              // UX: сохраняем сразу после выбора
-              void save(next);
-            }}
-            disabled={busy}
-            placeholder="Начните вводить (минимум 2 символа)"
-            size="medium"
-          />
-          {busy ? (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 1 }}>
-              <CircularProgress size={22} />
-            </Box>
-          ) : null}
-        </Stack>
-      </DialogContent>
-
-      <DialogActions sx={{ px: 3, pb: 2.5 }}>
-        <Button onClick={onClose} disabled={busy} sx={{ textTransform: "none" }}>
-          Закрыть
-        </Button>
-        <Box sx={{ flex: 1 }} />
-        <Button
-          onClick={() => void save(null)}
-          disabled={busy || !value}
-          color="inherit"
-          sx={{ textTransform: "none" }}
-        >
-          Сбросить
-        </Button>
-      </DialogActions>
-    </Dialog>
+    <LocationDialog
+      open={open}
+      title={title}
+      value={value}
+      busy={busy}
+      error={error}
+      onClose={onClose}
+      onSelect={(next) => {
+        setValue(next);
+        void save(next);
+      }}
+      onReset={() => {
+        void save(null);
+      }}
+    />
   );
 }
-

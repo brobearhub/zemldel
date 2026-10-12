@@ -149,6 +149,7 @@ model City {
   stories         Story[]          @relation("StoryCity")
   storyViewEvents StoryViewEvent[] @relation("StoryViewCity")
   importEvents  CityImportEvent[]
+  regionalCapital RegionalCapital?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -156,6 +157,13 @@ model City {
   @@index([regionCode])
   @@index([regionCode, name])
   @@index([status])
+}
+
+model RegionalCapital {
+  cityId    String  @id @db.Uuid
+  featured  Boolean @default(false)
+  sortOrder Int     @default(0)
+  city      City    @relation(fields: [cityId], references: [id], onDelete: Restrict)
 }
 
 model CityImportRun {

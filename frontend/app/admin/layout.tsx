@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { Box, Container } from "@mui/material";
 import { forbidden } from "next/navigation";
 import { Header } from "@/widgets/header/ui";
-import { Footer } from "@/widgets/footer/ui/Footer";
 import { AdminSidebar } from "@/widgets/admin-sidebar";
 import { getServerAuthSession } from "@/core/auth";
 import { signInRedirectFromRequest } from "@/core/auth/sign-in-redirect";
@@ -65,7 +64,6 @@ export default async function AdminLayout({ children }: Props) {
             {children}
           </Box>
         </Container>
-        <Footer />
       </Box>
     </Box>
   );

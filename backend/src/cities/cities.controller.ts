@@ -2,6 +2,7 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { CitiesService } from './cities.service';
 import { CitySuggestItemDto } from './dto/city.dto';
+import { RegionalCapitalItemDto } from './dto/regional-capital.dto';
 import { ApiStandardErrors } from '../common/swagger/api-standard-errors.decorator';
 
 @ApiTags('cities')
@@ -9,6 +10,12 @@ import { ApiStandardErrors } from '../common/swagger/api-standard-errors.decorat
 @Controller('cities')
 export class CitiesController {
   constructor(private readonly citiesService: CitiesService) {}
+
+  @Get('capitals')
+  @ApiOkResponse({ type: [RegionalCapitalItemDto] })
+  listCapitals() {
+    return this.citiesService.listCapitals();
+  }
 
   @Get('suggest')
   @ApiQuery({ name: 'q', required: false, type: String })

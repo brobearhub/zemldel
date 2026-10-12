@@ -31,3 +31,11 @@ export type CitySuggestItemDto = {
   regionName: string;
   displayName: string;
 };
+
+export type RegionalCapitalItemDto = CitySuggestItemDto & {
+  featured: boolean;
+};
+
+export type RegionalCapitalAdminItemDto = RegionalCapitalItemDto & {
+  sortOrder: number;
+};

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
@@ -17,10 +17,9 @@ import {
   Typography,
 } from "@mui/material";
 import type { CitySuggestItemDto } from "@/entities/city";
-import { CityAutocomplete } from "@/shared/ui/CityAutocomplete";
+import { LocationField, useSelectedCity } from "@/features/select-city";
+import { CadastralNumberChipsField } from "@/shared/ui/CadastralNumberChipsField";
 import { CadastralNumberListEditor } from "@/shared/ui/CadastralNumberListEditor";
-import { useAppSelector } from "@/core/store/hooks";
-import { useSelectedCity } from "@/features/select-city";
 import {
   REQUESTS_PROFILE_URL,
   REQUESTS_PROFILE_RESUME_URL,
@@ -42,30 +41,12 @@ type Props = {
 type FormState = {
   message: string;
   cadastralNumbers: CadastralNumberParts[];
-  city: CitySuggestItemDto | null;
   category: { id: string; name: string } | null;
 };
 
 function normalizeNullableString(value: string) {
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : null;
-}
-
-function mapCustomerCityToSuggest(
-  city: { id: string; name: string; regionCode: string; regionName: string } | null | undefined
-): CitySuggestItemDto | null {
-  if (!city) return null;
-  const name = city.name.trim();
-  const region = city.regionName.trim();
-  const nameKey = name.toLowerCase();
-  const regionKey = region.toLowerCase();
-  return {
-    id: city.id,
-    name: city.name,
-    regionCode: city.regionCode,
-    regionName: city.regionName,
-    displayName: regionKey.includes(nameKey) ? name : `${name}, ${region}`,
-  };
 }
 
 export function PublicUnlinkedRequestForm({
@@ -75,42 +56,22 @@ export function PublicUnlinkedRequestForm({
   variant = "card",
 }: Props) {
   const router = useRouter();
-
-  const { user } = useAppSelector((s) => s.auth);
   const selectedCity = useSelectedCity("customer");
-  const customerCity = useMemo(
-    () => mapCustomerCityToSuggest(user?.customerCity),
-    [user?.customerCity]
-  );
-  const effectiveSelectedCity = selectedCity ?? customerCity;
-  const didInitCity = useRef(false);
-  const didUserEditCity = useRef(false);
+  const [cityOverride, setCityOverride] = useState<CitySuggestItemDto | null | undefined>(undefined);
+  const city = cityOverride === undefined ? selectedCity : cityOverride;
 
   const [form, setForm] = useState<FormState>(() => ({
     message: "",
     cadastralNumbers: [createEmptyCadastralParts()],
-    city: null,
     category: initialCategory,
   }));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [optionalExpanded, setOptionalExpanded] = useState(false);
 
-  useEffect(() => {
-    if (!effectiveSelectedCity) return;
-    setForm((prev) => {
-      if (didUserEditCity.current) return prev;
-      if (!prev.city || prev.city.id !== effectiveSelectedCity.id) {
-        return { ...prev, city: effectiveSelectedCity };
-      }
-      return prev;
-    });
-    didInitCity.current = true;
-  }, [effectiveSelectedCity]);
-
   const { validationError, isBlocked } = useMemo(() => {
-    if (!form.city) {
-      return { validationError: "Укажите локацию.", isBlocked: true };
+    if (!city) {
+      return { validationError: null, isBlocked: true };
     }
 
     const msg = form.message.trim();
@@ -135,7 +96,7 @@ export function PublicUnlinkedRequestForm({
     }
 
     return { validationError: null, isBlocked: false };
-  }, [form.category, form.city, form.cadastralNumbers, form.message]);
+  }, [city, form.category, form.cadastralNumbers, form.message]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -146,7 +107,7 @@ export function PublicUnlinkedRequestForm({
     setBusy(true);
     setError(null);
     try {
-      const requestCityId = form.city?.id ?? null;
+      const requestCityId = city?.id ?? null;
       const cadastral = collectCadastralNumbersFromParts(form.cadastralNumbers);
       if (cadastral.partialError) {
         throw new Error(cadastral.partialError);
@@ -248,18 +209,6 @@ export function PublicUnlinkedRequestForm({
         {error ? <Alert severity="warning">{error}</Alert> : null}
 
         <Stack spacing={2}>
-          <CityAutocomplete
-            label="Локация"
-            value={form.city}
-            onChange={(next) => {
-              didUserEditCity.current = true;
-              setForm((prev) => ({ ...prev, city: next }));
-            }}
-            disabled={busy}
-            placeholder="Начните вводить (минимум 2 символа)"
-            size="medium"
-          />
-
           <TextField
             label="Что нужно сделать?"
             value={form.message}
@@ -270,14 +219,33 @@ export function PublicUnlinkedRequestForm({
             minRows={3}
             required
           />
-        </Stack>
 
-        <CadastralNumberListEditor
-          value={form.cadastralNumbers}
-          onChange={(cadastralNumbers) => setForm((prev) => ({ ...prev, cadastralNumbers }))}
-          disabled={busy}
-          variant={variant === "card" ? "sidebar" : "default"}
-        />
+          <Stack spacing={2}>
+            <LocationField
+              label="Локация"
+              value={city}
+              onChange={(next) => {
+                setCityOverride(next);
+              }}
+              disabled={busy}
+              iconColor="accent"
+            />
+
+            {variant === "card" ? (
+              <CadastralNumberChipsField
+                value={form.cadastralNumbers}
+                onChange={(cadastralNumbers) => setForm((prev) => ({ ...prev, cadastralNumbers }))}
+                disabled={busy}
+              />
+            ) : (
+              <CadastralNumberListEditor
+                value={form.cadastralNumbers}
+                onChange={(cadastralNumbers) => setForm((prev) => ({ ...prev, cadastralNumbers }))}
+                disabled={busy}
+              />
+            )}
+          </Stack>
+        </Stack>
 
         {variant !== "card" ? (
           <Accordion

@@ -24,7 +24,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 import { REQUEST_INTENT as SERVICE_REQUEST_INTENT } from "@/entities/request";
 import type { CitySuggestItemDto } from "@/entities/city";
-import { CityAutocomplete } from "@/shared/ui/CityAutocomplete";
+import { LocationField } from "@/features/select-city";
 import { Markdown } from "@/shared/ui/Markdown";
 import { SITE_HEADER_HEIGHT_PX } from "@/shared/config/site-layout";
 import { RainGlassPaper } from "@/shared/ui/RainGlassPaper";
@@ -462,7 +462,7 @@ function SignUpPageContent() {
             </Box>
 
             <Stack spacing={2.5}>
-              <CityAutocomplete
+              <LocationField
                 label="Ваша локация"
                 value={customerCity}
                 onChange={(next) => {
@@ -470,7 +470,6 @@ function SignUpPageContent() {
                   if (cityError) setCityError(null);
                 }}
                 disabled={loading}
-                placeholder="Начните вводить (минимум 2 символа)"
                 error={Boolean(cityError)}
                 helperText={cityError ?? " "}
               />
