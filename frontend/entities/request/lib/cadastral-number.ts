@@ -35,6 +35,49 @@ export function parseCadastralValue(value: string): CadastralNumberParts | null 
   return [chunks[0], chunks[1], chunks[2], chunks[3]];
 }
 
+const CADASTRAL_INPUT_MAX_DIGITS = CADASTRAL_PART_MAX_LENGTHS.reduce((sum, length) => sum + length, 0);
+
+/** Одна строка `66:41:0204016:12`: двоеточия ставятся сами, лишние символы отбрасываются. */
+export function formatCadastralInput(raw: string): string {
+  const digits = digitsOnly(raw).slice(0, CADASTRAL_INPUT_MAX_DIGITS);
+  const parts: string[] = [];
+  let offset = 0;
+  for (const length of CADASTRAL_PART_MAX_LENGTHS) {
+    if (offset >= digits.length) break;
+    parts.push(digits.slice(offset, offset + length));
+    offset += length;
+  }
+  return parts.join(":");
+}
+
+export function cadastralPartsFromInput(raw: string): CadastralNumberParts {
+  const chunks = formatCadastralInput(raw).split(":");
+  return [chunks[0] ?? "", chunks[1] ?? "", chunks[2] ?? "", chunks[3] ?? ""];
+}
+
+export function formatCadastralParts(parts: CadastralNumberParts): string {
+  if (isCadastralPartsEmpty(parts)) return "";
+  let lastFilled = 0;
+  for (let index = 0; index < parts.length; index += 1) {
+    if (parts[index].length > 0) lastFilled = index;
+  }
+  return parts.slice(0, lastFilled + 1).join(":");
+}
+
+/** Позиция курсора после маски: `digitCount` — сколько цифр было слева от каретки. */
+export function cadastralCaretFromDigitCount(formatted: string, digitCount: number): number {
+  if (digitCount <= 0) return 0;
+  let seen = 0;
+  for (let index = 0; index < formatted.length; index += 1) {
+    const char = formatted[index] ?? "";
+    if (char >= "0" && char <= "9") {
+      seen += 1;
+      if (seen === digitCount) return index + 1;
+    }
+  }
+  return formatted.length;
+}
+
 export function collectCadastralNumbersFromParts(rows: readonly CadastralNumberParts[]): {
   numbers: string[];
   partialError: string | null;

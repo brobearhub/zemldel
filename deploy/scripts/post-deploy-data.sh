@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# db:seed на prod ВМ: сидим только дерево категорий.
+# db:seed на prod ВМ: дерево категорий и столицы субъектов.
 # Демо-услуги/провайдеры (db:seed:demo-services) на prod не запускаем.
 # City импортируется отдельно: City заливается дампом с локальной машины, см. docs/cities.md.
+# db:seed:capitals только добавляет отсутствующие города каталога и требует уже залитый City.
 
 set -euo pipefail
 
@@ -29,6 +30,7 @@ ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${VM_USER}@${VM_HO
 set -euo pipefail
 cd "${VM_DEPLOY_PATH}"
 ${COMPOSE} exec -T backend npm run db:seed
+${COMPOSE} exec -T backend npm run db:seed:capitals
 echo "Готово. Справочник City — через cities:restore с локальной машины (docs/cities.md)."
 echo "Создайте PLATFORM_ADMIN вручную (SQL или admin-flow)."
 EOF

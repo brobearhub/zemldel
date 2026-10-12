@@ -1,5 +1,6 @@
 import { createTheme } from "@mui/material";
 import type { PaletteMode } from "@mui/material";
+import { ruRU } from "@mui/material/locale";
 import {
   brown,
   common,
@@ -205,6 +206,9 @@ export function createAppTheme(mode: PaletteMode) {
               MozOsxFontSmoothing: "grayscale",
               backgroundColor: theme.palette.background.default,
             },
+            "button:focus, button:focus-visible, [role='button']:focus, [role='button']:focus-visible": {
+              outline: "none",
+            },
             // Prevent browser autofill from painting blue/yellow backgrounds.
             // Kept global and minimal to preserve default MUI label/padding behavior.
             "input:-webkit-autofill, textarea:-webkit-autofill, select:-webkit-autofill, .MuiInputBase-input:-webkit-autofill, .MuiOutlinedInput-input:-webkit-autofill": {
@@ -333,7 +337,7 @@ export function createAppTheme(mode: PaletteMode) {
         },
       },
     },
-  });
+  }, ruRU);
 }
 
 export const appThemeTokens = TOKENS;

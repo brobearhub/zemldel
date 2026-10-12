@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Box, Paper, Stack, Typography } from "@mui/material";
 import { ServiceCard, type ServiceCardItem } from "@/entities/service";
-import { useSelectedCity } from "@/features/select-city";
+import { useHeaderCity } from "@/features/select-city";
 import { ServiceSectionHeader } from "@/widgets/services/ui/ServiceSectionHeader";
 
 const SERVICES_FETCH_USER_MESSAGE = "Не удалось загрузить список услуг. Попробуйте позже.";
@@ -57,7 +57,7 @@ async function fetchServices(path: string): Promise<ServiceCardItem[]> {
 }
 
 export function HomeServicesByCity() {
-  const selectedCity = useSelectedCity("customer");
+  const selectedCity = useHeaderCity();
   const cityId = selectedCity?.id ?? null;
   const cityName = selectedCity?.name ?? null;
 

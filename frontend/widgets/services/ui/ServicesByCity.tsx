@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { Box, Stack } from "@mui/material";
 import { ServiceCard, type ServiceCardItem } from "@/entities/service";
 import { ServiceSectionHeader } from "@/widgets/services/ui/ServiceSectionHeader";
-import { useSelectedCity } from "@/features/select-city";
+import { useHeaderCity } from "@/features/select-city";
 
 function ServiceGrid({
   items,
@@ -48,7 +48,7 @@ export function ServicesByCity({
   myCityTitle = "Услуги",
   otherCitiesTitle = "Услуги в других городах",
 }: Props) {
-  const selectedCity = useSelectedCity("customer");
+  const selectedCity = useHeaderCity();
   const cityId = selectedCity?.id ?? null;
   const cityName = selectedCity?.name ?? null;
 

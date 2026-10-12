@@ -15,6 +15,7 @@
     "start:prod": "node dist/main",
     "db:test": "tsx scripts/test-database.ts",
     "db:seed": "tsx scripts/seed-service-categories.ts",
+    "db:seed:capitals": "tsx scripts/seed-regional-capitals.ts",
     "db:seed:demo-services": "tsx scripts/seed-demo-services.ts",
     "db:generate": "prisma generate",
     "db:migrate:dev": "prisma migrate dev",

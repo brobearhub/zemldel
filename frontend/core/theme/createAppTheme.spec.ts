@@ -18,4 +18,13 @@ describe("createAppTheme light palette", () => {
     expect(theme.palette.text.secondary).toBe("#6e7471");
     expect(theme.palette.text.secondaryLight).toBe("#9c9f9a");
   });
+
+  it("uses Russian MUI hints", () => {
+    const theme = createAppTheme("light");
+
+    expect(theme.components?.MuiAutocomplete?.defaultProps?.noOptionsText).toBe(
+      "Нет доступных вариантов",
+    );
+    expect(theme.components?.MuiAutocomplete?.defaultProps?.loadingText).toBe("Загрузка…");
+  });
 });

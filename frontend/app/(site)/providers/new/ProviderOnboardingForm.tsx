@@ -18,7 +18,7 @@ import {
 } from "@mui/material";
 import type { CitySuggestItemDto } from "@/entities/city";
 import { sitePageContainerSx } from "@/shared/config/site-layout";
-import { CityAutocomplete } from "@/shared/ui/CityAutocomplete";
+import { LocationField } from "@/features/select-city";
 
 type ProviderType = "SELF_EMPLOYED" | "COMPANY";
 
@@ -144,12 +144,11 @@ export function ProviderOnboardingForm() {
                   <MenuItem value="SELF_EMPLOYED">Самозанятый / физлицо</MenuItem>
                   <MenuItem value="COMPANY">Компания / организация</MenuItem>
                 </TextField>
-                <CityAutocomplete
+                <LocationField
                   label="Локация"
                   value={city}
                   onChange={setCity}
                   disabled={loading}
-                  placeholder="Начните вводить (минимум 2 символа)"
                 />
 
                 <FormControlLabel

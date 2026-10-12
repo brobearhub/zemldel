@@ -27,7 +27,8 @@ import { CustomerPassportSection } from "@/widgets/customer-documents/ui/Custome
 import { StoriesPage } from "@/views/stories-page";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import type { CitySuggestItemDto } from "@/entities/city";
-import { CityAutocomplete } from "@/shared/ui/CityAutocomplete";
+import { formatCityLabel } from "@/shared/lib/format-city-label";
+import { LocationField } from "@/features/select-city";
 import { CABINET_SIDEBAR_EXPANDED_W, sitePageContainerSx } from "@/shared/config/site-layout";
 
 function getInitials(name: string | null | undefined): string {
@@ -41,15 +42,6 @@ function getInitials(name: string | null | undefined): string {
 
 function providerRoleLabel(role: AuthMembership["role"]) {
   return role === "OWNER" ? "владелец" : "менеджер";
-}
-
-function buildLocationDisplayName(locationName: string, regionName: string) {
-  const loc = locationName.trim();
-  const region = regionName.trim();
-  const locKey = loc.toLowerCase();
-  const regionKey = region.toLowerCase();
-  if (regionKey.includes(locKey)) return loc;
-  return `${loc}, ${region}`;
 }
 
 type ProfileSection = "profile" | "requests" | "documents" | "stories";
@@ -108,7 +100,7 @@ function ProfileOverview({
       name: customerCity.name,
       regionCode: customerCity.regionCode,
       regionName: customerCity.regionName,
-      displayName: buildLocationDisplayName(customerCity.name, customerCity.regionName),
+      displayName: formatCityLabel(customerCity.name, customerCity.regionName),
     };
   }, [customerCity]);
 
@@ -251,7 +243,7 @@ function ProfileOverview({
       name: city.name,
       regionCode: city.regionCode,
       regionName: city.regionName,
-      displayName: buildLocationDisplayName(city.name, city.regionName),
+      displayName: formatCityLabel(city.name, city.regionName),
     };
   }, [activeMembership?.providerCity]);
 
@@ -434,12 +426,13 @@ function ProfileOverview({
           />
 
           <Box sx={{ pt: 1 }}>
-            <CityAutocomplete
+            <LocationField
               label="Ваша локация"
+              caption="Ваша локация"
+              iconColor="primary"
               value={customerCityValue}
               onChange={updateCustomerCity}
               disabled={busy}
-              placeholder="Начните вводить (минимум 2 символа)"
             />
           </Box>
 
@@ -447,12 +440,13 @@ function ProfileOverview({
             <>
               {providerCityError ? <Alert severity="error">{providerCityError}</Alert> : null}
               <Box sx={{ pt: 1 }}>
-                <CityAutocomplete
+                <LocationField
                   label="Локация провайдера"
+                  caption="Локация провайдера"
+                  iconColor="primary"
                   value={providerCityValue}
                   onChange={updateProviderCity}
                   disabled={busy}
-                  placeholder="Начните вводить (минимум 2 символа)"
                 />
               </Box>
             </>

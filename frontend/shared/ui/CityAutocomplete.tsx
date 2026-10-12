@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Autocomplete, CircularProgress, TextField } from "@mui/material";
 import type { CitySuggestItemDto } from "@/entities/city";
+import { formatCityLabel } from "@/shared/lib/format-city-label";
 
 type Props = {
   label: string;
@@ -13,7 +14,18 @@ type Props = {
   size?: "small" | "medium";
   error?: boolean;
   helperText?: string;
+  suggestCapitals?: boolean;
 };
+
+function foldCityName(value: string) {
+  return value.trim().toLowerCase().replaceAll("ё", "е");
+}
+
+function filterCapitals(capitals: CitySuggestItemDto[], query: string) {
+  const q = foldCityName(query);
+  if (!q) return capitals;
+  return capitals.filter((item) => foldCityName(item.name).startsWith(q));
+}
 
 function useDebounced(value: string, delayMs: number) {
   const [debounced, setDebounced] = useState(value);
@@ -33,9 +45,11 @@ export function CityAutocomplete({
   size = "small",
   error,
   helperText,
+  suggestCapitals = true,
 }: Props) {
   const [inputValue, setInputValue] = useState("");
   const debounced = useDebounced(inputValue, 250);
+  const [capitals, setCapitals] = useState<CitySuggestItemDto[]>([]);
   const [options, setOptions] = useState<CitySuggestItemDto[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -46,11 +60,33 @@ export function CityAutocomplete({
   }, [options, value]);
 
   useEffect(() => {
+    if (!suggestCapitals) {
+      setCapitals([]);
+      return;
+    }
+    let cancelled = false;
+    async function loadCapitals() {
+      try {
+        const res = await fetch("/api/cities/capitals");
+        const data = (await res.json().catch(() => [])) as CitySuggestItemDto[] | { error?: string };
+        if (cancelled) return;
+        setCapitals(res.ok && Array.isArray(data) ? data : []);
+      } catch {
+        if (!cancelled) setCapitals([]);
+      }
+    }
+    void loadCapitals();
+    return () => {
+      cancelled = true;
+    };
+  }, [suggestCapitals]);
+
+  useEffect(() => {
     let cancelled = false;
     async function run() {
       const q = debounced.trim();
       if (q.length < 2) {
-        setOptions([]);
+        setOptions(suggestCapitals ? filterCapitals(capitals, q) : []);
         setLoading(false);
         return;
       }
@@ -72,17 +108,22 @@ export function CityAutocomplete({
     return () => {
       cancelled = true;
     };
-  }, [debounced]);
+  }, [debounced, capitals, suggestCapitals]);
+
+  const query = inputValue.trim();
+  const noOptionsText =
+    query.length < 2 ? "Начните вводить (минимум 2 символа)" : "Ничего не найдено";
 
   return (
     <Autocomplete
       value={effectiveValue}
       options={options}
       loading={loading}
+      noOptionsText={noOptionsText}
       disabled={disabled}
       filterOptions={(x) => x}
       isOptionEqualToValue={(a, b) => a.id === b.id}
-      getOptionLabel={(o) => o.displayName}
+      getOptionLabel={(o) => formatCityLabel(o.name, o.regionName)}
       onChange={(_, next) => onChange(next)}
       inputValue={inputValue}
       onInputChange={(_, next) => setInputValue(next)}
