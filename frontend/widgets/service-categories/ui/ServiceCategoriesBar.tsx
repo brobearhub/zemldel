@@ -3,10 +3,12 @@
 import Link from "next/link";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import { Box, Typography } from "@mui/material";
+import { ResponsiveLabel } from "@/shared/ui/ResponsiveLabel";
 
 export type ServiceCategoryBarItem = {
   id: string;
   name: string;
+  shortName?: string | null;
   href: string;
 };
 
@@ -81,7 +83,7 @@ export function ServiceCategoriesBar({ items, activeId = null }: Props) {
               },
             }}
           >
-            {item.name}
+            <ResponsiveLabel text={item.name} compactText={item.shortName} />
           </Typography>
         );
       })}

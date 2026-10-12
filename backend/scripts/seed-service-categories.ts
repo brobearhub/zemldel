@@ -20,11 +20,13 @@ async function upsertRootCategory(seed: ServiceCategorySeed, index: number) {
     where: { slug: seed.slug },
     update: {
       name: seed.name,
+      shortName: seed.shortName,
       parentId: null,
       sortOrder: getSortOrder(seed, index),
     },
     create: {
       name: seed.name,
+      shortName: seed.shortName,
       slug: seed.slug,
       parentId: null,
       sortOrder: getSortOrder(seed, index),
@@ -38,11 +40,13 @@ async function upsertChildCategory(parentId: string, seed: ServiceCategorySeed, 
     where: { slug: seed.slug },
     update: {
       name: seed.name,
+      shortName: seed.shortName,
       parentId,
       sortOrder: getSortOrder(seed, index),
     },
     create: {
       name: seed.name,
+      shortName: seed.shortName,
       slug: seed.slug,
       parentId,
       sortOrder: getSortOrder(seed, index),

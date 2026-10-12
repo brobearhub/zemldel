@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { Box, Button, Container, Stack, Typography } from "@mui/material";
 import ElectricalServicesIcon from '@mui/icons-material/ElectricalServices';
+import { ResponsiveLabel } from "@/shared/ui/ResponsiveLabel";
 export type ServiceCategoryRow = {
   id: string;
   name: string;
+  shortName?: string | null;
   slug: string;
   parentId: string | null;
   sortOrder: number | null;
@@ -60,7 +62,9 @@ export function ServiceCategoriesSection({ categories, embedded }: Props) {
             }}
           >
             <ElectricalServicesIcon color="primary" />
-            <Typography sx={{ lineHeight: 1.25 }}>{c.name}</Typography>
+            <Typography sx={{ lineHeight: 1.25 }}>
+              <ResponsiveLabel text={c.name} compactText={c.shortName} />
+            </Typography>
           </Button>
         ))}
       </Box>

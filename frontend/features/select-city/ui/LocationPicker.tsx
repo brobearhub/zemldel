@@ -11,6 +11,7 @@ import {
   Typography,
 } from "@mui/material";
 import type { CitySuggestItemDto, RegionalCapitalItemDto } from "@/entities/city";
+import { displayCityName } from "@/shared/lib/format-city-label";
 import {
   capitalLetters,
   filterByLetter,
@@ -59,7 +60,7 @@ function CityRow({
       onClick={() => onSelect(city)}
       sx={{ display: "flex", justifyContent: "space-between", gap: 2, py: 0.75, px: 2 }}
     >
-      <Typography sx={{ fontWeight: 600 }}>{city.name}</Typography>
+      <Typography sx={{ fontWeight: 600 }}>{displayCityName(city.name)}</Typography>
       {region ? (
         <Typography variant="body2" sx={{ color: "text.secondary", textAlign: "right" }}>
           {region}
@@ -191,7 +192,7 @@ export function LocationPicker({ value, disabled, fill = false, onSelect }: Prop
               return (
                 <Chip
                   key={city.id}
-                  label={city.name}
+                  label={displayCityName(city.name)}
                   clickable
                   disabled={disabled}
                   onClick={() => onSelect(city)}

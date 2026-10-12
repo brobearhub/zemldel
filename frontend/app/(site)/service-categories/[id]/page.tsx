@@ -5,6 +5,7 @@ import { BackendApiError, fetchBackendJson } from "@/shared/api/backend/server";
 import { SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
 import { getServerAuthSession } from "@/core/auth";
 import type { ServiceDto } from "@/entities/service";
+import { ResponsiveLabel } from "@/shared/ui/ResponsiveLabel";
 import { PublicUnlinkedRequestForm } from "@/widgets/public-service/ui/PublicUnlinkedRequestForm";
 import { ServiceCategoriesStickyBar } from "@/widgets/service-categories/ui/ServiceCategoriesStickyBar";
 import { ServicesByCity } from "@/widgets/services/ui/ServicesByCity";
@@ -12,6 +13,7 @@ import { ServicesByCity } from "@/widgets/services/ui/ServicesByCity";
 type ServiceCategoryRow = {
   id: string;
   name: string;
+  shortName?: string | null;
   slug: string;
   parentId: string | null;
   sortOrder: number | null;
@@ -76,6 +78,7 @@ export default async function ServiceCategoryPage({ params }: Props) {
     ...templates.map((t) => ({
       id: t.id,
       name: t.name,
+      shortName: t.shortName,
       href: `/service-categories/${t.id}`,
     })),
   ];
@@ -89,6 +92,7 @@ export default async function ServiceCategoryPage({ params }: Props) {
         ...siblings.map((s) => ({
           id: s.id,
           name: s.name,
+          shortName: s.shortName,
           href: `/service-categories/${s.id}`,
         })),
       ]
@@ -117,7 +121,7 @@ export default async function ServiceCategoryPage({ params }: Props) {
 
             <Box>
               <Typography component="h1" variant="h4" sx={{ fontWeight: 900 }} color="primary">
-                {category.name}
+                <ResponsiveLabel text={category.name} compactText={category.shortName} />
               </Typography>
             </Box>
 

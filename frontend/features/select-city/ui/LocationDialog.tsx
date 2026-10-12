@@ -1,5 +1,6 @@
 "use client";
 
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import {
   Alert,
   Box,
@@ -9,6 +10,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -48,9 +50,14 @@ export function LocationDialog({ open, title, value, busy, error, onClose, onSel
         },
       }}
     >
-      <DialogTitle sx={{ textAlign: "center", color: "text.primary", fontWeight: 800, pb: 1, flexShrink: 0 }}>
-        {title}
-      </DialogTitle>
+      <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0, pl: 6, pr: 1, pt: 1, pb: 0.5 }}>
+        <DialogTitle sx={{ flex: 1, p: 0, textAlign: "center", color: "text.primary", fontWeight: 800 }}>
+          {title}
+        </DialogTitle>
+        <IconButton aria-label="Закрыть" onClick={onClose} disabled={busy} sx={{ color: "text.primary" }}>
+          <CloseRoundedIcon />
+        </IconButton>
+      </Box>
       <DialogContent
         sx={{
           display: "flex",
@@ -71,9 +78,6 @@ export function LocationDialog({ open, title, value, busy, error, onClose, onSel
         <LocationPicker value={value} disabled={busy} fill={fullScreen} onSelect={onSelect} />
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2, pt: 2, flexShrink: 0, bgcolor: "background.default", borderTop: "1px dashed", borderColor: "grey.300" }}>
-        <Button onClick={onClose} disabled={busy} sx={{ color: "text.secondary", textTransform: "none" }}>
-          Закрыть
-        </Button>
         <Box sx={{ flex: 1, display: "flex", justifyContent: "center" }}>
           {busy ? <CircularProgress size={22} /> : null}
         </Box>

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  FEATURED_REGIONAL_CAPITALS,
   RUSSIAN_CAPITALS,
   capitalIdsToInsert,
+  featuredRegionalCapitalIds,
   pickRegionalCapitalCities,
   type CapitalCityCandidate,
 } from './russian-capitals';
@@ -122,6 +124,32 @@ describe('pickRegionalCapitalCities', () => {
       }),
     ]);
     expect(picked.find((row) => row.regionCode === '57')?.id).toBe('okrug');
+  });
+});
+
+describe('featuredRegionalCapitalIds', () => {
+  it('keeps the popular cities in the declared order and matches the GAR alias', () => {
+    const rows = FEATURED_REGIONAL_CAPITALS.map((name, index) =>
+      city({
+        id: `city-${index}`,
+        name: name === 'Волгоград' ? 'город-герой Волгоград' : name,
+        regionCode:
+          RUSSIAN_CAPITALS.find((item) => item.name === name)?.regionCode ??
+          '00',
+        typeName: name === 'Волгоград' ? 'г.о.' : 'г',
+        level: name === 'Волгоград' ? 3 : 5,
+      }),
+    );
+
+    expect(featuredRegionalCapitalIds(rows)).toEqual(
+      FEATURED_REGIONAL_CAPITALS.map((_, sortOrder) => ({
+        cityId: `city-${sortOrder}`,
+        sortOrder,
+      })),
+    );
+    expect(new Set(FEATURED_REGIONAL_CAPITALS).size).toBe(
+      FEATURED_REGIONAL_CAPITALS.length,
+    );
   });
 });
 

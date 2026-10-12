@@ -1,16 +1,15 @@
 import { Alert } from "@mui/material";
 import type { RequestCityDto } from "@/entities/request";
+import { formatCityLabel } from "@/shared/lib/format-city-label";
 
 type RequestCityInactiveWarningProps = {
   show: boolean;
   city?: RequestCityDto | null;
 };
 
-function formatCityLabel(city?: RequestCityDto | null): string {
+function inactiveCityLabel(city?: RequestCityDto | null): string {
   if (!city) return "выбранная локация";
-  const region = city.regionName.trim();
-  if (region) return `${city.name}, ${region}`;
-  return city.name;
+  return formatCityLabel(city.name, city.regionName);
 }
 
 export function RequestCityInactiveWarning(props: RequestCityInactiveWarningProps) {
@@ -18,7 +17,7 @@ export function RequestCityInactiveWarning(props: RequestCityInactiveWarningProp
 
   return (
     <Alert severity="warning">
-      {formatCityLabel(props.city)} больше не актуальна в справочнике ФИАС/ГАР. Заявка сохранена,
+      {inactiveCityLabel(props.city)} больше не актуальна в справочнике ФИАС/ГАР. Заявка сохранена,
       но при необходимости выберите другую локацию в новых заявках.
     </Alert>
   );

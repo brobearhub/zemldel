@@ -85,6 +85,38 @@ describe('CitiesService regional capitals', () => {
     expect(result.map((item) => item.featured)).toEqual([true, true, false]);
   });
 
+  it('hides the hero-city prefix and sorts by the public name', async () => {
+    const findMany = vi.fn().mockResolvedValue([
+      {
+        featured: false,
+        sortOrder: 0,
+        city: {
+          ...activeCity,
+          name: 'город-герой Волгоград',
+          regionCode: '34',
+          regionName: 'обл. Волгоградская',
+        },
+      },
+      {
+        featured: false,
+        sortOrder: 0,
+        city: {
+          ...activeCity,
+          id: '00000000-0000-0000-0000-000000000004',
+          name: 'Воронеж',
+          regionCode: '36',
+        },
+      },
+    ]);
+    const result = await createService({
+      regionalCapital: { findMany },
+    }).listCapitals();
+
+    expect(result.map((item) => item.name)).toEqual(['Волгоград', 'Воронеж']);
+    expect(result[0]?.displayName).toContain('Волгоград');
+    expect(result[0]?.displayName).not.toContain('город-герой');
+  });
+
   it('returns inactive rows to the admin list', async () => {
     const findMany = vi
       .fn()

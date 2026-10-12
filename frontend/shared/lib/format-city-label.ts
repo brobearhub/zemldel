@@ -39,6 +39,10 @@ const REGION_RULES: readonly RegionRule[] = [
   },
 ];
 
+export function displayCityName(name: string) {
+  return name.trim().replace(/^город-герой\s+/iu, "");
+}
+
 export function formatRegionLabel(regionName: string) {
   const region = regionName.trim();
   if (!region) return "";
@@ -53,7 +57,7 @@ export function formatRegionLabel(regionName: string) {
 }
 
 export function formatCityLabel(name: string, regionName: string) {
-  const city = name.trim();
+  const city = displayCityName(name);
   const region = formatRegionLabel(regionName);
   if (!city) return region;
   if (!region) return city;

@@ -4,6 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import {
   RUSSIAN_CAPITALS,
   capitalIdsToInsert,
+  featuredRegionalCapitalIds,
   missingRegionalCapitals,
   pickRegionalCapitalCities,
   regionalCapitalSearchNames,
@@ -45,6 +46,7 @@ async function seedRegionalCapitals() {
       },
     });
     const picked = pickRegionalCapitalCities(rows);
+    const featured = featuredRegionalCapitalIds(rows);
     const existing = await prisma.regionalCapital.findMany({
       select: { cityId: true },
     });
@@ -53,16 +55,27 @@ async function seedRegionalCapitals() {
       existing.map((row) => row.cityId),
     );
 
-    if (toInsert.length > 0) {
-      await prisma.regionalCapital.createMany({
-        data: toInsert.map((cityId) => ({ cityId })),
+    await prisma.$transaction(async (tx) => {
+      if (toInsert.length > 0) {
+        await tx.regionalCapital.createMany({
+          data: toInsert.map((cityId) => ({ cityId })),
+        });
+      }
+      await tx.regionalCapital.updateMany({
+        data: { featured: false, sortOrder: 0 },
       });
-    }
+      for (const item of featured) {
+        await tx.regionalCapital.update({
+          where: { cityId: item.cityId },
+          data: { featured: true, sortOrder: item.sortOrder },
+        });
+      }
+    });
 
     const unresolved = missingRegionalCapitals(rows);
 
     console.log(
-      `Done. Added ${toInsert.length}, already present ${picked.length - toInsert.length}, unresolved ${unresolved.length}.`,
+      `Done. Added ${toInsert.length}, already present ${picked.length - toInsert.length}, featured ${featured.length}, unresolved ${unresolved.length}.`,
     );
     if (unresolved.length > 0) {
       console.log(

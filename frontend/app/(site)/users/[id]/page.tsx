@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { Container, Rating, Stack, Typography } from "@mui/material";
 import { CdnAvatar } from "@/shared/ui/cdn-image";
+import { displayCityName } from "@/shared/lib/format-city-label";
 
 type PublicUser = {
   id: string;
@@ -47,7 +48,9 @@ export default function PublicUserPage({ params }: { params: Promise<{ id: strin
             <CdnAvatar src={profile.image ?? undefined} sx={{ width: 96, height: 96 }} />
             <Stack>
               <Typography variant="h4">{profile.name}</Typography>
-              {profile.cityName ? <Typography color="text.secondary">{profile.cityName}</Typography> : null}
+              {profile.cityName ? (
+                <Typography color="text.secondary">{displayCityName(profile.cityName)}</Typography>
+              ) : null}
             </Stack>
           </Stack>
           <ReviewList title="Отзывы пользователя" items={profile.reviewsWritten} />
