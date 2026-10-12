@@ -15,6 +15,7 @@ import {
 import Image from "next/image";
 import NextLink from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { ResponsiveLabel } from "@/shared/ui/ResponsiveLabel";
 import type { ServiceCategoryRow } from "@/widgets/service-categories/ui/ServiceCategoriesSection";
 
 const BRAND_NAME = "ЗЕМЛЕДЕЛ";
@@ -127,7 +128,7 @@ export const Footer = () => {
                           "&:hover": { textDecoration: "underline", opacity: 0.85 },
                         }}
                       >
-                        {item.name}
+                        <ResponsiveLabel text={item.name} compactText={item.shortName} />
                       </Link>
                     </ListItem>
                   ))}
@@ -169,7 +170,7 @@ export const Footer = () => {
                           "&:hover": { textDecoration: "underline", opacity: 0.85 },
                         }}
                       >
-                        {item.name}
+                        <ResponsiveLabel text={item.name} compactText={item.shortName} />
                       </Link>
                     </ListItem>
                   ))}

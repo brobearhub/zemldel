@@ -9,10 +9,16 @@ import type {
 const select = {
   id: true,
   name: true,
+  shortName: true,
   slug: true,
   parentId: true,
   sortOrder: true,
 } satisfies Prisma.ServiceCategorySelect;
+
+function resolveShortName(name: string, shortName?: string | null): string {
+  const normalized = shortName?.trim();
+  return normalized ? normalized : name;
+}
 
 @Injectable()
 export class ServiceCategoriesService {
@@ -48,6 +54,7 @@ export class ServiceCategoriesService {
     return this.prisma.serviceCategory.create({
       data: {
         name: input.name,
+        shortName: resolveShortName(input.name, input.shortName),
         slug: input.slug,
         parentId: input.parentId ?? null,
         sortOrder: input.sortOrder ?? null,
@@ -61,6 +68,9 @@ export class ServiceCategoriesService {
       where: { id },
       data: {
         ...(input.name !== undefined ? { name: input.name } : null),
+        ...(input.shortName !== undefined
+          ? { shortName: input.shortName }
+          : null),
         ...(input.slug !== undefined ? { slug: input.slug } : null),
         ...(input.parentId !== undefined ? { parentId: input.parentId } : null),
         ...(input.sortOrder !== undefined

@@ -13,6 +13,7 @@ import {
 } from "@mui/x-chat";
 import type { ChatAdapter, ChatConversation, ChatMessage, ConversationListItemProps } from "@mui/x-chat/headless";
 import { CdnAvatar, CdnImg } from "@/shared/ui/cdn-image";
+import { displayCityName } from "@/shared/lib/format-city-label";
 import {
   fetchStoryConversationMessages,
   fetchStoryConversations,
@@ -266,7 +267,7 @@ export function StoryInboxSection({ scope }: Props) {
       items.map((item) => ({
         id: item.id,
         title: item.name,
-        subtitle: item.cityName ?? undefined,
+        subtitle: item.cityName ? displayCityName(item.cityName) : undefined,
         unreadCount: item.unreadCount,
         lastMessageAt: item.lastMessageAt,
       })),

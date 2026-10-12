@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCityLabel, formatRegionLabel } from "./format-city-label";
+import { displayCityName, formatCityLabel, formatRegionLabel } from "./format-city-label";
 
 describe("formatRegionLabel", () => {
   it("puts the full oblast word after the region name", () => {
@@ -24,5 +24,10 @@ describe("formatCityLabel", () => {
 
   it("hides the region when it repeats the city", () => {
     expect(formatCityLabel("Москва", "г Москва")).toBe("Москва");
+  });
+
+  it("drops the hero-city prefix", () => {
+    expect(displayCityName("город-герой Волгоград")).toBe("Волгоград");
+    expect(formatCityLabel("город-герой Волгоград", "обл. Волгоградская")).toBe("Волгоград");
   });
 });

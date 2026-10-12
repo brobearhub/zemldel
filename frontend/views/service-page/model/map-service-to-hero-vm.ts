@@ -1,4 +1,5 @@
 import type { ServiceDto } from "@/entities/service";
+import { displayCityName } from "@/shared/lib/format-city-label";
 import type { ServiceHeroVm } from "@/widgets/service-page";
 
 function normalizeText(value: string | null | undefined): string | null {
@@ -7,7 +8,9 @@ function normalizeText(value: string | null | undefined): string | null {
 }
 
 export function mapServiceToHeroVm(service: ServiceDto): ServiceHeroVm {
-  const cityLabel = service.provider?.city?.name ?? null;
+  const cityLabel = service.provider?.city?.name
+    ? displayCityName(service.provider.city.name)
+    : null;
   const description = normalizeText(service.description) ?? null;
 
   return {

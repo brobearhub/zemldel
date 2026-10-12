@@ -27,7 +27,7 @@ import { CustomerPassportSection } from "@/widgets/customer-documents/ui/Custome
 import { StoriesPage } from "@/views/stories-page";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import type { CitySuggestItemDto } from "@/entities/city";
-import { formatCityLabel } from "@/shared/lib/format-city-label";
+import { displayCityName, formatCityLabel } from "@/shared/lib/format-city-label";
 import { LocationField } from "@/features/select-city";
 import { CABINET_SIDEBAR_EXPANDED_W, sitePageContainerSx } from "@/shared/config/site-layout";
 
@@ -97,7 +97,7 @@ function ProfileOverview({
     if (!customerCity) return null;
     return {
       id: customerCity.id,
-      name: customerCity.name,
+      name: displayCityName(customerCity.name),
       regionCode: customerCity.regionCode,
       regionName: customerCity.regionName,
       displayName: formatCityLabel(customerCity.name, customerCity.regionName),
@@ -240,7 +240,7 @@ function ProfileOverview({
     if (!city) return null;
     return {
       id: city.id,
-      name: city.name,
+      name: displayCityName(city.name),
       regionCode: city.regionCode,
       regionName: city.regionName,
       displayName: formatCityLabel(city.name, city.regionName),

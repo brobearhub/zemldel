@@ -444,6 +444,7 @@ model ProviderUserSettings {
 model ServiceCategory {
   id         String                     @id @default(uuid()) @db.Uuid
   name       String
+  shortName  String
   slug       String                     @unique
   parentId   String?                    @db.Uuid
   sortOrder  Int?

@@ -6,6 +6,7 @@ import { HomeStickyRequestLayout } from "@/app/(site)/HomeStickyRequestLayout";
 type ServiceCategoryRow = {
   id: string;
   name: string;
+  shortName?: string | null;
   slug: string;
   parentId: string | null;
   sortOrder: number | null;

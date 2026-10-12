@@ -8,6 +8,10 @@ import { DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { createHash, randomUUID } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  publicCityName,
+  publicCityNameOrNull,
+} from '../cities/city-suggest.lib';
 import { S3Service } from '../storage/s3.service';
 import {
   buildHourlyViewChart,
@@ -1109,12 +1113,12 @@ export class StoriesService {
         name,
         viewCount: 0,
         lastViewedAt: view.viewedAt,
-        cityName: view.city?.name ?? null,
+        cityName: publicCityNameOrNull(view.city?.name),
       };
       current.viewCount += 1;
       if (view.viewedAt >= current.lastViewedAt) {
         current.lastViewedAt = view.viewedAt;
-        current.cityName = view.city?.name ?? null;
+        current.cityName = publicCityNameOrNull(view.city?.name);
       }
       viewers.set(key, current);
     }
@@ -1126,7 +1130,7 @@ export class StoriesService {
     for (const view of loggedInViews) {
       const key = view.cityId ?? 'unknown';
       const bucket = cities.get(key) ?? {
-        name: view.city?.name ?? 'Город не указан',
+        name: publicCityName(view.city?.name ?? '') || 'Город не указан',
         viewCount: 0,
         people: new Set<string>(),
       };
@@ -1162,7 +1166,7 @@ export class StoriesService {
         .map((view) => ({ viewedAt: view.viewedAt.toISOString() }))
         .reverse(),
       cities: [...cities.values()].map((city) => ({
-        name: city.name,
+        name: publicCityName(city.name),
         viewCount: city.viewCount,
         uniqueViewerCount: city.people.size,
       })),
@@ -1178,8 +1182,9 @@ export class StoriesService {
             open.provider?.name?.trim() ||
             open.user?.name?.trim() ||
             'Пользователь',
-          cityName:
-            open.provider?.city?.name ?? open.user?.customerCity?.name ?? null,
+          cityName: publicCityNameOrNull(
+            open.provider?.city?.name ?? open.user?.customerCity?.name,
+          ),
           openedAt: open.openedAt.toISOString(),
         })),
       guestProfileOpens: opens
@@ -1193,8 +1198,9 @@ export class StoriesService {
           reply.provider?.name?.trim() ||
           reply.author.name?.trim() ||
           'Пользователь',
-        cityName:
-          reply.provider?.city?.name ?? reply.author.customerCity?.name ?? null,
+        cityName: publicCityNameOrNull(
+          reply.provider?.city?.name ?? reply.author.customerCity?.name,
+        ),
         createdAt: reply.createdAt.toISOString(),
       })),
       comments: comments.map((comment) => ({
@@ -1220,8 +1226,9 @@ export class StoriesService {
           save.provider?.name?.trim() ||
           save.user.name?.trim() ||
           'Пользователь',
-        cityName:
-          save.provider?.city?.name ?? save.user.customerCity?.name ?? null,
+        cityName: publicCityNameOrNull(
+          save.provider?.city?.name ?? save.user.customerCity?.name,
+        ),
         savedAt: save.savedAt.toISOString(),
       })),
     };

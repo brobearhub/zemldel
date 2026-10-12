@@ -6,6 +6,7 @@ import { alpha } from "@mui/material/styles";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
 import Link from "next/link";
 import type { ServiceCardItem } from "../types";
+import { displayCityName } from "@/shared/lib/format-city-label";
 import { formatRubPriceLabel } from "@/shared/lib/money/format-rub-price-label";
 import { CdnImage } from "@/shared/ui/cdn-image";
 
@@ -140,7 +141,7 @@ function ServiceCardTitle({ title }: { title: string }) {
 }
 
 export function ServiceCard({ item, variant = "myCity" }: Props) {
-  const cityName = item.provider?.city?.name ?? null;
+  const cityName = displayCityName(item.provider?.city?.name ?? "");
   const imageHeight = variant === "myCity" ? 178 : 210;
 
   return (

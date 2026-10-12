@@ -1,4 +1,5 @@
 import type { StoryInsightsDto } from "@/entities/story";
+import { displayCityName } from "@/shared/lib/format-city-label";
 import { pluralRu } from "@/shared/lib/plural-ru";
 
 export type InsightTileId =
@@ -198,7 +199,7 @@ function firstInitial(name: string): string {
 }
 
 function cityLine(cityName: string | null): string {
-  return cityName ?? "город не указан";
+  return cityName ? displayCityName(cityName) : "город не указан";
 }
 
 export function buildInsightTiles(insights: StoryInsightsDto, now: Date): InsightTile[] {
