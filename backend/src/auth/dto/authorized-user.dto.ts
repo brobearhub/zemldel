@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { PROVIDER_TYPES, type ProviderType } from '../authorization';
 
 export class AuthCityDto {
   @ApiProperty({ format: 'uuid' })
@@ -24,8 +25,8 @@ export class AuthMembershipDto {
   @ApiProperty()
   providerSlug!: string;
 
-  @ApiProperty({ enum: ['SELF_EMPLOYED', 'COMPANY'] })
-  providerType!: 'SELF_EMPLOYED' | 'COMPANY';
+  @ApiProperty({ enum: PROVIDER_TYPES })
+  providerType!: ProviderType;
 
   @ApiProperty({ type: AuthCityDto, nullable: true })
   providerCity!: AuthCityDto | null;

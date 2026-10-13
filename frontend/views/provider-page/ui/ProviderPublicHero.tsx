@@ -12,7 +12,7 @@ type Props = {
 
 export function ProviderPublicHero({ provider }: Props) {
   const greeting = providerHeroGreeting(provider.name, provider.type);
-  const caption = providerHeroCaption(provider.name, provider.type);
+  const caption = providerHeroCaption(provider.name);
   const cityName = provider.city?.name ? displayCityName(provider.city.name) : "";
   const intro = providerHeroIntro(provider.about, provider.subtitle);
   const stats = provider.stats.filter((stat) => stat.value.trim() && stat.label.trim()).slice(0, 3);

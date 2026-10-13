@@ -86,12 +86,14 @@ function ProviderImagePlaceholder({ type }: { type: PublicProviderProfileDto["ty
 
 function providerTypeLabel(type: PublicProviderProfileDto["type"]): string {
   switch (type) {
+    case "INDIVIDUAL":
+      return "Физлицо";
     case "SELF_EMPLOYED":
-      return "Самозанятый / физлицо";
+      return "Самозанятый";
+    case "SOLE_PROPRIETOR":
+      return "ИП";
     case "COMPANY":
-      return "Компания / организация";
-    default:
-      return "";
+      return "Организация";
   }
 }
 
