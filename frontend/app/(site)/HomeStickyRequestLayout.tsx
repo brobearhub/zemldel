@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Button, Container, Stack } from "@mui/material";
+import { Box, Button, Container, Stack, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 
 import { SITE_CONTENT_GAP_PX, SITE_HEADER_SPACER_PX, SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
@@ -29,6 +29,18 @@ const HOME_FORM_WIDTH_PX = 356;
 const HOME_COLUMN_GAP_PX = 24;
 /** Высота блока заголовка секции услуг (Figma: `Card Title`). */
 const HOME_SECTION_HEADER_HEIGHT_PX = 52;
+
+const visuallyHiddenSx = {
+  position: "absolute",
+  width: "1px",
+  height: "1px",
+  padding: 0,
+  margin: "-1px",
+  overflow: "hidden",
+  clip: "rect(0, 0, 0, 0)",
+  whiteSpace: "nowrap",
+  border: 0,
+} as const;
 
 export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) {
   const catsBarRef = useRef<HTMLDivElement | null>(null);
@@ -75,6 +87,9 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) 
         "--home-cats-bar-h": `${catsBarHeightPx}px`,
       }}
     >
+      <Typography component="h1" sx={visuallyHiddenSx}>
+        Земледел
+      </Typography>
       <Container
         maxWidth="xl"
         sx={{
@@ -118,16 +133,20 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) 
               xs: "1fr",
               md: `minmax(0, 1fr) ${HOME_FORM_WIDTH_PX}px`,
             },
+            "@media (min-width:768px)": {
+              gridTemplateColumns: `minmax(0, 1fr) ${HOME_FORM_WIDTH_PX}px`,
+            },
           }}
         >
           <Box
             sx={{
               minWidth: 0,
               order: { xs: 2, md: 0 },
+              "@media (min-width:768px)": { order: 0 },
             }}
           >
             <Stack spacing={{ xs: 3, md: 3 }}>
-              <Box sx={{ display: { xs: "block", md: "none" } }}>
+              <Box sx={{ display: { xs: "block", md: "none" }, "@media (min-width:768px)": { display: "none" } }}>
                 <Button variant="contained" onClick={() => setHelpOpen(true)} sx={{ minHeight: 44 }}>
                   Создать заявку
                 </Button>
@@ -147,6 +166,14 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) 
               },
               mt: { md: `${HOME_SECTION_HEADER_HEIGHT_PX}px` },
               width: { md: HOME_FORM_WIDTH_PX },
+              "@media (min-width:768px)": {
+                display: "block",
+                order: 1,
+                position: "sticky",
+                top: `calc(${SITE_STICKY_TOP_PX}px + var(--home-cats-bar-h, 0px))`,
+                mt: `${HOME_SECTION_HEADER_HEIGHT_PX}px`,
+                width: HOME_FORM_WIDTH_PX,
+              },
             }}
           >
             <PublicUnlinkedRequestForm

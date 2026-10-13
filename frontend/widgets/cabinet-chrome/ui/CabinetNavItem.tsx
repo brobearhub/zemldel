@@ -17,7 +17,7 @@ type Props = {
 };
 
 export function CabinetNavItem({ href, onClick, expanded, label, icon, selected, badge, size }: Props) {
-  const tone = selected ? "text.primary" : "text.secondary";
+  const tone = size === "mobile" ? "secondary.main" : selected ? "text.primary" : "text.secondary";
   const interactive = href
     ? { component: Link, href }
     : {

@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getServerAuthSession } from "@/core/auth";
 import { resolveAccountKind } from "@/core/auth/authorization";
 import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import { ProviderOnboardingForm } from "./ProviderOnboardingForm";
+
+export const metadata: Metadata = { title: "Создание профиля — Земледел" };
 
 export default async function NewProviderPage() {
   const session = await getServerAuthSession();

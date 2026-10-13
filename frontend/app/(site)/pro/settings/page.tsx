@@ -7,7 +7,7 @@ export default function ProSettingsPage() {
   return (
     <Container maxWidth="md" sx={{ py: 3 }}>
       <Stack spacing={2}>
-        <Typography variant="h5" sx={{
+        <Typography component="h1" variant="h5" sx={{
           fontWeight: 900
         }}>
           Настройки

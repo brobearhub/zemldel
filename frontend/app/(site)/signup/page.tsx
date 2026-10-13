@@ -8,6 +8,7 @@ import {
   Box,
   Button,
   Checkbox,
+  CircularProgress,
   IconButton,
   Dialog,
   DialogActions,
@@ -103,12 +104,18 @@ function SignUpKindChoice({
               Если зарегистрироваться как исполнитель, заявка не будет создана.
             </Typography>
           ) : null}
-          <Button variant="contained" size="large" fullWidth onClick={() => onChoose("customer")} sx={{ minHeight: 44 }}>
-            Клиент
-          </Button>
-          <Button variant="outlined" size="large" fullWidth color="primary" onClick={() => onChoose("provider")} sx={{ minHeight: 44 }}>
-            Исполнитель
-          </Button>
+          <Stack spacing={0.75}>
+            <Button variant="contained" size="large" fullWidth onClick={() => onChoose("customer")} sx={{ minHeight: 44 }}>
+              Клиент
+            </Button>
+            <Typography variant="body2">Оставляете заявки и общаетесь с исполнителями.</Typography>
+          </Stack>
+          <Stack spacing={0.75}>
+            <Button variant="contained" color="secondary" size="large" fullWidth onClick={() => onChoose("provider")} sx={{ minHeight: 44 }}>
+              Исполнитель
+            </Button>
+            <Typography variant="body2">Оказываете услуги и ведёте заявки.</Typography>
+          </Stack>
         </Stack>
       </RainGlassPaper>
     </Box>
@@ -128,6 +135,11 @@ function SignUpPageContent() {
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const submitted = useRef(false);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const confirmRef = useRef<HTMLInputElement>(null);
+  const cityRef = useRef<HTMLButtonElement>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -297,6 +309,13 @@ function SignUpPageContent() {
 
     if (hasSignupFieldErrors(fieldErrors) || !accountKind || !customerCity?.id) {
       if (!accountKind) setFormError("Выберите, кем зарегистрироваться");
+      const focus =
+        (fieldErrors.name ? nameRef.current : null) ??
+        (fieldErrors.email ? emailRef.current : null) ??
+        (fieldErrors.password ? passwordRef.current : null) ??
+        (fieldErrors.confirmPassword ? confirmRef.current : null) ??
+        (fieldErrors.city ? cityRef.current : null);
+      focus?.focus();
       return;
     }
 
@@ -412,9 +431,38 @@ function SignUpPageContent() {
           maxWidth: { xs: 440, md: 920 },
           minWidth: 0,
           p: { xs: 2, sm: 4, md: 5 },
+          "& .MuiFormHelperText-root.Mui-error, & .MuiFormHelperText-root.Mui-error.Mui-error": {
+            color: "error.dark",
+            bgcolor: "background.paper",
+            px: 1,
+            py: 0.25,
+            borderRadius: 1,
+            display: "inline-flex",
+            width: "fit-content",
+            maxWidth: "100%",
+          },
         }}
       >
-        <Box component="form" onSubmit={onSubmit} sx={{ width: "100%", maxWidth: "100%", minWidth: 0 }}>
+        <Box
+          component="form"
+          noValidate
+          onSubmit={onSubmit}
+          sx={{
+            width: "100%",
+            maxWidth: "100%",
+            minWidth: 0,
+            "& .MuiFormHelperText-root.Mui-error": {
+              color: "error.dark",
+              bgcolor: "background.paper",
+              px: 1,
+              py: 0.25,
+              borderRadius: 1,
+              display: "inline-flex",
+              width: "fit-content",
+              maxWidth: "100%",
+            },
+          }}
+        >
           <Box
             sx={{
               display: "grid",
@@ -526,6 +574,7 @@ function SignUpPageContent() {
                 }}>
                 <TextField
                   label="Имя"
+                  inputRef={nameRef}
                   fullWidth
                   autoComplete="name"
                   size="small"
@@ -545,6 +594,7 @@ function SignUpPageContent() {
                 />
                 <TextField
                   label="Email"
+                  inputRef={emailRef}
                   type="email"
                   fullWidth
                   autoComplete="email"
@@ -566,6 +616,7 @@ function SignUpPageContent() {
                 />
                 <TextField
                   label="Пароль"
+                  inputRef={passwordRef}
                   type={passwordVisible ? "text" : "password"}
                   fullWidth
                   autoComplete="new-password"
@@ -595,6 +646,7 @@ function SignUpPageContent() {
                 />
                 <TextField
                   label="Подтвердите пароль"
+                  inputRef={confirmRef}
                   type={confirmPasswordVisible ? "text" : "password"}
                   fullWidth
                   autoComplete="new-password"
@@ -652,7 +704,7 @@ function SignUpPageContent() {
                   }}
                   disabled={loading}
                   error={Boolean(cityError)}
-                  helperText={cityError ?? undefined}
+                  buttonRef={cityRef}
                 />
               </Box>
 
@@ -742,7 +794,14 @@ function SignUpPageContent() {
                 disabled={loading || !versionsReady}
                 sx={{ minHeight: 44 }}
               >
-                Создать аккаунт
+                {loading ? (
+                  <>
+                    <CircularProgress size={18} color="inherit" sx={{ mr: 1 }} />
+                    Создаём…
+                  </>
+                ) : (
+                  "Создать аккаунт"
+                )}
               </Button>
               {!versionsReady && !versionsError ? (
                 <Typography variant="body2" sx={{ textAlign: "center" }}>

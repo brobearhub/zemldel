@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Stack } from "@mui/material";
 import { getActiveMembership } from "@/core/auth/authorization";
@@ -6,6 +7,8 @@ import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
 import { ProfessionalWorkspacePanel } from "@/widgets/pro-dashboard/ui/ProfessionalWorkspacePanel";
 import { ProviderProfileEditorSection, type PublicProviderProfile } from "@/widgets/provider-profile-editor";
+
+export const metadata: Metadata = { title: "Профиль — Земледел" };
 
 export default async function ProProfilePage() {
   const session = await getServerAuthSession();

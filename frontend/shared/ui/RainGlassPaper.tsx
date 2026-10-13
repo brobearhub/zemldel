@@ -15,9 +15,11 @@ export type RainGlassPaperProps = Omit<PaperProps, "sx" | "children"> & {
 const baseSx: SxProps<Theme> = (theme) => {
   const isDark = theme.palette.mode === "dark";
   // Target look: static dark "glass" panel like in the reference screenshot.
-  const glassBase = isDark
+    const glassBase = isDark
     ? alpha(theme.palette.background.paper, 0.66)
     : alpha(theme.palette.common.black, 0.40);
+    const autofillSurface = isDark ? "rgba(38, 42, 40, 0.98)" : "rgba(32, 36, 34, 0.96)";
+    const autofillText = alpha(theme.palette.common.white, isDark ? 0.92 : 0.94);
   const border = alpha(theme.palette.common.white, isDark ? 0.16 : 0.18);
   const topHighlight = alpha(theme.palette.common.white, isDark ? 0.12 : 0.14);
   const bottomShade = alpha(theme.palette.common.black, isDark ? 0.26 : 0.22);
@@ -109,23 +111,27 @@ const baseSx: SxProps<Theme> = (theme) => {
     },
     // Browser autofill (Chrome/Safari) overrides MUI styles: keep the "glass" look consistent.
     "& input:-webkit-autofill, & textarea:-webkit-autofill, & select:-webkit-autofill, & input:-webkit-autofill:hover, & textarea:-webkit-autofill:hover, & select:-webkit-autofill:hover, & input:-webkit-autofill:focus, & textarea:-webkit-autofill:focus, & select:-webkit-autofill:focus, & input:-webkit-autofill:active, & textarea:-webkit-autofill:active, & select:-webkit-autofill:active": {
-      WebkitTextFillColor: `${alpha(theme.palette.common.white, isDark ? 0.92 : 0.94)} !important`,
-      caretColor: `${alpha(theme.palette.common.white, isDark ? 0.92 : 0.94)} !important`,
-      WebkitBoxShadow: `0 0 0px 1000px ${alpha(theme.palette.common.white, isDark ? 0.06 : 0.08)} inset !important`,
-      boxShadow: `0 0 0px 1000px ${alpha(theme.palette.common.white, isDark ? 0.06 : 0.08)} inset !important`,
+      WebkitTextFillColor: `${autofillText} !important`,
+      caretColor: `${autofillText} !important`,
+      WebkitBoxShadow: `0 0 0px 1000px ${autofillSurface} inset !important`,
+      boxShadow: `0 0 0px 1000px ${autofillSurface} inset !important`,
       transition: "background-color 9999s ease-out 0s",
     },
-    // Chrome internal states (non-standard, but fixes the white flash while picking autofill suggestions).
-    "& input:-internal-autofill-selected, & input:-internal-autofill-previewed": {
-      WebkitTextFillColor: `${alpha(theme.palette.common.white, isDark ? 0.92 : 0.94)} !important`,
-      caretColor: `${alpha(theme.palette.common.white, isDark ? 0.92 : 0.94)} !important`,
-      WebkitBoxShadow: `0 0 0px 1000px ${alpha(theme.palette.common.white, isDark ? 0.06 : 0.08)} inset !important`,
-      boxShadow: `0 0 0px 1000px ${alpha(theme.palette.common.white, isDark ? 0.06 : 0.08)} inset !important`,
+    "& .MuiFormControl-root:has(input:-webkit-autofill) .MuiInputLabel-root, & .MuiFormControl-root:has(textarea:-webkit-autofill) .MuiInputLabel-root": {
+      transform: "translate(14px, -9px) scale(0.75)",
     },
-    // Firefox autofill.
+    "& .MuiFormControl-root:has(input:-webkit-autofill) .MuiOutlinedInput-notchedOutline legend, & .MuiFormControl-root:has(textarea:-webkit-autofill) .MuiOutlinedInput-notchedOutline legend": {
+      maxWidth: "100%",
+    },
+    "& input:-internal-autofill-selected, & input:-internal-autofill-previewed": {
+      WebkitTextFillColor: `${autofillText} !important`,
+      caretColor: `${autofillText} !important`,
+      WebkitBoxShadow: `0 0 0px 1000px ${autofillSurface} inset !important`,
+      boxShadow: `0 0 0px 1000px ${autofillSurface} inset !important`,
+    },
     "& input:-moz-autofill, & textarea:-moz-autofill, & select:-moz-autofill": {
-      caretColor: `${alpha(theme.palette.common.white, isDark ? 0.92 : 0.94)} !important`,
-      boxShadow: `0 0 0px 1000px ${alpha(theme.palette.common.white, isDark ? 0.06 : 0.08)} inset !important`,
+      caretColor: `${autofillText} !important`,
+      boxShadow: `0 0 0px 1000px ${autofillSurface} inset !important`,
     },
     "& .MuiFormHelperText-root": {
       color: alpha(theme.palette.common.white, isDark ? 0.64 : 0.68),

@@ -31,7 +31,7 @@ function avatarHasAccentRing(root: ParentNode): boolean {
         const matchesAvatar = emotionClasses.some((name) => rule.selectorText.startsWith(`.${name}`));
         if (!matchesAvatar) return false;
         const cssText = rule.cssText;
-        return cssText.includes("dashed") && cssText.includes("accent") && cssText.includes("2px");
+        return cssText.includes("solid") && cssText.includes("outline") && cssText.includes("2px");
       });
     } catch {
       return false;
@@ -186,14 +186,15 @@ describe("ProfileMenu", () => {
     navigation.pathname = "/pro/services";
     const { user } = renderWithAuthState("provider", { withMembership: true });
 
-    await user.hover(screen.getByLabelText("Профиль"));
+    const cabinetButton = screen.getByRole("button", { name: "Кабинет исполнителя" });
+    await user.hover(cabinetButton);
 
     expect(screen.getByRole("menuitem", { name: "Кабинет исполнителя" })).toHaveAttribute(
       "aria-current",
       "page",
     );
     expect(screen.queryByRole("menuitem", { name: "Мой профиль" })).not.toBeInTheDocument();
-    expect(avatarHasAccentRing(screen.getByLabelText("Профиль"))).toBe(true);
+    expect(avatarHasAccentRing(cabinetButton)).toBe(true);
   });
 
   it("не обводит аватар вне кабинета профессионала", () => {

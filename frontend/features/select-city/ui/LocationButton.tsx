@@ -1,5 +1,6 @@
 "use client";
 
+import type { Ref } from "react";
 import { Box, Typography } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
@@ -26,6 +27,7 @@ type Props = {
   labelDisplay?: "always" | "fromMd";
   /** Сброс выбранного города. В шапке не передаётся. */
   onClear?: () => void;
+  buttonRef?: Ref<HTMLButtonElement>;
 };
 
 export function LocationButton({
@@ -37,10 +39,11 @@ export function LocationButton({
   tone = "default",
   labelDisplay = "always",
   onClear,
+  buttonRef,
 }: Props) {
   const onLight = tone === "light";
-  const textColor = error ? "error.main" : onLight ? "inherit" : "common.gray";
-  const pinColor = error ? "error.main" : onLight && iconColor === "gray" ? "inherit" : ICON_COLOR[iconColor];
+  const textColor = error ? "error.dark" : onLight ? "inherit" : "common.gray";
+  const pinColor = error ? "error.dark" : onLight && iconColor === "gray" ? "inherit" : ICON_COLOR[iconColor];
   const idleColor = onLight ? "inherit" : "common.gray";
   const hoverColor = onLight ? "common.white" : "primary.main";
 
@@ -49,8 +52,10 @@ export function LocationButton({
       <Box
         component="button"
         type="button"
+        ref={buttonRef}
         aria-haspopup="dialog"
         aria-label={label}
+        aria-invalid={error || undefined}
         disabled={disabled}
         onClick={onClick}
         sx={{
@@ -66,7 +71,8 @@ export function LocationButton({
           border: 0,
           outline: "none",
           cursor: disabled ? "default" : "pointer",
-          bgcolor: "transparent",
+          bgcolor: error ? "background.paper" : "transparent",
+          ...(error ? { color: "error.dark", px: 1 } : {}),
           textAlign: "left",
           color: textColor,
           "&:focus, &:focus-visible": { outline: "none" },

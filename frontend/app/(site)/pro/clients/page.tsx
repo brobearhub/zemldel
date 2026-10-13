@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Box, Stack, Typography } from "@mui/material";
 import type { RequestCustomerDto } from "@/entities/request";
@@ -9,6 +10,8 @@ import { ProClientsBoard } from "@/widgets/pro-clients/ui/ProClientsBoard";
 function sortByCreatedAtDesc(orders: RequestCustomerDto[]) {
   return [...orders].sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
 }
+
+export const metadata: Metadata = { title: "Клиенты — Земледел" };
 
 export default async function ProClientsPage() {
   const session = await getServerAuthSession();
@@ -36,7 +39,7 @@ export default async function ProClientsPage() {
   return (
     <Stack spacing={3}>
       <Box>
-        <Typography variant="h4" gutterBottom sx={{
+        <Typography component="h1" variant="h4" gutterBottom sx={{
           fontWeight: 700
         }}>
           Клиенты
