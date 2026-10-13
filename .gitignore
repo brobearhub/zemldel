@@ -45,3 +45,4 @@ authorized_key.json
 .DS_Store
 *.log
 *.swp
+docs/tasks/*

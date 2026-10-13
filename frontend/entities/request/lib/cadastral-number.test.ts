@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   cadastralCaretFromDigitCount,
+  cadastralNspdMapUrl,
   cadastralPartsFromInput,
   formatCadastralInput,
   formatCadastralParts,
@@ -36,6 +37,14 @@ describe("formatCadastralParts", () => {
     expect(formatCadastralParts(["66", "41", "", ""])).toBe("66:41");
     expect(formatCadastralParts(["", "", "", ""])).toBe("");
     expect(formatCadastralParts(["66", "41", "0204016", "12"])).toBe("66:41:0204016:12");
+  });
+});
+
+describe("cadastralNspdMapUrl", () => {
+  it("builds an NSPD map link with the encoded cadastral number", () => {
+    expect(cadastralNspdMapUrl("66:41:0110176:18")).toBe(
+      "https://nspd.gov.ru/map?thematic=PKK&query=66%3A41%3A0110176%3A18&theme_id=1&is_copy_url=true",
+    );
   });
 });
 
