@@ -349,7 +349,7 @@ export function ProviderOnboardingForm() {
                         rel="noopener noreferrer"
                         sx={{ color: "inherit", fontWeight: 700, textDecoration: "underline" }}
                       >
-                        офертой на платные услуги платформы
+                        офертой
                       </Link>
                       {offerVersion ? ` (версия ${offerVersion})` : ""}. Галочка подтверждает,
                       что текст оферты прочитан. Подключение и оплата услуг выполняются отдельно.
