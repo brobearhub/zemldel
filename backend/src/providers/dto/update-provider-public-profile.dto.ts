@@ -56,7 +56,7 @@ export class UpdateProviderPublicProfileDto {
   @ApiPropertyOptional({
     minLength: 1,
     nullable: true,
-    example: 'Эксперт по услуге',
+    example: 'Кадастровый инженер',
   })
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => trimOrNull(value), {

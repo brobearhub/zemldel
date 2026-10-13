@@ -3,7 +3,7 @@ import { AbilityBuilder, createMongoAbility, subject, type AnyMongoAbility } fro
 export const SYSTEM_ROLES = ["PLATFORM_ADMIN", "CUSTOMER"] as const;
 export const PROVIDER_MEMBER_ROLES = ["OWNER", "MANAGER"] as const;
 export const PROVIDER_MEMBER_STATUSES = ["INVITED", "ACTIVE", "SUSPENDED"] as const;
-export const PROVIDER_TYPES = ["SELF_EMPLOYED", "COMPANY"] as const;
+export const PROVIDER_TYPES = ["INDIVIDUAL", "SELF_EMPLOYED", "SOLE_PROPRIETOR", "COMPANY"] as const;
 export const AUTH_PROVIDER_KEYS = ["GOSUSLUGI"] as const;
 
 export const ACCOUNT_KINDS = ["CUSTOMER", "PROVIDER"] as const;

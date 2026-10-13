@@ -24,6 +24,7 @@ function isEmail(value: string) {
 }
 
 export function validateSignupForm(input: {
+  accountKind: "CUSTOMER" | "PROVIDER";
   name: string;
   email: string;
   password: string;
@@ -33,7 +34,8 @@ export function validateSignupForm(input: {
   consentAccepted: boolean;
 }): SignupFieldErrors {
   const errors = { ...EMPTY_ERRORS };
-  if (!input.name.trim()) errors.name = "Укажите имя";
+  const isCustomer = input.accountKind === "CUSTOMER";
+  if (isCustomer && !input.name.trim()) errors.name = "Укажите имя";
   if (!isEmail(input.email.trim())) errors.email = "Укажите корректный email";
   if (input.password.length < SIGNUP_PASSWORD_MIN_LENGTH) {
     errors.password = "Пароль должен быть не короче 6 символов";
@@ -41,7 +43,7 @@ export function validateSignupForm(input: {
   if (input.confirmPassword !== input.password) {
     errors.confirmPassword = "Пароль должен совпадать";
   }
-  if (!input.hasCity) errors.city = "Выберите город";
+  if (isCustomer && !input.hasCity) errors.city = "Выберите город";
   if (!input.termsPrivacyAccepted || !input.consentAccepted) {
     errors.legal = "Чтобы продолжить, примите правила сервиса и дайте согласие на обработку персональных данных";
   }

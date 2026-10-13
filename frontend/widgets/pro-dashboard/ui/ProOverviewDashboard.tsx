@@ -30,7 +30,16 @@ type Props = {
 };
 
 function providerTypeLabel(type: AuthMembership["providerType"]) {
-  return type === "SELF_EMPLOYED" ? "самозанятый / физлицо" : "компания / организация";
+  switch (type) {
+    case "INDIVIDUAL":
+      return "физлицо";
+    case "SELF_EMPLOYED":
+      return "самозанятый";
+    case "SOLE_PROPRIETOR":
+      return "ИП";
+    case "COMPANY":
+      return "организация";
+  }
 }
 
 function providerRoleLabel(role: AuthMembership["role"]) {

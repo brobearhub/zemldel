@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     else if (!isValidEmail(email)) fieldErrors.email = "Введите корректный email";
     if (!password) fieldErrors.password = "Введите пароль";
     else if (password.length < 6) fieldErrors.password = "Пароль должен быть не короче 6 символов";
-    if (!customerCityId) fieldErrors.customerCityId = "Выберите локацию из списка";
+    if (accountKind === "CUSTOMER" && !customerCityId) fieldErrors.customerCityId = "Выберите локацию из списка";
     if (!accountKind) fieldErrors.accountKind = "Выберите, кем зарегистрироваться";
     if (!terms || !privacy || !consent) fieldErrors.acceptedLegal = "Нужно принять соглашение, политику и согласие";
 
@@ -59,8 +59,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         email,
         password,
-        name,
-        customerCityId,
+        ...(accountKind === "CUSTOMER" ? { name, customerCityId } : {}),
         accountKind,
         acceptedLegal: { terms, privacy, consent },
       }),
