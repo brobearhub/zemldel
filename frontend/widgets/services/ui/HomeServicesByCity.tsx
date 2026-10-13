@@ -106,8 +106,10 @@ export function HomeServicesByCity() {
     };
   }, [cityId]);
 
+  const loaded = myCityItems !== null && otherCityItems !== null;
   const showOther = (otherCityItems ?? []).length > 0;
   const showMy = (myCityItems ?? []).length > 0;
+  const catalogEmpty = loaded && !error && !showMy && !showOther;
 
   const myItemsSorted = useMemo(() => (myCityItems ?? []), [myCityItems]);
   const otherItemsSorted = useMemo(() => (otherCityItems ?? []), [otherCityItems]);
@@ -122,6 +124,12 @@ export function HomeServicesByCity() {
 
   return (
     <Stack spacing={{ xs: 3, md: 3 }}>
+      {catalogEmpty ? (
+        <Paper variant="outlined" sx={{ p: 2.5 }}>
+          <Typography sx={{ fontWeight: 700 }}>Услуг пока нет</Typography>
+        </Paper>
+      ) : null}
+
       {showMy ? (
         <Stack spacing={0}>
           <ServiceSectionHeader title="Услуги" cityLabel={cityName} />

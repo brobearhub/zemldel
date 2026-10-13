@@ -123,6 +123,9 @@ export const Footer = () => {
                         href={`/service-categories/${item.id}`}
                         sx={{
                           fontSize: 14,
+                          minHeight: 44,
+                          display: "inline-flex",
+                          alignItems: "center",
                           color: "inherit",
                           textDecoration: "none",
                           "&:hover": { textDecoration: "underline", opacity: 0.85 },
@@ -165,6 +168,9 @@ export const Footer = () => {
                         href={`/service-categories/${item.id}`}
                         sx={{
                           fontSize: 14,
+                          minHeight: 44,
+                          display: "inline-flex",
+                          alignItems: "center",
                           color: "inherit",
                           textDecoration: "none",
                           "&:hover": { textDecoration: "underline", opacity: 0.85 },
@@ -189,6 +195,9 @@ export const Footer = () => {
                 href="/terms"
                 sx={{
                   fontSize: 14,
+                  minHeight: 44,
+                  display: "inline-flex",
+                  alignItems: "center",
                   color: "inherit",
                   textDecoration: "none",
                   "&:hover": { textDecoration: "underline", opacity: 0.85 },
@@ -201,6 +210,9 @@ export const Footer = () => {
                 href="/privacy"
                 sx={{
                   fontSize: 14,
+                  minHeight: 44,
+                  display: "inline-flex",
+                  alignItems: "center",
                   color: "inherit",
                   textDecoration: "none",
                   "&:hover": { textDecoration: "underline", opacity: 0.85 },
@@ -213,6 +225,9 @@ export const Footer = () => {
                 href="/consent"
                 sx={{
                   fontSize: 14,
+                  minHeight: 44,
+                  display: "inline-flex",
+                  alignItems: "center",
                   color: "inherit",
                   textDecoration: "none",
                   "&:hover": { textDecoration: "underline", opacity: 0.85 },
@@ -225,6 +240,9 @@ export const Footer = () => {
                 href="/offer"
                 sx={{
                   fontSize: 14,
+                  minHeight: 44,
+                  display: "inline-flex",
+                  alignItems: "center",
                   color: "inherit",
                   textDecoration: "none",
                   "&:hover": { textDecoration: "underline", opacity: 0.85 },
@@ -264,6 +282,9 @@ export const Footer = () => {
               target="_blank"
               rel="noopener noreferrer"
               sx={{
+                minHeight: 44,
+                display: "inline-flex",
+                alignItems: "center",
                 fontSize: 14,
                 color: (theme) =>
                   theme.palette.mode === "light"

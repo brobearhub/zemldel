@@ -60,6 +60,7 @@ export function LocationButton({
           px: { xs: 0.75, sm: 1 },
           py: 0.75,
           minWidth: 0,
+          minHeight: 44,
           maxWidth: "100%",
           borderRadius: 1,
           border: 0,

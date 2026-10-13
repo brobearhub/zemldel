@@ -38,7 +38,7 @@ export function CitySelectDialog({ open, scope, browseCity, onBrowseCity, onClos
   }, [open, selected]);
 
   const title = useMemo(() => {
-    if (scope === "provider") return "Локация провайдера";
+    if (scope === "provider") return "Локация исполнителя";
     return "Локация";
   }, [scope]);
 
@@ -48,12 +48,12 @@ export function CitySelectDialog({ open, scope, browseCity, onBrowseCity, onClos
     try {
       if (scope === "provider") {
         if (status !== "authenticated" || !user) {
-          throw new Error("Нужно войти, чтобы сохранить локацию провайдера.");
+          throw new Error("Нужно войти, чтобы сохранить локацию исполнителя.");
         }
         const membership = getActiveMembership(user);
         const providerId = membership?.providerId ?? null;
         if (!providerId) {
-          throw new Error("Не найден активный провайдер.");
+          throw new Error("Не найден активный профиль исполнителя.");
         }
         const res = await fetch(`/api/providers/${providerId}/city`, {
           method: "PATCH",

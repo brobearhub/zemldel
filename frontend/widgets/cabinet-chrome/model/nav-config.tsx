@@ -35,6 +35,7 @@ export const CUSTOMER_NAV: {
   desktop: readonly CabinetNavItem[];
   mobileTop: readonly CabinetNavItem[];
   mobileBottom: readonly CabinetNavItem[];
+  mobileMore: readonly CabinetNavItem[];
 } = {
   desktop: [
     {
@@ -103,6 +104,24 @@ export const CUSTOMER_NAV: {
       badgeKind: "chatUnreadTotal",
     },
     {
+      key: "chat",
+      label: "Чат",
+      href: "/chats",
+      icon: <ChatOutlinedIcon />,
+      isActive: ({ pathname }) => pathname.startsWith("/chats"),
+      badgeKind: "chatUnreadTotal",
+    },
+    {
+      key: "profile",
+      label: "Профиль",
+      href: "/profile?section=profile",
+      icon: <PersonOutlineOutlinedIcon />,
+      isActive: ({ pathname, searchParams }) =>
+        pathname.startsWith("/profile") && isProfileSection(searchParams, "profile"),
+    },
+  ],
+  mobileMore: [
+    {
       key: "documents",
       label: "Документы",
       href: "/profile?section=documents",
@@ -118,22 +137,6 @@ export const CUSTOMER_NAV: {
       isActive: ({ pathname, searchParams }) =>
         pathname.startsWith("/profile") && isProfileSection(searchParams, "stories"),
     },
-    {
-      key: "profile",
-      label: "Профиль",
-      href: "/profile?section=profile",
-      icon: <PersonOutlineOutlinedIcon />,
-      isActive: ({ pathname, searchParams }) =>
-        pathname.startsWith("/profile") && isProfileSection(searchParams, "profile"),
-    },
-    {
-      key: "chat",
-      label: "Чат",
-      href: "/chats",
-      icon: <ChatOutlinedIcon />,
-      isActive: ({ pathname }) => pathname.startsWith("/chats"),
-      badgeKind: "chatUnreadTotal",
-    },
   ],
 };
 
@@ -141,6 +144,7 @@ export const PROVIDER_NAV: {
   desktop: readonly CabinetNavItem[];
   mobileTop: readonly CabinetNavItem[];
   mobileBottom: readonly CabinetNavItem[];
+  mobileMore: readonly CabinetNavItem[];
 } = {
   desktop: [
     {
@@ -224,13 +228,6 @@ export const PROVIDER_NAV: {
       isActive: ({ pathname }) => pathname === "/pro/requests" || pathname.startsWith("/pro/requests/"),
       badgeKind: "chatUnreadTotal",
     },
-    {
-      key: "workday",
-      label: "Рабочий день",
-      href: "/pro/workday",
-      icon: <TodayOutlinedIcon />,
-      isActive: ({ pathname }) => pathname.startsWith("/pro/workday"),
-    },
   ],
   mobileBottom: [
     {
@@ -240,6 +237,31 @@ export const PROVIDER_NAV: {
       icon: <HomeOutlinedIcon />,
       isActive: ({ pathname }) => pathname === "/pro",
     },
+    {
+      key: "requests",
+      label: "Заявки",
+      href: "/pro/requests",
+      icon: <DynamicFeedOutlinedIcon />,
+      isActive: ({ pathname }) => pathname === "/pro/requests" || pathname.startsWith("/pro/requests/"),
+      badgeKind: "chatUnreadTotal",
+    },
+    {
+      key: "services",
+      label: "Услуги",
+      href: "/pro/services/list",
+      icon: <BuildOutlinedIcon />,
+      isActive: ({ pathname }) => pathname.startsWith("/pro/services"),
+    },
+    {
+      key: "chat",
+      label: "Чат",
+      href: "/chats",
+      icon: <ChatOutlinedIcon />,
+      isActive: ({ pathname }) => pathname.startsWith("/chats"),
+      badgeKind: "chatUnreadTotal",
+    },
+  ],
+  mobileMore: [
     {
       key: "overview",
       label: "Обзор",
@@ -269,13 +291,6 @@ export const PROVIDER_NAV: {
       isActive: ({ pathname }) => pathname.startsWith("/pro/reminders"),
     },
     {
-      key: "services",
-      label: "Услуги",
-      href: "/pro/services/list",
-      icon: <BuildOutlinedIcon />,
-      isActive: ({ pathname }) => pathname.startsWith("/pro/services"),
-    },
-    {
       key: "stories",
       label: "История",
       href: "/pro/stories",
@@ -297,12 +312,11 @@ export const PROVIDER_NAV: {
       isActive: ({ pathname }) => pathname.startsWith("/pro/settings"),
     },
     {
-      key: "chat",
-      label: "Чат",
-      href: "/chats",
-      icon: <ChatOutlinedIcon />,
-      isActive: ({ pathname }) => pathname.startsWith("/chats"),
-      badgeKind: "chatUnreadTotal",
+      key: "workday",
+      label: "Рабочий день",
+      href: "/pro/workday",
+      icon: <TodayOutlinedIcon />,
+      isActive: ({ pathname }) => pathname.startsWith("/pro/workday"),
     },
   ],
 };

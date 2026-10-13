@@ -22,20 +22,16 @@ vi.mock("next/navigation", () => ({
 function avatarHasAccentRing(root: ParentNode): boolean {
   const avatar = root.querySelector(".MuiAvatar-root");
   if (!avatar) return false;
-  const emotionClass = [...avatar.classList].find((name) => name.startsWith("css-"));
-  if (!emotionClass) return false;
+  const emotionClasses = [...avatar.classList].filter((name) => name.startsWith("css-"));
+  if (emotionClasses.length === 0) return false;
   return [...document.styleSheets].some((sheet) => {
     try {
       return [...sheet.cssRules].some((rule) => {
         if (!(rule instanceof CSSStyleRule)) return false;
-        const outline = rule.style.getPropertyValue("outline");
-        return (
-          rule.selectorText.startsWith(`.${emotionClass}`) &&
-          outline.includes("2px") &&
-          outline.includes("solid") &&
-          outline.includes("var(--mui-palette-accent-main)") &&
-          rule.style.getPropertyValue("outline-offset") === "2px"
-        );
+        const matchesAvatar = emotionClasses.some((name) => rule.selectorText.startsWith(`.${name}`));
+        if (!matchesAvatar) return false;
+        const cssText = rule.cssText;
+        return cssText.includes("dashed") && cssText.includes("accent") && cssText.includes("2px");
       });
     } catch {
       return false;
@@ -64,7 +60,7 @@ describe("ProfileMenu", () => {
   });
 
   function renderWithAuthState(
-    state: "unauth" | "customer" | "platformAdmin",
+    state: "unauth" | "customer" | "provider" | "platformAdmin",
     options?: { readonly withMembership?: boolean },
   ) {
     const store = makeStore();
@@ -80,6 +76,7 @@ describe("ProfileMenu", () => {
           image: null,
           phone: null,
           systemRole: state === "platformAdmin" ? "PLATFORM_ADMIN" : "CUSTOMER",
+          accountKind: state === "provider" ? "PROVIDER" : "CUSTOMER",
           activeProviderId: null,
           customerCity: null,
           memberships: options?.withMembership ? [membership] : [],
@@ -101,13 +98,34 @@ describe("ProfileMenu", () => {
     return { user };
   }
 
+  it("в drawer называет вход «Войти» и не вкладывает регистрацию", async () => {
+    const store = makeStore();
+    store.dispatch(setUnauthenticated());
+    const user = userEvent.setup();
+
+    render(
+      <Provider store={store}>
+        <ThemeProvider theme={createAppTheme("light")}>
+          <ProfileMenu showLabel forceLabel layout="inline" />
+        </ThemeProvider>
+      </Provider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Войти" }));
+
+    expect(screen.getByRole("button", { name: "Клиент" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Исполнитель" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Регистрация" })).not.toBeInTheDocument();
+  });
+
   it("does not show admin link for unauthenticated user", async () => {
     const { user } = renderWithAuthState("unauth");
 
     await user.hover(screen.getByLabelText("Профиль"));
 
     expect(screen.getByText("Войти")).toBeInTheDocument();
-    expect(screen.getByText("Войти исполнителю")).toBeInTheDocument();
+    expect(screen.getByText("Клиент")).toBeInTheDocument();
+    expect(screen.getByText("Исполнитель")).toBeInTheDocument();
     expect(screen.getByText("Регистрация")).toBeInTheDocument();
     expect(screen.queryByText("Админка")).not.toBeInTheDocument();
   });
@@ -116,7 +134,7 @@ describe("ProfileMenu", () => {
     const { user } = renderWithAuthState("unauth");
 
     await user.hover(screen.getByLabelText("Профиль"));
-    await user.click(screen.getByText("Войти"));
+    await user.click(screen.getByText("Клиент"));
 
     expect(navigation.push).toHaveBeenCalledWith("/signin?returnTo=%2Fservice%2F123%3Fq%3D1");
   });
@@ -125,7 +143,7 @@ describe("ProfileMenu", () => {
     const { user } = renderWithAuthState("unauth");
 
     await user.hover(screen.getByLabelText("Профиль"));
-    await user.click(screen.getByText("Войти исполнителю"));
+    await user.click(screen.getByText("Исполнитель"));
 
     expect(navigation.push).toHaveBeenCalledWith("/signin?returnTo=%2Fpro");
   });
@@ -161,24 +179,20 @@ describe("ProfileMenu", () => {
       "aria-current",
       "page",
     );
-    expect(screen.getByRole("menuitem", { name: "Кабинет профессионала" })).not.toHaveAttribute(
-      "aria-current",
-    );
+    expect(screen.queryByRole("menuitem", { name: "Кабинет исполнителя" })).not.toBeInTheDocument();
   });
 
-  it("выделяет «Кабинет профессионала», когда открыт кабинет", async () => {
+  it("выделяет «Кабинет исполнителя», когда открыт кабинет", async () => {
     navigation.pathname = "/pro/services";
-    const { user } = renderWithAuthState("customer", { withMembership: true });
+    const { user } = renderWithAuthState("provider", { withMembership: true });
 
     await user.hover(screen.getByLabelText("Профиль"));
 
-    expect(screen.getByRole("menuitem", { name: "Кабинет профессионала" })).toHaveAttribute(
+    expect(screen.getByRole("menuitem", { name: "Кабинет исполнителя" })).toHaveAttribute(
       "aria-current",
       "page",
     );
-    expect(screen.getByRole("menuitem", { name: "Мой профиль" })).not.toHaveAttribute(
-      "aria-current",
-    );
+    expect(screen.queryByRole("menuitem", { name: "Мой профиль" })).not.toBeInTheDocument();
     expect(avatarHasAccentRing(screen.getByLabelText("Профиль"))).toBe(true);
   });
 

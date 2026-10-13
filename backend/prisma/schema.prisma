@@ -11,6 +11,11 @@ enum SystemRole {
   CUSTOMER
 }
 
+enum AccountKind {
+  CUSTOMER
+  PROVIDER
+}
+
 enum ProviderType {
   SELF_EMPLOYED
   COMPANY
@@ -204,6 +209,7 @@ model User {
   name                      String?
   image                     String?
   systemRole                SystemRole               @default(CUSTOMER)
+  accountKind               AccountKind              @default(CUSTOMER)
   passwordHash              String?
   phone                     String?
   activeProviderId          String?                  @db.Uuid

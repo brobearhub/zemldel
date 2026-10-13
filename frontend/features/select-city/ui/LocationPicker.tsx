@@ -58,7 +58,7 @@ function CityRow({
       selected={selected}
       disabled={disabled}
       onClick={() => onSelect(city)}
-      sx={{ display: "flex", justifyContent: "space-between", gap: 2, py: 0.75, px: 2 }}
+      sx={{ display: "flex", justifyContent: "space-between", gap: 2, py: 1, px: 2, minHeight: 44 }}
     >
       <Typography sx={{ fontWeight: 600 }}>{displayCityName(city.name)}</Typography>
       {region ? (
@@ -83,6 +83,7 @@ export function LocationPicker({ value, disabled, fill = false, onSelect }: Prop
   const debounced = useDebounced(query, 250);
   const trimmed = query.trim();
   const searching = trimmed.length >= 2;
+  const remoteReady = searching && !suggestLoading && !suggestError && suggestions.length > 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -284,15 +285,11 @@ export function LocationPicker({ value, disabled, fill = false, onSelect }: Prop
           flexShrink: fill ? 1 : 0,
         }}
       >
-        {capitalsLoading || (searching && suggestLoading) ? (
+        {capitalsLoading || (searching && suggestLoading && groups.length === 0) ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
             <CircularProgress size={22} />
           </Box>
-        ) : listMessage ? (
-          <Typography variant="body2" sx={{ color: "text.secondary", px: 2, py: 3 }}>
-            {listMessage}
-          </Typography>
-        ) : searching ? (
+        ) : remoteReady ? (
           <List disablePadding>
             {suggestions.map((city) => (
               <CityRow
@@ -304,7 +301,7 @@ export function LocationPicker({ value, disabled, fill = false, onSelect }: Prop
               />
             ))}
           </List>
-        ) : (
+        ) : groups.length > 0 ? (
           groups.map((group) => (
             <Box key={group.letter}>
               <Typography
@@ -340,6 +337,10 @@ export function LocationPicker({ value, disabled, fill = false, onSelect }: Prop
               </List>
             </Box>
           ))
+        ) : (
+          <Typography variant="body2" sx={{ color: "text.secondary", px: 2, py: 3 }}>
+            {listMessage ?? "Ничего не найдено"}
+          </Typography>
         )}
       </Box>
     </Box>

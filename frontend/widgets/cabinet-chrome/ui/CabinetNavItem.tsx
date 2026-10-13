@@ -6,7 +6,9 @@ import { Badge, Box, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 
 type Props = {
-  href: string;
+  href?: string;
+  onClick?: () => void;
+  expanded?: boolean;
   label: string;
   icon: ReactNode;
   selected: boolean;
@@ -14,23 +16,38 @@ type Props = {
   size: "desktop" | "mobile";
 };
 
-export function CabinetNavItem({ href, label, icon, selected, badge, size }: Props) {
+export function CabinetNavItem({ href, onClick, expanded, label, icon, selected, badge, size }: Props) {
   const tone = selected ? "text.primary" : "text.secondary";
+  const interactive = href
+    ? { component: Link, href }
+    : {
+        component: "button" as const,
+        type: "button" as const,
+        onClick,
+        "aria-haspopup": "dialog" as const,
+        "aria-expanded": Boolean(expanded),
+      };
 
   return (
     <Box
-      component={Link}
-      href={href}
+      {...interactive}
       sx={{
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         color: tone,
         textDecoration: "none",
+        border: 0,
+        bgcolor: "transparent",
+        font: "inherit",
+        cursor: "pointer",
         outline: "none",
         "&:focus, &:focus-visible": { outline: "none" },
-        px: size === "desktop" ? 1.5 : 1,
-        py: size === "desktop" ? 1 : 0.75,
+        px: size === "desktop" ? 1.5 : 0.25,
+        py: size === "desktop" ? 1 : 0.5,
+        minHeight: size === "mobile" ? 44 : undefined,
+        flex: size === "mobile" ? "1 1 0" : undefined,
+        minWidth: size === "mobile" ? 0 : undefined,
         borderRadius: 1,
         transition: "background-color 0.2s ease, color 0.2s ease",
         ...(size === "desktop"
@@ -59,17 +76,20 @@ export function CabinetNavItem({ href, label, icon, selected, badge, size }: Pro
           </Typography>
         </Box>
       ) : (
-        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.25, minWidth: 64 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.25, minWidth: 0, width: "100%" }}>
           <Badge color="error" badgeContent={badge ?? 0} max={99} invisible={!badge}>
             <Box sx={{ display: "inline-flex", alignItems: "center", color: "inherit" }}>{icon}</Box>
           </Badge>
           <Typography
             variant="caption"
             sx={{
-              fontSize: 11,
+              fontSize: 12,
               lineHeight: 1.1,
               fontWeight: selected ? 600 : 500,
               color: "inherit",
+              maxWidth: "100%",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
               whiteSpace: "nowrap",
             }}
           >

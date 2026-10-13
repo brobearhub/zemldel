@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Paper, Typography } from "@mui/material";
-import { brown, grey } from "@mui/material/colors";
+import { brown } from "@mui/material/colors";
 import { alpha } from "@mui/material/styles";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
 import Link from "next/link";
@@ -70,8 +70,8 @@ function ServiceCardImage({ item, imageHeight }: { item: ServiceCardItem; imageH
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            bgcolor: (theme) => alpha(theme.palette.primary.main, 0.72),
-            color: "primary.contrastText",
+            bgcolor: "rgba(0,0,0,0.72)",
+            color: "common.white",
             border: "1px solid",
             borderColor: (theme) => alpha(theme.palette.primary.main, 0.28),
             backdropFilter: "blur(6px)",
@@ -223,7 +223,7 @@ export function ServiceCard({ item, variant = "myCity" }: Props) {
                 sx={{
                   fontSize: 12,
                   fontWeight: 600,
-                  color: grey[400],
+                  color: "text.secondary",
                   whiteSpace: "nowrap",
                   overflow: "hidden",
                   textOverflow: "ellipsis",

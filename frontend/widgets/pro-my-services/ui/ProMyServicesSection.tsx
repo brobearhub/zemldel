@@ -19,12 +19,16 @@ export function ProMyServicesSection({ services }: Props) {
   return (
     <Stack spacing={2.5}>
       {visible.length === 0 ? (
-        <Typography sx={{ color: "text.secondary" }}>
-          Пока нет услуг.{" "}
-          <Link href="/pro/services/create" sx={{ color: "primary.main", textDecoration: "underline" }}>
+        <Stack spacing={1.5}>
+          <Typography sx={{ color: "text.primary", fontWeight: 700 }}>Пока нет услуг.</Typography>
+          <Typography sx={{ color: "text.primary" }}>С чего начать:</Typography>
+          <Typography sx={{ color: "text.primary" }}>1. Заполнить профиль</Typography>
+          <Typography sx={{ color: "text.primary" }}>2. Добавить услугу</Typography>
+          <Typography sx={{ color: "text.primary" }}>3. Открыть рабочий день</Typography>
+          <Link href="/pro/services/create" sx={{ color: "text.primary", fontWeight: 700, textDecoration: "underline", minHeight: 44, display: "inline-flex", alignItems: "center" }}>
             Создать услугу
           </Link>
-        </Typography>
+        </Stack>
       ) : (
         visible.map((service) => (
           <Box

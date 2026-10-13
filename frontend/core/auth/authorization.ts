@@ -6,7 +6,10 @@ export const PROVIDER_MEMBER_STATUSES = ["INVITED", "ACTIVE", "SUSPENDED"] as co
 export const PROVIDER_TYPES = ["SELF_EMPLOYED", "COMPANY"] as const;
 export const AUTH_PROVIDER_KEYS = ["GOSUSLUGI"] as const;
 
+export const ACCOUNT_KINDS = ["CUSTOMER", "PROVIDER"] as const;
+
 export type SystemRole = (typeof SYSTEM_ROLES)[number];
+export type AccountKind = (typeof ACCOUNT_KINDS)[number];
 export type ProviderMemberRole = (typeof PROVIDER_MEMBER_ROLES)[number];
 export type ProviderMemberStatus = (typeof PROVIDER_MEMBER_STATUSES)[number];
 export type ProviderType = (typeof PROVIDER_TYPES)[number];
@@ -36,6 +39,7 @@ export type AuthorizedUser = {
   image?: string | null;
   phone?: string | null;
   systemRole: SystemRole;
+  accountKind?: AccountKind;
   activeProviderId: string | null;
   customerCity: AuthCity | null;
   memberships: AuthMembership[];
@@ -46,6 +50,13 @@ export type AuthorizedUser = {
 export type AppAction = "manage" | "read" | "create" | "update" | "delete";
 export type AppSubject = "Platform" | "Provider" | "ProviderMember" | "Profile" | "Service" | "all";
 export type AppAbility = AnyMongoAbility;
+
+/** Why: старая сессия без поля не должна открыть создание кабинета исполнителя. */
+export function resolveAccountKind(
+  user: Pick<AuthorizedUser, "accountKind"> | null | undefined,
+): AccountKind {
+  return user?.accountKind === "PROVIDER" ? "PROVIDER" : "CUSTOMER";
+}
 
 export function getActiveMembership(user: Pick<AuthorizedUser, "activeProviderId" | "memberships"> | null) {
   if (!user) return null;

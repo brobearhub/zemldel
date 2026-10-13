@@ -51,6 +51,7 @@ describe("ServicesByCity", () => {
         image: null,
         phone: null,
         systemRole: "CUSTOMER",
+        accountKind: "CUSTOMER",
         activeProviderId: null,
         customerCity: { id: "c1", name: "Екатеринбург", regionCode: "66", regionName: "Свердловская область" },
         memberships: [],
