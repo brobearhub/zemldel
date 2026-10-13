@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { setLastCabinetRole } from "@/widgets/cabinet-chrome/lib/cabinet-role-storage";
 import { CabinetNotices } from "@/widgets/cabinet-chrome";
@@ -26,6 +27,8 @@ type ProviderType = "SELF_EMPLOYED" | "COMPANY";
 
 export function ProviderOnboardingForm() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const cityPrefilled = useRef(false);
   const [name, setName] = useState("");
   const [type, setType] = useState<ProviderType>("SELF_EMPLOYED");
   const [city, setCity] = useState<CitySuggestItemDto | null>(null);
@@ -34,6 +37,21 @@ export function ProviderOnboardingForm() {
   const [offerAcknowledged, setOfferAcknowledged] = useState(false);
   const [offerVersion, setOfferVersion] = useState<string | null>(null);
   const [offerLoadError, setOfferLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (cityPrefilled.current) return;
+    const sessionCity = session?.user?.customerCity;
+    if (!sessionCity) return;
+    cityPrefilled.current = true;
+    const region = sessionCity.regionName ? `, ${sessionCity.regionName}` : "";
+    setCity({
+      id: sessionCity.id,
+      name: sessionCity.name,
+      regionCode: sessionCity.regionCode,
+      regionName: sessionCity.regionName,
+      displayName: `${sessionCity.name}${region}`,
+    });
+  }, [session]);
 
   useEffect(() => {
     let cancelled = false;
@@ -188,6 +206,7 @@ export function ProviderOnboardingForm() {
                     type="submit"
                     variant="contained"
                     disabled={loading || !offerAcknowledged || !offerVersion}
+                    sx={{ minHeight: 44 }}
                   >
                     Создать
                   </Button>
@@ -195,8 +214,9 @@ export function ProviderOnboardingForm() {
                     type="button"
                     variant="outlined"
                     disabled={loading}
+                    sx={{ minHeight: 44 }}
                     onClick={() => {
-                      router.push("/");
+                      router.push("/pro");
                       router.refresh();
                     }}
                   >

@@ -58,8 +58,8 @@ const menuIconSx = { mr: 1.5, fontSize: 20 } as const;
 
 /** Why: outline не входит в размер аватара и не сдвигает шапку. */
 const proAvatarRingSx = {
-  outline: "2px dashed",
-  outlineColor: "accent.main",
+  outline: "2px solid",
+  outlineColor: "text.primary",
   outlineOffset: "2px",
 } as const;
 
@@ -149,7 +149,12 @@ export const ProfileMenu = ({
   const [inlineOpen, setInlineOpen] = useState(false);
   const isInline = layout === "inline";
   /** Why: в drawer гость ищет вход, а не «профиль», которого ещё нет. */
-  const triggerLabel = isInline && !isAuthenticated ? "Войти" : "Профиль";
+  const triggerLabel =
+    activeSection === "pro" && isAuthenticated
+      ? "Кабинет исполнителя"
+      : isInline && !isAuthenticated
+        ? "Войти"
+        : "Профиль";
 
   const handleMouseEnter = (event: MouseEvent<HTMLElement>) => {
     if (isInline || onPress) return;

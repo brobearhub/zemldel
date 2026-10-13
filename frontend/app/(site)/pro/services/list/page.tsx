@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Box, Button, Stack, Typography } from "@mui/material";
@@ -6,6 +7,8 @@ import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/se
 import { getServerAuthSession } from "@/core/auth";
 import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import { ProServicesListClient } from "@/widgets/pro-services/ui/ProServicesListClient";
+
+export const metadata: Metadata = { title: "Услуги — Земледел" };
 
 export default async function ProServicesListPage() {
   const session = await getServerAuthSession();
@@ -39,7 +42,7 @@ export default async function ProServicesListPage() {
           alignItems: { md: "center" }
         }}>
         <Box>
-          <Typography variant="h4" gutterBottom sx={{
+          <Typography component="h1" variant="h4" gutterBottom sx={{
             fontWeight: 700
           }}>
             Список услуг

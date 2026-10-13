@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type Ref } from "react";
 import { Box, Typography } from "@mui/material";
 import type { CitySuggestItemDto } from "@/entities/city";
 import { LocationButton, type LocationIconColor, type LocationTone } from "./LocationButton";
@@ -22,6 +22,7 @@ type Props = {
   emptyLabel?: string;
   /** Крестик сброса рядом с выбранным городом. В шапке не используется. */
   clearable?: boolean;
+  buttonRef?: Ref<HTMLButtonElement>;
 };
 
 const EMPTY_LABEL = "Выбрать локацию";
@@ -38,6 +39,7 @@ export function LocationField({
   iconColor,
   tone = "default",
   clearable = true,
+  buttonRef,
 }: Props) {
   const [open, setOpen] = useState(false);
   const hint = helperText?.trim() ? helperText : null;
@@ -58,6 +60,7 @@ export function LocationField({
         onClick={openDialog}
         disabled={disabled}
         error={error}
+        buttonRef={buttonRef}
         iconColor={iconColor}
         tone={tone}
         onClear={clearable && value ? () => onChange(null) : undefined}

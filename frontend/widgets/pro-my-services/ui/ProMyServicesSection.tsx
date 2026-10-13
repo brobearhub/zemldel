@@ -8,6 +8,15 @@ import { ServiceCard, type ServiceDto } from "@/entities/service";
 import { serviceRequestRowTitle } from "../lib/format-service-request";
 import { ServiceRequestsPanel } from "./ServiceRequestsPanel";
 
+const startStepSx = {
+  color: "text.primary",
+  fontWeight: 700,
+  textDecoration: "underline",
+  minHeight: 44,
+  display: "inline-flex",
+  alignItems: "center",
+} as const;
+
 type Props = {
   services: ServiceDto[];
 };
@@ -22,10 +31,10 @@ export function ProMyServicesSection({ services }: Props) {
         <Stack spacing={1.5}>
           <Typography sx={{ color: "text.primary", fontWeight: 700 }}>Пока нет услуг.</Typography>
           <Typography sx={{ color: "text.primary" }}>С чего начать:</Typography>
-          <Typography sx={{ color: "text.primary" }}>1. Заполнить профиль</Typography>
-          <Typography sx={{ color: "text.primary" }}>2. Добавить услугу</Typography>
-          <Typography sx={{ color: "text.primary" }}>3. Открыть рабочий день</Typography>
-          <Link href="/pro/services/create" sx={{ color: "text.primary", fontWeight: 700, textDecoration: "underline", minHeight: 44, display: "inline-flex", alignItems: "center" }}>
+          <Link href="/pro/profile" sx={startStepSx}>1. Заполнить профиль</Link>
+          <Link href="/pro/services/create" sx={startStepSx}>2. Добавить услугу</Link>
+          <Link href="/pro/workday" sx={startStepSx}>3. Открыть рабочий день</Link>
+          <Link href="/pro/services/create" sx={startStepSx}>
             Создать услугу
           </Link>
         </Stack>

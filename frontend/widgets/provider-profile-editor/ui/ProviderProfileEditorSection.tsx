@@ -743,7 +743,7 @@ export function ProviderProfileEditorSection({
     <Stack spacing={2.5}>
       <Paper variant="elevation" sx={{ p: { xs: 2, md: 3 }, bgcolor: "primary.main", }}>
         <Stack spacing={2} sx={{ width: "fit-content" }}>
-          <Typography variant="h5">
+          <Typography component="h1" variant="h5">
             Профиль исполнителя
           </Typography>
           <Stack

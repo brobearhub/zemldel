@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { Box } from "@mui/material";
 import { usePathname } from "next/navigation";
 import { Header } from "@/widgets/header/ui";
+import { AuthFooter } from "@/widgets/footer/ui/AuthFooter";
 import { Footer } from "@/widgets/footer/ui/Footer";
 import {
   isFullBleedAuthPath,
@@ -71,7 +72,7 @@ export function SiteChrome({ children }: Props) {
           >
             {children}
           </Box>
-          <Footer />
+          <AuthFooter />
         </>
       );
     }

@@ -1,13 +1,13 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import Link from "next/link";
 import { Alert, Box, Button, Stack, TextField, Typography } from "@mui/material";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent } from "react";
 import { resolvePostSignInPath } from "./resolve-post-sign-in-path";
-import { SITE_HEADER_HEIGHT_PX } from "@/shared/config/site-layout";
+import { authCardShellSx } from "@/app/(site)/auth-card-shell";
+import Link from "@/shared/ui/Link";
 import { RainGlassPaper } from "@/shared/ui/RainGlassPaper";
 import { LogoFull } from "@/shared/ui/LogoFull";
 import { PasswordVisibilityButton } from "@/shared/ui/PasswordVisibilityButton";
@@ -20,28 +20,9 @@ export default function SignInPage() {
   );
 }
 
-const signInShellSx = {
-  flex: "1 0 auto",
-  width: "100%",
-  minHeight: "100dvh",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  px: 2,
-  py: {
-    xs: `${SITE_HEADER_HEIGHT_PX.xs + 16}px`,
-    sm: `${SITE_HEADER_HEIGHT_PX.sm + 24}px`,
-    md: 10,
-  },
-  backgroundImage: "url('/hero-bg-house_static_day.jpg')",
-  backgroundSize: "cover",
-  backgroundPosition: "center",
-  backgroundRepeat: "no-repeat",
-} as const;
-
 function SignInPageFallback() {
   return (
-    <Box sx={signInShellSx}>
+    <Box sx={authCardShellSx}>
       <RainGlassPaper sx={{ width: "100%", maxWidth: 420, p: 4 }} />
     </Box>
   );
@@ -60,7 +41,11 @@ function SignInPageContent() {
   const { data: session, status } = useSession();
 
   const returnTo = searchParams.get("returnTo");
-  const signUpHref = searchParams.toString() ? `/signup?${searchParams.toString()}` : "/signup";
+  const passwordResetNotice = searchParams.get("notice") === "password-reset";
+  const signUpParams = new URLSearchParams(searchParams.toString());
+  signUpParams.delete("notice");
+  const signUpQuery = signUpParams.toString();
+  const signUpHref = signUpQuery ? `/signup?${signUpQuery}` : "/signup";
 
   useEffect(() => {
     if (status !== "authenticated" || !session?.user) return;
@@ -138,17 +123,19 @@ function SignInPageContent() {
   };
 
   return (
-    <Box sx={signInShellSx}>
+    <Box sx={authCardShellSx}>
       <RainGlassPaper sx={{ width: "100%", maxWidth: 420, p: 4 }}>
         <Stack spacing={2.5}>
-          <Stack spacing={1} direction="column" sx={{ alignItems: "center", justifyContent: "center" }}>
-            <Stack spacing={1}>
-              <LogoFull size={80} layout="right" tone="light" priority />
-            </Stack>
-            
-           
+          <Stack spacing={1} sx={{ alignItems: "center" }}>
+            <LogoFull size={80} layout="right" tone="light" priority />
+            <Typography component="h1" variant="h5" sx={{ fontWeight: 700 }}>
+              Вход
+            </Typography>
           </Stack>
 
+          {passwordResetNotice ? (
+            <Alert severity="success">Пароль обновлён. Войдите с новым паролем.</Alert>
+          ) : null}
           {formError ? (
             <Alert severity="error" role="alert">
               {formError}
@@ -213,12 +200,17 @@ function SignInPageContent() {
             </Stack>
           </Box>
 
-          <Typography variant="body2" sx={{ opacity: 0.9 }}>
-            Нет аккаунта?{" "}
-            <Link href={signUpHref} style={{ color: "inherit", fontWeight: 600 }}>
-              Регистрация
+          <Stack spacing={0.5}>
+            <Link href="/forgot-password" sx={{ color: "inherit", fontWeight: 600, minHeight: 44, display: "inline-flex", alignItems: "center" }}>
+              Забыли пароль?
             </Link>
-          </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.9, minHeight: 44, display: "flex", alignItems: "center" }}>
+              Нет аккаунта?{" "}
+              <Link href={signUpHref} sx={{ color: "inherit", fontWeight: 600, ml: 0.5 }}>
+                Регистрация
+              </Link>
+            </Typography>
+          </Stack>
         </Stack>
       </RainGlassPaper>
     </Box>

@@ -1,5 +1,6 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Stack } from "@mui/material";
+import { Stack, Typography } from "@mui/material";
 import { getActiveMembership } from "@/core/auth/authorization";
 import type { RequestCustomerDto, RequestReminderDto } from "@/entities/request";
 import type { ServiceDto } from "@/entities/service";
@@ -8,6 +9,8 @@ import { getServerAuthSession } from "@/core/auth";
 import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import { ProOverviewDashboard, type ProRequestStats } from "@/widgets/pro-dashboard/ui/ProOverviewDashboard";
 import { ProfessionalWorkspacePanel } from "@/widgets/pro-dashboard/ui/ProfessionalWorkspacePanel";
+
+export const metadata: Metadata = { title: "Обзор — Земледел" };
 
 const sortByRecent = <T extends { updatedAt: string; createdAt?: string }>(items: T[]) =>
   [...items].sort((left, right) => {
@@ -43,6 +46,9 @@ export default async function ProOverviewPage() {
 
     return (
       <Stack spacing={3}>
+        <Typography component="h1" variant="h4" sx={{ fontWeight: 700 }}>
+          Обзор
+        </Typography>
         <ProOverviewDashboard
           provider={activeMembership}
           services={services}

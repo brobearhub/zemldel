@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
 import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import type { RequestReminderDto } from "@/entities/request";
 import { WorkdayView } from "@/widgets/pro-requests/ui/WorkdayView";
+
+export const metadata: Metadata = { title: "Рабочий день — Земледел" };
 
 export default async function ProWorkdayPage() {
   const session = await getServerAuthSession();
