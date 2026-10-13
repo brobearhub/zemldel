@@ -32,7 +32,7 @@ export function ProHomeSectionSwitch({ services, freeRequests, reminders }: Prop
           flexWrap: "wrap",
           columnGap: { xs: 2.5, md: 4 },
           rowGap: 1,
-          alignItems: "center",
+          alignItems: "baseline",
         }}
       >
         {SECTIONS.map((item) => {
@@ -46,22 +46,19 @@ export function ProHomeSectionSwitch({ services, freeRequests, reminders }: Prop
               aria-selected={active}
               onClick={() => setSection(item.id)}
               sx={{
-                minHeight: 44,
-                px: 1.5,
+                m: 0,
+                p: 0,
                 border: 0,
-                borderBottom: "2px solid",
-                borderColor: active ? "text.primary" : "transparent",
                 outline: "none",
-                "&:focus": { outline: "none" },
-                "&:focus-visible": { outline: "2px solid", outlineColor: "text.primary", outlineOffset: 2 },
+                "&:focus, &:focus-visible": { outline: "none" },
                 bgcolor: "transparent",
                 cursor: "pointer",
                 fontFamily: "inherit",
                 textAlign: "left",
-                fontWeight: active ? 700 : 500,
-                fontSize: 16,
+                fontWeight: active ? 800 : 700,
+                fontSize: { xs: 28, md: 32 },
                 lineHeight: 1.2,
-                color: active ? "text.primary" : "text.secondary",
+                color: active ? "text.primary" : "text.secondaryLight",
               }}
             >
               {item.label}

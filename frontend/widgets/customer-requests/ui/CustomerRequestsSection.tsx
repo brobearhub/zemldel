@@ -207,7 +207,12 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
           alignItems: "center",
         }}
       >
-        <Button variant="outlined" onClick={() => void load()} disabled={loading} sx={{ whiteSpace: "nowrap" }}>
+        <Button
+          variant="outlined"
+          onClick={() => void load()}
+          disabled={loading}
+          sx={{ whiteSpace: "nowrap", minHeight: 44, color: "text.primary", borderColor: "text.primary" }}
+        >
           Обновить
         </Button>
       </Stack>
@@ -226,7 +231,7 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
           }}>
             Вы можете создать заявку на главной странице, и она появится в ленте исполнителей.
           </Typography>
-          <Button component={Link} href="/" sx={{ mt: 2 }} variant="contained">
+          <Button component={Link} href="/" sx={{ mt: 2, minHeight: 44 }} variant="contained">
             На главную
           </Button>
         </Paper>

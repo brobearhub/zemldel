@@ -4,7 +4,13 @@
  */
 
 /** Auth-страницы на весь экран: без spacer (фон под fixed header). */
-const FULL_BLEED_AUTH_PATHS = new Set(["/signin", "/signup", "/welcome"]);
+const FULL_BLEED_AUTH_PATHS = new Set([
+  "/signin",
+  "/signup",
+  "/welcome",
+  "/forgot-password",
+  "/reset-password",
+]);
 
 export function isFullBleedAuthPath(pathname: string): boolean {
   return FULL_BLEED_AUTH_PATHS.has(pathname);

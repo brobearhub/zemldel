@@ -322,7 +322,7 @@ export function ProfessionalWorkspacePanel() {
                   fontWeight: 700,
                 }}
               >
-                Кабинет исполнителя
+                Профиль не заполнен
               </Typography>
               <Typography
                 variant="body2"
@@ -330,12 +330,12 @@ export function ProfessionalWorkspacePanel() {
                   color: "text.secondary",
                 }}
               >
-                Создайте профиль исполнителя, чтобы предлагать услуги как самозанятый или компания.
+                Без профиля кабинет пуст. Заполните его, чтобы предлагать услуги.
               </Typography>
 
               <Box sx={{ mt: 2 }}>
-                <Button variant="contained" onClick={() => router.push("/providers/new")}>
-                  Создать профиль исполнителя
+                <Button variant="contained" onClick={() => router.push("/providers/new")} sx={{ minHeight: 44 }}>
+                  Заполнить профиль
                 </Button>
               </Box>
             </Box>

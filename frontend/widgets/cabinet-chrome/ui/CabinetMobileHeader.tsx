@@ -1,27 +1,15 @@
 "use client";
 
-import { AppBar, Box, Toolbar } from "@mui/material";
-import { useMemo } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
-import type { CabinetNavItem as NavItem } from "@/widgets/cabinet-chrome/model/nav-config";
-import { CabinetNavItem } from "@/widgets/cabinet-chrome/ui/CabinetNavItem";
+import { AppBar, Box, Toolbar, Typography } from "@mui/material";
 import { ColorModeToggle } from "@/core/theme/ColorModeToggle";
 import { HeaderLogo } from "@/widgets/header/ui/HeaderLogo";
 import { ProfileMenu } from "@/widgets/header/ui/ProfileMenu";
-import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 
 type Props = {
-  items: readonly NavItem[];
+  title: string;
 };
 
-export function CabinetMobileHeader({ items }: Props) {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const { unreadByRequestId } = useChatSocket();
-
-  const unreadTotal = useMemo(() => Object.values(unreadByRequestId).reduce((acc, v) => acc + v, 0), [unreadByRequestId]);
-  const ctx = useMemo(() => ({ pathname, searchParams: new URLSearchParams(searchParams?.toString() ?? "") }), [pathname, searchParams]);
-
+export function CabinetMobileHeader({ title }: Props) {
   return (
     <AppBar position="fixed" elevation={0}>
       <Toolbar
@@ -41,18 +29,20 @@ export function CabinetMobileHeader({ items }: Props) {
           <HeaderLogo />
         </Box>
 
-        <Box sx={{ minWidth: 0, display: "flex", justifyContent: "center", justifySelf: "center", gap: 0.25 }}>
-          {items.map((item) => (
-            <CabinetNavItem
-              key={item.key}
-              href={item.href}
-              label={item.label}
-              icon={item.icon}
-              selected={item.isActive(ctx)}
-              badge={item.badgeKind === "chatUnreadTotal" ? unreadTotal : undefined}
-              size="desktop"
-            />
-          ))}
+        <Box sx={{ minWidth: 0, display: "flex", justifyContent: "center", justifySelf: "center" }}>
+          <Typography
+            component="p"
+            sx={{
+              m: 0,
+              fontWeight: 700,
+              color: "text.primary",
+              minHeight: 44,
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            {title}
+          </Typography>
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", justifySelf: "end", gap: 0.25 }}>

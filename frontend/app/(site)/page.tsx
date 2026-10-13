@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { fetchBackendJson } from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
+import { getActiveMembership, resolveAccountKind } from "@/core/auth/authorization";
 import { HomeStickyRequestLayout } from "@/app/(site)/HomeStickyRequestLayout";
 
 type ServiceCategoryRow = {
@@ -14,6 +16,16 @@ type ServiceCategoryRow = {
 
 export default async function IndexPage() {
   const session = await getServerAuthSession();
+
+  if (
+    session?.user &&
+    session.user.systemRole !== "PLATFORM_ADMIN" &&
+    resolveAccountKind(session.user) === "PROVIDER" &&
+    !getActiveMembership(session.user)
+  ) {
+    redirect("/pro");
+  }
+
   const categories = await fetchBackendJson<ServiceCategoryRow[]>("/service-categories");
 
   return (

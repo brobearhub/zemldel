@@ -48,7 +48,7 @@ export function ChatsInboxPage() {
         <Paper sx={{ width: "100%", p: { xs: 2.5, md: 4 } }}>
           <Stack spacing={2}>
             <Box>
-              <Typography variant="h5" sx={{ fontWeight: 700 }}>
+              <Typography component="h1" variant="h5" sx={{ fontWeight: 700 }}>
                 Чат
               </Typography>
               <Typography variant="body2" sx={{

@@ -254,6 +254,7 @@ model User {
   storyUnfollows            StoryAuthorUnfollow[]    @relation("StoryUnfollower")
   storyUnfollowedBy         StoryAuthorUnfollow[]    @relation("StoryUnfollowedUser")
   storyConversationReads    StoryConversationRead[]
+  passwordResetTokens       PasswordResetToken[]
   customerRating            Float?
   customerReviewCount       Int                      @default(0)
   activeProvider            Provider?                @relation("ActiveProvider", fields: [activeProviderId], references: [id], onDelete: SetNull)
@@ -318,6 +319,19 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+/// Одноразовый хеш ссылки сброса пароля. Сырой токен хранится только в письме.
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Provider {

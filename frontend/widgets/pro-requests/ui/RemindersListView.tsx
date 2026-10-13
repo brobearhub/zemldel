@@ -374,7 +374,7 @@ export function RemindersListView({ initialReminders, showTitle = true }: Props)
           flexWrap: "wrap"
         }}>
         {showTitle ? (
-          <Typography variant="h4" sx={{
+          <Typography component="h1" variant="h4" sx={{
             fontWeight: 800
           }}>
             Напоминания

@@ -93,7 +93,7 @@ export function WorkdayView({ initialReminders }: Props) {
   if (reminders.length === 0) {
     return (
       <Stack spacing={3}>
-        <Typography variant="h4" sx={{
+        <Typography component="h1" variant="h4" sx={{
           fontWeight: 800
         }}>
           Рабочий день
@@ -236,7 +236,7 @@ export function WorkdayView({ initialReminders }: Props) {
           justifyContent: "space-between",
           flexWrap: "wrap"
         }}>
-        <Typography variant="h4" sx={{
+        <Typography component="h1" variant="h4" sx={{
           fontWeight: 800
         }}>
           Рабочий день
