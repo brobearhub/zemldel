@@ -23,7 +23,7 @@ export default async function IndexPage() {
     resolveAccountKind(session.user) === "PROVIDER" &&
     !getActiveMembership(session.user)
   ) {
-    redirect("/pro");
+    redirect("/providers/new");
   }
 
   const categories = await fetchBackendJson<ServiceCategoryRow[]>("/service-categories");

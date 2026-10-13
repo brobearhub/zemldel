@@ -2,7 +2,7 @@ import "@/core/server/reflect-metadata";
 import { Expose, instanceToPlain, plainToInstance, Transform } from "class-transformer";
 import { IsArray, IsBoolean, IsEnum, IsInt, IsNumber, IsOptional, IsString, IsUUID, ValidateIf, validateSync, type ValidationError } from "class-validator";
 
-export type ProviderType = "SELF_EMPLOYED" | "COMPANY";
+export type ProviderType = "INDIVIDUAL" | "SELF_EMPLOYED" | "SOLE_PROPRIETOR" | "COMPANY";
 
 export class ProviderPublicCityDto {
   @Expose()
@@ -53,7 +53,7 @@ export class PublicProviderProfileDto {
   slug!: string;
 
   @Expose()
-  @IsEnum(["SELF_EMPLOYED", "COMPANY"])
+  @IsEnum(["INDIVIDUAL", "SELF_EMPLOYED", "SOLE_PROPRIETOR", "COMPANY"])
   type!: ProviderType;
 
   @Expose()

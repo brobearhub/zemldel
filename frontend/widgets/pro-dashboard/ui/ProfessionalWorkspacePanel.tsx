@@ -42,12 +42,21 @@ type ProviderMembersResponse = {
   id: string;
   name: string;
   slug: string;
-  type: "SELF_EMPLOYED" | "COMPANY";
+  type: "INDIVIDUAL" | "SELF_EMPLOYED" | "SOLE_PROPRIETOR" | "COMPANY";
   members: ProviderMemberRecord[];
 };
 
 function providerTypeLabel(type: AuthMembership["providerType"]) {
-  return type === "SELF_EMPLOYED" ? "самозанятый / физлицо" : "компания / организация";
+  switch (type) {
+    case "INDIVIDUAL":
+      return "физлицо";
+    case "SELF_EMPLOYED":
+      return "самозанятый";
+    case "SOLE_PROPRIETOR":
+      return "ИП";
+    case "COMPANY":
+      return "организация";
+  }
 }
 
 function providerRoleLabel(role: AuthMembership["role"] | ProviderMemberRecord["role"]) {

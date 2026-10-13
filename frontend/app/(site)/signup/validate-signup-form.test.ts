@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { hasSignupFieldErrors, validateSignupForm } from "./validate-signup-form";
 
-const valid = {
+const customer = {
+  accountKind: "CUSTOMER" as const,
   name: "Анна",
   email: "anna@example.com",
   password: "secret1",
@@ -12,14 +13,14 @@ const valid = {
 };
 
 describe("validateSignupForm", () => {
-  it("пропускает заполненную форму", () => {
-    const errors = validateSignupForm(valid);
+  it("пропускает заполненную форму клиента", () => {
+    const errors = validateSignupForm(customer);
     expect(hasSignupFieldErrors(errors)).toBe(false);
   });
 
-  it("подсвечивает пустые поля и короткий пароль", () => {
+  it("у клиента подсвечивает имя, город и короткий пароль", () => {
     const errors = validateSignupForm({
-      ...valid,
+      ...customer,
       name: "  ",
       email: "abc",
       password: "123",
@@ -34,5 +35,17 @@ describe("validateSignupForm", () => {
     expect(errors.confirmPassword).toBeTruthy();
     expect(errors.city).toBe("Выберите город");
     expect(errors.legal).toBeTruthy();
+  });
+
+  it("у исполнителя не требует имя и город", () => {
+    const errors = validateSignupForm({
+      ...customer,
+      accountKind: "PROVIDER",
+      name: "",
+      hasCity: false,
+    });
+    expect(errors.name).toBeNull();
+    expect(errors.city).toBeNull();
+    expect(hasSignupFieldErrors(errors)).toBe(false);
   });
 });

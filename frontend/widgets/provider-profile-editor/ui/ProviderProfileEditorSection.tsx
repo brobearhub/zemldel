@@ -27,7 +27,7 @@ import {
 import { normalizeContactEmailInput } from "@/shared/lib/contact-email";
 import { normalizeContactPhoneInput } from "@/shared/lib/contact-phone";
 
-type ProviderType = "SELF_EMPLOYED" | "COMPANY";
+type ProviderType = "INDIVIDUAL" | "SELF_EMPLOYED" | "SOLE_PROPRIETOR" | "COMPANY";
 
 type ProviderPublicCity = {
   id: string;
@@ -146,12 +146,14 @@ function ProviderImagePlaceholder({ type }: { type: ProviderType }) {
 
 function providerTypeLabel(type: ProviderType): string {
   switch (type) {
+    case "INDIVIDUAL":
+      return "Физлицо";
     case "SELF_EMPLOYED":
-      return "Самозанятый / физлицо";
+      return "Самозанятый";
+    case "SOLE_PROPRIETOR":
+      return "ИП";
     case "COMPANY":
-      return "Компания / организация";
-    default:
-      return "";
+      return "Организация";
   }
 }
 

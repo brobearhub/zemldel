@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { PROVIDER_TYPES, type ProviderType } from '../../auth/authorization';
 import { AuthorizedUserDto } from '../../auth/dto/authorized-user.dto';
 import { AuthCityDto } from '../../auth/dto/authorized-user.dto';
 
@@ -12,8 +13,8 @@ export class ProviderDto {
   @ApiProperty()
   slug!: string;
 
-  @ApiProperty({ enum: ['SELF_EMPLOYED', 'COMPANY'] })
-  type!: 'SELF_EMPLOYED' | 'COMPANY';
+  @ApiProperty({ enum: PROVIDER_TYPES })
+  type!: ProviderType;
 
   @ApiProperty({ format: 'uuid' })
   ownerUserId!: string;
@@ -112,8 +113,8 @@ export class ProviderMembersResponseDto {
   @ApiProperty()
   slug!: string;
 
-  @ApiProperty({ enum: ['SELF_EMPLOYED', 'COMPANY'] })
-  type!: 'SELF_EMPLOYED' | 'COMPANY';
+  @ApiProperty({ enum: PROVIDER_TYPES })
+  type!: ProviderType;
 
   @ApiProperty({ type: [ProviderMemberDto] })
   members!: ProviderMemberDto[];
@@ -137,8 +138,8 @@ export class PublicProviderProfileDto {
   @ApiProperty()
   slug!: string;
 
-  @ApiProperty({ enum: ['SELF_EMPLOYED', 'COMPANY'] })
-  type!: 'SELF_EMPLOYED' | 'COMPANY';
+  @ApiProperty({ enum: PROVIDER_TYPES })
+  type!: ProviderType;
 
   @ApiProperty({ nullable: true, example: null })
   rating!: number | null;

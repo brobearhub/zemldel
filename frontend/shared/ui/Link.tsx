@@ -7,6 +7,8 @@ import { forwardRef } from "react";
 export type AppLinkProps = Omit<BoxProps, "component" | "href"> &
   LinkProps & {
     href: LinkProps["href"];
+    target?: string;
+    rel?: string;
   };
 
 /**

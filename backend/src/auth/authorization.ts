@@ -5,12 +5,26 @@ export const PROVIDER_MEMBER_STATUSES = [
   'ACTIVE',
   'SUSPENDED',
 ] as const;
-export const PROVIDER_TYPES = ['SELF_EMPLOYED', 'COMPANY'] as const;
+export const PROVIDER_TYPES = [
+  'INDIVIDUAL',
+  'SELF_EMPLOYED',
+  'SOLE_PROPRIETOR',
+  'COMPANY',
+] as const;
+export const PERSONAL_PROVIDER_TYPES = [
+  'INDIVIDUAL',
+  'SELF_EMPLOYED',
+  'SOLE_PROPRIETOR',
+] as const;
 
 export type SystemRole = (typeof SYSTEM_ROLES)[number];
 export type ProviderMemberRole = (typeof PROVIDER_MEMBER_ROLES)[number];
 export type ProviderMemberStatus = (typeof PROVIDER_MEMBER_STATUSES)[number];
 export type ProviderType = (typeof PROVIDER_TYPES)[number];
+
+export function isPersonalProviderType(type: ProviderType): boolean {
+  return (PERSONAL_PROVIDER_TYPES as readonly ProviderType[]).includes(type);
+}
 
 export type AuthCity = {
   id: string;
