@@ -5,6 +5,9 @@ CREATE SCHEMA IF NOT EXISTS "public";
 CREATE TYPE "SystemRole" AS ENUM ('PLATFORM_ADMIN', 'CUSTOMER');
 
 -- CreateEnum
+CREATE TYPE "AccountKind" AS ENUM ('CUSTOMER', 'PROVIDER');
+
+-- CreateEnum
 CREATE TYPE "ProviderType" AS ENUM ('SELF_EMPLOYED', 'COMPANY');
 
 -- CreateEnum
@@ -21,9 +24,6 @@ CREATE TYPE "RequestStatus" AS ENUM ('NEW', 'DISCUSSING', 'TERMS_AGREED', 'ACTIV
 
 -- CreateEnum
 CREATE TYPE "RequestProviderOfferStatus" AS ENUM ('SELECTED', 'DECLINED');
-
--- CreateEnum
-CREATE TYPE "ServiceCategoryPlacement" AS ENUM ('HOME');
 
 -- CreateEnum
 CREATE TYPE "ConversationStatus" AS ENUM ('OPEN', 'ARCHIVED');
@@ -47,6 +47,12 @@ CREATE TYPE "RequestRemarkStatus" AS ENUM ('OPEN', 'DONE');
 CREATE TYPE "RequestRemarkAuthorSide" AS ENUM ('CUSTOMER', 'PROVIDER');
 
 -- CreateEnum
+CREATE TYPE "ReviewDirection" AS ENUM ('CUSTOMER_TO_PROVIDER', 'PROVIDER_TO_CUSTOMER');
+
+-- CreateEnum
+CREATE TYPE "StoryAuthorType" AS ENUM ('USER', 'PROVIDER');
+
+-- CreateEnum
 CREATE TYPE "WorkStageLifecycle" AS ENUM ('DRAFT', 'PUBLISHED');
 
 -- CreateEnum
@@ -59,13 +65,13 @@ CREATE TYPE "LegalDocId" AS ENUM ('TERMS', 'PRIVACY', 'CONSENT', 'OFFER');
 CREATE TYPE "LegalAcceptanceContext" AS ENUM ('SIGNUP', 'PROVIDER_ONBOARDING', 'CONTRACT');
 
 -- CreateEnum
-CREATE TYPE "RequestPaymentType" AS ENUM ('CONTRACT', 'OTHER');
-
--- CreateEnum
 CREATE TYPE "CityStatus" AS ENUM ('ACTIVE', 'INACTIVE');
 
 -- CreateEnum
 CREATE TYPE "CityImportEventType" AS ENUM ('ADDED', 'DEACTIVATED', 'REACTIVATED', 'UPDATED');
+
+-- CreateEnum
+CREATE TYPE "RequestPaymentType" AS ENUM ('CONTRACT', 'OTHER');
 
 -- CreateTable
 CREATE TABLE "City" (
@@ -83,6 +89,15 @@ CREATE TABLE "City" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "City_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RegionalCapital" (
+    "cityId" UUID NOT NULL,
+    "featured" BOOLEAN NOT NULL DEFAULT false,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+
+    CONSTRAINT "RegionalCapital_pkey" PRIMARY KEY ("cityId")
 );
 
 -- CreateTable
@@ -125,10 +140,14 @@ CREATE TABLE "User" (
     "name" TEXT,
     "image" TEXT,
     "systemRole" "SystemRole" NOT NULL DEFAULT 'CUSTOMER',
+    "accountKind" "AccountKind" NOT NULL DEFAULT 'CUSTOMER',
     "passwordHash" TEXT,
     "phone" TEXT,
     "activeProviderId" UUID,
     "customerCityId" UUID,
+    "profilePublic" BOOLEAN NOT NULL DEFAULT false,
+    "customerRating" DOUBLE PRECISION,
+    "customerReviewCount" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -191,6 +210,15 @@ CREATE TABLE "Provider" (
     "type" "ProviderType" NOT NULL,
     "ownerUserId" UUID,
     "cityId" UUID,
+    "image" TEXT,
+    "subtitle" TEXT,
+    "about" TEXT,
+    "phone" TEXT,
+    "email" TEXT,
+    "useOwnEmail" BOOLEAN NOT NULL DEFAULT false,
+    "stats" JSONB,
+    "rating" DOUBLE PRECISION,
+    "reviewCount" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -268,10 +296,10 @@ CREATE TABLE "ProviderUserSettings" (
 CREATE TABLE "ServiceCategory" (
     "id" UUID NOT NULL,
     "name" TEXT NOT NULL,
+    "shortName" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "parentId" UUID,
     "sortOrder" INTEGER,
-    "placements" "ServiceCategoryPlacement"[] DEFAULT ARRAY[]::"ServiceCategoryPlacement"[],
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -435,12 +463,11 @@ CREATE TABLE "Service" (
     "stockBadge" TEXT,
     "price" TEXT NOT NULL,
     "rating" DOUBLE PRECISION,
-    "reviewCount" INTEGER,
+    "reviewCount" INTEGER NOT NULL DEFAULT 0,
+    "ratingSortScore" DOUBLE PRECISION,
     "ctaText" TEXT NOT NULL,
     "ctaHref" TEXT,
     "description" TEXT,
-    "highlight" TEXT,
-    "badge" TEXT,
     "paletteColor" TEXT,
     "icon" TEXT,
     "providerId" UUID NOT NULL,
@@ -451,6 +478,164 @@ CREATE TABLE "Service" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Service_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Review" (
+    "id" UUID NOT NULL,
+    "requestId" UUID NOT NULL,
+    "direction" "ReviewDirection" NOT NULL,
+    "providerId" UUID NOT NULL,
+    "serviceId" UUID,
+    "authorUserId" UUID NOT NULL,
+    "subjectUserId" UUID,
+    "rating" INTEGER NOT NULL,
+    "text" TEXT,
+    "replyText" TEXT,
+    "repliedAt" TIMESTAMP(3),
+    "repliedByUserId" UUID,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Review_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Story" (
+    "id" UUID NOT NULL,
+    "authorType" "StoryAuthorType" NOT NULL,
+    "authorUserId" UUID NOT NULL,
+    "providerId" UUID,
+    "cityId" UUID,
+    "sourceStoryId" UUID,
+    "text" TEXT NOT NULL,
+    "imageUrl" TEXT,
+    "durationDays" INTEGER NOT NULL,
+    "publishedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "withdrawnAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Story_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "StoryViewEvent" (
+    "id" UUID NOT NULL,
+    "storyId" UUID NOT NULL,
+    "userId" UUID,
+    "providerId" UUID,
+    "cityId" UUID,
+    "viewedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "StoryViewEvent_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "StorySave" (
+    "id" UUID NOT NULL,
+    "storyId" UUID NOT NULL,
+    "userId" UUID NOT NULL,
+    "providerId" UUID,
+    "savedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "removedAt" TIMESTAMP(3),
+
+    CONSTRAINT "StorySave_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "StoryReply" (
+    "id" UUID NOT NULL,
+    "storyId" UUID NOT NULL,
+    "authorType" "StoryAuthorType" NOT NULL DEFAULT 'USER',
+    "authorUserId" UUID NOT NULL,
+    "providerId" UUID,
+    "text" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "StoryReply_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "StoryComment" (
+    "id" UUID NOT NULL,
+    "storyId" UUID NOT NULL,
+    "authorType" "StoryAuthorType" NOT NULL,
+    "authorUserId" UUID NOT NULL,
+    "providerId" UUID,
+    "text" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "StoryComment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "StoryCommentLike" (
+    "id" UUID NOT NULL,
+    "commentId" UUID NOT NULL,
+    "userId" UUID NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "StoryCommentLike_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "StoryReplyMessage" (
+    "id" UUID NOT NULL,
+    "storyReplyId" UUID NOT NULL,
+    "senderUserId" UUID NOT NULL,
+    "text" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "StoryReplyMessage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "StoryConversationRead" (
+    "id" UUID NOT NULL,
+    "userId" UUID NOT NULL,
+    "inboxKey" TEXT NOT NULL,
+    "counterpartKey" TEXT NOT NULL,
+    "lastReadAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "StoryConversationRead_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "StoryProfileOpen" (
+    "id" UUID NOT NULL,
+    "storyId" UUID NOT NULL,
+    "userId" UUID,
+    "providerId" UUID,
+    "openedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "StoryProfileOpen_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "StoryAuthorFollow" (
+    "id" UUID NOT NULL,
+    "followerUserId" UUID NOT NULL,
+    "followerProviderId" UUID,
+    "targetUserId" UUID,
+    "targetProviderId" UUID,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "removedAt" TIMESTAMP(3),
+
+    CONSTRAINT "StoryAuthorFollow_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "StoryAuthorUnfollow" (
+    "id" UUID NOT NULL,
+    "followerUserId" UUID NOT NULL,
+    "followerProviderId" UUID,
+    "targetUserId" UUID,
+    "targetProviderId" UUID,
+    "unfollowedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "StoryAuthorUnfollow_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -789,6 +974,96 @@ CREATE INDEX "Service_status_idx" ON "Service"("status");
 CREATE INDEX "Service_providerId_status_idx" ON "Service"("providerId", "status");
 
 -- CreateIndex
+CREATE INDEX "Service_ratingSortScore_idx" ON "Service"("ratingSortScore");
+
+-- CreateIndex
+CREATE INDEX "Review_serviceId_direction_createdAt_idx" ON "Review"("serviceId", "direction", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Review_providerId_direction_createdAt_idx" ON "Review"("providerId", "direction", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Review_subjectUserId_direction_idx" ON "Review"("subjectUserId", "direction");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Review_requestId_direction_key" ON "Review"("requestId", "direction");
+
+-- CreateIndex
+CREATE INDEX "Story_expiresAt_idx" ON "Story"("expiresAt");
+
+-- CreateIndex
+CREATE INDEX "Story_cityId_publishedAt_idx" ON "Story"("cityId", "publishedAt");
+
+-- CreateIndex
+CREATE INDEX "Story_publishedAt_idx" ON "Story"("publishedAt");
+
+-- CreateIndex
+CREATE INDEX "Story_authorUserId_publishedAt_idx" ON "Story"("authorUserId", "publishedAt");
+
+-- CreateIndex
+CREATE INDEX "Story_providerId_publishedAt_idx" ON "Story"("providerId", "publishedAt");
+
+-- CreateIndex
+CREATE INDEX "Story_sourceStoryId_idx" ON "Story"("sourceStoryId");
+
+-- CreateIndex
+CREATE INDEX "Story_withdrawnAt_idx" ON "Story"("withdrawnAt");
+
+-- CreateIndex
+CREATE INDEX "StoryViewEvent_storyId_viewedAt_idx" ON "StoryViewEvent"("storyId", "viewedAt");
+
+-- CreateIndex
+CREATE INDEX "StoryViewEvent_storyId_userId_idx" ON "StoryViewEvent"("storyId", "userId");
+
+-- CreateIndex
+CREATE INDEX "StoryViewEvent_userId_storyId_idx" ON "StoryViewEvent"("userId", "storyId");
+
+-- CreateIndex
+CREATE INDEX "StorySave_userId_removedAt_idx" ON "StorySave"("userId", "removedAt");
+
+-- CreateIndex
+CREATE INDEX "StorySave_providerId_removedAt_idx" ON "StorySave"("providerId", "removedAt");
+
+-- CreateIndex
+CREATE INDEX "StorySave_storyId_removedAt_idx" ON "StorySave"("storyId", "removedAt");
+
+-- CreateIndex
+CREATE INDEX "StoryReply_storyId_createdAt_idx" ON "StoryReply"("storyId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "StoryComment_storyId_createdAt_idx" ON "StoryComment"("storyId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "StoryCommentLike_commentId_userId_key" ON "StoryCommentLike"("commentId", "userId");
+
+-- CreateIndex
+CREATE INDEX "StoryReplyMessage_storyReplyId_createdAt_idx" ON "StoryReplyMessage"("storyReplyId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "StoryConversationRead_userId_inboxKey_idx" ON "StoryConversationRead"("userId", "inboxKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "StoryConversationRead_userId_inboxKey_counterpartKey_key" ON "StoryConversationRead"("userId", "inboxKey", "counterpartKey");
+
+-- CreateIndex
+CREATE INDEX "StoryProfileOpen_storyId_openedAt_idx" ON "StoryProfileOpen"("storyId", "openedAt");
+
+-- CreateIndex
+CREATE INDEX "StoryAuthorFollow_followerUserId_removedAt_idx" ON "StoryAuthorFollow"("followerUserId", "removedAt");
+
+-- CreateIndex
+CREATE INDEX "StoryAuthorFollow_targetUserId_removedAt_idx" ON "StoryAuthorFollow"("targetUserId", "removedAt");
+
+-- CreateIndex
+CREATE INDEX "StoryAuthorFollow_targetProviderId_removedAt_idx" ON "StoryAuthorFollow"("targetProviderId", "removedAt");
+
+-- CreateIndex
+CREATE INDEX "StoryAuthorUnfollow_targetUserId_unfollowedAt_idx" ON "StoryAuthorUnfollow"("targetUserId", "unfollowedAt");
+
+-- CreateIndex
+CREATE INDEX "StoryAuthorUnfollow_targetProviderId_unfollowedAt_idx" ON "StoryAuthorUnfollow"("targetProviderId", "unfollowedAt");
+
+-- CreateIndex
 CREATE INDEX "Conversation_providerId_idx" ON "Conversation"("providerId");
 
 -- CreateIndex
@@ -876,16 +1151,19 @@ CREATE INDEX "RequestReminder_providerId_remindAt_idx" ON "RequestReminder"("pro
 CREATE INDEX "RequestReminder_providerId_isDone_remindAt_idx" ON "RequestReminder"("providerId", "isDone", "remindAt");
 
 -- AddForeignKey
-ALTER TABLE "User" ADD CONSTRAINT "User_activeProviderId_fkey" FOREIGN KEY ("activeProviderId") REFERENCES "Provider"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "User" ADD CONSTRAINT "User_customerCityId_fkey" FOREIGN KEY ("customerCityId") REFERENCES "City"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "RegionalCapital" ADD CONSTRAINT "RegionalCapital_cityId_fkey" FOREIGN KEY ("cityId") REFERENCES "City"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "CityImportEvent" ADD CONSTRAINT "CityImportEvent_runId_fkey" FOREIGN KEY ("runId") REFERENCES "CityImportRun"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "CityImportEvent" ADD CONSTRAINT "CityImportEvent_cityId_fkey" FOREIGN KEY ("cityId") REFERENCES "City"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "User" ADD CONSTRAINT "User_activeProviderId_fkey" FOREIGN KEY ("activeProviderId") REFERENCES "Provider"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "User" ADD CONSTRAINT "User_customerCityId_fkey" FOREIGN KEY ("customerCityId") REFERENCES "City"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "LegalAcceptance" ADD CONSTRAINT "LegalAcceptance_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -997,6 +1275,123 @@ ALTER TABLE "Service" ADD CONSTRAINT "Service_createdByUserId_fkey" FOREIGN KEY 
 
 -- AddForeignKey
 ALTER TABLE "Service" ADD CONSTRAINT "Service_updatedByUserId_fkey" FOREIGN KEY ("updatedByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Review" ADD CONSTRAINT "Review_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "Request"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Review" ADD CONSTRAINT "Review_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Review" ADD CONSTRAINT "Review_serviceId_fkey" FOREIGN KEY ("serviceId") REFERENCES "Service"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Review" ADD CONSTRAINT "Review_authorUserId_fkey" FOREIGN KEY ("authorUserId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Review" ADD CONSTRAINT "Review_subjectUserId_fkey" FOREIGN KEY ("subjectUserId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Review" ADD CONSTRAINT "Review_repliedByUserId_fkey" FOREIGN KEY ("repliedByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Story" ADD CONSTRAINT "Story_authorUserId_fkey" FOREIGN KEY ("authorUserId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Story" ADD CONSTRAINT "Story_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Story" ADD CONSTRAINT "Story_cityId_fkey" FOREIGN KEY ("cityId") REFERENCES "City"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Story" ADD CONSTRAINT "Story_sourceStoryId_fkey" FOREIGN KEY ("sourceStoryId") REFERENCES "Story"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryViewEvent" ADD CONSTRAINT "StoryViewEvent_storyId_fkey" FOREIGN KEY ("storyId") REFERENCES "Story"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryViewEvent" ADD CONSTRAINT "StoryViewEvent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryViewEvent" ADD CONSTRAINT "StoryViewEvent_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryViewEvent" ADD CONSTRAINT "StoryViewEvent_cityId_fkey" FOREIGN KEY ("cityId") REFERENCES "City"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StorySave" ADD CONSTRAINT "StorySave_storyId_fkey" FOREIGN KEY ("storyId") REFERENCES "Story"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StorySave" ADD CONSTRAINT "StorySave_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StorySave" ADD CONSTRAINT "StorySave_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryReply" ADD CONSTRAINT "StoryReply_storyId_fkey" FOREIGN KEY ("storyId") REFERENCES "Story"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryReply" ADD CONSTRAINT "StoryReply_authorUserId_fkey" FOREIGN KEY ("authorUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryReply" ADD CONSTRAINT "StoryReply_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryComment" ADD CONSTRAINT "StoryComment_storyId_fkey" FOREIGN KEY ("storyId") REFERENCES "Story"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryComment" ADD CONSTRAINT "StoryComment_authorUserId_fkey" FOREIGN KEY ("authorUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryComment" ADD CONSTRAINT "StoryComment_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryCommentLike" ADD CONSTRAINT "StoryCommentLike_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "StoryComment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryCommentLike" ADD CONSTRAINT "StoryCommentLike_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryReplyMessage" ADD CONSTRAINT "StoryReplyMessage_storyReplyId_fkey" FOREIGN KEY ("storyReplyId") REFERENCES "StoryReply"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryReplyMessage" ADD CONSTRAINT "StoryReplyMessage_senderUserId_fkey" FOREIGN KEY ("senderUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryConversationRead" ADD CONSTRAINT "StoryConversationRead_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryProfileOpen" ADD CONSTRAINT "StoryProfileOpen_storyId_fkey" FOREIGN KEY ("storyId") REFERENCES "Story"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryProfileOpen" ADD CONSTRAINT "StoryProfileOpen_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryProfileOpen" ADD CONSTRAINT "StoryProfileOpen_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryAuthorFollow" ADD CONSTRAINT "StoryAuthorFollow_followerUserId_fkey" FOREIGN KEY ("followerUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryAuthorFollow" ADD CONSTRAINT "StoryAuthorFollow_followerProviderId_fkey" FOREIGN KEY ("followerProviderId") REFERENCES "Provider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryAuthorFollow" ADD CONSTRAINT "StoryAuthorFollow_targetUserId_fkey" FOREIGN KEY ("targetUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryAuthorFollow" ADD CONSTRAINT "StoryAuthorFollow_targetProviderId_fkey" FOREIGN KEY ("targetProviderId") REFERENCES "Provider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryAuthorUnfollow" ADD CONSTRAINT "StoryAuthorUnfollow_followerUserId_fkey" FOREIGN KEY ("followerUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryAuthorUnfollow" ADD CONSTRAINT "StoryAuthorUnfollow_followerProviderId_fkey" FOREIGN KEY ("followerProviderId") REFERENCES "Provider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryAuthorUnfollow" ADD CONSTRAINT "StoryAuthorUnfollow_targetUserId_fkey" FOREIGN KEY ("targetUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryAuthorUnfollow" ADD CONSTRAINT "StoryAuthorUnfollow_targetProviderId_fkey" FOREIGN KEY ("targetProviderId") REFERENCES "Provider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Conversation" ADD CONSTRAINT "Conversation_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "Request"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -82,6 +82,10 @@ const baseSx: SxProps<Theme> = (theme) => {
         color: alpha(theme.palette.common.white, isDark ? 0.88 : 0.90),
       },
     },
+    // Why: глазик пароля — IconButton с action.active (тёмный). На стекле он должен совпадать с label.
+    "& .MuiInputAdornment-root .MuiIconButton-root": {
+      color: alpha(theme.palette.common.white, isDark ? 0.78 : 0.82),
+    },
     "& .MuiOutlinedInput-root": {
       backgroundColor: alpha(theme.palette.common.white, isDark ? 0.06 : 0.08),
       "&:hover": {

@@ -31,6 +31,7 @@ function assignAuthContext(token: Record<string, unknown>, user: UserAuthContext
   token.image = user.image;
   token.phone = user.phone ?? null;
   token.systemRole = user.systemRole;
+  token.accountKind = user.accountKind === "PROVIDER" ? "PROVIDER" : "CUSTOMER";
   token.activeProviderId = user.activeProviderId;
   token.customerCity = user.customerCity;
   token.memberships = user.memberships;
@@ -95,6 +96,7 @@ export const authOptions: NextAuthOptions = {
         session.user.image = typeof token.image === "string" ? token.image : null;
         session.user.phone = typeof token.phone === "string" ? token.phone : null;
         session.user.systemRole = token.systemRole === "PLATFORM_ADMIN" ? "PLATFORM_ADMIN" : "CUSTOMER";
+        session.user.accountKind = token.accountKind === "PROVIDER" ? "PROVIDER" : "CUSTOMER";
         session.user.activeProviderId =
           typeof token.activeProviderId === "string" ? token.activeProviderId : null;
         session.user.customerCity =

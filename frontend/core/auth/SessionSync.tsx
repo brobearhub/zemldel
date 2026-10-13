@@ -30,6 +30,7 @@ export function SessionSync() {
           image: user.image ?? null,
           phone: user.phone ?? null,
           systemRole: user.systemRole,
+          accountKind: user.accountKind === "PROVIDER" ? "PROVIDER" : "CUSTOMER",
           activeProviderId: user.activeProviderId,
           customerCity: user.customerCity ?? null,
           memberships: user.memberships,

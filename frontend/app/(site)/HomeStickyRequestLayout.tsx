@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Container, Stack } from "@mui/material";
+import { Box, Button, Container, Stack } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 
 import { SITE_CONTENT_GAP_PX, SITE_HEADER_SPACER_PX, SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
@@ -33,6 +33,7 @@ const HOME_SECTION_HEADER_HEIGHT_PX = 52;
 export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) {
   const catsBarRef = useRef<HTMLDivElement | null>(null);
   const [catsBarHeightPx, setCatsBarHeightPx] = useState(0);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const rootCategories = [...categories]
     .filter((c) => c.parentId == null)
@@ -67,7 +68,6 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) 
 
   return (
     <Box
-      component="main"
       sx={{
         pb: { xs: 3, md: 4 },
         pt: 0,
@@ -127,6 +127,11 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) 
             }}
           >
             <Stack spacing={{ xs: 3, md: 3 }}>
+              <Box sx={{ display: { xs: "block", md: "none" } }}>
+                <Button variant="contained" onClick={() => setHelpOpen(true)} sx={{ minHeight: 44 }}>
+                  Создать заявку
+                </Button>
+              </Box>
               <HomeServicesByCity />
             </Stack>
           </Box>
@@ -152,7 +157,12 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) 
           </Box>
         </Box>
       </Container>
-      <HomeMobileHelpButton isAuthenticated={isAuthenticated} categories={rootCategories} />
+      <HomeMobileHelpButton
+        isAuthenticated={isAuthenticated}
+        categories={rootCategories}
+        open={helpOpen}
+        onOpenChange={setHelpOpen}
+      />
     </Box>
   );
 }

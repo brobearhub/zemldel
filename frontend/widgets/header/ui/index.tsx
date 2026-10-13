@@ -4,7 +4,8 @@ import { Suspense, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
-import { AppBar, Box, Drawer, IconButton, Stack, Toolbar } from "@mui/material";
+import { AppBar, Box, Drawer, IconButton, Stack, Toolbar, Typography } from "@mui/material";
+import { useAppSelector } from "@/core/store/hooks";
 import { SITE_HEADER_HEIGHT_PX } from "@/shared/config/site-layout";
 import { HeaderLogo } from "./HeaderLogo";
 import { HeaderSearch } from "./HeaderSearch";
@@ -14,8 +15,10 @@ import { ProfileMenu } from "./ProfileMenu";
 
 export const Header = () => {
   const pathname = usePathname();
+  const isAuthenticated = useAppSelector((state) => state.auth.status === "authenticated");
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const hideHeaderCity = pathname === "/signup";
   const closeMenu = () => setMenuOpen(false);
   const closeProfile = () => setProfileOpen(false);
 
@@ -35,6 +38,7 @@ export const Header = () => {
           display: "flex",
           flexWrap: "nowrap",
           alignItems: "center",
+          justifyContent: "space-between", 
           width: "100%",
           gap: 1,
         }}
@@ -42,11 +46,11 @@ export const Header = () => {
         <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, flex: "0 0 auto" }}>
           <HeaderLogo />
           <Box sx={{ display: { xs: "none", md: "flex" } }}>
-            <HeaderCity />
+            {hideHeaderCity ? null : <HeaderCity />}
           </Box>
         </Box>
 
-        <Box
+        {/* <Box
           sx={{
             flex: "1 1 auto",
             minWidth: 0,
@@ -57,7 +61,7 @@ export const Header = () => {
           }}
         >
           <HeaderSearch />
-        </Box>
+        </Box> */}
 
         <Box sx={{ display: { xs: "none", md: "flex" }, alignItems: "center", flex: "0 0 auto" }}>
           <HeaderNav />
@@ -77,7 +81,7 @@ export const Header = () => {
           <IconButton
             aria-label="Открыть меню"
             onClick={() => setMenuOpen(true)}
-            sx={{ color: "inherit" }}
+            sx={{ color: "inherit", minWidth: 44, minHeight: 44 }}
           >
             <MenuRoundedIcon />
           </IconButton>
@@ -90,14 +94,21 @@ export const Header = () => {
         onClose={closeMenu}
         slotProps={{ paper: { sx: { width: "min(100vw, 320px)", pt: 1, pb: 3, px: 2 } } }}
       >
-        <Stack spacing={2}>
-          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-            <IconButton aria-label="Закрыть меню" onClick={closeMenu} sx={{ color: "text.primary" }}>
+        <Stack spacing={1}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+            {hideHeaderCity ? null : (
+              <Box sx={{ minWidth: 0, flex: "1 1 auto" }}>
+                <HeaderCity showLabel />
+              </Box>
+            )}
+            <IconButton
+              aria-label="Закрыть меню"
+              onClick={closeMenu}
+              sx={{ color: "text.primary", flexShrink: 0, ml: "auto", minWidth: 44, minHeight: 44 }}
+            >
               <CloseRoundedIcon />
             </IconButton>
           </Box>
-          <HeaderSearch />
-          <HeaderCity showLabel />
           <HeaderNav key={menuOpen ? "open" : "closed"} showLabels onNavigate={closeMenu} />
         </Stack>
       </Drawer>
@@ -106,11 +117,26 @@ export const Header = () => {
         anchor="right"
         open={profileOpen}
         onClose={closeProfile}
+        aria-labelledby={isAuthenticated ? undefined : "profile-drawer-title"}
         slotProps={{ paper: { sx: { width: "min(100vw, 320px)", pt: 1, pb: 3, px: 2 } } }}
       >
-        <Stack spacing={2}>
-          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-            <IconButton aria-label="Закрыть меню" onClick={closeProfile} sx={{ color: "text.primary" }}>
+        <Stack spacing={1}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+            {isAuthenticated ? null : (
+              <Typography
+                id="profile-drawer-title"
+                component="h2"
+                variant="subtitle1"
+                sx={{ fontWeight: 600, minWidth: 0 }}
+              >
+                Войти
+              </Typography>
+            )}
+            <IconButton
+              aria-label="Закрыть меню"
+              onClick={closeProfile}
+              sx={{ color: "text.primary", flexShrink: 0, ml: "auto", minWidth: 44, minHeight: 44 }}
+            >
               <CloseRoundedIcon />
             </IconButton>
           </Box>

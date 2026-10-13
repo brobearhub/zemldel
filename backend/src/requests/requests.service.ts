@@ -14,6 +14,7 @@ import { InternalAuthService } from '../auth/internal-auth.service';
 import type { OrderManagementAction } from '../auth/authorization';
 import { ChatService } from '../chat/chat.service';
 import { assertActiveSelectableCity } from '../cities/city-validation';
+import { assertCanCreateCustomerRequest } from '../auth/account-kind';
 import { LegalDocsService } from '../legal-docs/legal-docs.service';
 import type {
   RequestCategoryCreateDto,
@@ -547,11 +548,14 @@ export class RequestsService {
           email: true,
           phone: true,
           customerCityId: true,
+          accountKind: true,
+          systemRole: true,
         },
       }),
     ]);
     if (!category) throw new NotFoundException('Category not found');
     if (!actor) throw new ForbiddenException('Forbidden');
+    assertCanCreateCustomerRequest(actor);
 
     const requestCityId = await this.resolveRequestCityIdForCreate(
       input.requestCityId,
@@ -601,9 +605,12 @@ export class RequestsService {
             email: true,
             phone: true,
             customerCityId: true,
+            accountKind: true,
+            systemRole: true,
           },
         })
       : null;
+    if (actor) assertCanCreateCustomerRequest(actor);
 
     const customerName = input.customerName ?? actor?.name ?? null;
     const customerEmail = input.customerEmail ?? actor?.email ?? null;
@@ -658,11 +665,14 @@ export class RequestsService {
         email: true,
         phone: true,
         customerCityId: true,
+        accountKind: true,
+        systemRole: true,
       },
     });
     if (!actor) {
       throw new ForbiddenException('Forbidden');
     }
+    assertCanCreateCustomerRequest(actor);
 
     const message = input.message ?? null;
     if (!message) {

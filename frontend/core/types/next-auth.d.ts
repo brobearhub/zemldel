@@ -1,11 +1,12 @@
 import type { DefaultSession } from "next-auth";
-import type { AuthCity, AuthMembership, AuthProviderKey, SystemRole } from "@/core/auth/authorization";
+import type { AccountKind, AuthCity, AuthMembership, AuthProviderKey, SystemRole } from "@/core/auth/authorization";
 
 declare module "next-auth" {
   interface Session {
     user: {
       id: string;
       systemRole: SystemRole;
+      accountKind: AccountKind;
       activeProviderId: string | null;
       phone: string | null;
       customerCity: AuthCity | null;
@@ -23,6 +24,7 @@ declare module "next-auth/jwt" {
     email?: string | null;
     image?: string | null;
     systemRole?: SystemRole;
+    accountKind?: AccountKind;
     activeProviderId?: string | null;
     phone?: string | null;
     customerCity?: AuthCity | null;

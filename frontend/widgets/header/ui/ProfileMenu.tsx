@@ -7,6 +7,7 @@ import {
   Divider,
   Menu,
   MenuItem,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
@@ -21,6 +22,7 @@ import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import { signOut } from "next-auth/react";
 import { useAppSelector } from "@/core/store/hooks";
 import { CdnAvatar } from "@/shared/ui/cdn-image";
+import { resolveAccountKind } from "@/core/auth/authorization";
 import { resolveProfileMenuSection } from "../lib/profile-menu-section";
 
 function getInitials(name: string | null | undefined): string {
@@ -33,7 +35,7 @@ function getInitials(name: string | null | undefined): string {
 }
 
 type ProfileMenuProps = {
-  /** Подпись «Профиль» под иконкой — только для основного site-хедера. */
+  /** Подпись под иконкой — только для основного site-хедера и drawer. */
   readonly showLabel?: boolean;
   /** В меню-гамбургере подпись видна и на узком экране. */
   readonly forceLabel?: boolean;
@@ -137,12 +139,17 @@ export const ProfileMenu = ({
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
   const isAuthenticated = status === "authenticated";
-  const hasProfessionalProfile = (user?.memberships?.length ?? 0) > 0;
+  const accountKind = resolveAccountKind(user);
+  const isProviderAccount = accountKind === "PROVIDER";
   const isPlatformAdmin = user?.systemRole === "PLATFORM_ADMIN";
+  const showCustomerCabinet = !isProviderAccount || isPlatformAdmin;
+  const showProviderCabinet = isProviderAccount || isPlatformAdmin;
   const activeSection = resolveProfileMenuSection(pathname);
   const initials = getInitials(user?.name) || user?.email?.charAt(0)?.toUpperCase() || "U";
   const [inlineOpen, setInlineOpen] = useState(false);
   const isInline = layout === "inline";
+  /** Why: в drawer гость ищет вход, а не «профиль», которого ещё нет. */
+  const triggerLabel = isInline && !isAuthenticated ? "Войти" : "Профиль";
 
   const handleMouseEnter = (event: MouseEvent<HTMLElement>) => {
     if (isInline || onPress) return;
@@ -202,43 +209,56 @@ export const ProfileMenu = ({
     closeAndGo(() => router.push("/admin"));
   };
 
+  /** Why: в sheet пункты — сам список drawer, во inline они вложены под кнопку и остаются с отступом. */
+  const actionsListSx = {
+    display: "flex",
+    flexDirection: "column",
+    gap: 0.5,
+    pl: layout === "sheet" ? 0 : 1,
+  } as const;
+  const rowSx = layout === "sheet" ? { ...drawerRowSx, px: 0 } : drawerRowSx;
+
   const inlineActions = isAuthenticated ? (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, pl: 1 }}>
-      <Box component="button" type="button" onClick={handleCustomerProfile} sx={drawerRowSx}>
-        <PersonOutlineRoundedIcon sx={{ fontSize: 22 }} />
-        Мой профиль
-      </Box>
-      {hasProfessionalProfile ? (
-        <Box component="button" type="button" onClick={handleProDashboard} sx={drawerRowSx}>
+    <Box sx={actionsListSx}>
+      {showCustomerCabinet ? (
+        <Box component="button" type="button" onClick={handleCustomerProfile} sx={rowSx}>
+          <PersonOutlineRoundedIcon sx={{ fontSize: 22 }} />
+          Мой профиль
+        </Box>
+      ) : null}
+      {showProviderCabinet ? (
+        <Box component="button" type="button" onClick={handleProDashboard} sx={rowSx}>
           <WorkOutlineOutlinedIcon sx={{ fontSize: 22 }} />
-          Кабинет профессионала
+          Кабинет исполнителя
         </Box>
       ) : null}
       {isPlatformAdmin ? (
-        <Box component="button" type="button" onClick={handleAdmin} sx={drawerRowSx}>
+        <Box component="button" type="button" onClick={handleAdmin} sx={rowSx}>
           <AdminPanelSettingsOutlinedIcon sx={{ fontSize: 22 }} />
           Админка
         </Box>
       ) : null}
-      <Box component="button" type="button" onClick={handleSignOut} sx={{ ...drawerRowSx, color: "error.main" }}>
+      <Box component="button" type="button" onClick={handleSignOut} sx={{ ...rowSx, color: "error.main" }}>
         <LogoutIcon sx={{ fontSize: 22 }} />
         Выйти
       </Box>
     </Box>
   ) : (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, pl: 1 }}>
-      <Box component="button" type="button" onClick={handleSignIn} sx={drawerRowSx}>
+    <Box sx={actionsListSx}>
+      <Box component="button" type="button" onClick={handleSignIn} sx={rowSx}>
         <LoginIcon sx={{ fontSize: 22 }} />
-        Войти
+        Клиент
       </Box>
-      <Box component="button" type="button" onClick={handleSignInPro} sx={drawerRowSx}>
+      <Box component="button" type="button" onClick={handleSignInPro} sx={rowSx}>
         <WorkOutlineOutlinedIcon sx={{ fontSize: 22 }} />
-        Войти исполнителю
+        Исполнитель
       </Box>
-      <Box component="button" type="button" onClick={handleSignUp} sx={drawerRowSx}>
-        <PersonAddIcon sx={{ fontSize: 22 }} />
-        Регистрация
-      </Box>
+      {isInline ? null : (
+        <Box component="button" type="button" onClick={handleSignUp} sx={rowSx}>
+          <PersonAddIcon sx={{ fontSize: 22 }} />
+          Регистрация
+        </Box>
+      )}
     </Box>
   );
 
@@ -256,7 +276,7 @@ export const ProfileMenu = ({
         component="button"
         id={onPress ? undefined : "profile-button"}
         onClick={handleOpenOnClick}
-        aria-label="Профиль"
+        aria-label={triggerLabel}
         aria-controls={!isInline && open ? "profile-menu" : undefined}
         aria-haspopup={isInline || onPress ? undefined : "true"}
         aria-expanded={isInline ? inlineOpen : open ? "true" : undefined}
@@ -264,7 +284,10 @@ export const ProfileMenu = ({
           display: "flex",
           flexDirection: forceLabel ? "row" : "column",
           alignItems: "center",
+          justifyContent: forceLabel ? "flex-start" : "center",
           gap: forceLabel ? 1.5 : 0.25,
+          minWidth: 44,
+          minHeight: 44,
           px: { xs: 0.75, sm: 1 },
           py: 0.75,
           borderRadius: 1,
@@ -281,7 +304,8 @@ export const ProfileMenu = ({
         }}
       >
         {isAuthenticated ? (
-          <CdnAvatar
+          <Tooltip title={activeSection === "pro" ? "Кабинет исполнителя" : ""}>
+            <CdnAvatar
             src={user?.image || undefined}
             sx={{
               width: { xs: 28, sm: 32 },
@@ -295,6 +319,7 @@ export const ProfileMenu = ({
           >
             {initials}
           </CdnAvatar>
+          </Tooltip>
         ) : (
           <PersonOutlineRoundedIcon sx={{ fontSize: { xs: 22, sm: 24 }, color: "info.main" }} />
         )}
@@ -310,7 +335,7 @@ export const ProfileMenu = ({
               opacity: 1,
               "&:hover": { color: "info.main" }
             }}>
-            Профиль
+            {triggerLabel}
           </Typography>
         ) : null}
       </Box>
@@ -324,6 +349,7 @@ export const ProfileMenu = ({
         open={open}
         onClose={handleClose}
         disableScrollLock
+        disableAutoFocusItem
         anchorOrigin={{
           vertical: "bottom",
           horizontal: "center",
@@ -383,22 +409,24 @@ export const ProfileMenu = ({
               </Box>
             </Box>
             <Divider />
-            <SectionMenuItem
-              active={activeSection === "profile"}
-              onClick={handleCustomerProfile}
-              outlineIcon={<PersonOutlineRoundedIcon sx={menuIconSx} />}
-              filledIcon={<PersonRoundedIcon sx={menuIconSx} />}
-            >
-              Мой профиль
-            </SectionMenuItem>
-            {hasProfessionalProfile ? (
+            {showCustomerCabinet ? (
+              <SectionMenuItem
+                active={activeSection === "profile"}
+                onClick={handleCustomerProfile}
+                outlineIcon={<PersonOutlineRoundedIcon sx={menuIconSx} />}
+                filledIcon={<PersonRoundedIcon sx={menuIconSx} />}
+              >
+                Мой профиль
+              </SectionMenuItem>
+            ) : null}
+            {showProviderCabinet ? (
               <SectionMenuItem
                 active={activeSection === "pro"}
                 onClick={handleProDashboard}
                 outlineIcon={<WorkOutlineOutlinedIcon sx={menuIconSx} />}
                 filledIcon={<WorkIcon sx={menuIconSx} />}
               >
-                Кабинет профессионала
+                Кабинет исполнителя
               </SectionMenuItem>
             ) : null}
             {isPlatformAdmin ? (
@@ -422,22 +450,17 @@ export const ProfileMenu = ({
               <Typography variant="subtitle2" sx={{
                 fontWeight: 600
               }}>
-                Добро пожаловать!
-              </Typography>
-              <Typography variant="caption" sx={{
-                color: "text.secondary"
-              }}>
-                Войдите или зарегистрируйтесь
+                Войти
               </Typography>
             </Box>
             <Divider />
             <MenuItem onClick={handleSignIn} sx={menuItemSx(false)}>
               <LoginIcon sx={menuIconSx} />
-              Войти
+              Клиент
             </MenuItem>
             <MenuItem onClick={handleSignInPro} sx={menuItemSx(false)}>
               <WorkOutlineOutlinedIcon sx={menuIconSx} />
-              Войти исполнителю
+              Исполнитель
             </MenuItem>
             <MenuItem onClick={handleSignUp} sx={menuItemSx(false)}>
               <PersonAddIcon sx={menuIconSx} />

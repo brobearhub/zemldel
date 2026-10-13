@@ -25,13 +25,23 @@ export async function POST(request: Request) {
     }
 
     // Проверяем креды на бэкенде тем же эндпоинтом, что использует CredentialsProvider.
-    await fetchBackendJson("/auth/login", {
+    const user = await fetchBackendJson<{
+      accountKind?: unknown;
+      memberships?: unknown;
+    }>("/auth/login", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
 
-    return NextResponse.json({ ok: true }, { status: 200 });
+    return NextResponse.json(
+      {
+        ok: true,
+        accountKind: user.accountKind === "PROVIDER" ? "PROVIDER" : "CUSTOMER",
+        hasProviderMembership: Array.isArray(user.memberships) && user.memberships.length > 0,
+      },
+      { status: 200 },
+    );
   } catch (error) {
     if (error instanceof BackendApiError && error.status === 401) {
       return NextResponse.json(

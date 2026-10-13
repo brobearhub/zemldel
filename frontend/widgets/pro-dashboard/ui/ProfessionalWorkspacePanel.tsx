@@ -270,7 +270,7 @@ export function ProfessionalWorkspacePanel() {
       }
 
       setManagerEmail("");
-      setManagerSuccess("Менеджер добавлен в профессиональный профиль");
+      setManagerSuccess("Менеджер добавлен в профиль исполнителя");
 
       const membersResponse = await fetch(`/api/providers/${activeMembership.providerId}/members`, {
         cache: "no-store",
@@ -316,12 +316,13 @@ export function ProfessionalWorkspacePanel() {
             <Box sx={{ minWidth: 0, flexGrow: 1 }}>
               <Typography
                 variant="h5"
+                component="h1"
                 gutterBottom
                 sx={{
                   fontWeight: 700,
                 }}
               >
-                Кабинет профессионала
+                Кабинет исполнителя
               </Typography>
               <Typography
                 variant="body2"
@@ -329,12 +330,12 @@ export function ProfessionalWorkspacePanel() {
                   color: "text.secondary",
                 }}
               >
-                Создайте профессиональный профиль, чтобы предлагать услуги как самозанятый или компания.
+                Создайте профиль исполнителя, чтобы предлагать услуги как самозанятый или компания.
               </Typography>
 
               <Box sx={{ mt: 2 }}>
                 <Button variant="contained" onClick={() => router.push("/providers/new")}>
-                  Создать provider
+                  Создать профиль исполнителя
                 </Button>
               </Box>
             </Box>
@@ -371,7 +372,7 @@ export function ProfessionalWorkspacePanel() {
             <Typography variant="subtitle1" sx={{
               fontWeight: 800
             }}>
-              Активный профессиональный профиль
+              Активный профиль исполнителя
             </Typography>
             <Typography sx={{
               fontWeight: 600
@@ -476,7 +477,7 @@ export function ProfessionalWorkspacePanel() {
               <Typography variant="subtitle2" sx={{
                 fontWeight: 800
               }}>
-                Мои профессиональные профили
+                Мои профили исполнителя
               </Typography>
               {memberships.map((membership) => {
                 const isActive = membership.providerId === activeMembership.providerId;
@@ -523,7 +524,7 @@ export function ProfessionalWorkspacePanel() {
             <Typography variant="subtitle2" sx={{
               fontWeight: 800
             }}>
-              Команда профессионального профиля
+              Команда профиля исполнителя
             </Typography>
           </Box>
 
@@ -561,7 +562,7 @@ export function ProfessionalWorkspacePanel() {
             <Typography variant="body2" sx={{
               color: "text.secondary"
             }}>
-              В этом профессиональном профиле пока нет участников.
+              В этом профиле исполнителя пока нет участников.
             </Typography>
           )}
 

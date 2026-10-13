@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { setLastCabinetRole } from "@/widgets/cabinet-chrome/lib/cabinet-role-storage";
+import { CabinetNotices } from "@/widgets/cabinet-chrome";
 import {
   Alert,
   Box,
@@ -89,14 +91,15 @@ export function ProviderOnboardingForm() {
       const payload = (await response.json().catch(() => null)) as { error?: string } | null;
 
       if (!response.ok) {
-        setError(payload?.error ?? "Не удалось создать профиль поставщика");
+        setError(payload?.error ?? "Не удалось создать профиль исполнителя");
         return;
       }
 
-      router.push("/profile");
+      setLastCabinetRole("provider");
+      router.push("/pro?welcome=1");
       router.refresh();
     } catch {
-      setError("Не удалось создать профиль поставщика");
+      setError("Не удалось создать профиль исполнителя");
     } finally {
       setLoading(false);
     }
@@ -108,20 +111,22 @@ export function ProviderOnboardingForm() {
         <Paper sx={{ p: 4 }}>
           <Stack spacing={3}>
             <Stack spacing={1}>
-              <Typography variant="h4" sx={{
+              <Typography variant="h4" component="h1" sx={{
                 fontWeight: 700
               }}>
-                Профессиональный профиль
+                Профиль исполнителя
               </Typography>
               <Typography sx={{
                 color: "text.secondary"
               }}>
-                Можно продолжить как <b>заказчик</b> и вернуться к этому шагу позже.
+                Заполните профиль, чтобы публиковать услуги.
               </Typography>
             </Stack>
 
-            {error ? <Alert severity="error">{error}</Alert> : null}
-            {offerLoadError ? <Alert severity="error">{offerLoadError}</Alert> : null}
+            <CabinetNotices welcome="Аккаунт исполнителя создан. Осталось заполнить профиль." />
+
+            {error ? <Alert severity="error" role="alert">{error}</Alert> : null}
+            {offerLoadError ? <Alert severity="error" role="alert">{offerLoadError}</Alert> : null}
 
             <Box component="form" onSubmit={onSubmit}>
               <Stack spacing={2.5}>
@@ -135,7 +140,7 @@ export function ProviderOnboardingForm() {
                 />
                 <TextField
                   select
-                  label="Тип поставщика"
+                  label="Тип профиля"
                   value={type}
                   onChange={(event) => setType(event.target.value as ProviderType)}
                   disabled={loading}
@@ -171,8 +176,8 @@ export function ProviderOnboardingForm() {
                       >
                         офертой на платные услуги платформы
                       </Link>
-                      {offerVersion ? ` (версия ${offerVersion})` : ""}. Платные услуги
-                      подключаются отдельно; акцепт оферты — при оплате.
+                      {offerVersion ? ` (версия ${offerVersion})` : ""}. Галочка подтверждает,
+                      что текст оферты прочитан. Подключение и оплата услуг выполняются отдельно.
                     </Typography>
                   }
                   sx={{ alignItems: "flex-start", m: 0 }}

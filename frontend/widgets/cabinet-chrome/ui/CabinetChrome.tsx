@@ -40,7 +40,7 @@ export function CabinetChrome() {
   return (
     <>
       <CabinetMobileHeader items={nav.mobileTop} />
-      <CabinetBottomNav items={nav.mobileBottom} />
+      <CabinetBottomNav items={nav.mobileBottom} moreItems={nav.mobileMore} />
     </>
   );
 }

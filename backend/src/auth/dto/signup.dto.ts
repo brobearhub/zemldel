@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsEmail,
+  IsIn,
   IsOptional,
   IsString,
   IsUUID,
@@ -43,6 +44,10 @@ export class SignupDto {
   @IsOptional()
   @IsString()
   name?: string;
+
+  @ApiProperty({ enum: ['CUSTOMER', 'PROVIDER'] })
+  @IsIn(['CUSTOMER', 'PROVIDER'])
+  accountKind!: 'CUSTOMER' | 'PROVIDER';
 
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()

@@ -17,6 +17,10 @@ import { CreateProviderDto } from './dto/create-provider.dto';
 import { AddProviderManagerDto } from './dto/add-provider-manager.dto';
 import { UpdateProviderPublicProfileDto } from './dto/update-provider-public-profile.dto';
 import { AuthService } from '../auth/auth.service';
+import {
+  assertCanCreateProviderProfile,
+  assertCanJoinProviderTeam,
+} from '../auth/account-kind';
 import { LegalDocsService } from '../legal-docs/legal-docs.service';
 import { S3Service } from '../storage/s3.service';
 
@@ -621,6 +625,15 @@ export class ProvidersService {
   }
 
   async createProvider(userId: string, body: CreateProviderDto) {
+    const actor = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { accountKind: true, systemRole: true },
+    });
+    if (!actor) {
+      throw new ForbiddenException('Forbidden');
+    }
+    assertCanCreateProviderProfile(actor);
+
     const name = body.name.trim();
     const cityId = body.cityId ?? null;
 
@@ -863,12 +876,15 @@ export class ProvidersService {
         email: true,
         name: true,
         image: true,
+        accountKind: true,
       },
     });
 
     if (!user) {
       throw new NotFoundException('User with this email was not found');
     }
+
+    assertCanJoinProviderTeam(user);
 
     if (user.id === actorUserId) {
       throw new ConflictException('Owner already has access to this provider');

@@ -21,10 +21,11 @@ import PhoneIcon from "@mui/icons-material/Phone";
 import { normalizeContactPhoneInput } from "@/shared/lib/contact-phone";
 import { CdnAvatar } from "@/shared/ui/cdn-image";
 import { useAppSelector } from "@/core/store/hooks";
-import type { AuthMembership } from "@/core/auth/authorization";
+import { resolveAccountKind, type AuthMembership } from "@/core/auth/authorization";
 import { CustomerRequestsSection } from "@/widgets/customer-requests/ui/CustomerRequestsSection";
 import { CustomerPassportSection } from "@/widgets/customer-documents/ui/CustomerPassportSection";
 import { StoriesPage } from "@/views/stories-page";
+import { CabinetNotices } from "@/widgets/cabinet-chrome";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import type { CitySuggestItemDto } from "@/entities/city";
 import { displayCityName, formatCityLabel } from "@/shared/lib/format-city-label";
@@ -65,6 +66,7 @@ interface ProfileOverviewProps {
   onOpenProfessionalArea: () => void;
   onCreateProvider: () => void;
   onCityUpdated: () => void;
+  showProfessionalCabinet: boolean;
 }
 
 function ProfileOverview({
@@ -78,6 +80,7 @@ function ProfileOverview({
   onOpenProfessionalArea,
   onCreateProvider,
   onCityUpdated,
+  showProfessionalCabinet,
 }: ProfileOverviewProps) {
   const router = useRouter();
   const { update: updateSession } = useSession();
@@ -373,14 +376,14 @@ function ProfileOverview({
           <Typography variant="body2" sx={{
             color: "text.secondary"
           }}>
-            Статус: {activeMembership ? "профессионал" : "заказчик"}
+            Статус: {activeMembership ? "исполнитель" : "заказчик"}
           </Typography>
           {activeMembership ? (
             <>
               <Typography variant="body2" sx={{
                 color: "text.secondary"
               }}>
-                Активный профессиональный профиль: {activeMembership.providerName}
+                Активный профиль исполнителя: {activeMembership.providerName}
               </Typography>
               <Typography variant="body2" sx={{
                 color: "text.secondary"
@@ -469,25 +472,25 @@ function ProfileOverview({
         </Stack>
       </Paper>
 
-      <Paper variant="outlined" sx={{ p: 2.5 }}>
+      {showProfessionalCabinet ? <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Stack spacing={1.5}>
           <Typography variant="h6" sx={{
             fontWeight: 700
           }}>
-            Кабинет профессионала
+            Кабинет исполнителя
           </Typography>
           {activeMembership ? (
             <>
               <Typography variant="body2" sx={{
                 color: "text.secondary"
               }}>
-                Рабочее пространство поставщика услуг вынесено в отдельный кабинет. Активный
-                provider: {activeMembership.providerName}.
+                Рабочее пространство исполнителя вынесено в отдельный кабинет. Активный
+                профиль: {activeMembership.providerName}.
               </Typography>
               <Box>
                 <Button variant="contained" onClick={onOpenProfessionalArea}>
-                  Перейти в кабинет профессионала
-                </Button>
+                Перейти в кабинет исполнителя
+              </Button>
               </Box>
             </>
           ) : (
@@ -495,18 +498,18 @@ function ProfileOverview({
               <Typography variant="body2" sx={{
                 color: "text.secondary"
               }}>
-                Создайте профессиональный профиль, чтобы предлагать услуги и работать от имени
+                Создайте профиль исполнителя, чтобы предлагать услуги и работать от имени
                 компании в отдельном кабинете.
               </Typography>
               <Box>
                 <Button variant="contained" onClick={onCreateProvider}>
-                  Создать профессиональный профиль
+                  Создать профиль исполнителя
                 </Button>
               </Box>
             </>
           )}
         </Stack>
-      </Paper>
+      </Paper> : null}
     </Stack>
   );
 }
@@ -566,6 +569,11 @@ function ProfilePageContent() {
   }, [status, router]);
 
   useEffect(() => {
+    if (status !== "authenticated" || user?.accountKind !== "PROVIDER") return;
+    router.replace("/pro?notice=customer-account");
+  }, [status, user?.accountKind, router]);
+
+  useEffect(() => {
     setSelectedSection(resolveProfileSection(searchParams.get("section")));
   }, [searchParams]);
 
@@ -597,6 +605,16 @@ function ProfilePageContent() {
 
   return (
     <Container maxWidth="xl" sx={sitePageContainerSx}>
+      <Typography component="h1" variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
+        {selectedSection === "documents"
+          ? "Документы"
+          : selectedSection === "stories"
+            ? "История"
+            : selectedSection === "profile"
+              ? "Профиль"
+              : "Заявки"}
+      </Typography>
+      <CabinetNotices welcome="Аккаунт создан. Здесь будут ваши заявки." />
       {selectedSection === "requests" ? (
         <CustomerRequestsSection
           autoResumeEnabled={searchParams.get("requestResume") === "1"}
@@ -623,6 +641,9 @@ function ProfilePageContent() {
               onOpenProfessionalArea={() => router.push("/pro")}
               onCreateProvider={() => router.push("/providers/new")}
               onCityUpdated={() => router.refresh()}
+              showProfessionalCabinet={
+                resolveAccountKind(user) === "PROVIDER" || user?.systemRole === "PLATFORM_ADMIN"
+              }
             />
           ) : null}
 

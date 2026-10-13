@@ -224,7 +224,7 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
           <Typography sx={{
             color: "text.secondary"
           }}>
-            Вы можете создать свободную заявку на главной странице и она появится в ленте провайдеров.
+            Вы можете создать заявку на главной странице, и она появится в ленте исполнителей.
           </Typography>
           <Button component={Link} href="/" sx={{ mt: 2 }} variant="contained">
             На главную

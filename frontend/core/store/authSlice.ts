@@ -1,5 +1,5 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import type { AuthCity, AuthMembership, AuthProviderKey, SystemRole } from "@/core/auth/authorization";
+import type { AccountKind, AuthCity, AuthMembership, AuthProviderKey, SystemRole } from "@/core/auth/authorization";
 
 export type AuthUser = {
   id: string;
@@ -8,6 +8,7 @@ export type AuthUser = {
   image: string | null;
   phone: string | null;
   systemRole: SystemRole;
+  accountKind: AccountKind;
   activeProviderId: string | null;
   customerCity: AuthCity | null;
   memberships: AuthMembership[];

@@ -28,6 +28,7 @@ const userAuthSelect = {
   image: true,
   phone: true,
   systemRole: true,
+  accountKind: true,
   activeProviderId: true,
   authProviderLinks: {
     where: { revokedAt: null },
@@ -153,6 +154,7 @@ export class AuthService {
       image: user.image,
       phone: user.phone,
       systemRole: user.systemRole,
+      accountKind: user.accountKind,
       activeProviderId: this.resolveActiveProviderId(
         user.activeProviderId,
         memberships,
@@ -202,6 +204,7 @@ export class AuthService {
     password: string;
     name?: string;
     customerCityId?: string;
+    accountKind: 'CUSTOMER' | 'PROVIDER';
     acceptedLegal: { terms: string; privacy: string; consent: string };
   }) {
     const email = input.email.trim().toLowerCase();
@@ -235,6 +238,7 @@ export class AuthService {
           name: input.name?.trim() || undefined,
           passwordHash,
           customerCityId,
+          accountKind: input.accountKind,
         },
         select: {
           id: true,
