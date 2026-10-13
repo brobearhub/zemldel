@@ -7,7 +7,9 @@ type AcceptedLegal = {
   consent?: unknown;
 };
 
-type FieldErrors = Partial<Record<"name" | "email" | "password" | "customerCityId" | "acceptedLegal", string>>;
+type FieldErrors = Partial<
+  Record<"name" | "email" | "password" | "customerCityId" | "acceptedLegal" | "accountKind", string>
+>;
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -20,6 +22,7 @@ export async function POST(request: Request) {
       password?: unknown;
       name?: unknown;
       customerCityId?: unknown;
+      accountKind?: unknown;
       acceptedLegal?: AcceptedLegal;
     };
 
@@ -27,6 +30,7 @@ export async function POST(request: Request) {
     const password = typeof body.password === "string" ? body.password : "";
     const name = typeof body.name === "string" ? body.name.trim() : undefined;
     const customerCityId = typeof body.customerCityId === "string" ? body.customerCityId.trim() : "";
+    const accountKind = body.accountKind === "PROVIDER" || body.accountKind === "CUSTOMER" ? body.accountKind : "";
     const terms =
       typeof body.acceptedLegal?.terms === "string" ? body.acceptedLegal.terms.trim() : "";
     const privacy =
@@ -40,6 +44,7 @@ export async function POST(request: Request) {
     if (!password) fieldErrors.password = "Введите пароль";
     else if (password.length < 6) fieldErrors.password = "Пароль должен быть не короче 6 символов";
     if (!customerCityId) fieldErrors.customerCityId = "Выберите локацию из списка";
+    if (!accountKind) fieldErrors.accountKind = "Выберите, кем зарегистрироваться";
     if (!terms || !privacy || !consent) fieldErrors.acceptedLegal = "Нужно принять соглашение, политику и согласие";
 
     if (Object.keys(fieldErrors).length > 0) {
@@ -56,6 +61,7 @@ export async function POST(request: Request) {
         password,
         name,
         customerCityId,
+        accountKind,
         acceptedLegal: { terms, privacy, consent },
       }),
     });

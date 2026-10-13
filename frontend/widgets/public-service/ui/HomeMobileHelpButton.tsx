@@ -10,11 +10,18 @@ import { PublicUnlinkedRequestForm } from "@/widgets/public-service/ui/PublicUnl
 type Props = {
   isAuthenticated: boolean;
   categories: Array<{ id: string; name: string }>;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
-export function HomeMobileHelpButton({ isAuthenticated, categories }: Props) {
+export function HomeMobileHelpButton({ isAuthenticated, categories, open: openProp, onOpenChange }: Props) {
   const theme = useTheme();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = onOpenChange ? Boolean(openProp) : internalOpen;
+  const setOpen = (next: boolean) => {
+    if (onOpenChange) onOpenChange(next);
+    else setInternalOpen(next);
+  };
   const [mounted, setMounted] = useState(false);
   const logoSrc =
     theme.palette.mode === "light"
@@ -34,9 +41,9 @@ export function HomeMobileHelpButton({ isAuthenticated, categories }: Props) {
       sx={{
         display: { xs: "flex", md: "none" },
         position: "fixed",
-        zIndex: 1400,
+        zIndex: 1100,
         right: 16,
-        bottom: "calc(16px + env(safe-area-inset-bottom))",
+        bottom: "calc(96px + env(safe-area-inset-bottom))",
         p: 0,
         border: 0,
         bgcolor: "transparent",

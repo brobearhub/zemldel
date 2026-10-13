@@ -56,6 +56,9 @@ export class AuthorizedUserDto {
   @ApiProperty({ enum: ['PLATFORM_ADMIN', 'CUSTOMER'] })
   systemRole!: 'PLATFORM_ADMIN' | 'CUSTOMER';
 
+  @ApiProperty({ enum: ['CUSTOMER', 'PROVIDER'] })
+  accountKind!: 'CUSTOMER' | 'PROVIDER';
+
   @ApiProperty({ format: 'uuid', nullable: true, example: null })
   activeProviderId!: string | null;
 

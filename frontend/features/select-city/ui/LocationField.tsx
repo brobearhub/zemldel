@@ -18,6 +18,8 @@ type Props = {
   iconColor?: LocationIconColor;
   /** `light` — цвет родителя, чтобы локация читалась на тёмном стекле. */
   tone?: LocationTone;
+  /** Подпись кнопки, пока город не выбран. */
+  emptyLabel?: string;
   /** Крестик сброса рядом с выбранным городом. В шапке не используется. */
   clearable?: boolean;
 };
@@ -32,6 +34,7 @@ export function LocationField({
   error,
   helperText,
   caption,
+  emptyLabel = EMPTY_LABEL,
   iconColor,
   tone = "default",
   clearable = true,
@@ -51,7 +54,7 @@ export function LocationField({
         </Typography>
       ) : null}
       <LocationButton
-        label={value ? value.name : EMPTY_LABEL}
+        label={value ? value.name : emptyLabel}
         onClick={openDialog}
         disabled={disabled}
         error={error}

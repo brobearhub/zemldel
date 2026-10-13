@@ -17,6 +17,13 @@ const nextConfig = {
     config.resolve.alias["#remend"] = path.join(projectRoot, "node_modules/remend");
     return config;
   },
+  async redirects() {
+    return [
+      { source: "/login", destination: "/signin", permanent: false },
+      { source: "/register", destination: "/signup", permanent: false },
+      { source: "/auth", destination: "/signin", permanent: false },
+    ];
+  },
   images: {
     remotePatterns: [
       {

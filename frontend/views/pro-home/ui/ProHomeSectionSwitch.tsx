@@ -25,13 +25,14 @@ export function ProHomeSectionSwitch({ services, freeRequests, reminders }: Prop
     <Stack spacing={2.5}>
       <Box
         component="nav"
+        role="tablist"
         aria-label="Разделы кабинета"
         sx={{
           display: "flex",
           flexWrap: "wrap",
           columnGap: { xs: 2.5, md: 4 },
           rowGap: 1,
-          alignItems: "baseline",
+          alignItems: "center",
         }}
       >
         {SECTIONS.map((item) => {
@@ -41,23 +42,26 @@ export function ProHomeSectionSwitch({ services, freeRequests, reminders }: Prop
               key={item.id}
               component="button"
               type="button"
-              aria-pressed={active}
+              role="tab"
+              aria-selected={active}
               onClick={() => setSection(item.id)}
               sx={{
-                m: 0,
-                p: 0,
+                minHeight: 44,
+                px: 1.5,
                 border: 0,
+                borderBottom: "2px solid",
+                borderColor: active ? "text.primary" : "transparent",
                 outline: "none",
                 "&:focus": { outline: "none" },
-                "&:focus-visible": { outline: "none" },
+                "&:focus-visible": { outline: "2px solid", outlineColor: "text.primary", outlineOffset: 2 },
                 bgcolor: "transparent",
                 cursor: "pointer",
                 fontFamily: "inherit",
                 textAlign: "left",
-                fontWeight: active ? 800 : 700,
-                fontSize: { xs: 28, md: 32 },
+                fontWeight: active ? 700 : 500,
+                fontSize: 16,
                 lineHeight: 1.2,
-                color: active ? "text.primary" : "text.secondaryLight",
+                color: active ? "text.primary" : "text.secondary",
               }}
             >
               {item.label}

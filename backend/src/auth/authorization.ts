@@ -32,6 +32,8 @@ export type AuthMembership = {
 export const AUTH_PROVIDER_KEYS = ['GOSUSLUGI'] as const;
 export type AuthProviderKey = (typeof AUTH_PROVIDER_KEYS)[number];
 
+export type AccountKind = 'CUSTOMER' | 'PROVIDER';
+
 export type AuthorizedUser = {
   id: string;
   email: string;
@@ -39,6 +41,7 @@ export type AuthorizedUser = {
   image: string | null;
   phone: string | null;
   systemRole: SystemRole;
+  accountKind: AccountKind;
   activeProviderId: string | null;
   customerCity: AuthCity | null;
   memberships: AuthMembership[];

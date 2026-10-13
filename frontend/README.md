@@ -67,13 +67,6 @@ cd ../backend
 npm run db:seed
 ```
 
-### Seed demo providers & services (dev only)
-
-```bash
-cd ../backend
-npm run db:seed:demo-services
-```
-
 ### (Important) Generate Prisma client for Next build
 
 Because Prisma generates TypeScript entrypoints that import `*.js` files (ESM),

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getServerAuthSession } from "@/core/auth";
+import { resolveAccountKind } from "@/core/auth/authorization";
 import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import { ProviderOnboardingForm } from "./ProviderOnboardingForm";
 
@@ -10,8 +11,13 @@ export default async function NewProviderPage() {
     signInRedirect("/providers/new");
   }
 
+  const isPlatformAdmin = session.user.systemRole === "PLATFORM_ADMIN";
+  if (!isPlatformAdmin && resolveAccountKind(session.user) !== "PROVIDER") {
+    redirect("/profile?notice=providers-only");
+  }
+
   if (session.user.memberships.length > 0) {
-    redirect("/profile");
+    redirect("/pro?notice=profile-ready");
   }
 
   return <ProviderOnboardingForm />;

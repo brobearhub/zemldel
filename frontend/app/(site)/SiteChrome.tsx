@@ -18,6 +18,28 @@ type Props = {
   children: ReactNode;
 };
 
+function SkipLink() {
+  return (
+    <Box
+      component="a"
+      href="#main-content"
+      sx={{
+        position: "absolute",
+        left: 8,
+        top: -48,
+        zIndex: 2000,
+        px: 1.5,
+        py: 1,
+        bgcolor: "background.paper",
+        color: "text.primary",
+        "&:focus": { top: 8 },
+      }}
+    >
+      Перейти к содержимому
+    </Box>
+  );
+}
+
 export function SiteChrome({ children }: Props) {
   const pathname = usePathname();
   const zone = getCabinetZone(pathname);
@@ -28,21 +50,23 @@ export function SiteChrome({ children }: Props) {
   rememberInternalNav(pathname);
 
   if (!zone) {
-    // Auth: на desktop контент занимает высоту экрана, а футер виден только при скролле.
-    // На mobile высоту не фиксируем: футер идёт сразу за контентом.
+    // Auth: контент не ниже экрана, футер появляется только при прокрутке.
+    // minHeight, не height: длинная форма регистрации растёт и не наезжает на футер.
     if (fullBleedAuth) {
       return (
         <>
+          <SkipLink />
           <Box className="mui-fixed" sx={{ position: "fixed", left: 0, top: 0, width: "100%", zIndex: 1200 }}>
             <Header />
           </Box>
           <Box
             component="main"
+            id="main-content"
             sx={{
               minWidth: 0,
               display: "flex",
               flexDirection: "column",
-              height: { xs: "auto", md: "100dvh" },
+              minHeight: "100dvh",
             }}
           >
             {children}
@@ -54,12 +78,13 @@ export function SiteChrome({ children }: Props) {
 
     return (
       <Box sx={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
+        <SkipLink />
         <Box className="mui-fixed" sx={{ position: "fixed", left: 0, top: 0, width: "100%", zIndex: 1200 }}>
           <Header />
         </Box>
         {/* Единый зазор header → контент (см. SITE_HEADER_SPACER_PX). Страницы не дублируют pt сверху. */}
         <Box sx={{ height: { xs: SITE_HEADER_SPACER_PX.xs, sm: SITE_HEADER_SPACER_PX.sm } }} />
-        <Box component="main" sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+        <Box component="main" id="main-content" sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
           {children}
         </Box>
         <Footer />
@@ -80,6 +105,7 @@ export function SiteChrome({ children }: Props) {
         },
       }}
     >
+      <SkipLink />
       <Box className="mui-fixed" sx={{ position: "fixed", left: 0, top: 0, width: "100%", zIndex: 1200 }}>
         <Suspense fallback={<Box sx={{ height: { xs: SITE_HEADER_SPACER_PX.xs, sm: SITE_HEADER_SPACER_PX.sm } }} />}>
           <CabinetChrome />
@@ -88,10 +114,9 @@ export function SiteChrome({ children }: Props) {
       {/* На cabinet routes chrome фиксирован, поэтому нужен spacer. */}
       <Box sx={{ height: { xs: SITE_HEADER_SPACER_PX.xs, sm: SITE_HEADER_SPACER_PX.sm } }} />
 
-      <Box component="main" sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+      <Box component="main" id="main-content" sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
         {children}
       </Box>
-      <Footer />
     </Box>
   );
 }

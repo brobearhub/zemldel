@@ -498,7 +498,7 @@ export function ProOverviewDashboard({ provider, services, requestStats, orders,
             <Typography sx={{
               color: "text.secondary"
             }}>
-              Самые важные рабочие разделы профессионального кабинета.
+              Самые важные рабочие разделы кабинета исполнителя.
             </Typography>
             <Button component={Link} href="/pro/clients" variant="outlined" fullWidth>
               Клиенты

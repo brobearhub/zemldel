@@ -744,7 +744,7 @@ export function ProviderProfileEditorSection({
       <Paper variant="elevation" sx={{ p: { xs: 2, md: 3 }, bgcolor: "primary.main", }}>
         <Stack spacing={2} sx={{ width: "fit-content" }}>
           <Typography variant="h5">
-            Профиль провайдера
+            Профиль исполнителя
           </Typography>
           <Stack
             direction="row"
@@ -1007,7 +1007,7 @@ export function ProviderProfileEditorSection({
                   value={profile.name}
                   viewVariant="h4"
                   typographySx={{ color: "common.white" }}
-                  placeholderWhenEmpty="Название провайдера"
+                  placeholderWhenEmpty="Название профиля"
                   normalizeBeforeSave={(draft) => normalizeRequiredString(draft) || null}
                   validateDraft={(draft) => {
                     const normalized = draft.trim();
@@ -1062,7 +1062,7 @@ export function ProviderProfileEditorSection({
                   lineHeight: 1.5,
                   fontSize: { xs: 14, md: 16 },
                 }}
-                placeholderWhenEmpty="Добавьте описание провайдера"
+                placeholderWhenEmpty="Добавьте описание профиля"
                 isMultiline
                 minRows={3}
                 normalizeBeforeSave={(draft) => normalizeNullableString(draft)}
@@ -1197,8 +1197,8 @@ export function ProviderProfileEditorSection({
                       </Typography>
                       <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.72)" }}>
                         {profile.useOwnEmail && profile.ownerEmail
-                          ? `Если email провайдера не указан, клиент увидит ${profile.ownerEmail}`
-                          : "Если email провайдера не указан и переключатель выключен, клиент не увидит email"}
+                          ? `Если email профиля не указан, клиент увидит ${profile.ownerEmail}`
+                          : "Если email профиля не указан и переключатель выключен, клиент не увидит email"}
                       </Typography>
                     </Box>
                   }
