@@ -128,9 +128,6 @@ function SignInPageContent() {
         <Stack spacing={2.5}>
           <Stack spacing={1} sx={{ alignItems: "center" }}>
             <LogoFull size={80} layout="right" tone="light" priority />
-            <Typography component="h1" variant="h5" sx={{ fontWeight: 700 }}>
-              Вход
-            </Typography>
           </Stack>
 
           {passwordResetNotice ? (
