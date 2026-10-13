@@ -3,6 +3,7 @@
 import { useLayoutEffect, useRef, type ChangeEvent, type KeyboardEvent } from "react";
 import CloseIcon from "@mui/icons-material/Close";
 import { Box, IconButton, Stack, TextField, Typography } from "@mui/material";
+import { CadastralNumberMapLink } from "@/entities/request/ui/CadastralNumberMapLink";
 import {
   cadastralCaretFromDigitCount,
   cadastralPartsFromInput,
@@ -115,7 +116,7 @@ export function CadastralNumberChipsField({ value, onChange, disabled = false }:
                   lineHeight: 1.4,
                 }}
               >
-                {label}
+                <CadastralNumberMapLink value={label} sx={{ fontSize: 13, lineHeight: 1.4 }} />
                 <IconButton
                   type="button"
                   size="small"

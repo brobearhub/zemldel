@@ -6,6 +6,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import {
   Alert,
+  Box,
   Button,
   CircularProgress,
   IconButton,
@@ -14,6 +15,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import { CadastralNumberMapLink } from "@/entities/request/ui/CadastralNumberMapLink";
 import { SITE_CONTENT_GAP_PX, SITE_HEADER_HEIGHT_PX } from "@/shared/config/site-layout";
 import { CadastralNumberInput } from "@/shared/ui/CadastralNumberInput";
 import {
@@ -128,9 +130,12 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
                 <Stack direction="row" spacing={1} sx={{
                   alignItems: "center"
                 }}>
-                  <Typography variant="body2" sx={{ fontFamily: "monospace", flex: 1 }}>
-                    {item.value}
-                  </Typography>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <CadastralNumberMapLink
+                      value={item.value}
+                      sx={{ fontFamily: "monospace", fontSize: "0.875rem", lineHeight: 1.43 }}
+                    />
+                  </Box>
                   {viewModel.canMutate ? (
                     <>
                       <Tooltip title="Скопировать">
