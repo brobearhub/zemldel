@@ -1,11 +1,24 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { ThemeProvider } from "@mui/material";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createAppTheme } from "@/core/theme/createAppTheme";
 import { createEmptyCadastralParts, type CadastralNumberParts } from "@/entities/request/lib/cadastral-number";
 import { CadastralNumberChipsField } from "./CadastralNumberChipsField";
+
+vi.mock("next/link", () => ({
+  __esModule: true,
+  default: forwardRef<HTMLAnchorElement, { href: string; children: React.ReactNode }>(
+    function NextLink({ href, children, ...props }, ref) {
+      return (
+        <a ref={ref} href={typeof href === "string" ? href : ""} {...props}>
+          {children}
+        </a>
+      );
+    },
+  ),
+}));
 
 function Harness() {
   const [value, setValue] = useState<CadastralNumberParts[]>([createEmptyCadastralParts()]);
@@ -44,5 +57,27 @@ describe("CadastralNumberChipsField", () => {
     await user.type(input, "6641{Enter}");
     expect(input).toHaveValue("66:41");
     expect(screen.queryByRole("button", { name: /Удалить кадастровый номер/ })).toBeNull();
+  });
+
+  it("links a finished chip to the NSPD map with that cadastral number", () => {
+    render(
+      <ThemeProvider theme={createAppTheme("light")}>
+        <CadastralNumberChipsField
+          value={[
+            ["12", "31", "2312312", "3123123123"],
+            createEmptyCadastralParts(),
+          ]}
+          onChange={() => {}}
+        />
+      </ThemeProvider>,
+    );
+
+    const link = screen.getByRole("link", { name: "12:31:2312312:3123123123" });
+    expect(link).toHaveAttribute(
+      "href",
+      "https://nspd.gov.ru/map?thematic=PKK&query=12%3A31%3A2312312%3A3123123123&theme_id=1&is_copy_url=true",
+    );
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
   });
 });

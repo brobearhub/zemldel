@@ -64,6 +64,19 @@ export function formatCadastralParts(parts: CadastralNumberParts): string {
   return parts.slice(0, lastFilled + 1).join(":");
 }
 
+const NSPD_MAP_URL = "https://nspd.gov.ru/map";
+
+/** Публичная карта НСПД: в query подставляется кадастровый номер, двоеточия кодируются. */
+export function cadastralNspdMapUrl(cadastralNumber: string): string {
+  const params = new URLSearchParams({
+    thematic: "PKK",
+    query: cadastralNumber.trim(),
+    theme_id: "1",
+    is_copy_url: "true",
+  });
+  return `${NSPD_MAP_URL}?${params.toString()}`;
+}
+
 /** Позиция курсора после маски: `digitCount` — сколько цифр было слева от каретки. */
 export function cadastralCaretFromDigitCount(formatted: string, digitCount: number): number {
   if (digitCount <= 0) return 0;
