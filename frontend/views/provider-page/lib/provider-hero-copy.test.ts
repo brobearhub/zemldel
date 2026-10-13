@@ -1,23 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { providerGivenName, providerHeroCaption, providerHeroGreeting, providerHeroIntro } from "./provider-hero-copy";
-
-describe("providerGivenName", () => {
-  it("оставляет «Фамилия Имя»", () => {
-    expect(providerGivenName("Усова Валерия")).toBe("Усова Валерия");
-  });
-
-  it("отрезает отчество", () => {
-    expect(providerGivenName("Усова Валерия Арсеновна")).toBe("Усова Валерия");
-  });
-
-  it("оставляет единственное слово как есть", () => {
-    expect(providerGivenName("Валерия")).toBe("Валерия");
-  });
-});
+import { providerHeroCaption, providerHeroGreeting, providerHeroIntro } from "./provider-hero-copy";
 
 describe("providerHeroGreeting", () => {
-  it("приветствует физлицо по фамилии и имени", () => {
-    expect(providerHeroGreeting("Усова Валерия", "SELF_EMPLOYED")).toBe("Привет! Я Усова Валерия.");
+  it("приветствует физлицо и ИП уже собранным именем", () => {
+    expect(providerHeroGreeting("Валерия Усова", "INDIVIDUAL")).toBe("Привет! Я Валерия Усова.");
+    expect(providerHeroGreeting("ИП Усова В. А.", "SOLE_PROPRIETOR")).toBe("Привет! Я ИП Усова В. А.");
   });
 
   it("приветствует компанию целиком", () => {
@@ -26,12 +13,8 @@ describe("providerHeroGreeting", () => {
 });
 
 describe("providerHeroCaption", () => {
-  it("подписывает полароид фамилией и именем", () => {
-    expect(providerHeroCaption("Усова Валерия Арсеновна", "SELF_EMPLOYED")).toBe("Усова Валерия");
-  });
-
-  it("для компании оставляет название целиком", () => {
-    expect(providerHeroCaption("Земледел", "COMPANY")).toBe("Земледел");
+  it("оставляет собранное имя как есть", () => {
+    expect(providerHeroCaption("Валерия Усова")).toBe("Валерия Усова");
   });
 });
 
@@ -42,5 +25,9 @@ describe("providerHeroIntro", () => {
 
   it("падает на подзаголовок, если описания нет", () => {
     expect(providerHeroIntro(null, "Эксперт")).toBe("Эксперт");
+  });
+
+  it("пусто, если нет ни описания, ни подзаголовка", () => {
+    expect(providerHeroIntro(null, "")).toBe("");
   });
 });

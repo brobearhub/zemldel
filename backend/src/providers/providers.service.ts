@@ -21,6 +21,13 @@ import {
   assertCanCreateProviderProfile,
   assertCanJoinProviderTeam,
 } from '../auth/account-kind';
+import {
+  isPersonalProviderType,
+  type ProviderType,
+} from '../auth/authorization';
+import { formatProviderName, formatUserName } from './provider-display-name';
+import { collectProviderFieldErrors } from './provider-legal-details';
+import { slugify } from './provider-slug';
 import { LegalDocsService } from '../legal-docs/legal-docs.service';
 import { S3Service } from '../storage/s3.service';
 
@@ -81,17 +88,27 @@ const providerMemberSelect = {
   },
 } as const;
 
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-}
-
 const slugLength = 3; // 16 000 000 combinations
+
+function isPersonalProfileUniqueConflict(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('code' in error))
+    return false;
+  if (error.code !== 'P2002') return false;
+  const meta =
+    'meta' in error && typeof error.meta === 'object' && error.meta !== null
+      ? error.meta
+      : undefined;
+  if (!meta || !('target' in meta)) return false;
+  const target = meta.target;
+  const text = Array.isArray(target)
+    ? target
+        .filter((item): item is string => typeof item === 'string')
+        .join(' ')
+    : typeof target === 'string'
+      ? target
+      : '';
+  return text.includes('ownerUserId') || text.includes('one_personal_profile');
+}
 
 const ALLOWED_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
@@ -152,7 +169,7 @@ type PublicProviderRow = {
   id: string;
   name: string;
   slug: string;
-  type: 'SELF_EMPLOYED' | 'COMPANY';
+  type: ProviderType;
   rating: number | null;
   reviewCount: number;
   city: {
@@ -170,12 +187,6 @@ type PublicProviderRow = {
   stats: unknown;
   ownerUser: { image: string | null; email: string | null } | null;
 };
-
-const DEFAULT_PROVIDER_STATS: Array<{ value: string; label: string }> = [
-  { value: '12 лет', label: 'практики в недвижимости' },
-  { value: '640+', label: 'сопровождённых сделок' },
-  { value: '98%', label: 'клиентов рекомендуют нас' },
-];
 
 @Injectable()
 export class ProvidersService {
@@ -405,20 +416,15 @@ export class ProvidersService {
       });
     }
 
-    // Why: Public profile must not leak private/membership/legal data.
-    // Until provider-controlled fields exist, we return safe defaults matching current landing design.
-    const subtitle = provider.subtitle?.trim()
-      ? provider.subtitle.trim()
-      : 'Эксперт по услуге';
-    const about = provider.about?.trim()
-      ? provider.about.trim()
-      : 'Разберёмся в вашей ситуации, объясним варианты и предложим понятный путь к результату.';
+    // Пустые поля не подменяются выдуманными цифрами и статусом: новый профиль публичен без них.
+    const subtitle = provider.subtitle?.trim() ?? '';
+    const about = provider.about?.trim() ? provider.about.trim() : null;
     const stats = isPublicStats(provider.stats)
       ? provider.stats.map((s) => ({
           value: s.value.trim(),
           label: s.label.trim(),
         }))
-      : DEFAULT_PROVIDER_STATS;
+      : [];
 
     return {
       id: provider.id,
@@ -634,12 +640,36 @@ export class ProvidersService {
     }
     assertCanCreateProviderProfile(actor);
 
-    const name = body.name.trim();
-    const cityId = body.cityId ?? null;
-
-    if (cityId) {
-      await assertActiveSelectableCity(this.prisma, cityId);
+    const fieldErrors = collectProviderFieldErrors(body);
+    if (Object.keys(fieldErrors).length > 0) {
+      throw new BadRequestException({ fieldErrors });
     }
+
+    const cityId = body.cityId.trim();
+    await assertActiveSelectableCity(this.prisma, cityId);
+
+    const legal = body.legal;
+    const contact = body.contact;
+    const person =
+      body.type === 'COMPANY'
+        ? {
+            firstName: contact?.firstName ?? '',
+            lastName: contact?.lastName ?? '',
+            middleName: contact?.middleName,
+          }
+        : {
+            firstName: legal.firstName ?? '',
+            lastName: legal.lastName ?? '',
+            middleName: legal.middleName,
+          };
+    const name = formatProviderName({
+      type: body.type,
+      firstName: person.firstName,
+      lastName: person.lastName,
+      middleName: person.middleName,
+      legalName: legal.legalName,
+    });
+    const userName = formatUserName(person.firstName, person.lastName);
 
     let slug: string;
     if (body.slug) {
@@ -655,18 +685,18 @@ export class ProvidersService {
       slug = await this.generateUniqueSlug(name);
     }
 
-    if (body.type === 'SELF_EMPLOYED') {
-      const existingSelfEmployed = await this.prisma.provider.findFirst({
+    if (isPersonalProviderType(body.type)) {
+      const existingPersonal = await this.prisma.provider.findFirst({
         where: {
-          type: 'SELF_EMPLOYED',
+          type: { in: ['INDIVIDUAL', 'SELF_EMPLOYED', 'SOLE_PROPRIETOR'] },
           ownerUserId: userId,
         },
         select: { id: true },
       });
 
-      if (existingSelfEmployed) {
+      if (existingPersonal) {
         throw new ConflictException(
-          'User already owns a self-employed provider profile',
+          'User already owns a personal provider profile',
         );
       }
     }
@@ -675,45 +705,77 @@ export class ProvidersService {
       offer: body.offerVersion,
     });
 
-    const provider = await this.prisma.$transaction(async (tx) => {
-      const createdProvider = await tx.provider.create({
-        data: {
-          name,
-          slug,
-          type: body.type,
-          ownerUserId: userId,
-          cityId,
-        },
-        select: providerSelect,
-      });
+    const provider = await this.prisma
+      .$transaction(async (tx) => {
+        const createdProvider = await tx.provider.create({
+          data: {
+            name,
+            slug,
+            type: body.type,
+            ownerUserId: userId,
+            cityId,
+          },
+          select: providerSelect,
+        });
 
-      await tx.providerMember.create({
-        data: {
-          providerId: createdProvider.id,
-          userId,
-          role: 'OWNER',
-          status: 'ACTIVE',
-        },
-      });
+        await tx.providerMember.create({
+          data: {
+            providerId: createdProvider.id,
+            userId,
+            role: 'OWNER',
+            status: 'ACTIVE',
+          },
+        });
 
-      await tx.user.update({
-        where: { id: userId },
-        data: {
-          activeProviderId: createdProvider.id,
-        },
-      });
+        await tx.providerLegalProfile.create({
+          data: {
+            providerId: createdProvider.id,
+            lastName: body.type === 'COMPANY' ? null : person.lastName.trim(),
+            firstName: body.type === 'COMPANY' ? null : person.firstName.trim(),
+            middleName:
+              body.type === 'COMPANY'
+                ? null
+                : person.middleName?.trim() || null,
+            legalName:
+              body.type === 'COMPANY' ? (legal.legalName ?? '').trim() : null,
+            inn: (legal.inn ?? '').trim(),
+            ogrn:
+              body.type === 'SOLE_PROPRIETOR' || body.type === 'COMPANY'
+                ? (legal.ogrn ?? '').trim()
+                : null,
+          },
+        });
 
-      await tx.legalAcceptance.create({
-        data: {
-          userId,
-          docId: 'OFFER',
-          version: offerVersions.offer,
-          context: 'PROVIDER_ONBOARDING',
-        },
-      });
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            activeProviderId: createdProvider.id,
+            firstName: person.firstName.trim(),
+            lastName: person.lastName.trim(),
+            middleName: person.middleName?.trim() || null,
+            name: userName,
+          },
+        });
 
-      return createdProvider;
-    });
+        await tx.legalAcceptance.create({
+          data: {
+            userId,
+            docId: 'OFFER',
+            version: offerVersions.offer,
+            context: 'PROVIDER_ONBOARDING',
+          },
+        });
+
+        return createdProvider;
+      })
+      .catch((error: unknown) => {
+        if (isPersonalProfileUniqueConflict(error)) {
+          throw new ConflictException(
+            'User already owns a personal provider profile',
+          );
+        }
+        throw error;
+      });
 
     const authContext = await this.authService.getUserAuthContext(userId);
 
@@ -863,9 +925,9 @@ export class ProvidersService {
       throw new NotFoundException('Provider not found');
     }
 
-    if (provider.type === 'SELF_EMPLOYED') {
+    if (isPersonalProviderType(provider.type)) {
       throw new ConflictException(
-        'Self-employed provider cannot have managers',
+        'Personal provider profile cannot have managers',
       );
     }
 

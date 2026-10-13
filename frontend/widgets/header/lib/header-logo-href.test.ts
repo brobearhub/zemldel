@@ -18,14 +18,14 @@ describe("resolveHeaderLogoHref", () => {
     expect(resolveHeaderLogoHref({ activeProviderId: null, memberships: [] })).toBe("/");
   });
 
-  it("ведёт исполнителя без профиля в кабинет, а не на клиентскую главную", () => {
+  it("ведёт исполнителя без профиля на создание профиля", () => {
     expect(
       resolveHeaderLogoHref({
         activeProviderId: null,
         memberships: [],
         accountKind: "PROVIDER",
       }),
-    ).toBe("/pro");
+    ).toBe("/providers/new");
   });
 
   it("ведёт провайдера в кабинет", () => {

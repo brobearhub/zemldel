@@ -283,7 +283,13 @@ function SignUpPageContent() {
     setConfirmPasswordError(null);
     setDuplicateEmail(false);
 
+    if (!accountKind) {
+      setFormError("Выберите, кем зарегистрироваться");
+      return;
+    }
+
     const fieldErrors = validateSignupForm({
+      accountKind,
       name,
       email,
       password,
@@ -307,8 +313,7 @@ function SignUpPageContent() {
       return;
     }
 
-    if (hasSignupFieldErrors(fieldErrors) || !accountKind || !customerCity?.id) {
-      if (!accountKind) setFormError("Выберите, кем зарегистрироваться");
+    if (hasSignupFieldErrors(fieldErrors) || (accountKind === "CUSTOMER" && !customerCity?.id)) {
       const focus =
         (fieldErrors.name ? nameRef.current : null) ??
         (fieldErrors.email ? emailRef.current : null) ??
@@ -326,10 +331,11 @@ function SignUpPageContent() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          name,
           email,
           password,
-          customerCityId: customerCity.id,
+          ...(accountKind === "CUSTOMER"
+            ? { name, customerCityId: customerCity?.id }
+            : {}),
           accountKind,
           acceptedLegal: { terms, privacy, consent },
         }),
@@ -572,6 +578,7 @@ function SignUpPageContent() {
                   minWidth: 0,
                   pt: 1.5,
                 }}>
+                {accountKind === "CUSTOMER" ? (
                 <TextField
                   label="Имя"
                   inputRef={nameRef}
@@ -592,6 +599,7 @@ function SignUpPageContent() {
                     formHelperText: { sx: { mt: 0.5, minHeight: 18 } },
                   }}
                 />
+                ) : null}
                 <TextField
                   label="Email"
                   inputRef={emailRef}
@@ -692,6 +700,7 @@ function SignUpPageContent() {
             </Box>
 
             <Stack spacing={2.5} sx={{ width: "100%", minWidth: 0, wordBreak: "break-word" }}>
+              {accountKind === "CUSTOMER" ? (
               <Box sx={{ display: "flex", justifyContent: "center", transform: { xs: "translateY(-0.5rem)", md: "translateY(0)" } }}>
                 <LocationField
                   label="Город"
@@ -707,6 +716,7 @@ function SignUpPageContent() {
                   buttonRef={cityRef}
                 />
               </Box>
+              ) : null}
 
               <FormControl error={Boolean(legalError)} variant="standard" sx={{ minWidth: 0 }}>
                 <Stack spacing={1}>
