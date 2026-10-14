@@ -56,10 +56,6 @@ export function collectProviderFieldErrors(input: {
   if (input.type === 'COMPANY') {
     if (!legal.legalName?.trim())
       errors.legalName = 'Укажите полное наименование';
-    if (!/^\d{10}$/.test(legal.inn?.trim() ?? ''))
-      errors.inn = 'ИНН организации — 10 цифр';
-    if (!/^\d{13}$/.test(legal.ogrn?.trim() ?? ''))
-      errors.ogrn = 'ОГРН — 13 цифр';
     const contact = input.contact ?? {};
     if (!contact.lastName?.trim()) errors.contactLastName = 'Укажите фамилию';
     if (!contact.firstName?.trim()) errors.contactFirstName = 'Укажите имя';
@@ -68,12 +64,5 @@ export function collectProviderFieldErrors(input: {
 
   if (!legal.lastName?.trim()) errors.lastName = 'Укажите фамилию';
   if (!legal.firstName?.trim()) errors.firstName = 'Укажите имя';
-  if (!/^\d{12}$/.test(legal.inn?.trim() ?? '')) errors.inn = 'ИНН — 12 цифр';
-  if (
-    input.type === 'SOLE_PROPRIETOR' &&
-    !/^\d{15}$/.test(legal.ogrn?.trim() ?? '')
-  ) {
-    errors.ogrn = 'ОГРНИП — 15 цифр';
-  }
   return errors;
 }

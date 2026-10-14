@@ -44,6 +44,7 @@ const serviceSelect = {
     select: {
       id: true,
       name: true,
+      type: true,
       city: {
         select: {
           id: true,

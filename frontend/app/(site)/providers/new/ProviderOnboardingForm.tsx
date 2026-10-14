@@ -34,10 +34,6 @@ const TYPE_OPTIONS: Array<{ value: ProviderOnboardingType; label: string }> = [
   { value: "COMPANY", label: "Организация" },
 ];
 
-function digitsOnly(value: string, maxLength: number) {
-  return value.replace(/\D/g, "").slice(0, maxLength);
-}
-
 export function ProviderOnboardingForm() {
   const router = useRouter();
   const [type, setType] = useState<ProviderOnboardingType | null>(null);
@@ -45,8 +41,6 @@ export function ProviderOnboardingForm() {
   const [firstName, setFirstName] = useState("");
   const [middleName, setMiddleName] = useState("");
   const [legalName, setLegalName] = useState("");
-  const [inn, setInn] = useState("");
-  const [ogrn, setOgrn] = useState("");
   const [contactLastName, setContactLastName] = useState("");
   const [contactFirstName, setContactFirstName] = useState("");
   const [contactMiddleName, setContactMiddleName] = useState("");
@@ -59,9 +53,6 @@ export function ProviderOnboardingForm() {
   const [offerLoadError, setOfferLoadError] = useState<string | null>(null);
 
   const isCompany = type === "COMPANY";
-  const innLength = isCompany ? 10 : 12;
-  const ogrnLength = type === "SOLE_PROPRIETOR" ? 15 : 13;
-  const showOgrn = type === "SOLE_PROPRIETOR" || type === "COMPANY";
 
   useEffect(() => {
     let cancelled = false;
@@ -106,8 +97,6 @@ export function ProviderOnboardingForm() {
       lastName,
       firstName,
       legalName,
-      inn,
-      ogrn,
       contactLastName,
       contactFirstName,
     });
@@ -130,13 +119,11 @@ export function ProviderOnboardingForm() {
           cityId: city.id,
           offerVersion,
           legal: isCompany
-            ? { legalName: legalName.trim(), inn, ogrn }
+            ? { legalName: legalName.trim() }
             : {
                 lastName: lastName.trim(),
                 firstName: firstName.trim(),
                 ...(middleName.trim() ? { middleName: middleName.trim() } : {}),
-                inn,
-                ...(type === "SOLE_PROPRIETOR" ? { ogrn } : {}),
               },
           ...(isCompany
             ? {
@@ -181,10 +168,10 @@ export function ProviderOnboardingForm() {
           <Stack spacing={3}>
             <Stack spacing={1}>
               <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
-                Профиль исполнителя
+                Создайте профиль
               </Typography>
               <Typography sx={{ color: "text.secondary" }}>
-                Заполните профиль, чтобы публиковать услуги.
+                Реквизиты можно добавить позже. Подтверждённые профили мы показываем выше и отмечаем значком.
               </Typography>
             </Stack>
 
@@ -218,8 +205,6 @@ export function ProviderOnboardingForm() {
                         onClick={() => {
                           setType(option.value);
                           setFieldErrors({});
-                          setInn("");
-                          setOgrn("");
                         }}
                         sx={{ minHeight: 44, px: 1.5 }}
                       >
@@ -263,36 +248,6 @@ export function ProviderOnboardingForm() {
                         onMiddleName={setMiddleName}
                       />
                     )}
-
-                    <TextField
-                      label="ИНН"
-                      value={inn}
-                      onChange={(event) => {
-                        setInn(digitsOnly(event.target.value, innLength));
-                        clearField("inn");
-                      }}
-                      disabled={loading}
-                      fullWidth
-                      error={Boolean(fieldErrors.inn)}
-                      helperText={fieldErrors.inn ?? `${innLength} цифр`}
-                      slotProps={{ htmlInput: { inputMode: "numeric", maxLength: innLength } }}
-                    />
-
-                    {showOgrn ? (
-                      <TextField
-                        label={type === "SOLE_PROPRIETOR" ? "ОГРНИП" : "ОГРН"}
-                        value={ogrn}
-                        onChange={(event) => {
-                          setOgrn(digitsOnly(event.target.value, ogrnLength));
-                          clearField("ogrn");
-                        }}
-                        disabled={loading}
-                        fullWidth
-                        error={Boolean(fieldErrors.ogrn)}
-                        helperText={fieldErrors.ogrn ?? `${ogrnLength} цифр`}
-                        slotProps={{ htmlInput: { inputMode: "numeric", maxLength: ogrnLength } }}
-                      />
-                    ) : null}
 
                     {isCompany ? (
                       <Stack spacing={2}>
@@ -364,7 +319,7 @@ export function ProviderOnboardingForm() {
                   disabled={loading || !offerAcknowledged || !offerVersion}
                   sx={{ minHeight: 44, alignSelf: "flex-start" }}
                 >
-                  Создать
+                  Создать профиль
                 </Button>
               </Stack>
             </Box>
