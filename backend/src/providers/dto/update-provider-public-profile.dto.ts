@@ -31,14 +31,12 @@ export class UpdateProviderPublicStatDto {
     toClassOnly: true,
   })
   @IsString()
-  @MinLength(1)
   value!: string;
 
   @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
     toClassOnly: true,
   })
   @IsString()
-  @MinLength(1)
   label!: string;
 }
 

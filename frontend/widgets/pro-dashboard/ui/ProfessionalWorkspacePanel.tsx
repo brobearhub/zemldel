@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   Alert,
@@ -19,10 +18,8 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import HighlightOffIcon from "@mui/icons-material/HighlightOff";
 import BusinessCenterOutlinedIcon from "@mui/icons-material/BusinessCenterOutlined";
 import PeopleOutlineOutlinedIcon from "@mui/icons-material/PeopleOutlineOutlined";
-import { useTheme } from "@mui/material/styles";
 import { useAppSelector } from "@/core/store/hooks";
 import type { AuthMembership } from "@/core/auth/authorization";
-import { SITE_HEADER_SPACER_PX } from "@/shared/config/site-layout";
 
 type ProviderMemberRecord = {
   id: string;
@@ -65,7 +62,6 @@ function providerRoleLabel(role: AuthMembership["role"] | ProviderMemberRecord["
 
 export function ProfessionalWorkspacePanel() {
   const router = useRouter();
-  const theme = useTheme();
   const { user } = useAppSelector((state) => state.auth);
   const [providerMembers, setProviderMembers] = useState<ProviderMembersResponse | null>(null);
   const [membersLoading, setMembersLoading] = useState(false);
@@ -93,10 +89,6 @@ export function ProfessionalWorkspacePanel() {
     [memberships, user?.activeProviderId]
   );
   const isActiveOwner = activeMembership?.role === "OWNER";
-  const logoSrc =
-    theme.palette.mode === "light"
-      ? "/zemledel_logo_img_dark.svg"
-      : "/zemledel_logo_img_light.svg";
 
   useEffect(() => {
     if (!activeMembership?.providerId) {
@@ -293,84 +285,7 @@ export function ProfessionalWorkspacePanel() {
     }
   }
 
-  if (!activeMembership) {
-    return (
-      <Box
-        sx={{
-          width: "100%",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: {
-            xs: `calc(100dvh - ${SITE_HEADER_SPACER_PX.xs}px)`,
-            sm: `calc(100dvh - ${SITE_HEADER_SPACER_PX.sm}px)`,
-          },
-        }}
-      >
-        <Paper
-          variant="outlined"
-          sx={{
-            p: 3,
-            width: "100%",
-            maxWidth: 860,
-          }}
-        >
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "stretch",
-              gap: 3,
-            }}
-          >
-            <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-              <Typography
-                variant="h5"
-                component="h1"
-                gutterBottom
-                sx={{
-                  fontWeight: 700,
-                }}
-              >
-                Профиль не заполнен
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: "text.secondary",
-                }}
-              >
-                Без профиля кабинет пуст. Заполните его, чтобы предлагать услуги.
-              </Typography>
-
-              <Box sx={{ mt: 2 }}>
-                <Button variant="contained" onClick={() => router.push("/providers/new")} sx={{ minHeight: 44 }}>
-                  Заполнить профиль
-                </Button>
-              </Box>
-            </Box>
-
-            <Box
-              sx={{
-                flex: "0 0 auto",
-                display: { xs: "none", sm: "flex" },
-                alignItems: "center",
-                justifyContent: "center",
-                opacity: 0.95,
-              }}
-            >
-              <Image
-                src={logoSrc}
-                alt=""
-                width={80}
-                height={72}
-                style={{ objectFit: "contain" }}
-              />
-            </Box>
-          </Box>
-        </Paper>
-      </Box>
-    );
-  }
+  if (!activeMembership) return null;
 
   return (
     <Paper variant="outlined" sx={{ p: 2.5 }}>

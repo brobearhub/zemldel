@@ -34,3 +34,19 @@ export function formatProviderName(input: {
 
   return formatUserName(firstName, lastName);
 }
+
+/** Публичное имя: физлицо и самозанятый «Имя Ф.», ИП и организация — как имя профиля. */
+export function formatPublicProviderName(input: {
+  type: ProviderType;
+  name: string;
+}): string {
+  const name = input.name.trim();
+  if (input.type !== 'INDIVIDUAL' && input.type !== 'SELF_EMPLOYED') {
+    return name;
+  }
+  const parts = name.split(/\s+/).filter(Boolean);
+  const firstName = parts[0];
+  const lastName = parts.length > 1 ? parts[parts.length - 1] : '';
+  if (!firstName || !lastName) return name;
+  return `${firstName} ${initial(lastName)}`;
+}

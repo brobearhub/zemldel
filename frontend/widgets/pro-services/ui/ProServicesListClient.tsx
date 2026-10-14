@@ -58,6 +58,10 @@ function noticeFromQuery(value: string | null) {
   return null;
 }
 
+function publishedServiceIdFromQuery(params: { get: (name: string) => string | null }) {
+  return params.get("notice") === "published" ? params.get("serviceId") : null;
+}
+
 function buildDuplicatePayload(service: ServiceDto): ServiceCreateDto {
   return {
     categoryId: service.categoryId,
@@ -82,7 +86,13 @@ export function ProServicesListClient({ initialServices }: Props) {
   const confirm = useConfirm();
   const [services, setServices] = useState(() => sortServices(initialServices));
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(() => noticeFromQuery(searchParams.get("notice")));
+  const [notice, setNotice] = useState<string | null>(() =>
+    publishedServiceIdFromQuery(searchParams) ? null : noticeFromQuery(searchParams.get("notice")),
+  );
+  const [publishedServiceId, setPublishedServiceId] = useState<string | null>(() =>
+    publishedServiceIdFromQuery(searchParams),
+  );
+  const [linkCopied, setLinkCopied] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [filter, setFilter] = useState<StatusFilter>("ALL");
   const [search, setSearch] = useState("");
@@ -96,7 +106,10 @@ export function ProServicesListClient({ initialServices }: Props) {
   const hasAnyServices = services.length > 0;
 
   useEffect(() => {
-    setNotice(noticeFromQuery(searchParams.get("notice")));
+    const publishedId = publishedServiceIdFromQuery(searchParams);
+    setPublishedServiceId(publishedId);
+    setLinkCopied(false);
+    setNotice(publishedId ? null : noticeFromQuery(searchParams.get("notice")));
   }, [searchParams]);
 
   const filteredServices = useMemo(() => {
@@ -159,13 +172,14 @@ export function ProServicesListClient({ initialServices }: Props) {
       setServices((current) =>
         sortServices(current.map((service) => (service.id === id ? (payload as ServiceDto) : service)))
       );
-      setNotice(
-        status === "PUBLISHED"
-          ? "Услуга опубликована и доступна в публичной витрине."
-          : status === "ARCHIVED"
-            ? "Услуга отправлена в архив."
-            : "Услуга переведена в черновик."
-      );
+      if (status === "PUBLISHED") {
+        setPublishedServiceId(id);
+        setLinkCopied(false);
+        setNotice(null);
+      } else {
+        setPublishedServiceId(null);
+        setNotice(status === "ARCHIVED" ? "Услуга отправлена в архив." : "Услуга переведена в черновик.");
+      }
     } catch (statusError) {
       setError(statusError instanceof Error ? statusError.message : "Не удалось обновить статус услуги");
     } finally {
@@ -321,6 +335,34 @@ export function ProServicesListClient({ initialServices }: Props) {
         </Stack>
       </Stack>
 
+      {publishedServiceId ? (
+        <Alert
+          severity="success"
+          action={
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              <Button
+                color="inherit"
+                size="small"
+                sx={{ minHeight: 44 }}
+                onClick={() => {
+                  const url = `${window.location.origin}/services/${publishedServiceId}`;
+                  void navigator.clipboard.writeText(url).then(
+                    () => setLinkCopied(true),
+                    () => setError("Не удалось скопировать ссылку"),
+                  );
+                }}
+              >
+                {linkCopied ? "Ссылка скопирована" : "Копировать ссылку"}
+              </Button>
+              <Button component={Link} href="/pro/profile" color="inherit" size="small" sx={{ minHeight: 44 }}>
+                Мой профиль
+              </Button>
+            </Stack>
+          }
+        >
+          Услуга опубликована
+        </Alert>
+      ) : null}
       {notice ? <Alert severity="success">{notice}</Alert> : null}
       {error ? <Alert severity="error">{error}</Alert> : null}
 

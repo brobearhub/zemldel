@@ -15,6 +15,8 @@ import {
   plainToInstance,
 } from 'class-transformer';
 import type { ServiceIconKey, ServicePaletteColor } from '../service.types';
+import { formatPublicProviderName } from '../../providers/provider-display-name';
+import type { ProviderType } from '../../auth/authorization';
 
 export type ServiceStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 
@@ -270,6 +272,7 @@ export type ServiceDbRow = {
   provider: {
     id: string;
     name: string;
+    type: ProviderType;
     city: {
       id: string;
       name: string;
@@ -280,10 +283,23 @@ export type ServiceDbRow = {
 };
 
 export function serviceDbRowToDtoPlain(row: ServiceDbRow): ServiceDto {
-  const instance = plainToInstance(ServiceDto, row, {
-    excludeExtraneousValues: true,
-    enableImplicitConversion: false,
-  });
+  const instance = plainToInstance(
+    ServiceDto,
+    {
+      ...row,
+      provider: {
+        ...row.provider,
+        name: formatPublicProviderName({
+          type: row.provider.type,
+          name: row.provider.name,
+        }),
+      },
+    },
+    {
+      excludeExtraneousValues: true,
+      enableImplicitConversion: false,
+    },
+  );
   return instanceToPlain(instance) as ServiceDto;
 }
 

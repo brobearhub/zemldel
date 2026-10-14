@@ -23,6 +23,28 @@ enum ProviderType {
   COMPANY
 }
 
+enum ProviderVerificationStatus {
+  NOT_VERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum ProviderVerificationRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum FnsCheckStatus {
+  FOUND_ACTIVE
+  FOUND_TERMINATED
+  NOT_FOUND
+  MISMATCH
+  UNAVAILABLE
+  NOT_SUPPORTED
+}
+
 enum ProviderMemberRole {
   OWNER
   MANAGER
@@ -260,6 +282,8 @@ model User {
   storyUnfollowedBy         StoryAuthorUnfollow[]    @relation("StoryUnfollowedUser")
   storyConversationReads    StoryConversationRead[]
   passwordResetTokens       PasswordResetToken[]
+  decidedVerificationRequests   ProviderVerificationRequest[] @relation("VerificationDecidedBy")
+  fnsManualVerificationRequests ProviderVerificationRequest[] @relation("VerificationFnsMarkedBy")
   customerRating            Float?
   customerReviewCount       Int                      @default(0)
   activeProvider            Provider?                @relation("ActiveProvider", fields: [activeProviderId], references: [id], onDelete: SetNull)
@@ -379,6 +403,12 @@ model Provider {
   storyProfileOpens StoryProfileOpen[]
   rating            Float?
   reviewCount       Int                      @default(0)
+  verificationStatus       ProviderVerificationStatus @default(NOT_VERIFIED)
+  verifiedAt               DateTime?
+  verificationRejectReason String?
+  /// ИНН только у профиля VERIFIED. Частичный уникальный индекс Provider_verified_inn_key в миграции.
+  verifiedInn              String?
+  verificationRequests     ProviderVerificationRequest[]
   createdRequestRemarks RequestRemark[] @relation("RequestRemarkCreatedByProvider")
   doneRequestRemarks    RequestRemark[] @relation("RequestRemarkDoneByProvider")
   activeUsers       User[]                 @relation("ActiveProvider")
@@ -421,6 +451,40 @@ model ProviderLegalProfile {
   provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
   @@index([providerId])
+}
+
+/// Заявка на проверку реквизитов. Новая подача — новая строка, история не перезаписывается.
+model ProviderVerificationRequest {
+  id                       String                            @id @default(uuid()) @db.Uuid
+  providerId               String                            @db.Uuid
+  type                     ProviderType
+  /// Наименование или ФИО на момент подачи. Нужно для поиска в очереди.
+  displayName              String
+  inn                      String?
+  ogrn                     String?
+  /// Снимок поданных реквизитов: ФИО или наименование, ИНН, ОГРН/ОГРНИП.
+  submittedSnapshot        Json
+  status                   ProviderVerificationRequestStatus @default(PENDING)
+  submittedAt              DateTime                          @default(now())
+  decidedAt                DateTime?
+  decidedByUserId          String?                           @db.Uuid
+  rejectReason             String?
+  fnsResult                Json?
+  fnsCheckedAt             DateTime?
+  fnsSource                String?
+  fnsStatus                FnsCheckStatus?
+  /// Отметка «Проверено на сайте ФНС вручную». Сама значок не ставит.
+  fnsManualCheckedAt       DateTime?
+  fnsManualCheckedByUserId String?                           @db.Uuid
+
+  provider            Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  decidedBy           User?    @relation("VerificationDecidedBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+  fnsManualCheckedBy  User?    @relation("VerificationFnsMarkedBy", fields: [fnsManualCheckedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([providerId, submittedAt])
+  @@index([status, submittedAt])
+  @@index([inn])
+  @@index([ogrn])
 }
 
 model CustomerLegalProfile {

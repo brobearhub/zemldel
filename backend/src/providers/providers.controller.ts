@@ -26,7 +26,9 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import { ProvidersService } from './providers.service';
+import { ProviderVerificationService } from './provider-verification.service';
 import { CreateProviderDto } from './dto/create-provider.dto';
+import { SubmitVerificationDto } from './dto/submit-verification.dto';
 import { AddProviderManagerDto } from './dto/add-provider-manager.dto';
 import {
   ProviderActivateResponseDto,
@@ -47,6 +49,7 @@ import { ApiStandardErrors } from '../common/swagger/api-standard-errors.decorat
 export class ProvidersController {
   constructor(
     private readonly providersService: ProvidersService,
+    private readonly providerVerificationService: ProviderVerificationService,
     private readonly internalAuthService: InternalAuthService,
   ) {}
 
@@ -242,6 +245,31 @@ export class ProvidersController {
       providerId,
       file,
     });
+  }
+
+  @Get(':providerId/verification')
+  @ApiParam({ name: 'providerId', type: String })
+  getVerification(
+    @Req() request: Request,
+    @Param('providerId') providerId: string,
+  ) {
+    const userId = this.internalAuthService.getUserIdFromRequest(request);
+    return this.providerVerificationService.getVerification(userId, providerId);
+  }
+
+  @Post(':providerId/verification')
+  @ApiParam({ name: 'providerId', type: String })
+  submitVerification(
+    @Req() request: Request,
+    @Param('providerId') providerId: string,
+    @Body() body: SubmitVerificationDto,
+  ) {
+    const userId = this.internalAuthService.getUserIdFromRequest(request);
+    return this.providerVerificationService.submitVerification(
+      userId,
+      providerId,
+      body,
+    );
   }
 
   @Delete(':providerId/image')

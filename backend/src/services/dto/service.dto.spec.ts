@@ -1,0 +1,39 @@
+import { describe, expect, it } from 'vitest';
+import { serviceDbRowToDtoPlain, type ServiceDbRow } from './service.dto';
+
+const row: ServiceDbRow = {
+  id: 'svc-1',
+  categoryId: 'cat-1',
+  category: {
+    id: 'cat-1',
+    name: 'Межевание',
+    slug: 'mezhevanie',
+    parentId: null,
+    sortOrder: null,
+  },
+  status: 'PUBLISHED',
+  title: 'Вынос границ',
+  publishedAt: null,
+  image: null,
+  stockBadge: null,
+  price: '1000',
+  rating: null,
+  reviewCount: null,
+  ctaText: 'Заказать',
+  ctaHref: null,
+  description: null,
+  paletteColor: null,
+  icon: null,
+  provider: {
+    id: 'prov-1',
+    name: 'Анна Смирнова',
+    type: 'SELF_EMPLOYED',
+    city: null,
+  },
+};
+
+describe('serviceDbRowToDtoPlain', () => {
+  it('в публичной карточке услуги показывает самозанятого как «Имя Ф.»', () => {
+    expect(serviceDbRowToDtoPlain(row).provider.name).toBe('Анна С.');
+  });
+});
