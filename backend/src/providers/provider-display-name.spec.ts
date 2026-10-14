@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { formatProviderName, formatUserName } from './provider-display-name';
+import {
+  formatProviderName,
+  formatPublicProviderName,
+  formatUserName,
+} from './provider-display-name';
 
 describe('formatUserName', () => {
   it('собирает имя и фамилию', () => {
@@ -42,6 +46,27 @@ describe('formatProviderName', () => {
         lastName: 'Смирнова',
       }),
     ).toBe('ИП Смирнова А.');
+  });
+
+  it('публично показывает физлицо и самозанятого как «Имя Ф.»', () => {
+    expect(
+      formatPublicProviderName({ type: 'INDIVIDUAL', name: 'Иван Петров' }),
+    ).toBe('Иван П.');
+    expect(
+      formatPublicProviderName({
+        type: 'SELF_EMPLOYED',
+        name: 'Анна Смирнова',
+      }),
+    ).toBe('Анна С.');
+    expect(
+      formatPublicProviderName({
+        type: 'SOLE_PROPRIETOR',
+        name: 'ИП Петров И. С.',
+      }),
+    ).toBe('ИП Петров И. С.');
+    expect(
+      formatPublicProviderName({ type: 'COMPANY', name: 'ООО «Ромашка»' }),
+    ).toBe('ООО «Ромашка»');
   });
 
   it('для организации берёт полное наименование', () => {

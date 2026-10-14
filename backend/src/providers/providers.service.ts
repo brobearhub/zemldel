@@ -25,7 +25,11 @@ import {
   isPersonalProviderType,
   type ProviderType,
 } from '../auth/authorization';
-import { formatProviderName, formatUserName } from './provider-display-name';
+import {
+  formatProviderName,
+  formatPublicProviderName,
+  formatUserName,
+} from './provider-display-name';
 import { collectProviderFieldErrors } from './provider-legal-details';
 import { slugify } from './provider-slug';
 import { LegalDocsService } from '../legal-docs/legal-docs.service';
@@ -401,18 +405,11 @@ export class ProvidersService {
     function isPublicStats(
       value: unknown,
     ): value is Array<{ value: string; label: string }> {
-      if (!Array.isArray(value)) return false;
-      if (value.length !== 3) return false;
+      if (!Array.isArray(value) || value.length > 3) return false;
       return value.every((item) => {
         if (typeof item !== 'object' || item === null) return false;
         const obj = item as Record<string, unknown>;
-        const valueField = obj.value;
-        const labelField = obj.label;
-        if (typeof valueField !== 'string') return false;
-        if (typeof labelField !== 'string') return false;
-        if (valueField.trim().length === 0) return false;
-        if (labelField.trim().length === 0) return false;
-        return true;
+        return typeof obj.value === 'string' && typeof obj.label === 'string';
       });
     }
 
@@ -428,7 +425,12 @@ export class ProvidersService {
 
     return {
       id: provider.id,
-      name: provider.name,
+      name: options?.revealOwnerEmail
+        ? provider.name
+        : formatPublicProviderName({
+            type: provider.type,
+            name: provider.name,
+          }),
       slug: provider.slug,
       type: provider.type,
       rating: provider.rating,
@@ -714,6 +716,7 @@ export class ProvidersService {
             type: body.type,
             ownerUserId: userId,
             cityId,
+            verificationStatus: 'NOT_VERIFIED',
           },
           select: providerSelect,
         });
@@ -738,11 +741,9 @@ export class ProvidersService {
                 : person.middleName?.trim() || null,
             legalName:
               body.type === 'COMPANY' ? (legal.legalName ?? '').trim() : null,
-            inn: (legal.inn ?? '').trim(),
-            ogrn:
-              body.type === 'SOLE_PROPRIETOR' || body.type === 'COMPANY'
-                ? (legal.ogrn ?? '').trim()
-                : null,
+            // Реквизиты подаются отдельно, на проверке, а не при создании профиля.
+            inn: null,
+            ogrn: null,
           },
         });
 

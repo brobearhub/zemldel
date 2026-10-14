@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { CdnFillImage } from "@/shared/ui/cdn-image";
 import { useRouter } from "next/navigation";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
@@ -10,6 +10,7 @@ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
 import CopyAllRoundedIcon from "@mui/icons-material/CopyAllRounded";
+import LinkIcon from "@mui/icons-material/Link";
 import {
   Alert,
   Box,
@@ -24,8 +25,10 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import Link from "@/shared/ui/Link";
 import { normalizeContactEmailInput } from "@/shared/lib/contact-email";
 import { normalizeContactPhoneInput } from "@/shared/lib/contact-phone";
+import { VERIFIED_BADGE_GREEN, VerifiedBadgeIcon } from "@/shared/ui/VerifiedBadgeIcon";
 
 type ProviderType = "INDIVIDUAL" | "SELF_EMPLOYED" | "SOLE_PROPRIETOR" | "COMPANY";
 
@@ -63,6 +66,10 @@ type Props = {
   initialProfile: PublicProviderProfile;
   canEditName: boolean;
   imageSide?: "left" | "right";
+  /** Значок рядом с именем: зелёный только у подтверждённого профиля. */
+  verified?: boolean;
+  /** Правая часть шапки. Страница передаёт уже собранный блок, редактор его не знает. */
+  headerAside?: ReactNode;
 };
 
 function ProviderImagePlaceholder({ type }: { type: ProviderType }) {
@@ -168,6 +175,12 @@ function normalizeRequiredString(value: string): string {
   return value.trim();
 }
 
+const STAT_PLACEHOLDERS = [
+  { value: "12 лет", label: "практики в недвижимости" },
+  { value: "640+", label: "выполненных работ" },
+  { value: "4.9", label: "рейтинг" },
+] as const;
+
 function getStats3(stats: PublicProviderStat[] | undefined | null): Array<{ value: string; label: string }> {
   const base = Array.isArray(stats) ? stats : [];
   const out = base.slice(0, 3).map((s) => ({ value: s.value ?? "", label: s.label ?? "" }));
@@ -190,6 +203,8 @@ function InlineEditableText(props: {
   normalizeBeforeSave: (draft: string) => string | null;
   validateDraft?: (draft: string) => string | null;
   onSave: (next: string | null) => Promise<void>;
+  /** Сразу после текста, до карандаша справа. */
+  afterValue?: ReactNode;
 }) {
   const isEditing = props.editId === props.id;
   const [draft, setDraft] = useState<string>(props.value ?? "");
@@ -225,52 +240,58 @@ function InlineEditableText(props: {
   const canEdit = props.canEdit ?? true;
   const showPlaceholder = !isEditing && (props.value ?? "").trim().length === 0;
 
+  const actions = isEditing ? (
+    <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", flexShrink: 0 }}>
+      <Tooltip title="Сохранить">
+        <span>
+          <IconButton size="small" onClick={() => void handleSave()} disabled={props.disabled || saving}>
+            <CheckRoundedIcon fontSize="small" />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title="Отмена">
+        <span>
+          <IconButton
+            size="small"
+            onClick={() => props.setEditId(null)}
+            disabled={props.disabled || saving}
+          >
+            <CloseRoundedIcon fontSize="small" />
+          </IconButton>
+        </span>
+      </Tooltip>
+    </Stack>
+  ) : (
+    <Tooltip title={canEdit ? "Редактировать" : "Только владелец"}>
+      <span>
+        <IconButton
+          size="small"
+          onClick={() => props.setEditId(props.id)}
+          disabled={props.disabled || !canEdit}
+          sx={{ color: "rgba(255,255,255,0.82)" }}
+        >
+          <EditOutlinedIcon fontSize="small" />
+        </IconButton>
+      </span>
+    </Tooltip>
+  );
+
+  function startEdit() {
+    if (props.disabled || !canEdit) return;
+    props.setEditId(props.id);
+  }
+
   return (
     <Box
       sx={{
-        display: "flex",
-        alignItems: props.isMultiline ? "flex-start" : props.viewVariant === "h4" ? "baseline" : "center",
-        gap: 1,
+        display: "inline-flex",
+        alignItems: props.isMultiline ? "flex-start" : "center",
+        gap: 0.5,
+        maxWidth: "100%",
         minWidth: 0,
       }}
     >
-      {isEditing ? (
-        <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", flexShrink: 0 }}>
-          <Tooltip title="Сохранить">
-            <span>
-              <IconButton size="small" onClick={() => void handleSave()} disabled={props.disabled || saving}>
-                <CheckRoundedIcon fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Tooltip title="Отмена">
-            <span>
-              <IconButton
-                size="small"
-                onClick={() => props.setEditId(null)}
-                disabled={props.disabled || saving}
-              >
-                <CloseRoundedIcon fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
-        </Stack>
-      ) : (
-        <Tooltip title={canEdit ? "Редактировать" : "Только владелец"}>
-          <span>
-            <IconButton
-              size="small"
-              onClick={() => props.setEditId(props.id)}
-              disabled={props.disabled || !canEdit}
-              sx={{ color: "rgba(255,255,255,0.82)" }}
-            >
-              <EditOutlinedIcon fontSize="small" />
-            </IconButton>
-          </span>
-        </Tooltip>
-      )}
-
-      <Box sx={{ minWidth: 0, flex: "1 1 0" }}>
+      <Box sx={{ minWidth: 0, maxWidth: "100%", width: isEditing ? { xs: 220, sm: props.isMultiline ? 480 : 360 } : "auto" }}>
         {isEditing ? (
           <Stack spacing={0.75}>
             <TextField
@@ -280,6 +301,7 @@ function InlineEditableText(props: {
               onChange={(e) => setDraft(e.target.value)}
               disabled={props.disabled || saving}
               fullWidth
+              autoFocus
               multiline={props.isMultiline}
               minRows={props.isMultiline ? props.minRows ?? 3 : undefined}
               placeholder={props.placeholderWhenEmpty}
@@ -308,18 +330,24 @@ function InlineEditableText(props: {
             ) : null}
           </Stack>
         ) : (
-          <Typography
-            variant={props.viewVariant ?? "body2"}
-            sx={{
-              ...(props.typographySx ?? {}),
-              minWidth: 0,
-              ...(showPlaceholder ? { opacity: 0.75 } : null),
-            }}
-          >
-            {showPlaceholder ? props.placeholderWhenEmpty ?? "—" : props.value}
-          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: 0 }}>
+            <Typography
+              variant={props.viewVariant ?? "body2"}
+              onClick={startEdit}
+              sx={{
+                ...(props.typographySx ?? {}),
+                minWidth: 0,
+                cursor: canEdit && !props.disabled ? "pointer" : "default",
+                ...(showPlaceholder ? { opacity: 0.75 } : null),
+              }}
+            >
+              {showPlaceholder ? props.placeholderWhenEmpty ?? "—" : props.value}
+            </Typography>
+            {props.afterValue}
+          </Box>
         )}
       </Box>
+      {actions}
     </Box>
   );
 }
@@ -349,18 +377,14 @@ function InlineEditableStatCard(props: {
   async function handleSave() {
     const value = draftValue.trim();
     const label = draftLabel.trim();
-    if (!value || !label) {
-      setFieldError("Заполните value и label");
+    if ((value && !label) || (!value && label)) {
+      setFieldError("Заполните оба поля или оставьте оба пустыми");
       return;
     }
 
     const next = props.stats3.map((s, idx) =>
       idx === props.index ? { value, label } : { value: s.value.trim(), label: s.label.trim() },
     );
-    if (next.some((s) => !s.value || !s.label)) {
-      setFieldError("Сначала заполните все 3 показателя");
-      return;
-    }
 
     setSaving(true);
     setFieldError(null);
@@ -375,6 +399,46 @@ function InlineEditableStatCard(props: {
   }
 
   const view = props.stats3[props.index] ?? { value: "", label: "" };
+  const placeholder = STAT_PLACEHOLDERS[props.index];
+  const valueEmpty = view.value.trim().length === 0;
+  const labelEmpty = view.label.trim().length === 0;
+
+  const actions = isEditing ? (
+    <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", flexShrink: 0 }}>
+      <Tooltip title="Сохранить">
+        <span>
+          <IconButton size="small" onClick={() => void handleSave()} disabled={props.disabled || saving}>
+            <CheckRoundedIcon fontSize="small" />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title="Отмена">
+        <span>
+          <IconButton size="small" onClick={() => props.setEditId(null)} disabled={props.disabled || saving}>
+            <CloseRoundedIcon fontSize="small" />
+          </IconButton>
+        </span>
+      </Tooltip>
+    </Stack>
+  ) : (
+    <Tooltip title="Редактировать">
+      <span>
+        <IconButton
+          size="small"
+          onClick={() => props.setEditId(props.id)}
+          disabled={props.disabled}
+          sx={{ color: "rgba(255,255,255,0.82)" }}
+        >
+          <EditOutlinedIcon fontSize="small" />
+        </IconButton>
+      </span>
+    </Tooltip>
+  );
+
+  function startEdit() {
+    if (props.disabled) return;
+    props.setEditId(props.id);
+  }
 
   return (
     <Stack
@@ -385,43 +449,14 @@ function InlineEditableStatCard(props: {
         borderTop: "1px solid",
         borderColor: "rgba(255,255,255,0.18)",
         alignItems: "flex-start",
+        width: "100%",
       }}
     >
-      <Box sx={{ flexShrink: 0 }}>
-        {isEditing ? (
-          <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-            <Tooltip title="Сохранить">
-              <span>
-                <IconButton size="small" onClick={() => void handleSave()} disabled={props.disabled || saving}>
-                  <CheckRoundedIcon fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip title="Отмена">
-              <span>
-                <IconButton size="small" onClick={() => props.setEditId(null)} disabled={props.disabled || saving}>
-                  <CloseRoundedIcon fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
-          </Stack>
-        ) : (
-          <Tooltip title="Редактировать">
-            <span>
-              <IconButton
-                size="small"
-                onClick={() => props.setEditId(props.id)}
-                disabled={props.disabled}
-                sx={{ color: "rgba(255,255,255,0.82)" }}
-              >
-                <EditOutlinedIcon fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
-        )}
-      </Box>
-
-      <Stack spacing={0.5} sx={{ minWidth: 0, flex: "1 1 0" }}>
+      <Stack
+        spacing={0.5}
+        onClick={isEditing ? undefined : startEdit}
+        sx={{ minWidth: 0, width: isEditing ? { xs: 140, sm: 180 } : "auto", cursor: isEditing || props.disabled ? "default" : "pointer" }}
+      >
         {isEditing ? (
           <>
             <TextField
@@ -430,7 +465,7 @@ function InlineEditableStatCard(props: {
               value={draftValue}
               onChange={(e) => setDraftValue(e.target.value)}
               disabled={props.disabled || saving}
-              placeholder="value"
+              placeholder={placeholder.value}
               sx={{
                 "& .MuiOutlinedInput-root": { bgcolor: "common.white", borderRadius: 1 },
                 "& .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
@@ -451,18 +486,19 @@ function InlineEditableStatCard(props: {
               value={draftLabel}
               onChange={(e) => setDraftLabel(e.target.value)}
               disabled={props.disabled || saving}
-              placeholder="label"
+              placeholder={placeholder.label}
               sx={{
                 "& .MuiOutlinedInput-root": { bgcolor: "common.white", borderRadius: 1 },
                 "& .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
                 "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
                 "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
                 "& .MuiInputBase-input": {
-                  color: "text.primary",
+                  color: "text.secondary",
+                  fontFamily: "monospace",
                   letterSpacing: "0.4px",
                   fontSize: 12,
                 },
-                "& .MuiInputBase-input::placeholder": { color: "text.secondary", opacity: 1 },
+                "& .MuiInputBase-input::placeholder": { color: "text.secondary", opacity: 0.7 },
               }}
             />
             {fieldError ? (
@@ -479,16 +515,26 @@ function InlineEditableStatCard(props: {
                 fontSize: { xs: 24, md: 32 },
                 lineHeight: { xs: 1.334, md: 1.235 },
                 color: "common.white",
+                opacity: valueEmpty ? 0.3 : 1,
               }}
             >
-              {view.value}
+              {valueEmpty ? placeholder.value : view.value}
             </Typography>
-            <Typography variant="caption" sx={{ color: "#e8efea", letterSpacing: "0.4px" }}>
-              {view.label}
+            <Typography
+              variant="caption"
+              sx={{
+                color: labelEmpty ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,1)",
+                fontFamily: "monospace",
+                letterSpacing: "0.4px",
+                
+              }}
+            >
+              {labelEmpty ? placeholder.label : view.label}
             </Typography>
           </>
         )}
       </Stack>
+      {actions}
     </Stack>
   );
 }
@@ -499,6 +545,8 @@ export function ProviderProfileEditorSection({
   initialProfile,
   canEditName,
   imageSide = "left",
+  verified = false,
+  headerAside,
 }: Props) {
   const router = useRouter();
   const isRight = imageSide === "right";
@@ -525,9 +573,13 @@ export function ProviderProfileEditorSection({
     setSlug(providerSlug);
   }, [providerSlug]);
 
-  const PUBLIC_PROFILE_BASE_URL = "http://zemledelpro.ru/providers/";
-  const publicUrl = useMemo(() => `${PUBLIC_PROFILE_BASE_URL}${slug}`, [slug]);
-  const previewUrl = useMemo(() => `${PUBLIC_PROFILE_BASE_URL}${slugValue || slug}`, [slugValue, slug]);
+  const [origin, setOrigin] = useState("");
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+  const profileBaseUrl = `${origin}/providers/`;
+  const publicUrl = `${profileBaseUrl}${slug}`;
+  const previewUrl = `${profileBaseUrl}${slugValue || slug}`;
 
   const stats3 = useMemo(() => getStats3(profile.stats), [profile.stats]);
   const hasProviderImage = Boolean(profile.providerImage);
@@ -743,8 +795,13 @@ export function ProviderProfileEditorSection({
 
   return (
     <Stack spacing={2.5}>
-      <Paper variant="elevation" sx={{ p: { xs: 2, md: 3 }, bgcolor: "primary.main", }}>
-        <Stack spacing={2} sx={{ width: "fit-content" }}>
+      <Paper variant="elevation" sx={{ p: { xs: 2, md: 3 }, bgcolor: "primary.main" }}>
+        <Stack
+          direction={{ xs: "column", lg: "row" }}
+          spacing={2}
+          sx={{ justifyContent: "space-between", alignItems: { lg: "center" } }}
+        >
+        <Stack spacing={2} sx={{ width: "fit-content", maxWidth: "100%", minWidth: 0 }}>
           <Typography component="h1" variant="h5">
             Профиль исполнителя
           </Typography>
@@ -767,7 +824,7 @@ export function ProviderProfileEditorSection({
               <Stack spacing={0.5} sx={{ minWidth: 0, flex: "1 1 0" }}>
                 <Stack direction="row" spacing={1} sx={{ alignItems: "center", minWidth: 0 }}>
                   <Typography variant="body2" sx={{ color: "text.secondary", whiteSpace: "nowrap", fontFamily: "monospace" }}>
-                    {PUBLIC_PROFILE_BASE_URL}
+                    {profileBaseUrl}
                   </Typography>
                   <TextField
                     size="small"
@@ -827,6 +884,19 @@ export function ProviderProfileEditorSection({
                 </>
               ) : (
                 <>
+                  <Tooltip title="Открыть профиль">
+                    <span>
+                      <IconButton
+                        size="small"
+                        component="a"
+                        href={publicUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <LinkIcon fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
                   <Tooltip title="Скопировать">
                     <span>
                       <IconButton size="small" onClick={() => void copyToClipboard(publicUrl)}>
@@ -853,6 +923,20 @@ export function ProviderProfileEditorSection({
             </Stack>
           </Stack>
           {error ? <Alert severity="error">{error}</Alert> : null}
+        </Stack>
+        {headerAside ? (
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: { xs: "center", lg: "flex-end" },
+              flex: "1 1 320px",
+              minWidth: 0,
+              alignSelf: { xs: "stretch", lg: "center" },
+            }}
+          >
+            {headerAside}
+          </Box>
+        ) : null}
         </Stack>
       </Paper>
 
@@ -885,7 +969,6 @@ export function ProviderProfileEditorSection({
               }}
             >
               <Paper
-                
                 sx={{
                   position: "relative",
                   overflow: "hidden",
@@ -1010,6 +1093,63 @@ export function ProviderProfileEditorSection({
                   viewVariant="h4"
                   typographySx={{ color: "common.white" }}
                   placeholderWhenEmpty="Название профиля"
+                  afterValue={
+                    <Tooltip
+                      title={
+                        <Button
+                          component={Link}
+                          href="/pro/profile/verification"
+                          size="small"
+                          variant="contained"
+                          sx={{
+                            bgcolor: "secondary.main",
+                            color: "secondary.contrastText",
+                            textTransform: "none",
+                            fontWeight: 700,
+                            minHeight: 36,
+                            "&:hover": { bgcolor: "text.primary" },
+                          }}
+                        >
+                          Начать проверку
+                        </Button>
+                      }
+                      placement="bottom"
+                      disableHoverListener={verified}
+                      slotProps={{
+                        tooltip: {
+                          sx: {
+                            bgcolor: "transparent",
+                            p: 0,
+                            m: 0,
+                            maxWidth: "none",
+                            boxShadow: "none",
+                          },
+                        },
+                      }}
+                    >
+                      <Box
+                        component="span"
+                        sx={(theme) => ({
+                          display: "inline-flex",
+                          cursor: verified ? "default" : "pointer",
+                          "& .badge-seal": {
+                            fill: verified ? VERIFIED_BADGE_GREEN : "rgba(255,255,255,0.45)",
+                          },
+                          "& .badge-check": {
+                            fill: verified ? "#ffffff" : theme.palette.primary.main,
+                          },
+                          ...(!verified && {
+                            "&:hover .badge-seal": { fill: VERIFIED_BADGE_GREEN },
+                            "&:hover .badge-check": { fill: "#ffffff" },
+                          }),
+                        })}
+                      >
+                        <Box sx={{ transform: "translate(-5px, -12px)", lineHeight: 0 }}>
+                          <VerifiedBadgeIcon size={26} />
+                        </Box>
+                      </Box>
+                    </Tooltip>
+                  }
                   normalizeBeforeSave={(draft) => normalizeRequiredString(draft) || null}
                   validateDraft={(draft) => {
                     const normalized = draft.trim();
