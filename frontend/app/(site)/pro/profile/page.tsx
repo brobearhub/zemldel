@@ -7,6 +7,10 @@ import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
 import { ProfessionalWorkspacePanel } from "@/widgets/pro-dashboard/ui/ProfessionalWorkspacePanel";
 import { ProviderProfileEditorSection, type PublicProviderProfile } from "@/widgets/provider-profile-editor";
+import {
+  ProviderVerificationBlock,
+  type ProviderVerificationView,
+} from "@/widgets/provider-verification";
 
 export const metadata: Metadata = { title: "Профиль — Земледел" };
 
@@ -27,21 +31,27 @@ export default async function ProProfilePage() {
   }
 
   try {
-    const profile = await fetchBackendJsonAsUser<PublicProviderProfile>(
-      `/providers/${activeMembership.providerId}/public`,
-      session.user.id,
-    );
+    const [profile, verification] = await Promise.all([
+      fetchBackendJsonAsUser<PublicProviderProfile>(
+        `/providers/${activeMembership.providerId}/public`,
+        session.user.id,
+      ),
+      fetchBackendJsonAsUser<ProviderVerificationView>(
+        `/providers/${activeMembership.providerId}/verification`,
+        session.user.id,
+      ),
+    ]);
 
     return (
-      <Stack spacing={3}>
-        <ProviderProfileEditorSection
-          providerId={activeMembership.providerId}
-          providerSlug={activeMembership.providerSlug}
-          initialProfile={profile}
-          canEditName={activeMembership.role === "OWNER"}
-          imageSide="right"
-        />
-      </Stack>
+      <ProviderProfileEditorSection
+        providerId={activeMembership.providerId}
+        providerSlug={activeMembership.providerSlug}
+        initialProfile={profile}
+        canEditName={activeMembership.role === "OWNER"}
+        imageSide="right"
+        verified={verification.status === "VERIFIED"}
+        headerAside={<ProviderVerificationBlock view={verification} layout="aside" />}
+      />
     );
   } catch (error) {
     if (error instanceof BackendApiError && (error.status === 401 || error.status === 403 || error.status === 404)) {

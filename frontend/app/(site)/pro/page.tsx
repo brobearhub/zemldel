@@ -8,6 +8,7 @@ import { getServerAuthSession } from "@/core/auth";
 import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import { ProfessionalWorkspacePanel } from "@/widgets/pro-dashboard/ui/ProfessionalWorkspacePanel";
 import { ProHomePage } from "@/views/pro-home";
+import { buildFirstSteps, type ProviderVerificationView } from "@/widgets/provider-verification";
 
 export default async function ProDashboardPage() {
   const session = await getServerAuthSession();
@@ -28,15 +29,25 @@ export default async function ProDashboardPage() {
 
   try {
     // Why: заявки списка грузит клиент целиком. Здесь только услуги и напоминания.
-    const [services, reminders] = await Promise.all([
+    const [services, reminders, verification] = await Promise.all([
       fetchBackendJsonAsUser<ServiceDto[]>("/pro/services", session.user.id),
       fetchBackendJsonAsUser<RequestReminderDto[]>("/pro/reminders", session.user.id),
+      fetchBackendJsonAsUser<ProviderVerificationView>(
+        `/providers/${activeMembership.providerId}/verification`,
+        session.user.id,
+      ),
     ]);
+    const serviceList = Array.isArray(services) ? services : [];
 
     return (
       <ProHomePage
-        services={Array.isArray(services) ? services : []}
+        services={serviceList}
         reminders={Array.isArray(reminders) ? reminders : []}
+        firstSteps={buildFirstSteps({
+          providerType: activeMembership.providerType,
+          hasPublishedService: serviceList.some((service) => service.status === "PUBLISHED"),
+          verificationStatus: verification.status,
+        })}
       />
     );
   } catch (error) {

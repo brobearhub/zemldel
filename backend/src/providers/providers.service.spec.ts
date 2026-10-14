@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { ProvidersService } from './providers.service';
 
@@ -90,6 +90,7 @@ describe('ProvidersService.getPublicProviderProfile', () => {
 
     const profile = await service.getPublicProviderProfile(PROVIDER_ID);
 
+    expect(profile.name).toBe('Иван П.');
     expect(profile.subtitle).toBe('');
     expect(profile.about).toBeNull();
     expect(profile.stats).toEqual([]);
@@ -116,6 +117,7 @@ describe('ProvidersService.createProvider', () => {
           slug: 'ivan-petrov',
           type: 'INDIVIDUAL',
           cityId: CITY_ID,
+          verificationStatus: 'NOT_VERIFIED',
         }),
       }),
     );
@@ -123,7 +125,7 @@ describe('ProvidersService.createProvider', () => {
       data: expect.objectContaining({
         lastName: 'Петров',
         firstName: 'Иван',
-        inn: '123456789012',
+        inn: null,
         ogrn: null,
         legalName: null,
       }),
@@ -177,8 +179,8 @@ describe('ProvidersService.createProvider', () => {
     expect(tx.provider.create.mock.calls[0]?.[0].data.name).toBe(
       'ИП Петров И. С.',
     );
-    expect(tx.providerLegalProfile.create.mock.calls[0]?.[0].data.ogrn).toBe(
-      '123456789012345',
+    expect(tx.providerLegalProfile.create.mock.calls[0]?.[0].data).toEqual(
+      expect.objectContaining({ inn: null, ogrn: null }),
     );
   });
 
@@ -205,8 +207,8 @@ describe('ProvidersService.createProvider', () => {
     expect(tx.providerLegalProfile.create.mock.calls[0]?.[0].data).toEqual(
       expect.objectContaining({
         legalName: 'ООО Ромашка',
-        inn: '1234567890',
-        ogrn: '1234567890123',
+        inn: null,
+        ogrn: null,
         lastName: null,
         firstName: null,
       }),
@@ -220,22 +222,20 @@ describe('ProvidersService.createProvider', () => {
     );
   });
 
-  it('отклоняет неверную длину ИНН', async () => {
-    const { service } = makeService();
-    try {
-      await service.createProvider(USER_ID, {
-        type: 'INDIVIDUAL',
-        cityId: CITY_ID,
-        offerVersion,
-        legal: { lastName: 'Петров', firstName: 'Иван', inn: '123' },
-      });
-      expect.fail('ожидалась ошибка');
-    } catch (error) {
-      expect(error).toBeInstanceOf(BadRequestException);
-      expect((error as BadRequestException).getResponse()).toEqual({
-        fieldErrors: expect.objectContaining({ inn: 'ИНН — 12 цифр' }),
-      });
-    }
+  it('создаёт профиль без реквизитов и не сохраняет присланный ИНН', async () => {
+    const { service, tx } = makeService();
+    await service.createProvider(USER_ID, {
+      type: 'INDIVIDUAL',
+      cityId: CITY_ID,
+      offerVersion,
+      legal: { lastName: 'Петров', firstName: 'Иван', inn: '123' },
+    });
+    expect(tx.providerLegalProfile.create.mock.calls[0]?.[0].data).toEqual(
+      expect.objectContaining({ inn: null, ogrn: null }),
+    );
+    expect(tx.provider.create.mock.calls[0]?.[0].data.verificationStatus).toBe(
+      'NOT_VERIFIED',
+    );
   });
 
   it('переводит гонку уникального индекса личного профиля в конфликт', async () => {

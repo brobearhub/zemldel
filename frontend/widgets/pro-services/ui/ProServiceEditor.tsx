@@ -334,7 +334,21 @@ export function ProServiceEditor({ mode, initialService }: Props) {
         setPendingImage(null);
       }
 
-      router.push(`/pro/services/list?notice=${mode === "create" ? "created" : "updated"}`);
+      const savedId =
+        mode === "create"
+          ? responseBody &&
+            typeof responseBody === "object" &&
+            "id" in responseBody &&
+            typeof responseBody.id === "string"
+            ? responseBody.id
+            : null
+          : initialService?.id ?? null;
+      const savedStatus = requestPayload.status;
+      router.push(
+        savedStatus === "PUBLISHED" && savedId
+          ? `/pro/services/list?notice=published&serviceId=${savedId}`
+          : `/pro/services/list?notice=${mode === "create" ? "created" : "updated"}`,
+      );
       router.refresh();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Не удалось сохранить услугу");
