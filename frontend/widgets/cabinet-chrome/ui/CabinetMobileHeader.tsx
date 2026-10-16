@@ -1,15 +1,16 @@
 "use client";
 
-import { AppBar, Box, Toolbar, Typography } from "@mui/material";
+import { AppBar, Box, Toolbar } from "@mui/material";
 import { ColorModeToggle } from "@/core/theme/ColorModeToggle";
+import { HeaderCity } from "@/widgets/header/ui/HeaderCity";
 import { HeaderLogo } from "@/widgets/header/ui/HeaderLogo";
 import { ProfileMenu } from "@/widgets/header/ui/ProfileMenu";
 
 type Props = {
-  title: string;
+  showProviderCity?: boolean;
 };
 
-export function CabinetMobileHeader({ title }: Props) {
+export function CabinetMobileHeader({ showProviderCity = false }: Props) {
   return (
     <AppBar position="fixed" elevation={0}>
       <Toolbar
@@ -18,34 +19,22 @@ export function CabinetMobileHeader({ title }: Props) {
           px: 1.5,
           py: 0.5,
           height: 60,
-          display: "grid",
-          gridTemplateColumns: "auto 1fr auto",
+          display: "flex",
           alignItems: "center",
+          justifyContent: "space-between",
           width: "100%",
-          columnGap: 1,
+          gap: 1,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", justifySelf: "start" }}>
+        <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, flex: 1 }}>
           <HeaderLogo />
+          {showProviderCity ? (
+            <Box sx={{ minWidth: 0, overflow: "hidden" }}>
+              <HeaderCity showLabel scope="provider" />
+            </Box>
+          ) : null}
         </Box>
-
-        <Box sx={{ minWidth: 0, display: "flex", justifyContent: "center", justifySelf: "center" }}>
-          <Typography
-            component="p"
-            sx={{
-              m: 0,
-              fontWeight: 700,
-              color: "text.primary",
-              minHeight: 44,
-              display: "flex",
-              alignItems: "center",
-            }}
-          >
-            {title}
-          </Typography>
-        </Box>
-
-        <Box sx={{ display: "flex", alignItems: "center", justifySelf: "end", gap: 0.25 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
           <ColorModeToggle />
           <ProfileMenu />
         </Box>

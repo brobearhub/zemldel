@@ -84,6 +84,7 @@ describe('ProvidersService.getPublicProviderProfile', () => {
       phone: null,
       email: null,
       useOwnEmail: false,
+      verificationStatus: 'NOT_VERIFIED',
       stats: null,
       ownerUser: { image: null, email: 'secret@example.com' },
     });
@@ -94,6 +95,8 @@ describe('ProvidersService.getPublicProviderProfile', () => {
     expect(profile.subtitle).toBe('');
     expect(profile.about).toBeNull();
     expect(profile.stats).toEqual([]);
+    expect(profile.verified).toBe(false);
+    expect(profile.availabilityLabel).toBe('');
     expect(profile).not.toHaveProperty('inn');
     expect(profile).not.toHaveProperty('ogrn');
     expect(profile).not.toHaveProperty('ownerEmail');
@@ -138,6 +141,7 @@ describe('ProvidersService.createProvider', () => {
         lastName: 'Петров',
         firstName: 'Иван',
         middleName: null,
+        customerCityId: CITY_ID,
       }),
     });
     expect(tx.providerMember.create).toHaveBeenCalledOnce();
@@ -218,6 +222,7 @@ describe('ProvidersService.createProvider', () => {
         name: 'Иван Петров',
         lastName: 'Петров',
         firstName: 'Иван',
+        customerCityId: CITY_ID,
       }),
     );
   });

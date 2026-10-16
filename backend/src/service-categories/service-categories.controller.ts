@@ -113,8 +113,6 @@ export class ServiceCategoriesController {
         },
         rating: true,
         reviewCount: true,
-        ctaText: true,
-        ctaHref: true,
       },
       orderBy: [{ provider: { name: 'asc' } }, { title: 'asc' }],
     });

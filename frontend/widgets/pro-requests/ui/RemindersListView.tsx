@@ -193,7 +193,7 @@ export function RemindersListView({ initialReminders, showTitle = true }: Props)
       return (
         <Typography variant="body2" sx={{
           color: "text.secondary"
-        }}>Напоминаний пока нет.
+        }}>Напоминаний пока нет. Добавьте первое, когда появится срок.
                   </Typography>
       );
     }
@@ -253,7 +253,7 @@ export function RemindersListView({ initialReminders, showTitle = true }: Props)
       return (
         <Typography variant="body2" sx={{
           color: "text.secondary"
-        }}>Напоминаний пока нет.
+        }}>Напоминаний пока нет. Добавьте первое, когда появится срок.
                   </Typography>
       );
     }

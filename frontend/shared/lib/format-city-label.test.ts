@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { displayCityName, formatCityLabel, formatRegionLabel } from "./format-city-label";
+import { displayCityName, formatCityLabel, formatRegionLabel, shortRegionLabel } from "./format-city-label";
 
 describe("formatRegionLabel", () => {
   it("puts the full oblast word after the region name", () => {
@@ -13,6 +13,14 @@ describe("formatRegionLabel", () => {
     expect(formatRegionLabel("а.окр. Ненецкий")).toBe("Ненецкий автономный округ");
     expect(formatRegionLabel("а.обл. Еврейская")).toBe("Еврейская автономная область");
     expect(formatRegionLabel("г Москва")).toBe("Москва");
+  });
+});
+
+describe("shortRegionLabel", () => {
+  it("сокращает область так же, как на пилюле географии", () => {
+    expect(shortRegionLabel("обл. Московская")).toBe("Московская обл.");
+    expect(shortRegionLabel("обл. Ленинградская")).toBe("Ленинградская обл.");
+    expect(shortRegionLabel("респ. Татарстан")).toBe("Республика Татарстан");
   });
 });
 

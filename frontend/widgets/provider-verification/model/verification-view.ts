@@ -17,6 +17,13 @@ export type ProviderVerificationView = {
   };
 };
 
+/** Точка в конце не дублируется, если она уже есть в тексте. */
+export function finishSentence(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return "";
+  return /[.!?…]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+}
+
 export function formatVerificationDate(iso: string): string {
   return new Intl.DateTimeFormat("ru-RU", {
     day: "numeric",

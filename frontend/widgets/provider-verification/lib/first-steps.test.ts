@@ -31,4 +31,15 @@ describe("buildFirstSteps", () => {
     expect(steps.visible).toBe(false);
     expect(steps.steps[2]?.note).toBe("Проверка для физлиц появится позже");
   });
+
+  it("показывает статус поданной заявки вместо приглашения пройти проверку", () => {
+    const pending = buildFirstSteps({
+      providerType: "SELF_EMPLOYED",
+      hasPublishedService: true,
+      verificationStatus: "PENDING",
+    });
+    expect(pending.steps[2]?.title).toBe("На проверке");
+    expect(pending.steps[2]?.href).toBeUndefined();
+    expect(pending.steps[2]?.done).toBe(false);
+  });
 });

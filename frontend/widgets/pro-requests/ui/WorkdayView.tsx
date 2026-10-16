@@ -101,7 +101,7 @@ export function WorkdayView({ initialReminders }: Props) {
         <Typography variant="body2" sx={{
           color: "text.secondary"
         }}>
-          Напоминаний на сегодня нет.
+          Напоминаний на сегодня нет. Их можно добавить в разделе напоминаний.
         </Typography>
       </Stack>
     );

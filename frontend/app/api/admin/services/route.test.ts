@@ -125,9 +125,7 @@ describe("Admin services API /api/admin/services", () => {
       category: "main",
       title: "  Test title ",
       price: " 1000 ₽ ",
-      ctaText: " Записаться ",
       image: "/img.jpg",
-      ctaHref: "/contacts",
     };
 
     const request = new Request("http://localhost/api/admin/services", {
@@ -160,7 +158,6 @@ describe("Admin services API /api/admin/services", () => {
         category: "main",
         title: "Service",
         price: "1000",
-        ctaText: "CTA",
       }),
     }) as unknown as NextRequest;
 

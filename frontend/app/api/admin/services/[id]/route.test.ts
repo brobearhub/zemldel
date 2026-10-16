@@ -88,7 +88,6 @@ describe("Admin services API /api/admin/services/[id]", () => {
           id: "1",
           title: "Updated",
           category: "legal",
-          ctaHref: null,
           image: null,
           rating: null,
         }),
@@ -102,7 +101,6 @@ describe("Admin services API /api/admin/services/[id]", () => {
     const payload = {
       category: "legal",
       title: "Updated",
-      ctaHref: null,
       image: null,
       rating: null,
     };

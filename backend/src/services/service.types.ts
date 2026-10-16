@@ -5,5 +5,3 @@ export type ServicePaletteColor =
   | 'success'
   | 'warning'
   | 'error';
-
-export type ServiceIconKey = 'map' | 'electric' | 'architecture';

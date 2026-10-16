@@ -1,0 +1,24 @@
+import { NextResponse } from "next/server";
+import { requirePlatformAdminApi } from "@/core/auth/server-authorization";
+import { fetchBackendAsUser } from "@/shared/api/backend/server";
+
+type Params = { params: Promise<{ id: string }> };
+
+export async function POST(_request: Request, { params }: Params) {
+  const gate = await requirePlatformAdminApi();
+  if (!gate.ok) return gate.response;
+  const { id } = await params;
+
+  try {
+    const response = await fetchBackendAsUser(
+      `/admin/provider-verifications/${id}/fns-manual`,
+      gate.session.user.id,
+      { method: "POST" },
+    );
+    const payload = await response.json().catch(() => ({ error: "Failed to mark FNS check" }));
+    return NextResponse.json(payload, { status: response.status });
+  } catch (error) {
+    console.error("Error marking manual FNS check:", error);
+    return NextResponse.json({ error: "Failed to mark FNS check" }, { status: 500 });
+  }
+}

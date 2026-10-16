@@ -254,8 +254,7 @@ export function ProOverviewDashboard({ provider, services, requestStats, orders,
                 <Typography sx={{
                   color: "text.secondary"
                 }}>
-                  Обзор по активному provider: здесь собраны ключевые показатели по услугам, входящим заявкам,
-                  заказам и клиентской базе.
+                  Обзор профиля: услуги, входящие заявки, заказы и клиенты.
                 </Typography>
               </Box>
 
@@ -414,7 +413,7 @@ export function ProOverviewDashboard({ provider, services, requestStats, orders,
             <Typography sx={{
               color: "text.secondary"
             }}>
-              Итог по сделкам и клиентской базе, сформированной из заказов активного provider.
+              Итог по сделкам и клиентской базе, сформированной из заказов активного исполнителя.
             </Typography>
             <MetricRow label="Всего заказов" value={String(ordersStats.total)} />
             <MetricRow label="Активные" value={String(ordersStats.ACTIVE ?? 0)} />

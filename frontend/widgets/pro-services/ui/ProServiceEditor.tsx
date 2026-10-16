@@ -1,29 +1,44 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { createContext, forwardRef, useContext, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import { useRouter } from "next/navigation";
+import CloseIcon from "@mui/icons-material/Close";
+import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
+import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
 import {
   Alert,
   Box,
   Button,
-  Chip,
-  Divider,
+  IconButton,
   ListSubheader,
   MenuItem,
   Paper,
   Stack,
   TextField,
   Typography,
+  type PaperProps,
 } from "@mui/material";
-import { ServiceCard } from "@/entities/service";
-import type { ServiceDto, ServiceStatus } from "@/entities/service";
-import { SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
-import { CdnImage } from "@/shared/ui/cdn-image";
+import { ServiceCard, toPlaceInput } from "@/entities/service";
+import type { ServiceDto, ServicePaletteColor, ServicePlace, ServiceStatus } from "@/entities/service";
+import { ServiceGeographyField, ServicePlaceChips } from "@/features/select-service-places";
+import { STOCK_BADGE_MAX_LENGTH } from "../lib/stock-badge-suggestions";
+import { DesktopLabelColor } from "./DesktopLabelColor";
+import { MobileLabelColor } from "./MobileLabelColor";
+import { StockBadgeField } from "./StockBadgeField";
+import {
+  formatServicePriceAmount,
+  formatServicePriceStored,
+  parseServicePriceAmount,
+} from "@/shared/lib/money/service-price";
+import type { AuthCity } from "@/core/auth/authorization";
 import { useAppSelector } from "@/core/store/hooks";
 
 type Props = {
   mode: "create" | "edit";
   initialService?: ServiceDto;
+  /** Город исполнителя с сервера: клиентская сессия после онбординга ещё без него. */
+  initialProviderCity?: AuthCity | null;
 };
 
 type EditableServiceStatus = ServiceStatus;
@@ -33,13 +48,10 @@ type ServiceFormState = {
   status: EditableServiceStatus;
   title: string;
   price: string;
-  ctaText: string;
-  ctaHref: string;
   image: string;
   stockBadge: string;
   description: string;
-  paletteColor: string;
-  icon: string;
+  paletteColor: ServicePaletteColor | "";
 };
 
 function normalizeNullableString(value: string): string | null {
@@ -47,52 +59,125 @@ function normalizeNullableString(value: string): string | null {
   return normalized.length ? normalized : null;
 }
 
-function statusLabel(status: ServiceStatus) {
-  if (status === "PUBLISHED") return "Опубликовано";
-  if (status === "ARCHIVED") return "Архив";
-  return "Черновик";
+const CategoryMenuCloseContext = createContext<(() => void) | null>(null);
+
+const CategoryMenuPaper = forwardRef<HTMLDivElement, PaperProps>(function CategoryMenuPaper({ children, sx, ...props }, ref) {
+  const closeMenu = useContext(CategoryMenuCloseContext);
+
+  return (
+    <Paper
+      ref={ref}
+      {...props}
+      sx={[{ display: "flex", flexDirection: "column", overflow: "hidden" }, ...(Array.isArray(sx) ? sx : [sx])]}
+    >
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexShrink: 0,
+          width: "100%",
+          boxSizing: "border-box",
+          minHeight: 56,
+          px: 2,
+          bgcolor: "background.paper",
+        }}
+      >
+        <Typography component="span" sx={{ fontSize: 16, lineHeight: 1.4, color: "text.primary" }}>
+          Категория
+        </Typography>
+        <IconButton
+          aria-label="Закрыть"
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            closeMenu?.();
+          }}
+          onMouseDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            closeMenu?.();
+          }}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            closeMenu?.();
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </Box>
+      <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>{children}</Box>
+    </Paper>
+  );
+});
+
+function ServiceEditorActions({
+  disabled,
+  onPublish,
+  onDraft,
+}: {
+  disabled: boolean;
+  onPublish: () => void;
+  onDraft: () => void;
+}) {
+  return (
+    <Stack direction={{ xs: "row", md: "column" }} spacing={2} useFlexGap>
+      <Button
+        type="button"
+        variant="contained"
+        disabled={disabled}
+        onClick={onPublish}
+        sx={{
+          order: { xs: 2, md: 1 },
+          flex: { xs: 1, md: "unset" },
+          bgcolor: "text.primary",
+          color: "background.default",
+          "&:hover": { bgcolor: "text.primary", filter: "brightness(1.08)" },
+          "&.Mui-disabled": { bgcolor: "action.disabledBackground", color: "text.disabled" },
+        }}
+      >
+        Опубликовать
+      </Button>
+      <Button
+        type="button"
+        variant="outlined"
+        disabled={disabled}
+        onClick={onDraft}
+        sx={{
+          order: { xs: 1, md: 2 },
+          flex: { xs: 1, md: "unset" },
+          color: "text.primary",
+          borderColor: "text.primary",
+          "&:hover": { borderColor: "text.primary", bgcolor: "action.hover" },
+        }}
+      >
+        Черновик
+      </Button>
+    </Stack>
+  );
 }
 
-function statusHelperText(status: ServiceStatus) {
-  if (status === "PUBLISHED") {
-    return "Карточка будет видна в публичной витрине и сможет собирать заявки.";
-  }
-  if (status === "ARCHIVED") {
-    return "Услуга останется в истории provider, но исчезнет из публичной витрины.";
-  }
-  return "Черновик виден только внутри кабинета исполнителя и подходит для подготовки карточки.";
+function providerCityPlace(city: AuthCity): ServicePlace {
+  return {
+    kind: "city",
+    cityId: city.id,
+    name: city.name,
+    regionCode: city.regionCode,
+    regionName: city.regionName,
+  };
 }
-
-const PALETTE_OPTIONS = [
-  { value: "", label: "Без акцентного цвета" },
-  { value: "primary", label: "Primary" },
-  { value: "secondary", label: "Secondary" },
-  { value: "info", label: "Info" },
-  { value: "success", label: "Success" },
-  { value: "warning", label: "Warning" },
-  { value: "error", label: "Error" },
-] as const;
-
-const ICON_OPTIONS = [
-  { value: "", label: "Без иконки" },
-  { value: "map", label: "Map" },
-  { value: "electric", label: "Electric" },
-  { value: "architecture", label: "Architecture" },
-] as const;
 
 function createInitialState(service?: ServiceDto): ServiceFormState {
   return {
     categoryId: service?.categoryId ?? "",
     status: service?.status ?? "DRAFT",
     title: service?.title ?? "",
-    price: service?.price ?? "",
-    ctaText: service?.ctaText ?? "Оставить заявку",
-    ctaHref: service?.ctaHref ?? "",
+    price: parseServicePriceAmount(service?.price ?? ""),
     image: service?.image ?? "",
-    stockBadge: service?.stockBadge ?? "",
+    stockBadge: (service?.stockBadge ?? "").slice(0, STOCK_BADGE_MAX_LENGTH),
     description: service?.description ?? "",
-    paletteColor: service?.paletteColor ?? "",
-    icon: service?.icon ?? "",
+    paletteColor: service?.paletteColor ?? "primary",
   };
 }
 
@@ -132,15 +217,42 @@ function buildCategoryTree(categories: ServiceCategoryRow[]) {
   return out;
 }
 
-export function ProServiceEditor({ mode, initialService }: Props) {
+export function ProServiceEditor({ mode, initialService, initialProviderCity = null }: Props) {
   const router = useRouter();
+  const categoryMenuFullscreen = useMediaQuery("(max-width:899.95px)");
+  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const suppressCategoryMenuOpen = useRef(false);
+
+  function closeCategoryMenu() {
+    suppressCategoryMenuOpen.current = true;
+    setCategoryMenuOpen(false);
+    window.setTimeout(() => {
+      suppressCategoryMenuOpen.current = false;
+    }, 500);
+  }
   const { user } = useAppSelector((state) => state.auth);
+  const activeMembership =
+    user?.memberships.find((membership) => membership.providerId === user.activeProviderId) ??
+    user?.memberships[0] ??
+    null;
+  const providerCity = activeMembership?.providerCity ?? initialProviderCity;
+  const placesTouched = useRef(mode !== "create");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<ServiceFormState>(() => createInitialState(initialService));
+  const [places, setPlaces] = useState<ServicePlace[]>(() => {
+    if (mode === "edit") return initialService?.places ?? [];
+    return providerCity ? [providerCityPlace(providerCity)] : [];
+  });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [categories, setCategories] = useState<ServiceCategoryRow[] | null>(null);
   const [autofilledTitle, setAutofilledTitle] = useState<string | null>(null);
   const [pendingImage, setPendingImage] = useState<{ file: File; previewUrl: string } | null>(null);
+
+  useEffect(() => {
+    if (placesTouched.current) return;
+    setPlaces(providerCity ? [providerCityPlace(providerCity)] : []);
+  }, [providerCity]);
 
   useEffect(() => {
     fetch("/api/service-categories")
@@ -155,16 +267,6 @@ export function ProServiceEditor({ mode, initialService }: Props) {
         setCategories([]);
       });
   }, []);
-
-  useEffect(() => {
-    if (categories && !form.categoryId) {
-      const leaf = categories.find((c) => c.parentId != null) ?? null;
-      const fallback = leaf ?? categories[0] ?? null;
-      if (fallback) {
-        setForm((current) => ({ ...current, categoryId: fallback.id }));
-      }
-    }
-  }, [categories, form.categoryId]);
 
   useEffect(() => {
     if (!categories) return;
@@ -197,14 +299,6 @@ export function ProServiceEditor({ mode, initialService }: Props) {
     };
   }, [pendingImage]);
 
-  const activeMembership =
-    user?.memberships.find((membership) => membership.providerId === user.activeProviderId) ??
-    user?.memberships[0] ??
-    null;
-  const canArchive = user?.systemRole === "PLATFORM_ADMIN" || activeMembership?.role === "OWNER";
-  const showArchivedOption = mode === "edit" && (initialService?.status === "ARCHIVED" || canArchive);
-
-  const title = mode === "create" ? "Новая услуга" : "Редактирование услуги";
   const endpoint = mode === "create" ? "/api/pro/services" : `/api/pro/services/${initialService?.id}`;
   const method = mode === "create" ? "POST" : "PATCH";
 
@@ -212,16 +306,16 @@ export function ProServiceEditor({ mode, initialService }: Props) {
     return {
       categoryId: form.categoryId,
       title: form.title,
-      price: form.price,
-      ctaText: form.ctaText,
-      ctaHref: normalizeNullableString(form.ctaHref),
+      price: formatServicePriceStored(form.price),
       image: normalizeNullableString(form.image),
       stockBadge: normalizeNullableString(form.stockBadge),
       description: normalizeNullableString(form.description),
-      paletteColor: normalizeNullableString(form.paletteColor),
-      icon: normalizeNullableString(form.icon),
+      paletteColor: normalizeNullableString(form.stockBadge)
+        ? normalizeNullableString(form.paletteColor)
+        : null,
+      places: places.map(toPlaceInput),
     };
-  }, [form]);
+  }, [form, places]);
 
   const validationIssues = useMemo(() => {
     const issues: string[] = [];
@@ -230,14 +324,17 @@ export function ProServiceEditor({ mode, initialService }: Props) {
       issues.push("Укажите название услуги.");
     }
     if (!form.price.trim()) {
-      issues.push("Заполните цену или формат цены.");
+      issues.push("Укажите цену.");
     }
-    if (!form.ctaText.trim()) {
-      issues.push("Укажите текст CTA.");
+    if (!form.categoryId) {
+      issues.push("Выберите категорию.");
+    }
+    if (places.length === 0) {
+      issues.push("Выберите город или область.");
     }
 
     return issues;
-  }, [form]);
+  }, [form, places.length]);
 
   const previewItem = useMemo(() => {
     const previewImage = pendingImage?.previewUrl ?? normalizeNullableString(form.image);
@@ -247,24 +344,23 @@ export function ProServiceEditor({ mode, initialService }: Props) {
       title: form.title.trim() || "Название услуги появится здесь",
       image: previewImage,
       stockBadge: normalizeNullableString(form.stockBadge),
-      price: form.price.trim() || "Цена не указана",
+      paletteColor: normalizeNullableString(form.stockBadge) ? form.paletteColor || null : null,
+      price: formatServicePriceStored(form.price) || "Цена не указана",
       provider: {
         id: activeMembership?.providerId ?? "preview-provider",
-        name: activeMembership?.providerName ?? "Провайдер",
+        name: activeMembership?.providerName ?? "Исполнитель",
         city: activeMembership?.providerCity ?? null,
       },
       rating: initialService?.rating ?? null,
       reviewCount: initialService?.reviewCount ?? null,
-      ctaText: form.ctaText.trim() || "Оставить заявку",
-      ctaHref: normalizeNullableString(form.ctaHref),
+      places,
     };
   }, [
     activeMembership?.providerCity,
     activeMembership?.providerId,
     activeMembership?.providerName,
-    form.ctaHref,
-    form.ctaText,
     form.image,
+    form.paletteColor,
     form.price,
     form.stockBadge,
     form.title,
@@ -272,13 +368,10 @@ export function ProServiceEditor({ mode, initialService }: Props) {
     initialService?.rating,
     initialService?.reviewCount,
     pendingImage?.previewUrl,
+    places,
   ]);
 
-  const statusOptions: ServiceStatus[] = showArchivedOption
-    ? ["DRAFT", "PUBLISHED", "ARCHIVED"]
-    : ["DRAFT", "PUBLISHED"];
-
-  async function submitForm(nextStatus?: ServiceStatus) {
+  async function submitForm(nextStatus: ServiceStatus) {
     if (validationIssues.length > 0) {
       setError(validationIssues[0]);
       return;
@@ -288,12 +381,7 @@ export function ProServiceEditor({ mode, initialService }: Props) {
     setError(null);
 
     try {
-      const requestPayload =
-        mode === "create"
-          ? { ...payload, status: nextStatus ?? form.status }
-          : nextStatus
-            ? { ...payload, status: nextStatus }
-            : { ...payload, status: form.status };
+      const requestPayload = { ...payload, status: nextStatus };
 
       const response = await fetch(endpoint, {
         method,
@@ -416,10 +504,21 @@ export function ProServiceEditor({ mode, initialService }: Props) {
     }
   }
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await submitForm();
   }
+
+  function openImagePicker() {
+    fileInputRef.current?.click();
+  }
+
+  function onPlacesChange(next: ServicePlace[]) {
+    placesTouched.current = true;
+    setPlaces(next);
+  }
+
+  const hasImage = Boolean(pendingImage || form.image.trim());
+  const canRemoveImage = hasImage && (mode === "edit" || Boolean(pendingImage));
 
   function onSelectImage(file: File) {
     setError(null);
@@ -451,422 +550,387 @@ export function ProServiceEditor({ mode, initialService }: Props) {
     void deleteImage();
   }
 
+  const priceLabel = formatServicePriceAmount(form.price);
+  const actionsDisabled = busy || validationIssues.length > 0;
+
   return (
-    <Stack direction={{ xs: "column", xl: "row" }} spacing={3} sx={{
-      alignItems: "flex-start"
-    }}>
-      <Box component="form" onSubmit={onSubmit} sx={{ flex: 1, width: "100%" }}>
-        <Stack spacing={3}>
-          <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 } }}>
-            <Stack spacing={2}>
-              <Box>
-                <Typography variant="h6" gutterBottom sx={{
-                  fontWeight: 800
-                }}>
-                  {title}
-                </Typography>
-                <Typography sx={{
-                  color: "text.secondary"
-                }}>
-                  Соберите карточку услуги, выберите ее состояние в каталоге и подготовьте основу для
-                  дальнейших заявок.
-                </Typography>
-              </Box>
+    <Stack spacing={{ xs: 2, md: 5 }} sx={{ width: "100%", maxWidth: { md: 1040 }, mx: "auto" }}>
+      <Stack
+        direction="row"
+        sx={{ alignItems: "center", width: "100%", maxWidth: { xs: 440, md: "none" }, mx: { xs: "auto", md: 0 } }}
+      >
+        <IconButton
+          aria-label="Назад"
+          disabled={busy}
+          onClick={() => router.push("/pro/services/list")}
+        >
+          <ArrowBackIosNewIcon sx={{ fontSize: 18 }} />
+        </IconButton>
+        <Typography
+          component="h1"
+          sx={{ flex: 1, textAlign: "center", fontWeight: 700, pr: 5 }}
+        >
+          {mode === "create" ? "Новая услуга" : "Редактировать услугу"}
+        </Typography>
+      </Stack>
+      <Stack spacing={1.5} sx={{ display: { md: "none" }, width: "100%", maxWidth: 440, mx: "auto" }}>
+      <Stack spacing={1.5} sx={{ alignItems: "flex-start" }}>
+          
+          <Box
+            role="button"
+            tabIndex={busy ? -1 : 0}
+            aria-label="Загрузить фото"
+            aria-disabled={busy}
+            onClick={() => {
+              if (!busy) openImagePicker();
+            }}
+            onKeyDown={(event) => {
+              if (event.target !== event.currentTarget || busy) return;
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                openImagePicker();
+              }
+            }}
+            sx={{ width: "100%", cursor: busy ? "default" : "pointer", borderRadius: 1 }}
+          >
+            <ServiceCard item={previewItem} linked={false} />
+          </Box>
+          <Stack direction="row" sx={{ width: "100%", alignItems: "center", justifyContent: "space-between" }}>
+            <Button
+              type="button"
+              variant="text"
+              color="error"
+              disabled={busy || !canRemoveImage}
+              onClick={onRemoveImage}
+              sx={{ color: "error.main", "&.Mui-disabled": { color: "text.disabled" } }}
+            >
+              Удалить
+            </Button>
+            <IconButton aria-label="Загрузить фото" disabled={busy} onClick={openImagePicker}>
+              <PhotoCameraOutlinedIcon sx={{ color: "primary.main" }} />
+            </IconButton>
+            <Button type="button" variant="text" color="success" disabled={busy} onClick={openImagePicker} sx={{ color: "success.main" }}>
+              Добавить
+            </Button>
+          </Stack>
+        </Stack>
+      </Stack>
+      <Paper
+        component="form"
+        onSubmit={onSubmit}
+        elevation={0}
+        sx={{
+          overflow: "hidden",
+          borderRadius: { xs: 0, md: 3 },
+          bgcolor: "background.paper",
+          position: { xs: "relative", md: "static" },
+          left: { xs: "calc(50% - 50vw)", md: "auto" },
+          width: { xs: "100vw", md: "auto" },
+          maxWidth: { xs: "100vw", md: "none" },
+        }}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          hidden
+          accept="image/jpeg,image/png,image/webp"
+          onChange={(event) => {
+            const file = event.target.files?.[0] ?? null;
+            event.currentTarget.value = "";
+            if (file) onSelectImage(file);
+          }}
+        />
+        {error ? <Alert severity="error" sx={{ borderRadius: 0 }}>{error}</Alert> : null}
 
-              <Stack direction={{ xs: "column", md: "row" }} spacing={1} useFlexGap sx={{
-                flexWrap: "wrap"
-              }}>
-                <Chip
-                  label={`Текущий статус: ${statusLabel(form.status)}`}
-                  color={form.status === "PUBLISHED" ? "success" : form.status === "ARCHIVED" ? "default" : "warning"}
-                  variant={form.status === "ARCHIVED" ? "outlined" : "filled"}
-                />
-                {activeMembership ? (
-                  <Chip label={`Исполнитель: ${activeMembership.providerName}`} variant="outlined" />
-                ) : null}
-              </Stack>
-
-              {validationIssues.length > 0 ? (
-                <Alert severity="warning">
-                  Чтобы сохранить услугу, заполните обязательные поля. Сейчас осталось исправить:{" "}
-                  {validationIssues[0]}
-                </Alert>
-              ) : null}
-
-              {error ? <Alert severity="error">{error}</Alert> : null}
-            </Stack>
-          </Paper>
-
-          <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 } }}>
-            <Stack spacing={2}>
-              <Typography variant="subtitle1" sx={{
-                fontWeight: 800
-              }}>
-                Основное
+        {/* На мобиле колонки распадаются в один поток: display:contents отдаёт детей внешнему flex, порядок задаёт order. */}
+        <Box
+          sx={{
+            display: { xs: "flex", md: "grid" },
+            flexDirection: "column",
+            gap: { xs: 2, md: 0 },
+            gridTemplateColumns: { md: "minmax(0, 1fr) 340px" },
+            alignItems: { md: "stretch" },
+          }}
+        >
+          <Box
+            sx={{
+              display: { xs: "contents", md: "flex" },
+              flexDirection: "column",
+              gap: 3,
+              p: { md: 3 },
+              bgcolor: { md: "action.hover" },
+              minWidth: 0,
+            }}
+          >
+            <Box
+              sx={{
+                display: { xs: "contents", md: "flex" },
+                gap: 2,
+                alignItems: "flex-start",
+              }}
+            >
+            <Stack
+              spacing={1.5}
+              sx={{
+                display: { xs: "none", md: "flex" },
+                alignItems: "flex-start",
+                width: 320,
+                flexShrink: 0,
+              }}
+            >
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                Превью карточки
               </Typography>
-
-              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                <TextField
-                  select
-                  label="Категория"
-                  value={form.categoryId}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      categoryId: event.target.value,
-                    }))
+              <Box
+                role="button"
+                tabIndex={busy ? -1 : 0}
+                aria-label="Загрузить фото"
+                aria-disabled={busy}
+                onClick={() => {
+                  if (!busy) openImagePicker();
+                }}
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget || busy) return;
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    openImagePicker();
                   }
-                  disabled={busy}
-                  fullWidth
-                >
-                  {buildCategoryTree(categories ?? []).map(({ node, depth }) =>
-                    depth === 0 ? (
-                      <ListSubheader
-                        key={`cat-${node.id}`}
-                        disableSticky
-                        sx={{
-                          fontWeight: 900,
-                          fontSize: 14,
-                          lineHeight: 2.2,
-                          color: "text.primary",
-                          bgcolor: "transparent",
-                        }}
-                      >
-                        {node.name}
-                      </ListSubheader>
-                    ) : (
-                      <MenuItem key={node.id} value={node.id}>
-                        {"—".repeat(depth)} {node.name}
-                      </MenuItem>
-                    )
-                  )}
-                </TextField>
+                }}
+                sx={{
+                  width: "100%",
+                  cursor: busy ? "default" : "pointer",
+                  borderRadius: 1,
+                }}
+              >
+                <ServiceCard item={previewItem} linked={false} />
+              </Box>
+              {canRemoveImage ? (
+                <Button type="button" variant="text" color="error" disabled={busy} onClick={onRemoveImage}>
+                  Удалить фото
+                </Button>
+              ) : null}
+            </Stack>
+            <Box sx={{ display: { xs: "none", md: "block" }, flex: 1, minWidth: 0, pt: 4 }}>
+              <ServicePlaceChips value={places} onChange={onPlacesChange} disabled={busy} />
+            </Box>
+            </Box>
 
-                <TextField
-                  select
-                  label="Статус"
-                  value={form.status}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      status: event.target.value as EditableServiceStatus,
-                    }))
-                  }
-                  disabled={busy}
-                  fullWidth
-                  helperText={statusHelperText(form.status)}
-                >
-                  {statusOptions.map((status) => (
-                    <MenuItem key={status} value={status}>
-                      {statusLabel(status)}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Stack>
-
+            <Stack spacing={2} sx={{ order: { xs: 2, md: 0 }, px: { xs: 2, md: 0 }, pt: { xs: 2.5, md: 0 } }}>
+              <CategoryMenuCloseContext.Provider value={closeCategoryMenu}>
               <TextField
-                label="Название услуги"
+                select
+                size="small"
+                label="Категория"
+                value={form.categoryId}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    categoryId: event.target.value,
+                  }))
+                }
+                disabled={busy}
+                required
+                fullWidth
+                slotProps={{
+                  htmlInput: { "aria-label": "Категория" },
+                  select: {
+                    ...(categoryMenuFullscreen
+                      ? {
+                          open: categoryMenuOpen,
+                          onOpen: () => {
+                            if (suppressCategoryMenuOpen.current) return;
+                            setCategoryMenuOpen(true);
+                          },
+                          onClose: () => setCategoryMenuOpen(false),
+                        }
+                      : {}),
+                    MenuProps: categoryMenuFullscreen
+                      ? {
+                          marginThreshold: 0,
+                          slots: { paper: CategoryMenuPaper },
+                          slotProps: {
+                            paper: {
+                              sx: {
+                                position: "fixed",
+                                top: "0 !important",
+                                left: "0 !important",
+                                m: "0 !important",
+                                width: "100vw !important",
+                                maxWidth: "100vw !important",
+                                height: "100dvh !important",
+                                maxHeight: "100dvh !important",
+                                borderRadius: 0,
+                                transform: "none !important",
+                              },
+                            },
+                            list: {
+                              sx: { maxHeight: "none", py: 1 },
+                            },
+                          },
+                        }
+                      : undefined,
+                  },
+                }}
+              >
+                <MenuItem value="" sx={categoryMenuFullscreen ? { display: "none" } : undefined}>
+                  Выберите категорию
+                </MenuItem>
+                {buildCategoryTree(categories ?? []).map(({ node, depth }) =>
+                  depth === 0 ? (
+                    <ListSubheader
+                      key={`cat-${node.id}`}
+                      disableSticky
+                      sx={{
+                        fontWeight: 900,
+                        fontSize: 14,
+                        lineHeight: 1.4,
+                        py: 1,
+                        whiteSpace: "normal",
+                        color: "text.primary",
+                        bgcolor: "transparent",
+                      }}
+                    >
+                      {node.name}
+                    </ListSubheader>
+                  ) : (
+                    <MenuItem
+                      key={node.id}
+                      value={node.id}
+                      sx={{ whiteSpace: "normal", height: "auto", alignItems: "flex-start", py: 1 }}
+                    >
+                      {"—".repeat(depth)} {node.name}
+                    </MenuItem>
+                  )
+                )}
+              </TextField>
+              </CategoryMenuCloseContext.Provider>
+              <TextField
+                size="small"
+                label="Название"
                 value={form.title}
                 onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
                 disabled={busy}
                 required
                 fullWidth
-                helperText="Название попадет в каталог и в карточку услуги."
+                slotProps={{ htmlInput: { "aria-label": "Название" } }}
               />
+            </Stack>
 
-              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                <TextField
-                  label="Цена"
-                  value={form.price}
-                  onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))}
-                  disabled={busy}
-                  required
-                  fullWidth
-                  helperText='Например: "от 15 000 ₽"'
-                />
-                <TextField
-                  label="Текст CTA"
-                  value={form.ctaText}
-                  onChange={(event) => setForm((current) => ({ ...current, ctaText: event.target.value }))}
-                  disabled={busy}
-                  required
-                  fullWidth
-                  helperText='Например: "Оставить заявку" или "Записаться"'
-                />
-              </Stack>
-
-              {/* advance-based workflow removed */}
-
+            <Stack spacing={2.5} sx={{ order: { xs: 3, md: 0 }, px: { xs: 2, md: 0 }, pb: { xs: 2, md: 0 } }}>
               <TextField
-                label="Ссылка CTA"
-                value={form.ctaHref}
-                onChange={(event) => setForm((current) => ({ ...current, ctaHref: event.target.value }))}
-                disabled={busy}
-                fullWidth
-                helperText="Можно оставить пустой, если действие будет вести в отдельный flow заявки."
-              />
-
-              <TextField
+                size="small"
                 label="Описание"
                 value={form.description}
                 onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
                 disabled={busy}
                 fullWidth
                 multiline
-                minRows={5}
-                helperText="Коротко опишите ценность и содержание услуги."
+                minRows={4}
+                placeholder="Коротко опишите ценность и содержание услуги..."
               />
             </Stack>
-          </Paper>
+          </Box>
 
-          <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 } }}>
-            <Stack spacing={2}>
-              <Typography variant="subtitle1" sx={{
-                fontWeight: 800
-              }}>
-                Оформление карточки
-              </Typography>
-
-              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                <TextField
-                  label="Stock badge"
-                  value={form.stockBadge}
-                  onChange={(event) => setForm((current) => ({ ...current, stockBadge: event.target.value }))}
-                  disabled={busy}
-                  fullWidth
-                  helperText='Например: "Осталось 3 слота"'
-                />
-              </Stack>
-
-              <Stack spacing={1}>
-                {pendingImage ? (
-                  <Stack spacing={1}>
-                    <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                      Изображение выбрано и будет загружено после сохранения услуги.
-                    </Typography>
-                    <Box
-                      component="img"
-                      alt="Выбранное изображение услуги"
-                      src={pendingImage.previewUrl}
-                      sx={{
-                        width: 300,
-                        height: 300,
-                        objectFit: "cover",
-                        borderRadius: 1,
-                        border: "1px solid",
-                        borderColor: "divider",
-                      }}
-                    />
-                  </Stack>
-                ) : form.image.trim().length ? (
-                  <Stack spacing={1}>
-                    <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                      Изображение загружено.
-                    </Typography>
-                    <CdnImage
-                      alt="Загруженное изображение услуги"
-                      src={form.image}
-                      sx={{
-                        width: 300,
-                        height: 300,
-                        objectFit: "cover",
-                        borderRadius: 1,
-                        border: "1px solid",
-                        borderColor: "divider",
-                      }}
-                    />
-                  </Stack>
-                ) : (
-                  <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                    Изображение не загружено. Выберите файл кнопкой ниже.
-                  </Typography>
-                )}
-
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  spacing={1}
-                  useFlexGap
-                  sx={{
-                    alignItems: { sm: "center" },
-                    flexWrap: "wrap"
-                  }}>
-                  <Button
-                    variant="outlined"
-                    component="label"
+          <Box
+            sx={{
+              display: { xs: "contents", md: "flex" },
+              flexDirection: "column",
+              gap: 2.5,
+              p: { md: 3 },
+              minWidth: 0,
+              height: { md: "100%" },
+            }}
+          >
+            <Stack spacing={2} sx={{ order: { xs: 4, md: 0 }, px: { xs: 2, md: 0 }, pb: { xs: 2, md: 0 } }}>
+              <TextField
+                size="small"
+                label="Цена"
+                value={priceLabel}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    price: parseServicePriceAmount(event.target.value),
+                  }))
+                }
+                disabled={busy}
+                required
+                fullWidth
+                placeholder="15 000"
+                slotProps={{ htmlInput: { inputMode: "numeric", "aria-label": "Цена" } }}
+              />
+              <Typography sx={{ display: { md: "none" }, fontWeight: 800 }}>География</Typography>
+              <ServiceGeographyField
+                value={places}
+                onChange={onPlacesChange}
+                disabled={busy}
+                size="small"
+                label="Локация"
+                showChips={false}
+                error={places.length === 0}
+                helperText={places.length === 0 ? "Выберите город или область" : "Город или целая область. Можно несколько."}
+              />
+              <Box sx={{ display: { md: "none" } }}>
+                <ServicePlaceChips value={places} onChange={onPlacesChange} disabled={busy} hideHeading />
+              </Box>
+              <Stack spacing={0.75}>
+                <Box sx={{ display: { xs: "none", md: "block" } }}>
+                  <StockBadgeField
+                    value={form.stockBadge}
                     disabled={busy}
-                  >
-                    Загрузить изображение (JPG/PNG/WebP)
-                    <input
-                      type="file"
-                      hidden
-                      accept="image/jpeg,image/png,image/webp"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0] ?? null;
-                        e.currentTarget.value = "";
-                        if (f) onSelectImage(f);
-                      }}
-                    />
-                  </Button>
-                  <Button
-                    variant="text"
-                    color="error"
-                    disabled={busy || (!pendingImage && !form.image.trim()) || (mode !== "edit" && !pendingImage)}
-                    onClick={onRemoveImage}
-                  >
-                    Удалить изображение
-                  </Button>
-                </Stack>
-              </Stack>
-
-              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                <TextField
-                  select
-                  label="Palette color"
-                  value={form.paletteColor}
-                  onChange={(event) => setForm((current) => ({ ...current, paletteColor: event.target.value }))}
-                  disabled={busy}
-                  fullWidth
-                >
-                  {PALETTE_OPTIONS.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </TextField>
-
-                <TextField
-                  select
-                  label="Icon"
-                  value={form.icon}
-                  onChange={(event) => setForm((current) => ({ ...current, icon: event.target.value }))}
-                  disabled={busy}
-                  fullWidth
-                >
-                  {ICON_OPTIONS.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                    onChange={(stockBadge) => setForm((current) => ({ ...current, stockBadge }))}
+                    endAdornment={
+                      <DesktopLabelColor
+                        value={form.paletteColor}
+                        disabled={busy}
+                        onChange={(color) => setForm((current) => ({ ...current, paletteColor: color }))}
+                      />
+                    }
+                  />
+                </Box>
+                <Box sx={{ display: { md: "none" } }}>
+                  <MobileLabelColor
+                    badge={form.stockBadge}
+                    onBadgeChange={(stockBadge) => setForm((current) => ({ ...current, stockBadge }))}
+                    color={form.paletteColor}
+                    disabled={busy}
+                    onColorChange={(color) => setForm((current) => ({ ...current, paletteColor: color }))}
+                  />
+                </Box>
+                <Typography variant="caption" sx={{ color: "text.secondary", pl: "10px" }}>
+                  Максимум {STOCK_BADGE_MAX_LENGTH} символа
+                </Typography>
               </Stack>
             </Stack>
-          </Paper>
 
-          <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 } }}>
-            <Stack spacing={2}>
-              <Typography variant="subtitle1" sx={{
-                fontWeight: 800
-              }}>
-                Действия
-              </Typography>
-
-              <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} useFlexGap sx={{
-                flexWrap: "wrap"
-              }}>
-                <Button type="submit" variant="contained" disabled={busy || validationIssues.length > 0}>
-                  {mode === "create" ? "Сохранить услугу" : "Сохранить изменения"}
-                </Button>
-
-                {form.status !== "DRAFT" ? (
-                  <Button
-                    type="button"
-                    variant="outlined"
-                    disabled={busy || validationIssues.length > 0}
-                    onClick={() => {
-                      setForm((current) => ({ ...current, status: "DRAFT" }));
-                      void submitForm("DRAFT");
-                    }}
-                  >
-                    Сохранить как черновик
-                  </Button>
-                ) : null}
-
-                {form.status !== "PUBLISHED" ? (
-                  <Button
-                    type="button"
-                    variant="outlined"
-                    disabled={busy || validationIssues.length > 0}
-                    onClick={() => {
-                      setForm((current) => ({ ...current, status: "PUBLISHED" }));
-                      void submitForm("PUBLISHED");
-                    }}
-                  >
-                    Сохранить и опубликовать
-                  </Button>
-                ) : null}
-
-                <Button
-                  type="button"
-                  variant="text"
-                  disabled={busy}
-                  onClick={() => router.push("/pro/services/list")}
-                >
-                  Отмена
-                </Button>
-              </Stack>
-            </Stack>
-          </Paper>
-        </Stack>
-      </Box>
-
-      <Stack
-        spacing={3}
-        sx={{
-          width: "100%",
-          maxWidth: { xl: 380 },
-          alignSelf: { xl: "flex-start" },
-          position: { xl: "sticky" },
-          top: { xl: SITE_STICKY_TOP_PX },
-          maxHeight: { xl: `calc(100dvh - ${SITE_STICKY_TOP_PX}px)` },
-          overflowY: { xl: "auto" },
-          zIndex: 1,
-        }}
-      >
-        <Stack spacing={2}>
-            <Box>
-              <Typography variant="subtitle1" gutterBottom sx={{
-                fontWeight: 800
-              }}>
-                Превью карточки
-              </Typography>
-              <Typography variant="body2" sx={{
-                color: "text.secondary"
-              }}>
-                Так выглядит публичная карточка услуги при текущем заполнении.
-              </Typography>
+            <Box sx={{ display: { xs: "none", md: "block" }, mt: "auto" }}>
+              <ServiceEditorActions
+                disabled={actionsDisabled}
+                onPublish={() => {
+                  setForm((current) => ({ ...current, status: "PUBLISHED" }));
+                  void submitForm("PUBLISHED");
+                }}
+                onDraft={() => {
+                  setForm((current) => ({ ...current, status: "DRAFT" }));
+                  void submitForm("DRAFT");
+                }}
+              />
             </Box>
-
-            <Divider />
-
-            <Box sx={{ pointerEvents: "none" }}>
-              <ServiceCard item={previewItem} />
-            </Box>
-          </Stack>
-
-        <Paper variant="outlined" sx={{ p: 2.5 }}>
-          <Stack spacing={1.5}>
-            <Typography variant="subtitle2" sx={{
-              fontWeight: 800
-            }}>
-              Подсказка по состояниям
-            </Typography>
-            <Typography variant="body2" sx={{
-              color: "text.secondary"
-            }}>
-              Черновик: безопасный режим для подготовки карточки внутри provider.
-            </Typography>
-            <Typography variant="body2" sx={{
-              color: "text.secondary"
-            }}>
-              Публикация: услуга станет видна клиентам и сможет вести к заявке.
-            </Typography>
-            <Typography variant="body2" sx={{
-              color: "text.secondary"
-            }}>
-              Архив: услуга уйдет из публичной витрины, но останется в истории provider.
-            </Typography>
-          </Stack>
-        </Paper>
+          </Box>
+        </Box>
+      </Paper>
+      <Stack spacing={2} sx={{ display: { md: "none" }, width: "100%", maxWidth: 440, mx: "auto" }}>
+        <ServiceCard item={previewItem} linked={false} />
+        <ServiceEditorActions
+          disabled={actionsDisabled}
+          onPublish={() => {
+            setForm((current) => ({ ...current, status: "PUBLISHED" }));
+            void submitForm("PUBLISHED");
+          }}
+          onDraft={() => {
+            setForm((current) => ({ ...current, status: "DRAFT" }));
+            void submitForm("DRAFT");
+          }}
+        />
       </Stack>
     </Stack>
   );

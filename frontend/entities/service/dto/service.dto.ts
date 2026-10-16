@@ -12,7 +12,7 @@ import {
   type ValidationError,
   ValidateIf,
 } from "class-validator";
-import type { ServiceIconKey, ServicePaletteColor } from "@/entities/service/types";
+import type { ServicePaletteColor } from "@/entities/service/types";
 
 export type ServiceStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 
@@ -31,14 +31,8 @@ const PALETTE_COLORS: readonly ServicePaletteColor[] = [
   "error",
 ] as const;
 
-const ICON_KEYS: readonly ServiceIconKey[] = ["map", "electric", "architecture"] as const;
-
 function isPaletteColor(v: unknown): v is ServicePaletteColor {
   return typeof v === "string" && (PALETTE_COLORS as readonly string[]).includes(v);
-}
-
-function isIconKey(v: unknown): v is ServiceIconKey {
-  return typeof v === "string" && (ICON_KEYS as readonly string[]).includes(v);
 }
 
 function trimOrNull(v: unknown): string | null | undefined {
@@ -108,6 +102,14 @@ export class ServiceProviderRefDto {
   name!: string;
 
   @Expose()
+  @IsString()
+  slug!: string;
+
+  @Expose()
+  @IsBoolean()
+  verified!: boolean;
+
+  @Expose()
   @ValidateIf((_, v) => v !== null && v !== undefined)
   city!: CityRefDto | null;
 }
@@ -165,15 +167,6 @@ export class ServiceDto {
   reviewCount!: number | null;
 
   @Expose()
-  @IsString()
-  ctaText!: string;
-
-  @Expose()
-  @ValidateIf((_, v) => v !== null && v !== undefined)
-  @IsString()
-  ctaHref!: string | null;
-
-  @Expose()
   @ValidateIf((_, v) => v !== null && v !== undefined)
   @IsString()
   description!: string | null;
@@ -185,10 +178,14 @@ export class ServiceDto {
   paletteColor!: ServicePaletteColor | null;
 
   @Expose()
-  @ValidateIf((_, v) => v !== null && v !== undefined)
-  @IsEnum(ICON_KEYS)
-  @Transform(({ value }) => (isIconKey(value) ? value : null), { toClassOnly: true })
-  icon!: ServiceIconKey | null;
+  @Transform(({ value }) => (Array.isArray(value) ? value : []), { toClassOnly: true })
+  places!: Array<{
+    kind: "city" | "region";
+    cityId?: string;
+    name: string;
+    regionCode: string;
+    regionName: string;
+  }>;
 
   @Expose()
   provider!: ServiceProviderRefDto;
@@ -212,11 +209,8 @@ export type ServiceDbRow = {
   price: string;
   rating: number | null;
   reviewCount: number | null;
-  ctaText: string;
-  ctaHref: string | null;
   description: string | null;
   paletteColor: string | null;
-  icon: string | null;
   provider: {
     id: string;
     name: string;
@@ -264,20 +258,6 @@ export class ServiceCreateDto {
   price?: string;
 
   @Expose()
-  @IsOptional()
-  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value), { toClassOnly: true })
-  @ValidateIf((_, v) => v !== null && v !== undefined)
-  @IsString()
-  @MinLength(1)
-  ctaText?: string;
-
-  @Expose()
-  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
-  @ValidateIf((_, v) => v !== null && v !== undefined)
-  @IsString()
-  ctaHref?: string | null;
-
-  @Expose()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
   @ValidateIf((_, v) => v !== null && v !== undefined)
   @IsString()
@@ -312,12 +292,6 @@ export class ServiceCreateDto {
   @ValidateIf((_, v) => v !== null && v !== undefined)
   @IsEnum(PALETTE_COLORS)
   paletteColor?: ServicePaletteColor | null;
-
-  @Expose()
-  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
-  @ValidateIf((_, v) => v !== null && v !== undefined)
-  @IsEnum(ICON_KEYS)
-  icon?: ServiceIconKey | null;
 }
 
 export class ServicePatchDto {
@@ -350,18 +324,6 @@ export class ServicePatchDto {
 
   @Expose()
   @IsOptional()
-  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value), { toClassOnly: true })
-  @IsString()
-  @MinLength(1)
-  ctaText?: string;
-
-  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
-  @ValidateIf((_, v) => v !== null && v !== undefined)
-  @IsString()
-  ctaHref?: string | null;
-
-  @Expose()
-  @IsOptional()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
   @ValidateIf((_, v) => v !== null && v !== undefined)
   @IsString()
@@ -399,13 +361,6 @@ export class ServicePatchDto {
   @ValidateIf((_, v) => v !== null && v !== undefined)
   @IsEnum(PALETTE_COLORS)
   paletteColor?: ServicePaletteColor | null;
-
-  @Expose()
-  @IsOptional()
-  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
-  @ValidateIf((_, v) => v !== null && v !== undefined)
-  @IsEnum(ICON_KEYS)
-  icon?: ServiceIconKey | null;
 }
 
 export function parseServiceCreateDto(body: unknown): { data?: ServiceCreateDto; issues?: unknown } {

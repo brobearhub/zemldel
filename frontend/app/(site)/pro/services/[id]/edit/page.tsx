@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { Box, Stack, Typography } from "@mui/material";
 import type { ServiceDto } from "@/entities/service";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
@@ -29,22 +28,5 @@ export default async function ProServicesEditPage({ params }: Props) {
     throw error;
   }
 
-  return (
-    <Stack spacing={3}>
-      <Box>
-        <Typography variant="h4" gutterBottom sx={{
-          fontWeight: 700
-        }}>
-          Редактировать услугу
-        </Typography>
-        <Typography sx={{
-          color: "text.secondary"
-        }}>
-          Обновите карточку услуги и при необходимости измените ее статус публикации.
-        </Typography>
-      </Box>
-
-      <ProServiceEditor mode="edit" initialService={service} />
-    </Stack>
-  );
+  return <ProServiceEditor mode="edit" initialService={service} />;
 }

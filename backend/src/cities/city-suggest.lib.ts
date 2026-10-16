@@ -35,6 +35,49 @@ export function locationRowRank(row: { typeName: string; level: number }) {
   return base + lowPriorityTypePenalty;
 }
 
+const PLACE_NAME_HERO_PREFIX = 'город-герой ';
+
+/** Экранирует символы LIKE и добавляет префиксный «%». */
+export function placeNameLikePrefix(value: string) {
+  return `${value.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+}
+
+/** Шаблоны имени для подсказки мест: обычное начало и «город-герой ». */
+export function placeNameLikePatterns(query: string) {
+  const prefix = placeNameLikePrefix(query);
+  if (query.toLowerCase().startsWith(PLACE_NAME_HERO_PREFIX.trim())) {
+    return { prefix, heroPrefix: null };
+  }
+  return {
+    prefix,
+    heroPrefix: placeNameLikePrefix(`${PLACE_NAME_HERO_PREFIX}${query}`),
+  };
+}
+
+function foldPlaceQuery(value: string) {
+  return value.trim().toLowerCase().replaceAll('ё', 'е');
+}
+
+const REGION_TYPE_PREFIX =
+  /^(республика|обл\.|край|респ\.|а\.?\s*обл\.|а\.?\s*окр\.|г\.?)\s+/i;
+
+/** Совпадение с начала видимого названия: «ор» → Орловская, не Нижегородская. */
+export function regionMatchesQuery(regionName: string, query: string) {
+  const q = foldPlaceQuery(query);
+  if (q.length < 2) return false;
+  const withoutPrefix = foldPlaceQuery(regionName).replace(
+    REGION_TYPE_PREFIX,
+    '',
+  );
+  const candidates = [
+    withoutPrefix,
+    `${withoutPrefix} область`,
+    `${withoutPrefix} край`,
+    `республика ${withoutPrefix}`,
+  ];
+  return candidates.some((name) => name.startsWith(q));
+}
+
 export function buildDisplayName(row: {
   name: string;
   typeName: string;

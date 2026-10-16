@@ -56,6 +56,7 @@ const publicProviderSelect = {
   phone: true,
   email: true,
   useOwnEmail: true,
+  verificationStatus: true,
   stats: true,
   ownerUser: {
     select: {
@@ -188,6 +189,7 @@ type PublicProviderRow = {
   phone: string | null;
   email: string | null;
   useOwnEmail: boolean;
+  verificationStatus: string;
   stats: unknown;
   ownerUser: { image: string | null; email: string | null } | null;
 };
@@ -446,7 +448,8 @@ export class ProvidersService {
       ...(options?.revealOwnerEmail
         ? { ownerEmail: provider.ownerUser?.email?.trim() || null }
         : {}),
-      availabilityLabel: 'На связи сегодня',
+      verified: provider.verificationStatus === 'VERIFIED',
+      availabilityLabel: '',
       stats,
     };
   }
@@ -755,6 +758,8 @@ export class ProvidersService {
             lastName: person.lastName.trim(),
             middleName: person.middleName?.trim() || null,
             name: userName,
+            // Один город шага профиля: локация исполнителя и город контактного лица.
+            customerCityId: cityId,
           },
         });
 

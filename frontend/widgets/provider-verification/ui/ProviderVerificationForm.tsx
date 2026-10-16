@@ -107,8 +107,10 @@ export function ProviderVerificationForm({ providerId, view }: Props) {
     <Paper component="form" variant="outlined" sx={{ p: 2.5 }} onSubmit={onSubmit}>
       <Stack spacing={2}>
         <Typography variant="h6" sx={{ fontWeight: 700 }}>Проверка реквизитов</Typography>
-        <Alert severity="info">
-          Реквизиты привязываются к профилю. После изменения реквизитов профиль снова уйдёт на проверку.
+        <Alert severity={view.status === "VERIFIED" ? "warning" : "info"}>
+          {view.status === "VERIFIED"
+            ? "Профиль снова уйдёт на проверку, значок пропадёт."
+            : "Реквизиты привязываются к профилю. После изменения реквизитов профиль снова уйдёт на проверку."}
         </Alert>
         {error ? <Alert severity="error">{error}</Alert> : null}
         {isCompany ? (

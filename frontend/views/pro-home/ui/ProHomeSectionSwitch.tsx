@@ -29,10 +29,10 @@ export function ProHomeSectionSwitch({ services, freeRequests, reminders }: Prop
         aria-label="Разделы кабинета"
         sx={{
           display: "flex",
-          flexWrap: "wrap",
-          columnGap: { xs: 2.5, md: 4 },
-          rowGap: 1,
-          alignItems: "baseline",
+          flexWrap: "nowrap",
+          overflowX: "auto",
+          columnGap: 1,
+          alignItems: "stretch",
         }}
       >
         {SECTIONS.map((item) => {
@@ -47,18 +47,22 @@ export function ProHomeSectionSwitch({ services, freeRequests, reminders }: Prop
               onClick={() => setSection(item.id)}
               sx={{
                 m: 0,
-                p: 0,
+                px: 1.5,
+                py: 1,
                 border: 0,
+                borderBottom: "3px solid",
+                borderColor: active ? "text.primary" : "transparent",
                 outline: "none",
-                "&:focus, &:focus-visible": { outline: "none" },
-                bgcolor: "transparent",
+                bgcolor: active ? "action.hover" : "transparent",
                 cursor: "pointer",
                 fontFamily: "inherit",
                 textAlign: "left",
+                whiteSpace: "nowrap",
+                minHeight: 44,
                 fontWeight: active ? 800 : 700,
-                fontSize: { xs: 28, md: 32 },
+                fontSize: 16,
                 lineHeight: 1.2,
-                color: active ? "text.primary" : "text.secondaryLight",
+                color: "text.primary",
               }}
             >
               {item.label}
