@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { Box, Stack, Typography } from "@mui/material";
+import { getServerAuthSession } from "@/core/auth";
+import { getActiveMembership } from "@/core/auth/authorization";
 import { getServiceManagementContext } from "@/core/auth/server-authorization";
 import { ProServiceEditor } from "@/widgets/pro-services/ui/ProServiceEditor";
 
@@ -10,23 +11,10 @@ export default async function ProServicesCreatePage() {
     notFound();
   }
 
-  return (
-    <Stack spacing={3}>
-      <Box>
-        <Typography variant="h4" gutterBottom sx={{
-          fontWeight: 700
-        }}>
-          Создать услугу
-        </Typography>
-        <Typography sx={{
-          color: "text.secondary"
-        }}>
-          Подготовьте черновик или сразу опубликуйте услугу, которая потом будет собирать заявки
-          по вашему provider.
-        </Typography>
-      </Box>
+  const session = await getServerAuthSession();
+  const providerCity = session?.user
+    ? (getActiveMembership(session.user)?.providerCity ?? null)
+    : null;
 
-      <ProServiceEditor mode="create" />
-    </Stack>
-  );
+  return <ProServiceEditor mode="create" initialProviderCity={providerCity} />;
 }

@@ -1022,6 +1022,7 @@ async function parseFromNestedRegionZips(rootDir: string) {
 
 async function persistGarCities(
   cities: GarCitySnapshotRow[],
+  regionNameByCode: Map<string, string>,
   opts: { mode: string; sourceLabel: string | null },
 ): Promise<void> {
   console.log(`Ready to reconcile: ${cities.length} city row(s).`);
@@ -1030,6 +1031,7 @@ async function persistGarCities(
   const prisma = new PrismaClient({ adapter });
   try {
     const stats = await reconcileGarCities(prisma, cities, opts, 1000);
+    await replaceRegions(prisma, regionNameByCode);
 
     console.log('Reconcile stats:');
     console.log(`  run id:           ${stats.runId}`);
@@ -1038,10 +1040,37 @@ async function persistGarCities(
     console.log(`  updated:          ${stats.updatedCount}`);
     console.log(`  deactivated:      ${stats.deactivatedCount}`);
     console.log(`  reactivated:      ${stats.reactivatedCount}`);
+    console.log(`  regions:          ${regionNameByCode.size}`);
     console.log('Done.');
   } finally {
     await prisma.$disconnect();
   }
+}
+
+async function replaceRegions(
+  prisma: PrismaClient,
+  regionNameByCode: Map<string, string>,
+) {
+  const rows = [...regionNameByCode.entries()]
+    .map(([regionCode, regionName]) => ({
+      regionCode: regionCode.trim(),
+      regionName: regionName.trim(),
+    }))
+    .filter((row) => row.regionCode && row.regionName);
+  if (rows.length === 0) return;
+
+  await prisma.$transaction(async (tx) => {
+    for (const row of rows) {
+      await tx.region.upsert({
+        where: { regionCode: row.regionCode },
+        create: row,
+        update: { regionName: row.regionName },
+      });
+    }
+    await tx.region.deleteMany({
+      where: { regionCode: { notIn: rows.map((row) => row.regionCode) } },
+    });
+  });
 }
 
 function buildCitiesFromParsed(
@@ -1122,7 +1151,7 @@ async function main() {
       parsed.regionNameByCode,
     );
 
-    await persistGarCities(cities, {
+    await persistGarCities(cities, parsed.regionNameByCode, {
       mode,
       sourceLabel: args.zip ?? null,
     });
@@ -1171,7 +1200,7 @@ async function main() {
 
   const cities = buildCitiesFromParsed(cityByObjectId, cityRegionCode, regionNameByCode);
 
-  await persistGarCities(cities, {
+  await persistGarCities(cities, regionNameByCode, {
     mode,
     sourceLabel: rootDir,
   });

@@ -46,6 +46,16 @@ describe("ServicesAdminClient", () => {
       if (url === "/api/admin/service-categories") {
         return Promise.resolve({ ok: true, json: async () => categories });
       }
+      if (String(url).includes("/api/cities/place-suggest")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            regions: [],
+            cities: [{ kind: "city", id: "c-kazan", name: "Казань", regionCode: "16", regionName: "респ. Татарстан" }],
+            hasMore: false,
+          }),
+        });
+      }
       return Promise.resolve({ ok: true, json: async () => ({ id: "new-id" }) });
     });
 
@@ -55,25 +65,29 @@ describe("ServicesAdminClient", () => {
     await user.click(screen.getByRole("option", { name: /Представительство в суде/i }));
     await user.type(screen.getByLabelText("title"), "Новая услуга");
     await user.type(screen.getByLabelText("price"), "2500 ₽");
-    await user.clear(screen.getByLabelText("ctaText"));
-    await user.type(screen.getByLabelText("ctaText"), "Оставить заявку");
-    await user.clear(screen.getByLabelText("ctaHref"));
-    await user.type(screen.getByLabelText("ctaHref"), "   ");
+    await user.type(screen.getByRole("combobox", { name: "Добавить город или область" }), "Каза");
+    await user.click(await screen.findByRole("option", { name: /Казань/ }));
     await user.click(screen.getByRole("button", { name: "Создать" }));
 
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
-    const [, requestInit] = fetchMock.mock.calls[1];
-    const payload = JSON.parse((requestInit as RequestInit).body as string) as {
-      ctaHref: string | null;
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(
+          (call) => call[0] === "/api/admin/services" && (call[1] as RequestInit | undefined)?.method === "POST",
+        ),
+      ).toBe(true);
+    });
+    const createCall = fetchMock.mock.calls.find(
+      (call) => call[0] === "/api/admin/services" && (call[1] as RequestInit | undefined)?.method === "POST",
+    );
+    const payload = JSON.parse((createCall?.[1] as RequestInit).body as string) as {
       title: string;
       price: string;
-      ctaText: string;
     };
 
     expect(payload.title).toBe("Новая услуга");
     expect(payload.price).toBe("2500 ₽");
-    expect(payload.ctaText).toBe("Оставить заявку");
-    expect(payload.ctaHref).toBeNull();
+    expect(payload).not.toHaveProperty("ctaText");
+    expect(payload).not.toHaveProperty("ctaHref");
     expect(mockPush).toHaveBeenCalledWith("/admin/services/list");
   });
 
@@ -177,18 +191,30 @@ describe("ServicesAdminClient", () => {
       if (url === "/api/admin/service-categories") {
         return Promise.resolve({ ok: true, json: async () => categories });
       }
+      if (String(url).includes("/api/cities/place-suggest")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            regions: [],
+            cities: [{ kind: "city", id: "c-kazan", name: "Казань", regionCode: "16", regionName: "респ. Татарстан" }],
+            hasMore: false,
+          }),
+        });
+      }
       return Promise.resolve({
         ok: false,
-        json: async () => ({ error: "categoryId, title, price, ctaText are required" }),
+        json: async () => ({ error: "categoryId, title, price are required" }),
       });
     });
 
     renderWithConfirm(<ServicesAdminClient mode="create" />);
 
+    await user.type(screen.getByRole("combobox", { name: "Добавить город или область" }), "Каза");
+    await user.click(await screen.findByRole("option", { name: /Казань/ }));
     await user.click(screen.getByRole("button", { name: "Создать" }));
 
     expect(
-      await screen.findByText("categoryId, title, price, ctaText are required")
+      await screen.findByText("categoryId, title, price are required")
     ).toBeInTheDocument();
   });
 
@@ -264,9 +290,6 @@ describe("ServicesAdminClient", () => {
     await user.click(within(row).getByRole("button", { name: "Редактировать" }));
     const dialog = await screen.findByRole("dialog", { name: "Редактировать услугу" });
 
-    await user.clear(within(dialog).getByLabelText("ctaHref (null = empty)"));
-    await user.type(within(dialog).getByLabelText("ctaHref (null = empty)"), "   ");
-
     await user.clear(within(dialog).getByLabelText("image (null = empty)"));
     await user.type(within(dialog).getByLabelText("image (null = empty)"), "  ");
 
@@ -275,11 +298,10 @@ describe("ServicesAdminClient", () => {
 
     const [, patchInit] = fetchMock.mock.calls[1];
     const body = JSON.parse((patchInit as RequestInit).body as string) as {
-      ctaHref: string | null;
       image: string | null;
     };
 
-    expect(body.ctaHref).toBeNull();
+    expect(body).not.toHaveProperty("ctaHref");
     expect(body.image).toBeNull();
     expect(body).not.toHaveProperty("rating");
     expect(body).not.toHaveProperty("reviewCount");
@@ -312,7 +334,7 @@ describe("ServicesAdminClient", () => {
     expect(await screen.findByText("Failed to update service from API")).toBeInTheDocument();
   });
 
-  it("edits optional fields and keeps palette/icon normalized", async () => {
+  it("edits optional fields and keeps palette normalized", async () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation((url: string, init?: RequestInit) => {
       if (url === "/api/admin/service-categories") {
@@ -342,14 +364,11 @@ describe("ServicesAdminClient", () => {
     await user.click(screen.getByRole("option", { name: /Представительство в суде/i }));
     await user.clear(within(dialog).getByLabelText("price"));
     await user.type(within(dialog).getByLabelText("price"), "4500 ₽");
-    await user.clear(within(dialog).getByLabelText("ctaText"));
-    await user.type(within(dialog).getByLabelText("ctaText"), "Связаться");
 
     await user.clear(within(dialog).getByLabelText("stockBadge (null = empty)"));
     await user.type(within(dialog).getByLabelText("stockBadge (null = empty)"), "Осталось 5");
     await user.clear(within(dialog).getByLabelText("description (null = empty)"));
     await user.type(within(dialog).getByLabelText("description (null = empty)"), "Подробности");
-    // paletteColor/icon are validated and can be null; keep assertions focused on core text fields.
 
     await user.click(within(dialog).getByRole("button", { name: "Сохранить" }));
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
@@ -358,20 +377,18 @@ describe("ServicesAdminClient", () => {
     const body = JSON.parse((patchInit as RequestInit).body as string) as {
       categoryId: string;
       price: string;
-      ctaText: string;
       stockBadge: string | null;
       description: string | null;
       paletteColor: string | null;
-      icon: string | null;
     };
 
     expect(body.categoryId).toBe("cat-b");
     expect(body.price).toBe("4500 ₽");
-    expect(body.ctaText).toBe("Связаться");
+    expect(body).not.toHaveProperty("ctaText");
+    expect(body).not.toHaveProperty("icon");
     expect(body.stockBadge).toBe("Осталось5");
     expect(body.description).toBe("Подробности");
     expect(body.paletteColor).toBeNull();
-    expect(body.icon).toBeNull();
 
   });
 

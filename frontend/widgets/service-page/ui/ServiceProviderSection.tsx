@@ -4,6 +4,7 @@ import type { PublicProviderProfileDto } from "@/entities/provider";
 import { formatReviewCount } from "@/entities/review";
 import { ServiceQuickApplyButton } from "@/features/create-service-request-lead";
 import { CdnFillImage } from "@/shared/ui/cdn-image";
+import { ProfileTrustNote } from "@/shared/ui/ProfileTrustNote";
 
 function ProviderImagePlaceholder({ type }: { type: PublicProviderProfileDto["type"] }) {
   const isCompany = type === "COMPANY";
@@ -146,26 +147,28 @@ export function ServiceProviderSection({ provider, serviceId, isAuthenticated, i
               <ProviderImagePlaceholder type={provider.type} />
             )}
 
-            <Box
-              sx={{
-                position: "absolute",
-                left: "50%",
-                bottom: 18,
-                transform: "translate(-50%, 0)",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: { xs: "6px", md: "8px" },
-                px: { xs: "1px", md: "10px" },
-                py: { xs: "1px", md: "1px" },
-                borderRadius: "999px",
-                bgcolor: "rgba(255,255,255,0.93)",
-              }}
-            >
-              <Box sx={{ width: { xs: 8, md: 9 }, height: { xs: 8, md: 9 }, borderRadius: "50%", bgcolor: "success.main" }} />
-              <Typography variant="caption" sx={{ letterSpacing: "0.4px" }}>
-                {provider.availabilityLabel}
-              </Typography>
-            </Box>
+            {provider.availabilityLabel.trim() ? (
+              <Box
+                sx={{
+                  position: "absolute",
+                  left: "50%",
+                  bottom: 18,
+                  transform: "translate(-50%, 0)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: { xs: "6px", md: "8px" },
+                  px: { xs: "1px", md: "10px" },
+                  py: { xs: "1px", md: "1px" },
+                  borderRadius: "999px",
+                  bgcolor: "rgba(255,255,255,0.93)",
+                }}
+              >
+                <Box sx={{ width: { xs: 8, md: 9 }, height: { xs: 8, md: 9 }, borderRadius: "50%", bgcolor: "success.main" }} />
+                <Typography variant="caption" sx={{ letterSpacing: "0.4px" }}>
+                  {provider.availabilityLabel}
+                </Typography>
+              </Box>
+            ) : null}
           </Paper>
 
           <Stack spacing={{ xs: 2, md: 3 }} sx={{ minWidth: 0, flex: { md: "1 1 0" } }}>
@@ -179,6 +182,7 @@ export function ServiceProviderSection({ provider, serviceId, isAuthenticated, i
               >
                 {provider.name}
               </Typography>
+              <ProfileTrustNote verified={provider.verified} onDark />
               <Typography sx={{ fontSize: { xs: 14, md: 16 }, lineHeight: { xs: 1.43, md: 1.75 } }}>
                 {provider.subtitle}
               </Typography>
@@ -198,6 +202,7 @@ export function ServiceProviderSection({ provider, serviceId, isAuthenticated, i
               </Typography>
             ) : null}
 
+            {provider.stats.some((s) => s.value.trim() && s.label.trim()) ? (
             <Box
               sx={{
                 display: "grid",
@@ -205,7 +210,7 @@ export function ServiceProviderSection({ provider, serviceId, isAuthenticated, i
                 gap: { xs: 2, md: 3 },
               }}
             >
-              {provider.stats.slice(0, 3).map((s) => (
+              {provider.stats.filter((s) => s.value.trim() && s.label.trim()).slice(0, 3).map((s) => (
                 <Stack
                   key={`${s.value}-${s.label}`}
                   spacing={0.5}
@@ -231,6 +236,7 @@ export function ServiceProviderSection({ provider, serviceId, isAuthenticated, i
                 </Stack>
               ))}
             </Box>
+            ) : null}
 
             <Stack direction={{ xs: "column", md: "row" }} spacing={{ xs: 1, md: 3 }} sx={{ alignItems: { md: "center" } }}>
               <ServiceQuickApplyButton

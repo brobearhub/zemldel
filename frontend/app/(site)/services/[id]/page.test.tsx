@@ -64,10 +64,9 @@ describe("Service details page", () => {
       params: Promise.resolve({ id: "svc-1" }),
     });
 
-    expect(metadata).toEqual({
-      title: "Межевание участка — Земледел",
-      description: "Полное сопровождение",
-    });
+    expect(metadata.title).toBe("Межевание участка");
+    expect(metadata.description).toBe("Полное сопровождение");
+    expect(String(metadata.alternates?.canonical ?? "")).toMatch(/\/services\/svc-1$/);
   });
 
   it("calls notFound when page service is missing", async () => {
@@ -88,8 +87,6 @@ describe("Service details page", () => {
       title: "Межевание участка",
       description: "Описание",
       price: "1000 ₽",
-      ctaText: "Записаться",
-      ctaHref: "#contacts",
       image: null,
     });
 

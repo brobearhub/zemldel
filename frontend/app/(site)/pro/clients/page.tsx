@@ -47,7 +47,7 @@ export default async function ProClientsPage() {
         <Typography sx={{
           color: "text.secondary"
         }}>
-          Уникальные заказчики активного provider, собранные из всех заказов независимо от их статуса.
+          Заказчики, которые уже обращались к вам.
         </Typography>
       </Box>
 

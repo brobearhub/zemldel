@@ -50,8 +50,7 @@ export default async function ProServicesListPage() {
           <Typography sx={{
             color: "text.secondary"
           }}>
-            Управляйте жизненным циклом услуг provider: черновики, публикация, архив и подготовка
-            к заявкам.
+            Черновики, публикация и архив. Услуга появится в каталоге после публикации.
           </Typography>
         </Box>
 

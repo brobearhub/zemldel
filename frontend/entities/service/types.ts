@@ -5,7 +5,7 @@ export type ServiceCardItem = {
   publishedAt?: string | null;
   /** URL or path to image; if not set, placeholder is shown */
   image?: string | null;
-  /** Badge overlapping image bottom, e.g. "Осталось 8 шт" */
+  /** Label ribbon on the right edge of the photo, e.g. "Осталось 8 шт" */
   stockBadge?: string | null;
   /** Price or cost label, e.g. "1004 ₽" or "от 15 000 ₽" */
   price: string;
@@ -23,9 +23,15 @@ export type ServiceCardItem = {
   rating?: number | null;
   /** Review count for label "N отзыв(ов)" */
   reviewCount?: number | null;
-  /** CTA button text, e.g. "3 марта" or "Записаться" */
-  ctaText: string;
-  ctaHref?: string | null;
+  places?: Array<{
+    kind: "city" | "region";
+    cityId?: string;
+    name: string;
+    regionCode: string;
+    regionName: string;
+  }>;
+  /** Theme palette key that paints the label ribbon. */
+  paletteColor?: ServicePaletteColor | null;
 };
 
 export type ServiceCategory = {
@@ -44,9 +50,6 @@ export type ServicePaletteColor =
   | "warning"
   | "error";
 
-/** Icon key for main services (maps to MUI icon in widget) */
-export type ServiceIconKey = "map" | "electric" | "architecture";
-
 /** Full service record — single source of truth for API and pages */
 export type ServiceRecord = ServiceCardItem & {
   categoryId: string;
@@ -54,6 +57,4 @@ export type ServiceRecord = ServiceCardItem & {
   status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   /** For main services: full description (about page) */
   description?: string | null;
-  paletteColor?: ServicePaletteColor | null;
-  icon?: ServiceIconKey | null;
 };

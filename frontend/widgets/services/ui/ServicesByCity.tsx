@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { Box, Stack } from "@mui/material";
-import { ServiceCard, type ServiceCardItem } from "@/entities/service";
+import { ServiceCard, splitServicesByCity, type ServiceCardItem } from "@/entities/service";
 import { ServiceSectionHeader } from "@/widgets/services/ui/ServiceSectionHeader";
 import { useHeaderCity } from "@/features/select-city";
 
@@ -52,14 +52,12 @@ export function ServicesByCity({
   const cityId = selectedCity?.id ?? null;
   const cityName = selectedCity?.name ?? null;
 
-  const myCityItems = useMemo(() => {
-    return cityId ? items.filter((service) => service.provider.city?.id === cityId) : items;
-  }, [items, cityId]);
-
-  const otherCityItems = useMemo(() => {
-    if (!cityId) return [];
-    return items.filter((service) => service.provider.city?.id != null && service.provider.city.id !== cityId);
-  }, [items, cityId]);
+  const { mine: myCityItems, other: otherCityItems } = useMemo(() => {
+    return splitServicesByCity(
+      items,
+      cityId && selectedCity ? { id: cityId, regionCode: selectedCity.regionCode } : null,
+    );
+  }, [items, cityId, selectedCity]);
 
   return (
     <Stack spacing={{ xs: 3, md: 3 }}>

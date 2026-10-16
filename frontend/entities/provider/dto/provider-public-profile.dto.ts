@@ -119,6 +119,10 @@ export class PublicProviderProfileDto {
   useOwnEmail!: boolean;
 
   @Expose()
+  @IsBoolean()
+  verified!: boolean;
+
+  @Expose()
   @IsString()
   availabilityLabel!: string;
 

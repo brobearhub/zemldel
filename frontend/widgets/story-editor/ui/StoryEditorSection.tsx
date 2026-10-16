@@ -212,6 +212,11 @@ export function StoryEditorSection({ scope, providerName, authorName }: Props) {
 
       {error ? <Alert severity="error">{error}</Alert> : null}
 
+      {live.length === 0 && completed.length === 0 && saved.length === 0 ? (
+        <Typography sx={{ color: "text.secondary" }}>
+          Историй пока нет. Добавьте первую кнопкой «Новая».
+        </Typography>
+      ) : null}
       <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 2, alignItems: "flex-start" }}>
         <MyStoriesGallery
           composing={composing}
@@ -225,6 +230,7 @@ export function StoryEditorSection({ scope, providerName, authorName }: Props) {
           onFile={setFile}
           onLane={(next) => setLane((current) => (current === next ? "live" : next))}
           metrics={
+            live.length === 0 && completed.length === 0 && saved.length === 0 ? undefined : (
             <StoryMetricCards
               metrics={buildAuthorStoryMetrics({
                 liveCount: live.length,
@@ -239,6 +245,7 @@ export function StoryEditorSection({ scope, providerName, authorName }: Props) {
                 if (id === "saved") setLane((current) => (current === "saved" ? "live" : "saved"));
               }}
             />
+            )
           }
         />
         {composing ? (

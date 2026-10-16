@@ -179,6 +179,7 @@ model City {
   storyViewEvents StoryViewEvent[] @relation("StoryViewCity")
   importEvents  CityImportEvent[]
   regionalCapital RegionalCapital?
+  serviceCities ServiceCity[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -186,6 +187,13 @@ model City {
   @@index([regionCode])
   @@index([regionCode, name])
   @@index([status])
+  // lower(name) text_pattern_ops WHERE status = 'ACTIVE': миграция 20261016120000_city_name_prefix.
+  // Выражение нельзя описать атрибутом Prisma, индекс создаётся в SQL.
+}
+
+model Region {
+  regionCode String @id
+  regionName String
 }
 
 model RegionalCapital {
@@ -779,11 +787,8 @@ model Service {
   rating          Float?
   reviewCount     Int             @default(0)
   ratingSortScore Float?
-  ctaText         String
-  ctaHref         String?
   description     String?
   paletteColor    String?
-  icon            String?
   providerId      String          @db.Uuid
   createdByUserId String?         @db.Uuid
   updatedByUserId String?         @db.Uuid
@@ -794,6 +799,8 @@ model Service {
   updatedByUser   User?           @relation("ServiceUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
   requests        Request[]
   reviews         Review[]
+  cities          ServiceCity[]
+  regions         ServiceRegion[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
@@ -802,6 +809,26 @@ model Service {
   @@index([status])
   @@index([providerId, status])
   @@index([ratingSortScore])
+}
+
+model ServiceCity {
+  serviceId String  @db.Uuid
+  cityId    String  @db.Uuid
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  city      City    @relation(fields: [cityId], references: [id], onDelete: Restrict)
+
+  @@id([serviceId, cityId])
+  @@index([cityId])
+}
+
+model ServiceRegion {
+  serviceId  String  @db.Uuid
+  regionCode String
+  regionName String
+  service    Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([serviceId, regionCode])
+  @@index([regionCode])
 }
 
 model Review {

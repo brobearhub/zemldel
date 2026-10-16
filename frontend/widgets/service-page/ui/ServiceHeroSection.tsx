@@ -6,6 +6,7 @@ import type { ServiceHeroVm } from "@/widgets/service-page/model/service-hero.vm
 import { formatReviewCount } from "@/entities/review";
 import { formatRubPriceLabel } from "@/shared/lib/money/format-rub-price-label";
 import { CdnFillImage } from "@/shared/ui/cdn-image";
+import { ServicePlaces } from "@/entities/service";
 import { ServiceBackButton } from "./ServiceBackButton";
 
 type Props = {
@@ -117,10 +118,14 @@ export function ServiceHeroSection({ vm }: Props) {
                     </Typography>
                   </Box>
 
-                  {vm.cityLabel ? (
-                    <Stack direction="row" spacing={{ xs: "5px", md: "7px" }} sx={{ alignItems: "center" }}>
-                      <LocationOnRoundedIcon sx={{ fontSize: { xs: 18, md: 22 }, color: "text.primary" }} />
-                      <Typography variant="body2">{vm.cityLabel}</Typography>
+                  {vm.places.length ? (
+                    <Stack
+                      direction="row"
+                      spacing={{ xs: "5px", md: "7px" }}
+                      sx={{ alignItems: "flex-start", minWidth: 0, maxWidth: "100%" }}
+                    >
+                      <LocationOnRoundedIcon sx={{ fontSize: { xs: 18, md: 22 }, color: "text.primary", mt: "2px" }} />
+                      <ServicePlaces places={vm.places} />
                     </Stack>
                   ) : null}
                 </Box>

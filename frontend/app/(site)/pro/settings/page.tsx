@@ -8,9 +8,9 @@ export default function ProSettingsPage() {
     <Container maxWidth="md" sx={{ py: 3 }}>
       <Stack spacing={2}>
         <Typography component="h1" variant="h5" sx={{
-          fontWeight: 900
+          fontWeight: 900,
         }}>
-          Настройки
+          Статусы этапов
         </Typography>
         <Typography variant="body2" sx={{
           color: "text.secondary"

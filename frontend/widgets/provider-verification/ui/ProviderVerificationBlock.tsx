@@ -1,12 +1,10 @@
 import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 import StarIcon from "@mui/icons-material/Star";
-import { Chip, Paper, Stack, Typography } from "@mui/material";
+import { Button, Chip, Paper, Stack, Typography } from "@mui/material";
 import Link from "@/shared/ui/Link";
 import { VerifiedBadgeIcon } from "@/shared/ui/VerifiedBadgeIcon";
-import {
-  formatVerificationDate,
-  type ProviderVerificationView,
-} from "../model/verification-view";
+import { UserLocalDate } from "@/shared/ui/UserLocalDate";
+import { finishSentence, type ProviderVerificationView } from "../model/verification-view";
 
 const VERIFICATION_PERKS = [
   {
@@ -52,8 +50,8 @@ export function ProviderVerificationBlock({ view, layout = "card" }: Props) {
   if (view.status === "PENDING") {
     const message = (
       <Typography>
-        Заявка на проверке, решение до 1 рабочего дня
-        {view.submittedAt ? `. Отправлена ${formatVerificationDate(view.submittedAt)}` : ""}
+        Заявка на проверке, решение до 1 рабочего дня.
+        {view.submittedAt ? <> Отправлена <UserLocalDate iso={view.submittedAt} /></> : null}
       </Typography>
     );
     return aside ? <Stack sx={frameSx}>{message}</Stack> : (
@@ -74,8 +72,13 @@ export function ProviderVerificationBlock({ view, layout = "card" }: Props) {
         <Chip color="success" label="Реквизиты проверены" />
         {view.verifiedAt ? (
           <Typography sx={{ color: "text.secondary" }}>
-            {formatVerificationDate(view.verifiedAt)}
+            <UserLocalDate iso={view.verifiedAt} />
           </Typography>
+        ) : null}
+        {aside ? (
+          <Link href="/pro/profile/verification" sx={{ color: "text.primary", fontWeight: 700, minHeight: 44, display: "inline-flex", alignItems: "center" }}>
+            Изменить реквизиты
+          </Link>
         ) : null}
       </Stack>
     );
@@ -101,7 +104,11 @@ export function ProviderVerificationBlock({ view, layout = "card" }: Props) {
       </Typography>
       {view.status === "REJECTED" ? (
         <Typography sx={{ color: "text.primary", textAlign: "center" }}>
-          Заявку отклонили{view.rejectReason ? `: ${view.rejectReason}` : ""}.
+          {finishSentence(
+            view.rejectReason?.trim()
+              ? `Заявку отклонили: ${view.rejectReason.trim()}`
+              : "Заявку отклонили",
+          )}
         </Typography>
       ) : null}
       <Stack
@@ -134,28 +141,14 @@ export function ProviderVerificationBlock({ view, layout = "card" }: Props) {
           </Typography>
         ))}
       </Stack>
-      <Link
+      <Button
+        component="a"
         href="/pro/profile/verification"
-        sx={{
-          alignSelf: "flex-end",
-          display: "inline-flex",
-          alignItems: "center",
-          px: 1.6,
-          py: 0.4,
-          borderRadius: 2,
-          bgcolor: "primary.light",
-          color: "text.secondary",
-          fontWeight: 700,
-          textDecoration: "none",
-          fontSize: 14,
-          "&:hover": {
-            bgcolor: "secondary.main",
-            color: "secondary.contrastText",
-          },
-        }}
+        variant="contained"
+        sx={{ alignSelf: "flex-end" }}
       >
         {view.status === "REJECTED" ? "Исправить и отправить снова →" : "Запросить проверку"}
-      </Link>
+      </Button>
     </Stack>
   );
 

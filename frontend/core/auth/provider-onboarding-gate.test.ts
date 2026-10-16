@@ -19,6 +19,7 @@ describe("providerWithoutProfileRedirect", () => {
     expect(providerWithoutProfileRedirect({ ...provider, pathname: "/terms" })).toBeNull();
     expect(providerWithoutProfileRedirect({ ...provider, pathname: "/privacy" })).toBeNull();
     expect(providerWithoutProfileRedirect({ ...provider, pathname: "/offer" })).toBeNull();
+    expect(providerWithoutProfileRedirect({ ...provider, pathname: "/consent" })).toBeNull();
     expect(
       providerWithoutProfileRedirect({ ...provider, hasMembership: true, pathname: "/pro" }),
     ).toBeNull();

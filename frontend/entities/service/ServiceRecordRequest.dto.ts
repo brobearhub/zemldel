@@ -1,4 +1,4 @@
-import type { ServiceIconKey, ServicePaletteColor } from "./types";
+import type { ServicePaletteColor } from "./types";
 
 /**
  * Request DTO for creating/updating a provider-owned service from the frontend side.
@@ -9,13 +9,10 @@ export type ServiceRecordRequestDto = {
   status?: "DRAFT" | "PUBLISHED";
   title?: string;
   price?: string;
-  ctaText?: string;
-  ctaHref?: string | null;
   image?: string | null;
   stockBadge?: string | null;
   description?: string | null;
   paletteColor?: ServicePaletteColor | null;
-  icon?: ServiceIconKey | null;
   rating?: number | null;
   reviewCount?: number | null;
 };

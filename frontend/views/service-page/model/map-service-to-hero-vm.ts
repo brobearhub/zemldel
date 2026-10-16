@@ -1,5 +1,4 @@
 import type { ServiceDto } from "@/entities/service";
-import { displayCityName } from "@/shared/lib/format-city-label";
 import type { ServiceHeroVm } from "@/widgets/service-page";
 
 function normalizeText(value: string | null | undefined): string | null {
@@ -8,9 +7,6 @@ function normalizeText(value: string | null | undefined): string | null {
 }
 
 export function mapServiceToHeroVm(service: ServiceDto): ServiceHeroVm {
-  const cityLabel = service.provider?.city?.name
-    ? displayCityName(service.provider.city.name)
-    : null;
   const description = normalizeText(service.description) ?? null;
 
   return {
@@ -19,20 +15,16 @@ export function mapServiceToHeroVm(service: ServiceDto): ServiceHeroVm {
     title: service.title,
     description,
     imageUrl: service.image ?? null,
-    imageBadgeLabel: "Услуга под вашу задачу",
-    cityLabel,
+    imageBadgeLabel: normalizeText(service.stockBadge),
+    places: service.places ?? [],
     rating:
       service.rating != null
         ? { value: service.rating, reviewCount: service.reviewCount ?? null }
         : null,
     priceLabel: service.price,
     ctaAnchorHref: "#consultation",
-    ctaText: "ЗАДАТЬ ВОПРОС",
-    benefits: [
-      "Разберёмся в вашей задаче",
-      "Предложим понятный план действий",
-      "Сопроводим до результата",
-    ],
+    ctaText: "Оставить заявку",
+    benefits: [],
   };
 }
 

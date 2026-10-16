@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { setLastCabinetRole } from "@/widgets/cabinet-chrome/lib/cabinet-role-storage";
 import { CabinetNotices } from "@/widgets/cabinet-chrome";
 import {
@@ -36,6 +37,7 @@ const TYPE_OPTIONS: Array<{ value: ProviderOnboardingType; label: string }> = [
 
 export function ProviderOnboardingForm() {
   const router = useRouter();
+  const { update: updateSession } = useSession();
   const [type, setType] = useState<ProviderOnboardingType | null>(null);
   const [lastName, setLastName] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -152,6 +154,8 @@ export function ProviderOnboardingForm() {
       }
 
       setLastCabinetRole("provider");
+      // Why: jwt клиента ещё без профиля, поэтому город исполнителя не попадает в форму услуги.
+      await updateSession().catch(() => undefined);
       router.push("/pro?welcome=1");
       router.refresh();
     } catch {
@@ -218,6 +222,8 @@ export function ProviderOnboardingForm() {
                   <Stack spacing={2}>
                     {isCompany ? (
                       <TextField
+                        required
+                        size="small"
                         label="Полное наименование"
                         value={legalName}
                         onChange={(event) => {
@@ -342,8 +348,10 @@ function PersonNameFields(props: {
   onMiddleName: (value: string) => void;
 }) {
   return (
-    <Stack spacing={2}>
+    <Stack spacing={0}>
       <TextField
+        required
+        size="small"
         label="Фамилия"
         value={props.lastName}
         onChange={(event) => props.onLastName(event.target.value)}
@@ -353,6 +361,8 @@ function PersonNameFields(props: {
         helperText={props.lastNameError ?? " "}
       />
       <TextField
+        required
+        size="small"
         label="Имя"
         value={props.firstName}
         onChange={(event) => props.onFirstName(event.target.value)}
@@ -362,6 +372,7 @@ function PersonNameFields(props: {
         helperText={props.firstNameError ?? " "}
       />
       <TextField
+        size="small"
         label="Отчество"
         value={props.middleName}
         onChange={(event) => props.onMiddleName(event.target.value)}

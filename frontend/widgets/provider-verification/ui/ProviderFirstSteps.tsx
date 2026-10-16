@@ -1,3 +1,4 @@
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import Link from "next/link";
 import { Chip, Paper, Stack, Typography } from "@mui/material";
 import type { FirstStepItem } from "../lib/first-steps";
@@ -24,9 +25,12 @@ export function ProviderFirstSteps({ progressLabel, steps }: Props) {
         </Typography>
         {steps.map((step, index) => (
           <Stack key={step.id} spacing={0.5}>
-            <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", flexWrap: "wrap" }}>
-              <Typography sx={{ fontWeight: step.done ? 400 : 700 }}>
-                {index + 1}. {step.done ? `${step.title} — готово` : step.title}
+            <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start", flexWrap: "nowrap" }}>
+              {step.done ? (
+                <CheckCircleIcon fontSize="small" sx={{ color: "#14663F", flex: "0 0 auto", mt: "2px" }} />
+              ) : null}
+              <Typography sx={{ fontWeight: step.done ? 400 : 700, minWidth: 0 }}>
+                {index + 1}. {step.title}
               </Typography>
               {step.optional ? <Chip size="small" label="по желанию" variant="outlined" /> : null}
             </Stack>
@@ -34,7 +38,9 @@ export function ProviderFirstSteps({ progressLabel, steps }: Props) {
               <Typography sx={{ color: "text.secondary" }}>{step.note}</Typography>
             ) : null}
             {step.href ? (
-              <Link href={step.href}>Перейти</Link>
+              <Link href={step.href} style={{ minHeight: 44, display: "inline-flex", alignItems: "center" }}>
+                Перейти
+              </Link>
             ) : null}
           </Stack>
         ))}

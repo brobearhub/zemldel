@@ -6,6 +6,8 @@ import { getPublicProviderBySlug } from "@/entities/provider/api/provider.server
 import { listPublicProviderReviews } from "@/entities/review/api/review.server";
 import { fetchBackendJson } from "@/shared/api/backend/server";
 import { SITE_CONTENT_GAP_PX, SITE_PAGE_PB } from "@/shared/config/site-layout";
+import { displayCityName } from "@/shared/lib/format-city-label";
+import { siteOrigin } from "@/shared/lib/site-origin";
 import { ProviderPublicHero } from "@/views/provider-page";
 import { HomeStoriesStrip } from "@/widgets/home-stories";
 
@@ -23,7 +25,33 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const provider = await getPublicProviderBySlug(slug);
   if (!provider) return { title: "Исполнитель" };
-  return { title: `${provider.name} — Земледел`, description: provider.about ?? provider.subtitle };
+  const services = await fetchBackendJson<ServiceDto[]>(
+    `/services?providerId=${encodeURIComponent(provider.id)}`,
+  ).catch(() => []);
+  const city = provider.city?.name ? displayCityName(provider.city.name) : null;
+  const serviceTitle = services.find((service) => service.title.trim())?.title.trim() ?? null;
+  const title = serviceTitle
+    ? [serviceTitle, city, provider.name].filter(Boolean).join(" — ")
+    : [provider.name, city].filter(Boolean).join(" — ");
+  const serviceNames = services
+    .map((service) => service.title.trim())
+    .filter(Boolean)
+    .slice(0, 3)
+    .join(", ");
+  const description =
+    provider.about?.trim() ||
+    (serviceNames
+      ? `${serviceNames}${city ? ` в городе ${city}` : ""}. ${provider.name}.`
+      : provider.subtitle?.trim() || undefined);
+  const indexable = services.length > 0 || Boolean(description);
+  const url = `${siteOrigin()}/providers/${provider.slug}`;
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    robots: indexable ? { index: true, follow: true } : { index: false, follow: false },
+    openGraph: { title, description, url, type: "profile" },
+  };
 }
 
 export default async function ProviderPublicPage({ params }: Props) {
@@ -35,8 +63,18 @@ export default async function ProviderPublicPage({ params }: Props) {
     listPublicProviderReviews(provider.id).catch(() => ({ items: [], nextCursor: null })),
     fetchBackendJson<ServiceDto[]>(`/services?providerId=${encodeURIComponent(provider.id)}`).catch(() => []),
   ]);
+  const city = provider.city?.name ? displayCityName(provider.city.name) : null;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    name: provider.name,
+    ...(provider.about?.trim() ? { description: provider.about.trim() } : {}),
+    ...(city ? { address: { "@type": "PostalAddress", addressLocality: city } } : {}),
+  };
+
   return (
     <Box>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <Box
         sx={{
           bgcolor: "primary.main",
