@@ -1,4 +1,4 @@
-import { Container, Stack } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import type { RequestReminderDto } from "@/entities/request";
 import type { ServiceDto } from "@/entities/service";
 import { HomeStoriesStrip } from "@/widgets/home-stories";
@@ -16,8 +16,11 @@ type Props = {
 
 export function ProHomePage({ services, reminders, firstSteps }: Props) {
   return (
-    <Container maxWidth="lg" disableGutters>
+    <Box>
       <Stack spacing={3}>
+        <Typography component="h1" variant="h4" sx={{ fontWeight: 800 }}>
+          Кабинет
+        </Typography>
         <CabinetNotices welcome="Профиль создан. Заполните профиль, добавьте услугу и откройте рабочий день." />
         {firstSteps?.visible ? (
           <ProviderFirstSteps progressLabel={firstSteps.progressLabel} steps={firstSteps.steps} />
@@ -29,6 +32,6 @@ export function ProHomePage({ services, reminders, firstSteps }: Props) {
           reminders={<RemindersListView initialReminders={reminders} showTitle={false} />}
         />
       </Stack>
-    </Container>
+    </Box>
   );
 }

@@ -438,14 +438,8 @@ function SignUpPageContent() {
           minWidth: 0,
           p: { xs: 2, sm: 4, md: 5 },
           "& .MuiFormHelperText-root.Mui-error, & .MuiFormHelperText-root.Mui-error.Mui-error": {
-            color: "error.dark",
-            bgcolor: "background.paper",
-            px: 1,
-            py: 0.25,
-            borderRadius: 1,
-            display: "inline-flex",
-            width: "fit-content",
-            maxWidth: "100%",
+            color: "common.white",
+            bgcolor: "transparent",
           },
         }}
       >
@@ -458,14 +452,8 @@ function SignUpPageContent() {
             maxWidth: "100%",
             minWidth: 0,
             "& .MuiFormHelperText-root.Mui-error": {
-              color: "error.dark",
-              bgcolor: "background.paper",
-              px: 1,
-              py: 0.25,
-              borderRadius: 1,
-              display: "inline-flex",
-              width: "fit-content",
-              maxWidth: "100%",
+              color: "common.white",
+              bgcolor: "transparent",
             },
           }}
         >
@@ -732,7 +720,7 @@ function SignUpPageContent() {
                       />
                     }
                     label={
-                      <Typography variant="body2" sx={{ opacity: 0.9, overflowWrap: "anywhere" }}>
+                      <Typography variant="caption" sx={{ opacity: 0.9, overflowWrap: "anywhere" }}>
                         Принимаю{" "}
                         <Link
                           href="/terms"
@@ -774,7 +762,7 @@ function SignUpPageContent() {
                       />
                     }
                     label={
-                      <Typography variant="body2" sx={{ opacity: 0.9, overflowWrap: "anywhere" }}>
+                      <Typography variant="caption" sx={{ opacity: 0.9, overflowWrap: "anywhere" }}>
                         Даю отдельное{" "}
                         <Link
                           href="/consent"

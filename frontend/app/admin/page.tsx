@@ -3,6 +3,7 @@ import { Box, Container, Paper, Stack, Typography } from "@mui/material";
 import BuildIcon from "@mui/icons-material/Build";
 import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
 import LocationCityIcon from "@mui/icons-material/LocationCity";
+import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 
 export default function AdminIndexPage() {
   return (
@@ -21,11 +22,33 @@ export default function AdminIndexPage() {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" },
+              gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" },
               gap: 2,
               alignItems: "stretch",
             }}
           >
+            <Link href="/admin/provider-verifications" style={{ textDecoration: "none" }}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2.5,
+                  color: "inherit",
+                  display: "flex",
+                  gap: 2,
+                  alignItems: "center",
+                  "&:hover": { bgcolor: "action.hover" },
+                }}
+              >
+                <VerifiedUserOutlinedIcon color="primary" />
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography sx={{ fontWeight: 900 }}>Проверки исполнителей</Typography>
+                  <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                    Очередь заявок на реквизиты
+                  </Typography>
+                </Box>
+              </Paper>
+            </Link>
+
             <Link href="/admin/services" style={{ textDecoration: "none" }}>
               <Paper
                 variant="outlined"

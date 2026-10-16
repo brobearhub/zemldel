@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import type { ServiceDto } from "@/entities/service";
 import { BackendApiError, fetchBackendJson } from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
+import { placeChipLabel } from "@/entities/service";
+import { siteOrigin } from "@/shared/lib/site-origin";
 import { ServicePageView } from "@/views/service-page";
 
 type Props = {
@@ -11,7 +13,7 @@ type Props = {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  let service: Pick<ServiceDto, "title" | "description"> | null = null;
+  let service: Pick<ServiceDto, "title" | "description" | "places" | "provider"> | null = null;
 
   try {
     service = await fetchBackendJson<ServiceDto>(`/services/${id}`);
@@ -23,9 +25,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   if (!service) return { title: "Услуга" };
+  const city = (service.places ?? []).slice(0, 2).map(placeChipLabel).join(", ") || null;
+  const title = [service.title, city, service.provider?.name].filter(Boolean).join(" — ");
+  const description = service.description ?? undefined;
+  const url = `${siteOrigin()}/services/${id}`;
   return {
-    title: `${service.title} — Земледел`,
-    description: service.description ?? undefined,
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: { title, description, url, type: "website" },
   };
 }
 
@@ -46,8 +54,23 @@ export default async function ServicePage({ params }: Props) {
 
   if (!service) notFound();
 
+  const placeNames = (service.places ?? []).map(placeChipLabel);
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    name: service.title,
+    ...(service.description ? { description: service.description } : {}),
+    ...(placeNames.length ? { areaServed: placeNames } : {}),
+    ...(service.provider?.name
+      ? { provider: { "@type": "LocalBusiness", name: service.provider.name } }
+      : {}),
+  };
+
   return (
-    <ServicePageView service={service} session={session} />
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <ServicePageView service={service} session={session} />
+    </>
   );
 }
 

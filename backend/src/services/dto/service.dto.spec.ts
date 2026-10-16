@@ -19,17 +19,18 @@ const row: ServiceDbRow = {
   price: '1000',
   rating: null,
   reviewCount: null,
-  ctaText: 'Заказать',
-  ctaHref: null,
   description: null,
   paletteColor: null,
-  icon: null,
   provider: {
     id: 'prov-1',
     name: 'Анна Смирнова',
+    slug: 'anna-smirnova',
     type: 'SELF_EMPLOYED',
+    verificationStatus: 'NOT_VERIFIED',
     city: null,
   },
+  cities: [],
+  regions: [],
 };
 
 describe('serviceDbRowToDtoPlain', () => {

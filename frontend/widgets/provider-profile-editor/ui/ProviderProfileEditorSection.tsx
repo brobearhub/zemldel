@@ -9,7 +9,6 @@ import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
-import CopyAllRoundedIcon from "@mui/icons-material/CopyAllRounded";
 import LinkIcon from "@mui/icons-material/Link";
 import {
   Alert,
@@ -176,9 +175,9 @@ function normalizeRequiredString(value: string): string {
 }
 
 const STAT_PLACEHOLDERS = [
-  { value: "12 лет", label: "практики в недвижимости" },
-  { value: "640+", label: "выполненных работ" },
-  { value: "4.9", label: "рейтинг" },
+  { value: "Значение", label: "подпись" },
+  { value: "Значение", label: "подпись" },
+  { value: "Значение", label: "подпись" },
 ] as const;
 
 function getStats3(stats: PublicProviderStat[] | undefined | null): Array<{ value: string; label: string }> {
@@ -400,7 +399,6 @@ function InlineEditableStatCard(props: {
 
   const view = props.stats3[props.index] ?? { value: "", label: "" };
   const placeholder = STAT_PLACEHOLDERS[props.index];
-  const valueEmpty = view.value.trim().length === 0;
   const labelEmpty = view.label.trim().length === 0;
 
   const actions = isEditing ? (
@@ -515,22 +513,22 @@ function InlineEditableStatCard(props: {
                 fontSize: { xs: 24, md: 32 },
                 lineHeight: { xs: 1.334, md: 1.235 },
                 color: "common.white",
-                opacity: valueEmpty ? 0.3 : 1,
               }}
             >
-              {valueEmpty ? placeholder.value : view.value}
+              {view.value}
             </Typography>
-            <Typography
-              variant="caption"
-              sx={{
-                color: labelEmpty ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,1)",
-                fontFamily: "monospace",
-                letterSpacing: "0.4px",
-                
-              }}
-            >
-              {labelEmpty ? placeholder.label : view.label}
-            </Typography>
+            {labelEmpty ? null : (
+              <Typography
+                variant="caption"
+                sx={{
+                  color: "rgba(255,255,255,1)",
+                  fontFamily: "monospace",
+                  letterSpacing: "0.4px",
+                }}
+              >
+                {view.label}
+              </Typography>
+            )}
           </>
         )}
       </Stack>
@@ -753,7 +751,7 @@ export function ProviderProfileEditorSection({
     if (!canEditName) return;
     const value = slugValue.trim().toLowerCase();
     if (!value) {
-      setSlugError("Укажите slug");
+      setSlugError("Укажите адрес профиля");
       return;
     }
     if (value === slug) {
@@ -761,11 +759,11 @@ export function ProviderProfileEditorSection({
       return;
     }
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)) {
-      setSlugError("Slug может содержать только латиницу, цифры и дефис");
+      setSlugError("Адрес может содержать только латиницу, цифры и дефис");
       return;
     }
     if (!slugAvailable) {
-      setSlugError("Этот slug занят");
+      setSlugError("Этот адрес занят");
       return;
     }
 
@@ -815,9 +813,9 @@ export function ProviderProfileEditorSection({
               borderRadius: 10,
               alignItems: "center",
               justifyContent: "space-between",
-              width: { xs: "100%", sm: "fit-content" },
-              minWidth: { sm: 520 },
+              width: "100%",
               maxWidth: "100%",
+              minWidth: 0,
             }}
           >
             {slugEditing ? (
@@ -843,9 +841,9 @@ export function ProviderProfileEditorSection({
                       : slugValue.trim().toLowerCase() === slug
                         ? "Это текущий URL"
                         : slugAvailable === true
-                          ? "Slug свободен"
+                          ? "Адрес свободен"
                           : slugAvailable === false
-                            ? "Slug занят или некорректен"
+                            ? "Адрес занят или некорректен"
                             : " "}
                 </Typography>
                 <Typography variant="caption" sx={{ color: "text.secondary" }}>
@@ -853,10 +851,13 @@ export function ProviderProfileEditorSection({
                 </Typography>
               </Stack>
             ) : (
-              <Typography variant="body2" sx={{ color: "text.secondary", minWidth: 0 }}>
-                <Box component="span" sx={{ fontFamily: "monospace", wordBreak: "break-all" }}>
-                  {publicUrl}
-                </Box>
+              <Typography
+                variant="body2"
+                noWrap
+                title={publicUrl}
+                sx={{ color: "text.secondary", minWidth: 0, flex: "1 1 auto", overflow: "hidden", textOverflow: "ellipsis", fontFamily: "monospace" }}
+              >
+                {publicUrl}
               </Typography>
             )}
 
@@ -897,27 +898,24 @@ export function ProviderProfileEditorSection({
                       </IconButton>
                     </span>
                   </Tooltip>
-                  <Tooltip title="Скопировать">
-                    <span>
-                      <IconButton size="small" onClick={() => void copyToClipboard(publicUrl)}>
-                        <CopyAllRoundedIcon fontSize="small" />
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                  <Tooltip title={canEditName ? "Редактировать slug" : "Только владелец"}>
-                    <span>
-                      <Button
-                        size="small"
-                        variant="text"
-                        startIcon={<EditOutlinedIcon fontSize="small" />}
-                        onClick={handleSlugEditStart}
-                        disabled={!canEditName || busy}
-                        sx={{ textTransform: "none" }}
-                      >
-                        Редактировать
-                      </Button>
-                    </span>
-                  </Tooltip>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => void copyToClipboard(publicUrl)}
+                    sx={{ textTransform: "none", minHeight: 44, flexShrink: 0, color: "text.primary", borderColor: "text.primary" }}
+                  >
+                    Копировать
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    startIcon={<EditOutlinedIcon fontSize="small" />}
+                    onClick={handleSlugEditStart}
+                    disabled={!canEditName || busy}
+                    sx={{ textTransform: "none", minHeight: 44, flexShrink: 0 }}
+                  >
+                    Редактировать
+                  </Button>
                 </>
               )}
             </Stack>
@@ -944,7 +942,7 @@ export function ProviderProfileEditorSection({
         variant="elevation"
         sx={{
           bgcolor: "primary.main",
-          py: { xs: "48px", md: "100px" },
+          py: { xs: 3, md: 6 },
           overflowX: "hidden",
         }}
       >
@@ -974,9 +972,9 @@ export function ProviderProfileEditorSection({
                   overflow: "hidden",
                   bgcolor: "action.hover",
                   width: "100%",
-                  height: { xs: 280, md: "auto" },
-                  aspectRatio: { xs: "280 / 280", md: "300 / 300" },
-                  borderRadius: { xs: 2.5, md: 999 },
+                  height: profile.image ? { xs: 280, md: "auto" } : 96,
+                  aspectRatio: profile.image ? { xs: "280 / 280", md: "300 / 300" } : "auto",
+                  borderRadius: profile.image ? { xs: 2.5, md: 999 } : 2.5,
                 }}
               >
                 {profile.image ? (
@@ -990,33 +988,35 @@ export function ProviderProfileEditorSection({
                   <ProviderImagePlaceholder type={profile.type} />
                 )}
 
-                <Box
-                  sx={{
-                    position: "absolute",
-                    left: "50%",
-                    bottom: 18,
-                    transform: "translate(-50%, 0)",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: { xs: "6px", md: "8px" },
-                    px: { xs: "1px", md: "10px" },
-                    py: { xs: "1px", md: "1px" },
-                    borderRadius: "999px",
-                    bgcolor: "rgba(255,255,255,0.93)",
-                  }}
-                >
+                {profile.availabilityLabel.trim() ? (
                   <Box
                     sx={{
-                      width: { xs: 8, md: 9 },
-                      height: { xs: 8, md: 9 },
-                      borderRadius: "50%",
-                      bgcolor: "success.main",
+                      position: "absolute",
+                      left: "50%",
+                      bottom: 18,
+                      transform: "translate(-50%, 0)",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: { xs: "6px", md: "8px" },
+                      px: { xs: "1px", md: "10px" },
+                      py: { xs: "1px", md: "1px" },
+                      borderRadius: "999px",
+                      bgcolor: "rgba(255,255,255,0.93)",
                     }}
-                  />
-                  <Typography variant="caption" sx={{ letterSpacing: "0.4px" }}>
-                    {profile.availabilityLabel}
-                  </Typography>
-                </Box>
+                  >
+                    <Box
+                      sx={{
+                        width: { xs: 8, md: 9 },
+                        height: { xs: 8, md: 9 },
+                        borderRadius: "50%",
+                        bgcolor: "success.main",
+                      }}
+                    />
+                    <Typography variant="caption" sx={{ letterSpacing: "0.4px" }}>
+                      {profile.availabilityLabel}
+                    </Typography>
+                  </Box>
+                ) : null}
               </Paper>
 
               <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
@@ -1218,33 +1218,37 @@ export function ProviderProfileEditorSection({
                 }}
               />
 
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                  gap: { xs: 2, md: 3 },
-                }}
-              >
-                {([0, 1, 2] as const).map((idx) => (
-                  <InlineEditableStatCard
-                    key={idx}
-                    id={`stat-${idx}`}
-                    index={idx}
-                    editId={editId}
-                    setEditId={setEditId}
-                    disabled={busy}
-                    stats3={stats3}
-                    onSave={async (nextStats3) => {
-                      setBusy(true);
-                      try {
-                        await patchProfile({ stats: nextStats3 });
-                      } finally {
-                        setBusy(false);
-                      }
-                    }}
-                  />
-                ))}
-              </Box>
+              {stats3.some((stat) => stat.value.trim().length > 0) ? (
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                    gap: { xs: 2, md: 3 },
+                  }}
+                >
+                  {stats3.map((stat, idx) =>
+                    stat.value.trim().length > 0 ? (
+                      <InlineEditableStatCard
+                        key={idx}
+                        id={`stat-${idx as 0 | 1 | 2}`}
+                        index={idx as 0 | 1 | 2}
+                        editId={editId}
+                        setEditId={setEditId}
+                        disabled={busy}
+                        stats3={stats3}
+                        onSave={async (nextStats3) => {
+                          setBusy(true);
+                          try {
+                            await patchProfile({ stats: nextStats3 });
+                          } finally {
+                            setBusy(false);
+                          }
+                        }}
+                      />
+                    ) : null,
+                  )}
+                </Box>
+              ) : null}
 
               <Stack
                 spacing={1}

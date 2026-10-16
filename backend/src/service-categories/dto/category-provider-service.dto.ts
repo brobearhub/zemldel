@@ -47,12 +47,6 @@ export class CategoryProviderServiceDto {
   @ApiProperty({ nullable: true, example: null })
   reviewCount!: number | null;
 
-  @ApiProperty()
-  ctaText!: string;
-
-  @ApiProperty({ nullable: true, example: null })
-  ctaHref!: string | null;
-
   @ApiProperty({ type: CategoryProviderRefDto })
   provider!: CategoryProviderRefDto;
 }

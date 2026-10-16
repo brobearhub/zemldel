@@ -23,6 +23,12 @@ import {
   serviceDbRowToDtoPlain,
 } from './dto/service.dto';
 import type { ServiceManagementAction } from '../auth/authorization';
+import { assertActiveSelectableCity } from '../cities/city-validation';
+import {
+  normalizeServicePlaces,
+  orderByExplicitCity,
+  type NormalizedServicePlace,
+} from './service-places';
 
 const serviceSelect = {
   id: true,
@@ -34,17 +40,16 @@ const serviceSelect = {
   price: true,
   rating: true,
   reviewCount: true,
-  ctaText: true,
-  ctaHref: true,
   description: true,
   paletteColor: true,
-  icon: true,
   publishedAt: true,
   provider: {
     select: {
       id: true,
       name: true,
+      slug: true,
       type: true,
+      verificationStatus: true,
       city: {
         select: {
           id: true,
@@ -63,6 +68,26 @@ const serviceSelect = {
       parentId: true,
       sortOrder: true,
     },
+  },
+  cities: {
+    select: {
+      city: {
+        select: {
+          id: true,
+          name: true,
+          regionCode: true,
+          regionName: true,
+        },
+      },
+    },
+    orderBy: { city: { name: 'asc' } },
+  },
+  regions: {
+    select: {
+      regionCode: true,
+      regionName: true,
+    },
+    orderBy: { regionName: 'asc' },
   },
 } satisfies Prisma.ServiceSelect;
 
@@ -175,44 +200,78 @@ export class ServicesService {
         }
       : { status: 'PUBLISHED' };
 
+    const catalogOrder = [
+      {
+        ratingSortScore: {
+          sort: 'desc' as const,
+          nulls: 'last' as const,
+        },
+      },
+      { publishedAt: 'desc' as const },
+      { id: 'asc' as const },
+    ];
+    const orderBy =
+      scope?.providerId && !scope.publishedOnly
+        ? [{ category: { slug: 'asc' as const } }, { title: 'asc' as const }]
+        : catalogOrder;
+
+    let rankCityId: string | null = null;
+
     if (scope?.cityId) {
-      where.provider = { cityId: scope.cityId };
+      const city = await this.prisma.city.findUnique({
+        where: { id: scope.cityId },
+        select: { id: true, regionCode: true },
+      });
+      if (!city) return [];
+      rankCityId = city.id;
+      where.OR = [
+        { cities: { some: { cityId: city.id } } },
+        { regions: { some: { regionCode: city.regionCode } } },
+      ];
     }
 
     if (scope?.excludeCityId) {
-      // for "other cities" list we need explicit city to render the card
-      const existingAnd = where.AND
-        ? Array.isArray(where.AND)
-          ? where.AND
-          : [where.AND]
-        : [];
-
-      where.AND = [
-        ...existingAnd,
-        { provider: { cityId: { not: scope.excludeCityId } } },
-        { provider: { cityId: { not: null } } },
-      ];
+      const city = await this.prisma.city.findUnique({
+        where: { id: scope.excludeCityId },
+        select: { id: true, regionCode: true },
+      });
+      if (city) {
+        const existingAnd = where.AND
+          ? Array.isArray(where.AND)
+            ? where.AND
+            : [where.AND]
+          : [];
+        where.AND = [
+          ...existingAnd,
+          {
+            NOT: {
+              OR: [
+                { cities: { some: { cityId: city.id } } },
+                { regions: { some: { regionCode: city.regionCode } } },
+              ],
+            },
+          },
+        ];
+      }
     }
 
     const rows: ServiceDbRow[] = await this.prisma.service.findMany({
       where,
       select: serviceSelect,
-      orderBy:
-        scope?.providerId && !scope.publishedOnly
-          ? [{ category: { slug: 'asc' } }, { title: 'asc' }]
-          : [
-              {
-                ratingSortScore: {
-                  sort: 'desc' as const,
-                  nulls: 'last' as const,
-                },
-              },
-              { publishedAt: 'desc' },
-              { id: 'asc' },
-            ],
+      orderBy,
     });
 
-    return rows.map((row) => serviceDbRowToDtoPlain(row));
+    const ordered = rankCityId
+      ? orderByExplicitCity(
+          rows.map((row) => ({
+            row,
+            cityIds: row.cities.map((link) => link.city.id),
+          })),
+          rankCityId,
+        ).map((item) => item.row)
+      : rows;
+
+    return ordered.map((row) => serviceDbRowToDtoPlain(row));
   }
 
   async getServiceById(
@@ -247,24 +306,33 @@ export class ServicesService {
     const resolvedPrice = service.price ?? null;
     if (!resolvedPrice) throw new BadRequestException('price is required');
 
-    const resolvedCtaText = service.ctaText ?? null;
-    if (!resolvedCtaText) throw new BadRequestException('ctaText is required');
+    const normalized = normalizeServicePlaces(service.places);
+    if ('error' in normalized) throw new BadRequestException(normalized.error);
+    const storedPlaces = await this.resolveStoredPlaces(normalized.places);
 
-    const row = await this.prisma.service.create({
-      data: {
-        ...service,
-        categoryId: resolvedCategoryId,
-        title: resolvedTitle,
-        price: resolvedPrice,
-        ctaText: resolvedCtaText,
-        description: service.description ?? null,
-        status: nextStatus,
-        publishedAt: nextStatus === 'PUBLISHED' ? new Date() : null,
-        providerId: scope.providerId,
-        createdByUserId: scope.actorUserId,
-        updatedByUserId: scope.actorUserId,
-      },
-      select: serviceSelect,
+    const row = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.service.create({
+        data: {
+          categoryId: resolvedCategoryId,
+          title: resolvedTitle,
+          price: resolvedPrice,
+          image: service.image,
+          stockBadge: service.stockBadge,
+          description: service.description ?? null,
+          paletteColor: service.paletteColor,
+          status: nextStatus,
+          publishedAt: nextStatus === 'PUBLISHED' ? new Date() : null,
+          providerId: scope.providerId,
+          createdByUserId: scope.actorUserId,
+          updatedByUserId: scope.actorUserId,
+        },
+        select: { id: true },
+      });
+      await this.replaceServicePlaces(tx, created.id, storedPlaces);
+      return tx.service.findUniqueOrThrow({
+        where: { id: created.id },
+        select: serviceSelect,
+      });
     });
 
     return serviceDbRowToDtoPlain(row as ServiceDbRow);
@@ -289,22 +357,99 @@ export class ServicesService {
       throw new ForbiddenException('Archiving services is not allowed');
     }
 
-    const row = await this.prisma.service.update({
-      where: { id: serviceId },
-      data: {
-        ...service,
-        publishedAt:
-          nextStatus === 'PUBLISHED'
-            ? new Date()
-            : nextStatus === 'DRAFT' || nextStatus === 'ARCHIVED'
-              ? null
-              : undefined,
-        updatedByUserId: scope?.actorUserId,
-      },
-      select: serviceSelect,
+    const normalizedPlaces =
+      service.places === undefined
+        ? null
+        : normalizeServicePlaces(service.places);
+    if (normalizedPlaces && 'error' in normalizedPlaces) {
+      throw new BadRequestException(normalizedPlaces.error);
+    }
+    const storedPlaces = normalizedPlaces
+      ? await this.resolveStoredPlaces(normalizedPlaces.places)
+      : null;
+
+    const row = await this.prisma.$transaction(async (tx) => {
+      await tx.service.update({
+        where: { id: serviceId },
+        data: {
+          categoryId: service.categoryId,
+          status: service.status,
+          title: service.title,
+          price: service.price,
+          image: service.image,
+          stockBadge: service.stockBadge,
+          description: service.description,
+          paletteColor: service.paletteColor,
+          publishedAt:
+            nextStatus === 'PUBLISHED'
+              ? new Date()
+              : nextStatus === 'DRAFT' || nextStatus === 'ARCHIVED'
+                ? null
+                : undefined,
+          updatedByUserId: scope?.actorUserId,
+        },
+      });
+      if (storedPlaces) {
+        await this.replaceServicePlaces(tx, serviceId, storedPlaces);
+      }
+      return tx.service.findUniqueOrThrow({
+        where: { id: serviceId },
+        select: serviceSelect,
+      });
     });
 
     return serviceDbRowToDtoPlain(row as ServiceDbRow);
+  }
+
+  private async resolveStoredPlaces(places: readonly NormalizedServicePlace[]) {
+    const cityIds = places.flatMap((place) =>
+      place.kind === 'city' ? [place.cityId] : [],
+    );
+    for (const cityId of cityIds) {
+      await assertActiveSelectableCity(this.prisma, cityId);
+    }
+
+    const regions: Array<{ regionCode: string; regionName: string }> = [];
+    for (const place of places) {
+      if (place.kind !== 'region') continue;
+      const city = await this.prisma.city.findFirst({
+        where: { regionCode: place.regionCode, status: 'ACTIVE' },
+        select: { regionName: true },
+      });
+      if (!city) throw new BadRequestException('Region is not available');
+      regions.push({
+        regionCode: place.regionCode,
+        regionName: city.regionName,
+      });
+    }
+
+    return { cityIds, regions };
+  }
+
+  private async replaceServicePlaces(
+    tx: Prisma.TransactionClient,
+    serviceId: string,
+    stored: {
+      cityIds: readonly string[];
+      regions: readonly { regionCode: string; regionName: string }[];
+    },
+  ) {
+    await tx.serviceCity.deleteMany({ where: { serviceId } });
+    await tx.serviceRegion.deleteMany({ where: { serviceId } });
+    if (stored.cityIds.length) {
+      await tx.serviceCity.createMany({
+        data: stored.cityIds.map((cityId) => ({ serviceId, cityId })),
+      });
+    }
+    if (stored.regions.length) {
+      await tx.serviceRegion.createMany({
+        data: stored.regions.map((region) => ({
+          serviceId,
+          regionCode: region.regionCode,
+          regionName: region.regionName,
+        })),
+      });
+    }
   }
 
   async uploadServiceImage(input: {

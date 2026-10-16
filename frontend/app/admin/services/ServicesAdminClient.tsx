@@ -15,7 +15,8 @@ import {
 } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import type { ServiceDto } from "@/entities/service";
+import { toPlaceInput, type ServiceDto, type ServicePlace } from "@/entities/service";
+import { ServiceGeographyField } from "@/features/select-service-places";
 import { useConfirm } from "@/shared/ui/confirm";
 
 type ServiceRow = ServiceDto;
@@ -45,13 +46,6 @@ function normalizePaletteColor(v: string): ServiceDto["paletteColor"] {
   return (allowed as readonly string[]).includes(s) ? (s as ServiceDto["paletteColor"]) : null;
 }
 
-function normalizeIcon(v: string): ServiceDto["icon"] {
-  const s = normalizeNullableString(v);
-  if (!s) return null;
-  const allowed = ["map", "electric", "architecture"] as const;
-  return (allowed as readonly string[]).includes(s) ? (s as ServiceDto["icon"]) : null;
-}
-
 export function ServicesAdminClient({ mode, initialServices }: Props) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -64,15 +58,12 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
     categoryId: string;
     title: string;
     price: string;
-    ctaText: string;
-    ctaHref: string;
   }>({
     categoryId: "",
     title: "",
     price: "",
-    ctaText: "Записаться",
-    ctaHref: "#contacts",
   });
+  const [createPlaces, setCreatePlaces] = useState<ServicePlace[]>([]);
 
   useEffect(() => {
     fetch("/api/admin/service-categories")
@@ -118,6 +109,10 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
 
   async function onCreate() {
     setError(null);
+    if (createPlaces.length === 0) {
+      setError("Выберите город или область");
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch("/api/admin/services", {
@@ -125,7 +120,7 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...createForm,
-          ctaHref: normalizeNullableString(createForm.ctaHref),
+          places: createPlaces.map(toPlaceInput),
         }),
       });
       if (!res.ok) {
@@ -135,6 +130,7 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
         throw new Error(payload?.error || "Failed to create service");
       }
       setCreateForm((s) => ({ ...s, title: "", price: "" }));
+      setCreatePlaces([]);
       if (mode === "list") {
         await refresh();
       } else {
@@ -155,6 +151,10 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
   async function onSaveEdit() {
     if (!editDraft) return;
     setError(null);
+    if ((editDraft.places ?? []).length === 0) {
+      setError("Выберите город или область");
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch(`/api/admin/services/${editDraft.id}`, {
@@ -164,13 +164,11 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
           categoryId: editDraft.categoryId,
           title: editDraft.title,
           price: editDraft.price,
-          ctaText: editDraft.ctaText,
-          ctaHref: editDraft.ctaHref,
           image: editDraft.image,
           description: editDraft.description,
           stockBadge: editDraft.stockBadge,
           paletteColor: editDraft.paletteColor,
-          icon: editDraft.icon,
+          places: (editDraft.places ?? []).map(toPlaceInput),
         }),
       });
       if (!res.ok) {
@@ -216,6 +214,14 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
 
       {mode === "create" ? (
       <Box>
+        <Stack spacing={2}>
+        <ServiceGeographyField
+          value={createPlaces}
+          onChange={setCreatePlaces}
+          disabled={busy}
+          error={createPlaces.length === 0}
+          helperText={createPlaces.length === 0 ? "Выберите город или область" : undefined}
+        />
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{
           alignItems: "flex-start"
         }}>
@@ -253,20 +259,6 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
             size="small"
             sx={{ minWidth: 160 }}
           />
-          <TextField
-            label="ctaText"
-            value={createForm.ctaText}
-            onChange={(e) => setCreateForm((s) => ({ ...s, ctaText: e.target.value }))}
-            size="small"
-            sx={{ minWidth: 160 }}
-          />
-          <TextField
-            label="ctaHref"
-            value={createForm.ctaHref}
-            onChange={(e) => setCreateForm((s) => ({ ...s, ctaHref: e.target.value }))}
-            size="small"
-            sx={{ minWidth: 180 }}
-          />
           <Button
             variant="contained"
             onClick={onCreate}
@@ -275,6 +267,7 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
           >
             Создать
           </Button>
+        </Stack>
         </Stack>
       </Box>
       ) : null}
@@ -367,24 +360,6 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
                   size="small"
                   fullWidth
                 />
-                <TextField
-                  label="ctaText"
-                  value={editDraft.ctaText}
-                  onChange={(e) => setEditDraft((s) => (s ? { ...s, ctaText: e.target.value } : s))}
-                  size="small"
-                  fullWidth
-                />
-                <TextField
-                  label="ctaHref (null = empty)"
-                  value={editDraft.ctaHref ?? ""}
-                  onChange={(e) =>
-                    setEditDraft((s) =>
-                      s ? { ...s, ctaHref: normalizeNullableString(e.target.value) } : s
-                    )
-                  }
-                  size="small"
-                  fullWidth
-                />
               </Stack>
 
               <TextField
@@ -421,28 +396,25 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
                 minRows={3}
               />
 
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                <TextField
-                  label="paletteColor (null = empty)"
-                  value={editDraft.paletteColor ?? ""}
-                  onChange={(e) =>
-                    setEditDraft((s) =>
-                      s ? { ...s, paletteColor: normalizePaletteColor(e.target.value) } : s
-                    )
-                  }
-                  size="small"
-                  fullWidth
-                />
-                <TextField
-                  label="icon (null = empty)"
-                  value={editDraft.icon ?? ""}
-                  onChange={(e) =>
-                    setEditDraft((s) => (s ? { ...s, icon: normalizeIcon(e.target.value) } : s))
-                  }
-                  size="small"
-                  fullWidth
-                />
-              </Stack>
+              <ServiceGeographyField
+                value={editDraft.places ?? []}
+                onChange={(places) => setEditDraft((current) => (current ? { ...current, places } : current))}
+                disabled={busy}
+                error={(editDraft.places ?? []).length === 0}
+                helperText={(editDraft.places ?? []).length === 0 ? "Выберите город или область" : undefined}
+              />
+
+              <TextField
+                label="paletteColor (null = empty)"
+                value={editDraft.paletteColor ?? ""}
+                onChange={(e) =>
+                  setEditDraft((s) =>
+                    s ? { ...s, paletteColor: normalizePaletteColor(e.target.value) } : s
+                  )
+                }
+                size="small"
+                fullWidth
+              />
 
             </Stack>
           ) : null}

@@ -26,6 +26,6 @@ import { PrismaService } from '../prisma/prisma.service';
       inject: [PrismaService, MAIL_SENDER],
     },
   ],
-  exports: [AuthService, InternalAuthService],
+  exports: [AuthService, InternalAuthService, MAIL_SENDER],
 })
 export class AuthModule {}

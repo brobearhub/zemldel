@@ -56,6 +56,13 @@ export function formatRegionLabel(regionName: string) {
   return region;
 }
 
+export function shortRegionLabel(regionName: string) {
+  const full = formatRegionLabel(regionName);
+  return full
+    .replace(/автономная область$/iu, "авт. обл.")
+    .replace(/область$/iu, "обл.");
+}
+
 export function formatCityLabel(name: string, regionName: string) {
   const city = displayCityName(name);
   const region = formatRegionLabel(regionName);

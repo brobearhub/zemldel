@@ -19,6 +19,8 @@ const categoryB = {
 const provider = {
   id: "prov-1",
   name: "ООО «Пример»",
+  slug: "primer",
+  verified: false,
   city: {
     id: "city-1",
     name: "Екатеринбург",
@@ -36,15 +38,21 @@ export const mainService: ServiceDto = {
   publishedAt: "2026-09-20T10:00:00.000Z",
   price: "от 15 000 ₽",
   provider,
-  ctaText: "Записаться",
-  ctaHref: "#contacts",
   image: null,
   stockBadge: null,
   description: "Описание",
   paletteColor: "primary",
-  icon: "map",
   rating: 4.7,
   reviewCount: 18,
+  places: [
+    {
+      kind: "city",
+      cityId: "city-1",
+      name: "Екатеринбург",
+      regionCode: "66",
+      regionName: "Свердловская область",
+    },
+  ],
 };
 
 export const legalService: ServiceDto = {
@@ -56,13 +64,18 @@ export const legalService: ServiceDto = {
   publishedAt: null,
   price: "от 30 000 ₽",
   provider,
-  ctaText: "Оставить заявку",
-  ctaHref: null,
   image: null,
-  stockBadge: "Осталось 3 слота",
+  stockBadge: `"Осталось 3 слота" или "Скидка 15%"`,
   description: null,
   paletteColor: null,
-  icon: null,
   rating: null,
   reviewCount: null,
+  places: [
+    {
+      kind: "region",
+      name: "обл. Свердловская",
+      regionCode: "66",
+      regionName: "обл. Свердловская",
+    },
+  ],
 };

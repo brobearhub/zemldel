@@ -10,17 +10,6 @@ import { CabinetDesktopBar } from "@/widgets/cabinet-chrome/ui/CabinetDesktopBar
 import { CabinetMobileHeader } from "@/widgets/cabinet-chrome/ui/CabinetMobileHeader";
 import { CabinetBottomNav } from "@/widgets/cabinet-chrome/ui/CabinetBottomNav";
 
-function resolveCabinetHeaderTitle(
-  pathname: string,
-  searchParams: URLSearchParams,
-  nav: typeof CUSTOMER_NAV,
-): string {
-  if (pathname === "/pro") return "Кабинет";
-  const ctx = { pathname, searchParams };
-  const items = [...nav.desktop, ...nav.mobileBottom, ...nav.mobileMore];
-  return items.find((item) => item.isActive(ctx))?.label ?? "Кабинет";
-}
-
 export function CabinetChrome() {
   const isWide = useMediaQuery("(min-width:768px)");
   const pathname = usePathname();
@@ -39,18 +28,17 @@ export function CabinetChrome() {
   }, [zone]);
 
   const nav = role === "provider" ? PROVIDER_NAV : CUSTOMER_NAV;
+  const showProviderCity = role === "provider";
   // touch searchParams to trigger rerender when section changes
   void searchParams;
 
   if (isWide) {
-    return <CabinetDesktopBar items={nav.desktop} />;
+    return <CabinetDesktopBar items={nav.desktop} showProviderCity={showProviderCity} />;
   }
-
-  const title = resolveCabinetHeaderTitle(pathname, new URLSearchParams(searchParams?.toString() ?? ""), nav);
 
   return (
     <>
-      <CabinetMobileHeader title={title} />
+      <CabinetMobileHeader showProviderCity={showProviderCity} />
       <CabinetBottomNav items={nav.mobileBottom} moreItems={nav.mobileMore} />
     </>
   );

@@ -30,7 +30,6 @@ vi.mock("next/link", () => ({
 describe("HomeServicesByCity", () => {
   const baseService: Omit<ServiceRecord, "id" | "title" | "provider"> = {
     price: "1000 ₽",
-    ctaText: "Записаться",
     categoryId: "cat-1",
     category: { id: "cat-1", name: "Main", slug: "main", parentId: null, sortOrder: null },
     status: "PUBLISHED",

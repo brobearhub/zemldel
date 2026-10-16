@@ -28,8 +28,7 @@ vi.mock("next/link", () => ({
 }));
 
 const baseService: Omit<ServiceRecord, "id" | "title" | "provider"> = {
-  price: "1000 ₽",
-  ctaText: "Записаться",
+    price: "1000 ₽",
   categoryId: "cat-1",
   category: { id: "cat-1", name: "Main", slug: "main", parentId: null, sortOrder: null },
   status: "PUBLISHED",
@@ -85,5 +84,56 @@ describe("ServicesByCity", () => {
     expect(screen.getByText("Чужая услуга")).toBeInTheDocument();
     expect(screen.getByText("Услуги в других городах")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Услуги" })).not.toBeInTheDocument();
+  });
+
+  it("shows a region-wide service in the selected city and keeps an explicit city first", () => {
+    const store = createTestStore({
+      status: "authenticated",
+      error: null,
+      user: {
+        id: "u1",
+        email: "a@b.c",
+        name: "User",
+        image: null,
+        phone: null,
+        systemRole: "CUSTOMER",
+        accountKind: "CUSTOMER",
+        activeProviderId: null,
+        customerCity: { id: "c1", name: "Екатеринбург", regionCode: "66", regionName: "Свердловская область" },
+        memberships: [],
+        linkedAuthProviders: [],
+        stepUpVerifiedAt: {},
+      },
+    });
+
+    render(
+      <Provider store={store}>
+        <CitySelectProvider>
+          <ServicesByCity
+            items={[
+              {
+                ...baseService,
+                id: "region",
+                title: "Только область",
+                places: [{ kind: "region", name: "обл. Свердловская", regionCode: "66", regionName: "обл. Свердловская" }],
+                provider: { id: "p1", name: "P1", city: null },
+              },
+              {
+                ...baseService,
+                id: "city",
+                title: "Явный город",
+                places: [{ kind: "city", cityId: "c1", name: "Екатеринбург", regionCode: "66", regionName: "обл. Свердловская" }],
+                provider: { id: "p2", name: "P2", city: null },
+              },
+            ]}
+          />
+        </CitySelectProvider>
+      </Provider>
+    );
+
+    const explicit = screen.getByText("Явный город");
+    const viaRegion = screen.getByText("Только область");
+    expect(explicit.compareDocumentPosition(viaRegion) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText("Услуги в других городах")).not.toBeInTheDocument();
   });
 });
