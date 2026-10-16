@@ -1,20 +1,28 @@
 import {
+  ArrayMinSize,
+  IsArray,
+  IsBoolean,
   IsEnum,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
+  MaxLength,
   MinLength,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   Expose,
   Transform,
+  Type,
   instanceToPlain,
   plainToInstance,
 } from 'class-transformer';
-import type { ServiceIconKey, ServicePaletteColor } from '../service.types';
+import type { ServicePaletteColor } from '../service.types';
 import { formatPublicProviderName } from '../../providers/provider-display-name';
 import type { ProviderType } from '../../auth/authorization';
 
@@ -35,23 +43,10 @@ const PALETTE_COLORS: readonly ServicePaletteColor[] = [
   'error',
 ] as const;
 
-const ICON_KEYS: readonly ServiceIconKey[] = [
-  'map',
-  'electric',
-  'architecture',
-] as const;
-
 function isPaletteColor(value: unknown): value is ServicePaletteColor {
   return (
     typeof value === 'string' &&
     (PALETTE_COLORS as readonly string[]).includes(value)
-  );
-}
-
-function isIconKey(value: unknown): value is ServiceIconKey {
-  return (
-    typeof value === 'string' &&
-    (ICON_KEYS as readonly string[]).includes(value)
   );
 }
 
@@ -125,6 +120,54 @@ export class CityRefDto {
   regionName!: string;
 }
 
+export class ServicePlaceDto {
+  @ApiProperty({ enum: ['city', 'region'] })
+  @Expose()
+  @IsIn(['city', 'region'])
+  kind!: 'city' | 'region';
+
+  @ApiPropertyOptional()
+  @Expose()
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  @IsString()
+  cityId?: string;
+
+  @ApiProperty()
+  @Expose()
+  @IsString()
+  name!: string;
+
+  @ApiProperty()
+  @Expose()
+  @IsString()
+  regionCode!: string;
+
+  @ApiProperty()
+  @Expose()
+  @IsString()
+  regionName!: string;
+}
+
+export class ServicePlaceInputDto {
+  @ApiProperty({ enum: ['city', 'region'] })
+  @Expose()
+  @IsIn(['city', 'region'])
+  kind!: 'city' | 'region';
+
+  @ApiPropertyOptional()
+  @Expose()
+  @ValidateIf((place: ServicePlaceInputDto) => place.kind === 'city')
+  @IsUUID()
+  cityId?: string;
+
+  @ApiPropertyOptional()
+  @Expose()
+  @ValidateIf((place: ServicePlaceInputDto) => place.kind === 'region')
+  @IsString()
+  @MinLength(1)
+  regionCode?: string;
+}
+
 export class ServiceProviderRefDto {
   @ApiProperty()
   @Expose()
@@ -135,6 +178,16 @@ export class ServiceProviderRefDto {
   @Expose()
   @IsString()
   name!: string;
+
+  @ApiProperty()
+  @Expose()
+  @IsString()
+  slug!: string;
+
+  @ApiProperty()
+  @Expose()
+  @IsBoolean()
+  verified!: boolean;
 
   @ApiProperty({ type: CityRefDto, nullable: true })
   @Expose()
@@ -206,17 +259,6 @@ export class ServiceDto {
   @IsInt()
   reviewCount!: number | null;
 
-  @ApiProperty()
-  @Expose()
-  @IsString()
-  ctaText!: string;
-
-  @ApiProperty({ nullable: true, example: null })
-  @Expose()
-  @ValidateIf((_, value) => value !== null && value !== undefined)
-  @IsString()
-  ctaHref!: string | null;
-
   @ApiProperty({ nullable: true, example: null })
   @Expose()
   @ValidateIf((_, value) => value !== null && value !== undefined)
@@ -232,14 +274,12 @@ export class ServiceDto {
   })
   paletteColor!: ServicePaletteColor | null;
 
-  @ApiProperty({ enum: ICON_KEYS, nullable: true, example: null })
+  @ApiProperty({ type: [ServicePlaceDto] })
   @Expose()
-  @ValidateIf((_, value) => value !== null && value !== undefined)
-  @IsEnum(ICON_KEYS)
-  @Transform(({ value }) => (isIconKey(value) ? value : null), {
-    toClassOnly: true,
-  })
-  icon!: ServiceIconKey | null;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ServicePlaceDto)
+  places!: ServicePlaceDto[];
 
   @ApiProperty({ type: ServiceProviderRefDto })
   @Expose()
@@ -264,15 +304,14 @@ export type ServiceDbRow = {
   price: string;
   rating: number | null;
   reviewCount: number | null;
-  ctaText: string;
-  ctaHref: string | null;
   description: string | null;
   paletteColor: string | null;
-  icon: string | null;
   provider: {
     id: string;
     name: string;
+    slug: string;
     type: ProviderType;
+    verificationStatus: string;
     city: {
       id: string;
       name: string;
@@ -280,19 +319,51 @@ export type ServiceDbRow = {
       regionName: string;
     } | null;
   };
+  cities: Array<{
+    city: {
+      id: string;
+      name: string;
+      regionCode: string;
+      regionName: string;
+    };
+  }>;
+  regions: Array<{
+    regionCode: string;
+    regionName: string;
+  }>;
 };
+
+function placesFromRow(row: ServiceDbRow): ServicePlaceDto[] {
+  return [
+    ...row.cities.map((link) => ({
+      kind: 'city' as const,
+      cityId: link.city.id,
+      name: link.city.name,
+      regionCode: link.city.regionCode,
+      regionName: link.city.regionName,
+    })),
+    ...row.regions.map((region) => ({
+      kind: 'region' as const,
+      name: region.regionName,
+      regionCode: region.regionCode,
+      regionName: region.regionName,
+    })),
+  ];
+}
 
 export function serviceDbRowToDtoPlain(row: ServiceDbRow): ServiceDto {
   const instance = plainToInstance(
     ServiceDto,
     {
       ...row,
+      places: placesFromRow(row),
       provider: {
         ...row.provider,
         name: formatPublicProviderName({
           type: row.provider.type,
           name: row.provider.name,
         }),
+        verified: row.provider.verificationStatus === 'VERIFIED',
       },
     },
     {
@@ -345,24 +416,6 @@ export class ServiceCreateDto {
   @MinLength(1)
   price?: string;
 
-  @ApiPropertyOptional({ minLength: 1 })
-  @Expose()
-  @IsOptional()
-  @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
-    toClassOnly: true,
-  })
-  @ValidateIf((_, value) => value !== null && value !== undefined)
-  @IsString()
-  @MinLength(1)
-  ctaText?: string;
-
-  @ApiPropertyOptional({ nullable: true, example: null })
-  @Expose()
-  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
-  @ValidateIf((_, value) => value !== null && value !== undefined)
-  @IsString()
-  ctaHref?: string | null;
-
   @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
@@ -370,11 +423,12 @@ export class ServiceCreateDto {
   @IsString()
   image?: string | null;
 
-  @ApiPropertyOptional({ nullable: true, example: null })
+  @ApiPropertyOptional({ nullable: true, example: null, maxLength: 33 })
   @Expose()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
+  @MaxLength(33)
   stockBadge?: string | null;
 
   @ApiPropertyOptional({ nullable: true, example: null })
@@ -391,12 +445,13 @@ export class ServiceCreateDto {
   @IsEnum(PALETTE_COLORS)
   paletteColor?: ServicePaletteColor | null;
 
-  @ApiPropertyOptional({ enum: ICON_KEYS, nullable: true, example: null })
+  @ApiProperty({ type: [ServicePlaceInputDto] })
   @Expose()
-  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
-  @ValidateIf((_, value) => value !== null && value !== undefined)
-  @IsEnum(ICON_KEYS)
-  icon?: ServiceIconKey | null;
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => ServicePlaceInputDto)
+  places!: ServicePlaceInputDto[];
 }
 
 export class ServicePatchDto {
@@ -439,24 +494,6 @@ export class ServicePatchDto {
   @MinLength(1)
   price?: string;
 
-  @ApiPropertyOptional({ minLength: 1 })
-  @Expose()
-  @IsOptional()
-  @Transform(({ value }: { value: unknown }) => trimOrSame(value), {
-    toClassOnly: true,
-  })
-  @IsString()
-  @MinLength(1)
-  ctaText?: string;
-
-  @ApiPropertyOptional({ nullable: true, example: null })
-  @Expose()
-  @IsOptional()
-  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
-  @ValidateIf((_, value) => value !== null && value !== undefined)
-  @IsString()
-  ctaHref?: string | null;
-
   @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @IsOptional()
@@ -465,12 +502,13 @@ export class ServicePatchDto {
   @IsString()
   image?: string | null;
 
-  @ApiPropertyOptional({ nullable: true, example: null })
+  @ApiPropertyOptional({ nullable: true, example: null, maxLength: 33 })
   @Expose()
   @IsOptional()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
   @ValidateIf((_, value) => value !== null && value !== undefined)
   @IsString()
+  @MaxLength(33)
   stockBadge?: string | null;
 
   @ApiPropertyOptional({ nullable: true, example: null })
@@ -489,11 +527,12 @@ export class ServicePatchDto {
   @IsEnum(PALETTE_COLORS)
   paletteColor?: ServicePaletteColor | null;
 
-  @ApiPropertyOptional({ enum: ICON_KEYS, nullable: true, example: null })
+  @ApiPropertyOptional({ type: [ServicePlaceInputDto] })
   @Expose()
   @IsOptional()
-  @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
-  @ValidateIf((_, value) => value !== null && value !== undefined)
-  @IsEnum(ICON_KEYS)
-  icon?: ServiceIconKey | null;
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => ServicePlaceInputDto)
+  places?: ServicePlaceInputDto[];
 }

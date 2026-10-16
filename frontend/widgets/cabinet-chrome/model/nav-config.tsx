@@ -213,7 +213,7 @@ export const PROVIDER_NAV: {
     },
     {
       key: "settings",
-      label: "Настройки",
+      label: "Статусы этапов",
       href: "/pro/settings",
       icon: <SettingsOutlinedIcon />,
       isActive: ({ pathname }) => pathname.startsWith("/pro/settings"),
@@ -306,7 +306,7 @@ export const PROVIDER_NAV: {
     },
     {
       key: "settings",
-      label: "Настройки",
+      label: "Статусы этапов",
       href: "/pro/settings",
       icon: <SettingsOutlinedIcon />,
       isActive: ({ pathname }) => pathname.startsWith("/pro/settings"),

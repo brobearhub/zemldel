@@ -8,6 +8,8 @@ import {
   Box,
   Button,
   Chip,
+  Menu,
+  MenuItem,
   Paper,
   Stack,
   TextField,
@@ -15,7 +17,8 @@ import {
 } from "@mui/material";
 import { useAppSelector } from "@/core/store/hooks";
 import { formatReviewCount } from "@/entities/review";
-import type { ServiceCreateDto, ServiceDto, ServiceStatus } from "@/entities/service";
+import { ServicePlaces } from "@/entities/service";
+import type { ServiceDto, ServiceStatus } from "@/entities/service";
 import { useConfirm } from "@/shared/ui/confirm";
 
 type Props = {
@@ -36,11 +39,6 @@ function statusColor(status: ServiceStatus): "default" | "success" | "warning" {
   return "warning";
 }
 
-function normalizeNullableString(value: string | null | undefined): string | null {
-  const normalized = value?.trim() ?? "";
-  return normalized.length ? normalized : null;
-}
-
 function sortServices(list: ServiceDto[]) {
   return [...list].sort((left, right) => {
     const leftSlug = left.category?.slug ?? "";
@@ -53,31 +51,13 @@ function sortServices(list: ServiceDto[]) {
 }
 
 function noticeFromQuery(value: string | null) {
-  if (value === "created") return "Услуга сохранена. Теперь она появилась в рабочем списке provider.";
+  if (value === "created") return "Услуга сохранена и появилась в списке.";
   if (value === "updated") return "Изменения по услуге сохранены.";
   return null;
 }
 
 function publishedServiceIdFromQuery(params: { get: (name: string) => string | null }) {
   return params.get("notice") === "published" ? params.get("serviceId") : null;
-}
-
-function buildDuplicatePayload(service: ServiceDto): ServiceCreateDto {
-  return {
-    categoryId: service.categoryId,
-    status: "DRAFT",
-    title: `${service.title} (копия)`,
-    price: service.price,
-    ctaText: service.ctaText,
-    ctaHref: normalizeNullableString(service.ctaHref),
-    image: normalizeNullableString(service.image),
-    stockBadge: normalizeNullableString(service.stockBadge),
-    description: normalizeNullableString(service.description),
-    paletteColor: service.paletteColor,
-    icon: service.icon,
-    rating: null,
-    reviewCount: null,
-  };
 }
 
 export function ProServicesListClient({ initialServices }: Props) {
@@ -93,6 +73,8 @@ export function ProServicesListClient({ initialServices }: Props) {
     publishedServiceIdFromQuery(searchParams),
   );
   const [linkCopied, setLinkCopied] = useState(false);
+  const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
+  const [moreServiceId, setMoreServiceId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [filter, setFilter] = useState<StatusFilter>("ALL");
   const [search, setSearch] = useState("");
@@ -187,35 +169,6 @@ export function ProServicesListClient({ initialServices }: Props) {
     }
   }
 
-  async function duplicateService(service: ServiceDto) {
-    setBusyId(service.id);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/pro/services", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(buildDuplicatePayload(service)),
-      });
-      const payload = (await response.json().catch(() => null)) as { error?: string } | ServiceDto | null;
-
-      if (!response.ok) {
-        throw new Error(
-          payload && typeof payload === "object" && "error" in payload
-            ? payload.error ?? "Не удалось дублировать услугу"
-            : "Не удалось дублировать услугу"
-        );
-      }
-
-      await refresh();
-      setNotice("Черновик-копия создан. При необходимости откройте его и доработайте перед публикацией.");
-    } catch (duplicateError) {
-      setError(duplicateError instanceof Error ? duplicateError.message : "Не удалось дублировать услугу");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
   async function deleteService(service: ServiceDto) {
     const ok = await confirm({
       title: `Удалить услугу "${service.title}"?`,
@@ -259,14 +212,14 @@ export function ProServicesListClient({ initialServices }: Props) {
             <Typography variant="h6" gutterBottom sx={{
               fontWeight: 800
             }}>
-              Рабочий поток услуг
+              Услуги
             </Typography>
             <Typography sx={{
               color: "text.secondary"
             }}>
               {activeMembership
-                ? `Вы работаете в контексте provider "${activeMembership.providerName}".`
-                : "Управление услугами привязано к активному provider."}{" "}
+                ? `Услуги профиля «${activeMembership.providerName}».`
+                : "Сначала создайте профиль исполнителя."}{" "}
               Держите в черновиках заготовки, публикуйте готовые карточки и архивируйте неактуальные.
             </Typography>
           </Box>
@@ -429,81 +382,37 @@ export function ProServicesListClient({ initialServices }: Props) {
                   }}>
                     {service.price} · {service.category?.name ?? service.category?.slug ?? "категория"}
                   </Typography>
-                  <Typography variant="body2" sx={{
-                    color: "text.secondary"
-                  }}>
-                    CTA: {service.ctaText}
-                    {service.reviewCount ? ` · ${formatReviewCount(service.reviewCount)}` : ""}
-                  </Typography>
+                  {service.reviewCount ? (
+                    <Typography variant="body2" sx={{
+                      color: "text.secondary"
+                    }}>
+                      {formatReviewCount(service.reviewCount)}
+                    </Typography>
+                  ) : null}
+                  <ServicePlaces places={service.places ?? []} />
                 </Box>
 
-                <Stack direction="row" spacing={1} useFlexGap sx={{
-                  flexWrap: "wrap"
-                }}>
+                <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
                   <Button
                     component={Link}
                     href={`/pro/services/${service.id}/edit`}
-                    variant="outlined"
+                    variant="contained"
                     size="small"
                     disabled={busyId === service.id}
                   >
                     Редактировать
                   </Button>
-
-                  {service.status === "DRAFT" ? (
-                    <Button
-                      variant="contained"
-                      size="small"
-                      disabled={busyId === service.id}
-                      onClick={() => patchStatus(service.id, "PUBLISHED")}
-                    >
-                      Опубликовать
-                    </Button>
-                  ) : null}
-
-                  {service.status === "PUBLISHED" ? (
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      disabled={busyId === service.id}
-                      onClick={() => patchStatus(service.id, "DRAFT")}
-                    >
-                      В черновик
-                    </Button>
-                  ) : null}
-
-                  {service.status !== "ARCHIVED" && canArchiveOrDelete ? (
-                    <Button
-                      variant="outlined"
-                      color="warning"
-                      size="small"
-                      disabled={busyId === service.id}
-                      onClick={() => patchStatus(service.id, "ARCHIVED")}
-                    >
-                      Архивировать
-                    </Button>
-                  ) : null}
-
-                  {service.status === "ARCHIVED" ? (
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      disabled={busyId === service.id}
-                      onClick={() => patchStatus(service.id, "DRAFT")}
-                    >
-                      Вернуть в черновик
-                    </Button>
-                  ) : null}
-
                   <Button
                     variant="outlined"
                     size="small"
                     disabled={busyId === service.id}
-                    onClick={() => duplicateService(service)}
+                    onClick={(event) => {
+                      setMoreAnchor(event.currentTarget);
+                      setMoreServiceId(service.id);
+                    }}
                   >
-                    Дублировать
+                    Ещё
                   </Button>
-
                   {canArchiveOrDelete ? (
                     <Button
                       variant="outlined"
@@ -526,6 +435,41 @@ export function ProServicesListClient({ initialServices }: Props) {
             </Stack>
           </Paper>
         ))}
+        <Menu
+          anchorEl={moreAnchor}
+          open={Boolean(moreAnchor)}
+          onClose={() => {
+            setMoreAnchor(null);
+            setMoreServiceId(null);
+          }}
+        >
+          {filteredServices
+            .filter((item) => item.id === moreServiceId)
+            .map((service) => (
+              <Box key={service.id}>
+                {service.status === "DRAFT" ? (
+                  <MenuItem onClick={() => { setMoreAnchor(null); void patchStatus(service.id, "PUBLISHED"); }}>
+                    Опубликовать
+                  </MenuItem>
+                ) : null}
+                {service.status === "PUBLISHED" ? (
+                  <MenuItem onClick={() => { setMoreAnchor(null); void patchStatus(service.id, "DRAFT"); }}>
+                    В черновик
+                  </MenuItem>
+                ) : null}
+                {service.status !== "ARCHIVED" && canArchiveOrDelete ? (
+                  <MenuItem onClick={() => { setMoreAnchor(null); void patchStatus(service.id, "ARCHIVED"); }}>
+                    Архивировать
+                  </MenuItem>
+                ) : null}
+                {service.status === "ARCHIVED" ? (
+                  <MenuItem onClick={() => { setMoreAnchor(null); void patchStatus(service.id, "DRAFT"); }}>
+                    Вернуть в черновик
+                  </MenuItem>
+                ) : null}
+              </Box>
+            ))}
+        </Menu>
 
         {filteredServices.length === 0 ? (
           <Paper variant="outlined" sx={{ p: 3 }}>

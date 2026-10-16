@@ -1,5 +1,3 @@
-import LockRoundedIcon from "@mui/icons-material/LockRounded";
-import SpeedRoundedIcon from "@mui/icons-material/SpeedRounded";
 import { Box, Container, Paper, Stack, Typography } from "@mui/material";
 import { ServiceAskQuestionButton, ServiceLeadCaptureForm } from "@/features/create-service-request-lead";
 
@@ -31,49 +29,14 @@ export function ServiceLeadSection({ serviceId, serviceTitle, isAuthenticated, i
           }}
         >
           <Stack spacing={{ xs: 2, md: 3 }} sx={{ color: "common.white", pt: { md: 2 } }}>
-            <Box
-              sx={{
-                display: "inline-flex",
-                alignSelf: "flex-start",
-                px: { xs: "12px", md: "14px" },
-                py: { xs: "6px", md: "7px" },
-                borderRadius: "999px",
-                bgcolor: "rgba(255,255,255,0.09)",
-                color: "#e8efea",
-              }}
-            >
-              <Typography variant="caption" sx={{ letterSpacing: "0.4px" }}>
-                Первая консультация бесплатно
-              </Typography>
-            </Box>
-
-            <Typography
-              variant="h4"
-              sx={{ color: "common.white" }}
-            >
-              Обсудим вашу сделку и составим план действий
+            <Typography variant="h4" sx={{ color: "common.white" }}>
+              {serviceTitle}
             </Typography>
-
             <Typography sx={{ color: "#e8efea", maxWidth: 820, fontSize: { xs: 14, md: 16 }, lineHeight: { xs: 1.43, md: 1.5 } }}>
               {isAuthenticated
-                ? "Просто задайте вопрос по услуге, и заявка появится в вашем профиле."
-                : "Укажите электронную почту — юрист свяжется в рабочее время, уточнит задачу и назовёт точную стоимость сопровождения."}
+                ? "Заявка появится в вашем профиле."
+                : "Укажите электронную почту, чтобы отправить заявку исполнителю."}
             </Typography>
-
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={{ xs: 1.25, sm: 3 }} sx={{ color: "#e8efea" }}>
-              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                <SpeedRoundedIcon sx={{ fontSize: { xs: 18, md: 19 }, color: "#e8efea" }} />
-                <Typography variant="caption" sx={{ letterSpacing: "0.4px", color: "#e8efea" }}>
-                  Ответим в течение часа
-                </Typography>
-              </Stack>
-              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                <LockRoundedIcon sx={{ fontSize: { xs: 18, md: 19 }, color: "#e8efea" }} />
-                <Typography variant="caption" sx={{ letterSpacing: "0.4px", color: "#e8efea" }}>
-                  Данные защищены
-                </Typography>
-              </Stack>
-            </Stack>
           </Stack>
 
           <Paper

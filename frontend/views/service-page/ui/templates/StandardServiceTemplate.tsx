@@ -4,7 +4,7 @@ import { getPublicProviderProfile } from "@/entities/provider";
 import { listPublicServiceReviews } from "@/entities/review/api/review.server";
 import { ServiceHeroSection, ServiceLeadSection, ServiceProviderSection, ServiceReviewsSection } from "@/widgets/service-page";
 import { mapServiceToHeroVm } from "@/views/service-page/model/map-service-to-hero-vm";
-import { displayCityName } from "@/shared/lib/format-city-label";
+import { placeChipLabel } from "@/entities/service";
 
 type Props = {
   service: ServiceDto;
@@ -13,6 +13,7 @@ type Props = {
 
 export function StandardServiceTemplate({ service, session }: Props) {
   const heroVm = mapServiceToHeroVm(service);
+  const onlyPlace = service.places?.length === 1 ? service.places[0] : undefined;
   const isAuthenticated = Boolean(session?.user?.id);
   const initialEmail = session?.user?.email ?? null;
   const providerId = service.provider?.id ?? null;
@@ -35,7 +36,7 @@ export function StandardServiceTemplate({ service, session }: Props) {
         serviceId={service.id}
         ratingValue={service.rating ?? null}
         reviewCount={service.reviewCount ?? 0}
-        cityLabel={service.provider?.city?.name ? displayCityName(service.provider.city.name) : null}
+        cityLabel={onlyPlace ? placeChipLabel(onlyPlace) : null}
       />
 
       <ServiceLeadSection

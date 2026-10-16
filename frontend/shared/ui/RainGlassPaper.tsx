@@ -18,7 +18,7 @@ const baseSx: SxProps<Theme> = (theme) => {
     const glassBase = isDark
     ? alpha(theme.palette.background.paper, 0.66)
     : alpha(theme.palette.common.black, 0.40);
-    const autofillSurface = isDark ? "rgba(38, 42, 40, 0.98)" : "rgba(32, 36, 34, 0.96)";
+    const inputSurface = alpha(theme.palette.common.white, isDark ? 0.06 : 0.08);
     const autofillText = alpha(theme.palette.common.white, isDark ? 0.92 : 0.94);
   const border = alpha(theme.palette.common.white, isDark ? 0.16 : 0.18);
   const topHighlight = alpha(theme.palette.common.white, isDark ? 0.12 : 0.14);
@@ -85,11 +85,36 @@ const baseSx: SxProps<Theme> = (theme) => {
       },
     },
     // Why: глазик пароля — IconButton с action.active (тёмный). На стекле он должен совпадать с label.
+    // Кнопка лежит поверх поля: автозаполнение красит только <input>, и правый край иначе темнее.
+    "& .MuiInputAdornment-positionEnd": {
+      position: "absolute",
+      right: "6px",
+      top: "50%",
+      transform: "translateY(-50%)",
+      zIndex: 1,
+      height: "auto",
+      maxHeight: "none",
+      margin: 0,
+      backgroundColor: "transparent",
+    },
+    "& .MuiOutlinedInput-root:has(.MuiInputAdornment-positionEnd) .MuiInputBase-input": {
+      paddingRight: "44px",
+    },
     "& .MuiInputAdornment-root .MuiIconButton-root": {
+      backgroundColor: "transparent",
       color: alpha(theme.palette.common.white, isDark ? 0.78 : 0.82),
+      width: 36,
+      height: 36,
+      minWidth: 36,
+      minHeight: 36,
+      marginRight: 0,
+      "&:hover": {
+        backgroundColor: alpha(theme.palette.common.white, 0.08),
+      },
     },
     "& .MuiOutlinedInput-root": {
-      backgroundColor: alpha(theme.palette.common.white, isDark ? 0.06 : 0.08),
+      position: "relative",
+      backgroundColor: inputSurface,
       "&:hover": {
         backgroundColor: alpha(theme.palette.common.white, isDark ? 0.08 : 0.10),
       },
@@ -109,12 +134,12 @@ const baseSx: SxProps<Theme> = (theme) => {
     "& .MuiInputBase-input": {
       color: alpha(theme.palette.common.white, isDark ? 0.92 : 0.94),
     },
-    // Browser autofill (Chrome/Safari) overrides MUI styles: keep the "glass" look consistent.
+    // Автозаполнение красит <input> своим цветом. Тень того же тона, что и плашка, закрывает его целиком, включая место под глазиком.
     "& input:-webkit-autofill, & textarea:-webkit-autofill, & select:-webkit-autofill, & input:-webkit-autofill:hover, & textarea:-webkit-autofill:hover, & select:-webkit-autofill:hover, & input:-webkit-autofill:focus, & textarea:-webkit-autofill:focus, & select:-webkit-autofill:focus, & input:-webkit-autofill:active, & textarea:-webkit-autofill:active, & select:-webkit-autofill:active": {
       WebkitTextFillColor: `${autofillText} !important`,
       caretColor: `${autofillText} !important`,
-      WebkitBoxShadow: `0 0 0px 1000px ${autofillSurface} inset !important`,
-      boxShadow: `0 0 0px 1000px ${autofillSurface} inset !important`,
+      WebkitBoxShadow: `0 0 0px 1000px ${inputSurface} inset !important`,
+      boxShadow: `0 0 0px 1000px ${inputSurface} inset !important`,
       transition: "background-color 9999s ease-out 0s",
     },
     "& .MuiFormControl-root:has(input:-webkit-autofill) .MuiInputLabel-root, & .MuiFormControl-root:has(textarea:-webkit-autofill) .MuiInputLabel-root": {
@@ -126,12 +151,12 @@ const baseSx: SxProps<Theme> = (theme) => {
     "& input:-internal-autofill-selected, & input:-internal-autofill-previewed": {
       WebkitTextFillColor: `${autofillText} !important`,
       caretColor: `${autofillText} !important`,
-      WebkitBoxShadow: `0 0 0px 1000px ${autofillSurface} inset !important`,
-      boxShadow: `0 0 0px 1000px ${autofillSurface} inset !important`,
+      WebkitBoxShadow: `0 0 0px 1000px ${inputSurface} inset !important`,
+      boxShadow: `0 0 0px 1000px ${inputSurface} inset !important`,
     },
     "& input:-moz-autofill, & textarea:-moz-autofill, & select:-moz-autofill": {
       caretColor: `${autofillText} !important`,
-      boxShadow: `0 0 0px 1000px ${autofillSurface} inset !important`,
+      boxShadow: `0 0 0px 1000px ${inputSurface} inset !important`,
     },
     "& .MuiFormHelperText-root": {
       color: alpha(theme.palette.common.white, isDark ? 0.64 : 0.68),

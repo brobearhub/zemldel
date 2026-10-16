@@ -144,15 +144,12 @@ async function main() {
       status: 'PUBLISHED',
       title: 'Smoke Service',
       price: '1000 ₽',
-      ctaText: 'Заказать',
-      ctaHref: null,
       description: 'smoke',
       image: null,
       stockBadge: null,
       rating: null,
       reviewCount: null,
       paletteColor: 'primary',
-      icon: 'map',
     },
   });
   assertOk(createdService.status, createdService.json, 'create service');

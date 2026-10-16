@@ -171,7 +171,10 @@ export class PublicProviderProfileDto {
   @ApiProperty({ nullable: true, example: null, required: false })
   ownerEmail?: string | null;
 
-  @ApiProperty({ example: 'На связи сегодня' })
+  @ApiProperty({ example: false })
+  verified!: boolean;
+
+  @ApiProperty({ example: '' })
   availabilityLabel!: string;
 
   @ApiProperty({ type: [PublicProviderStatDto] })

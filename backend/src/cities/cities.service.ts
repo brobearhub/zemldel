@@ -4,12 +4,15 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   buildDisplayName,
   locationRowRank,
   normalizeCityNameForKey,
+  placeNameLikePatterns,
   publicCityName,
+  regionMatchesQuery,
 } from './city-suggest.lib';
 import { compareRegionalCapitals } from './regional-capital-order';
 import type {
@@ -20,7 +23,11 @@ import type {
   CityImportEventDto,
   CityImportRunDto,
 } from './dto/city-admin.dto';
-import type { CitySuggestItemDto } from './dto/city.dto';
+import type {
+  CitySuggestItemDto,
+  PlaceSuggestItemDto,
+  PlaceSuggestPageDto,
+} from './dto/city.dto';
 
 function normalizeQuery(input: string) {
   let q = input.trim();
@@ -63,9 +70,9 @@ function cityNameQuery(q: string) {
   return clauses;
 }
 
-function clampLimit(value: number) {
+function clampLimit(value: number, max = 20) {
   if (!Number.isFinite(value)) return 10;
-  return Math.min(20, Math.max(1, Math.floor(value)));
+  return Math.min(max, Math.max(1, Math.floor(value)));
 }
 
 type SuggestCityRow = {
@@ -152,14 +159,26 @@ function sortRegionalCapitalRows(rows: RegionalCapitalRow[]) {
 export class CitiesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async suggest(qRaw: string, limitRaw: number): Promise<CitySuggestItemDto[]> {
+  async suggest(
+    qRaw: string,
+    limitRaw: number,
+    maxLimit = 20,
+  ): Promise<CitySuggestItemDto[]> {
     const q = normalizeQuery(qRaw);
-    const limit = clampLimit(limitRaw);
+    const limit = clampLimit(limitRaw, maxLimit);
 
     if (q.length === 0) {
       return [];
     }
 
+    const ranked = await this.rankedCityRows(
+      q,
+      Math.min(1000, Math.max(limit * 12, 300)),
+    );
+    return ranked.slice(0, limit).map((row) => toSuggestItem(row));
+  }
+
+  private async rankedCityRows(q: string, take: number) {
     const rows = await this.prisma.city.findMany({
       where: {
         status: 'ACTIVE',
@@ -175,7 +194,8 @@ export class CitiesService {
         level: true,
       },
       orderBy: [{ name: 'asc' }],
-      take: Math.min(200, limit * 12),
+      // Короткий префикс вроде «казан» иначе обрезается по алфавиту до «Казань».
+      take,
     });
 
     const byKey = new Map<string, (typeof rows)[number]>();
@@ -187,12 +207,116 @@ export class CitiesService {
       }
     }
 
-    const deduped = [...byKey.values()].sort((a, b) => {
+    return [...byKey.values()].sort((a, b) => {
       const r = locationRowRank(a) - locationRowRank(b);
       if (r !== 0) return r;
       return a.name.localeCompare(b.name, 'ru');
     });
-    return deduped.slice(0, limit).map((row) => toSuggestItem(row));
+  }
+
+  /**
+   * Страница подсказки мест. CASE ранга совпадает с locationRowRank.
+   * Индекс: lower(name) text_pattern_ops, поэтому сравнение через lower + LIKE, не ILIKE.
+   */
+  private pagePlaceCities(q: string, limit: number, offset: number) {
+    const { prefix, heroPrefix } = placeNameLikePatterns(q);
+    const nameMatch = heroPrefix
+      ? Prisma.sql`(
+          lower(name) LIKE lower(${prefix}) ESCAPE '\\'
+          OR lower(name) LIKE lower(${heroPrefix}) ESCAPE '\\'
+        )`
+      : Prisma.sql`lower(name) LIKE lower(${prefix}) ESCAPE '\\'`;
+
+    return this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        name: string;
+        regionCode: string;
+        regionName: string;
+      }>
+    >`
+      SELECT id::text AS id, name, "regionCode", "regionName"
+      FROM (
+        SELECT DISTINCT ON (lower(btrim(name)), "regionCode", "typeName", level)
+          id,
+          name,
+          "regionCode",
+          "regionName",
+          "typeName",
+          level,
+          CASE
+            WHEN "typeName" = 'г' AND level = 5 THEN 0
+            WHEN "typeName" = 'г' AND level = 1 THEN 1
+            WHEN level = 6 THEN 2
+            WHEN level = 4 THEN 3
+            WHEN level = 3 THEN 4
+            WHEN level = 2 THEN 5
+            ELSE 99
+          END
+          + CASE
+              WHEN lower(btrim("typeName")) = 'автодорога' THEN 50
+              ELSE 0
+            END AS rank
+        FROM "City"
+        WHERE status = 'ACTIVE'::"CityStatus"
+          AND level IN (1, 2, 3, 4, 5, 6)
+          AND ${nameMatch}
+        ORDER BY lower(btrim(name)), "regionCode", "typeName", level, id
+      ) AS places
+      ORDER BY rank, name, id
+      LIMIT ${limit + 1}
+      OFFSET ${offset}
+    `;
+  }
+
+  async suggestPlaces(
+    qRaw: string,
+    limitRaw: number,
+    offsetRaw = 0,
+  ): Promise<PlaceSuggestPageDto> {
+    const q = normalizeQuery(qRaw);
+    const limit = clampLimit(limitRaw, 50);
+    const offset = Math.max(0, Math.floor(offsetRaw) || 0);
+    if (q.trim().length < 2) {
+      return { regions: [], cities: [], hasMore: false };
+    }
+
+    const regionRowsPromise: Promise<
+      Array<{ regionCode: string; regionName: string }>
+    > =
+      offset === 0
+        ? this.prisma.region.findMany({
+            select: { regionCode: true, regionName: true },
+          })
+        : Promise.resolve([]);
+
+    const [pageRows, regionRows] = await Promise.all([
+      this.pagePlaceCities(q, limit, offset),
+      regionRowsPromise,
+    ]);
+
+    const hasMore = pageRows.length > limit;
+    const cities: PlaceSuggestItemDto[] = pageRows
+      .slice(0, limit)
+      .map((city) => ({
+        kind: 'city',
+        id: city.id,
+        name: publicCityName(city.name),
+        regionCode: city.regionCode,
+        regionName: city.regionName,
+      }));
+
+    const regions: PlaceSuggestItemDto[] = regionRows
+      .filter((row) => regionMatchesQuery(row.regionName, q))
+      .sort((a, b) => a.regionName.localeCompare(b.regionName, 'ru'))
+      .map((row) => ({
+        kind: 'region',
+        name: row.regionName,
+        regionCode: row.regionCode,
+        regionName: row.regionName,
+      }));
+
+    return { regions, cities, hasMore };
   }
 
   async listCapitals(): Promise<RegionalCapitalItemDto[]> {

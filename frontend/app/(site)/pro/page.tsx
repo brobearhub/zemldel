@@ -47,6 +47,7 @@ export default async function ProDashboardPage() {
           providerType: activeMembership.providerType,
           hasPublishedService: serviceList.some((service) => service.status === "PUBLISHED"),
           verificationStatus: verification.status,
+          rejectReason: verification.rejectReason,
         })}
       />
     );

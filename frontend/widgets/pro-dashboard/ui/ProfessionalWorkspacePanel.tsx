@@ -317,7 +317,7 @@ export function ProfessionalWorkspacePanel() {
                   <Stack spacing={1} sx={{ mt: 1 }}>
                     {slugError ? <Alert severity="error" sx={{ py: 0 }}>{slugError}</Alert> : null}
                     <TextField
-                      label="Slug"
+                      label="Адрес профиля"
                       value={slugValue}
                       onChange={handleSlugInputChange}
                       disabled={slugSaving}
@@ -375,7 +375,7 @@ export function ProfessionalWorkspacePanel() {
                     <Typography variant="body2" sx={{
                       color: "text.secondary"
                     }}>
-                      Slug: <b>{providerMembers.slug}</b>
+                      Адрес профиля: <b>{providerMembers.slug}</b>
                     </Typography>
                     {isActiveOwner ? (
                       <Button

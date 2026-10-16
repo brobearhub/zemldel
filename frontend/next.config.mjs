@@ -6,6 +6,10 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Why: forbidden() иначе бросает обычную ошибку, и error.tsx показывает «Что-то пошло не так».
+  experimental: {
+    authInterrupts: true,
+  },
   turbopack: {
     root: projectRoot,
     // Why: @mui/x-chat грузит remend через приватный импорт `#remend`, который webpack/turbopack не резолвят из node_modules.

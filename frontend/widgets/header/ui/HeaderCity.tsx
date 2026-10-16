@@ -8,14 +8,16 @@ import { LocationButton, useCitySelect, useHeaderCity, useSelectedCity } from "@
 type HeaderCityProps = {
   /** В меню-гамбургере название города видно и на узком экране. */
   readonly showLabel?: boolean;
+  /** Кабинет исполнителя, в том числе на /chats, где путь сам по себе не /pro. */
+  readonly scope?: "provider";
 };
 
-export function HeaderCity({ showLabel = false }: HeaderCityProps) {
+export function HeaderCity({ showLabel = false, scope }: HeaderCityProps) {
   const pathname = usePathname();
   const { status, user } = useAppSelector((s) => s.auth);
   const { openCitySelect } = useCitySelect();
 
-  const inPro = pathname === "/pro" || pathname.startsWith("/pro/");
+  const inPro = scope === "provider" || pathname === "/pro" || pathname.startsWith("/pro/");
   const activeMembership = user ? getActiveMembership(user) : null;
 
   const customerSelected = useHeaderCity();
@@ -23,12 +25,12 @@ export function HeaderCity({ showLabel = false }: HeaderCityProps) {
 
   const city = inPro ? providerSelected : customerSelected;
   const label = city ? city.name : "Выбрать локацию";
-  const scope = inPro && status === "authenticated" && user && activeMembership?.providerId ? "provider" : "customer";
+  const selectScope = inPro && status === "authenticated" && user && activeMembership?.providerId ? "provider" : "customer";
 
   return (
     <LocationButton
       label={label}
-      onClick={() => openCitySelect(scope)}
+      onClick={() => openCitySelect(selectScope)}
       labelDisplay={showLabel ? "always" : "fromMd"}
     />
   );

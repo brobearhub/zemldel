@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Groups2OutlinedIcon from "@mui/icons-material/Groups2Outlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
-import { Box, Chip, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Box, Button, Chip, Paper, Stack, TextField, Typography } from "@mui/material";
 import { formatRequestDate, getRequestStatusLabel, isOpenRequestStatus, type RequestCustomerDto, type RequestStatus } from "@/entities/request";
 
 type Props = {
@@ -135,6 +135,22 @@ export function ProClientsBoard({ initialOrders }: Props) {
     });
   }, [clients, search]);
 
+  if (clients.length === 0) {
+    return (
+      <Paper variant="outlined" sx={{ p: 3 }}>
+        <Stack spacing={1.5} sx={{ alignItems: "flex-start" }}>
+          <Typography sx={{ fontWeight: 800 }}>Пока нет клиентов</Typography>
+          <Typography sx={{ color: "text.secondary" }}>
+            Они появятся здесь, когда по вашей услуге оформят первый заказ.
+          </Typography>
+          <Button component="a" href="/pro/services/list" variant="contained" sx={{ minHeight: 44 }}>
+            К услугам
+          </Button>
+        </Stack>
+      </Paper>
+    );
+  }
+
   return (
     <Stack spacing={3}>
       <Paper
@@ -183,7 +199,7 @@ export function ProClientsBoard({ initialOrders }: Props) {
                 <Typography sx={{
                   color: "text.secondary"
                 }}>
-                  Здесь собраны все заказчики, которые уже оформили хотя бы один заказ у активного provider.
+                  Здесь собраны все заказчики, которые уже оформили хотя бы один заказ у активного исполнителя.
                 </Typography>
               </Box>
             </Stack>
@@ -231,21 +247,6 @@ export function ProClientsBoard({ initialOrders }: Props) {
         onChange={(event) => setSearch(event.target.value)}
         fullWidth
       />
-
-      {clients.length === 0 ? (
-        <Paper variant="outlined" sx={{ p: 3 }}>
-          <Typography gutterBottom sx={{
-            fontWeight: 800
-          }}>
-            Пока нет клиентов
-          </Typography>
-          <Typography sx={{
-            color: "text.secondary"
-          }}>
-            Клиенты появятся здесь после того, как по услугам активного provider будут оформлены первые заказы.
-          </Typography>
-        </Paper>
-      ) : null}
 
       <Stack spacing={2}>
         {filteredClients.map((client) => {
@@ -354,7 +355,7 @@ export function ProClientsBoard({ initialOrders }: Props) {
                   <Typography variant="body2" sx={{
                     color: "text.secondary"
                   }}>
-                    Раздел агрегирует клиентов только из заказов активного provider, без отдельной CRM-сущности.
+                    Раздел агрегирует клиентов только из заказов активного исполнителя, без отдельной CRM-сущности.
                   </Typography>
                 </Box>
               </Stack>

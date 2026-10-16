@@ -161,7 +161,8 @@ function NewStoryTile({
         onClick={onStart}
         sx={{
           width: TILE_W,
-          height: TILE_H,
+          height: 120,
+          alignSelf: "center",
           flex: "0 0 auto",
           borderRadius: "20px",
           border: "1.5px dashed",

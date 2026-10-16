@@ -5,6 +5,7 @@ import { Header } from "@/widgets/header/ui";
 import { AdminSidebar } from "@/widgets/admin-sidebar";
 import { getServerAuthSession } from "@/core/auth";
 import { signInRedirectFromRequest } from "@/core/auth/sign-in-redirect";
+import { fetchBackendJsonAsUser } from "@/shared/api/backend/server";
 
 interface Props {
   readonly children: ReactNode;
@@ -18,6 +19,16 @@ export default async function AdminLayout({ children }: Props) {
   }
   if (session.user.systemRole !== "PLATFORM_ADMIN") {
     forbidden();
+  }
+  let pendingVerifications = 0;
+  try {
+    const count = await fetchBackendJsonAsUser<{ pendingCount: number }>(
+      "/admin/provider-verifications/pending-count",
+      session.user.id,
+    );
+    pendingVerifications = count.pendingCount;
+  } catch {
+    pendingVerifications = 0;
   }
   const SIDEBAR_W = 280;
   const HEADER_H = 82;
@@ -45,12 +56,12 @@ export default async function AdminLayout({ children }: Props) {
           zIndex: 1099,
         }}
       >
-        <AdminSidebar />
+        <AdminSidebar pendingVerifications={pendingVerifications} />
       </Box>
 
       {/* Mobile: sidebar appears above content */}
       <Container sx={{ display: { xs: "block", md: "none" }, py: 2 }}>
-        <AdminSidebar />
+        <AdminSidebar pendingVerifications={pendingVerifications} />
       </Container>
 
       <Box

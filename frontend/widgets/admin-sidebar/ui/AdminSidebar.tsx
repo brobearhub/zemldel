@@ -21,6 +21,7 @@ import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutlined";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
 import LocationCityIcon from "@mui/icons-material/LocationCity";
+import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import { useMemo, useState } from "react";
 
 const SERVICES_GROUP = {
@@ -51,7 +52,11 @@ const CATEGORIES_GROUP = {
 } as const;
 
 
-export function AdminSidebar() {
+type Props = {
+  pendingVerifications?: number;
+};
+
+export function AdminSidebar({ pendingVerifications = 0 }: Props) {
   const pathname = usePathname();
   const isServicesRoute = useMemo(
     () => pathname === SERVICES_GROUP.hrefPrefix || pathname.startsWith(`${SERVICES_GROUP.hrefPrefix}/`),
@@ -88,6 +93,35 @@ export function AdminSidebar() {
       </Box>
       <Divider />
       <List dense disablePadding>
+        <ListItemButton
+          component={Link}
+          href="/admin/provider-verifications"
+          selected={pathname.startsWith("/admin/provider-verifications")}
+          sx={{
+            px: 2,
+            py: 1.25,
+            "&.Mui-selected": {
+              bgcolor: "action.selected",
+              "&:hover": { bgcolor: "action.selected" },
+            },
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 36 }}>
+            <VerifiedUserOutlinedIcon />
+          </ListItemIcon>
+          <ListItemText
+            primary={
+              pendingVerifications > 0
+                ? `Проверки исполнителей (${pendingVerifications})`
+                : "Проверки исполнителей"
+            }
+            slotProps={{
+              primary: {
+                sx: { fontWeight: pathname.startsWith("/admin/provider-verifications") ? 800 : 700 },
+              },
+            }}
+          />
+        </ListItemButton>
         <ListItemButton
           component={Link}
           href={CATEGORIES_GROUP.hrefPrefix}

@@ -2,19 +2,20 @@
 
 import { Box, Paper, Typography } from "@mui/material";
 import { brown } from "@mui/material/colors";
-import { alpha } from "@mui/material/styles";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
 import Link from "next/link";
-import type { ServiceCardItem } from "../types";
-import { displayCityName } from "@/shared/lib/format-city-label";
+import type { ServiceCardItem, ServicePaletteColor } from "../types";
 import { formatRubPriceLabel } from "@/shared/lib/money/format-rub-price-label";
 import { CdnImage } from "@/shared/ui/cdn-image";
+import { ServicePlaces } from "./ServicePlaces";
 
 export type ServiceCardVariant = "myCity" | "otherCities";
 
 type Props = {
   item: ServiceCardItem;
   variant?: ServiceCardVariant;
+  /** В каталоге карточка ведёт на страницу услуги. В превью редактора ссылка не нужна. */
+  linked?: boolean;
 };
 
 function ServiceCardImage({ item, imageHeight }: { item: ServiceCardItem; imageHeight: number }) {
@@ -49,40 +50,55 @@ function ServiceCardImage({ item, imageHeight }: { item: ServiceCardItem; imageH
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: "text.disabled",
+            color: "text.secondary",
             fontSize: 14,
             fontWeight: 600,
+            // На макете полосы идут «\», здесь наоборот — «/».
+            backgroundImage:
+              "repeating-linear-gradient(135deg, #e6e4dc 0 12px, #f6f5f0 12px 24px)",
           }}
         >
-          Фото
+          + Фото
         </Box>
       )}
 
       {item.stockBadge ? (
-        <Box
-          sx={{
-            position: "absolute",
-            right: 12,
-            top: 12,
-            py: 0.65,
-            px: 1.5,
-            borderRadius: "999px",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            bgcolor: "rgba(0,0,0,0.72)",
-            color: "common.white",
-            border: "1px solid",
-            borderColor: (theme) => alpha(theme.palette.primary.main, 0.28),
-            backdropFilter: "blur(6px)",
-            fontSize: 13,
-            fontWeight: 600,
-            lineHeight: 1.15,
-          }}
-        >
-          {item.stockBadge}
-        </Box>
+        <ServiceCardBadge label={item.stockBadge} color={item.paletteColor ?? null} />
       ) : null}
+    </Box>
+  );
+}
+
+function ServiceCardBadge({
+  label,
+  color,
+}: {
+  label: string;
+  color: ServicePaletteColor | null;
+}) {
+  return (
+    <Box
+      sx={{
+        position: "absolute",
+        right: 0,
+        top: 12,
+        height: 28,
+        pl: 1.5,
+        pr: 1.25,
+        borderRadius: "8px 0 0 8px",
+        display: "flex",
+        alignItems: "center",
+        bgcolor: color ? `${color}.main` : "rgba(0,0,0,0.72)",
+        color: color ? `${color}.contrastText` : "common.white",
+        backdropFilter: color ? "none" : "blur(6px)",
+        fontSize: 13,
+        fontWeight: 600,
+        lineHeight: 1,
+        textBoxTrim: "trim-both",
+        textBoxEdge: "cap alphabetic",
+      }}
+    >
+      {label}
     </Box>
   );
 }
@@ -140,14 +156,12 @@ function ServiceCardTitle({ title }: { title: string }) {
   );
 }
 
-export function ServiceCard({ item, variant = "myCity" }: Props) {
-  const cityName = displayCityName(item.provider?.city?.name ?? "");
+export function ServiceCard({ item, variant = "myCity", linked = true }: Props) {
   const imageHeight = variant === "myCity" ? 178 : 210;
+  const places = item.places ?? [];
 
   return (
     <Paper
-      component={Link}
-      href={`/services/${item.id}`}
       elevation={0}
       sx={{
         height: "100%",
@@ -157,13 +171,31 @@ export function ServiceCard({ item, variant = "myCity" }: Props) {
         bgcolor: "background.paper",
         textDecoration: "none",
         color: "inherit",
+        minWidth: 0,
         transition: "box-shadow 0.2s ease, transform 0.2s ease",
-        "&:hover": {
-          boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
-          transform: "translateY(-2px)",
-        },
+        ...(linked
+          ? {
+              "&:hover": {
+                boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
+                transform: "translateY(-2px)",
+              },
+            }
+          : null),
       }}
     >
+      <Box
+        {...(linked
+          ? { component: Link, href: `/services/${item.id}` }
+          : { component: "div" as const })}
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          flex: 1,
+          minWidth: 0,
+          color: "inherit",
+          textDecoration: "none",
+        }}
+      >
       <ServiceCardImage item={item} imageHeight={imageHeight} />
 
       {variant === "myCity" ? (
@@ -213,31 +245,21 @@ export function ServiceCard({ item, variant = "myCity" }: Props) {
             sx={{
               display: "flex",
               alignItems: "center",
-              justifyContent: "space-between",
+              justifyContent: "flex-end",
               gap: 1,
               minHeight: 30,
             }}
           >
-            {cityName ? (
-              <Typography
-                sx={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "text.secondary",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {cityName}
-              </Typography>
-            ) : (
-              <Box />
-            )}
             {item.rating != null ? <ServiceCardRating rating={item.rating} /> : null}
           </Box>
         </Box>
       )}
+      </Box>
+      {places.length ? (
+        <Box sx={{ px: 1.5, pb: 1.5, minWidth: 0 }}>
+          <ServicePlaces places={places} />
+        </Box>
+      ) : null}
     </Paper>
   );
 }

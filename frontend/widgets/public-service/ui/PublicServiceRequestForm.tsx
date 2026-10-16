@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Alert, Button, CircularProgress, Stack, TextField, Typography } from "@mui/material";
 import {
@@ -14,8 +13,6 @@ import { RequestFormLogo } from "@/widgets/public-service/ui/RequestFormLogo";
 
 type Props = {
   serviceId: string;
-  ctaText: string;
-  ctaHref?: string | null;
   initialCustomerName?: string | null;
   initialCustomerEmail?: string | null;
   isAuthenticated: boolean;
@@ -35,8 +32,6 @@ function normalizeNullableString(value: string) {
 
 export function PublicServiceRequestForm({
   serviceId,
-  ctaText,
-  ctaHref,
   initialCustomerName,
   initialCustomerEmail,
   isAuthenticated,
@@ -178,14 +173,8 @@ export function PublicServiceRequestForm({
           startIcon={busy ? <CircularProgress size={18} color="inherit" /> : null}
           sx={{ fontWeight: 700, textTransform: "none", px: 3, py: 1.25 }}
         >
-          {ctaText}
+          Оставить заявку
         </Button>
-
-        {ctaHref ? (
-          <Button component={Link} href={ctaHref} variant="text" disabled={busy}>
-            Перейти по ссылке
-          </Button>
-        ) : null}
       </Stack>
     </Stack>
   );

@@ -194,7 +194,7 @@ export function createAppTheme(mode: PaletteMode) {
     components: {
       MuiCssBaseline: {
         styleOverrides: (theme) => {
-          const autofillBg = theme.palette.background.paper;
+          const autofillBg = theme.palette.background.default;
 
           return {
             html: {

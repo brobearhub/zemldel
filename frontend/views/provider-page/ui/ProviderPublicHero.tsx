@@ -5,6 +5,7 @@ import { formatReviewCount } from "@/entities/review";
 import { providerHeroCaption, providerHeroGreeting, providerHeroIntro } from "../lib/provider-hero-copy";
 import { displayCityName } from "@/shared/lib/format-city-label";
 import { CdnFillImage } from "@/shared/ui/cdn-image";
+import { ProfileTrustNote } from "@/shared/ui/ProfileTrustNote";
 
 type Props = {
   provider: PublicProviderProfileDto;
@@ -134,6 +135,8 @@ export function ProviderPublicHero({ provider }: Props) {
         >
           {greeting}
         </Typography>
+
+        <ProfileTrustNote verified={provider.verified} />
 
         {intro ? (
           <Typography
