@@ -112,6 +112,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
   const router = useRouter();
   const [req, setReq] = useState<RequestCustomerDto>(initialRequest);
   const [conversations, setConversations] = useState<ChatServiceRequestConversationListItemDto[]>([]);
+  const [conversationsLoaded, setConversationsLoaded] = useState(false);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   /** Какая кнопка этого экрана запустила запрос: спиннер только на ней. */
@@ -218,6 +219,8 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
         setConversations(list);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Не удалось загрузить чаты");
+      } finally {
+        if (!cancelled) setConversationsLoaded(true);
       }
     })();
     return () => {
@@ -1111,7 +1114,15 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
           <Paper variant="outlined" sx={{ p: 2.5 }}>
             <Typography sx={{
               color: "text.secondary"
-            }}>Здесь появится переписка, как только компания ответит на заявку.</Typography>
+            }}>
+              {!conversationsLoaded
+                ? "Загружаем переписку…"
+                : conversations.length > 0
+                  ? "Выберите компанию слева, чтобы открыть переписку."
+                  : req.subjectType === "SERVICE"
+                    ? "Нажмите «Начать чат», чтобы задать вопрос исполнителю."
+                    : "Здесь появится переписка, как только компания ответит на заявку."}
+            </Typography>
           </Paper>
         )
       }

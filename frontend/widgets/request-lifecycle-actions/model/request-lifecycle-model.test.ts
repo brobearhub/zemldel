@@ -161,6 +161,21 @@ describe("buildRequestLifecycleViewModel", () => {
     expect(vm.infoRows).toContainEqual({ label: "Клиент общается с компаниями", value: "1" });
   });
 
+  it("provider: hides dialogs info row once a provider is chosen", () => {
+    const req = makeProvider({ status: "DISCUSSING", lockedAt: "2026-08-06T00:00:00.000Z", conversationsCount: 1 });
+    const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
+    expect(vm.infoRows.map((r) => r.label)).not.toContain("Клиент общается с компаниями");
+  });
+
+  it("customer: ACCEPTED hides auto-accept note", () => {
+    const req = makeCustomer({
+      status: "ACCEPTED",
+      autoAcceptAt: new Date("2026-02-01T10:00:00.000Z").toISOString(),
+    });
+    const vm = buildRequestLifecycleViewModel({ side: "customer", request: req, canAcceptContract: false });
+    expect(vm.autoAcceptAtLabel).toBeNull();
+  });
+
   it("provider: hides dialogs info row once work started", () => {
     const req = makeProvider({ status: "ACTIVE", conversationsCount: 3 });
     const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
