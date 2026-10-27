@@ -144,9 +144,10 @@ function buildCustomerState(id: RequestLifecycleStateId): RequestLifecycleState<
           request.status === "ACCEPTANCE_PENDING"
             ? [{ id: "acceptResult", label: "Принять результат", variant: "contained", color: "success" }]
             : [],
-        autoAcceptAtLabel: request.autoAcceptAt
-          ? `Проверьте результат до ${formatRequestDate(request.autoAcceptAt)}. Если не принять работу и не отправить замечания, она будет принята автоматически.`
-          : null,
+        autoAcceptAtLabel:
+          request.status === "ACCEPTANCE_PENDING" && request.autoAcceptAt
+            ? `Проверьте результат до ${formatRequestDate(request.autoAcceptAt)}. Если не принять работу и не отправить замечания, она будет принята автоматически.`
+            : null,
       }),
     };
   }
@@ -241,7 +242,11 @@ export function buildRequestLifecycleViewModel(input: BuildRequestLifecycleInput
     infoRows.push({ label: "Локация", value: input.request.location });
   }
   // Why: после выбора исполнителя число диалогов клиента уже ни о чём не говорит.
-  if (input.side === "provider" && (input.request.status === "NEW" || input.request.status === "DISCUSSING")) {
+  if (
+    input.side === "provider" &&
+    !hasRequestLock(input.request) &&
+    (input.request.status === "NEW" || input.request.status === "DISCUSSING")
+  ) {
     infoRows.push({ label: "Клиент общается с компаниями", value: String(input.request.conversationsCount) });
   }
 
