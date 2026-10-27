@@ -4,7 +4,6 @@ import type {
   AuthCity,
   AuthMembership,
   AuthPerson,
-  AuthProviderKey,
   SystemRole,
 } from "@/core/auth/authorization";
 
@@ -21,8 +20,6 @@ export type AuthUser = {
   activeProviderId: string | null;
   customerCity: AuthCity | null;
   memberships: AuthMembership[];
-  linkedAuthProviders: AuthProviderKey[];
-  stepUpVerifiedAt: Partial<Record<AuthProviderKey, string>>;
 };
 
 export type AuthState = {

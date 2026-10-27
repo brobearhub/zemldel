@@ -2582,7 +2582,9 @@ export class RequestsService {
         );
       }
       if (contractDocs.some((r) => r.status !== 'APPROVED')) {
-        throw new ConflictException('All contract bundles must be approved');
+        throw new ConflictException(
+          'Не все пакеты договора одобрены. Одобрите актуальные пакеты или дождитесь, пока исполнитель заменит пакет, отправленный на доработку.',
+        );
       }
 
       const signatures = await tx.requestContractFile.findMany({

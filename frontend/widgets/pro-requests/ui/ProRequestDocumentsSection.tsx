@@ -128,6 +128,7 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
         {props.docRequests.length > 0 ? (
           <Stack spacing={1}>
             <RequestDocumentsList
+              pendingLabel="Ждём от клиента"
               title="Документы клиента"
               items={props.docRequests}
               renderActions={(d) => {

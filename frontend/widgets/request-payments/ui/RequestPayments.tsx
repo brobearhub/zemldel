@@ -374,7 +374,7 @@ export function RequestPayments(props: RequestPaymentsProps) {
         Договоритесь о цене в чате и зафиксируйте её здесь
       </Typography>
       <Typography variant="body2" sx={{ color: "text.secondary" }}>
-        Оплата идёт напрямую между вами и исполнителем. Здесь вы фиксируете договорённости и отметки.
+        Оплата идёт напрямую между вами и {props.mode === "provider" ? "клиентом" : "исполнителем"}. Здесь вы фиксируете договорённости и отметки.
       </Typography>
       {error ? <Alert severity="error">{error}</Alert> : null}
 

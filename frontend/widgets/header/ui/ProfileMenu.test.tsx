@@ -101,8 +101,6 @@ describe("ProfileMenu", () => {
             : options?.withMembership
               ? [membership]
               : [],
-          linkedAuthProviders: [],
-          stepUpVerifiedAt: {},
         })
       );
     }

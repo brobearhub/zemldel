@@ -144,7 +144,9 @@ function buildCustomerState(id: RequestLifecycleStateId): RequestLifecycleState<
           request.status === "ACCEPTANCE_PENDING"
             ? [{ id: "acceptResult", label: "Принять результат", variant: "contained", color: "success" }]
             : [],
-        autoAcceptAtLabel: request.autoAcceptAt ? `Автопринятие: ${formatRequestDate(request.autoAcceptAt)}` : null,
+        autoAcceptAtLabel: request.autoAcceptAt
+          ? `Проверьте результат до ${formatRequestDate(request.autoAcceptAt)}. Если не принять работу и не отправить замечания, она будет принята автоматически.`
+          : null,
       }),
     };
   }
@@ -209,7 +211,10 @@ function buildProviderState(id: RequestLifecycleStateId): RequestLifecycleState<
                   },
                 ]
               : [],
-          autoAcceptAtLabel: null,
+          autoAcceptAtLabel:
+            request.status === "ACCEPTANCE_PENDING" && request.autoAcceptAt
+              ? `Ждём проверки заказчика до ${formatRequestDate(request.autoAcceptAt)}. Потом результат будет принят автоматически.`
+              : null,
         };
       },
     };
@@ -235,13 +240,14 @@ export function buildRequestLifecycleViewModel(input: BuildRequestLifecycleInput
   if (input.request.location) {
     infoRows.push({ label: "Локация", value: input.request.location });
   }
-  if (input.side === "provider") {
-    infoRows.push({ label: "Диалогов", value: String(input.request.conversationsCount) });
+  // Why: после выбора исполнителя число диалогов клиента уже ни о чём не говорит.
+  if (input.side === "provider" && (input.request.status === "NEW" || input.request.status === "DISCUSSING")) {
+    infoRows.push({ label: "Клиент общается с компаниями", value: String(input.request.conversationsCount) });
   }
 
   const lockedAlert =
     input.side === "provider" && input.request.isLocked
-      ? { title: "Заказ уже оформлен другим провайдером." }
+      ? { title: "Клиент выбрал другого исполнителя. Переписка сохранена для просмотра." }
       : undefined;
 
   const stateVm =

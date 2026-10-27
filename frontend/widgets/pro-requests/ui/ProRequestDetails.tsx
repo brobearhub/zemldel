@@ -22,6 +22,7 @@ import {
   resolvePaymentTriggerLabel,
   resolveRequestDetailBody,
   resolveRequestDetailTitle,
+  formatRubles,
   resolveRequestPriceView,
   SYSTEM_WORK_STAGE_STATUSES,
   type RequestRemarkDto,
@@ -660,7 +661,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
                     const ok = await confirm({
                       title: "Услуга выполнена?",
                       description:
-                        "Заявка перейдёт в статус «Ожидает принятия». Клиент сможет принять результат или отправить замечания. Это действие нельзя отменить.",
+                        "Заявка перейдёт в статус «Ожидает принятия». Клиент сможет принять результат или отправить замечания. Если клиент не ответит за 7 дней, результат будет принят автоматически. Это действие нельзя отменить.",
                       confirmText: "Да, выполнена",
                       confirmColor: "success",
                     });
@@ -668,7 +669,22 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
                     await runAction("confirm");
                   },
                   requestAcceptance: async () => undefined,
-                  complete: () => runAction("confirm"),
+                  complete: async () => {
+                    const remaining = req.remainingAmountRubles ?? 0;
+                    const ok = await confirm({
+                      title: "Завершить заявку?",
+                      description: [
+                        "После завершения отмечать оплаты по заявке будет нельзя.",
+                        remaining > 0 ? `Остаток ${formatRubles(remaining)} ещё не отмечен оплаченным.` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" "),
+                      confirmText: "Завершить",
+                      confirmColor: "success",
+                    });
+                    if (!ok) return;
+                    await runAction("confirm");
+                  },
                   declineOffer: async () => {
                     const reason = await confirmWithReason({
                       title: "Отказаться от заявки?",

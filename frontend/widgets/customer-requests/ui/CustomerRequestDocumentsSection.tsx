@@ -48,7 +48,7 @@ function CustomerDocumentsBanners(props: {
         <Typography variant="body2" sx={{
           color: "text.secondary"
         }}>
-          Ожидаем договор от компании.
+          Договор готовит компания.
         </Typography>
       ) : null}
 
@@ -86,6 +86,7 @@ function CustomerRequestedDocumentsBlock(props: {
   return (
     <Stack spacing={1}>
       <RequestDocumentsList
+        pendingLabel="Нужно загрузить"
         title="Мои документы"
         items={items}
         renderActions={(d) => {

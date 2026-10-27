@@ -27,7 +27,7 @@ function formatDate(value: string) {
 }
 
 function ReviewCard({ review }: { review: ReviewDto }) {
-  const title = review.direction === "CUSTOMER_TO_PROVIDER" ? "Отзыв заказчика" : "Оценка заказчика";
+  const title = review.direction === "CUSTOMER_TO_PROVIDER" ? "Заказчик оценил исполнителя" : "Исполнитель оценил заказчика";
   return (
     <Stack spacing={1}>
       <Typography variant="subtitle2">{title}</Typography>
@@ -53,6 +53,7 @@ export function RequestReviewsPanel({ requestId, status, side }: Props) {
   const [text, setText] = useState("");
   const [reply, setReply] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pendingAction, setPendingAction] = useState<"review" | "reply" | null>(null);
 
@@ -90,6 +91,7 @@ export function RequestReviewsPanel({ requestId, status, side }: Props) {
       await createRequestReview(requestId, { rating, text });
       setText("");
       await load();
+      setNotice("Спасибо! Отзыв опубликован.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось отправить отзыв");
     } finally {
@@ -118,8 +120,9 @@ export function RequestReviewsPanel({ requestId, status, side }: Props) {
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={2}>
-        <Typography variant="h6">Отзыв</Typography>
+        <Typography variant="h6">Отзывы по заявке</Typography>
         {error ? <Alert severity="error">{error}</Alert> : null}
+        {notice ? <Alert severity="success">{notice}</Alert> : null}
         {customerReview ? <ReviewCard review={customerReview} /> : null}
         {providerReview ? <ReviewCard review={providerReview} /> : null}
         {!ownReview ? (

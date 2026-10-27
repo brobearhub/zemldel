@@ -285,8 +285,6 @@ describe("HomeStoriesStrip", () => {
       activeProviderId: null,
       customerCity: null,
       memberships: [],
-      linkedAuthProviders: [],
-      stepUpVerifiedAt: {},
     });
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: /анна/i }));
@@ -344,8 +342,6 @@ describe("HomeStoriesStrip", () => {
       activeProviderId: null,
       customerCity: null,
       memberships: [],
-      linkedAuthProviders: [],
-      stepUpVerifiedAt: {},
     });
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: /борис/i }));

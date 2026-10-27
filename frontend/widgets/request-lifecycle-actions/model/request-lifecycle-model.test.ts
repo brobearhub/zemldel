@@ -109,7 +109,7 @@ describe("buildRequestLifecycleViewModel", () => {
     const vm = buildRequestLifecycleViewModel({ side: "customer", request: req, canAcceptContract: false });
 
     expect(vm.actions.map((a) => a.id)).toEqual(["acceptResult"]);
-    expect(vm.autoAcceptAtLabel?.startsWith("Автопринятие:")).toBe(true);
+    expect(vm.autoAcceptAtLabel?.startsWith("Проверьте результат до ")).toBe(true);
   });
 
   it("customer: shows open offer action when contract can be accepted", () => {
@@ -123,7 +123,7 @@ describe("buildRequestLifecycleViewModel", () => {
     const req = makeProvider({ status: "ACTIVE", isLocked: true, offerStatus: "SELECTED" });
     const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
 
-    expect(vm.lockedAlert?.title).toBe("Заказ уже оформлен другим провайдером.");
+    expect(vm.lockedAlert?.title).toBe("Клиент выбрал другого исполнителя. Переписка сохранена для просмотра.");
     expect(vm.actions).toEqual([]);
   });
 
@@ -155,10 +155,27 @@ describe("buildRequestLifecycleViewModel", () => {
     expect(vm.actions.find((a) => a.id === "declineOffer")?.label).toBe("Отказаться от заявки");
   });
 
-  it("provider: includes dialogs info row", () => {
-    const req = makeProvider({ conversationsCount: 1 });
+  it("provider: includes dialogs info row while client is choosing", () => {
+    const req = makeProvider({ status: "DISCUSSING", conversationsCount: 1 });
     const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
-    expect(vm.infoRows).toContainEqual({ label: "Диалогов", value: "1" });
+    expect(vm.infoRows).toContainEqual({ label: "Клиент общается с компаниями", value: "1" });
+  });
+
+  it("provider: hides dialogs info row once work started", () => {
+    const req = makeProvider({ status: "ACTIVE", conversationsCount: 3 });
+    const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
+    expect(vm.infoRows.map((r) => r.label)).not.toContain("Клиент общается с компаниями");
+  });
+
+  it("provider: ACCEPTANCE_PENDING shows auto-accept date", () => {
+    const req = makeProvider({
+      status: "ACCEPTANCE_PENDING",
+      offerStatus: "SELECTED",
+      lockedAt: "2026-08-06T00:00:00.000Z",
+      autoAcceptAt: new Date("2026-02-01T10:00:00.000Z").toISOString(),
+    });
+    const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
+    expect(vm.autoAcceptAtLabel?.startsWith("Ждём проверки заказчика до ")).toBe(true);
   });
 
   it("provider: allows complete while remaining payment is positive", () => {
