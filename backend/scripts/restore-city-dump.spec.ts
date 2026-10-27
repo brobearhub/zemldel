@@ -33,6 +33,17 @@ describe('restore-city-dump', () => {
     expect(rewriteCityCopyToStaging(input)).not.toContain('COPY public."City"');
   });
 
+  it('rewriteCityCopyToStaging retargets Region and RegionalCapital separately', () => {
+    const input =
+      'COPY public."City" (id) FROM stdin;\n\\.\n' +
+      'COPY public."Region" ("regionCode", "regionName") FROM stdin;\n\\.\n' +
+      'COPY public."RegionalCapital" ("cityId", featured, "sortOrder") FROM stdin;\n\\.\n';
+    const out = rewriteCityCopyToStaging(input);
+    expect(out).toContain('COPY public."_RegionRestoreStaging" ("regionCode"');
+    expect(out).toContain('COPY public."_RegionalCapitalRestoreStaging" ("cityId"');
+    expect(out).not.toMatch(/COPY public\."(City|Region|RegionalCapital)"/);
+  });
+
   it('rewriteCityCopyToStaging fails when City COPY is missing', () => {
     expect(() => rewriteCityCopyToStaging('SELECT 1;')).toThrow(
       'Dump does not contain COPY data for public."City".',

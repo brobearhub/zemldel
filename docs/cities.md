@@ -1,8 +1,8 @@
 # Справочник локаций (City) и импорт из ГАР/ФИАС
 
-Таблица **`City`** — офлайн-справочник локаций РФ из XML-выгрузок ГАР/ФИАС.
+Таблица `City` — офлайн-справочник локаций РФ из XML-выгрузок ГАР/ФИАС.
 
-**Оглавление:** [Обзор](#обзор) · [Схема работы](#схема-работы) · [Локально](#локально) · [Production](#production-yandex-cloud) · [Код](#где-лежит-код) · [Troubleshooting](#troubleshooting)
+**Оглавление:** [Обзор](#обзор) · [Чистая база: порядок заливки](#чистая-база-порядок-заливки) · [Схема работы](#схема-работы) · [Локально](#локально) · [Production](#production-yandex-cloud) · [Код](#где-лежит-код) · [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -28,8 +28,8 @@
 
 ### Статус локации
 
-- **`ACTIVE`** — объект есть в актуальном снимке ГАР
-- **`INACTIVE`** — был в справочнике, но исчез из снимка (soft delete, строка не удаляется)
+- `ACTIVE` — объект есть в актуальном снимке ГАР
+- `INACTIVE` — был в справочнике, но исчез из снимка (soft delete, строка не удаляется)
 
 Inactivate города **не показываются** в автокомплите (`GET /cities/suggest` фильтрует `status = ACTIVE`).
 
@@ -40,7 +40,76 @@ Inactivate города **не показываются** в автокомпл�
 | Local | `postgres://postgres:postgres@localhost:5421/new_gorisons` |
 | Prod | `deploy/.secrets/database.url` (после `terraform apply`) |
 
-Имя таблицы в SQL: **`"City"`** (кавычки и регистр важны).
+Имя таблицы в SQL: `"City"` (кавычки и регистр важны).
+
+---
+
+## Чистая база: порядок заливки
+
+Шпаргалка: поднять пустую БД и залить справочники. Команды из `backend/`, `DATABASE_URL` смотрит на нужную БД.
+
+### 0. Один раз: клиент PostgreSQL нужной версии
+
+Major-версия `pg_dump` / `pg_restore` должна совпадать с сервером (сейчас **17**).
+
+```bash
+brew list --versions | grep -i postgres   # что стоит
+pg_dump --version                         # что в PATH
+
+brew install postgresql@17                # если 17 нет
+export PG_BIN_DIR=/opt/homebrew/opt/postgresql@17/bin
+```
+
+`PG_BIN_DIR` читают `cities:backup` и `cities:restore`. Без него берётся `pg_dump` из `PATH`. Можно вместо этого сделать 17 основной: `brew unlink postgresql@16 && brew link --force postgresql@17`.
+
+### 1. До сброса: снять дамп справочника
+
+Пока старая БД жива (или с любой БД, где справочник уже заполнен):
+
+```bash
+npm run cities:backup        # → backups/cities-YYYYMMDD.dump
+```
+
+В дампе `City`, `Region`, `RegionalCapital`. Дамп нет — см. [вариант Б](#вариант-б-из-гар).
+
+### 2. Порядок команд
+
+| # | Что | Команда | Заполняет |
+|---|-----|---------|-----------|
+| 1 | Схема | `npm run db:migrate:deploy` (dev: `db:migrate:dev`) | все таблицы, пустые |
+| 2 | Города, регионы, столицы | `npm run cities:restore -- --file backups/cities-YYYYMMDD.dump` | `City`, `Region`, `RegionalCapital` |
+| 3 | Категории услуг | `npm run db:seed` | `ServiceCategory` |
+| 4 | Админ | зарегистрироваться на сайте, затем SQL ниже | `User.systemRole` |
+
+```sql
+UPDATE "User" SET "systemRole" = 'PLATFORM_ADMIN' WHERE email = 'you@example.com';
+```
+
+❌ Не заливать дамп напрямую через `pg_restore` / `psql`: столицы ссылаются на `City.id` источника, а restore переносит их по `garObjectId`.
+
+### Вариант Б: из ГАР
+
+Если дампа нет. Шаг 2 таблицы заменяется на:
+
+```bash
+# долго, нужен gar_xml.zip
+npm run cities:update -- --mode full --zip "/Volumes/One Touch/Projects/novagor/cities/gar_xml.zip"
+
+# в ГАР столиц нет — после городов:
+npm run db:seed:capitals
+```
+
+### Проверка
+
+```sql
+SELECT
+  (SELECT count(*) FROM "City" WHERE status = 'ACTIVE') AS cities,     -- ~176 тыс.
+  (SELECT count(*) FROM "Region")                       AS regions,    -- 89–90
+  (SELECT count(*) FROM "RegionalCapital")              AS capitals,   -- ~87
+  (SELECT count(*) FROM "ServiceCategory")              AS categories;
+```
+
+В UI: `/pro/services/create`, поле «Локация» → «Свер» должно показать группу «Области» со Свердловской.
 
 ---
 
@@ -52,13 +121,13 @@ Inactivate города **не показываются** в автокомпл�
 ┌─────────────────────────────────────────────────────────┐
 │  Локальная машина (50 GB+ диск / external drive)        │
 │  1. npm run cities:update -- --zip gar_xml.zip          │
-│  2. pg_dump → backups/city-YYYYMMDD.dump                │
+│  2. npm run cities:backup → backups/cities-YYYYMMDD.dump│
 └──────────────────────────┬──────────────────────────────┘
                            │ merge-restore (без DELETE)
                            ▼
 ┌─────────────────────────────────────────────────────────┐
 │  Prod PostgreSQL (Yandex Managed)                       │
-│  npm run cities:restore -- --file backups/city....dump  │
+│  npm run cities:restore -- --file backups/cities-….dump │
 │  (с локального компа, prod DATABASE_URL + ваш IP в SG)  │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -69,11 +138,11 @@ Inactivate города **не показываются** в автокомпл�
 
 `DELETE FROM "City"` **не используем** — иначе обнулятся FK (`ON DELETE SET NULL`).
 
-| Ситуация | Действие |
-|----------|----------|
-| `garObjectId` уже есть в целевой БД | UPDATE полей; **`City.id` сохраняется** |
-| `garObjectId` новый | INSERT |
-| Есть в БД, нет в дампе | **Не трогаем** |
+| Ситуация                            | Действие                                |
+| ----------------------------------- | --------------------------------------- |
+| `garObjectId` уже есть в целевой БД | UPDATE полей; `City.id` **сохраняется** |
+| `garObjectId` новый                 | INSERT                                  |
+| Есть в БД, нет в дампе              | **Не трогаем**                          |
 
 **Первая заливка** (пустая `"City"`): тот же restore — все строки INSERT.  
 **Повторные заливки:** prod `City.id` не меняются, даже если local reset перегенерировал UUID.
@@ -88,7 +157,7 @@ Inactivate города **не показываются** в автокомпл�
 
 ## Локально
 
-Рабочая директория для import: **`backend/`**.  
+Рабочая директория для import: `backend/`.  
 Для бэкапа: **корень репозитория** (`backups/`).
 
 ### 1. Импорт из ГАР
@@ -115,59 +184,28 @@ npm run cities:update -- --dir "/path/to/unzipped/gar"
 
 **Регион:** `regionCode` / `regionName` из `AS_ADM_HIERARCHY`.
 
-### 2. Бэкап `"City"`
+### 2. Бэкап `"City"` + `"Region"` + `"RegionalCapital"`
 
 ```bash
-# из корня репозитория
-mkdir -p backups
-export LOCAL_DATABASE_URL="postgres://postgres:postgres@localhost:5421/new_gorisons"
+cd backend
+npm run cities:backup                      # → backups/cities-YYYYMMDD.dump
+npm run cities:backup -- --out /path/x.dump
 ```
 
-**Custom-формат (рекомендуется):**
+Клиент `pg_dump` должен быть той же major-версии, что сервер (сейчас 17):
 
 ```bash
-pg_dump "$LOCAL_DATABASE_URL" \
-  -t '"City"' \
-  --data-only --no-owner --no-privileges \
-  -F c \
-  -f "backups/city-$(date +%Y%m%d).dump"
+brew install postgresql@17
+export PG_BIN_DIR=/opt/homebrew/opt/postgresql@17/bin   # берут cities:backup и cities:restore
 ```
 
-**SQL + gzip:**
-
-```bash
-pg_dump "$LOCAL_DATABASE_URL" \
-  -t '"City"' \
-  --data-only --no-owner --no-privileges \
-  | gzip > "backups/city-$(date +%Y%m%d).sql.gz"
-```
-
-**Проверка:**
-
-```bash
-ls -lh backups/city-*.dump
-pg_restore -l backups/city-*.dump | head
-```
-
-**`pg_dump version mismatch`** (клиент 14, Docker Postgres 16):
-
-```bash
-docker run --rm \
-  -v "$(pwd)/backups:/backups" \
-  postgres:16-alpine \
-  pg_dump "postgres://postgres:postgres@host.docker.internal:5421/new_gorisons" \
-    -t '"City"' --data-only --no-owner --no-privileges \
-    -F c -f "/backups/city-$(date +%Y%m%d).dump"
-```
-
-Linux: добавьте `--add-host=host.docker.internal:host-gateway`.  
-Или: `brew install postgresql@16`.
+Проверка: `pg_restore -l backups/cities-*.dump | grep "TABLE DATA"` — три таблицы.
 
 ### 3. Restore (dev)
 
 ```bash
 cd backend
-npm run cities:restore -- --file ../backups/city-YYYYMMDD.dump
+npm run cities:restore -- --file backups/cities-YYYYMMDD.dump
 ```
 
 Merge по `garObjectId`: UPDATE существующих (prod `City.id` сохраняется), INSERT новых, без DELETE.
@@ -197,7 +235,7 @@ export DATABASE_URL="$(cat ../deploy/.secrets/database.url)"
 curl -fsSL -o ~/.postgresql/root.crt https://storage.yandexcloud.net/cloud-certs/CA.pem
 chmod 0600 ~/.postgresql/root.crt
 
-npm run cities:restore -- --file ../backups/city-YYYYMMDD.dump
+npm run cities:restore -- --file backups/cities-YYYYMMDD.dump
 ```
 
 Проверка: `GET /cities/suggest?q=Моск` на prod.
@@ -210,7 +248,7 @@ npm run cities:restore -- --file ../backups/city-YYYYMMDD.dump
 yc compute instance start <vm-id>   # если ВМ выключена
 source deploy/.deploy.env
 
-./deploy/scripts/cities-restore-prod.sh backups/city-YYYYMMDD.dump
+./deploy/scripts/cities-restore-prod.sh backend/backups/cities-YYYYMMDD.dump
 ```
 
 ### Бэкап `"City"` с prod (audit)
@@ -281,6 +319,6 @@ Restore через консоль YC — откат **всей** БД, не то
 
 Подозрительные файлы скрипт откладывает в `*.mismatch.*` / `*.corrupt.*`.
 
-### `pg_dump: server version 16.x; pg_dump version 14.x`
+### `pg_dump: aborting because of server version mismatch`
 
-Major-версия клиента должна совпадать с сервером. См. [бэкап через Docker](#2-бэкап-city) в разделе «Локально».
+Major-версия клиента должна совпадать с сервером (`server version: 17.x; pg_dump version: 16.x`). См. [шаг 0](#0-один-раз-клиент-postgresql-нужной-версии): `brew install postgresql@17` + `PG_BIN_DIR`.

@@ -1059,18 +1059,12 @@ async function replaceRegions(
     .filter((row) => row.regionCode && row.regionName);
   if (rows.length === 0) return;
 
-  await prisma.$transaction(async (tx) => {
-    for (const row of rows) {
-      await tx.region.upsert({
-        where: { regionCode: row.regionCode },
-        create: row,
-        update: { regionName: row.regionName },
-      });
-    }
-    await tx.region.deleteMany({
-      where: { regionCode: { notIn: rows.map((row) => row.regionCode) } },
-    });
-  });
+  // Два запроса вместо upsert на каждый регион: на удалённой БД цикл не укладывался
+  // в 5 с интерактивной транзакции. Внешних ключей на Region нет.
+  await prisma.$transaction([
+    prisma.region.deleteMany(),
+    prisma.region.createMany({ data: rows }),
+  ]);
 }
 
 function buildCitiesFromParsed(

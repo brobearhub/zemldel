@@ -10,6 +10,15 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 
 export const STAGING_TABLE = '_CityRestoreStaging';
+export const REGION_STAGING_TABLE = '_RegionRestoreStaging';
+export const CAPITAL_STAGING_TABLE = '_RegionalCapitalRestoreStaging';
+
+/** Таблицы дампа и их staging. "City" обязательна, остальные есть только в дампах cities:backup. */
+export const DUMP_TABLES = [
+  { table: 'City', staging: STAGING_TABLE },
+  { table: 'Region', staging: REGION_STAGING_TABLE },
+  { table: 'RegionalCapital', staging: CAPITAL_STAGING_TABLE },
+] as const;
 
 export type DumpFormat = 'custom' | 'sql' | 'sql.gz';
 
@@ -23,6 +32,10 @@ export type RestoreStats = {
   updated: number;
   inserted: number;
   unchangedInTarget: number;
+  regions: number;
+  regionsSource: 'dump' | 'city';
+  capitals: number;
+  capitalsSkipped: number;
 };
 
 export function parseRestoreArgs(argv: string[]): RestoreArgs {
@@ -52,21 +65,25 @@ export function stripPgDumpMetaCommands(sql: string): string {
     .replace(/^\\unrestrict .+\r?\n/gm, '');
 }
 
-export function rewriteCityCopyToStaging(
-  sql: string,
-  stagingTable = STAGING_TABLE,
-): string {
-  const rewritten = stripPgDumpMetaCommands(sql).replace(
-    /COPY public\."City"/g,
-    `COPY public."${stagingTable}"`,
-  );
-  if (!rewritten.includes(`COPY public."${stagingTable}"`)) {
+export function rewriteCityCopyToStaging(sql: string): string {
+  let rewritten = stripPgDumpMetaCommands(sql);
+  for (const { table, staging } of DUMP_TABLES) {
+    // Пробел после кавычки: "Region" не должен задеть "RegionalCapital".
+    rewritten = rewritten.replaceAll(
+      `COPY public."${table}" `,
+      `COPY public."${staging}" `,
+    );
+  }
+  if (!rewritten.includes(`COPY public."${STAGING_TABLE}" `)) {
     throw new Error('Dump does not contain COPY data for public."City".');
   }
   return rewritten;
 }
 
-function resolvePgTool(tool: 'pg_restore' | 'psql'): string {
+/** PG_BIN_DIR выбирает клиент нужной major-версии, например /opt/homebrew/opt/postgresql@17/bin. */
+export function resolvePgTool(tool: 'pg_dump' | 'pg_restore' | 'psql'): string {
+  const binDir = process.env.PG_BIN_DIR?.trim();
+  if (binDir) return join(binDir, tool);
   const result = spawnSync('which', [tool], { encoding: 'utf8' });
   if (result.status === 0 && result.stdout.trim()) {
     return result.stdout.trim();
@@ -95,7 +112,13 @@ async function materializeStagingSql(
     const pgRestore = resolvePgTool('pg_restore');
     const result = spawnSync(
       pgRestore,
-      ['-a', '-t', 'City', '-f', outSqlPath, dumpPath],
+      [
+        '-a',
+        ...DUMP_TABLES.flatMap(({ table }) => ['-t', table]),
+        '-f',
+        outSqlPath,
+        dumpPath,
+      ],
       { encoding: 'utf8' },
     );
     if (result.status !== 0) {
@@ -118,13 +141,15 @@ async function materializeStagingSql(
   await writeFile(outSqlPath, rewriteCityCopyToStaging(sql));
 }
 
-async function createStagingTable(prisma: PrismaClient): Promise<void> {
-  await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "${STAGING_TABLE}"`);
-  await prisma.$executeRawUnsafe(`
-    CREATE UNLOGGED TABLE "${STAGING_TABLE}" (
-      LIKE "City" INCLUDING DEFAULTS
-    )
-  `);
+async function createStagingTables(prisma: PrismaClient): Promise<void> {
+  for (const { table, staging } of DUMP_TABLES) {
+    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "${staging}"`);
+    await prisma.$executeRawUnsafe(`
+      CREATE UNLOGGED TABLE "${staging}" (
+        LIKE "${table}" INCLUDING DEFAULTS
+      )
+    `);
+  }
 }
 
 function runPsql(sqlFile: string, databaseUrl: string): void {
@@ -139,9 +164,12 @@ function runPsql(sqlFile: string, databaseUrl: string): void {
   }
 }
 
-async function countStagingRows(prisma: PrismaClient): Promise<number> {
+async function countStagingRows(
+  prisma: PrismaClient,
+  stagingTable: string = STAGING_TABLE,
+): Promise<number> {
   const rows = await prisma.$queryRawUnsafe<Array<{ count: number }>>(
-    `SELECT COUNT(*)::int AS count FROM "${STAGING_TABLE}"`,
+    `SELECT COUNT(*)::int AS count FROM "${stagingTable}"`,
   );
   return rows[0]?.count ?? 0;
 }
@@ -222,8 +250,56 @@ export async function mergeCityStaging(
   };
 }
 
-async function dropStagingTable(prisma: PrismaClient): Promise<void> {
-  await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "${STAGING_TABLE}"`);
+/** Дамп содержит только "City". Справочник субъектов дособирается из него, без DELETE. */
+export async function syncRegionsFromCities(prisma: PrismaClient): Promise<number> {
+  return prisma.$executeRawUnsafe(`
+    INSERT INTO "Region" ("regionCode", "regionName")
+    SELECT DISTINCT ON ("regionCode") "regionCode", "regionName"
+    FROM "City"
+    WHERE status = 'ACTIVE'
+      AND btrim("regionCode") <> ''
+      AND btrim("regionName") <> ''
+    ORDER BY "regionCode", "regionName"
+    ON CONFLICT ("regionCode") DO UPDATE SET "regionName" = EXCLUDED."regionName"
+  `);
+}
+
+/** Регионы из дампа: upsert по regionCode, без DELETE. */
+export async function mergeRegionStaging(prisma: PrismaClient): Promise<number> {
+  return prisma.$executeRawUnsafe(`
+    INSERT INTO "Region" ("regionCode", "regionName")
+    SELECT "regionCode", "regionName"
+    FROM "${REGION_STAGING_TABLE}"
+    WHERE btrim("regionCode") <> '' AND btrim("regionName") <> ''
+    ON CONFLICT ("regionCode") DO UPDATE SET "regionName" = EXCLUDED."regionName"
+  `);
+}
+
+/**
+ * Столицы ссылаются на "City".id источника дампа. В целевой БД id другие,
+ * поэтому город ищется через garObjectId из staging "City". Без DELETE.
+ */
+export async function mergeRegionalCapitalStaging(
+  prisma: PrismaClient,
+): Promise<Pick<RestoreStats, 'capitals' | 'capitalsSkipped'>> {
+  const capitals = await prisma.$executeRawUnsafe(`
+    INSERT INTO "RegionalCapital" ("cityId", featured, "sortOrder")
+    SELECT c.id, s.featured, s."sortOrder"
+    FROM "${CAPITAL_STAGING_TABLE}" s
+    JOIN "${STAGING_TABLE}" sc ON sc.id = s."cityId"
+    JOIN "City" c ON c."garObjectId" = sc."garObjectId"
+    ON CONFLICT ("cityId") DO UPDATE SET
+      featured = EXCLUDED.featured,
+      "sortOrder" = EXCLUDED."sortOrder"
+  `);
+  const total = await countStagingRows(prisma, CAPITAL_STAGING_TABLE);
+  return { capitals, capitalsSkipped: total - capitals };
+}
+
+async function dropStagingTables(prisma: PrismaClient): Promise<void> {
+  for (const { staging } of DUMP_TABLES) {
+    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "${staging}"`);
+  }
 }
 
 export async function restoreCityDump(
@@ -239,12 +315,18 @@ export async function restoreCityDump(
     console.log(`Dump: ${dumpPath} (${format})`);
     await materializeStagingSql(dumpPath, format, stagingSqlPath);
 
-    await createStagingTable(prisma);
-    console.log(`Loading staging table "${STAGING_TABLE}"...`);
+    await createStagingTables(prisma);
+    console.log('Loading staging tables...');
     runPsql(stagingSqlPath, process.env.DATABASE_URL!);
 
     const stagingRows = await countStagingRows(prisma);
-    console.log(`Staging rows: ${stagingRows}`);
+    const stagingRegions = await countStagingRows(prisma, REGION_STAGING_TABLE);
+    const stagingCapitals = await countStagingRows(prisma, CAPITAL_STAGING_TABLE);
+    console.log(
+      `Staging rows: City ${stagingRows}, Region ${stagingRegions}, RegionalCapital ${stagingCapitals}`,
+    );
+    // Старые дампы содержат только "City": тогда регионы собираются из неё.
+    const regionsSource = stagingRegions > 0 ? 'dump' : 'city';
 
     if (options.dryRun) {
       console.log('Dry run: merge skipped.');
@@ -253,22 +335,42 @@ export async function restoreCityDump(
         updated: 0,
         inserted: 0,
         unchangedInTarget: 0,
+        regions: 0,
+        regionsSource,
+        capitals: 0,
+        capitalsSkipped: 0,
       };
     }
 
     console.log('Merging into "City" (no DELETE)...');
     const mergeStats = await mergeCityStaging(prisma);
-    const stats: RestoreStats = { stagingRows, ...mergeStats };
+    const regions =
+      regionsSource === 'dump'
+        ? await mergeRegionStaging(prisma)
+        : await syncRegionsFromCities(prisma);
+    const capitalStats = await mergeRegionalCapitalStaging(prisma);
+    const stats: RestoreStats = {
+      stagingRows,
+      ...mergeStats,
+      regions,
+      regionsSource,
+      ...capitalStats,
+    };
 
     console.log('Restore stats:');
     console.log(`  staging rows:     ${stats.stagingRows}`);
     console.log(`  updated:          ${stats.updated}`);
     console.log(`  inserted:         ${stats.inserted}`);
     console.log(`  unchanged (prod): ${stats.unchangedInTarget}`);
+    console.log(`  regions synced:   ${stats.regions} (from ${stats.regionsSource})`);
+    console.log(`  capitals:         ${stats.capitals}`);
+    if (stats.capitalsSkipped > 0) {
+      console.log(`  capitals skipped: ${stats.capitalsSkipped} (city not found by garObjectId)`);
+    }
 
     return stats;
   } finally {
-    await dropStagingTable(prisma).catch(() => undefined);
+    await dropStagingTables(prisma).catch(() => undefined);
     await rm(tempDir, { recursive: true, force: true });
   }
 }
