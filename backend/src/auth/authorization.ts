@@ -69,9 +69,6 @@ export function toAuthPerson(
   };
 }
 
-export const AUTH_PROVIDER_KEYS = ['GOSUSLUGI'] as const;
-export type AuthProviderKey = (typeof AUTH_PROVIDER_KEYS)[number];
-
 export type AccountKind = 'CUSTOMER' | 'PROVIDER';
 
 export type AuthorizedUser = {
@@ -86,8 +83,6 @@ export type AuthorizedUser = {
   activeProviderId: string | null;
   customerCity: AuthCity | null;
   memberships: AuthMembership[];
-  linkedAuthProviders: AuthProviderKey[];
-  stepUpVerifiedAt: Partial<Record<AuthProviderKey, string>>;
 };
 
 export type ServiceManagementAction = 'read' | 'create' | 'update' | 'delete';

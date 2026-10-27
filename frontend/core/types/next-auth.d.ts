@@ -4,7 +4,6 @@ import type {
   AuthCity,
   AuthMembership,
   AuthPerson,
-  AuthProviderKey,
   SystemRole,
 } from "@/core/auth/authorization";
 
@@ -19,8 +18,6 @@ declare module "next-auth" {
       phone: string | null;
       customerCity: AuthCity | null;
       memberships: AuthMembership[];
-      linkedAuthProviders?: AuthProviderKey[];
-      stepUpVerifiedAt?: Partial<Record<AuthProviderKey, string>>;
     } & DefaultSession["user"];
   }
 }
@@ -38,8 +35,6 @@ declare module "next-auth/jwt" {
     phone?: string | null;
     customerCity?: AuthCity | null;
     memberships?: AuthMembership[];
-    linkedAuthProviders?: AuthProviderKey[];
-    stepUpVerifiedAt?: Partial<Record<AuthProviderKey, string>>;
   }
 }
 

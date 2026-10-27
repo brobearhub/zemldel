@@ -33,8 +33,6 @@ function renderNav(state: "unauth" | "customer") {
         activeProviderId: null,
         customerCity: null,
         memberships: [],
-        linkedAuthProviders: [],
-        stepUpVerifiedAt: {},
       }),
     );
   }

@@ -88,14 +88,4 @@ export class AuthorizedUserDto {
 
   @ApiProperty({ type: [AuthMembershipDto] })
   memberships!: AuthMembershipDto[];
-
-  @ApiProperty({ enum: ['GOSUSLUGI'], isArray: true })
-  linkedAuthProviders!: Array<'GOSUSLUGI'>;
-
-  @ApiProperty({
-    type: 'object',
-    additionalProperties: { type: 'string' },
-    example: { GOSUSLUGI: '2026-06-14T12:00:00.000Z' },
-  })
-  stepUpVerifiedAt!: Partial<Record<'GOSUSLUGI', string>>;
 }

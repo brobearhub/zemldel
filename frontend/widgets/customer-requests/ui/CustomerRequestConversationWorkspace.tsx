@@ -443,7 +443,15 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
     }
   }
 
-  async function selectProvider(providerId: string) {
+  async function selectProvider(providerId: string, providerName: string) {
+    const ok = await confirm({
+      title: `Выбрать «${providerName}» исполнителем?`,
+      description:
+        "Остальные компании получат отказ, переписка с ними сохранится. Договор пришлёт исполнитель — перед подписанием вы его увидите. Изменить выбор после этого нельзя.",
+      confirmText: "Выбрать",
+      confirmColor: "success",
+    });
+    if (!ok) return;
     setBusy(true);
     setPendingAction(`select:${providerId}`);
     setError(null);
@@ -459,7 +467,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
         throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось выбрать исполнителя" : "Не удалось выбрать исполнителя");
       }
       setReq(payload as RequestCustomerDto);
-      setNotice("Исполнитель выбран. Ожидайте договор.");
+      setNotice(`Вы выбрали «${providerName}». Договор пришлёт исполнитель, перед подписанием вы его увидите.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось выбрать исполнителя");
     } finally {
@@ -600,6 +608,19 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
   }
 
   async function acceptResult() {
+    const remaining = req.remainingAmountRubles ?? 0;
+    const ok = await confirm({
+      title: "Принять результат?",
+      description: [
+        "Работа будет считаться принятой. Если есть недостатки — лучше отправить замечания, исполнитель доработает. Принятие нельзя отменить.",
+        remaining > 0 ? `Осталось оплатить: ${formatRubles(remaining)}.` : null,
+      ]
+        .filter(Boolean)
+        .join(" "),
+      confirmText: "Принять",
+      confirmColor: "success",
+    });
+    if (!ok) return;
     setBusy(true);
     setError(null);
     setNotice(null);
@@ -621,6 +642,14 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
   async function sendRemarks(text: string) {
     const normalized = text.trim();
     if (normalized.length < 3) return;
+    const ok = await confirm({
+      title: "Вернуть работу на доработку?",
+      description:
+        "Заявка вернётся исполнителю в работу. Когда он снова сдаст результат, у вас снова будет 7 дней на проверку.",
+      confirmText: "Отправить замечания",
+      confirmColor: "warning",
+    });
+    if (!ok) return;
     setBusy(true);
     setError(null);
     setNotice(null);
@@ -920,7 +949,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
                     </Box>
                   </Stack>
                 ) : (
-                  <Typography sx={{ color: "text.secondary" }}>Пока никто не написал.</Typography>
+                  <Typography sx={{ color: "text.secondary" }}>Заявка опубликована и ждёт откликов. Ответы исполнителей появятся здесь.</Typography>
                 )}
               </Box>
             ) : (
@@ -954,11 +983,11 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
                               disabled={!rowCanInitiate || busy}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                void selectProvider(c.providerId);
+                                void selectProvider(c.providerId, c.providerName);
                               }}
                               sx={{ whiteSpace: "nowrap" }}
                             >
-                              {isDeclined ? "Запросить снова" : "Заключить договор"}
+                              {isDeclined ? "Предложить снова" : "Выбрать исполнителем"}
                             </Button>
                           </Stack>
                         )
@@ -1012,7 +1041,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
             fullWidth
             maxWidth="md"
           >
-            <DialogTitle>Заключение договора</DialogTitle>
+            <DialogTitle>Подписание договора с исполнителем</DialogTitle>
             <DialogContent dividers>
               <Stack spacing={1.5}>
                 <Typography variant="body2" sx={{
@@ -1053,7 +1082,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
             </DialogContent>
             <DialogActions>
               <Button disabled={busy} onClick={() => setContractDialogOpen(false)}>
-                Отмена
+                Вернуться к обсуждению
               </Button>
               <Button
                 variant="contained"
@@ -1062,7 +1091,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
                 disabled={busy || termsBusy || !termsAccepted || !termsVersion}
                 onClick={() => void acceptContract()}
               >
-                Подтвердить акцепт
+                Подписать договор
               </Button>
             </DialogActions>
           </Dialog>
@@ -1082,7 +1111,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
           <Paper variant="outlined" sx={{ p: 2.5 }}>
             <Typography sx={{
               color: "text.secondary"
-            }}>Выберите чат слева.</Typography>
+            }}>Здесь появится переписка, как только компания ответит на заявку.</Typography>
           </Paper>
         )
       }

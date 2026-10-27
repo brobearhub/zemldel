@@ -13,7 +13,6 @@ import { LegalDocsService } from '../legal-docs/legal-docs.service';
 import {
   type AuthMembership,
   type AuthCity,
-  type AuthProviderKey,
   canManageOrders,
   type AuthorizedUser,
   type OrderManagementAction,
@@ -34,19 +33,6 @@ const userAuthSelect = {
   systemRole: true,
   accountKind: true,
   activeProviderId: true,
-  authProviderLinks: {
-    where: { revokedAt: null },
-    select: {
-      providerKey: true,
-      linkedAt: true,
-    },
-  },
-  stepUpVerifications: {
-    select: {
-      providerKey: true,
-      verifiedAt: true,
-    },
-  },
   customerCity: {
     select: {
       id: true,
@@ -156,16 +142,6 @@ export class AuthService {
     if (!user) return null;
 
     const memberships = this.normalizeMemberships(user.providerMemberships);
-    const linkedAuthProviders = (user.authProviderLinks ?? []).map(
-      (l) => l.providerKey as unknown as AuthProviderKey,
-    );
-    const stepUpVerifiedAt = (user.stepUpVerifications ?? []).reduce<
-      Partial<Record<AuthProviderKey, string>>
-    >((acc, row) => {
-      const key = row.providerKey as unknown as AuthProviderKey;
-      acc[key] = row.verifiedAt.toISOString();
-      return acc;
-    }, {});
 
     return {
       id: user.id,
@@ -182,8 +158,6 @@ export class AuthService {
       ),
       customerCity: user.customerCity,
       memberships,
-      linkedAuthProviders,
-      stepUpVerifiedAt,
     };
   }
 

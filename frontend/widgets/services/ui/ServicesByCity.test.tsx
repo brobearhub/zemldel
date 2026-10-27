@@ -54,8 +54,6 @@ describe("ServicesByCity", () => {
         activeProviderId: null,
         customerCity: { id: "c1", name: "Екатеринбург", regionCode: "66", regionName: "Свердловская область" },
         memberships: [],
-        linkedAuthProviders: [],
-        stepUpVerifiedAt: {},
       },
     });
 
@@ -101,8 +99,6 @@ describe("ServicesByCity", () => {
         activeProviderId: null,
         customerCity: { id: "c1", name: "Екатеринбург", regionCode: "66", regionName: "Свердловская область" },
         memberships: [],
-        linkedAuthProviders: [],
-        stepUpVerifiedAt: {},
       },
     });
 

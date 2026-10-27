@@ -98,7 +98,8 @@ describe('RequestsService acceptContractByCustomer', () => {
     await expect(
       svc.acceptContractByCustomer('u1', 'r1', { termsVersion: '2026-08-04' }),
     ).rejects.toMatchObject({
-      message: 'All contract bundles must be approved',
+      message:
+        'Не все пакеты договора одобрены. Одобрите актуальные пакеты или дождитесь, пока исполнитель заменит пакет, отправленный на доработку.',
     });
   });
 

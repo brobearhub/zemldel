@@ -9,13 +9,18 @@ type Props = {
   renderActions: (item: RequestDocumentRequestDto) => ReactNode;
   renderHint?: (item: RequestDocumentRequestDto) => ReactNode;
   empty?: ReactNode;
+  /** Why: «ждём» звучит по-разному для того, кто загружает, и для того, кто ждёт. */
+  pendingLabel?: string;
 };
 
-function statusLabel(status: RequestDocumentRequestDto["status"]) {
-  return status === "UPLOADED" ? "Загружен" : "Ожидаем";
-}
-
-export function RequestDocumentsList({ title, items, renderActions, renderHint, empty }: Props) {
+export function RequestDocumentsList({
+  title,
+  items,
+  renderActions,
+  renderHint,
+  empty,
+  pendingLabel = "Ожидаем",
+}: Props) {
   return (
     <RowList
       title={title}
@@ -45,7 +50,7 @@ export function RequestDocumentsList({ title, items, renderActions, renderHint, 
                     }}>
                     {index + 1}. {d.title}
                   </Typography>
-                  <Chip size="small" label={statusLabel(d.status)} />
+                  <Chip size="small" label={d.status === "UPLOADED" ? "Загружен" : pendingLabel} />
                 </Stack>
                 {hasFile ? (
                   <Typography
