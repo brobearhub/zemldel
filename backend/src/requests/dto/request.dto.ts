@@ -140,6 +140,16 @@ export class RequestPaymentItemDto {
   @Expose()
   @IsString()
   createdAt!: string;
+
+  @ApiProperty({
+    enum: ['CUSTOMER', 'PROVIDER'],
+    nullable: true,
+    example: 'PROVIDER',
+  })
+  @Expose()
+  @IsOptional()
+  @IsEnum(['CUSTOMER', 'PROVIDER'])
+  createdBySide!: 'CUSTOMER' | 'PROVIDER' | null;
 }
 
 export class RequestCustomerOfferDto {
@@ -606,6 +616,17 @@ export class RequestCustomerDto {
   @IsInt()
   totalAmountRubles!: number | null;
 
+  @ApiProperty({
+    nullable: true,
+    example: 12000,
+    description:
+      'Снимок цены услуги в рублях на момент создания заявки. Дальнейшая правка услуги его не меняет.',
+  })
+  @Expose()
+  @IsOptional()
+  @IsInt()
+  servicePriceRubles!: number | null;
+
   @ApiProperty({ example: 0 })
   @Expose()
   @IsInt()
@@ -914,6 +935,12 @@ export class RequestProDto {
   @IsInt()
   totalAmountRubles!: number | null;
 
+  @ApiProperty({ nullable: true, example: 12000 })
+  @Expose()
+  @IsOptional()
+  @IsInt()
+  servicePriceRubles!: number | null;
+
   @ApiProperty({ example: 0 })
   @Expose()
   @IsInt()
@@ -996,6 +1023,7 @@ export type RequestDbRow = {
   autoAcceptAt?: Date | null;
   acceptedAt?: Date | null;
   totalAmountRubles?: number | null;
+  servicePriceRubles?: number | null;
   createdAt: Date;
   updatedAt: Date;
   service?: { title: string; image?: string | null } | null;
@@ -1027,8 +1055,9 @@ export type RequestDbRow = {
     type: RequestPaymentType;
     amountRubles: number;
     comment: string;
-    paidAt: Date;
+    paidAt: Date | null;
     createdAt: Date;
+    createdByUserId?: string | null;
   }>;
 };
 
@@ -1046,10 +1075,20 @@ export function resolveFiasInactiveWarning(row: RequestDbRow): boolean {
   return row.requestCity?.status === 'INACTIVE';
 }
 
+function paymentAuthorSide(
+  createdByUserId: string | null | undefined,
+  customerUserId: string | null | undefined,
+): 'CUSTOMER' | 'PROVIDER' | null {
+  if (!createdByUserId) return null;
+  if (customerUserId && createdByUserId === customerUserId) return 'CUSTOMER';
+  return 'PROVIDER';
+}
+
 function toFinanceDto(row: RequestDbRow, reveal: boolean) {
   if (!reveal) {
     return {
       totalAmountRubles: null,
+      servicePriceRubles: null,
       paidAmountRubles: 0,
       remainingAmountRubles: null,
       payments: [] as RequestPaymentItemDto[],
@@ -1062,6 +1101,7 @@ function toFinanceDto(row: RequestDbRow, reveal: boolean) {
   );
   return {
     totalAmountRubles: row.totalAmountRubles ?? null,
+    servicePriceRubles: row.servicePriceRubles ?? null,
     paidAmountRubles,
     remainingAmountRubles: remainingRubles(
       row.totalAmountRubles ?? null,
@@ -1074,6 +1114,10 @@ function toFinanceDto(row: RequestDbRow, reveal: boolean) {
       comment: payment.comment,
       paidAt: payment.paidAt ? payment.paidAt.toISOString() : null,
       createdAt: payment.createdAt.toISOString(),
+      createdBySide: paymentAuthorSide(
+        payment.createdByUserId,
+        row.customerUserId,
+      ),
     })),
   };
 }
@@ -1151,7 +1195,7 @@ export function requestRowToCustomerDtoPlain(
       customerName: row.customerUser?.name ?? null,
       customerEmail: row.customerUser?.email ?? null,
       cadastralNumbers: row.cadastralNumbers ?? [],
-      ...toFinanceDto(row, hasRequestLock(row)),
+      ...toFinanceDto(row, true),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       canDeleteByCustomer: canCustomerDeleteRequest(row, hasProviderResponse),
@@ -1267,7 +1311,7 @@ export function requestRowToProDtoPlain(
       providerLastMessage,
       awaitingCustomerReply,
       lastMessageAt,
-      ...toFinanceDto(row, revealCustomerContacts),
+      ...toFinanceDto(row, !locked),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     },

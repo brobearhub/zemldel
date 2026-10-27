@@ -22,12 +22,23 @@ export type AuthCity = {
   regionName: string;
 };
 
+/** ФИО человека: контактного лица или исполнителя-физлица. У организации его нет. */
+export type AuthPerson = {
+  lastName: string;
+  firstName: string;
+  middleName: string | null;
+};
+
 export type AuthMembership = {
   providerId: string;
   providerName: string;
   providerSlug: string;
   providerType: ProviderType;
   providerCity: AuthCity | null;
+  /** Why: в сессиях, выданных до появления поля, его нет. */
+  providerImage?: string | null;
+  /** Why: в сессиях, выданных до появления поля, его нет. */
+  providerPerson?: AuthPerson | null;
   role: ProviderMemberRole;
   status: ProviderMemberStatus;
 };
@@ -36,6 +47,8 @@ export type AuthorizedUser = {
   id: string;
   email?: string | null;
   name?: string | null;
+  /** Why: в сессиях, выданных до появления поля, его нет. */
+  person?: AuthPerson | null;
   image?: string | null;
   phone?: string | null;
   systemRole: SystemRole;

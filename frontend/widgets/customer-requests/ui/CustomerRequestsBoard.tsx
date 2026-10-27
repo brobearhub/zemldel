@@ -9,6 +9,7 @@ import {
   orderReplyPreview,
   ReplyPreviewLines,
   visibleReplyPreview,
+  RequestPriceBlock,
   type RequestCustomerDto,
 } from "@/entities/request";
 import { useAppSelector } from "@/core/store/hooks";
@@ -150,6 +151,13 @@ function BoardCard({
               >
                 {title}
               </Typography>
+              <Box sx={{ mt: 0.5, minWidth: 0 }}>
+                <RequestPriceBlock
+                  totalAmountRubles={item.totalAmountRubles}
+                  servicePriceRubles={item.servicePriceRubles}
+                  serviceId={item.serviceId}
+                />
+              </Box>
               <Typography
                 variant="caption"
                 noWrap
@@ -263,7 +271,7 @@ function BoardCard({
           size="small"
           color="error"
           aria-label="Удалить заявку"
-          disabled={deleting}
+          loading={deleting}
           onClick={(event) => {
             event.stopPropagation();
             onDelete(item);

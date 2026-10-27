@@ -253,7 +253,7 @@ export function FnsManualCheck({
           <Button
             variant="text"
             disableElevation
-            disabled={busy}
+            loading={busy}
             onClick={() => void markManual()}
             startIcon={<CheckRoundedIcon />}
           >

@@ -44,6 +44,7 @@ function statusLabel(status: ProContractInstanceDetail["status"]) {
 
 export function ProContractInstanceView({ initial, rightWidth }: { initial: ProContractInstanceDetail; rightWidth?: number }) {
   const [busy, setBusy] = useState(false);
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -76,6 +77,7 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
 
   async function saveDraft() {
     setBusy(true);
+    setPendingAction("save");
     setError(null);
     setNotice(null);
     try {
@@ -94,11 +96,13 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
       setError("Не удалось сохранить");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
   async function sendToCustomer() {
     setBusy(true);
+    setPendingAction("send");
     setError(null);
     setNotice(null);
     try {
@@ -113,6 +117,7 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
       setError("Не удалось отправить");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -120,6 +125,7 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
     const body = (replyDrafts[threadId] ?? "").trim();
     if (body.length < 3) return;
     setBusy(true);
+    setPendingAction(`reply:${threadId}`);
     setError(null);
     setNotice(null);
     try {
@@ -135,11 +141,13 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
       setError(error instanceof Error ? error.message : "Не удалось отправить ответ");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
   async function resolve(threadId: string) {
     setBusy(true);
+    setPendingAction(`resolve:${threadId}`);
     setError(null);
     setNotice(null);
     try {
@@ -150,6 +158,7 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
       setError(error instanceof Error ? error.message : "Не удалось закрыть комментарий");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -185,10 +194,10 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1} useFlexGap sx={{
                 flexWrap: "wrap"
               }}>
-                <Button variant="contained" disabled={busy || !canSend} onClick={() => void sendToCustomer()}>
+                <Button variant="contained" loading={pendingAction === "send"} disabled={busy || !canSend} onClick={() => void sendToCustomer()}>
                   Отправить клиенту
                 </Button>
-                <Button variant="outlined" disabled={busy || !canEdit} onClick={() => void saveDraft()}>
+                <Button variant="outlined" loading={pendingAction === "save"} disabled={busy || !canEdit} onClick={() => void saveDraft()}>
                   Сохранить черновик
                 </Button>
               </Stack>
@@ -277,12 +286,18 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
                           />
                           <Button
                             variant="outlined"
+                            loading={pendingAction === `reply:${thread.id}`}
                             disabled={busy || (replyDrafts[thread.id] ?? "").trim().length < 3}
                             onClick={() => void reply(thread.id)}
                           >
                             Ответить
                           </Button>
-                          <Button variant="contained" disabled={busy} onClick={() => void resolve(thread.id)}>
+                          <Button
+                            variant="contained"
+                            loading={pendingAction === `resolve:${thread.id}`}
+                            disabled={busy}
+                            onClick={() => void resolve(thread.id)}
+                          >
                             Закрыть
                           </Button>
                         </Stack>

@@ -1,10 +1,19 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import type { AccountKind, AuthCity, AuthMembership, AuthProviderKey, SystemRole } from "@/core/auth/authorization";
+import type {
+  AccountKind,
+  AuthCity,
+  AuthMembership,
+  AuthPerson,
+  AuthProviderKey,
+  SystemRole,
+} from "@/core/auth/authorization";
 
 export type AuthUser = {
   id: string;
   email: string | null;
   name: string | null;
+  /** Why: в сессиях, выданных до появления поля, его нет. */
+  person?: AuthPerson | null;
   image: string | null;
   phone: string | null;
   systemRole: SystemRole;

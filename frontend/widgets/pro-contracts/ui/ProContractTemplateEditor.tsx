@@ -86,7 +86,7 @@ export function ProContractTemplateEditor({ mode, initial }: Props) {
           <TextField label="Название" value={title} onChange={(e) => setTitle(e.target.value)} disabled={busy} fullWidth required />
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <Button type="submit" variant="contained" disabled={busy}>
+            <Button type="submit" variant="contained" loading={busy}>
               Сохранить
             </Button>
             <Button variant="outlined" disabled={busy} onClick={() => router.push("/pro/documents/contracts")}>

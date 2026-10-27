@@ -67,6 +67,9 @@ export class ChatMessageDto {
   @ApiProperty()
   body!: string;
 
+  @ApiProperty({ enum: ['USER', 'SYSTEM'], example: 'USER' })
+  kind!: 'USER' | 'SYSTEM';
+
   @ApiProperty({ format: 'uuid' })
   clientMessageId!: string;
 

@@ -16,6 +16,8 @@ export type RequestDetailHeaderCardProps = {
   /** Контент в нижнем правом углу блока заявки (например иконка клиента/исполнителя) */
   footerEnd?: ReactNode;
   title?: string;
+  /** Строка под заголовком, на всю ширину. Для цены, чтобы чип не раздувал ряд. */
+  lead?: ReactNode;
 };
 
 /**
@@ -29,6 +31,7 @@ export function RequestDetailHeaderCard({
   afterBody,
   footerEnd,
   title = "Заявка",
+  lead,
 }: RequestDetailHeaderCardProps) {
   const hasFooter = Boolean(afterBody || footerEnd);
   const sideBySide = Boolean(details && body);
@@ -39,6 +42,9 @@ export function RequestDetailHeaderCard({
         bgcolor: alpha(theme.palette.common.black, 0.035),
         borderRadius: 1,
         p: { xs: 2, sm: 2.5 },
+        width: "100%",
+        minWidth: 0,
+        maxWidth: "100%",
       })}
     >
       <Stack spacing={2}>
@@ -48,14 +54,17 @@ export function RequestDetailHeaderCard({
           sx={{
             alignItems: "flex-start",
             justifyContent: "space-between",
+            minWidth: 0,
+            width: "100%",
             pb: { md: 2 }
           }}>
-          <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+          <Stack spacing={0.5} sx={{ minWidth: 0, flex: "1 1 auto" }}>
             <Typography
               variant="h4"
               sx={{
                 fontWeight: 800,
-                color: "text.primary"
+                color: "text.primary",
+                overflowWrap: "anywhere"
               }}>
               {title}
             </Typography>
@@ -84,6 +93,8 @@ export function RequestDetailHeaderCard({
             })}
           />
         </Stack>
+
+        {lead ? <Box sx={{ minWidth: 0, maxWidth: "100%" }}>{lead}</Box> : null}
 
         {details || body ? (
           <Stack

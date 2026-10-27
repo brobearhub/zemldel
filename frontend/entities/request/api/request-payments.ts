@@ -55,6 +55,27 @@ export async function fetchCustomerRequestFinance(requestId: string): Promise<Re
   return parseJson<RequestFinanceDto>(res, "Не удалось загрузить оплату");
 }
 
+export async function setCustomerRequestTotal(requestId: string, totalAmountRubles: number): Promise<RequestFinanceDto> {
+  const res = await fetch(`/api/requests/${requestId}/finance`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ totalAmountRubles }),
+  });
+  return parseJson<RequestFinanceDto>(res, "Не удалось сохранить цену");
+}
+
+export async function addCustomerRequestPayment(
+  requestId: string,
+  input: { amountRubles: number; comment: string; type?: "CONTRACT" | "OTHER" },
+): Promise<RequestFinanceDto> {
+  const res = await fetch(`/api/requests/${requestId}/payments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return parseJson<RequestFinanceDto>(res, "Не удалось добавить отметку");
+}
+
 export async function markCustomerRequestPaymentPaid(requestId: string, paymentId: string): Promise<RequestFinanceDto> {
   const res = await fetch(`/api/requests/${requestId}/payments/${paymentId}/paid`, { method: "POST" });
   return parseJson<RequestFinanceDto>(res, "Не удалось отметить платёж как оплаченный");

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { CdnFillImage } from "@/shared/ui/cdn-image";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
@@ -243,7 +244,13 @@ function InlineEditableText(props: {
     <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", flexShrink: 0 }}>
       <Tooltip title="Сохранить">
         <span>
-          <IconButton size="small" onClick={() => void handleSave()} disabled={props.disabled || saving}>
+          <IconButton
+            size="small"
+            aria-label="Сохранить"
+            onClick={() => void handleSave()}
+            loading={saving}
+            disabled={props.disabled}
+          >
             <CheckRoundedIcon fontSize="small" />
           </IconButton>
         </span>
@@ -405,7 +412,13 @@ function InlineEditableStatCard(props: {
     <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", flexShrink: 0 }}>
       <Tooltip title="Сохранить">
         <span>
-          <IconButton size="small" onClick={() => void handleSave()} disabled={props.disabled || saving}>
+          <IconButton
+            size="small"
+            aria-label="Сохранить"
+            onClick={() => void handleSave()}
+            loading={saving}
+            disabled={props.disabled}
+          >
             <CheckRoundedIcon fontSize="small" />
           </IconButton>
         </span>
@@ -547,11 +560,14 @@ export function ProviderProfileEditorSection({
   headerAside,
 }: Props) {
   const router = useRouter();
+  /** Why: фото исполнителя показывается в аватаре хедера из сессии — после смены её надо перечитать. */
+  const { update: updateSession } = useSession();
   const isRight = imageSide === "right";
 
   const [profile, setProfile] = useState<PublicProviderProfile>(initialProfile);
   const [editId, setEditId] = useState<EditId>(null);
   const [busy, setBusy] = useState(false);
+  const [imageAction, setImageAction] = useState<"upload" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [slug, setSlug] = useState(providerSlug);
@@ -627,6 +643,7 @@ export function ProviderProfileEditorSection({
     }
 
     setBusy(true);
+    setImageAction("upload");
     setError(null);
     try {
       const formData = new FormData();
@@ -643,15 +660,18 @@ export function ProviderProfileEditorSection({
         const next = payload as PublicProviderProfile;
         setProfile(next);
       }
+      await updateSession().catch(() => undefined);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось загрузить изображение");
     } finally {
       setBusy(false);
+      setImageAction(null);
     }
   }
 
   async function deleteImage() {
     setBusy(true);
+    setImageAction("delete");
     setError(null);
     try {
       const res = await fetch(`/api/providers/${providerId}/image`, { method: "DELETE" });
@@ -663,10 +683,12 @@ export function ProviderProfileEditorSection({
         const next = payload as PublicProviderProfile;
         setProfile(next);
       }
+      await updateSession().catch(() => undefined);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось удалить изображение");
     } finally {
       setBusy(false);
+      setImageAction(null);
     }
   }
 
@@ -868,8 +890,10 @@ export function ProviderProfileEditorSection({
                     <span>
                       <IconButton
                         size="small"
+                        aria-label="Сохранить адрес профиля"
                         onClick={() => void handleSlugSave()}
-                        disabled={slugSaving || slugChecking || !slugValue.trim() || slugValue.trim().toLowerCase() === slug || slugAvailable !== true}
+                        loading={slugSaving}
+                        disabled={slugChecking || !slugValue.trim() || slugValue.trim().toLowerCase() === slug || slugAvailable !== true}
                       >
                         <CheckRoundedIcon fontSize="small" />
                       </IconButton>
@@ -1025,6 +1049,7 @@ export function ProviderProfileEditorSection({
                   size="small"
                   component="label"
                   startIcon={<CloudUploadIcon fontSize="small" />}
+                  loading={imageAction === "upload"}
                   disabled={busy}
                   sx={{
                     borderColor: "rgba(255,255,255,0.35)",
@@ -1057,6 +1082,7 @@ export function ProviderProfileEditorSection({
                     variant="text"
                     size="small"
                     color="error"
+                    loading={imageAction === "delete"}
                     disabled={busy}
                     onClick={() => void deleteImage()}
                     startIcon={<RemoveCircleIcon fontSize="small" />}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Stack } from "@mui/material";
+import { Box, Stack, Tab, Tabs } from "@mui/material";
 import { useState, type ReactNode } from "react";
 
 type SectionId = "services" | "free" | "reminders";
@@ -23,54 +23,32 @@ export function ProHomeSectionSwitch({ services, freeRequests, reminders }: Prop
 
   return (
     <Stack spacing={2.5}>
-      <Box
-        component="nav"
-        role="tablist"
+      <Tabs
+        value={section}
+        onChange={(_, next: SectionId) => setSection(next)}
         aria-label="Разделы кабинета"
-        sx={{
-          display: "flex",
-          flexWrap: "nowrap",
-          overflowX: "auto",
-          columnGap: 1,
-          alignItems: "stretch",
-        }}
+        variant="scrollable"
+        allowScrollButtonsMobile
+        sx={{ borderBottom: 1, borderColor: "divider", minHeight: 44 }}
       >
-        {SECTIONS.map((item) => {
-          const active = section === item.id;
-          return (
-            <Box
-              key={item.id}
-              component="button"
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setSection(item.id)}
-              sx={{
-                m: 0,
-                px: 1.5,
-                py: 1,
-                border: 0,
-                borderBottom: "3px solid",
-                borderColor: active ? "text.primary" : "transparent",
-                outline: "none",
-                bgcolor: active ? "action.hover" : "transparent",
-                cursor: "pointer",
-                fontFamily: "inherit",
-                textAlign: "left",
-                whiteSpace: "nowrap",
-                minHeight: 44,
-                fontWeight: active ? 800 : 700,
-                fontSize: 16,
-                lineHeight: 1.2,
-                color: "text.primary",
-              }}
-            >
-              {item.label}
-            </Box>
-          );
-        })}
+        {SECTIONS.map((item) => (
+          <Tab
+            key={item.id}
+            value={item.id}
+            label={item.label}
+            id={`pro-home-tab-${item.id}`}
+            aria-controls={`pro-home-panel-${item.id}`}
+            sx={{ minHeight: 44, textTransform: "none", fontSize: 16, fontWeight: 700 }}
+          />
+        ))}
+      </Tabs>
+      <Box
+        role="tabpanel"
+        id={`pro-home-panel-${section}`}
+        aria-labelledby={`pro-home-tab-${section}`}
+      >
+        {content}
       </Box>
-      {content}
     </Stack>
   );
 }

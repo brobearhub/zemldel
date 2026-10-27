@@ -7,10 +7,12 @@ import { CustomerRequestDetailClient } from "./CustomerRequestDetailClient";
 
 type Props = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ created?: string }>;
 };
 
-export default async function CustomerRequestDetailPage({ params }: Props) {
+export default async function CustomerRequestDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const { created } = await searchParams;
   const session = await getServerAuthSession();
 
   if (!session?.user?.id) {
@@ -29,7 +31,7 @@ export default async function CustomerRequestDetailPage({ params }: Props) {
 
   return (
     <main>
-      <CustomerRequestDetailClient initialRequest={req} />
+      <CustomerRequestDetailClient initialRequest={req} justCreated={created === "1"} />
     </main>
   );
 }

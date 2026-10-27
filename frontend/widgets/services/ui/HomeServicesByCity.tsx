@@ -24,7 +24,7 @@ function ServiceGrid({
         gap: 2.5,
         gridTemplateColumns: {
           xs: "repeat(2, minmax(0, 1fr))",
-          sm: "repeat(3, minmax(0, 1fr))",
+          tablet: "repeat(1, minmax(0, 1fr))",
           md: "repeat(2, minmax(0, 1fr))",
           lg: "repeat(3, minmax(0, 1fr))",
           xl: "repeat(4, minmax(0, 1fr))",
@@ -47,7 +47,7 @@ async function fetchServices(path: string): Promise<ServiceCardItem[]> {
     // Не показываем пользователю backend/BFF сообщения (они могут быть техническими и на англ.).
     // Детали оставляем только в консоли для диагностики.
     if (process.env.NODE_ENV !== "production") {
-      // eslint-disable-next-line no-console
+       
       console.error("[HomeServicesByCity] Failed to fetch services", { path, status: res.status, payload });
     }
     throw new Error(SERVICES_FETCH_USER_MESSAGE);
@@ -92,7 +92,7 @@ export function HomeServicesByCity() {
       } catch (e) {
         if (!alive) return;
         if (process.env.NODE_ENV !== "production") {
-          // eslint-disable-next-line no-console
+           
           console.error("[HomeServicesByCity] Failed to load services", e);
         }
         setError(SERVICES_FETCH_USER_MESSAGE);

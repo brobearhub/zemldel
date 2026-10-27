@@ -1,49 +1,104 @@
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import Link from "next/link";
-import { Chip, Paper, Stack, Typography } from "@mui/material";
-import type { FirstStepItem } from "../lib/first-steps";
+"use client";
 
-type Props = {
-  progressLabel: string;
-  steps: FirstStepItem[];
-};
+import { useState } from "react";
+import { Box, Button, Paper, Stack, Step, StepButton, StepLabel, Stepper, Typography } from "@mui/material";
+import { alpha } from "@mui/material/styles";
+import { visuallyHidden } from "@mui/utils";
+import Link from "@/shared/ui/Link";
+import type { FirstSteps } from "../lib/first-steps";
+
+type Props = Pick<FirstSteps, "progressLabel" | "steps">;
 
 export function ProviderFirstSteps({ progressLabel, steps }: Props) {
+  const firstOpen = steps.findIndex((step) => !step.done);
+  const [selected, setSelected] = useState(firstOpen === -1 ? steps.length - 1 : firstOpen);
+  const step = steps[selected];
+
   return (
-    <Paper variant="outlined" sx={{ p: 2.5 }}>
-      <Stack spacing={1.5}>
-        <Stack
-          direction="row"
-          spacing={2}
-          sx={{ justifyContent: "space-between", alignItems: "baseline" }}
-        >
-          <Typography sx={{ fontWeight: 700 }}>Первые шаги</Typography>
-          <Typography sx={{ color: "text.secondary" }}>{progressLabel}</Typography>
-        </Stack>
-        <Typography sx={{ color: "text.secondary" }}>
-          Сначала у вас обычный профиль — это нормально
+    <Paper
+      component="section"
+      aria-labelledby="first-steps-title"
+      variant="outlined"
+      sx={{ p: { xs: 2, sm: 3 }, maxWidth: 800 }}
+    >
+      <Stack spacing={3}>
+        <Typography id="first-steps-title" component="h2" variant="h6" sx={{ fontWeight: 800 }}>
+          Первые шаги
+          <Box component="span" sx={visuallyHidden}>
+            , выполнено {progressLabel} обязательных
+          </Box>
         </Typography>
-        {steps.map((step, index) => (
-          <Stack key={step.id} spacing={0.5}>
-            <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start", flexWrap: "nowrap" }}>
-              {step.done ? (
-                <CheckCircleIcon fontSize="small" sx={{ color: "#14663F", flex: "0 0 auto", mt: "2px" }} />
-              ) : null}
-              <Typography sx={{ fontWeight: step.done ? 400 : 700, minWidth: 0 }}>
-                {index + 1}. {step.title}
+
+        <Stepper
+          nonLinear
+          alternativeLabel
+          activeStep={selected}
+          sx={{
+            "& .MuiStepIcon-root.Mui-completed": { color: "success.main" },
+            "& .MuiStepConnector-line": { borderTopWidth: 3 },
+            "& .MuiStepConnector-root.Mui-active .MuiStepConnector-line, & .MuiStepConnector-root.Mui-completed .MuiStepConnector-line":
+              { borderColor: "success.main" },
+          }}
+        >
+          {steps.map((item, index) => (
+            <Step key={item.id} completed={item.done}>
+              <StepButton
+                onClick={() => setSelected(index)}
+                aria-current={index === selected ? "step" : undefined}
+                optional={
+                  item.optional ? (
+                    <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                      по желанию
+                    </Typography>
+                  ) : undefined
+                }
+                sx={{ minHeight: 44 }}
+              >
+                <StepLabel error={item.error}>{item.label}</StepLabel>
+              </StepButton>
+            </Step>
+          ))}
+        </Stepper>
+
+        {step ? (
+          <Stack
+            aria-live="polite"
+            direction={{ xs: "column", sm: "row" }}
+            spacing={2}
+            sx={{
+              p: { xs: 2, sm: 2.5 },
+              borderRadius: 2,
+              bgcolor: (theme) => alpha(theme.palette.primary.main, 0.14),
+              justifyContent: "space-between",
+              alignItems: { xs: "flex-start", sm: "center" },
+            }}
+          >
+            <Stack spacing={0.75} sx={{ minWidth: 0 }}>
+              <Typography component="h3" sx={{ fontSize: 18, fontWeight: 800, lineHeight: 1.35 }}>
+                {step.title}
               </Typography>
-              {step.optional ? <Chip size="small" label="по желанию" variant="outlined" /> : null}
+              {step.note ? (
+                <Typography variant="body2" sx={{ color: step.error ? "error.main" : "text.secondary", maxWidth: "60ch" }}>
+                  {step.note}
+                </Typography>
+              ) : null}
             </Stack>
-            {step.note ? (
-              <Typography sx={{ color: "text.secondary" }}>{step.note}</Typography>
-            ) : null}
-            {step.href ? (
-              <Link href={step.href} style={{ minHeight: 44, display: "inline-flex", alignItems: "center" }}>
-                Перейти
-              </Link>
+            {step.href && step.actionLabel ? (
+              <Button
+                component={Link}
+                href={step.href}
+                variant={step.current || step.error ? "contained" : "outlined"}
+                sx={{
+                  flex: "0 0 auto",
+                  minHeight: 44,
+                  ...(step.current || step.error ? {} : { color: "text.primary", borderColor: "primary.dark" }),
+                }}
+              >
+                {step.actionLabel}
+              </Button>
             ) : null}
           </Stack>
-        ))}
+        ) : null}
       </Stack>
     </Paper>
   );

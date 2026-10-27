@@ -20,6 +20,7 @@ export function WorkStageStatusesSettings() {
   const [custom, setCustom] = useState<WorkStageStatusOptionDto[]>([]);
   const [newLabel, setNewLabel] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -42,8 +43,9 @@ export function WorkStageStatusesSettings() {
     };
   }, []);
 
-  async function persist(next: WorkStageStatusOptionDto[]) {
+  async function persist(next: WorkStageStatusOptionDto[], actionKey: string | null = null) {
     setBusy(true);
+    setPendingKey(actionKey);
     setError(null);
     setNotice(null);
     try {
@@ -55,6 +57,7 @@ export function WorkStageStatusesSettings() {
       await reload().catch(() => undefined);
     } finally {
       setBusy(false);
+      setPendingKey(null);
     }
   }
 
@@ -118,8 +121,9 @@ export function WorkStageStatusesSettings() {
                 />
                 <Button
                   color="error"
+                  loading={pendingKey === `delete:${item.key}`}
                   disabled={busy}
-                  onClick={() => void persist(custom.filter((row) => row.key !== item.key))}
+                  onClick={() => void persist(custom.filter((row) => row.key !== item.key), `delete:${item.key}`)}
                 >
                   Удалить
                 </Button>
@@ -140,6 +144,7 @@ export function WorkStageStatusesSettings() {
             />
             <Button
               variant="contained"
+              loading={pendingKey === "add"}
               disabled={busy || newLabel.trim().length < 1}
               onClick={() => {
                 const next = [
@@ -147,7 +152,7 @@ export function WorkStageStatusesSettings() {
                   { key: createCustomWorkStageStatusKey(), label: newLabel.trim() },
                 ];
                 setNewLabel("");
-                void persist(next);
+                void persist(next, "add");
               }}
             >
               Добавить

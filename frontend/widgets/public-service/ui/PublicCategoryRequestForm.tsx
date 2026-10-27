@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Alert, Button, CircularProgress, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Button, Stack, TextField, Typography } from "@mui/material";
 import { CadastralNumberChipsField } from "@/shared/ui/CadastralNumberChipsField";
 import {
   REQUESTS_PROFILE_URL,
@@ -131,8 +131,8 @@ export function PublicCategoryRequestForm({ categoryId, isAuthenticated }: Props
           type="submit"
           variant="contained"
           size="large"
-          disabled={busy || Boolean(validationError)}
-          startIcon={busy ? <CircularProgress size={18} color="inherit" /> : null}
+          loading={busy}
+          disabled={Boolean(validationError)}
           sx={{ fontWeight: 800, textTransform: "none", px: 3, py: 1.25 }}
         >
           Получить предложения

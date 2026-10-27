@@ -73,6 +73,8 @@ type Props = {
 export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
   const [categories, setCategories] = useState<ServiceCategoryRow[]>(initialCategories);
   const [busy, setBusy] = useState(false);
+  // Why: busy общий для создания, сохранения и удаления — спиннер только на нажатой кнопке.
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const confirm = useConfirm();
 
@@ -106,6 +108,7 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
   async function onCreate() {
     setError(null);
     setBusy(true);
+    setPendingAction("create");
     try {
       const res = await fetch("/api/admin/service-categories", {
         method: "POST",
@@ -127,6 +130,7 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
       setError(e instanceof Error ? e.message : "Ошибка");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -141,6 +145,7 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
     if (!editDraft) return;
     setError(null);
     setBusy(true);
+    setPendingAction("save");
     try {
       const res = await fetch(`/api/admin/service-categories/${editDraft.id}`, {
         method: "PATCH",
@@ -163,6 +168,7 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
       setError(e instanceof Error ? e.message : "Ошибка");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -176,6 +182,7 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
     if (!ok) return;
     setError(null);
     setBusy(true);
+    setPendingAction(`delete:${row.id}`);
     try {
       const res = await fetch(`/api/admin/service-categories/${row.id}`, { method: "DELETE" });
       if (!res.ok) {
@@ -187,6 +194,7 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
       setError(e instanceof Error ? e.message : "Ошибка");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -238,7 +246,8 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
           <Button
             variant="contained"
             onClick={onCreate}
-            disabled={busy}
+            loading={pendingAction === "create"}
+            disabled={busy && pendingAction !== "create"}
             sx={{ whiteSpace: "nowrap", fontWeight: 800 }}
           >
             Создать
@@ -282,7 +291,8 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
                     color="error"
                     variant="outlined"
                     onClick={() => onDelete({ id: node.id, name: node.name })}
-                    disabled={busy}
+                    loading={pendingAction === `delete:${node.id}`}
+                    disabled={busy && pendingAction !== `delete:${node.id}`}
                   >
                     Удалить
                   </Button>
@@ -340,7 +350,7 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
           <Button onClick={() => setEditOpen(false)} disabled={busy}>
             Отмена
           </Button>
-          <Button variant="contained" onClick={onSaveEdit} disabled={busy}>
+          <Button variant="contained" onClick={onSaveEdit} loading={pendingAction === "save"}>
             Сохранить
           </Button>
         </DialogActions>

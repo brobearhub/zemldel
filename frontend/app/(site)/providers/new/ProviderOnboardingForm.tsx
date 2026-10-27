@@ -27,6 +27,7 @@ import {
   type ProviderOnboardingFieldErrors,
   type ProviderOnboardingType,
 } from "./validate-provider-onboarding";
+import { AvatarPickerField } from "./AvatarPickerField";
 
 const TYPE_OPTIONS: Array<{ value: ProviderOnboardingType; label: string }> = [
   { value: "INDIVIDUAL", label: "Физлицо" },
@@ -47,6 +48,8 @@ export function ProviderOnboardingForm() {
   const [contactFirstName, setContactFirstName] = useState("");
   const [contactMiddleName, setContactMiddleName] = useState("");
   const [city, setCity] = useState<CitySuggestItemDto | null>(null);
+  const [providerAvatar, setProviderAvatar] = useState<File | null>(null);
+  const [contactAvatar, setContactAvatar] = useState<File | null>(null);
   const [fieldErrors, setFieldErrors] = useState<ProviderOnboardingFieldErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -89,6 +92,32 @@ export function ProviderOnboardingForm() {
     });
   }
 
+  async function uploadAvatar(url: string, file: File): Promise<boolean> {
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch(url, { method: "POST", body: formData });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  async function uploadAvatars(providerId: string | null): Promise<string | null> {
+    const [providerOk, contactOk] = await Promise.all([
+      providerAvatar
+        ? providerId
+          ? uploadAvatar(`/api/providers/${providerId}/image`, providerAvatar)
+          : Promise.resolve(false)
+        : Promise.resolve(true),
+      isCompany && contactAvatar ? uploadAvatar("/api/users/me/image", contactAvatar) : Promise.resolve(true),
+    ]);
+    if (!providerOk && !contactOk) return "avatars-failed";
+    if (!providerOk) return "provider-avatar-failed";
+    if (!contactOk) return "contact-avatar-failed";
+    return null;
+  }
+
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -111,6 +140,7 @@ export function ProviderOnboardingForm() {
     }
 
     setLoading(true);
+    let navigated = false;
 
     try {
       const response = await fetch("/api/providers", {
@@ -140,7 +170,12 @@ export function ProviderOnboardingForm() {
       });
 
       const payload = (await response.json().catch(() => null)) as
-        | { error?: string; message?: string | string[]; fieldErrors?: ProviderOnboardingFieldErrors }
+        | {
+            provider?: { id?: string };
+            error?: string;
+            message?: string | string[];
+            fieldErrors?: ProviderOnboardingFieldErrors;
+          }
         | null;
 
       if (!response.ok) {
@@ -153,15 +188,20 @@ export function ProviderOnboardingForm() {
         return;
       }
 
+      // Why: профиль уже создан, поэтому сбой загрузки фото не должен оставлять пользователя на форме.
+      const avatarNotice = await uploadAvatars(payload?.provider?.id ?? null);
+
       setLastCabinetRole("provider");
       // Why: jwt клиента ещё без профиля, поэтому город исполнителя не попадает в форму услуги.
       await updateSession().catch(() => undefined);
-      router.push("/pro?welcome=1");
+      navigated = true;
+      router.push(avatarNotice ? `/pro?welcome=1&notice=${avatarNotice}` : "/pro?welcome=1");
       router.refresh();
     } catch {
       setError("Не удалось создать профиль исполнителя");
     } finally {
-      setLoading(false);
+      // Why: router.push не ждёт перехода, а повторный сабмит создал бы второй профиль.
+      if (!navigated) setLoading(false);
     }
   }
 
@@ -221,38 +261,56 @@ export function ProviderOnboardingForm() {
                 {type ? (
                   <Stack spacing={2}>
                     {isCompany ? (
-                      <TextField
-                        required
-                        size="small"
-                        label="Полное наименование"
-                        value={legalName}
-                        onChange={(event) => {
-                          setLegalName(event.target.value);
-                          clearField("legalName");
-                        }}
-                        disabled={loading}
-                        fullWidth
-                        error={Boolean(fieldErrors.legalName)}
-                        helperText={fieldErrors.legalName ?? " "}
-                      />
+                      <Stack spacing={1}>
+                        <TextField
+                          required
+                          size="small"
+                          label="Полное наименование"
+                          value={legalName}
+                          onChange={(event) => {
+                            setLegalName(event.target.value);
+                            clearField("legalName");
+                          }}
+                          disabled={loading}
+                          fullWidth
+                          error={Boolean(fieldErrors.legalName)}
+                          helperText={fieldErrors.legalName ?? " "}
+                        />
+                        <AvatarPickerField
+                          label="Аватар исполнителя"
+                          file={providerAvatar}
+                          maxMegabytes={10}
+                          disabled={loading}
+                          onChange={setProviderAvatar}
+                        />
+                      </Stack>
                     ) : (
-                      <PersonNameFields
-                        lastName={lastName}
-                        firstName={firstName}
-                        middleName={middleName}
-                        lastNameError={fieldErrors.lastName}
-                        firstNameError={fieldErrors.firstName}
-                        disabled={loading}
-                        onLastName={(value) => {
-                          setLastName(value);
-                          clearField("lastName");
-                        }}
-                        onFirstName={(value) => {
-                          setFirstName(value);
-                          clearField("firstName");
-                        }}
-                        onMiddleName={setMiddleName}
-                      />
+                      <Stack spacing={1}>
+                        <PersonNameFields
+                          lastName={lastName}
+                          firstName={firstName}
+                          middleName={middleName}
+                          lastNameError={fieldErrors.lastName}
+                          firstNameError={fieldErrors.firstName}
+                          disabled={loading}
+                          onLastName={(value) => {
+                            setLastName(value);
+                            clearField("lastName");
+                          }}
+                          onFirstName={(value) => {
+                            setFirstName(value);
+                            clearField("firstName");
+                          }}
+                          onMiddleName={setMiddleName}
+                        />
+                        <AvatarPickerField
+                          label="Аватар исполнителя"
+                          file={providerAvatar}
+                          maxMegabytes={10}
+                          disabled={loading}
+                          onChange={setProviderAvatar}
+                        />
+                      </Stack>
                     )}
 
                     {isCompany ? (
@@ -274,6 +332,13 @@ export function ProviderOnboardingForm() {
                             clearField("contactFirstName");
                           }}
                           onMiddleName={setContactMiddleName}
+                        />
+                        <AvatarPickerField
+                          label="Фото контактного лица"
+                          file={contactAvatar}
+                          maxMegabytes={5}
+                          disabled={loading}
+                          onChange={setContactAvatar}
                         />
                       </Stack>
                     ) : null}
@@ -322,7 +387,8 @@ export function ProviderOnboardingForm() {
                 <Button
                   type="submit"
                   variant="contained"
-                  disabled={loading || !offerAcknowledged || !offerVersion}
+                  loading={loading}
+                  disabled={!offerAcknowledged || !offerVersion}
                   sx={{ minHeight: 44, alignSelf: "flex-start" }}
                 >
                   Создать профиль

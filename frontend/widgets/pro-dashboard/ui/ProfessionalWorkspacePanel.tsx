@@ -354,7 +354,8 @@ export function ProfessionalWorkspacePanel() {
                       <Button
                         variant="contained"
                         size="small"
-                        disabled={slugSaving || slugChecking || !slugAvailable || !slugValue}
+                        loading={slugSaving}
+                        disabled={slugChecking || !slugAvailable || !slugValue}
                         onClick={() => void handleSlugSave()}
                       >
                         Сохранить
@@ -427,7 +428,8 @@ export function ProfessionalWorkspacePanel() {
                       <Button
                         variant={isActive ? "contained" : "outlined"}
                         size="small"
-                        disabled={isActive || switchingProviderId === membership.providerId}
+                        loading={switchingProviderId === membership.providerId}
+                        disabled={isActive || (switchingProviderId !== null && switchingProviderId !== membership.providerId)}
                         onClick={() => handleActivateProvider(membership.providerId)}
                       >
                         {isActive ? "Активный" : "Сделать активным"}
@@ -508,7 +510,7 @@ export function ProfessionalWorkspacePanel() {
                   fullWidth
                   size="small"
                 />
-                <Button type="submit" variant="contained" disabled={managerLoading}>
+                <Button type="submit" variant="contained" loading={managerLoading}>
                   Добавить менеджера
                 </Button>
               </Stack>

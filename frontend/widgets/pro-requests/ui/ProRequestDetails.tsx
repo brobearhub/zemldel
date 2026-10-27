@@ -18,9 +18,11 @@ import {
   canProviderManageDealDocuments,
   getRequestStatusLabel,
   mergeWorkStageStatusOptions,
+  RequestPriceBlock,
   resolvePaymentTriggerLabel,
   resolveRequestDetailBody,
   resolveRequestDetailTitle,
+  resolveRequestPriceView,
   SYSTEM_WORK_STAGE_STATUSES,
   type RequestRemarkDto,
   type RequestProDto,
@@ -536,7 +538,11 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     lockedAt: req.lockedAt,
     isLocked: req.isLocked,
   });
-  const showPayment = showCounterparty;
+  const showPayment = !req.isLocked;
+  const priceView = resolveRequestPriceView({
+    totalAmountRubles: req.totalAmountRubles,
+    servicePriceRubles: req.servicePriceRubles,
+  });
   const customerFields = getCustomerContactFields({
     customerName: req.customerName,
     customerPhone: req.customerPhone,
@@ -545,7 +551,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
 
   const panelItems = [
     { id: "cadastral", label: "Кадастровый номер", visible: true, endIcon: <PinDropOutlinedIcon /> },
-    { id: "payment", label: resolvePaymentTriggerLabel(req.totalAmountRubles), visible: showPayment, endIcon: <PaymentIcon /> },
+    { id: "payment", label: resolvePaymentTriggerLabel(req.totalAmountRubles), caption: priceView.triggerCaption, visible: showPayment, endIcon: <PaymentIcon /> },
     { id: "counterparty", label: "Клиент", visible: showCounterparty, endIcon: <AssignmentIndIcon /> },
   ] as const;
 
@@ -576,7 +582,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   const isPanelOpen = Boolean(activePanel);
   const panelTitle =
     activePanel?.id === "payment"
-      ? "Оплата"
+      ? "Цена и оплата"
       : activePanel?.id === "counterparty"
         ? "Клиент"
         : "Кадастровый номер";
@@ -595,7 +601,9 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
         requestId={req.id}
         status={req.status}
         lockedAt={req.lockedAt}
+        isLocked={req.isLocked}
         totalAmountRubles={req.totalAmountRubles}
+        servicePriceRubles={req.servicePriceRubles}
         paidAmountRubles={req.paidAmountRubles}
         remainingAmountRubles={req.remainingAmountRubles}
         payments={req.payments}
@@ -623,6 +631,22 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
           statusLabel={getRequestStatusLabel(req.status)}
           body={messageBody}
           footerEnd={<RequestDetailPanelTriggers items={panelItems} onOpen={(id) => setActivePanelId(id as never)} />}
+          lead={
+            <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+              <RequestPriceBlock
+                totalAmountRubles={req.totalAmountRubles}
+                servicePriceRubles={req.servicePriceRubles}
+                serviceId={req.isLocked ? null : req.serviceId}
+              />
+              {req.status === "ACCEPTANCE_PENDING" ? (
+                <RequestPriceBlock
+                  totalAmountRubles={req.totalAmountRubles}
+                  servicePriceRubles={req.servicePriceRubles}
+                  statedOnly
+                />
+              ) : null}
+            </Stack>
+          }
           details={<RequestDetails busy={isBusy} behavior={createProviderRequestDetailsBehavior({ request: req })} />}
           afterBody={
             <RequestLifecycleActions

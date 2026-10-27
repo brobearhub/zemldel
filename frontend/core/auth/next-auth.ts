@@ -3,7 +3,7 @@ import "server-only";
 import type { NextAuthOptions } from "next-auth";
 import { getServerSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import type { AuthMembership, AuthorizedUser } from "@/core/auth/authorization";
+import type { AuthMembership, AuthorizedUser, AuthPerson } from "@/core/auth/authorization";
 import { refreshAuthToken } from "@/core/auth/refresh-auth-context";
 import {
   BackendApiError,
@@ -27,6 +27,7 @@ async function getUserAuthContext(userId: string): Promise<UserAuthContext | nul
 function assignAuthContext(token: Record<string, unknown>, user: UserAuthContext) {
   token.id = user.id;
   token.name = user.name;
+  token.person = user.person ?? null;
   token.email = user.email;
   token.image = user.image;
   token.phone = user.phone ?? null;
@@ -92,6 +93,8 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = typeof token.id === "string" ? token.id : "";
         session.user.name = typeof token.name === "string" ? token.name : null;
+        session.user.person =
+          typeof token.person === "object" && token.person ? (token.person as AuthPerson) : null;
         session.user.email = typeof token.email === "string" ? token.email : null;
         session.user.image = typeof token.image === "string" ? token.image : null;
         session.user.phone = typeof token.phone === "string" ? token.phone : null;

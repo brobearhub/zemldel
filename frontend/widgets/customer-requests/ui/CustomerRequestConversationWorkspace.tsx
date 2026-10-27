@@ -30,10 +30,13 @@ import {
   hasRequestLock,
   isOrderExecutionStatus,
   mergeWorkStageStatusOptions,
+  formatRubles,
+  RequestPriceBlock,
   resolvePaymentTriggerLabel,
   resolveProviderTriggerLabel,
   resolveRequestDetailBody,
   resolveRequestDetailTitle,
+  resolveRequestPriceView,
   type RequestDocumentRequestDto,
   type RequestRemarkDto,
   type RequestCustomerDto,
@@ -48,6 +51,7 @@ import {
 import { fetchCustomerWorkStages } from "@/entities/request/api/request-work-stages";
 import { ChatBodyWithSidePanelLayout } from "@/widgets/chat/ui/ChatBodyWithSidePanelLayout";
 import { ServiceRequestChatPanel } from "@/widgets/chat/ui/ServiceRequestChatPanel";
+import { DEFAULT_SERVICE_QUESTION } from "@/features/create-service-request-lead";
 import Link from "@/shared/ui/Link";
 import { RequestDetailHeaderCard } from "@/shared/ui/RequestDetailHeaderCard";
 import { createCustomerRequestDetailsBehavior, RequestDetails } from "@/widgets/request-details";
@@ -101,14 +105,17 @@ function pickTitle(req: RequestCustomerDto) {
 
 type Props = {
   initialRequest: RequestCustomerDto;
+  justCreated?: boolean;
 };
 
-export function CustomerRequestConversationWorkspace({ initialRequest }: Props) {
+export function CustomerRequestConversationWorkspace({ initialRequest, justCreated = false }: Props) {
   const router = useRouter();
   const [req, setReq] = useState<RequestCustomerDto>(initialRequest);
   const [conversations, setConversations] = useState<ChatServiceRequestConversationListItemDto[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Какая кнопка этого экрана запустила запрос: спиннер только на ней. */
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [contractBundles, setContractBundles] = useState<CustomerContractBundleListItem[]>([]);
@@ -152,6 +159,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     }
 
     setBusy(true);
+    setPendingAction("chat");
     setError(null);
     try {
       const res = await fetch("/api/chat/ensure", {
@@ -184,6 +192,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
       setError(e instanceof Error ? e.message : "Не удалось открыть чат");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }, [req.id, req.providerId, req.providerName, req.subjectType]);
 
@@ -436,6 +445,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
 
   async function selectProvider(providerId: string) {
     setBusy(true);
+    setPendingAction(`select:${providerId}`);
     setError(null);
     setNotice(null);
     try {
@@ -454,6 +464,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
       setError(e instanceof Error ? e.message : "Не удалось выбрать исполнителя");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -483,6 +494,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
     if (!confirmed) return;
 
     setBusy(true);
+    setPendingAction("delete");
     setError(null);
     setNotice(null);
     try {
@@ -493,6 +505,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
       setError(e instanceof Error ? e.message : "Не удалось удалить заявку");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -549,6 +562,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
       return;
     }
     setBusy(true);
+    setPendingAction("accept-contract");
     setError(null);
     setTermsError(null);
     setNotice(null);
@@ -574,6 +588,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
       setError(message);
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -664,7 +679,14 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
   const requestBody = resolveRequestDetailBody(req.message, req.serviceTitle);
   const headerTitle = resolveRequestDetailTitle(req.subjectType, req.serviceTitle);
   const showCounterparty = canShowCustomerCounterpartyButton({ lockedAt: req.lockedAt });
-  const showPayment = req.lockedAt != null;
+  const showPayment = true;
+  const priceView = resolveRequestPriceView({
+    totalAmountRubles: req.totalAmountRubles,
+    servicePriceRubles: req.servicePriceRubles,
+  });
+  const createdNotice = justCreated
+    ? `Заявка создана: ${headerTitle}${priceView.statedAmount != null ? `, ${formatRubles(priceView.statedAmount)}` : ""}. Напишите исполнителю, что нужно`
+    : null;
   const providerFields = getProviderContactFields({
     providerName: req.providerName,
     providerPhone: req.providerPhone,
@@ -673,7 +695,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
 
   const panelItems = [
     { id: "cadastral", label: "Кадастровый номер", visible: true, endIcon: <PinDropOutlinedIcon /> },
-    { id: "payment", label: resolvePaymentTriggerLabel(req.totalAmountRubles), visible: showPayment, endIcon: <PaymentIcon /> },
+    { id: "payment", label: resolvePaymentTriggerLabel(req.totalAmountRubles), caption: priceView.triggerCaption, visible: showPayment, endIcon: <PaymentIcon /> },
     { id: "counterparty", label: resolveProviderTriggerLabel(req.providerName), visible: showCounterparty, endIcon: <AssignmentIndIcon /> },
   ] as const;
 
@@ -704,7 +726,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
   const isPanelOpen = Boolean(activePanel);
   const panelTitle =
     activePanel?.id === "payment"
-      ? "Оплата"
+      ? "Цена и оплата"
       : activePanel?.id === "counterparty"
         ? "Исполнитель"
         : "Кадастровый номер";
@@ -724,6 +746,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
         status={req.status}
         lockedAt={req.lockedAt}
         totalAmountRubles={req.totalAmountRubles}
+        servicePriceRubles={req.servicePriceRubles}
         paidAmountRubles={req.paidAmountRubles}
         remainingAmountRubles={req.remainingAmountRubles}
         payments={req.payments}
@@ -750,21 +773,42 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
             panel={panelContent}
             onClose={() => setActivePanelId(null)}
           >
+            {createdNotice ? (
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                {createdNotice}
+              </Typography>
+            ) : null}
             <RequestDetailHeaderCard
               title={headerTitle}
               subtitle={pickTitle(req)}
               statusLabel={getRequestStatusLabel(req.status)}
               body={requestBody}
-              footerEnd={<RequestDetailPanelTriggers items={panelItems} onOpen={(id) => setActivePanelId(id as never)} />}
+              lead={
+                <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                  <RequestPriceBlock
+                    totalAmountRubles={req.totalAmountRubles}
+                    servicePriceRubles={req.servicePriceRubles}
+                    serviceId={req.serviceId}
+                  />
+                  {req.status === "ACCEPTANCE_PENDING" ? (
+                    <RequestPriceBlock
+                      totalAmountRubles={req.totalAmountRubles}
+                      servicePriceRubles={req.servicePriceRubles}
+                      statedOnly
+                    />
+                  ) : null}
+                </Stack>
+              }
               details={
                 <RequestDetails
-                  busy={busy}
-                  behavior={createCustomerRequestDetailsBehavior({
-                    request: req,
-                    canAcceptContract,
-                  })}
-                />
+                    busy={busy}
+                    behavior={createCustomerRequestDetailsBehavior({
+                      request: req,
+                      canAcceptContract,
+                    })}
+                  />
               }
+              footerEnd={<RequestDetailPanelTriggers items={panelItems} onOpen={(id) => setActivePanelId(id as never)} />}
               afterBody={
                 <Stack
                   direction="row"
@@ -790,6 +834,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                       variant="outlined"
                       color="error"
                       size="small"
+                      loading={pendingAction === "delete"}
                       disabled={busy}
                       onClick={() => void deleteRequest()}
                     >
@@ -869,7 +914,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                       Чат ещё не начат. Нажмите кнопку ниже, чтобы открыть диалог с исполнителем.
                     </Typography>
                     <Box>
-                      <Button variant="contained" disabled={busy} onClick={() => void ensureServiceChat()}>
+                      <Button variant="contained" loading={pendingAction === "chat"} disabled={busy} onClick={() => void ensureServiceChat()}>
                         Начать чат
                       </Button>
                     </Box>
@@ -905,6 +950,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                               color="secondary"
                               size="small"
                               variant="contained"
+                              loading={pendingAction === `select:${c.providerId}`}
                               disabled={!rowCanInitiate || busy}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -985,6 +1031,11 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
                   </Box>
                   {termsVersion ? ` (версия ${termsVersion})` : ""}.
                 </Typography>
+                <RequestPriceBlock
+                  totalAmountRubles={req.totalAmountRubles}
+                  servicePriceRubles={req.servicePriceRubles}
+                  statedOnly
+                />
                 {termsError ? <Alert severity="error">{termsError}</Alert> : null}
                 {termsBusy ? <Typography sx={{
                   color: "text.secondary"
@@ -1007,6 +1058,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
               <Button
                 variant="contained"
                 color="success"
+                loading={pendingAction === "accept-contract"}
                 disabled={busy || termsBusy || !termsAccepted || !termsVersion}
                 onClick={() => void acceptContract()}
               >
@@ -1023,6 +1075,8 @@ export function CustomerRequestConversationWorkspace({ initialRequest }: Props) 
             conversationId={selectedConversationId}
             title="Чат"
             subtitle={selectedConversation?.providerName ?? pickTitle(req)}
+            inputPlaceholder={req.subjectType === "SERVICE" ? DEFAULT_SERVICE_QUESTION : undefined}
+            autoFocusInput={justCreated}
           />
         ) : (
           <Paper variant="outlined" sx={{ p: 2.5 }}>

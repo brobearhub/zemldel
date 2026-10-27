@@ -125,29 +125,34 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) 
         </Box>
 
         <Box
-          sx={{
+          sx={(theme) => ({
             display: "grid",
             gap: `${HOME_COLUMN_GAP_PX}px`,
             alignItems: "start",
             gridTemplateColumns: {
               xs: "1fr",
-              md: `minmax(0, 1fr) ${HOME_FORM_WIDTH_PX}px`,
+              tablet: `minmax(0, 1fr) ${HOME_FORM_WIDTH_PX}px`,
             },
-            "@media (min-width:768px)": {
-              gridTemplateColumns: `minmax(0, 1fr) ${HOME_FORM_WIDTH_PX}px`,
+            [theme.media.phoneLandscape]: {
+              gridTemplateColumns: "1fr",
             },
-          }}
+          })}
         >
           <Box
-            sx={{
+            sx={(theme) => ({
               minWidth: 0,
-              order: { xs: 2, md: 0 },
-              "@media (min-width:768px)": { order: 0 },
-            }}
+              order: { xs: 2, tablet: 0 },
+              [theme.media.phoneLandscape]: { order: 2 },
+            })}
           >
             <Stack spacing={{ xs: 3, md: 3 }}>
-              <Box sx={{ display: { xs: "block", md: "none" }, "@media (min-width:768px)": { display: "none" } }}>
-                <Button variant="contained" onClick={() => setHelpOpen(true)} sx={{ minHeight: 44 }}>
+              <Box
+                sx={(theme) => ({
+                  display: { xs: "block", tablet: "none" },
+                  [theme.media.phoneLandscape]: { display: "block" },
+                })}
+              >
+                <Button variant="contained" size="small" fullWidth onClick={() => setHelpOpen(true)}>
                   Создать заявку
                 </Button>
               </Box>
@@ -156,25 +161,20 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) 
           </Box>
 
           <Box
-            sx={{
-              display: { xs: "none", md: "block" },
-              order: { md: 1 },
+            sx={(theme) => ({
+              display: { xs: "none", tablet: "block" },
+              order: { tablet: 1 },
               alignSelf: "start",
-              position: { md: "sticky" },
+              position: { tablet: "sticky" },
               top: {
-                md: `calc(${SITE_STICKY_TOP_PX}px + var(--home-cats-bar-h, 0px))`,
+                tablet: `calc(${SITE_STICKY_TOP_PX}px + var(--home-cats-bar-h, 0px))`,
               },
-              mt: { md: `${HOME_SECTION_HEADER_HEIGHT_PX}px` },
-              width: { md: HOME_FORM_WIDTH_PX },
-              "@media (min-width:768px)": {
-                display: "block",
-                order: 1,
-                position: "sticky",
-                top: `calc(${SITE_STICKY_TOP_PX}px + var(--home-cats-bar-h, 0px))`,
-                mt: `${HOME_SECTION_HEADER_HEIGHT_PX}px`,
-                width: HOME_FORM_WIDTH_PX,
+              mt: { tablet: `${HOME_SECTION_HEADER_HEIGHT_PX}px` },
+              width: { tablet: HOME_FORM_WIDTH_PX },
+              [theme.media.phoneLandscape]: {
+                display: "none",
               },
-            }}
+            })}
           >
             <PublicUnlinkedRequestForm
               isAuthenticated={isAuthenticated}

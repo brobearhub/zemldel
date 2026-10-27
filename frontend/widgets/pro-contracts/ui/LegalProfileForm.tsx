@@ -63,7 +63,7 @@ export function LegalProfileForm({ title, endpoint, fields, initial }: Props) {
             />
           ))}
         </Stack>
-        <Button variant="contained" disabled={busy} onClick={() => void save()}>Сохранить реквизиты</Button>
+        <Button variant="contained" loading={busy} onClick={() => void save()}>Сохранить реквизиты</Button>
       </Stack>
     </Paper>
   );

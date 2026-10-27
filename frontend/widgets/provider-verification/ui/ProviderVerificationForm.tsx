@@ -173,7 +173,7 @@ export function ProviderVerificationForm({ providerId, view }: Props) {
             fullWidth
           />
         )}
-        <Button type="submit" variant="contained" disabled={busy} sx={{ minHeight: 44, alignSelf: "flex-start" }}>
+        <Button type="submit" variant="contained" loading={busy} sx={{ minHeight: 44, alignSelf: "flex-start" }}>
           Отправить на проверку
         </Button>
       </Stack>

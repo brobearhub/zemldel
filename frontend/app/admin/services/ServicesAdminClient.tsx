@@ -53,6 +53,8 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
   const [categories, setCategories] = useState<ServiceCategoryRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Why: busy общий для создания, сохранения и удаления — спиннер только на нажатой кнопке.
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
 
   const [createForm, setCreateForm] = useState<{
     categoryId: string;
@@ -114,6 +116,7 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
       return;
     }
     setBusy(true);
+    setPendingAction("create");
     try {
       const res = await fetch("/api/admin/services", {
         method: "POST",
@@ -140,6 +143,7 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
       setError(e instanceof Error ? e.message : "Ошибка");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -156,6 +160,7 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
       return;
     }
     setBusy(true);
+    setPendingAction("save");
     try {
       const res = await fetch(`/api/admin/services/${editDraft.id}`, {
         method: "PATCH",
@@ -184,6 +189,7 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
       setError(e instanceof Error ? e.message : "Ошибка");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -197,6 +203,7 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
     if (!ok) return;
     setError(null);
     setBusy(true);
+    setPendingAction(`delete:${service.id}`);
     try {
       const res = await fetch(`/api/admin/services/${service.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete service");
@@ -205,6 +212,7 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
       setError(e instanceof Error ? e.message : "Ошибка");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -262,7 +270,8 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
           <Button
             variant="contained"
             onClick={onCreate}
-            disabled={busy}
+            loading={pendingAction === "create"}
+            disabled={busy && pendingAction !== "create"}
             sx={{ whiteSpace: "nowrap", fontWeight: 800 }}
           >
             Создать
@@ -309,7 +318,8 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
                       color="error"
                       variant="outlined"
                       onClick={() => onDelete({ id: s.id, title: s.title })}
-                      disabled={busy}
+                      loading={pendingAction === `delete:${s.id}`}
+                      disabled={busy && pendingAction !== `delete:${s.id}`}
                     >
                       Удалить
                     </Button>
@@ -423,7 +433,7 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
           <Button onClick={() => setEditOpen(false)} disabled={busy}>
             Отмена
           </Button>
-          <Button variant="contained" onClick={onSaveEdit} disabled={busy}>
+          <Button variant="contained" onClick={onSaveEdit} loading={pendingAction === "save"}>
             Сохранить
           </Button>
         </DialogActions>

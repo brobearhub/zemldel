@@ -113,11 +113,15 @@ const CategoryMenuPaper = forwardRef<HTMLDivElement, PaperProps>(function Catego
 });
 
 function ServiceEditorActions({
-  disabled,
+  publishDisabled,
+  draftDisabled,
+  pending,
   onPublish,
   onDraft,
 }: {
-  disabled: boolean;
+  publishDisabled: boolean;
+  draftDisabled: boolean;
+  pending: ServiceStatus | null;
   onPublish: () => void;
   onDraft: () => void;
 }) {
@@ -126,7 +130,8 @@ function ServiceEditorActions({
       <Button
         type="button"
         variant="contained"
-        disabled={disabled}
+        loading={pending === "PUBLISHED"}
+        disabled={publishDisabled && pending !== "PUBLISHED"}
         onClick={onPublish}
         sx={{
           order: { xs: 2, md: 1 },
@@ -142,7 +147,8 @@ function ServiceEditorActions({
       <Button
         type="button"
         variant="outlined"
-        disabled={disabled}
+        loading={pending === "DRAFT"}
+        disabled={draftDisabled && pending !== "DRAFT"}
         onClick={onDraft}
         sx={{
           order: { xs: 1, md: 2 },
@@ -219,7 +225,7 @@ function buildCategoryTree(categories: ServiceCategoryRow[]) {
 
 export function ProServiceEditor({ mode, initialService, initialProviderCity = null }: Props) {
   const router = useRouter();
-  const categoryMenuFullscreen = useMediaQuery("(max-width:899.95px)");
+  const categoryMenuFullscreen = useMediaQuery((theme) => theme.breakpoints.down("md"));
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   const suppressCategoryMenuOpen = useRef(false);
 
@@ -245,6 +251,9 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
   });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Why: busy общий для сохранения и работы с фото — спиннер только на нажатой кнопке.
+  const [pendingAction, setPendingAction] = useState<ServiceStatus | "upload:icon" | "upload:add" | "deleteImage" | null>(null);
+  const imagePickerSource = useRef<"icon" | "add" | null>(null);
   const [categories, setCategories] = useState<ServiceCategoryRow[] | null>(null);
   const [autofilledTitle, setAutofilledTitle] = useState<string | null>(null);
   const [pendingImage, setPendingImage] = useState<{ file: File; previewUrl: string } | null>(null);
@@ -336,6 +345,20 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
     return issues;
   }, [form, places.length]);
 
+  // Why: черновик можно сохранить неполным, а опубликованная карточка без фото и описания выглядит пустой.
+  const publishValidationIssues = useMemo(() => {
+    const issues = [...validationIssues];
+
+    if (!pendingImage && !form.image.trim()) {
+      issues.push("Добавьте фото.");
+    }
+    if (!form.description.trim()) {
+      issues.push("Добавьте описание.");
+    }
+
+    return issues;
+  }, [form.description, form.image, pendingImage, validationIssues]);
+
   const previewItem = useMemo(() => {
     const previewImage = pendingImage?.previewUrl ?? normalizeNullableString(form.image);
 
@@ -372,12 +395,14 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
   ]);
 
   async function submitForm(nextStatus: ServiceStatus) {
-    if (validationIssues.length > 0) {
-      setError(validationIssues[0]);
+    const issues = nextStatus === "PUBLISHED" ? publishValidationIssues : validationIssues;
+    if (issues.length > 0) {
+      setError(issues[0]);
       return;
     }
 
     setBusy(true);
+    setPendingAction(nextStatus);
     setError(null);
 
     try {
@@ -442,6 +467,7 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
       setError(submitError instanceof Error ? submitError.message : "Не удалось сохранить услугу");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -485,6 +511,7 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
   async function deleteImage() {
     if (mode !== "edit" || !initialService?.id) return;
     setBusy(true);
+    setPendingAction("deleteImage");
     setError(null);
     try {
       const res = await fetch(`/api/pro/services/${initialService.id}/image`, {
@@ -501,6 +528,7 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
       setError(e instanceof Error ? e.message : "Не удалось удалить изображение");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -508,7 +536,8 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
     event.preventDefault();
   }
 
-  function openImagePicker() {
+  function openImagePicker(source: "icon" | "add" | null = null) {
+    imagePickerSource.current = source;
     fileInputRef.current?.click();
   }
 
@@ -528,10 +557,16 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
     }
 
     if (mode === "edit" && initialService?.id) {
+      const source = imagePickerSource.current;
+      setPendingAction(source ? `upload:${source}` : null);
       void (async () => {
-        const uploadedUrl = await uploadImageForService(initialService.id, file);
-        if (uploadedUrl) {
-          setForm((current) => ({ ...current, image: uploadedUrl }));
+        try {
+          const uploadedUrl = await uploadImageForService(initialService.id, file);
+          if (uploadedUrl) {
+            setForm((current) => ({ ...current, image: uploadedUrl }));
+          }
+        } finally {
+          setPendingAction(null);
         }
       })();
       return;
@@ -551,7 +586,8 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
   }
 
   const priceLabel = formatServicePriceAmount(form.price);
-  const actionsDisabled = busy || validationIssues.length > 0;
+  const draftDisabled = busy || validationIssues.length > 0;
+  const publishDisabled = busy || publishValidationIssues.length > 0;
 
   return (
     <Stack spacing={{ xs: 2, md: 5 }} sx={{ width: "100%", maxWidth: { md: 1040 }, mx: "auto" }}>
@@ -600,16 +636,30 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
               type="button"
               variant="text"
               color="error"
-              disabled={busy || !canRemoveImage}
+              loading={pendingAction === "deleteImage"}
+              disabled={(busy && pendingAction !== "deleteImage") || !canRemoveImage}
               onClick={onRemoveImage}
               sx={{ color: "error.main", "&.Mui-disabled": { color: "text.disabled" } }}
             >
               Удалить
             </Button>
-            <IconButton aria-label="Загрузить фото" disabled={busy} onClick={openImagePicker}>
+            <IconButton
+              aria-label="Загрузить фото"
+              loading={pendingAction === "upload:icon"}
+              disabled={busy && pendingAction !== "upload:icon"}
+              onClick={() => openImagePicker("icon")}
+            >
               <PhotoCameraOutlinedIcon sx={{ color: "primary.main" }} />
             </IconButton>
-            <Button type="button" variant="text" color="success" disabled={busy} onClick={openImagePicker} sx={{ color: "success.main" }}>
+            <Button
+              type="button"
+              variant="text"
+              color="success"
+              loading={pendingAction === "upload:add"}
+              disabled={busy && pendingAction !== "upload:add"}
+              onClick={() => openImagePicker("add")}
+              sx={{ color: "success.main" }}
+            >
               Добавить
             </Button>
           </Stack>
@@ -705,7 +755,14 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
                 <ServiceCard item={previewItem} linked={false} />
               </Box>
               {canRemoveImage ? (
-                <Button type="button" variant="text" color="error" disabled={busy} onClick={onRemoveImage}>
+                <Button
+                  type="button"
+                  variant="text"
+                  color="error"
+                  loading={pendingAction === "deleteImage"}
+                  disabled={busy && pendingAction !== "deleteImage"}
+                  onClick={onRemoveImage}
+                >
                   Удалить фото
                 </Button>
               ) : null}
@@ -904,7 +961,9 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
 
             <Box sx={{ display: { xs: "none", md: "block" }, mt: "auto" }}>
               <ServiceEditorActions
-                disabled={actionsDisabled}
+                publishDisabled={publishDisabled}
+                draftDisabled={draftDisabled}
+                pending={pendingAction === "PUBLISHED" || pendingAction === "DRAFT" ? pendingAction : null}
                 onPublish={() => {
                   setForm((current) => ({ ...current, status: "PUBLISHED" }));
                   void submitForm("PUBLISHED");
@@ -921,7 +980,9 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
       <Stack spacing={2} sx={{ display: { md: "none" }, width: "100%", maxWidth: 440, mx: "auto" }}>
         <ServiceCard item={previewItem} linked={false} />
         <ServiceEditorActions
-          disabled={actionsDisabled}
+          publishDisabled={publishDisabled}
+          draftDisabled={draftDisabled}
+          pending={pendingAction === "PUBLISHED" || pendingAction === "DRAFT" ? pendingAction : null}
           onPublish={() => {
             setForm((current) => ({ ...current, status: "PUBLISHED" }));
             void submitForm("PUBLISHED");

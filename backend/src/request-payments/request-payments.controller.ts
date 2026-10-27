@@ -98,6 +98,38 @@ export class RequestPaymentsController {
     });
   }
 
+  @Patch('requests/mine/:requestId/finance')
+  @ApiParam({ name: 'requestId', type: String })
+  @ApiOkResponse({ type: RequestFinanceDto })
+  setTotalForCustomer(
+    @Req() request: Request,
+    @Param('requestId') requestId: string,
+    @Body() body: SetRequestTotalDto,
+  ) {
+    return this.payments.setTotalForCustomer({
+      actorUserId: this.getRequiredActorUserId(request),
+      requestId,
+      totalAmountRubles: body.totalAmountRubles,
+    });
+  }
+
+  @Post('requests/mine/:requestId/payments')
+  @ApiParam({ name: 'requestId', type: String })
+  @ApiOkResponse({ type: RequestFinanceDto })
+  addPaymentForCustomer(
+    @Req() request: Request,
+    @Param('requestId') requestId: string,
+    @Body() body: CreateRequestPaymentDto,
+  ) {
+    return this.payments.addPaymentForCustomer({
+      actorUserId: this.getRequiredActorUserId(request),
+      requestId,
+      amountRubles: body.amountRubles,
+      comment: body.comment,
+      type: body.type,
+    });
+  }
+
   @Post('requests/mine/:requestId/payments/:paymentId/paid')
   @ApiParam({ name: 'requestId', type: String })
   @ApiParam({ name: 'paymentId', type: String })

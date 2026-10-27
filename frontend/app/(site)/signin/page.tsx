@@ -189,7 +189,7 @@ function SignInPageContent() {
                 fullWidth
                 color="primary"
                 type="submit"
-                disabled={loading}
+                loading={loading}
                 sx={{ minHeight: 44 }}
               >
                 Войти

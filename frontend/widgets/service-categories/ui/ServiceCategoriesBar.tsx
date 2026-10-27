@@ -1,5 +1,6 @@
 "use client";
 
+import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
 import { Box, Typography } from "@mui/material";
@@ -18,17 +19,43 @@ type Props = {
 };
 
 export function ServiceCategoriesBar({ items, activeId = null }: Props) {
+  const barRef = useRef<HTMLDivElement | null>(null);
+  const [wrapped, setWrapped] = useState(false);
+
+  useLayoutEffect(() => {
+    const bar = barRef.current;
+    if (!bar) return;
+
+    const update = () => {
+      const children = Array.from(bar.children);
+      if (children.length < 2) {
+        setWrapped(false);
+        return;
+      }
+      const tops = children.map((child) => child.getBoundingClientRect().top);
+      const isWrapped = Math.max(...tops) - Math.min(...tops) > 1;
+      setWrapped((prev) => (prev === isWrapped ? prev : isWrapped));
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(bar);
+    return () => observer.disconnect();
+  }, [items]);
+
   if (!items.length) return null;
 
   return (
     <Box
+      ref={barRef}
       sx={{
-        pb: 2,
         display: "flex",
         flexWrap: "wrap",
         alignItems: "center",
         columnGap: 2,
         rowGap: 1.5,
+        // Why: одна строка уже 44px из-за кнопки «назад». Доп. низ нужен только когда пункты перенеслись.
+        pb: wrapped ? 2 : 0,
       }}
     >
       {items.map((item) => {
@@ -71,13 +98,11 @@ export function ServiceCategoriesBar({ items, activeId = null }: Props) {
             sx={{
               display: "inline-flex",
               alignItems: "center",
-              minHeight: 44,
               textDecoration: "none",
               fontSize: 12,
-              lineHeight: 1.66,
               letterSpacing: "0.4px",
-              fontWeight: isActive ? 700 : 600,
-              color: "text.primary",
+              fontWeight: 600,
+              color: isActive ? "accent.main" : "text.primary",
               "&:hover": {
                 color: "info.main",
               },

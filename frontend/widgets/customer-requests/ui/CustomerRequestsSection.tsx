@@ -17,7 +17,6 @@ import {
 import type { ChatEnsureResponse } from "@/entities/chat/dto/chat.dto";
 import { deleteCustomerRequest } from "@/entities/request/api/customer-requests";
 import { useConfirm } from "@/shared/ui/confirm";
-import { DEFAULT_SERVICE_QUESTION } from "@/features/create-service-request-lead";
 import { CustomerRequestReplyDialog } from "./CustomerRequestReplyDialog";
 import { CustomerRequestsBoard } from "./CustomerRequestsBoard";
 
@@ -32,6 +31,7 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
   const [items, setItems] = useState<RequestCustomerDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [replyItem, setReplyItem] = useState<RequestCustomerDto | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
@@ -128,8 +128,8 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
         const created = payload as RequestCustomerDto;
 
         // Ensure chat + send first message for SERVICE requests (so provider thread appears immediately).
-        if (draft.kind === "SERVICE") {
-          const message = (draft.message ?? "").trim() || DEFAULT_SERVICE_QUESTION;
+        const typedMessage = (draft.message ?? "").trim();
+        if (draft.kind === "SERVICE" && typedMessage) {
           try {
             const ensureRes = await fetch("/api/chat/ensure", {
               method: "POST",
@@ -141,7 +141,7 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
               await fetch(`/api/chat/conversations/${(ensured as ChatEnsureResponse).conversationId}/messages`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ body: message, clientMessageId: crypto.randomUUID() }),
+                body: JSON.stringify({ body: typedMessage, clientMessageId: crypto.randomUUID() }),
               }).catch(() => null);
             }
           } catch {
@@ -151,7 +151,8 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
 
         clearPendingRequestDraft();
         if (!cancelled) {
-          router.push(`/profile/requests/${created.id}`);
+          const createdQuery = draft.kind === "SERVICE" && !typedMessage ? "?created=1" : "";
+          router.push(`/profile/requests/${created.id}${createdQuery}`);
           router.refresh();
         }
       } catch (e) {
@@ -170,6 +171,15 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
       cancelled = true;
     };
   }, [autoResumeEnabled, onAutoResumeFinished, router]);
+
+  async function refresh() {
+    setRefreshing(true);
+    try {
+      await load();
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   function openRequest(item: RequestCustomerDto) {
     if (item.status === "CLOSED") return;
@@ -209,7 +219,8 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
       >
         <Button
           variant="outlined"
-          onClick={() => void load()}
+          onClick={() => void refresh()}
+          loading={refreshing}
           disabled={loading}
           sx={{ whiteSpace: "nowrap", minHeight: 44, color: "text.primary", borderColor: "text.primary" }}
         >

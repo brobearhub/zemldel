@@ -12,6 +12,9 @@ import {
   teal,
 } from "@mui/material/colors";
 import { alpha } from "@mui/material/styles";
+import { breakpointValues, media } from "./breakpoints";
+
+export { breakpointValues, media };
 
 /**
  * Light brand colors from Sotheby's Motorsport screenshots.
@@ -106,16 +109,8 @@ export function createAppTheme(mode: PaletteMode) {
 
   return createTheme({
     cssVariables: true,
-    breakpoints: {
-      values: {
-        xs: 0,
-        sm: 600,
-        md: 900,
-        lg: 1200,
-        xl: 1536,
-        xxl: 1920,
-      },
-    },
+    breakpoints: { values: breakpointValues },
+    media,
     palette: {
       mode,
       common: {
@@ -235,12 +230,29 @@ export function createAppTheme(mode: PaletteMode) {
           outlined: {
             borderWidth: 1,
             borderColor: "currentColor",
+            "&.MuiButton-loading": {
+              borderColor: "var(--variant-outlinedBorder, currentColor)",
+              "& .MuiButton-loadingIndicator": {
+                color: "var(--variant-outlinedColor)",
+              },
+            },
           },
           contained: {
             boxShadow: "none",
             "&:hover": { boxShadow: "none" },
-            "&.Mui-disabled": {
+            "&.Mui-disabled:not(.MuiButton-loading)": {
               backgroundColor: t.disabledButton,
+            },
+            "&.MuiButton-loading": {
+              backgroundColor: "var(--variant-containedBg)",
+              "& .MuiButton-loadingIndicator": {
+                color: "var(--variant-containedColor)",
+              },
+            },
+          },
+          text: {
+            "&.MuiButton-loading .MuiButton-loadingIndicator": {
+              color: "var(--variant-textColor)",
             },
           },
         },

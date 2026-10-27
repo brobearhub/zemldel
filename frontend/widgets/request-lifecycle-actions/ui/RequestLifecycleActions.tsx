@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Alert, Box, Button, Stack, Typography } from "@mui/material";
 import type { RequestLifecycleBehavior } from "../model/request-lifecycle-behavior";
 import { isLifecycleEmpty } from "../model/request-lifecycle-model";
@@ -10,6 +11,8 @@ export type RequestLifecycleActionsProps = {
 };
 
 export function RequestLifecycleActions(props: RequestLifecycleActionsProps) {
+  // Why: общий busy приходит снаружи — запоминаем нажатую кнопку, чтобы спиннер был только на ней.
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const vm = props.behavior.getViewModel();
   if (isLifecycleEmpty(vm)) return null;
 
@@ -74,17 +77,24 @@ export function RequestLifecycleActions(props: RequestLifecycleActionsProps) {
               flexWrap: "wrap",
               alignSelf: "flex-start"
             }}>
-            {vm.actions.map((a) => (
-              <Button
-                key={a.id}
-                variant={a.variant}
-                color={a.color}
-                disabled={isBusy || Boolean(a.disabled)}
-                onClick={() => void props.behavior.run({ id: a.id })}
-              >
-                {a.label}
-              </Button>
-            ))}
+            {vm.actions.map((a) => {
+              const loading = isBusy && pendingId === a.id;
+              return (
+                <Button
+                  key={a.id}
+                  variant={a.variant}
+                  color={a.color}
+                  loading={loading}
+                  disabled={(isBusy && !loading) || Boolean(a.disabled)}
+                  onClick={() => {
+                    setPendingId(a.id);
+                    void Promise.resolve(props.behavior.run({ id: a.id })).finally(() => setPendingId(null));
+                  }}
+                >
+                  {a.label}
+                </Button>
+              );
+            })}
           </Stack>
         ) : null}
       </Stack>

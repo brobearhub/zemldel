@@ -32,6 +32,7 @@ export type ChatMessageDto = {
   senderUserId: string;
   senderName: string | null;
   body: string;
+  kind: 'USER' | 'SYSTEM';
   clientMessageId: string;
   createdAt: string;
   repliedTo?: {
@@ -751,6 +752,7 @@ export class ChatService {
       senderUserId: row.senderUserId,
       senderName: row.sender.name ?? null,
       body: row.body,
+      kind: row.kind === 'SYSTEM' ? 'SYSTEM' : 'USER',
       clientMessageId: row.clientMessageId,
       createdAt: row.createdAt.toISOString(),
     };
@@ -1062,6 +1064,65 @@ export class ChatService {
       body: row.body,
       createdAt: row.createdAt,
     });
+  }
+
+  /**
+   * Why: отметка цены и оплаты — не реплика сторон. Сообщение видно в чате,
+   * но не переводит заявку в «Обсуждение» и не считается ответом исполнителя.
+   */
+  async postFinanceNote(input: {
+    requestId: string;
+    actorUserId: string;
+    customerUserId: string;
+    providerIds: string[];
+    body: string;
+  }): Promise<void> {
+    const targets = [...new Set(input.providerIds.filter(Boolean))];
+    if (targets.length === 0 || !input.body.trim()) return;
+
+    for (const providerId of targets) {
+      const conversation = await this.prisma.conversation.upsert({
+        where: {
+          requestId_providerId: {
+            requestId: input.requestId,
+            providerId,
+          },
+        },
+        create: {
+          id: randomUUID(),
+          requestId: input.requestId,
+          providerId,
+          customerUserId: input.customerUserId,
+        },
+        update: {},
+        select: { id: true },
+      });
+
+      const msg = await this.prisma.message.create({
+        data: {
+          id: randomUUID(),
+          conversationId: conversation.id,
+          senderUserId: input.actorUserId,
+          clientMessageId: randomUUID(),
+          body: input.body.trim(),
+          kind: 'SYSTEM',
+        },
+        include: this.messageInclude,
+      });
+
+      await this.prisma.conversation.update({
+        where: { id: conversation.id },
+        data: { lastMessageAt: msg.createdAt },
+      });
+
+      await this.broadcastMessageCreated({
+        conversationId: conversation.id,
+        dto: this.mapMessageRow(msg),
+        senderUserId: input.actorUserId,
+        body: msg.body,
+        createdAt: msg.createdAt,
+      });
+    }
   }
 
   async createMessage(

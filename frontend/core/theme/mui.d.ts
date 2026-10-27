@@ -1,9 +1,11 @@
 import type {} from "@mui/material/styles";
+import type { AppMedia } from "./breakpoints";
 
 declare module "@mui/material/styles" {
   interface BreakpointOverrides {
     xs: true;
     sm: true;
+    tablet: true;
     md: true;
     lg: true;
     xl: true;
@@ -36,6 +38,8 @@ declare module "@mui/material/styles" {
   }
 
   interface Theme {
+    media: AppMedia;
+
     custom: {
       gradients: {
         /** Sage → cream atmospheric gradient */
@@ -62,6 +66,7 @@ declare module "@mui/material/styles" {
 
   // allow configuration using `createTheme`
   interface ThemeOptions {
+    media?: AppMedia;
     custom?: Theme["custom"];
   }
 }

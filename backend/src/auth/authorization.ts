@@ -33,15 +33,41 @@ export type AuthCity = {
   regionName: string;
 };
 
+/** ФИО человека: контактного лица или исполнителя-физлица. У организации его нет. */
+export type AuthPerson = {
+  lastName: string;
+  firstName: string;
+  middleName: string | null;
+};
+
 export type AuthMembership = {
   providerId: string;
   providerName: string;
   providerSlug: string;
   providerType: ProviderType;
   providerCity: AuthCity | null;
+  providerImage: string | null;
+  providerPerson: AuthPerson | null;
   role: ProviderMemberRole;
   status: ProviderMemberStatus;
 };
+
+export function toAuthPerson(
+  legal: {
+    lastName: string | null;
+    firstName: string | null;
+    middleName: string | null;
+  } | null,
+): AuthPerson | null {
+  const lastName = legal?.lastName?.trim();
+  const firstName = legal?.firstName?.trim();
+  if (!lastName || !firstName) return null;
+  return {
+    lastName,
+    firstName,
+    middleName: legal?.middleName?.trim() || null,
+  };
+}
 
 export const AUTH_PROVIDER_KEYS = ['GOSUSLUGI'] as const;
 export type AuthProviderKey = (typeof AUTH_PROVIDER_KEYS)[number];
@@ -52,6 +78,7 @@ export type AuthorizedUser = {
   id: string;
   email: string;
   name: string | null;
+  person: AuthPerson | null;
   image: string | null;
   phone: string | null;
   systemRole: SystemRole;

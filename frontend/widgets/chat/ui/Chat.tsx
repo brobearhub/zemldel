@@ -53,6 +53,8 @@ type Props = {
   sending?: boolean;
   loading?: boolean;
   readOnly?: boolean;
+  inputPlaceholder?: string;
+  autoFocusInput?: boolean;
 };
 
 function ReplyPreviewBlock({
@@ -193,6 +195,8 @@ export function Chat({
   sending,
   loading,
   readOnly,
+  inputPlaceholder,
+  autoFocusInput,
 }: Props) {
   return (
     <Stack
@@ -233,6 +237,17 @@ export function Chat({
           </Typography>
         ) : null}
         {rows.map((row) => {
+          if (row.kind === "message" && row.message.kind === "SYSTEM") {
+            return (
+              <Typography
+                key={row.message.id}
+                variant="body2"
+                sx={{ color: "text.secondary", textAlign: "center", px: 1, overflowWrap: "anywhere" }}
+              >
+                {row.message.body}
+              </Typography>
+            );
+          }
           if (row.kind === "message") {
             const mine = row.message.senderUserId === currentUserId;
             return (
@@ -424,7 +439,8 @@ export function Chat({
             multiline
             minRows={1}
             maxRows={4}
-            placeholder="Введите сообщение…"
+            placeholder={inputPlaceholder ?? "Введите сообщение…"}
+            autoFocus={autoFocusInput}
             disabled={disabled}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {

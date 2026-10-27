@@ -79,6 +79,7 @@ function request(overrides: Partial<RequestProDto> = {}): RequestProDto {
     awaitingCustomerReply: false,
     lastMessageAt: null,
     totalAmountRubles: null,
+    servicePriceRubles: null,
     paidAmountRubles: 0,
     remainingAmountRubles: null,
     payments: [],

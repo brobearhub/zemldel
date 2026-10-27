@@ -37,6 +37,7 @@ function makeCustomer(overrides: Partial<RequestCustomerDto> = {}): RequestCusto
     customerEmail: null,
     customerUserId: "u1",
     totalAmountRubles: null,
+    servicePriceRubles: null,
     paidAmountRubles: 0,
     remainingAmountRubles: null,
     payments: [],
@@ -88,6 +89,7 @@ function makeProvider(overrides: Partial<RequestProDto> = {}): RequestProDto {
     awaitingCustomerReply: false,
     lastMessageAt: null,
     totalAmountRubles: null,
+    servicePriceRubles: null,
     paidAmountRubles: 0,
     remainingAmountRubles: null,
     payments: [],
@@ -165,6 +167,7 @@ describe("buildRequestLifecycleViewModel", () => {
       offerStatus: "SELECTED",
       lockedAt: "2026-08-06T00:00:00.000Z",
       totalAmountRubles: 25000,
+      servicePriceRubles: null,
       paidAmountRubles: 5000,
       remainingAmountRubles: 20000,
     });
@@ -180,6 +183,7 @@ describe("buildRequestLifecycleViewModel", () => {
       offerStatus: "SELECTED",
       lockedAt: "2026-08-06T00:00:00.000Z",
       totalAmountRubles: 25000,
+      servicePriceRubles: null,
       paidAmountRubles: 25000,
       remainingAmountRubles: 0,
     });

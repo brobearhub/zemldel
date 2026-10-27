@@ -58,6 +58,7 @@ export function CustomerRequestContractFilesClient({
   onBundlesChange?: (next: CustomerContractBundleListItem[]) => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [approvingBundleId, setApprovingBundleId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,6 +79,7 @@ export function CustomerRequestContractFilesClient({
 
   async function approve(bundleId: string) {
     setBusy(true);
+    setApprovingBundleId(bundleId);
     setNotice(null);
     setError(null);
     try {
@@ -90,6 +92,7 @@ export function CustomerRequestContractFilesClient({
       setError(e instanceof Error ? e.message : "Не удалось одобрить");
     } finally {
       setBusy(false);
+      setApprovingBundleId(null);
     }
   }
 
@@ -188,6 +191,7 @@ export function CustomerRequestContractFilesClient({
                   <Button
                     variant="contained"
                     color="success"
+                    loading={approvingBundleId === bundle.bundleId}
                     disabled={busy || signatureMissing}
                     onClick={() => void approve(bundle.bundleId)}
                   >
@@ -248,7 +252,7 @@ export function CustomerRequestContractFilesClient({
           <Button disabled={busy} onClick={() => setRevisionOpen(false)}>
             Отмена
           </Button>
-          <Button variant="contained" color="warning" disabled={busy || revisionMessage.trim().length < 3} onClick={() => void submitRevision()}>
+          <Button variant="contained" color="warning" loading={busy} disabled={revisionMessage.trim().length < 3} onClick={() => void submitRevision()}>
             Отправить
           </Button>
         </DialogActions>

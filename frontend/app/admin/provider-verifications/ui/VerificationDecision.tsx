@@ -14,9 +14,11 @@ export function VerificationDecision({ requestId }: Props) {
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"approve" | "reject" | null>(null);
 
   async function approve() {
     setBusy(true);
+    setPendingAction("approve");
     setError(null);
     try {
       const response = await fetch(`/api/admin/provider-verifications/${requestId}/approve`, {
@@ -30,6 +32,7 @@ export function VerificationDecision({ requestId }: Props) {
       router.refresh();
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -40,6 +43,7 @@ export function VerificationDecision({ requestId }: Props) {
       return;
     }
     setBusy(true);
+    setPendingAction("reject");
     setError(null);
     try {
       const response = await fetch(`/api/admin/provider-verifications/${requestId}/reject`, {
@@ -56,6 +60,7 @@ export function VerificationDecision({ requestId }: Props) {
       router.refresh();
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -63,7 +68,7 @@ export function VerificationDecision({ requestId }: Props) {
     <Stack spacing={1.5}>
       <Typography sx={{ fontWeight: 800 }}>Решение</Typography>
       {error ? <Alert severity="error">{error}</Alert> : null}
-      <Button variant="contained" disabled={busy} onClick={() => void approve()} sx={{ alignSelf: "flex-start", minHeight: 44 }}>
+      <Button variant="contained" loading={pendingAction === "approve"} disabled={busy} onClick={() => void approve()} sx={{ alignSelf: "flex-start", minHeight: 44 }}>
         Подтвердить
       </Button>
       <Typography variant="body2" sx={{ color: "text.secondary" }}>
@@ -87,6 +92,7 @@ export function VerificationDecision({ requestId }: Props) {
       <Button
         variant="outlined"
         color="error"
+        loading={pendingAction === "reject"}
         disabled={busy || reason.trim().length === 0}
         onClick={() => void reject()}
         sx={{ alignSelf: "flex-start", minHeight: 44 }}

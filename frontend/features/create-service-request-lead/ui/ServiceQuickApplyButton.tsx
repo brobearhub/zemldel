@@ -2,11 +2,10 @@
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, CircularProgress } from "@mui/material";
+import { Button } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { buildRequestAuthHref, savePendingRequestDraft } from "@/entities/request";
 import { useServiceAskQuestion } from "@/features/create-service-request-lead/model/useServiceAskQuestion";
-import { DEFAULT_SERVICE_QUESTION } from "@/features/create-service-request-lead/lib/default-greeting";
 
 type Props = {
   serviceId: string;
@@ -34,7 +33,7 @@ export function ServiceQuickApplyButton({ serviceId, isAuthenticated, sx, fullWi
         customerName: null,
         customerEmail: null,
         customerPhone: null,
-        message: DEFAULT_SERVICE_QUESTION,
+        message: null,
         requestCityId: null,
         cadastralNumbers: [],
       });
@@ -51,8 +50,7 @@ export function ServiceQuickApplyButton({ serviceId, isAuthenticated, sx, fullWi
       type="button"
       variant="contained"
       onClick={handleClick}
-      disabled={busy}
-      startIcon={busy ? <CircularProgress size={18} color="inherit" /> : null}
+      loading={busy}
       sx={sx}
       fullWidth={fullWidth}
     >

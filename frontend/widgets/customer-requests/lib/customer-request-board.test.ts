@@ -45,6 +45,7 @@ function request(overrides: Partial<RequestCustomerDto> & Pick<RequestCustomerDt
     createdAt: "2026-10-05T17:25:00.000Z",
     updatedAt: "2026-10-05T17:25:00.000Z",
     totalAmountRubles: null,
+    servicePriceRubles: null,
     paidAmountRubles: 0,
     remainingAmountRubles: null,
     payments: [],

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { Box, Button, IconButton, TextField, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
@@ -17,6 +18,12 @@ type Props = {
 };
 
 export function NewStoryComposer({ text, durationDays, busy, onText, onDuration, onPublish, onCancel }: Props) {
+  const [publishClicked, setPublishClicked] = useState(false);
+
+  useEffect(() => {
+    if (!busy) setPublishClicked(false);
+  }, [busy, publishClicked]);
+
   return (
     <Box
       sx={{
@@ -108,8 +115,12 @@ export function NewStoryComposer({ text, durationDays, busy, onText, onDuration,
       <Button
         variant="contained"
         color="primary"
+        loading={busy && publishClicked}
         disabled={busy}
-        onClick={onPublish}
+        onClick={() => {
+          setPublishClicked(true);
+          onPublish();
+        }}
         sx={{
           alignSelf: "flex-start",
           borderRadius: "14px",

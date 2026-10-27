@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import type { Request as ExpressRequest } from 'express';
 import { Prisma } from '@prisma/client';
+import { parseServicePriceRubles } from './lib/service-price-rubles';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { InternalAuthService } from '../auth/internal-auth.service';
@@ -91,6 +92,7 @@ const select = {
   autoAcceptAt: true,
   acceptedAt: true,
   totalAmountRubles: true,
+  servicePriceRubles: true,
   createdAt: true,
   updatedAt: true,
   service: { select: { title: true, image: true, providerId: true } },
@@ -131,6 +133,7 @@ const select = {
       comment: true,
       paidAt: true,
       createdAt: true,
+      createdByUserId: true,
     },
     orderBy: { paidAt: 'asc' },
   },
@@ -215,6 +218,7 @@ export class RequestsService {
 
     const messages = await this.prisma.message.findMany({
       where: {
+        kind: 'USER',
         conversation: { requestId: { in: requestIds } },
       },
       select: {
@@ -250,6 +254,7 @@ export class RequestsService {
     );
     const messages = await this.prisma.message.findMany({
       where: {
+        kind: 'USER',
         conversation: { requestId: { in: requestIds } },
       },
       orderBy: { createdAt: 'desc' },
@@ -292,6 +297,7 @@ export class RequestsService {
 
     const messages = await this.prisma.message.findMany({
       where: {
+        kind: 'USER',
         conversation: {
           requestId: { in: requestIds },
           providerId: actorProviderId,
@@ -335,6 +341,7 @@ export class RequestsService {
   ): Promise<boolean> {
     const message = await tx.message.findFirst({
       where: {
+        kind: 'USER',
         conversation: { requestId, customerUserId },
         NOT: { senderUserId: customerUserId },
       },
@@ -590,7 +597,7 @@ export class RequestsService {
   ): Promise<RequestCustomerDto> {
     const service = await this.prisma.service.findFirst({
       where: { id: serviceId, status: 'PUBLISHED' },
-      select: { id: true, providerId: true },
+      select: { id: true, providerId: true, price: true },
     });
     if (!service) {
       throw new NotFoundException('Published service not found');
@@ -646,6 +653,7 @@ export class RequestsService {
         message,
         location: null,
         cadastralNumbers: normalizeCadastralNumbers(input.cadastralNumbers),
+        servicePriceRubles: parseServicePriceRubles(service.price),
       },
       select,
     });

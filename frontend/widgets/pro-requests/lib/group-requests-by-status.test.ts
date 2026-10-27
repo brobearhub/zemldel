@@ -43,6 +43,7 @@ function request(overrides: Partial<RequestProDto> & Pick<RequestProDto, "id" | 
     awaitingCustomerReply: false,
     lastMessageAt: null,
     totalAmountRubles: null,
+    servicePriceRubles: null,
     paidAmountRubles: 0,
     remainingAmountRubles: null,
     payments: [],

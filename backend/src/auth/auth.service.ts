@@ -19,12 +19,16 @@ import {
   type OrderManagementAction,
   canManageServices,
   type ServiceManagementAction,
+  toAuthPerson,
 } from './authorization';
 
 const userAuthSelect = {
   id: true,
   email: true,
   name: true,
+  lastName: true,
+  firstName: true,
+  middleName: true,
   image: true,
   phone: true,
   systemRole: true,
@@ -63,12 +67,20 @@ const userAuthSelect = {
           name: true,
           slug: true,
           type: true,
+          image: true,
           city: {
             select: {
               id: true,
               name: true,
               regionCode: true,
               regionName: true,
+            },
+          },
+          legalProfile: {
+            select: {
+              lastName: true,
+              firstName: true,
+              middleName: true,
             },
           },
         },
@@ -101,7 +113,13 @@ export class AuthService {
         name: string;
         slug: string;
         type: AuthMembership['providerType'];
+        image: string | null;
         city: AuthCity | null;
+        legalProfile: {
+          lastName: string | null;
+          firstName: string | null;
+          middleName: string | null;
+        } | null;
       };
     }>,
   ): AuthMembership[] {
@@ -111,6 +129,8 @@ export class AuthService {
       providerSlug: membership.provider.slug,
       providerType: membership.provider.type,
       providerCity: membership.provider.city,
+      providerImage: membership.provider.image,
+      providerPerson: toAuthPerson(membership.provider.legalProfile),
       role: membership.role,
       status: membership.status,
     }));
@@ -151,6 +171,7 @@ export class AuthService {
       id: user.id,
       email: user.email,
       name: user.name,
+      person: toAuthPerson(user),
       image: user.image,
       phone: user.phone,
       systemRole: user.systemRole,

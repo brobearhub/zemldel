@@ -140,6 +140,50 @@ export const CUSTOMER_NAV: {
   ],
 };
 
+/** Why: исполнитель в роли контактного лица видит только свои данные, без разделов заказчика. */
+export const PROVIDER_CONTACT_NAV: {
+  desktop: readonly CabinetNavItem[];
+  mobileTop: readonly CabinetNavItem[];
+  mobileBottom: readonly CabinetNavItem[];
+  mobileMore: readonly CabinetNavItem[];
+} = {
+  desktop: [
+    {
+      key: "profile",
+      label: "Контактное лицо",
+      href: "/profile?section=profile",
+      icon: <PersonOutlineOutlinedIcon />,
+      isActive: ({ pathname }) => pathname.startsWith("/profile"),
+    },
+  ],
+  mobileTop: [],
+  mobileBottom: [
+    {
+      key: "home",
+      label: "Кабинет",
+      href: "/pro",
+      icon: <HomeOutlinedIcon />,
+      isActive: ({ pathname }) => pathname === "/pro",
+    },
+    {
+      key: "chat",
+      label: "Чат",
+      href: "/chats",
+      icon: <ChatOutlinedIcon />,
+      isActive: ({ pathname }) => pathname.startsWith("/chats"),
+      badgeKind: "chatUnreadTotal",
+    },
+    {
+      key: "profile",
+      label: "Контактное лицо",
+      href: "/profile?section=profile",
+      icon: <PersonOutlineOutlinedIcon />,
+      isActive: ({ pathname }) => pathname.startsWith("/profile"),
+    },
+  ],
+  mobileMore: [],
+};
+
 export const PROVIDER_NAV: {
   desktop: readonly CabinetNavItem[];
   mobileTop: readonly CabinetNavItem[];

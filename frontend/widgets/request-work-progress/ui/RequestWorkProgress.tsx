@@ -53,6 +53,7 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
     props.requestStatus === "COMPLETED";
 
   const [localBusy, setLocalBusy] = useState(false);
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [statusKey, setStatusKey] = useState(props.statusOptions[0]?.key ?? "AWAITING_RESPONSE");
@@ -65,8 +66,9 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
 
   const isBusy = Boolean(props.busy) || localBusy;
 
-  async function withBusy(fn: () => Promise<void>) {
+  async function withBusy(fn: () => Promise<void>, actionKey: string | null = null) {
     setLocalBusy(true);
+    setPendingKey(actionKey);
     try {
       await fn();
       await props.onRefresh();
@@ -74,6 +76,7 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
       props.onError?.(e instanceof Error ? e.message : "Ошибка");
     } finally {
       setLocalBusy(false);
+      setPendingKey(null);
     }
   }
 
@@ -204,6 +207,7 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
               </FormControl>
               <Button
                 variant="outlined"
+                loading={pendingKey === "create-draft"}
                 disabled={isBusy || title.trim().length < 1}
                 onClick={() =>
                   void withBusy(async () => {
@@ -215,13 +219,14 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
                     setTitle("");
                     setDescription("");
                     setCreateOpen(false);
-                  })
+                  }, "create-draft")
                 }
               >
                 Создать черновик
               </Button>
               <Button
                 variant="contained"
+                loading={pendingKey === "create-publish"}
                 disabled={isBusy || title.trim().length < 1}
                 onClick={() =>
                   void withBusy(async () => {
@@ -235,7 +240,7 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
                     setTitle("");
                     setDescription("");
                     setCreateOpen(false);
-                  })
+                  }, "create-publish")
                 }
               >
                 Опубликовать
@@ -262,6 +267,7 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
               mode={props.mode}
               canMutate={canMutate}
               isBusy={isBusy}
+              pendingKey={pendingKey}
               requestStatus={props.requestStatus}
               statusOptions={props.statusOptions}
               requestId={props.requestId}
@@ -278,7 +284,7 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
               slotFileInputRef={(slotId, el) => {
                 slotInputRefs.current[`${stage.id}:${slotId}`] = el;
               }}
-              onAction={(fn) => void withBusy(fn)}
+              onAction={(fn, key) => void withBusy(fn, key ? `${stage.id}:${key}` : null)}
             />
           ))
         )}
@@ -294,6 +300,7 @@ function StageCard(props: {
   mode: "provider" | "customer";
   canMutate: boolean;
   isBusy: boolean;
+  pendingKey: string | null;
   requestStatus: string;
   statusOptions: RequestWorkProgressProps["statusOptions"];
   requestId: string;
@@ -304,7 +311,7 @@ function StageCard(props: {
   slotFileInputRef: (slotId: string, el: HTMLInputElement | null) => void;
   onPickFile: () => void;
   onPickSlotFile: (slotId: string) => void;
-  onAction: (fn: () => Promise<void>) => void;
+  onAction: (fn: () => Promise<void>, key?: string) => void;
 }) {
   const { stage } = props;
   const confirm = useConfirm();
@@ -325,8 +332,9 @@ function StageCard(props: {
   const isExpanded = canExpand && expanded;
   // Why: удалять можно только хвост списка — совпадает с правилом бэкенда.
   const canDeleteStage = isProvider && props.canMutate && props.isLastStage;
+  const isPending = (key: string) => props.pendingKey === `${stage.id}:${key}`;
 
-  async function confirmDeleteStage() {
+  async function confirmDeleteStage(key: string) {
     const ok = await confirm({
       title: `Удалить этап «${stage.title}»?`,
       description: "Это действие нельзя отменить.",
@@ -336,7 +344,7 @@ function StageCard(props: {
     if (!ok) return;
     props.onAction(async () => {
       await deleteProWorkStage(props.requestId, stage.id);
-    });
+    }, key);
   }
 
   return (
@@ -421,10 +429,11 @@ function StageCard(props: {
                   size="small"
                   color="error"
                   aria-label="Удалить этап"
+                  loading={isPending("delete-icon")}
                   disabled={props.isBusy}
                   onClick={(e) => {
                     e.stopPropagation();
-                    void confirmDeleteStage();
+                    void confirmDeleteStage("delete-icon");
                   }}
                 >
                   <CloseIcon fontSize="small" />
@@ -524,6 +533,7 @@ function StageCard(props: {
                   <Button
                     size="small"
                     variant="outlined"
+                    loading={isPending("save")}
                     disabled={props.isBusy}
                     onClick={() =>
                       props.onAction(async () => {
@@ -531,7 +541,7 @@ function StageCard(props: {
                           title: editTitle.trim(),
                           description: editDescription.trim(),
                         });
-                      })
+                      }, "save")
                     }
                   >
                     Сохранить
@@ -539,11 +549,12 @@ function StageCard(props: {
                   <Button
                     size="small"
                     variant="contained"
+                    loading={isPending("publish")}
                     disabled={props.isBusy}
                     onClick={() =>
                       props.onAction(async () => {
                         await publishProWorkStage(props.requestId, stage.id);
-                      })
+                      }, "publish")
                     }
                   >
                     Опубликовать
@@ -552,9 +563,10 @@ function StageCard(props: {
                     <Button
                       size="small"
                       color="error"
+                      loading={isPending("delete-button")}
                       disabled={props.isBusy}
                       onClick={() => {
-                        void confirmDeleteStage();
+                        void confirmDeleteStage("delete-button");
                       }}
                     >
                       Удалить
@@ -601,11 +613,12 @@ function StageCard(props: {
                               <Button
                                 size="small"
                                 color="error"
+                                loading={isPending(`file-delete:${file.id}`)}
                                 disabled={props.isBusy}
                                 onClick={() =>
                                   props.onAction(async () => {
                                     await deleteProWorkStageFile(props.requestId, stage.id, file.id);
-                                  })
+                                  }, `file-delete:${file.id}`)
                                 }
                               >
                                 Удалить
@@ -628,10 +641,10 @@ function StageCard(props: {
                             if (!file) return;
                             props.onAction(async () => {
                               await uploadProWorkStageFile(props.requestId, stage.id, file);
-                            });
+                            }, "file-upload");
                           }}
                         />
-                        <Button size="small" variant="text" disabled={props.isBusy} onClick={props.onPickFile}>
+                        <Button size="small" variant="text" loading={isPending("file-upload")} disabled={props.isBusy} onClick={props.onPickFile}>
                           Прикрепить файл
                         </Button>
                       </>
@@ -704,12 +717,13 @@ function StageCard(props: {
                                           slot.id,
                                           file,
                                         );
-                                      });
+                                      }, `slot-upload:${slot.id}`);
                                     }}
                                   />
                                   <Button
                                     size="small"
                                     variant="contained"
+                                    loading={isPending(`slot-upload:${slot.id}`)}
                                     disabled={props.isBusy || props.requestStatus !== "ACTIVE"}
                                     onClick={() => props.onPickSlotFile(slot.id)}
                                     sx={{ flexShrink: 0 }}
@@ -722,11 +736,12 @@ function StageCard(props: {
                                 <Button
                                   size="small"
                                   color="error"
+                                  loading={isPending(`slot-cancel:${slot.id}`)}
                                   disabled={props.isBusy}
                                   onClick={() =>
                                     props.onAction(async () => {
                                       await deleteProWorkStageDocSlot(props.requestId, stage.id, slot.id);
-                                    })
+                                    }, `slot-cancel:${slot.id}`)
                                   }
                                   sx={{ flexShrink: 0 }}
                                 >
@@ -772,12 +787,13 @@ function StageCard(props: {
                     <Button
                       size="small"
                       variant="outlined"
+                      loading={isPending("slot-request")}
                       disabled={props.isBusy || props.slotTitle.trim().length < 3}
                       onClick={() =>
                         props.onAction(async () => {
                           await createProWorkStageDocSlot(props.requestId, stage.id, props.slotTitle.trim());
                           props.onSlotTitleChange("");
-                        })
+                        }, "slot-request")
                       }
                     >
                       Запросить

@@ -25,7 +25,7 @@ export const SITE_HEADER_HEIGHT_PX = {
 /** Зазор между низом хедера и верхом контента (px). */
 export const SITE_CONTENT_GAP_PX = {
   xs: 16,
-  sm: 20,
+  sm: 16,
 } as const;
 
 /** Высота spacer'а под fixed header = высота хедера + единый зазор. */

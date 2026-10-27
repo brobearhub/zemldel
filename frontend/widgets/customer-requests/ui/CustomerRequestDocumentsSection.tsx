@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Alert, Button, Stack, Typography } from "@mui/material";
 import type { RequestCustomerDto, RequestDocumentRequestDto } from "@/entities/request";
@@ -78,6 +79,7 @@ function CustomerRequestedDocumentsBlock(props: {
   onUploadRequestedDocument: (docRequestId: string, file: File) => Promise<void> | void;
 }) {
   const { requestId, requestStatus, items, busy, docUploadBusy, onDeleteRequestedDocument, onUploadRequestedDocument } = props;
+  const [pendingDoc, setPendingDoc] = useState<{ id: string; action: "upload" | "delete" } | null>(null);
 
   if (items.length === 0) return null;
 
@@ -108,8 +110,12 @@ function CustomerRequestedDocumentsBlock(props: {
                     <Button
                       color="error"
                       variant="text"
+                      loading={docUploadBusy && pendingDoc?.id === d.id && pendingDoc.action === "delete"}
                       disabled={busy || docUploadBusy}
-                      onClick={() => void onDeleteRequestedDocument(d.id)}
+                      onClick={() => {
+                        setPendingDoc({ id: d.id, action: "delete" });
+                        void onDeleteRequestedDocument(d.id);
+                      }}
                     >
                       Удалить
                     </Button>
@@ -118,8 +124,14 @@ function CustomerRequestedDocumentsBlock(props: {
               ) : null}
 
               {canUploadHere ? (
-                <Button component="label" variant="contained" disabled={busy || docUploadBusy} sx={{ whiteSpace: "nowrap" }}>
-                  {docUploadBusy ? "Загрузка…" : "Загрузить"}
+                <Button
+                  component="label"
+                  variant="contained"
+                  loading={docUploadBusy && pendingDoc?.id === d.id && pendingDoc.action === "upload"}
+                  disabled={busy || docUploadBusy}
+                  sx={{ whiteSpace: "nowrap" }}
+                >
+                  Загрузить
                   <input
                     hidden
                     type="file"
@@ -128,6 +140,7 @@ function CustomerRequestedDocumentsBlock(props: {
                       const file = e.currentTarget.files?.[0] ?? null;
                       e.currentTarget.value = "";
                       if (!file) return;
+                      setPendingDoc({ id: d.id, action: "upload" });
                       void onUploadRequestedDocument(d.id, file);
                     }}
                   />

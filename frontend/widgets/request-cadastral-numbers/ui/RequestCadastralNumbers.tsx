@@ -8,7 +8,6 @@ import {
   Alert,
   Box,
   Button,
-  CircularProgress,
   IconButton,
   Snackbar,
   Stack,
@@ -40,6 +39,7 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
   const [editParts, setEditParts] = useState<CadastralNumberParts>(createEmptyCadastralParts());
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [copiedOpen, setCopiedOpen] = useState(false);
 
   const isBusy = busy || submitting;
@@ -49,8 +49,9 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
     setCopiedOpen(false);
   }
 
-  async function run(action: Parameters<RequestCadastralBehavior["run"]>[0]) {
+  async function run(action: Parameters<RequestCadastralBehavior["run"]>[0], actionKey: string) {
     setSubmitting(true);
+    setPendingKey(actionKey);
     setError(null);
     try {
       await behavior.run(action);
@@ -64,6 +65,7 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
       setError(e instanceof Error ? e.message : "Не удалось сохранить кадастровый номер");
     } finally {
       setSubmitting(false);
+      setPendingKey(null);
     }
   }
 
@@ -116,8 +118,9 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
                     <Button
                       size="small"
                       variant="contained"
+                      loading={pendingKey === `edit:${item.index}`}
                       disabled={isBusy || !canSubmitCadastralParts(editParts)}
-                      onClick={() => void run({ id: "edit", payload: { index: item.index, parts: editParts } })}
+                      onClick={() => void run({ id: "edit", payload: { index: item.index, parts: editParts } }, `edit:${item.index}`)}
                     >
                       Сохранить
                     </Button>
@@ -161,10 +164,11 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
                       <IconButton
                         aria-label="Удалить кадастровый номер"
                         size="small"
+                        loading={pendingKey === `delete:${item.index}`}
                         disabled={isBusy}
                         onClick={() => {
                           if (!window.confirm("Удалить кадастровый номер?")) return;
-                          void run({ id: "delete", payload: { index: item.index } });
+                          void run({ id: "delete", payload: { index: item.index } }, `delete:${item.index}`);
                         }}
                       >
                         <DeleteOutlineIcon fontSize="small" />
@@ -189,9 +193,9 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
           <Button
             variant="contained"
             size="small"
+            loading={pendingKey === "add"}
             disabled={isBusy || !canSubmitCadastralParts(draftParts)}
-            startIcon={isBusy ? <CircularProgress size={16} color="inherit" /> : null}
-            onClick={() => void run({ id: "add", payload: { parts: draftParts } })}
+            onClick={() => void run({ id: "add", payload: { parts: draftParts } }, "add")}
             sx={{ alignSelf: "flex-start", textTransform: "none" }}
           >
             Добавить

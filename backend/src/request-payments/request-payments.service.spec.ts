@@ -63,11 +63,11 @@ describe('RequestPaymentsService', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('getForCustomer hides finance before lock', async () => {
+  it('getForCustomer returns finance before lock', async () => {
     const prisma = {
       request: {
         findFirst: vi.fn().mockResolvedValue({
-          lockedAt: null,
+          customerUserId: 'u1',
           totalAmountRubles: 25000,
           payments: [
             {
@@ -77,6 +77,7 @@ describe('RequestPaymentsService', () => {
               comment: 'Аванс',
               paidAt: NOW,
               createdAt: NOW,
+              createdByUserId: null,
             },
           ],
         }),
@@ -86,12 +87,64 @@ describe('RequestPaymentsService', () => {
       actorUserId: 'u1',
       requestId: 'r1',
     });
-    expect(dto).toEqual({
-      totalAmountRubles: null,
-      paidAmountRubles: 0,
-      remainingAmountRubles: null,
-      payments: [],
+    expect(dto.totalAmountRubles).toBe(25000);
+    expect(dto.paidAmountRubles).toBe(5000);
+    expect(dto.payments[0]?.createdBySide).toBeNull();
+  });
+
+  it('setTotalForCustomer rejects a stranger with 403', async () => {
+    const prisma = {
+      request: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'NEW',
+          providerId: PROVIDER_ID,
+          customerUserId: 'owner',
+          totalAmountRubles: null,
+          payments: [],
+        }),
+      },
+    };
+    await expect(
+      makeService(prisma).setTotalForCustomer({
+        actorUserId: 'stranger',
+        requestId: 'r1',
+        totalAmountRubles: 15000,
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('setTotalForProvider allows the selected provider before lock', async () => {
+    const tx = {
+      request: {
+        update: vi.fn().mockResolvedValue({
+          totalAmountRubles: 15000,
+          payments: [],
+        }),
+      },
+      requestEvent: { create: vi.fn().mockResolvedValue(null) },
+    };
+    const prisma = {
+      request: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'NEW',
+          serviceId: 'svc',
+          providerId: PROVIDER_ID,
+          customerUserId: 'customer',
+          lockedAt: null,
+          totalAmountRubles: null,
+          payments: [],
+        }),
+      },
+      $transaction: vi.fn((fn: (client: typeof tx) => unknown) => fn(tx)),
+    };
+    const dto = await makeService(prisma).setTotalForProvider({
+      actorUserId: 'u1',
+      requestId: 'r1',
+      totalAmountRubles: 15000,
     });
+    expect(dto.totalAmountRubles).toBe(15000);
   });
 
   it('addPaymentForProvider creates CONTRACT payment as scheduled (paidAt=null)', async () => {

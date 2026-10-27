@@ -63,6 +63,7 @@ export type RequestPaymentItemDto = {
   comment: string;
   paidAt: string | null;
   createdAt: string;
+  createdBySide: "CUSTOMER" | "PROVIDER" | null;
 };
 
 export type RequestCityDto = {
@@ -109,6 +110,7 @@ export type RequestCustomerDto = {
   createdAt: string;
   updatedAt: string;
   totalAmountRubles: number | null;
+  servicePriceRubles: number | null;
   paidAmountRubles: number;
   remainingAmountRubles: number | null;
   payments: RequestPaymentItemDto[];
@@ -164,6 +166,7 @@ export type RequestProDto = {
   /** Время последнего сообщения в диалоге исполнителя. Для счётчика в ленте. */
   lastMessageAt: string | null;
   totalAmountRubles: number | null;
+  servicePriceRubles: number | null;
   paidAmountRubles: number;
   remainingAmountRubles: number | null;
   payments: RequestPaymentItemDto[];

@@ -28,6 +28,7 @@ const EMPTY: PassportDto = {
 export function CustomerPassportSection() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"save" | "delete" | "refresh" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [value, setValue] = useState<PassportDto>(EMPTY);
@@ -84,6 +85,7 @@ export function CustomerPassportSection() {
   async function handleSave(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
+    setPendingAction("save");
     setError(null);
     setNotice(null);
     try {
@@ -111,12 +113,14 @@ export function CustomerPassportSection() {
       setError("Не удалось сохранить паспорт");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
   async function handleDelete() {
     if (!hasExisting) return;
     setBusy(true);
+    setPendingAction("delete");
     setError(null);
     setNotice(null);
     try {
@@ -137,6 +141,16 @@ export function CustomerPassportSection() {
       setError("Не удалось удалить паспорт");
     } finally {
       setBusy(false);
+      setPendingAction(null);
+    }
+  }
+
+  async function handleRefresh() {
+    setPendingAction("refresh");
+    try {
+      await load();
+    } finally {
+      setPendingAction(null);
     }
   }
 
@@ -242,14 +256,14 @@ export function CustomerPassportSection() {
           />
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <Button type="submit" variant="contained" disabled={busy || loading}>
+            <Button type="submit" variant="contained" loading={pendingAction === "save"} disabled={busy || loading}>
               {hasExisting ? "Сохранить" : "Сохранить паспорт"}
             </Button>
-            <Button variant="outlined" disabled={busy} onClick={() => void load()}>
+            <Button variant="outlined" loading={pendingAction === "refresh"} disabled={busy} onClick={() => void handleRefresh()}>
               Обновить
             </Button>
             <Box sx={{ flex: 1 }} />
-            <Button variant="outlined" color="error" disabled={busy || !hasExisting} onClick={() => void handleDelete()}>
+            <Button variant="outlined" color="error" loading={pendingAction === "delete"} disabled={busy || !hasExisting} onClick={() => void handleDelete()}>
               Удалить
             </Button>
           </Stack>

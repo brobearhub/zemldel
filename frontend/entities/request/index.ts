@@ -12,5 +12,6 @@ export * from "./ui/CadastralNumberMapLink";
 export * from "./ui/ReplyPreviewLines";
 export * from "./ui/request-status-flow";
 export * from "./ui/request-ui";
+export * from "./ui/RequestPriceBlock";
 export * from "./ui/RequestDocumentsList";
 export * from "./ui/ContractFilesList";

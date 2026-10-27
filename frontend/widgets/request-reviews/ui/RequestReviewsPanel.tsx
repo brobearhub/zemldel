@@ -54,6 +54,7 @@ export function RequestReviewsPanel({ requestId, status, side }: Props) {
   const [reply, setReply] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"review" | "reply" | null>(null);
 
   const canReview = REVIEWABLE.has(status);
 
@@ -83,6 +84,7 @@ export function RequestReviewsPanel({ requestId, status, side }: Props) {
       return;
     }
     setBusy(true);
+    setPendingAction("review");
     setError(null);
     try {
       await createRequestReview(requestId, { rating, text });
@@ -92,12 +94,14 @@ export function RequestReviewsPanel({ requestId, status, side }: Props) {
       setError(e instanceof Error ? e.message : "Не удалось отправить отзыв");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
   async function submitReply() {
     if (!customerReview || !reply.trim()) return;
     setBusy(true);
+    setPendingAction("reply");
     setError(null);
     try {
       await replyToReview(customerReview.id, reply.trim());
@@ -107,6 +111,7 @@ export function RequestReviewsPanel({ requestId, status, side }: Props) {
       setError(e instanceof Error ? e.message : "Не удалось отправить ответ");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -134,7 +139,7 @@ export function RequestReviewsPanel({ requestId, status, side }: Props) {
               minRows={2}
               fullWidth
             />
-            <Button variant="contained" disabled={busy || !rating} onClick={() => void submitReview()} sx={{ alignSelf: "flex-start" }}>
+            <Button variant="contained" loading={pendingAction === "review"} disabled={busy || !rating} onClick={() => void submitReview()} sx={{ alignSelf: "flex-start" }}>
               Отправить отзыв
             </Button>
           </Stack>
@@ -149,7 +154,7 @@ export function RequestReviewsPanel({ requestId, status, side }: Props) {
               minRows={2}
               fullWidth
             />
-            <Button variant="outlined" disabled={busy || !reply.trim()} onClick={() => void submitReply()} sx={{ alignSelf: "flex-start" }}>
+            <Button variant="outlined" loading={pendingAction === "reply"} disabled={busy || !reply.trim()} onClick={() => void submitReply()} sx={{ alignSelf: "flex-start" }}>
               Ответить
             </Button>
           </Stack>

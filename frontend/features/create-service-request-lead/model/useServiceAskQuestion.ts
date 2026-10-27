@@ -7,7 +7,6 @@ import {
   ensureRequestConversation,
   postConversationMessage,
 } from "@/features/create-service-request-lead/api/service-request-lead.api";
-import { DEFAULT_SERVICE_QUESTION } from "@/features/create-service-request-lead";
 
 type Input = {
   serviceId: string;
@@ -19,8 +18,7 @@ type SubmitInput = {
 };
 
 function normalizeQuestion(value: string): string {
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : DEFAULT_SERVICE_QUESTION;
+  return value.trim();
 }
 
 export function useServiceAskQuestion(input: Input) {
@@ -35,22 +33,25 @@ export function useServiceAskQuestion(input: Input) {
       const message = normalizeQuestion(submitInput.questionText);
       const created = await createServiceRequest({
         serviceId: input.serviceId,
-        message,
+        message: message || null,
         cadastralNumbers: submitInput.cadastralNumbers,
       });
 
-      try {
-        const ensured = await ensureRequestConversation({ serviceRequestId: created.id });
-        await postConversationMessage({
-          conversationId: ensured.conversationId,
-          body: message,
-          clientMessageId: crypto.randomUUID(),
-        });
-      } catch {
-        // Fallback: request detail page has a manual "start chat" action for SERVICE requests.
+      if (message) {
+        try {
+          const ensured = await ensureRequestConversation({ serviceRequestId: created.id });
+          await postConversationMessage({
+            conversationId: ensured.conversationId,
+            body: message,
+            clientMessageId: crypto.randomUUID(),
+          });
+        } catch {
+          // Fallback: request detail page has a manual "start chat" action for SERVICE requests.
+        }
       }
 
-      router.push(`/profile/requests/${created.id}`);
+      const createdQuery = message ? "" : "?created=1";
+      router.push(`/profile/requests/${created.id}${createdQuery}`);
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось создать заявку");

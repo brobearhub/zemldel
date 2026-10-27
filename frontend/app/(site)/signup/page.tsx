@@ -8,7 +8,6 @@ import {
   Box,
   Button,
   Checkbox,
-  CircularProgress,
   IconButton,
   Dialog,
   DialogActions,
@@ -180,7 +179,8 @@ function SignUpPageContent() {
     router.replace(`/signup?${params.toString()}`);
   };
 
-  const passwordMismatch = confirmPassword.length > 0 && confirmPassword !== password;
+  const showConfirmPassword = password.length > 0;
+  const passwordMismatch = showConfirmPassword && confirmPassword.length > 0 && confirmPassword !== password;
 
   useEffect(() => {
     if (submitted.current || status !== "authenticated" || !session?.user) return;
@@ -325,6 +325,7 @@ function SignUpPageContent() {
     }
 
     setLoading(true);
+    let navigated = false;
 
     try {
       const res = await fetch("/api/auth/signup", {
@@ -386,6 +387,7 @@ function SignUpPageContent() {
       });
 
       if (signInRes?.error) {
+        navigated = true;
         router.push(signInHref);
         return;
       }
@@ -398,12 +400,13 @@ function SignUpPageContent() {
             : "/profile?welcome=1";
 
       submitted.current = true;
+      navigated = true;
       router.push(nextPath);
       router.refresh();
     } catch {
       setFormError("Не удалось зарегистрироваться. Попробуйте ещё раз.");
     } finally {
-      setLoading(false);
+      if (!navigated) setLoading(false);
     }
   };
 
@@ -432,16 +435,19 @@ function SignUpPageContent() {
   return (
     <Box sx={signUpShellSx}>
       <RainGlassPaper
-        sx={{
+        sx={(theme) => ({
           width: "100%",
-          maxWidth: { xs: 440, md: 920 },
+          maxWidth: { xs: 440, tablet: 920 },
           minWidth: 0,
           p: { xs: 2, sm: 4, md: 5 },
           "& .MuiFormHelperText-root.Mui-error, & .MuiFormHelperText-root.Mui-error.Mui-error": {
             color: "common.white",
             bgcolor: "transparent",
           },
-        }}
+          [theme.media.phoneLandscape]: {
+            maxWidth: 440,
+          },
+        })}
       >
         <Box
           component="form"
@@ -458,31 +464,42 @@ function SignUpPageContent() {
           }}
         >
           <Box
-            sx={{
+            sx={(theme) => ({
               display: "grid",
               width: "100%",
               minWidth: 0,
-              gridTemplateColumns: { xs: "1fr", md: "1fr 30px 1fr" },
-              rowGap: { xs: 2.5, md: 0 },
-              columnGap: { md: 4 },
-              alignItems: { xs: "start", md: "stretch" },
-            }}
+              gridTemplateColumns: { xs: "1fr", tablet: "1fr 30px 1fr" },
+              rowGap: { xs: 2.5, tablet: 0 },
+              columnGap: { tablet: 4 },
+              alignItems: { xs: "start", tablet: "stretch" },
+              [theme.media.phoneLandscape]: {
+                gridTemplateColumns: "1fr",
+                rowGap: 2.5,
+                columnGap: 0,
+                alignItems: "start",
+              },
+            })}
           >
             <Box
-              sx={{
-                gridColumn: { xs: "1", md: "1 / -1" },
+              sx={(theme) => ({
+                gridColumn: { xs: "1", tablet: "1 / -1" },
                 width: "100%",
                 minWidth: 0,
-                mb: { md: 2.5 },
-              }}
+                mb: { tablet: 2.5 },
+                [theme.media.phoneLandscape]: {
+                  gridColumn: "1",
+                  mb: 0,
+                },
+              })}
             >
               <Box 
-                sx={{ 
+                sx={(theme) => ({ 
                   display: "flex", 
                   alignItems: "center", 
                   minWidth: 0,
-                  pb: { md: 1.5 },
-                }}>
+                  pb: { tablet: 1.5 },
+                  [theme.media.phoneLandscape]: { pb: 0 },
+                })}>
                 <IconButton
                   type="button"
                   aria-label="Изменить роль"
@@ -521,15 +538,16 @@ function SignUpPageContent() {
               </Box>
               <Box
                 aria-hidden
-                sx={{
-                  display: { xs: "block", md: "none" },
+                sx={(theme) => ({
+                  display: { xs: "block", tablet: "none" },
                   mt: 2,
                   ml: { xs: -2, sm: -4 },
                   width: { xs: "calc(100% + 32px)", sm: "calc(100% + 64px)" },
                   height: "1px",
                   bgcolor: "primary.main",
                   opacity: 0.3,
-                }}
+                  [theme.media.phoneLandscape]: { display: "block" },
+                })}
               />
             </Box>
 
@@ -620,7 +638,12 @@ function SignUpPageContent() {
                   margin="dense"
                   value={password}
                   onChange={(e) => {
-                    setPassword(e.target.value);
+                    const nextPassword = e.target.value;
+                    setPassword(nextPassword);
+                    if (!nextPassword) {
+                      setConfirmPassword("");
+                      setConfirmPasswordVisible(false);
+                    }
                     if (passwordError) setPasswordError(null);
                     if (confirmPasswordError) setConfirmPasswordError(null);
                   }}
@@ -640,47 +663,56 @@ function SignUpPageContent() {
                     formHelperText: { sx: { mt: 0.5, minHeight: 18 } },
                   }}
                 />
-                <TextField
-                  label="Подтвердите пароль"
-                  inputRef={confirmRef}
-                  type={confirmPasswordVisible ? "text" : "password"}
-                  fullWidth
-                  autoComplete="new-password"
-                  size="small"
-                  margin="dense"
-                  value={confirmPassword}
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    if (confirmPasswordError) setConfirmPasswordError(null);
+                <Box
+                  aria-hidden={showConfirmPassword ? undefined : true}
+                  sx={{
+                    visibility: showConfirmPassword ? "visible" : "hidden",
+                    pointerEvents: showConfirmPassword ? "auto" : "none",
                   }}
-                  disabled={loading}
-                  error={passwordMismatch || Boolean(confirmPasswordError)}
-                  helperText={confirmPasswordError ?? (passwordMismatch ? "Пароль должен совпадать" : " ")}
-                  slotProps={{
-                    input: {
-                      endAdornment: (
-                        <PasswordVisibilityButton
-                          visible={confirmPasswordVisible}
-                          onToggle={() => setConfirmPasswordVisible((current) => !current)}
-                        />
-                      ),
-                    },
-                    htmlInput: { maxLength: 120 },
-                    formHelperText: { sx: { mt: 0.5, minHeight: 18 } },
-                  }}
-                />
+                >
+                  <TextField
+                    label="Подтвердите пароль"
+                    inputRef={confirmRef}
+                    type={confirmPasswordVisible ? "text" : "password"}
+                    fullWidth
+                    autoComplete="new-password"
+                    size="small"
+                    margin="dense"
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      if (confirmPasswordError) setConfirmPasswordError(null);
+                    }}
+                    disabled={loading}
+                    error={passwordMismatch || Boolean(confirmPasswordError)}
+                    helperText={confirmPasswordError ?? (passwordMismatch ? "Пароль должен совпадать" : " ")}
+                    slotProps={{
+                      input: {
+                        endAdornment: (
+                          <PasswordVisibilityButton
+                            visible={confirmPasswordVisible}
+                            onToggle={() => setConfirmPasswordVisible((current) => !current)}
+                          />
+                        ),
+                      },
+                      htmlInput: { maxLength: 120, tabIndex: showConfirmPassword ? 0 : -1 },
+                      formHelperText: { sx: { mt: 0.5, minHeight: 18 } },
+                    }}
+                  />
+                </Box>
               </Stack>
             </Stack>
 
             <Box
               aria-hidden
-              sx={{
-                display: { xs: "none", md: "flex" },
+              sx={(theme) => ({
+                display: { xs: "none", tablet: "flex" },
                 flexDirection: "column",
                 justifyContent: "center",
                 alignItems: "center",
                 height: "100%",
-              }}
+                [theme.media.phoneLandscape]: { display: "none" },
+              })}
             >
               <Box sx={{ width: "1px", bgcolor: "primary.main", flex: 1, borderRadius: 1, opacity: 0.3 }} />
               <LogoIcon size={70} priority />
@@ -689,7 +721,7 @@ function SignUpPageContent() {
 
             <Stack spacing={2.5} sx={{ width: "100%", minWidth: 0, wordBreak: "break-word" }}>
               {accountKind === "CUSTOMER" ? (
-              <Box sx={{ display: "flex", justifyContent: "center", transform: { xs: "translateY(-0.5rem)", md: "translateY(0)" } }}>
+              <Box sx={(theme) => ({ display: "flex", justifyContent: "center", transform: { xs: "translateY(-0.5rem)", tablet: "translateY(0)" }, [theme.media.phoneLandscape]: { transform: "translateY(-0.5rem)" } })}>
                 <LocationField
                   label="Город"
                   emptyLabel="Выберите город"
@@ -789,17 +821,11 @@ function SignUpPageContent() {
                 fullWidth
                 color="secondary"
                 type="submit"
-                disabled={loading || !versionsReady}
+                loading={loading}
+                disabled={!versionsReady}
                 sx={{ minHeight: 44 }}
               >
-                {loading ? (
-                  <>
-                    <CircularProgress size={18} color="inherit" sx={{ mr: 1 }} />
-                    Создаём…
-                  </>
-                ) : (
-                  "Создать аккаунт"
-                )}
+                Создать аккаунт
               </Button>
               {!versionsReady && !versionsError ? (
                 <Typography variant="body2" sx={{ textAlign: "center" }}>
@@ -810,15 +836,19 @@ function SignUpPageContent() {
 
             <Typography
               variant="body2"
-              sx={{
+              sx={(theme) => ({
                 opacity: 0.9,
-                gridColumn: { xs: "1", md: "1 / -1" },
+                gridColumn: { xs: "1", tablet: "1 / -1" },
                 textAlign: "center",
-                mt: { xs: 0, md: 2.5 },
+                mt: { xs: 0, tablet: 2.5 },
                 fontWeight: 300,
                 fontSize: 12,
                 color: "text.secondary",
-              }}
+                [theme.media.phoneLandscape]: {
+                  gridColumn: "1",
+                  mt: 0,
+                },
+              })}
             >
               Уже есть аккаунт?{" "}
               <Link href={signInHref} style={{ color: "inherit", fontWeight: 700, fontSize: 14 }}>

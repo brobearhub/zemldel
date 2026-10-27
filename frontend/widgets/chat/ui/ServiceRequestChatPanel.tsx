@@ -44,9 +44,18 @@ type Props = {
   conversationId?: string;
   title?: string;
   subtitle?: string;
+  inputPlaceholder?: string;
+  autoFocusInput?: boolean;
 };
 
-export function ServiceRequestChatPanel({ serviceRequestId, conversationId: forcedConversationId, title = "Чат", subtitle }: Props) {
+export function ServiceRequestChatPanel({
+  serviceRequestId,
+  conversationId: forcedConversationId,
+  title = "Чат",
+  subtitle,
+  inputPlaceholder,
+  autoFocusInput,
+}: Props) {
   const { data: session } = useSession();
   const currentUserId = session?.user?.id ?? "";
 
@@ -549,6 +558,8 @@ export function ServiceRequestChatPanel({ serviceRequestId, conversationId: forc
             sending={sending}
             loading={loading}
             readOnly={!canWrite}
+            inputPlaceholder={inputPlaceholder}
+            autoFocusInput={autoFocusInput}
           />
         )}
       </Box>

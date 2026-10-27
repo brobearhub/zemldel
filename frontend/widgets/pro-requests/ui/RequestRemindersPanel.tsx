@@ -206,7 +206,8 @@ export function RequestRemindersPanel({ requestId }: Props) {
           <Button
             variant="outlined"
             size="small"
-            disabled={!text.trim() || !remindAt || !remindAt.isValid() || adding}
+            loading={adding}
+            disabled={!text.trim() || !remindAt || !remindAt.isValid()}
             onClick={() => void handleAdd()}
             sx={{ height: 40 }}
           >

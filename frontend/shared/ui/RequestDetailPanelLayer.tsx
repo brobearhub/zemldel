@@ -26,8 +26,8 @@ export function RequestDetailPanelLayer({ open, title, icon, onClose, children, 
   }, [open, onClose]);
 
   return (
-    <Box sx={{ display: "grid", borderRadius: 1 }}>
-      <Box sx={{ gridArea: "1 / 1", visibility: open ? "hidden" : "visible" }} aria-hidden={open}>
+    <Box sx={{ display: "grid", borderRadius: 1, minWidth: 0, width: "100%" }}>
+      <Box sx={{ gridArea: "1 / 1", minWidth: 0, visibility: open ? "hidden" : "visible" }} aria-hidden={open}>
         {children}
       </Box>
       {open ? (
@@ -38,6 +38,8 @@ export function RequestDetailPanelLayer({ open, title, icon, onClose, children, 
           aria-label={title}
           sx={(theme) => ({
             gridArea: "1 / 1",
+            minWidth: 0,
+            maxWidth: "100%",
             zIndex: 2,
             display: "flex",
             flexDirection: "column",
@@ -49,7 +51,7 @@ export function RequestDetailPanelLayer({ open, title, icon, onClose, children, 
             boxShadow: "none",
           })}
         >
-          <Stack spacing={2.5} sx={{ flex: 1, minHeight: "100%" }}>
+          <Stack spacing={2.5} sx={{ flex: 1, minHeight: "100%", minWidth: 0 }}>
             <Stack
               direction="row"
               spacing={2}
@@ -77,7 +79,7 @@ export function RequestDetailPanelLayer({ open, title, icon, onClose, children, 
               </IconButton>
             </Stack>
 
-            <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>{panel}</Box>
+            <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>{panel}</Box>
           </Stack>
         </Paper>
       ) : null}

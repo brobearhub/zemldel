@@ -20,7 +20,7 @@ import { ColorModeToggle } from "@/core/theme/ColorModeToggle";
 import { useColorMode } from "@/core/theme/ColorModeContext";
 import { useMemo } from "react";
 
-const BREAKPOINT_KEYS = ["xs", "sm", "md", "lg", "xl", "xxl"] as const;
+const BREAKPOINT_KEYS = ["xs", "sm", "tablet", "md", "lg", "xl", "xxl"] as const;
 type BreakpointKey = (typeof BREAKPOINT_KEYS)[number];
 
 type SwatchProps = {
@@ -163,6 +163,7 @@ const ThemePaletteBlock = ({ mode }: { mode: "light" | "dark" }) => {
 function getActiveBreakpointKey(args: {
   readonly isXs: boolean;
   readonly isSm: boolean;
+  readonly isTablet: boolean;
   readonly isMd: boolean;
   readonly isLg: boolean;
   readonly isXl: boolean;
@@ -172,6 +173,7 @@ function getActiveBreakpointKey(args: {
   if (args.isXl) return "xl";
   if (args.isLg) return "lg";
   if (args.isMd) return "md";
+  if (args.isTablet) return "tablet";
   if (args.isSm) return "sm";
   if (args.isXs) return "xs";
   return "unknown";
@@ -182,6 +184,7 @@ export default function ThemesPage() {
   const { mode } = useColorMode();
   const isXs = useMediaQuery(theme.breakpoints.only("xs"));
   const isSm = useMediaQuery(theme.breakpoints.only("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.only("tablet"));
   const isMd = useMediaQuery(theme.breakpoints.only("md"));
   const isLg = useMediaQuery(theme.breakpoints.only("lg"));
   const isXl = useMediaQuery(theme.breakpoints.only("xl"));
@@ -190,6 +193,7 @@ export default function ThemesPage() {
   const activeBreakpointKey = getActiveBreakpointKey({
     isXs,
     isSm,
+    isTablet,
     isMd,
     isLg,
     isXl,
@@ -197,7 +201,13 @@ export default function ThemesPage() {
   });
 
   return (
-    <Box sx={{ minHeight: "100vh", py: { xs: 4, md: 6 } }}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        "@supports (height: 100dvh)": { minHeight: "100dvh" },
+        py: { xs: 4, md: 6 },
+      }}
+    >
       <Container>
         <Stack spacing={3}>
           <Stack

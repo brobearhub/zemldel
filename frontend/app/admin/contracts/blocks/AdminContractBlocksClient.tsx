@@ -26,6 +26,7 @@ export function AdminContractBlocksClient({ initialBlocks }: { initialBlocks: Co
   const [description, setDescription] = useState(selected?.description ?? "");
   const [content, setContent] = useState<ContractEditorContent>(() => normalizeContractEditorContent(selected?.content));
   const [busy, setBusy] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"save" | ContractBlockRow["status"] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -54,6 +55,7 @@ export function AdminContractBlocksClient({ initialBlocks }: { initialBlocks: Co
 
   async function save() {
     setBusy(true);
+    setPendingAction("save");
     setError(null);
     setNotice(null);
     try {
@@ -72,12 +74,14 @@ export function AdminContractBlocksClient({ initialBlocks }: { initialBlocks: Co
       setError(error instanceof Error ? error.message : "Не удалось сохранить блок");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
   async function setStatus(status: ContractBlockRow["status"]) {
     if (!selected) return;
     setBusy(true);
+    setPendingAction(status);
     setError(null);
     setNotice(null);
     try {
@@ -94,6 +98,7 @@ export function AdminContractBlocksClient({ initialBlocks }: { initialBlocks: Co
       setError(error instanceof Error ? error.message : "Не удалось обновить статус");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -138,9 +143,9 @@ export function AdminContractBlocksClient({ initialBlocks }: { initialBlocks: Co
             <Stack direction="row" spacing={1} useFlexGap sx={{
               flexWrap: "wrap"
             }}>
-              <Button variant="contained" disabled={busy || title.trim().length < 2} onClick={() => void save()}>Сохранить</Button>
-              {selected ? <Button variant="outlined" disabled={busy} onClick={() => void setStatus("PUBLISHED")}>Опубликовать</Button> : null}
-              {selected ? <Button variant="outlined" disabled={busy} onClick={() => void setStatus("ARCHIVED")}>В архив</Button> : null}
+              <Button variant="contained" loading={pendingAction === "save"} disabled={busy || title.trim().length < 2} onClick={() => void save()}>Сохранить</Button>
+              {selected ? <Button variant="outlined" loading={pendingAction === "PUBLISHED"} disabled={busy} onClick={() => void setStatus("PUBLISHED")}>Опубликовать</Button> : null}
+              {selected ? <Button variant="outlined" loading={pendingAction === "ARCHIVED"} disabled={busy} onClick={() => void setStatus("ARCHIVED")}>В архив</Button> : null}
             </Stack>
           </Stack>
         </Paper>

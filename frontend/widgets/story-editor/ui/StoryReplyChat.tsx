@@ -119,7 +119,7 @@ export function StoryReplyChat({
             }
           }}
         />
-        <Button variant="contained" disabled={sending || !draft.trim()} onClick={send}>
+        <Button variant="contained" loading={sending} disabled={!draft.trim()} onClick={send}>
           Отправить
         </Button>
       </Stack>

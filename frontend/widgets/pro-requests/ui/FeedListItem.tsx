@@ -10,9 +10,11 @@ type Props = {
   title: string;
   meta?: string;
   preview?: ReactNode;
+  caption?: string | null;
+  serviceHref?: string | null;
 };
 
-export function FeedListItem({ href, disabled, isLast, title, meta, preview }: Props) {
+export function FeedListItem({ href, disabled, isLast, title, meta, preview, caption, serviceHref }: Props) {
   const isClickable = Boolean(href) && !disabled;
 
   return (
@@ -23,6 +25,7 @@ export function FeedListItem({ href, disabled, isLast, title, meta, preview }: P
         borderBottomColor: "divider",
       }}
     >
+      <Stack direction="row" sx={{ width: "100%", minWidth: 0, alignItems: "stretch" }}>
       <ListItemButton
         component={isClickable ? Link : "div"}
         href={isClickable ? href : undefined}
@@ -32,6 +35,8 @@ export function FeedListItem({ href, disabled, isLast, title, meta, preview }: P
           py: 1.25,
           minHeight: FEED_ROW_MIN_HEIGHT,
           alignItems: "stretch",
+          flex: 1,
+          minWidth: 0,
         }}
       >
         <Stack spacing={0.5} sx={{ width: "100%", minWidth: 0 }}>
@@ -56,6 +61,12 @@ export function FeedListItem({ href, disabled, isLast, title, meta, preview }: P
             ) : null}
           </Stack>
 
+          {caption ? (
+            <Typography variant="caption" sx={{ color: "text.secondary", overflowWrap: "anywhere" }}>
+              {caption}
+            </Typography>
+          ) : null}
+
           {preview ? (
             <Typography
               variant="body2"
@@ -74,6 +85,14 @@ export function FeedListItem({ href, disabled, isLast, title, meta, preview }: P
           )}
         </Stack>
       </ListItemButton>
+      {serviceHref ? (
+        <Box sx={{ display: "flex", alignItems: "center", pr: 1.5, flexShrink: 0 }}>
+          <Link href={serviceHref} sx={{ fontWeight: 700, fontSize: 13 }}>
+            Услуга
+          </Link>
+        </Box>
+      ) : null}
+      </Stack>
     </ListItem>
   );
 }

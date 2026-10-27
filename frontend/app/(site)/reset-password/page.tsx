@@ -117,8 +117,8 @@ function ResetPasswordForm() {
                 error={Boolean(confirmError)}
                 helperText={confirmError ?? " "}
               />
-              <Button type="submit" variant="contained" size="large" fullWidth disabled={loading} sx={{ minHeight: 44 }}>
-                {loading ? "Сохраняем…" : "Сохранить пароль"}
+              <Button type="submit" variant="contained" size="large" fullWidth loading={loading} sx={{ minHeight: 44 }}>
+                Сохранить пароль
               </Button>
             </Stack>
           </Box>

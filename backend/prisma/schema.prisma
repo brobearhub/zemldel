@@ -593,6 +593,8 @@ model Request {
   acceptedAt               DateTime?
   acceptedByUserId         String?   @db.Uuid
   totalAmountRubles        Int?
+  /// Снимок цены услуги в рублях на момент создания заявки. Правка услуги его не меняет.
+  servicePriceRubles       Int?
 
   service           Service?               @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   category          ServiceCategory?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -738,6 +740,11 @@ model RequestPayment {
 enum RequestPaymentType {
   CONTRACT
   OTHER
+}
+
+enum MessageKind {
+  USER
+  SYSTEM
 }
 
 model RequestEvent {
@@ -1080,6 +1087,7 @@ model Message {
   senderUserId     String       @db.Uuid
   clientMessageId  String       @db.Uuid
   body             String
+  kind             MessageKind  @default(USER)
   replyToMessageId String?      @db.Uuid
   createdAt        DateTime     @default(now())
   conversation     Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)

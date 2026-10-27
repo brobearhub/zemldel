@@ -55,22 +55,26 @@ async function seedRegionalCapitals() {
       existing.map((row) => row.cityId),
     );
 
-    await prisma.$transaction(async (tx) => {
-      if (toInsert.length > 0) {
-        await tx.regionalCapital.createMany({
-          data: toInsert.map((cityId) => ({ cityId })),
+    await prisma.$transaction(
+      async (tx) => {
+        if (toInsert.length > 0) {
+          await tx.regionalCapital.createMany({
+            data: toInsert.map((cityId) => ({ cityId })),
+          });
+        }
+        await tx.regionalCapital.updateMany({
+          data: { featured: false, sortOrder: 0 },
         });
-      }
-      await tx.regionalCapital.updateMany({
-        data: { featured: false, sortOrder: 0 },
-      });
-      for (const item of featured) {
-        await tx.regionalCapital.update({
-          where: { cityId: item.cityId },
-          data: { featured: true, sortOrder: item.sortOrder },
-        });
-      }
-    });
+        for (const item of featured) {
+          await tx.regionalCapital.update({
+            where: { cityId: item.cityId },
+            data: { featured: true, sortOrder: item.sortOrder },
+          });
+        }
+      },
+      // По умолчанию 5 с; к удалённой базе цикл update не успевает.
+      { timeout: 60_000 },
+    );
 
     const unresolved = missingRegionalCapitals(rows);
 

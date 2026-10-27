@@ -74,6 +74,7 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
   const [templates, setTemplates] = useState(initialTemplates);
   const [instances, setInstances] = useState(initialInstances);
   const [busy, setBusy] = useState(false);
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const confirm = useConfirm();
@@ -123,8 +124,18 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
     }
   }
 
+  async function refreshFromButton() {
+    setPendingAction("refresh");
+    try {
+      await refresh();
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
   async function forkTemplate(id: string) {
     setBusy(true);
+    setPendingAction(`fork:${id}`);
     setError(null);
     setNotice(null);
     try {
@@ -137,6 +148,7 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
       setError(e instanceof Error ? e.message : "Не удалось отпочковать шаблон");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -150,6 +162,7 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
     if (!ok) return;
 
     setBusy(true);
+    setPendingAction(`delete:${template.id}`);
     setError(null);
     setNotice(null);
     try {
@@ -162,12 +175,14 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
       setError(e instanceof Error ? e.message : "Не удалось удалить шаблон");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
   async function createInstance(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
+    setPendingAction("create");
     setError(null);
     setNotice(null);
     try {
@@ -188,11 +203,13 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
       setError(e instanceof Error ? e.message : "Не удалось создать договор");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
   async function sendToCustomer(id: string) {
     setBusy(true);
+    setPendingAction(`send:${id}`);
     setError(null);
     setNotice(null);
     try {
@@ -205,6 +222,7 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
       setError(e instanceof Error ? e.message : "Не удалось отправить");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -236,7 +254,7 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
             <Button component={Link} href="/pro/documents/contracts/requisites" variant="outlined" disabled={busy}>
               Реквизиты
             </Button>
-            <Button variant="outlined" onClick={() => void refresh()} disabled={busy}>
+            <Button variant="outlined" onClick={() => void refreshFromButton()} loading={pendingAction === "refresh"} disabled={busy}>
               Обновить
             </Button>
           </Stack>
@@ -259,10 +277,10 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
                     <Button component={Link} href={`/pro/documents/contracts/templates/${t.id}/edit`} size="small" variant="outlined" disabled={busy}>
                       Редактировать
                     </Button>
-                    <Button size="small" variant="contained" disabled={busy} onClick={() => void forkTemplate(t.id)}>
+                    <Button size="small" variant="contained" loading={pendingAction === `fork:${t.id}`} disabled={busy} onClick={() => void forkTemplate(t.id)}>
                       Отпочковать
                     </Button>
-                    <Button size="small" variant="outlined" color="error" disabled={busy} onClick={() => void deleteTemplate(t)}>
+                    <Button size="small" variant="outlined" color="error" loading={pendingAction === `delete:${t.id}`} disabled={busy} onClick={() => void deleteTemplate(t)}>
                       Удалить
                     </Button>
                   </Stack>
@@ -326,7 +344,7 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
                     required
                   />
                 )}
-                <Button type="submit" variant="contained" disabled={busy || templatesSorted.length === 0}>
+                <Button type="submit" variant="contained" loading={pendingAction === "create"} disabled={busy || templatesSorted.length === 0}>
                   Создать
                 </Button>
               </Stack>
@@ -359,6 +377,7 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
                           <Button
                             size="small"
                             variant="contained"
+                            loading={pendingAction === `send:${c.id}`}
                             disabled={busy || c.status !== "DRAFT"}
                             onClick={() => void sendToCustomer(c.id)}
                           >

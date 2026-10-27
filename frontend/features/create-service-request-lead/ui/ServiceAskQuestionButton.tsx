@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Alert, Button, CircularProgress, Stack, TextField } from "@mui/material";
+import { Alert, Button, Stack, TextField } from "@mui/material";
 import {
   collectCadastralNumbersFromParts,
   createEmptyCadastralParts,
@@ -50,8 +50,7 @@ export function ServiceAskQuestionButton({ serviceId }: Props) {
       <Button
         type="button"
         variant="contained"
-        disabled={form.busy}
-        startIcon={form.busy ? <CircularProgress size={18} color="inherit" /> : null}
+        loading={form.busy}
         onClick={() => {
           const cadastral = collectCadastralNumbersFromParts(cadastralNumbers);
           if (cadastral.partialError) {

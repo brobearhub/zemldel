@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   Alert,
   Button,
-  CircularProgress,
   FormControlLabel,
   Radio,
   RadioGroup,
@@ -293,8 +292,8 @@ export function PublicUnlinkedRequestForm({
           type="submit"
           variant="contained"
           fullWidth
-          disabled={busy || isBlocked}
-          startIcon={busy ? <CircularProgress size={18} color="inherit" /> : null}
+          loading={busy}
+          disabled={isBlocked}
           sx={{
             fontWeight: 500,
             fontSize: 13,

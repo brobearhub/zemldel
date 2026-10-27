@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Box, Container, Paper, Stack, Typography } from "@mui/material";
 import { BackendApiError, fetchBackendJson } from "@/shared/api/backend/server";
-import { SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
+import { SITE_HEADER_HEIGHT_PX } from "@/shared/config/site-layout";
 import { getServerAuthSession } from "@/core/auth";
 import type { ServiceDto } from "@/entities/service";
 import { ResponsiveLabel } from "@/shared/ui/ResponsiveLabel";
 import { PublicUnlinkedRequestForm } from "@/widgets/public-service/ui/PublicUnlinkedRequestForm";
 import { ServiceCategoriesStickyBar } from "@/widgets/service-categories/ui/ServiceCategoriesStickyBar";
+import { SERVICE_CATEGORIES_BAR_HEIGHT_VAR } from "@/widgets/service-categories/ui/service-categories-bar-height";
 import { ServicesByCity } from "@/widgets/services/ui/ServicesByCity";
 
 type ServiceCategoryRow = {
@@ -113,17 +114,17 @@ export default async function ServiceCategoryPage({ params }: Props) {
       >
         <Container maxWidth="xl">
           <Stack spacing={3}>
-            {isRoot ? (
-              <ServiceCategoriesStickyBar items={templateBarItems} />
-            ) : category.parentId ? (
-              <ServiceCategoriesStickyBar items={templateSelfBarItems} activeId={category.id} />
-            ) : null}
-
             <Box>
               <Typography component="h1" variant="h4" sx={{ fontWeight: 900 }} color="primary">
                 <ResponsiveLabel text={category.name} compactText={category.shortName} />
               </Typography>
             </Box>
+
+            {isRoot ? (
+              <ServiceCategoriesStickyBar items={templateBarItems} />
+            ) : category.parentId ? (
+              <ServiceCategoriesStickyBar items={templateSelfBarItems} activeId={category.id} />
+            ) : null}
 
             <Box
               sx={{
@@ -153,7 +154,9 @@ export default async function ServiceCategoryPage({ params }: Props) {
                   order: { xs: 1, md: 1 },
                   alignSelf: "start",
                   position: { md: "sticky" },
-                  top: { md: SITE_STICKY_TOP_PX },
+                  top: {
+                    md: `calc(${SITE_HEADER_HEIGHT_PX.sm}px + var(${SERVICE_CATEGORIES_BAR_HEIGHT_VAR}, 0px))`,
+                  },
                 }}
               >
                 <Paper variant="outlined" sx={{ p: 3 }}>

@@ -74,6 +74,8 @@ export function RegionalCapitalsAdminClient({ initialCities }: Props) {
   const [value, setValue] = useState<CitySuggestItemDto | null>(null);
   const [pickerKey, setPickerKey] = useState(0);
   const [busy, setBusy] = useState(false);
+  // Why: busy общий для всех строк — спиннер только на нажатой кнопке.
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const featuredCount = cities.filter((city) => city.featured).length;
 
@@ -106,6 +108,7 @@ export function RegionalCapitalsAdminClient({ initialCities }: Props) {
 
   async function removeCity(cityId: string) {
     setBusy(true);
+    setPendingAction(`${cityId}:delete`);
     setError(null);
     try {
       const res = await fetch(`/api/admin/regional-capitals/${encodeURIComponent(cityId)}`, {
@@ -120,6 +123,7 @@ export function RegionalCapitalsAdminClient({ initialCities }: Props) {
       setError(cause instanceof Error ? cause.message : "Не удалось удалить город");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -150,6 +154,7 @@ export function RegionalCapitalsAdminClient({ initialCities }: Props) {
     const previous = cities;
     setCities(withMove(cities, cityId, direction));
     setBusy(true);
+    setPendingAction(`${cityId}:${direction}`);
     setError(null);
     try {
       const res = await fetch(`/api/admin/regional-capitals/${encodeURIComponent(cityId)}/move`, {
@@ -166,6 +171,7 @@ export function RegionalCapitalsAdminClient({ initialCities }: Props) {
       setError(cause instanceof Error ? cause.message : "Не удалось изменить порядок");
     } finally {
       setBusy(false);
+      setPendingAction(null);
     }
   }
 
@@ -193,7 +199,8 @@ export function RegionalCapitalsAdminClient({ initialCities }: Props) {
                         <>
                           <IconButton
                             aria-label={`Поднять ${label}`}
-                            disabled={busy || featuredIndex === 0}
+                            loading={pendingAction === `${city.id}:up`}
+                            disabled={(busy && pendingAction !== `${city.id}:up`) || featuredIndex === 0}
                             onClick={() => {
                               void moveCity(city.id, "up");
                             }}
@@ -202,7 +209,8 @@ export function RegionalCapitalsAdminClient({ initialCities }: Props) {
                           </IconButton>
                           <IconButton
                             aria-label={`Опустить ${label}`}
-                            disabled={busy || featuredIndex === featuredCount - 1}
+                            loading={pendingAction === `${city.id}:down`}
+                            disabled={(busy && pendingAction !== `${city.id}:down`) || featuredIndex === featuredCount - 1}
                             onClick={() => {
                               void moveCity(city.id, "down");
                             }}
@@ -214,7 +222,8 @@ export function RegionalCapitalsAdminClient({ initialCities }: Props) {
                       <IconButton
                         edge="end"
                         aria-label={`Удалить ${label}`}
-                        disabled={busy}
+                        loading={pendingAction === `${city.id}:delete`}
+                        disabled={busy && pendingAction !== `${city.id}:delete`}
                         onClick={() => {
                           void removeCity(city.id);
                         }}

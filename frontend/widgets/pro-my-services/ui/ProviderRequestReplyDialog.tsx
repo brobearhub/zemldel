@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Alert, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, TextField, Typography } from "@mui/material";
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField, Typography } from "@mui/material";
 import type { RequestProDto } from "@/entities/request";
 import { replyToRequestCustomer } from "../lib/reply-to-customer";
 
@@ -79,8 +79,8 @@ export function ProviderRequestReplyDialog({ item, onClose, onSendingChange, onS
         <Button disabled={sending} onClick={onClose}>
           Отмена
         </Button>
-        <Button variant="contained" disabled={sending || !draft.trim()} onClick={() => void send()}>
-          {sending ? <CircularProgress size={18} color="inherit" aria-label="Отправка ответа" /> : "Отправить"}
+        <Button variant="contained" loading={sending} disabled={!draft.trim()} onClick={() => void send()}>
+          Отправить
         </Button>
       </DialogActions>
     </Dialog>

@@ -62,7 +62,7 @@ export function OrderPassportPanel({ orderId }: { orderId: string }) {
           setOpen(true);
           void load();
         }}
-        disabled={busy}
+        loading={busy}
       >
         Паспорт клиента
       </Button>

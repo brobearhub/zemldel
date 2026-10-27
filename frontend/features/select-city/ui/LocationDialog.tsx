@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import {
   Alert,
@@ -31,6 +32,12 @@ type Props = {
 export function LocationDialog({ open, title, value, busy, error, onClose, onSelect, onReset }: Props) {
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down("sm"), { noSsr: true });
+  const [resetClicked, setResetClicked] = useState(false);
+  const resetPending = Boolean(busy) && resetClicked;
+
+  useEffect(() => {
+    if (!busy) setResetClicked(false);
+  }, [busy, resetClicked]);
 
   return (
     <Dialog
@@ -79,10 +86,14 @@ export function LocationDialog({ open, title, value, busy, error, onClose, onSel
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2, pt: 2, flexShrink: 0, bgcolor: "background.default", borderTop: "1px dashed", borderColor: "grey.300" }}>
         <Box sx={{ flex: 1, display: "flex", justifyContent: "center" }}>
-          {busy ? <CircularProgress size={22} /> : null}
+          {busy && !resetPending ? <CircularProgress size={22} /> : null}
         </Box>
         <Button
-          onClick={onReset}
+          onClick={() => {
+            setResetClicked(true);
+            onReset();
+          }}
+          loading={resetPending}
           disabled={busy || !value}
           sx={{ color: "warning.light", fontWeight: 800, textTransform: "none" }}
         >

@@ -11,6 +11,7 @@ export type ChatMessageDto = {
   senderUserId: string;
   senderName: string | null;
   body: string;
+  kind?: "USER" | "SYSTEM";
   clientMessageId: string;
   createdAt: string;
   repliedTo?: ChatMessageRepliedToDto;

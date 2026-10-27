@@ -15,6 +15,17 @@ export class AuthCityDto {
   regionName!: string;
 }
 
+export class AuthPersonDto {
+  @ApiProperty()
+  lastName!: string;
+
+  @ApiProperty()
+  firstName!: string;
+
+  @ApiProperty({ nullable: true, type: String })
+  middleName!: string | null;
+}
+
 export class AuthMembershipDto {
   @ApiProperty({ format: 'uuid' })
   providerId!: string;
@@ -30,6 +41,12 @@ export class AuthMembershipDto {
 
   @ApiProperty({ type: AuthCityDto, nullable: true })
   providerCity!: AuthCityDto | null;
+
+  @ApiProperty({ nullable: true, type: String })
+  providerImage!: string | null;
+
+  @ApiProperty({ type: () => AuthPersonDto, nullable: true })
+  providerPerson!: AuthPersonDto | null;
 
   @ApiProperty({ enum: ['OWNER', 'MANAGER'] })
   role!: 'OWNER' | 'MANAGER';
@@ -47,6 +64,9 @@ export class AuthorizedUserDto {
 
   @ApiProperty({ nullable: true, example: null })
   name!: string | null;
+
+  @ApiProperty({ type: () => AuthPersonDto, nullable: true })
+  person!: AuthPersonDto | null;
 
   @ApiProperty({ nullable: true, example: null })
   image!: string | null;

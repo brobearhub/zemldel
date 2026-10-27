@@ -34,7 +34,7 @@ export async function postServiceRequestLead(input: PostLeadInput): Promise<void
 
 type CreateServiceRequestInput = {
   serviceId: string;
-  message: string;
+  message: string | null;
   cadastralNumbers: string[];
 };
 

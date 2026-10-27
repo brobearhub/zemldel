@@ -1,0 +1,39 @@
+---
+description: Кнопки с запросом на backend — спиннер вместо текста (MUI Button loading)
+globs: frontend/**/*.tsx
+alwaysApply: false
+---
+
+# Кнопки асинхронного действия
+
+## Когда применять
+
+Любая кнопка (в т.ч. `type="submit"`), по нажатию которой уходит запрос: BFF `/api/...`, RTK Query mutation, `signIn`, и т.п.
+
+## Как рендерить
+
+- `@mui/material/Button` с пропом **`loading={pending}`** (MUI 9+).
+- По умолчанию **`loadingPosition="center"`**: подпись скрывается (прозрачный текст), в центре — `CircularProgress`.
+- **Запрещено**: менять текст на «Отправляем…» / «Создаём…»; вручную вкладывать `CircularProgress` рядом с текстом; только `disabled={pending}` без `loading`.
+
+## Блокировка UI
+
+- Кнопка: `loading` сам отключает кнопку — не дублировать `disabled={pending}` только ради блокировки клика.
+- Отдельный `disabled` на кнопке — только для других причин (документы не загружены, форма невалидна).
+- Поля формы и вторичные контролы на время запроса — `disabled={pending}`.
+
+## Состояние pending
+
+- Локальная форма: `useState`, `true` перед первым `await`, `false` в `finally` (если остаёмся на экране).
+- RTK Query: `isPending` / `isLoading` мутации.
+- Цепочка запросов (регистрация → вход): один `pending` до навигации или явного завершения.
+
+## Пример
+
+```tsx
+<Button type="submit" variant="contained" loading={loading} disabled={!versionsReady}>
+  Создать аккаунт
+</Button>
+```
+
+Эталон: `frontend/app/(site)/signup/page.tsx`.

@@ -76,6 +76,7 @@ export function ProServicesListClient({ initialServices }: Props) {
   const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
   const [moreServiceId, setMoreServiceId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<"status" | "delete" | null>(null);
   const [filter, setFilter] = useState<StatusFilter>("ALL");
   const [search, setSearch] = useState("");
 
@@ -133,6 +134,7 @@ export function ProServicesListClient({ initialServices }: Props) {
 
   async function patchStatus(id: string, status: ServiceStatus) {
     setBusyId(id);
+    setBusyAction("status");
     setError(null);
 
     try {
@@ -166,6 +168,7 @@ export function ProServicesListClient({ initialServices }: Props) {
       setError(statusError instanceof Error ? statusError.message : "Не удалось обновить статус услуги");
     } finally {
       setBusyId(null);
+      setBusyAction(null);
     }
   }
 
@@ -179,6 +182,7 @@ export function ProServicesListClient({ initialServices }: Props) {
     if (!ok) return;
 
     setBusyId(service.id);
+    setBusyAction("delete");
     setError(null);
 
     try {
@@ -201,6 +205,7 @@ export function ProServicesListClient({ initialServices }: Props) {
       setError(deleteError instanceof Error ? deleteError.message : "Не удалось удалить услугу");
     } finally {
       setBusyId(null);
+      setBusyAction(null);
     }
   }
 
@@ -418,6 +423,7 @@ export function ProServicesListClient({ initialServices }: Props) {
                       variant="outlined"
                       color="error"
                       size="small"
+                      loading={busyId === service.id && busyAction === "delete"}
                       disabled={busyId === service.id}
                       onClick={() => deleteService(service)}
                     >

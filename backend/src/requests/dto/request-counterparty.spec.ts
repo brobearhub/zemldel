@@ -198,19 +198,22 @@ describe('request finance mapping', () => {
     createdAt: NOW,
   };
 
-  it('скрывает журнал до lock у заказчика и исполнителя', () => {
+  it('отдаёт цену и журнал до lock заказчику и исполнителю, который видит заявку', () => {
     const row = makeRow({
       totalAmountRubles: 25000,
+      servicePriceRubles: 12000,
       payments: [payment],
     });
     const customer = requestRowToCustomerDtoPlain(row);
     const provider = requestRowToProDtoPlain(row, 0, PROVIDER_ID);
-    expect(customer.totalAmountRubles).toBeNull();
-    expect(customer.paidAmountRubles).toBe(0);
-    expect(customer.remainingAmountRubles).toBeNull();
-    expect(customer.payments).toEqual([]);
-    expect(provider.totalAmountRubles).toBeNull();
-    expect(provider.payments).toEqual([]);
+    expect(customer.totalAmountRubles).toBe(25000);
+    expect(customer.servicePriceRubles).toBe(12000);
+    expect(customer.paidAmountRubles).toBe(5000);
+    expect(customer.remainingAmountRubles).toBe(20000);
+    expect(customer.payments[0]?.createdBySide).toBeNull();
+    expect(provider.totalAmountRubles).toBe(25000);
+    expect(provider.servicePriceRubles).toBe(12000);
+    expect(provider.payments).toHaveLength(1);
   });
 
   it('отдаёт журнал после lock эксклюзивному исполнителю и заказчику', () => {
@@ -233,6 +236,7 @@ describe('request finance mapping', () => {
         comment: 'Аванс',
         paidAt: NOW.toISOString(),
         createdAt: NOW.toISOString(),
+        createdBySide: null,
       },
     ]);
     expect(provider.remainingAmountRubles).toBe(20000);

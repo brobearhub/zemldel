@@ -1,5 +1,5 @@
 import type { RequestProDto } from "@/entities/request";
-import { getRequestStatusLabel } from "@/entities/request";
+import { resolveRequestPriceView } from "@/entities/request";
 import { formatServiceRequestDate, getServiceRequestTitle } from "@/widgets/pro-requests/lib/serviceRequestView";
 import { FeedList } from "@/widgets/pro-requests/ui/FeedList";
 import { FeedListItem } from "@/widgets/pro-requests/ui/FeedListItem";
@@ -31,12 +31,18 @@ export function ServiceRequestList({ items, minRows = 6, allowLockedClick }: Pro
               : item.isLocked
                 ? "Клиент уже работает с другой компанией."
                 : "";
+        const price = resolveRequestPriceView({
+          totalAmountRubles: item.totalAmountRubles,
+          servicePriceRubles: item.servicePriceRubles,
+        });
         return (
           <FeedListItem
             href={href}
             disabled={disabled}
             isLast={isLast}
             title={getServiceRequestTitle(item)}
+            caption={price.headline}
+            serviceHref={item.serviceId && !item.isLocked ? `/services/${item.serviceId}` : null}
             meta={meta}
             preview={preview || undefined}
           />

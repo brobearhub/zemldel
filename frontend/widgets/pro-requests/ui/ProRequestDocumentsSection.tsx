@@ -64,6 +64,16 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
   const [bundleDialogOpen, setBundleDialogOpen] = useState(false);
   const [bundleDocument, setBundleDocument] = useState<File | null>(null);
   const [bundleSignature, setBundleSignature] = useState<File | null>(null);
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
+
+  async function runPending(action: string, fn: () => Promise<void> | void) {
+    setPendingAction(action);
+    try {
+      await fn();
+    } finally {
+      setPendingAction(null);
+    }
+  }
 
   const hasPendingContractFiles = useMemo(
     () => props.contractBundles.some((b) => b.status === "PENDING_CUSTOMER"),
@@ -134,7 +144,7 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
                       </Button>
                     ) : null}
                     {canCancel ? (
-                      <Button color="error" variant="text" disabled={props.isBusy} onClick={() => void props.onCancelDocRequest(d.id)}>
+                      <Button color="error" variant="text" loading={pendingAction === `cancel-doc:${d.id}`} disabled={props.isBusy} onClick={() => void runPending(`cancel-doc:${d.id}`, () => props.onCancelDocRequest(d.id))}>
                         Отмена
                       </Button>
                     ) : null}
@@ -248,7 +258,7 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
                       </Typography>
                     )}
                     {!isOrderExecutionStatus(props.requestStatus) ? (
-                      <Button color="error" variant="text" disabled={props.isBusy} onClick={() => void props.onDeleteContractBundle(bundle.bundleId)}>
+                      <Button color="error" variant="text" loading={pendingAction === `delete-bundle:${bundle.bundleId}`} disabled={props.isBusy} onClick={() => void runPending(`delete-bundle:${bundle.bundleId}`, () => props.onDeleteContractBundle(bundle.bundleId))}>
                         Удалить пакет
                       </Button>
                     ) : null}
@@ -271,14 +281,14 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
             variant="text"
             color="warning"
             disabled={props.isBusy}
-            startIcon={props.uploadBusy ? <CircularProgress size={16} color="inherit" /> : <AddIcon />}
+            startIcon={<AddIcon />}
             onClick={() => {
               setBundleDocument(null);
               setBundleSignature(null);
               setBundleDialogOpen(true);
             }}
           >
-            {props.uploadBusy ? "Загрузка…" : "Загрузить договор"}
+            Загрузить договор
           </Button>
         </Stack>
 
@@ -302,7 +312,7 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
                     Скачать
                   </Button>
                   {!isOrderExecutionStatus(props.requestStatus) ? (
-                    <Button color="error" variant="text" disabled={props.isBusy} onClick={() => void props.onDeleteMiscFile(file.id)}>
+                    <Button color="error" variant="text" loading={pendingAction === `delete-misc:${file.id}`} disabled={props.isBusy} onClick={() => void runPending(`delete-misc:${file.id}`, () => props.onDeleteMiscFile(file.id))}>
                       Удалить
                     </Button>
                   ) : null}
@@ -326,10 +336,11 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
             component="label"
             variant="text"
             color="warning"
+            loading={pendingAction === "upload-misc"}
             disabled={props.isBusy}
-            startIcon={props.uploadBusy ? <CircularProgress size={16} color="inherit" /> : <AddIcon />}
+            startIcon={<AddIcon />}
           >
-            {props.uploadBusy ? "Загрузка…" : "Загрузить документы"}
+            Загрузить документы
             <input
               hidden
               type="file"
@@ -338,7 +349,7 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
               onChange={(e) => {
                 const next = Array.from(e.currentTarget.files ?? []);
                 e.currentTarget.value = "";
-                void props.onUploadMiscFiles(next);
+                void runPending("upload-misc", () => props.onUploadMiscFiles(next));
               }}
             />
           </Button>
@@ -375,11 +386,12 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
           </Button>
           <Button
             variant="contained"
+            loading={pendingAction === "create-doc"}
             disabled={props.isBusy || docTitle.trim().length < 3}
             onClick={async () => {
               const title = docTitle.trim();
               if (title.length < 3) return;
-              await props.onCreateDocRequest(title);
+              await runPending("create-doc", () => props.onCreateDocRequest(title));
               setDocDialogOpen(false);
               setDocTitle("");
             }}
@@ -451,10 +463,11 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
           </Button>
           <Button
             variant="contained"
+            loading={pendingAction === "upload-bundle"}
             disabled={props.isBusy || !bundleDocument || !bundleSignature}
             onClick={async () => {
               if (!bundleDocument || !bundleSignature) return;
-              await props.onUploadContractBundle({ document: bundleDocument, signature: bundleSignature });
+              await runPending("upload-bundle", () => props.onUploadContractBundle({ document: bundleDocument, signature: bundleSignature }));
               setBundleDialogOpen(false);
               setBundleDocument(null);
               setBundleSignature(null);

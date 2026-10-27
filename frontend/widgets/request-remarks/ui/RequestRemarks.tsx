@@ -27,6 +27,7 @@ export function RequestRemarks(props: RequestRemarksProps) {
   const [newRemarkText, setNewRemarkText] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [remarksBusy, setRemarksBusy] = useState(false);
+  const [submitPending, setSubmitPending] = useState(false);
 
   const vm: RequestRemarksViewModel | null = props.behavior.getViewModel();
   if (!vm) return null;
@@ -80,15 +81,18 @@ export function RequestRemarks(props: RequestRemarksProps) {
               }}>
               <Button
                 variant="contained"
+                loading={submitPending}
                 disabled={isBusy || newRemarkText.trim().length < 3}
                 onClick={async () => {
                   setRemarksBusy(true);
+                  setSubmitPending(true);
                   try {
                     await runAction(vm.submitActionId, { text: newRemarkText.trim() });
                     setNewRemarkText("");
                     setAddOpen(false);
                   } finally {
                     setRemarksBusy(false);
+                    setSubmitPending(false);
                   }
                 }}
               >

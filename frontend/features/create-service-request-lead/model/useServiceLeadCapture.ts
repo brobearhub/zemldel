@@ -9,7 +9,6 @@ import {
   savePendingRequestDraft,
   type CadastralNumberParts,
 } from "@/entities/request";
-import { DEFAULT_SERVICE_QUESTION } from "@/features/create-service-request-lead";
 
 type Input = {
   serviceId: string;
@@ -17,8 +16,7 @@ type Input = {
 };
 
 function normalizeQuestion(value: string): string {
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : DEFAULT_SERVICE_QUESTION;
+  return value.trim();
 }
 
 export function useServiceLeadCapture(input: Input) {
@@ -59,7 +57,7 @@ export function useServiceLeadCapture(input: Input) {
         customerName: null,
         customerEmail: email,
         customerPhone: null,
-        message,
+        message: message || null,
         requestCityId: null,
         cadastralNumbers: cadastral.numbers,
       });

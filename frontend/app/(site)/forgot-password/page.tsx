@@ -79,8 +79,8 @@ export default function ForgotPasswordPage() {
                 error={Boolean(emailError)}
                 helperText={emailError ?? " "}
               />
-              <Button type="submit" variant="contained" size="large" fullWidth disabled={loading} sx={{ minHeight: 44 }}>
-                {loading ? "Отправляем…" : "Отправить ссылку"}
+              <Button type="submit" variant="contained" size="large" fullWidth loading={loading} sx={{ minHeight: 44 }}>
+                Отправить ссылку
               </Button>
             </Stack>
           </Box>

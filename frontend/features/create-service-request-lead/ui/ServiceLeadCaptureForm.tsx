@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Alert, Button, CircularProgress, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Button, Stack, TextField, Typography } from "@mui/material";
 import { CadastralNumberChipsField } from "@/shared/ui/CadastralNumberChipsField";
 import { useServiceLeadCapture } from "@/features/create-service-request-lead/model/useServiceLeadCapture";
 import { DEFAULT_SERVICE_QUESTION } from "@/features/create-service-request-lead";
@@ -58,8 +58,8 @@ export function ServiceLeadCaptureForm({ serviceId, initialCustomerEmail }: Prop
       <Button
         type="submit"
         variant="contained"
-        disabled={form.busy || Boolean(form.validationError)}
-        startIcon={form.busy ? <CircularProgress size={18} color="inherit" /> : null}
+        loading={form.busy}
+        disabled={Boolean(form.validationError)}
         sx={{
           fontWeight: 500,
           letterSpacing: "0.46px",

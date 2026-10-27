@@ -70,6 +70,9 @@ export function StoryCommentStream({
   const wasPosting = useRef(false);
   const [composer, setComposer] = useState<"comment" | "reply" | null>(startWithComment ? "comment" : null);
   const busy = posting || status === "loading";
+  // Why: posting общий для отправки, сохранения и удаления — спиннер только на нажатой кнопке.
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const sendLoading = posting && pendingAction === "send";
 
   useEffect(() => {
     const node = listRef.current;
@@ -163,10 +166,19 @@ export function StoryCommentStream({
                   ) : null}
                   {editing ? (
                     <>
-                      <Button size="small" color="inherit" disabled={!editText.trim() || posting} onClick={() => onSaveEdit(comment.id)}>
+                      <Button
+                        size="small"
+                        color="inherit"
+                        loading={posting && pendingAction === `save:${comment.id}`}
+                        disabled={!editText.trim() || (posting && pendingAction !== `save:${comment.id}`)}
+                        onClick={() => {
+                          setPendingAction(`save:${comment.id}`);
+                          onSaveEdit(comment.id);
+                        }}
+                      >
                         Сохранить
                       </Button>
-                      <Button size="small" color="inherit" onClick={onCancelEdit}>
+                      <Button size="small" color="inherit" disabled={posting} onClick={onCancelEdit}>
                         Отмена
                       </Button>
                     </>
@@ -175,10 +187,19 @@ export function StoryCommentStream({
                 {pendingDeleteId === comment.id ? (
                   <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                     <Typography variant="caption">Удалить комментарий?</Typography>
-                    <Button size="small" color="inherit" onClick={() => onConfirmDelete(comment.id)}>
+                    <Button
+                      size="small"
+                      color="inherit"
+                      loading={posting && pendingAction === `delete:${comment.id}`}
+                      disabled={posting && pendingAction !== `delete:${comment.id}`}
+                      onClick={() => {
+                        setPendingAction(`delete:${comment.id}`);
+                        onConfirmDelete(comment.id);
+                      }}
+                    >
                       Да
                     </Button>
-                    <Button size="small" color="inherit" onClick={onCancelDelete}>
+                    <Button size="small" color="inherit" disabled={posting} onClick={onCancelDelete}>
                       Нет
                     </Button>
                   </Stack>
@@ -235,6 +256,7 @@ export function StoryCommentStream({
                 onKeyDown={(event) => {
                   if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
                   event.preventDefault();
+                  setPendingAction("send");
                   if (composer === "reply") onReply();
                   else onComment();
                 }}
@@ -251,8 +273,13 @@ export function StoryCommentStream({
               />
               <IconButton
                 aria-label={composer === "reply" ? "Отправить ответ" : "Отправить комментарий"}
-                disabled={busy || !draft.trim()}
-                onClick={composer === "reply" ? onReply : onComment}
+                loading={sendLoading}
+                disabled={(busy && !sendLoading) || !draft.trim()}
+                onClick={() => {
+                  setPendingAction("send");
+                  if (composer === "reply") onReply();
+                  else onComment();
+                }}
                 sx={{
                   color: "common.white",
                   "&&.Mui-disabled": { color: "action.disabledBackground" },
