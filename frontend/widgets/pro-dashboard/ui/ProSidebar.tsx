@@ -50,7 +50,7 @@ const NAV_ITEMS: readonly SidebarNavItem[] = [
     icon: <DynamicFeedOutlinedIcon />,
   },
   {
-    href: "/pro/workday",
+    href: "/pro",
     label: "Рабочий день",
     description: "Напоминания на сегодня",
     icon: <TodayOutlinedIcon />,
@@ -257,7 +257,8 @@ export function ProSidebar({ collapsed = false, onToggleCollapsed }: Props) {
         {NAV_ITEMS.map((item) => {
           const selected =
             pathname === item.href ||
-            (item.href === "/pro/requests" && pathname.startsWith("/pro/requests/"));
+            (item.href === "/pro/requests" && pathname.startsWith("/pro/requests/")) ||
+            (item.href === "/pro" && pathname.startsWith("/pro/workday"));
           const badgeEnabled = item.href === "/pro/requests";
           const icon = badgeEnabled ? (
             <Badge color="error" badgeContent={unreadTotal} max={99} invisible={unreadTotal === 0}>

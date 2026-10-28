@@ -31,9 +31,14 @@ export function ProHomePage({ services, reminders, firstSteps }: Props) {
         <CabinetNotices welcome="Аккаунт исполнителя создан. Добавьте первую услугу, чтобы заказчики нашли вас." />
         <HomeStoriesStrip scope="provider" />
         <ProHomeSectionSwitch
-          services={<ProMyServicesSection services={services} firstSteps={firstStepsBlock} />}
+          services={<ProMyServicesSection services={services} />}
           freeRequests={<FreeRequestsSection />}
-          reminders={<RemindersListView initialReminders={reminders} showTitle={false} />}
+          reminders={
+            <Stack spacing={3}>
+              {firstStepsBlock}
+              <RemindersListView initialReminders={reminders} showTitle={false} />
+            </Stack>
+          }
         />
       </Stack>
     </Box>

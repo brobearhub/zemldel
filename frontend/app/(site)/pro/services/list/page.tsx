@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Box, Button, Stack, Typography } from "@mui/material";
 import type { ServiceDto } from "@/entities/service";
 import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
@@ -32,36 +30,5 @@ export default async function ProServicesListPage() {
     throw error;
   }
 
-  return (
-    <Stack spacing={3}>
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        spacing={2}
-        sx={{
-          justifyContent: "space-between",
-          alignItems: { md: "center" }
-        }}>
-        <Box>
-          <Typography component="h1" variant="h4" gutterBottom sx={{
-            fontWeight: 700
-          }}>
-            Список услуг
-          </Typography>
-          <Typography sx={{
-            color: "text.secondary"
-          }}>
-            Черновики, публикация и архив. Услуга появится в каталоге после публикации.
-          </Typography>
-        </Box>
-
-        <Link href="/pro/services/create" style={{ textDecoration: "none" }}>
-          <Button component="span" variant="contained">
-            Создать услугу
-          </Button>
-        </Link>
-      </Stack>
-
-      <ProServicesListClient initialServices={services} />
-    </Stack>
-  );
+  return <ProServicesListClient initialServices={services} />;
 }

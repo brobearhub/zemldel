@@ -202,9 +202,9 @@ export const PROVIDER_NAV: {
     {
       key: "workday",
       label: "Рабочий день",
-      href: "/pro/workday",
+      href: "/pro",
       icon: <TodayOutlinedIcon />,
-      isActive: ({ pathname }) => pathname.startsWith("/pro/workday"),
+      isActive: ({ pathname }) => pathname === "/pro" || pathname.startsWith("/pro/workday"),
     },
     {
       key: "overview",
@@ -358,9 +358,9 @@ export const PROVIDER_NAV: {
     {
       key: "workday",
       label: "Рабочий день",
-      href: "/pro/workday",
+      href: "/pro",
       icon: <TodayOutlinedIcon />,
-      isActive: ({ pathname }) => pathname.startsWith("/pro/workday"),
+      isActive: ({ pathname }) => pathname === "/pro" || pathname.startsWith("/pro/workday"),
     },
   ],
 };
