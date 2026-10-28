@@ -16,6 +16,8 @@ type Props = {
   variant?: ServiceCardVariant;
   /** В каталоге карточка ведёт на страницу услуги. В превью редактора ссылка не нужна. */
   linked?: boolean;
+  /** Тег заголовка: в списках, где карточки — разделы страницы, передают "h2". */
+  titleComponent?: "p" | "h2" | "h3";
 };
 
 function ServiceCardImage({ item, imageHeight }: { item: ServiceCardItem; imageHeight: number }) {
@@ -50,7 +52,8 @@ function ServiceCardImage({ item, imageHeight }: { item: ServiceCardItem; imageH
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: "text.secondary",
+            // Полосы светлые в обеих темах, поэтому и подпись фиксированно тёмная.
+            color: "grey.700",
             fontSize: 14,
             fontWeight: 600,
             // На макете полосы идут «\», здесь наоборот — «/».
@@ -138,10 +141,13 @@ function ServiceCardPrice({ price }: { price: string }) {
   );
 }
 
-function ServiceCardTitle({ title }: { title: string }) {
+function ServiceCardTitle({ title, component = "p" }: { title: string; component?: "p" | "h2" | "h3" }) {
   return (
     <Typography
+      component={component}
       sx={{
+        m: 0,
+        fontWeight: "inherit",
         fontSize: 16,
         lineHeight: 1.5,
         letterSpacing: "0.15px",
@@ -156,7 +162,7 @@ function ServiceCardTitle({ title }: { title: string }) {
   );
 }
 
-export function ServiceCard({ item, variant = "myCity", linked = true }: Props) {
+export function ServiceCard({ item, variant = "myCity", linked = true, titleComponent }: Props) {
   const imageHeight = variant === "myCity" ? 178 : 210;
   const places = item.places ?? [];
 
@@ -222,7 +228,7 @@ export function ServiceCard({ item, variant = "myCity", linked = true }: Props) 
             <ServiceCardPrice price={item.price} />
             {item.rating != null ? <ServiceCardRating rating={item.rating} /> : null}
           </Box>
-          <ServiceCardTitle title={item.title} />
+          <ServiceCardTitle title={item.title} component={titleComponent} />
         </Box>
       ) : (
         <Box
@@ -238,7 +244,7 @@ export function ServiceCard({ item, variant = "myCity", linked = true }: Props) 
         >
           <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
             <ServiceCardPrice price={item.price} />
-            <ServiceCardTitle title={item.title} />
+            <ServiceCardTitle title={item.title} component={titleComponent} />
           </Box>
 
           <Box
