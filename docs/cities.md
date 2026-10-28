@@ -265,7 +265,7 @@ source /opt/zemledel/.env
 curl -fsSL -o /tmp/YandexCA.crt https://storage.yandexcloud.net/cloud-certs/CA.pem
 docker run --rm \
   -v /tmp/YandexCA.crt:/root/.postgresql/root.crt:ro \
-  postgres:16-alpine \
+  postgres:17-alpine \
   pg_dump "${DATABASE_URL}" \
     -t '"City"' --data-only --no-owner --no-privileges -F c \
     -f /tmp/backups/city-prod.dump
