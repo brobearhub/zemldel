@@ -114,15 +114,19 @@ const CategoryMenuPaper = forwardRef<HTMLDivElement, PaperProps>(function Catego
 
 function ServiceEditorActions({
   publishDisabled,
+  needsPhoto,
   draftDisabled,
   pending,
   onPublish,
+  onPickPhoto,
   onDraft,
 }: {
   publishDisabled: boolean;
+  needsPhoto: boolean;
   draftDisabled: boolean;
   pending: ServiceStatus | null;
   onPublish: () => void;
+  onPickPhoto: () => void;
   onDraft: () => void;
 }) {
   return (
@@ -131,8 +135,9 @@ function ServiceEditorActions({
         type="button"
         variant="contained"
         loading={pending === "PUBLISHED"}
-        disabled={publishDisabled && pending !== "PUBLISHED"}
-        onClick={onPublish}
+        // Why: когда для публикации не хватает только фото, кнопка сама открывает выбор фото.
+        disabled={publishDisabled && !needsPhoto && pending !== "PUBLISHED"}
+        onClick={needsPhoto ? onPickPhoto : onPublish}
         sx={{
           order: { xs: 2, md: 1 },
           flex: { xs: 1, md: "unset" },
@@ -142,7 +147,7 @@ function ServiceEditorActions({
           "&.Mui-disabled": { bgcolor: "action.disabledBackground", color: "text.disabled" },
         }}
       >
-        Опубликовать
+        {needsPhoto ? "Загрузите фото" : "Опубликовать"}
       </Button>
       <Button
         type="button"
@@ -588,6 +593,7 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
   const priceLabel = formatServicePriceAmount(form.price);
   const draftDisabled = busy || validationIssues.length > 0;
   const publishDisabled = busy || publishValidationIssues.length > 0;
+  const needsPhoto = !busy && publishValidationIssues.length === 1 && !pendingImage && !form.image.trim();
 
   return (
     <Stack spacing={{ xs: 2, md: 5 }} sx={{ width: "100%", maxWidth: { md: 1040 }, mx: "auto" }}>
@@ -962,6 +968,8 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
             <Box sx={{ display: { xs: "none", md: "block" }, mt: "auto" }}>
               <ServiceEditorActions
                 publishDisabled={publishDisabled}
+                needsPhoto={needsPhoto}
+                onPickPhoto={() => openImagePicker()}
                 draftDisabled={draftDisabled}
                 pending={pendingAction === "PUBLISHED" || pendingAction === "DRAFT" ? pendingAction : null}
                 onPublish={() => {
@@ -981,6 +989,8 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
         <ServiceCard item={previewItem} linked={false} />
         <ServiceEditorActions
           publishDisabled={publishDisabled}
+          needsPhoto={needsPhoto}
+          onPickPhoto={() => openImagePicker()}
           draftDisabled={draftDisabled}
           pending={pendingAction === "PUBLISHED" || pendingAction === "DRAFT" ? pendingAction : null}
           onPublish={() => {
