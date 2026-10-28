@@ -1019,7 +1019,8 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
                               }}>
                                 {c.providerName}
                               </Typography>
-                              {isSelected ? <Chip size="small" label="Выбрано" /> : null}
+                              {/* Why: offer SELECTED значит «заявка отправлена компании», исполнителем она становится только после фиксации. */}
+                              {isChosenProvider ? <Chip size="small" color="success" label="Исполнитель" /> : null}
                               {!isSelected && isDeclined ? <Chip size="small" variant="outlined" label="Отказ" /> : null}
                             </Stack>
                           }
