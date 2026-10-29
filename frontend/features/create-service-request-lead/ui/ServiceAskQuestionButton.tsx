@@ -70,7 +70,7 @@ export function ServiceAskQuestionButton({ serviceId }: Props) {
         }}
         fullWidth
       >
-        Задать вопрос
+        Оставить заявку
       </Button>
     </Stack>
   );

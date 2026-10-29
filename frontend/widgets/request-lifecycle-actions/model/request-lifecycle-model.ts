@@ -244,6 +244,7 @@ export function buildRequestLifecycleViewModel(input: BuildRequestLifecycleInput
   // Why: после выбора исполнителя число диалогов клиента уже ни о чём не говорит.
   if (
     input.side === "provider" &&
+    input.request.subjectType !== "SERVICE" &&
     !hasRequestLock(input.request) &&
     (input.request.status === "NEW" || input.request.status === "DISCUSSING")
   ) {

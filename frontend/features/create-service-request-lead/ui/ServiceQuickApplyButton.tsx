@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Button } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { buildRequestAuthHref, savePendingRequestDraft } from "@/entities/request";
-import { useServiceAskQuestion } from "@/features/create-service-request-lead/model/useServiceAskQuestion";
 
 type Props = {
   serviceId: string;
@@ -16,12 +15,12 @@ type Props = {
 
 export function ServiceQuickApplyButton({ serviceId, isAuthenticated, sx, fullWidth }: Props) {
   const router = useRouter();
-  const ask = useServiceAskQuestion({ serviceId });
   const [guestBusy, setGuestBusy] = useState(false);
 
   const handleClick = useCallback(() => {
     if (isAuthenticated) {
-      void ask.submit({ questionText: "", cadastralNumbers: [] });
+      const section = document.getElementById("consultation");
+      section?.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
 
@@ -41,9 +40,9 @@ export function ServiceQuickApplyButton({ serviceId, isAuthenticated, sx, fullWi
     } finally {
       setGuestBusy(false);
     }
-  }, [ask, isAuthenticated, router, serviceId]);
+  }, [isAuthenticated, router, serviceId]);
 
-  const busy = isAuthenticated ? ask.busy : guestBusy;
+  const busy = guestBusy;
 
   return (
     <Button
@@ -54,7 +53,7 @@ export function ServiceQuickApplyButton({ serviceId, isAuthenticated, sx, fullWi
       sx={sx}
       fullWidth={fullWidth}
     >
-      ПОДАТЬ ЗАЯВКУ
+      Оставить заявку
     </Button>
   );
 }

@@ -116,11 +116,11 @@ export type RequestCustomerDto = {
   payments: RequestPaymentItemDto[];
   cadastralNumbers: string[];
   canDeleteByCustomer: boolean;
-  /** Превью последней реплики исполнителя. В списке заполнено только для DISCUSSING. */
+  /** Превью последней реплики исполнителя. */
   providerLastMessage: string | null;
-  /** Превью последней реплики заказчика в том же диалоге. В списке заполнено только для DISCUSSING. */
+  /** Превью последней реплики заказчика в том же диалоге. */
   customerLastMessage: string | null;
-  /** Заказчик уже ответил позже последней реплики исполнителя в том же диалоге. */
+  /** Заказчик ждёт ответа исполнителя в текущем диалоге. */
   awaitingProviderReply: boolean;
 };
 

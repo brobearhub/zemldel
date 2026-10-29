@@ -161,6 +161,28 @@ describe("buildRequestLifecycleViewModel", () => {
     expect(vm.infoRows).toContainEqual({ label: "Клиент общается с компаниями", value: "1" });
   });
 
+  it("provider: SERVICE never shows dialogs info row", () => {
+    const req = makeProvider({
+      subjectType: "SERVICE",
+      status: "NEW",
+      lockedAt: null,
+      conversationsCount: 1,
+    });
+    const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
+    expect(vm.infoRows.map((r) => r.label)).not.toContain("Клиент общается с компаниями");
+  });
+
+  it("provider: SERVICE allows decline before execution even when request is locked", () => {
+    const req = makeProvider({
+      subjectType: "SERVICE",
+      status: "NEW",
+      offerStatus: "SELECTED",
+      lockedAt: "2026-08-06T00:00:00.000Z",
+    });
+    const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
+    expect(vm.actions.map((a) => a.id)).toContain("declineOffer");
+  });
+
   it("provider: hides dialogs info row once a provider is chosen", () => {
     const req = makeProvider({ status: "DISCUSSING", lockedAt: "2026-08-06T00:00:00.000Z", conversationsCount: 1 });
     const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });

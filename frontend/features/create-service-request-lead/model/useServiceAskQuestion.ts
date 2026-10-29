@@ -29,6 +29,8 @@ export function useServiceAskQuestion(input: Input) {
   const submit = useCallback(async (submitInput: SubmitInput) => {
     setBusy(true);
     setError(null);
+    let createdRequestId: string | null = null;
+    let chatEnsured = false;
     try {
       const message = normalizeQuestion(submitInput.questionText);
       const created = await createServiceRequest({
@@ -36,25 +38,29 @@ export function useServiceAskQuestion(input: Input) {
         message: message || null,
         cadastralNumbers: submitInput.cadastralNumbers,
       });
+      createdRequestId = created.id;
+
+      const ensured = await ensureRequestConversation({ serviceRequestId: created.id });
+      chatEnsured = true;
 
       if (message) {
-        try {
-          const ensured = await ensureRequestConversation({ serviceRequestId: created.id });
-          await postConversationMessage({
-            conversationId: ensured.conversationId,
-            body: message,
-            clientMessageId: crypto.randomUUID(),
-          });
-        } catch {
-          // Fallback: request detail page has a manual "start chat" action for SERVICE requests.
-        }
+        await postConversationMessage({
+          conversationId: ensured.conversationId,
+          body: message,
+          clientMessageId: crypto.randomUUID(),
+        });
       }
 
-      const createdQuery = message ? "" : "?created=1";
-      router.push(`/profile/requests/${created.id}${createdQuery}`);
+      router.push(`/profile/requests/${created.id}`);
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось создать заявку");
+      if (createdRequestId && !chatEnsured) {
+        setError("Заявка создана, но открыть чат не удалось. Откройте заявку в профиле и попробуйте снова.");
+      } else if (createdRequestId && chatEnsured) {
+        setError("Заявка создана, но отправить сообщение не удалось. Откройте заявку и отправьте его в чате.");
+      } else {
+        setError(e instanceof Error ? e.message : "Не удалось создать заявку");
+      }
     } finally {
       setBusy(false);
     }

@@ -77,6 +77,7 @@ import type { CustomerContractBundleListItem } from "@/features/request-contract
 import { canCustomerAcceptContract } from "@/widgets/customer-requests/lib/can-accept-contract";
 import { CustomerRequestDocumentsSection } from "@/widgets/customer-requests/ui/CustomerRequestDocumentsSection";
 import { useConfirm } from "@/shared/ui/confirm";
+import { getConversationWorkspaceCopy } from "@/widgets/customer-requests/lib/conversation-workspace-copy";
 import {
   canShowCustomerCounterpartyButton,
   getProviderContactFields,
@@ -295,6 +296,8 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
 
   const isExecutionStatus = isOrderExecutionStatus(req.status);
   const isExclusiveStatus = hasRequestLock(req);
+  const isServiceRequest = req.subjectType === "SERVICE";
+  const conversationCopy = getConversationWorkspaceCopy(req.subjectType);
   const hasContractBundles = contractBundles.length > 0;
   const hasApprovedContractBundle = contractBundles.some((b) => b.status === "APPROVED" && Boolean(b.signature));
   const hasRevisionRequested = contractBundles.some((b) => b.status === "REVISION_REQUESTED");
@@ -881,6 +884,9 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
           {notice ? <Alert severity="success">{notice}</Alert> : null}
           {error ? <Alert severity="error">{error}</Alert> : null}
           {remarksError ? <Alert severity="warning">{remarksError}</Alert> : null}
+          {isServiceRequest && req.status === "NEW" && req.awaitingProviderReply ? (
+            <Alert severity="info">Сообщение отправлено. Ждём ответа исполнителя.</Alert>
+          ) : null}
 
           <RequestReviewsPanel requestId={req.id} status={req.status} side="customer" />
 
@@ -930,11 +936,11 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
             <Box sx={{ px: 2, py: 1.5 }}>
               <Typography sx={{
                 fontWeight: 800
-              }}>Чаты с компаниями</Typography>
+              }}>{conversationCopy.title}</Typography>
               <Typography variant="body2" sx={{
                 color: "text.secondary"
               }}>
-                Выберите компанию, чтобы продолжить диалог.
+                {conversationCopy.description}
               </Typography>
             </Box>
             <Divider />
@@ -968,15 +974,13 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
                       key={c.conversationId}
                       disablePadding
                       secondaryAction={
-                        req.status === "CLOSED" ? null : hasRequestLock(req) ? (
-                          isChosenProvider ? (
-                            <Stack direction="row" spacing={1} sx={{ pr: 1 }}>
-                              <Button size="small" variant="outlined" disabled sx={{ whiteSpace: "nowrap" }}>
-                                {hasContractBundles ? "Договор прикреплён" : "Ожидаем договор"}
-                              </Button>
-                            </Stack>
-                          ) : null
-                        ) : isExclusiveStatus ? null : (
+                        req.status === "CLOSED" ? null : isChosenProvider ? (
+                          <Stack direction="row" spacing={1} sx={{ pr: 1 }}>
+                            <Button size="small" variant="outlined" disabled sx={{ whiteSpace: "nowrap" }}>
+                              {hasContractBundles ? "Договор прикреплён" : "Ожидаем договор"}
+                            </Button>
+                          </Stack>
+                        ) : isServiceRequest || isExclusiveStatus ? null : (
                           <Stack direction="row" spacing={1} sx={{ pr: 1 }}>
                             <Button
                               color="secondary"
@@ -1119,7 +1123,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
               {!conversationsLoaded
                 ? "Загружаем переписку…"
                 : conversations.length > 0
-                  ? "Выберите компанию слева, чтобы открыть переписку."
+                  ? conversationCopy.noSelectionHint
                   : req.subjectType === "SERVICE"
                     ? "Нажмите «Начать чат», чтобы задать вопрос исполнителю."
                     : "Здесь появится переписка, как только компания ответит на заявку."}

@@ -12,7 +12,7 @@ export type ProviderReplyCandidate = {
 };
 
 export type ProviderReplyPreview = {
-  body: string;
+  body: string | null;
   customerBody: string | null;
   awaitingProviderReply: boolean;
 };
@@ -66,25 +66,56 @@ export function pickLatestProviderMessage(
     }
   }
 
-  const awaiting = new Set<string>();
-  // Why: вопрос заказчика берём из того же диалога, что и ответ исполнителя.
-  const customerLatest = new Map<string, { at: number; body: string }>();
+  const requestProviderIdByRequest = new Map<string, string | null>();
   for (const message of messages) {
-    if (message.senderUserId !== message.customerUserId) continue;
-    const current = latest.get(message.requestId);
-    if (!current || message.conversationId !== current.conversationId) continue;
-    const at = message.createdAt.getTime();
-    if (Number.isNaN(at)) continue;
-    if (at > current.at) awaiting.add(message.requestId);
-    const body = formatProviderReplyPreview(message.body);
-    if (!body) continue;
-    const existing = customerLatest.get(message.requestId);
-    if (!existing || at > existing.at) {
-      customerLatest.set(message.requestId, { at, body });
+    if (!requestProviderIdByRequest.has(message.requestId)) {
+      requestProviderIdByRequest.set(
+        message.requestId,
+        message.requestProviderId,
+      );
     }
   }
 
-  return new Map(
+  const awaiting = new Set<string>();
+  // Why: вопрос заказчика берём из того же диалога, что и ответ исполнителя.
+  const customerLatest = new Map<string, { at: number; body: string }>();
+  // Why: если ответа исполнителя ещё нет, всё равно нужно показать "ждём ответ".
+  const customerLatestWithoutProviderReply = new Map<
+    string,
+    { at: number; body: string }
+  >();
+  for (const message of messages) {
+    if (message.senderUserId !== message.customerUserId) continue;
+    const at = message.createdAt.getTime();
+    if (Number.isNaN(at)) continue;
+    const requestProviderId = requestProviderIdByRequest.get(message.requestId);
+    if (
+      requestProviderId != null &&
+      message.conversationProviderId !== requestProviderId
+    ) {
+      continue;
+    }
+    const body = formatProviderReplyPreview(message.body);
+    if (body) {
+      const existingCustomerOnly = customerLatestWithoutProviderReply.get(
+        message.requestId,
+      );
+      if (!existingCustomerOnly || at > existingCustomerOnly.at) {
+        customerLatestWithoutProviderReply.set(message.requestId, { at, body });
+      }
+    }
+    const current = latest.get(message.requestId);
+    if (!current || message.conversationId !== current.conversationId) continue;
+    if (at > current.at) awaiting.add(message.requestId);
+    const bodyInConversation = formatProviderReplyPreview(message.body);
+    if (!bodyInConversation) continue;
+    const existing = customerLatest.get(message.requestId);
+    if (!existing || at > existing.at) {
+      customerLatest.set(message.requestId, { at, body: bodyInConversation });
+    }
+  }
+
+  const result = new Map<string, ProviderReplyPreview>(
     [...latest].map(([requestId, value]) => [
       requestId,
       {
@@ -94,6 +125,17 @@ export function pickLatestProviderMessage(
       },
     ]),
   );
+
+  for (const [requestId, value] of customerLatestWithoutProviderReply) {
+    if (result.has(requestId)) continue;
+    result.set(requestId, {
+      body: null,
+      customerBody: value.body,
+      awaitingProviderReply: true,
+    });
+  }
+
+  return result;
 }
 
 export type CustomerReplyCandidate = {
