@@ -633,29 +633,44 @@ export class RequestsService {
       actor?.customerCityId ?? null,
     );
 
-    const created = await this.prisma.request.create({
-      data: {
-        status: 'NEW',
-        serviceId: service.id,
-        providerId: service.providerId,
-        categoryId: null,
-        providerOffers: {
-          create: {
-            providerId: service.providerId,
-            status: 'SELECTED',
+    const created = await this.prisma.$transaction(async (tx) => {
+      const now = new Date();
+      const next = await tx.request.create({
+        data: {
+          status: 'NEW',
+          serviceId: service.id,
+          providerId: service.providerId,
+          // Why: для SERVICE исполнитель известен заранее, заявка сразу фиксируется.
+          lockedAt: now,
+          categoryId: null,
+          providerOffers: {
+            create: {
+              providerId: service.providerId,
+              status: 'SELECTED',
+              selectedAt: now,
+            },
           },
+          customerUserId: actor?.id ?? null,
+          requestCityId,
+          customerName,
+          customerEmail,
+          customerPhone,
+          message,
+          location: null,
+          cadastralNumbers: normalizeCadastralNumbers(input.cadastralNumbers),
+          servicePriceRubles: parseServicePriceRubles(service.price),
         },
-        customerUserId: actor?.id ?? null,
-        requestCityId,
-        customerName,
-        customerEmail,
-        customerPhone,
-        message,
-        location: null,
-        cadastralNumbers: normalizeCadastralNumbers(input.cadastralNumbers),
-        servicePriceRubles: parseServicePriceRubles(service.price),
-      },
-      select,
+        select,
+      });
+
+      await this.addEvent(tx, {
+        requestId: next.id,
+        type: 'PROVIDER_SELECTED',
+        actorUserId: actor?.id ?? undefined,
+        payload: { providerId: service.providerId, autoLocked: true },
+      });
+
+      return next;
     });
 
     return requestRowToCustomerDtoPlain(created as unknown as RequestDbRow);
@@ -729,9 +744,13 @@ export class RequestsService {
         customerUserId: row.customerUserId,
       })),
     );
-    const discussing = typedRows.filter((row) => row.status === 'DISCUSSING');
+    const rowsWithChatPreview = typedRows.filter(
+      (row) =>
+        row.status === 'DISCUSSING' ||
+        (row.status === 'NEW' && row.serviceId != null),
+    );
     const providerLastMessages =
-      await this.getLatestProviderMessages(discussing);
+      await this.getLatestProviderMessages(rowsWithChatPreview);
     return typedRows.map((row) => {
       const preview = providerLastMessages.get(row.id);
       return requestRowToCustomerDtoPlain(row, {
@@ -764,11 +783,17 @@ export class RequestsService {
           typedRow.customerUserId,
         )
       : false;
+    const providerLastMessages =
+      typedRow.status === 'DISCUSSING' ||
+      (typedRow.status === 'NEW' && typedRow.serviceId != null)
+        ? await this.getLatestProviderMessages([typedRow])
+        : new Map<string, ProviderReplyPreview>();
+    const preview = providerLastMessages.get(typedRow.id);
     return requestRowToCustomerDtoPlain(typedRow, {
       hasProviderResponse,
-      providerLastMessage: null,
-      customerLastMessage: null,
-      awaitingProviderReply: false,
+      providerLastMessage: preview?.body ?? null,
+      customerLastMessage: preview?.customerBody ?? null,
+      awaitingProviderReply: preview?.awaitingProviderReply ?? false,
     });
   }
 
@@ -2183,6 +2208,7 @@ export class RequestsService {
 
       const req = current as unknown as RequestDbRow;
       this.assertRequestShape(req);
+      const isServiceRequest = req.serviceId != null;
 
       if (hasRequestLock(req) && isOrderExecutionStatus(req.status)) {
         throw new ConflictException('Request already converted to order');
@@ -2215,25 +2241,48 @@ export class RequestsService {
         if (req.providerId !== actorProviderId) {
           throw new ForbiddenException('Forbidden');
         }
-        await tx.request.update({
-          where: { id: req.id },
-          data: {
-            status:
-              req.status === 'TERMS_AGREED' ? 'TERMS_AGREED' : 'DISCUSSING',
-            providerId: null,
-            lockedAt: null,
-            offerVersion: null,
-            contractAcceptedAt: null,
-            contractAcceptedByUserId: null,
-          },
-          select: { id: true },
-        });
+        if (isServiceRequest) {
+          await tx.request.update({
+            where: { id: req.id },
+            data: {
+              // Why: отказ по SERVICE завершает заявку без сделки и снимает эксклюзивность.
+              status: 'CLOSED',
+              lockedAt: null,
+              offerVersion: null,
+              contractAcceptedAt: null,
+              contractAcceptedByUserId: null,
+              acceptanceRequestedAt: null,
+              autoAcceptAt: null,
+              acceptedAt: null,
+              acceptedByUserId: null,
+            },
+            select: { id: true },
+          });
+        } else {
+          await tx.request.update({
+            where: { id: req.id },
+            data: {
+              status:
+                req.status === 'TERMS_AGREED' ? 'TERMS_AGREED' : 'DISCUSSING',
+              providerId: null,
+              lockedAt: null,
+              offerVersion: null,
+              contractAcceptedAt: null,
+              contractAcceptedByUserId: null,
+            },
+            select: { id: true },
+          });
+        }
 
         await this.addEvent(tx, {
           requestId: req.id,
           type: 'PROVIDER_DECLINED_AFTER_SELECTION',
           actorProviderId,
-          payload: { at: now.toISOString(), reason },
+          payload: {
+            at: now.toISOString(),
+            reason,
+            requestClosed: isServiceRequest,
+          },
         });
       }
 

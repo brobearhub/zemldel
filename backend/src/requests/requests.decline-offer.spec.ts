@@ -185,4 +185,75 @@ describe('RequestsService.declineOfferByProvider', () => {
     expect(messageCreate).not.toHaveBeenCalled();
     expect(chat.notifyMessageCreated).not.toHaveBeenCalled();
   });
+
+  it('SERVICE: при отказе закрывает заявку и сохраняет providerId', async () => {
+    const now = new Date('2026-08-06T01:00:00.000Z');
+    const row = makeRequestRow({
+      serviceId: 's1',
+      categoryId: null,
+      providerId: 'p1',
+      lockedAt: now,
+      status: 'NEW',
+    });
+    const refreshed = makeRequestRow({
+      serviceId: 's1',
+      categoryId: null,
+      providerId: 'p1',
+      lockedAt: null,
+      status: 'CLOSED',
+      providerOffers: [
+        {
+          providerId: 'p1',
+          status: 'DECLINED',
+          selectedAt: now,
+          declinedAt: now,
+        },
+      ],
+    });
+    const requestUpdate = vi.fn().mockResolvedValue({ id: 'r1' });
+
+    const tx = {
+      request: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValueOnce(row)
+          .mockResolvedValueOnce(refreshed),
+        update: requestUpdate,
+      },
+      requestProviderOffer: {
+        findUnique: vi.fn().mockResolvedValue({ id: 'o1', status: 'SELECTED' }),
+        update: vi.fn().mockResolvedValue({ id: 'o1' }),
+      },
+      conversation: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        update: vi.fn(),
+      },
+      message: { create: vi.fn() },
+      requestEvent: { create: vi.fn() },
+    };
+
+    const prisma = {
+      $transaction: async (fn: (t: typeof tx) => Promise<unknown>) =>
+        await fn(tx),
+      conversation: { findMany: vi.fn().mockResolvedValue([]) },
+    };
+
+    const { svc } = makeService(prisma);
+
+    const dto = await svc.declineOfferByProvider('p1', 'r1', {
+      reason: 'нет ресурса',
+      actorUserId: 'u-pro',
+    });
+
+    expect(requestUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: 'CLOSED',
+          lockedAt: null,
+        }),
+      }),
+    );
+    expect(dto.status).toBe('CLOSED');
+    expect(dto.providerId).toBe('p1');
+  });
 });

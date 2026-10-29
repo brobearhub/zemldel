@@ -21,6 +21,24 @@ function message(
 }
 
 describe('pickLatestProviderMessage', () => {
+  it('без ответа исполнителя помечает ожидание по вопросу заказчика', () => {
+    const picked = pickLatestProviderMessage([
+      message({
+        body: 'Когда сможете?',
+        createdAt: new Date('2026-10-08T12:00:00.000Z'),
+        senderUserId: 'customer',
+        requestProviderId: 'provider-a',
+        conversationProviderId: 'provider-a',
+      }),
+    ]);
+
+    expect(picked.get('r1')).toEqual({
+      body: null,
+      customerBody: 'Когда сможете?',
+      awaitingProviderReply: true,
+    });
+  });
+
   it('берёт реплику исполнителя, даже если заказчик написал позже', () => {
     const picked = pickLatestProviderMessage([
       message({

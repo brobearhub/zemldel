@@ -13,7 +13,7 @@ describe('request lock helpers', () => {
     expect(hasRequestLock({ lockedAt: '2026-08-06T00:00:00.000Z' })).toBe(true);
   });
 
-  it('does not treat providerId alone as lock (SERVICE pre-lock)', () => {
+  it('does not treat providerId alone as lock', () => {
     expect(
       isLockedToOtherProvider({ lockedAt: null, providerId: 'p1' }, 'p2'),
     ).toBe(false);

@@ -101,6 +101,8 @@ export function ProRequestsFeed({ initialItems, initialOrders }: Props) {
   const visibleColumns = columns.filter((column) => enabledStatuses.includes(column.status));
   const mobileColumn =
     visibleColumns.find((column) => column.status === mobileStatus) ?? visibleColumns[0] ?? null;
+  const totalVisibleItems = visibleColumns.reduce((sum, column) => sum + column.items.length, 0);
+  const showFreeformEmptyState = includeFreeform && activeCategoryIds.length === 0 && totalVisibleItems === 0;
 
   return (
     <Stack spacing={2}>
@@ -147,8 +149,11 @@ export function ProRequestsFeed({ initialItems, initialOrders }: Props) {
       {visibleColumns.length === 0 ? (
         <Typography sx={{ color: "text.secondary" }}>Выберите хотя бы один статус</Typography>
       ) : null}
+      {showFreeformEmptyState ? (
+        <Alert severity="info">Пока нет свободных заявок. Они появятся здесь, когда заказчики создадут новые обращения.</Alert>
+      ) : null}
 
-      {isDesktop ? (
+      {!showFreeformEmptyState && isDesktop ? (
         <Box
           sx={{
             display: "flex",
@@ -176,7 +181,7 @@ export function ProRequestsFeed({ initialItems, initialOrders }: Props) {
             </Box>
           ))}
         </Box>
-      ) : mobileColumn ? (
+      ) : !showFreeformEmptyState && mobileColumn ? (
         <ServiceRequestList items={mobileColumn.items} minRows={8} allowLockedClick />
       ) : null}
     </Stack>

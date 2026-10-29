@@ -181,30 +181,40 @@ export function PublicUnlinkedRequestForm({
     >
       <Stack spacing={variant === "card" ? 4 : 2} component="form" onSubmit={handleSubmit}>
         {variant === "card" ? (
-          <Stack
-            direction="row"
-            spacing={2.5}
-            sx={{ alignItems: "center", justifyContent: "center" }}
-          >
-            <RequestFormLogo compact />
-            <Typography
-              sx={{
-                fontWeight: 500,
-                fontSize: 20,
-                lineHeight: 1.6,
-                letterSpacing: "0.15px",
-                textAlign: "center",
-              }}
+          <Stack spacing={1.5}>
+            <Stack
+              direction="row"
+              spacing={2.5}
+              sx={{ alignItems: "center", justifyContent: "center" }}
             >
-              Нужна помощь?
+              <RequestFormLogo compact />
+              <Typography
+                sx={{
+                  fontWeight: 500,
+                  fontSize: 20,
+                  lineHeight: 1.6,
+                  letterSpacing: "0.15px",
+                  textAlign: "center",
+                }}
+              >
+                Нужна помощь?
+              </Typography>
+            </Stack>
+            <Typography variant="body2" sx={{ color: "text.secondary", textAlign: "center" }}>
+              Заявку увидят несколько подходящих исполнителей. Сравните ответы в чатах и выберите одного.
             </Typography>
           </Stack>
         ) : (
-          <Typography variant="body2" sx={{ color: "text.secondary" }}>
-            {isAuthenticated
-              ? "Специалисты свяжутся с вами в ближайшее время."
-              : "Чтобы создать заявку, нужно зарегистрироваться или войти. После этого система продолжит оформление автоматически."}
-          </Typography>
+          <Stack spacing={1}>
+            <Typography variant="body2" sx={{ color: "text.secondary" }}>
+              {isAuthenticated
+                ? "Специалисты свяжутся с вами в ближайшее время."
+                : "Чтобы создать заявку, нужно зарегистрироваться или войти. После этого система продолжит оформление автоматически."}
+            </Typography>
+            <Typography variant="body2" sx={{ color: "text.secondary" }}>
+              Заявку увидят несколько подходящих исполнителей. Сравните ответы в чатах и выберите одного.
+            </Typography>
+          </Stack>
         )}
 
         {validationError && !error ? <Alert severity="warning">{validationError}</Alert> : null}

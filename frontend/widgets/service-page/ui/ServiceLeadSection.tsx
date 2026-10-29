@@ -34,7 +34,7 @@ export function ServiceLeadSection({ serviceId, serviceTitle, isAuthenticated, i
             </Typography>
             <Typography sx={{ color: "#e8efea", maxWidth: 820, fontSize: { xs: 14, md: 16 }, lineHeight: { xs: 1.43, md: 1.5 } }}>
               {isAuthenticated
-                ? "Заявка появится в вашем профиле."
+                ? "Заявка появится в вашем профиле, а чат с исполнителем откроется сразу после отправки."
                 : "Укажите электронную почту, чтобы отправить заявку исполнителю."}
             </Typography>
           </Stack>
@@ -49,10 +49,10 @@ export function ServiceLeadSection({ serviceId, serviceTitle, isAuthenticated, i
           >
             <Stack spacing={2.25}>
               <Stack spacing={0.5}>
-                <Typography variant="h5">{isAuthenticated ? "Задать вопрос" : "Получить консультацию"}</Typography>
+                <Typography variant="h5">{isAuthenticated ? "Оставить заявку" : "Получить консультацию"}</Typography>
                 <Typography variant="body2" sx={{ color: "text.secondary" }}>
                   {isAuthenticated
-                    ? `Мы создадим заявку по услуге «${serviceTitle}» и откроем чат с исполнителем.`
+                    ? `Мы создадим заявку по услуге «${serviceTitle}», откроем чат с исполнителем и, если добавите вопрос, отправим его в чат сразу.`
                     : "Укажите почту — отправим подтверждение и передадим заявку специалисту."}
                 </Typography>
               </Stack>

@@ -29,7 +29,7 @@ function FeedRowPlaceholder({ isLast }: { isLast: boolean }) {
 }
 
 export function FeedList<T>({ items, getKey, renderRow, minRows = 6 }: Props<T>) {
-  const placeholderCount = Math.max(0, minRows - items.length);
+  const placeholderCount = items.length === 0 ? 0 : Math.max(0, minRows - items.length);
   const totalRows = items.length + placeholderCount;
 
   return (
