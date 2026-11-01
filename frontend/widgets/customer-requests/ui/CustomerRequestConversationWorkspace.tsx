@@ -24,7 +24,11 @@ import {
   Typography,
 } from "@mui/material";
 import { RequestCityInactiveWarning } from "@/shared/ui/RequestCityInactiveWarning";
-import type { ChatServiceRequestConversationListItemDto } from "@/entities/chat/dto/chat.dto";
+import {
+  ensureCustomerRequestConversation,
+  fetchCustomerRequestConversations,
+  type ChatServiceRequestConversationListItemDto,
+} from "@/entities/chat";
 import {
   getRequestStatusLabel,
   hasRequestLock,
@@ -96,12 +100,15 @@ import {
   createRequestCadastralBehavior,
   RequestCadastralNumbers,
 } from "@/widgets/request-cadastral-numbers";
-import type { ChatEnsureResponse } from "@/entities/chat/dto/chat.dto";
 import {
   resolveActiveConversationId,
   resolveProviderSelectionVisibility,
-  resolveSelectionAfterProviderSelect,
 } from "@/widgets/customer-requests/model/conversation-selection";
+import {
+  retrySelectedProviderConversation,
+  selectProviderAndPrepareConversation,
+  type SelectedProviderChatResult,
+} from "@/features/select-request-provider";
 
 function pickTitle(req: RequestCustomerDto) {
   if (req.subjectType === "SERVICE") return req.serviceTitle ?? "Заявка по услуге";
@@ -114,12 +121,18 @@ type Props = {
   justCreated?: boolean;
 };
 
+type ChatRecovery = Extract<
+  SelectedProviderChatResult,
+  { kind: "recovery-required" }
+>;
+
 export function CustomerRequestConversationWorkspace({ initialRequest, justCreated = false }: Props) {
   const router = useRouter();
   const [req, setReq] = useState<RequestCustomerDto>(initialRequest);
   const [conversations, setConversations] = useState<ChatServiceRequestConversationListItemDto[]>([]);
   const [conversationsLoaded, setConversationsLoaded] = useState(false);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [chatRecovery, setChatRecovery] = useState<ChatRecovery | null>(null);
   const [busy, setBusy] = useState(false);
   /** Какая кнопка этого экрана запустила запрос: спиннер только на ней. */
   const [pendingAction, setPendingAction] = useState<string | null>(null);
@@ -148,14 +161,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
   );
 
   const loadConversations = useCallback(async () => {
-    const res = await fetch(`/api/chat/requests/${req.id}/conversations`, { cache: "no-store" });
-    const payload = (await res.json().catch(() => null)) as ChatServiceRequestConversationListItemDto[] | { error?: string } | null;
-    if (!res.ok) {
-      throw new Error(
-        payload && typeof payload === "object" && !Array.isArray(payload) && payload.error ? payload.error : "Не удалось загрузить чаты"
-      );
-    }
-    return payload as ChatServiceRequestConversationListItemDto[];
+    return fetchCustomerRequestConversations(req.id);
   }, [req.id]);
 
   const ensureServiceChat = useCallback(async () => {
@@ -169,21 +175,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
     setPendingAction("chat");
     setError(null);
     try {
-      const res = await fetch("/api/chat/ensure", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ serviceRequestId: req.id }),
-      });
-      const payload = (await res.json().catch(() => null)) as ChatEnsureResponse | { error?: string } | null;
-      if (!res.ok) {
-        const msg =
-          payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
-            ? payload.error
-            : "Не удалось открыть чат";
-        throw new Error(msg);
-      }
-
-      const ensured = payload as ChatEnsureResponse;
+      const ensured = await ensureCustomerRequestConversation(req.id);
       const providerName = req.providerName ?? "Исполнитель";
       const nextItem: ChatServiceRequestConversationListItemDto = {
         conversationId: ensured.conversationId,
@@ -473,57 +465,55 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`/api/requests/${req.id}/select-provider`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ providerId }),
+      const result = await selectProviderAndPrepareConversation({
+        requestId: req.id,
+        providerId,
+        providerName,
+        previousConversations: conversations,
+        onProviderSelected: (nextRequest) => {
+          setReq(nextRequest);
+          // Server уже зафиксировал B: A немедленно перестаёт быть активным.
+          setSelectedConversationId(null);
+          setChatRecovery(null);
+        },
       });
-      const payload = (await res.json().catch(() => null)) as { error?: string } | RequestCustomerDto | null;
-      if (!res.ok) {
-        throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось выбрать исполнителя" : "Не удалось выбрать исполнителя");
+      if (result.chat.kind === "ready") {
+        setConversations(result.chat.conversations);
+        setSelectedConversationId(result.chat.selectedConversationId);
+        setChatRecovery(null);
+      } else {
+        setChatRecovery(result.chat);
       }
-      const nextRequest = payload as RequestCustomerDto;
-      setReq(nextRequest);
-      // После server lock прежний тред нельзя оставлять доступным для ввода.
-      setSelectedConversationId(null);
-
-      let nextConversations = await loadConversations();
-      if (!nextConversations.some((conversation) => conversation.providerId === providerId)) {
-        const ensureResponse = await fetch("/api/chat/ensure", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ serviceRequestId: req.id }),
-        });
-        const ensurePayload = (await ensureResponse.json().catch(() => null)) as
-          | ChatEnsureResponse
-          | { error?: string }
-          | null;
-        if (!ensureResponse.ok || !ensurePayload || !("conversationId" in ensurePayload)) {
-          throw new Error("Исполнитель выбран, но открыть выбранный чат не удалось");
-        }
-        nextConversations = [
-          ...nextConversations,
-          {
-            conversationId: ensurePayload.conversationId,
-            providerId,
-            providerName,
-            lastMessageAt: null,
-            lastSnippet: null,
-          },
-        ];
-      }
-      setConversations(nextConversations);
-      setSelectedConversationId(
-        resolveSelectionAfterProviderSelect({
-          previousConversationId: selectedConversationId,
-          selectedProviderId: providerId,
-          conversations: nextConversations,
-          succeeded: true,
-        }),
-      );
       setNotice(`Вы выбрали «${providerName}». Договор пришлёт исполнитель, перед подписанием вы его увидите.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось выбрать исполнителя");
+    } finally {
+      setBusy(false);
+      setPendingAction(null);
+    }
+  }
+
+  async function recoverSelectedChat() {
+    if (!chatRecovery) return;
+    setBusy(true);
+    setPendingAction("recover-selected-chat");
+    setError(null);
+    try {
+      const result = await retrySelectedProviderConversation({
+        requestId: req.id,
+        providerId: chatRecovery.providerId,
+        providerName: chatRecovery.providerName,
+        previousConversations: conversations,
+      });
+      if (result.kind === "ready") {
+        setConversations(result.conversations);
+        setSelectedConversationId(result.selectedConversationId);
+        setChatRecovery(null);
+        return;
+      }
+      setChatRecovery(result);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось открыть выбранный чат");
     } finally {
       setBusy(false);
       setPendingAction(null);
@@ -1185,6 +1175,22 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
             inputPlaceholder={req.subjectType === "SERVICE" ? DEFAULT_SERVICE_QUESTION : undefined}
             autoFocusInput={justCreated}
           />
+        ) : chatRecovery ? (
+          <Paper variant="outlined" sx={{ p: 2.5 }}>
+            <Stack spacing={1.5}>
+              <Alert severity="warning">{chatRecovery.message}</Alert>
+              <Box>
+                <Button
+                  variant="contained"
+                  loading={pendingAction === "recover-selected-chat"}
+                  disabled={busy && pendingAction !== "recover-selected-chat"}
+                  onClick={() => void recoverSelectedChat()}
+                >
+                  Открыть чат выбранного исполнителя
+                </Button>
+              </Box>
+            </Stack>
+          </Paper>
         ) : (
           <Paper variant="outlined" sx={{ p: 2.5 }}>
             <Typography sx={{
