@@ -3,24 +3,49 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
+import { AuthService } from '../auth/auth.service';
+import { InternalAuthService } from '../auth/internal-auth.service';
+import { ChatService } from '../chat/chat.service';
+import { LegalDocsService } from '../legal-docs/legal-docs.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { RequestsService } from './requests.service';
 
-function makeService(prisma: any) {
-  const auth = {} as any;
-  const internalAuth = {} as any;
-  const legalDocs = {} as any;
-  const chat = { notifyMessageCreated: vi.fn() } as any;
+type TransactionMock = Partial<Prisma.TransactionClient>;
+
+function makePrisma(tx: TransactionMock): PrismaService {
+  const $transaction = async <T>(
+    callback: (transaction: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> => callback(tx as Prisma.TransactionClient);
+
+  return { $transaction } as PrismaService;
+}
+
+function makeService(prisma: PrismaService) {
+  const auth = Object.create(AuthService.prototype) as AuthService;
+  const internalAuth = Object.create(
+    InternalAuthService.prototype,
+  ) as InternalAuthService;
+  const legalDocs = Object.create(
+    LegalDocsService.prototype,
+  ) as LegalDocsService;
+  const chat = Object.create(ChatService.prototype) as ChatService;
+  vi.spyOn(chat, 'notifyMessageCreated').mockResolvedValue(undefined);
   return new RequestsService(prisma, auth, internalAuth, legalDocs, chat);
 }
 
 describe('RequestsService remarks checklist', () => {
-  it('invalid summary атомарно не начинает сдачу', async () => {
+  it.each([
+    ['', 'пустой'],
+    ['   ', 'пробельный'],
+    ['x'.repeat(2001), 'длиннее 2000 символов'],
+  ])('invalid summary (%s) атомарно не начинает сдачу', async (summary) => {
     const transaction = vi.fn();
-    const svc = makeService({ $transaction: transaction });
+    const svc = makeService({ $transaction: transaction } as PrismaService);
 
     await expect(
-      svc.markServiceRenderedByProvider('p1', 'r1', { summary: '   ' }),
+      svc.markServiceRenderedByProvider('p1', 'r1', { summary }),
     ).rejects.toBeInstanceOf(BadRequestException);
 
     expect(transaction).not.toHaveBeenCalled();
@@ -42,9 +67,7 @@ describe('RequestsService remarks checklist', () => {
       requestEvent: { create: vi.fn() },
     };
 
-    const prisma = {
-      $transaction: async (fn: any) => await fn(tx),
-    };
+    const prisma = makePrisma(tx);
 
     const svc = makeService(prisma);
 
@@ -104,7 +127,7 @@ describe('RequestsService remarks checklist', () => {
       },
       requestEvent: { create: vi.fn() },
     };
-    const prisma = { $transaction: async (fn: any) => await fn(tx) };
+    const prisma = makePrisma(tx);
     const svc = makeService(prisma);
 
     await svc.sendRemarksByCustomer('u1', 'r1', { remarks: 'Нужно исправить' });
@@ -136,7 +159,8 @@ describe('RequestsService remarks checklist', () => {
       },
       requestEvent: { create: vi.fn() },
     };
-    const prisma = {
+    const prisma = makePrisma(tx);
+    Object.assign(prisma, {
       request: {
         findUnique: vi.fn().mockResolvedValue({
           id: 'r1',
@@ -144,10 +168,11 @@ describe('RequestsService remarks checklist', () => {
           providerId: 'p1',
         }),
       },
-      $transaction: async (fn: any) => await fn(tx),
-    };
+    });
     const svc = makeService(prisma);
-    (svc as any).getProById = vi.fn().mockResolvedValue({});
+    vi.spyOn(svc, 'getProById').mockResolvedValue(
+      {} as Awaited<ReturnType<RequestsService['getProById']>>,
+    );
 
     await svc.createRemarkByProvider('p1', 'r1', { text: 'test' });
 
@@ -181,18 +206,20 @@ describe('RequestsService remarks checklist', () => {
       requestEvent: { create: vi.fn() },
     };
 
-    const prisma = {
+    const prisma = makePrisma(tx);
+    Object.assign(prisma, {
       request: {
         findUnique: vi
           .fn()
           .mockResolvedValue({ id: 'r1', status: 'ACTIVE', providerId: 'p1' }),
       },
-      $transaction: async (fn: any) => await fn(tx),
-    };
+    });
 
     const svc = makeService(prisma);
     // bypass access guard details; only exercise the rule inside method
-    (svc as any).getProById = vi.fn().mockResolvedValue({});
+    vi.spyOn(svc, 'getProById').mockResolvedValue(
+      {} as Awaited<ReturnType<RequestsService['getProById']>>,
+    );
 
     await expect(
       svc.completeRemarkByProvider('p1', 'r1', 'rm1'),
@@ -214,9 +241,7 @@ describe('RequestsService remarks checklist', () => {
       requestEvent: { create: vi.fn() },
     };
 
-    const prisma = {
-      $transaction: async (fn: any) => await fn(tx),
-    };
+    const prisma = makePrisma(tx);
 
     const svc = makeService(prisma);
 
@@ -232,9 +257,7 @@ describe('RequestsService remarks checklist', () => {
     const tx = {
       request: { findFirst: vi.fn().mockResolvedValue(null) },
     };
-    const svc = makeService({
-      $transaction: async (fn: any) => await fn(tx),
-    });
+    const svc = makeService(makePrisma(tx));
 
     await expect(
       svc.markServiceRenderedByProvider('p2', 'r1', { summary: 'Готово' }),
@@ -332,7 +355,7 @@ describe('RequestsService remarks checklist', () => {
       },
       requestEvent: { create: vi.fn() },
     };
-    const prisma = { $transaction: async (fn: any) => await fn(tx) };
+    const prisma = makePrisma(tx);
     const svc = makeService(prisma);
 
     await svc.markServiceRenderedByProvider('p1', 'r1', {

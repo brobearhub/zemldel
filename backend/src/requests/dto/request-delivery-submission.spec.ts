@@ -50,6 +50,19 @@ describe('delivery submissions DTO visibility', () => {
     ]);
   });
 
+  it('даёт выбранному provider текущую и упорядоченную историю', () => {
+    const dto = requestRowToProDtoPlain(makeRow(), 0, 'p1');
+
+    expect(dto.currentSubmission).toMatchObject({
+      id: 's2',
+      sequence: 2,
+      summary: 'Вторая версия',
+    });
+    expect(dto.deliverySubmissions.map((item) => item.sequence)).toEqual([
+      1, 2,
+    ]);
+  });
+
   it('не отдаёт историю foreign locked provider', () => {
     const dto = requestRowToProDtoPlain(makeRow(), 0, 'p2');
 
