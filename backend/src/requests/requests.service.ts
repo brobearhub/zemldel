@@ -1314,7 +1314,7 @@ export class RequestsService {
         where: {
           id: req.id,
           providerId: actorProviderId,
-          status: { in: ['ACCEPTANCE_PENDING', 'ACTIVE'] },
+          status: req.status,
         },
         data: { updatedAt: new Date() },
       });
