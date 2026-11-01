@@ -31,6 +31,18 @@ const paymentSelect = {
   createdByUserId: true,
 } as const;
 
+const priceProposalSelect = {
+  id: true,
+  providerId: true,
+  amountRubles: true,
+  authorSide: true,
+  proposedByUserId: true,
+  acceptedAt: true,
+  acceptedByUserId: true,
+  supersededAt: true,
+  createdAt: true,
+} as const;
+
 type PaymentRow = {
   id: string;
   type: RequestPaymentType;
@@ -39,6 +51,29 @@ type PaymentRow = {
   paidAt: Date | null;
   createdAt: Date;
   createdByUserId: string | null;
+};
+
+type PriceProposalRow = {
+  id: string;
+  providerId: string;
+  amountRubles: number;
+  authorSide: 'CUSTOMER' | 'PROVIDER';
+  proposedByUserId: string | null;
+  acceptedAt: Date | null;
+  acceptedByUserId: string | null;
+  supersededAt: Date | null;
+  createdAt: Date;
+};
+
+type PriceRequestState = {
+  id: string;
+  status: string;
+  contractAcceptedAt: Date | null;
+  providerId: string | null;
+  customerUserId: string | null;
+  totalAmountRubles: number | null;
+  payments: PaymentRow[];
+  priceProposals: PriceProposalRow[];
 };
 
 function authorSide(
@@ -69,13 +104,33 @@ function toFinanceDto(
   totalAmountRubles: number | null,
   payments: PaymentRow[],
   customerUserId: string | null,
+  priceProposal: PriceProposalRow | null,
+  viewerSide: 'CUSTOMER' | 'PROVIDER',
+  priceMutable: boolean,
+  canProposePrice = priceMutable,
 ): RequestFinanceDto {
   const paidAmountRubles = sumPaidRublesByType(
-    payments as unknown as PaymentAmountWithTypeAndPaidAt[],
+    payments satisfies PaymentAmountWithTypeAndPaidAt[],
     'CONTRACT',
   );
   return {
     totalAmountRubles,
+    priceProposal: priceProposal
+      ? {
+          id: priceProposal.id,
+          providerId: priceProposal.providerId,
+          amountRubles: priceProposal.amountRubles,
+          authorSide: priceProposal.authorSide,
+          acceptedAt: priceProposal.acceptedAt?.toISOString() ?? null,
+          createdAt: priceProposal.createdAt.toISOString(),
+        }
+      : null,
+    canProposePrice,
+    canAcceptPrice:
+      priceMutable &&
+      priceProposal != null &&
+      priceProposal.acceptedAt == null &&
+      priceProposal.authorSide !== viewerSide,
     paidAmountRubles,
     remainingAmountRubles: remainingRubles(totalAmountRubles, paidAmountRubles),
     payments: payments.map((row) => toPaymentDto(row, customerUserId)),
@@ -116,8 +171,15 @@ export class RequestPaymentsService {
         customerUserId: true,
         requestCityId: true,
         lockedAt: true,
+        contractAcceptedAt: true,
         totalAmountRubles: true,
         payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
+        priceProposals: {
+          where: { providerId: input.providerId, supersededAt: null },
+          select: priceProposalSelect,
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
         providerOffers: { select: { providerId: true, status: true } },
         requestCity: { select: { regionCode: true } },
         customerUser: {
@@ -262,6 +324,18 @@ export class RequestPaymentsService {
     }
   }
 
+  private assertPriceMutable(request: {
+    status: string;
+    contractAcceptedAt: Date | null;
+  }) {
+    if (request.contractAcceptedAt || request.status === 'ACTIVE') {
+      throw new ForbiddenException(
+        'Price cannot be changed after contract acceptance',
+      );
+    }
+    this.assertWritable(request.status);
+  }
+
   async getForProvider(input: {
     actorUserId: string;
     requestId: string;
@@ -275,6 +349,9 @@ export class RequestPaymentsService {
       request.totalAmountRubles,
       request.payments,
       request.customerUserId,
+      request.priceProposals?.[0] ?? null,
+      'PROVIDER',
+      request.contractAcceptedAt == null && request.status !== 'ACTIVE',
     );
   }
 
@@ -285,9 +362,18 @@ export class RequestPaymentsService {
     const request = await this.prisma.request.findFirst({
       where: { id: input.requestId, customerUserId: input.actorUserId },
       select: {
+        status: true,
+        contractAcceptedAt: true,
+        providerId: true,
         customerUserId: true,
         totalAmountRubles: true,
         payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
+        priceProposals: {
+          where: { supersededAt: null },
+          select: priceProposalSelect,
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
       },
     });
     if (!request) {
@@ -302,25 +388,83 @@ export class RequestPaymentsService {
       request.totalAmountRubles,
       request.payments,
       request.customerUserId,
+      request.priceProposals?.[0] ?? null,
+      'CUSTOMER',
+      request.contractAcceptedAt == null && request.status !== 'ACTIVE',
+      request.providerId != null || request.priceProposals.length > 0,
     );
   }
 
-  async setTotalForProvider(input: {
+  async proposePriceForProvider(input: {
     actorUserId: string;
     requestId: string;
-    totalAmountRubles: number;
+    amountRubles: number;
   }): Promise<RequestFinanceDto> {
     const providerId = await this.requireProviderId(input.actorUserId);
     const request = await this.loadProviderRequest({
       providerId,
       requestId: input.requestId,
     });
-    this.assertWritable(request.status);
+    this.assertPriceMutable(request);
+    return this.createPriceProposal({
+      request,
+      providerId,
+      actorUserId: input.actorUserId,
+      authorSide: 'PROVIDER',
+      amountRubles: input.amountRubles,
+    });
+  }
 
+  async acceptPriceForProvider(input: {
+    actorUserId: string;
+    requestId: string;
+    proposalId: string;
+  }): Promise<RequestFinanceDto> {
+    const providerId = await this.requireProviderId(input.actorUserId);
+    const request = await this.loadProviderRequest({
+      providerId,
+      requestId: input.requestId,
+    });
+    this.assertPriceMutable(request);
+    return this.acceptPriceProposal({
+      request,
+      providerId,
+      actorUserId: input.actorUserId,
+      actorSide: 'PROVIDER',
+      proposalId: input.proposalId,
+    });
+  }
+
+  private async createPriceProposal(input: {
+    request: PriceRequestState;
+    providerId: string;
+    actorUserId: string;
+    authorSide: 'CUSTOMER' | 'PROVIDER';
+    amountRubles: number;
+  }): Promise<RequestFinanceDto> {
+    const now = new Date();
     const updated = await this.prisma.$transaction(async (tx) => {
-      const next = await tx.request.update({
-        where: { id: request.id },
-        data: { totalAmountRubles: input.totalAmountRubles },
+      await tx.requestPriceProposal.updateMany({
+        where: {
+          requestId: input.request.id,
+          providerId: input.providerId,
+          supersededAt: null,
+        },
+        data: { supersededAt: now },
+      });
+      const proposal = await tx.requestPriceProposal.create({
+        data: {
+          requestId: input.request.id,
+          providerId: input.providerId,
+          amountRubles: input.amountRubles,
+          authorSide: input.authorSide,
+          proposedByUserId: input.actorUserId,
+        },
+        select: priceProposalSelect,
+      });
+      const request = await tx.request.update({
+        where: { id: input.request.id },
+        data: { totalAmountRubles: null },
         select: {
           totalAmountRubles: true,
           payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
@@ -328,38 +472,125 @@ export class RequestPaymentsService {
       });
       await tx.requestEvent.create({
         data: {
-          requestId: request.id,
-          type: 'FINANCE_TOTAL_SET',
+          requestId: input.request.id,
+          type: 'PRICE_PROPOSED',
           actorUserId: input.actorUserId,
-          actorProviderId: providerId,
-          payload: { totalAmountRubles: input.totalAmountRubles },
+          actorProviderId: input.providerId,
+          payload: {
+            proposalId: proposal.id,
+            amountRubles: input.amountRubles,
+            authorSide: input.authorSide,
+          },
         },
       });
-      return next;
+      return { ...request, proposal };
     });
 
-    const side = 'Исполнитель';
-    const nextAmount = input.totalAmountRubles;
-    const prev = request.totalAmountRubles;
-    const body =
-      prev === nextAmount
-        ? null
-        : prev == null
-          ? `${side} указал цену ${formatRubles(nextAmount)}`
-          : `${side} изменил цену: было ${formatRubles(prev)}, стало ${formatRubles(nextAmount)}`;
     await this.postNote({
-      requestId: request.id,
+      requestId: input.request.id,
       actorUserId: input.actorUserId,
-      customerUserId: request.customerUserId,
-      requestProviderId: request.providerId,
-      actorProviderId: providerId,
-      body,
+      customerUserId: input.request.customerUserId,
+      requestProviderId: input.providerId,
+      actorProviderId:
+        input.authorSide === 'PROVIDER' ? input.providerId : null,
+      body: `${input.authorSide === 'PROVIDER' ? 'Исполнитель' : 'Клиент'} предложил цену ${formatRubles(input.amountRubles)}`,
     });
 
     return toFinanceDto(
       updated.totalAmountRubles,
       updated.payments,
-      request.customerUserId,
+      input.request.customerUserId,
+      updated.proposal,
+      input.authorSide,
+      true,
+    );
+  }
+
+  private async acceptPriceProposal(input: {
+    request: PriceRequestState;
+    providerId: string;
+    actorUserId: string;
+    actorSide: 'CUSTOMER' | 'PROVIDER';
+    proposalId: string;
+  }): Promise<RequestFinanceDto> {
+    const proposal = input.request.priceProposals.find(
+      (item) => item.id === input.proposalId,
+    );
+    if (
+      !proposal ||
+      proposal.providerId !== input.providerId ||
+      proposal.supersededAt ||
+      proposal.acceptedAt
+    ) {
+      throw new ForbiddenException('Price proposal is not active');
+    }
+    if (proposal.authorSide === input.actorSide) {
+      throw new ForbiddenException(
+        'Own-side price proposal cannot be accepted',
+      );
+    }
+
+    const now = new Date();
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const accepted = await tx.requestPriceProposal.updateMany({
+        where: {
+          id: proposal.id,
+          requestId: input.request.id,
+          providerId: input.providerId,
+          acceptedAt: null,
+          supersededAt: null,
+        },
+        data: { acceptedAt: now, acceptedByUserId: input.actorUserId },
+      });
+      if (accepted.count !== 1) {
+        throw new ForbiddenException('Price proposal is not active');
+      }
+      const request = await tx.request.update({
+        where: { id: input.request.id },
+        data: { totalAmountRubles: proposal.amountRubles },
+        select: {
+          totalAmountRubles: true,
+          payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
+        },
+      });
+      await tx.requestEvent.create({
+        data: {
+          requestId: input.request.id,
+          type: 'PRICE_ACCEPTED',
+          actorUserId: input.actorUserId,
+          actorProviderId: input.providerId,
+          payload: {
+            proposalId: proposal.id,
+            amountRubles: proposal.amountRubles,
+          },
+        },
+      });
+      return {
+        ...request,
+        proposal: {
+          ...proposal,
+          acceptedAt: now,
+          acceptedByUserId: input.actorUserId,
+        },
+      };
+    });
+
+    await this.postNote({
+      requestId: input.request.id,
+      actorUserId: input.actorUserId,
+      customerUserId: input.request.customerUserId,
+      requestProviderId: input.providerId,
+      actorProviderId: input.actorSide === 'PROVIDER' ? input.providerId : null,
+      body: `${input.actorSide === 'PROVIDER' ? 'Исполнитель' : 'Клиент'} принял цену ${formatRubles(proposal.amountRubles)}`,
+    });
+
+    return toFinanceDto(
+      updated.totalAmountRubles,
+      updated.payments,
+      input.request.customerUserId,
+      updated.proposal,
+      input.actorSide,
+      true,
     );
   }
 
@@ -429,6 +660,9 @@ export class RequestPaymentsService {
       updated.totalAmountRubles,
       updated.payments,
       request.customerUserId,
+      request.priceProposals?.[0] ?? null,
+      'PROVIDER',
+      request.contractAcceptedAt == null && request.status !== 'ACTIVE',
     );
   }
 
@@ -495,6 +729,9 @@ export class RequestPaymentsService {
       updated.totalAmountRubles,
       updated.payments,
       request.customerUserId,
+      request.priceProposals?.[0] ?? null,
+      'PROVIDER',
+      request.contractAcceptedAt == null && request.status !== 'ACTIVE',
     );
   }
 
@@ -511,8 +748,15 @@ export class RequestPaymentsService {
         providerId: true,
         customerUserId: true,
         lockedAt: true,
+        contractAcceptedAt: true,
         totalAmountRubles: true,
         payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
+        priceProposals: {
+          where: { supersededAt: null },
+          select: priceProposalSelect,
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
       },
     });
     if (!request) throw new NotFoundException('Request not found');
@@ -569,57 +813,55 @@ export class RequestPaymentsService {
       updated.totalAmountRubles,
       updated.payments,
       request.customerUserId,
+      request.priceProposals?.[0] ?? null,
+      'CUSTOMER',
+      request.contractAcceptedAt == null && request.status !== 'ACTIVE',
     );
   }
 
-  async setTotalForCustomer(input: {
+  async proposePriceForCustomer(input: {
     actorUserId: string;
     requestId: string;
-    totalAmountRubles: number;
+    amountRubles: number;
   }): Promise<RequestFinanceDto> {
     const request = await this.loadCustomerRequest(input);
-    this.assertWritable(request.status);
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const next = await tx.request.update({
-        where: { id: request.id },
-        data: { totalAmountRubles: input.totalAmountRubles },
-        select: {
-          totalAmountRubles: true,
-          payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
-        },
-      });
-      await tx.requestEvent.create({
-        data: {
-          requestId: request.id,
-          type: 'FINANCE_TOTAL_SET',
-          actorUserId: input.actorUserId,
-          actorProviderId: request.providerId,
-          payload: { totalAmountRubles: input.totalAmountRubles },
-        },
-      });
-      return next;
-    });
-    const prev = request.totalAmountRubles;
-    const nextAmount = input.totalAmountRubles;
-    const body =
-      prev === nextAmount
-        ? null
-        : prev == null
-          ? `Клиент указал цену ${formatRubles(nextAmount)}`
-          : `Клиент изменил цену: было ${formatRubles(prev)}, стало ${formatRubles(nextAmount)}`;
-    await this.postNote({
-      requestId: request.id,
+    this.assertPriceMutable(request);
+    const providerId =
+      request.providerId ?? request.priceProposals?.[0]?.providerId;
+    if (!providerId) {
+      throw new BadRequestException(
+        'Provider must be selected before customer price proposal',
+      );
+    }
+    return this.createPriceProposal({
+      request,
+      providerId,
       actorUserId: input.actorUserId,
-      customerUserId: request.customerUserId,
-      requestProviderId: request.providerId,
-      actorProviderId: null,
-      body,
+      authorSide: 'CUSTOMER',
+      amountRubles: input.amountRubles,
     });
-    return toFinanceDto(
-      updated.totalAmountRubles,
-      updated.payments,
-      request.customerUserId,
+  }
+
+  async acceptPriceForCustomer(input: {
+    actorUserId: string;
+    requestId: string;
+    proposalId: string;
+  }): Promise<RequestFinanceDto> {
+    const request = await this.loadCustomerRequest(input);
+    this.assertPriceMutable(request);
+    const proposal = request.priceProposals.find(
+      (item) => item.id === input.proposalId,
     );
+    if (!proposal) {
+      throw new ForbiddenException('Price proposal is not active');
+    }
+    return this.acceptPriceProposal({
+      request,
+      providerId: proposal.providerId,
+      actorUserId: input.actorUserId,
+      actorSide: 'CUSTOMER',
+      proposalId: input.proposalId,
+    });
   }
 
   async addPaymentForCustomer(input: {
@@ -678,6 +920,9 @@ export class RequestPaymentsService {
       updated.totalAmountRubles,
       updated.payments,
       request.customerUserId,
+      request.priceProposals?.[0] ?? null,
+      'CUSTOMER',
+      request.contractAcceptedAt == null && request.status !== 'ACTIVE',
     );
   }
 
@@ -690,10 +935,16 @@ export class RequestPaymentsService {
       select: {
         id: true,
         status: true,
+        contractAcceptedAt: true,
         providerId: true,
         customerUserId: true,
         totalAmountRubles: true,
         payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
+        priceProposals: {
+          where: { supersededAt: null },
+          select: priceProposalSelect,
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
     if (!request) throw new NotFoundException('Request not found');

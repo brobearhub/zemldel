@@ -67,7 +67,20 @@ describe('formatCustomerSelectProviderChatMessage', () => {
 
 describe('RequestsService.selectProviderByCustomer', () => {
   it('после DECLINED снова ставит SELECTED и шлёт сообщение в чат', async () => {
-    const row = makeRequestRow();
+    const row = makeRequestRow({
+      providerId: 'old-provider',
+      totalAmountRubles: 12000,
+      priceProposals: [
+        {
+          id: 'old-proposal',
+          providerId: 'old-provider',
+          amountRubles: 12000,
+          authorSide: 'PROVIDER',
+          acceptedAt: new Date('2026-08-05T00:00:00.000Z'),
+          createdAt: new Date('2026-08-04T00:00:00.000Z'),
+        },
+      ],
+    });
     const offerUpsert = vi.fn().mockResolvedValue({ id: 'o1' });
     const messageCreate = vi.fn().mockResolvedValue({ id: 'm1' });
     const conversationUpdate = vi.fn().mockResolvedValue({ id: 'c1' });
@@ -94,6 +107,9 @@ describe('RequestsService.selectProviderByCustomer', () => {
         findUnique: vi.fn().mockResolvedValue({ id: 'o1', status: 'DECLINED' }),
         upsert: offerUpsert,
         updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+      requestPriceProposal: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
       conversation: {
         findFirst: vi.fn().mockResolvedValue({ id: 'c1' }),
@@ -128,6 +144,22 @@ describe('RequestsService.selectProviderByCustomer', () => {
           conversationId: 'c1',
           senderUserId: 'cu1',
           body: 'Заказчик снова предложил вам выполнить заявку',
+        }),
+      }),
+    );
+    expect(tx.requestPriceProposal.updateMany).toHaveBeenCalledWith({
+      where: {
+        requestId: 'r1',
+        providerId: { not: 'p1' },
+        supersededAt: null,
+      },
+      data: { supersededAt: expect.any(Date) },
+    });
+    expect(tx.request.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          providerId: 'p1',
+          totalAmountRubles: null,
         }),
       }),
     );

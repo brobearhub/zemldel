@@ -10,15 +10,36 @@ describe("request finance helpers", () => {
   it("keeps the panel name and puts the amount in a separate caption", () => {
     expect(resolvePaymentTriggerLabel(1000)).toBe("Цена и оплата");
     expect(resolvePaymentTriggerLabel(null)).toBe("Цена и оплата");
-    expect(resolveRequestPriceView({ totalAmountRubles: null, servicePriceRubles: null }).triggerCaption).toBe(
-      "Цена не указана",
+    expect(resolveRequestPriceView({ totalAmountRubles: null, servicePriceRubles: null, priceProposal: null }).triggerCaption).toBe(
+      "Цена не согласована",
     );
-    expect(resolveRequestPriceView({ totalAmountRubles: null, servicePriceRubles: 12000 }).triggerCaption).toMatch(
-      /Цена по услуге/,
+    expect(resolveRequestPriceView({ totalAmountRubles: null, servicePriceRubles: 12000, priceProposal: null })).toMatchObject(
+      {
+        triggerCaption: "Цена не согласована",
+        servicePriceLabel: expect.stringMatching(/Справочная цена услуги/),
+        proposedAmount: null,
+        agreedAmount: null,
+      },
     );
-    expect(resolveRequestPriceView({ totalAmountRubles: 15000, servicePriceRubles: 12000 }).triggerCaption).toMatch(/15/);
-    expect(resolveRequestPriceView({ totalAmountRubles: 15000, servicePriceRubles: 12000 }).changedNote).toMatch(
-      /Изменена относительно услуги/,
+    expect(
+      resolveRequestPriceView({
+        totalAmountRubles: null,
+        servicePriceRubles: 12000,
+        priceProposal: { id: "pp1", amountRubles: 15000, authorSide: "PROVIDER" },
+      }),
+    ).toMatchObject({
+      headline: expect.stringMatching(/Предложено.*15/),
+      proposedAmount: 15000,
+      agreedAmount: null,
+    });
+    expect(
+      resolveRequestPriceView({ totalAmountRubles: 15000, servicePriceRubles: 12000, priceProposal: null }),
+    ).toMatchObject(
+      {
+        headline: expect.stringMatching(/Согласовано.*15/),
+        proposedAmount: null,
+        agreedAmount: 15000,
+      },
     );
   });
 

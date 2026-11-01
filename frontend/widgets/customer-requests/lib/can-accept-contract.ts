@@ -5,6 +5,7 @@ import type { CustomerContractBundleListItem } from "@/features/request-contract
 export function canCustomerAcceptContract(input: {
   requestStatus: RequestCustomerDto["status"];
   lockedAt: RequestCustomerDto["lockedAt"];
+  totalAmountRubles: RequestCustomerDto["totalAmountRubles"];
   contractBundles: readonly CustomerContractBundleListItem[];
   documentRequests: readonly RequestDocumentRequestDto[];
 }) {
@@ -14,6 +15,7 @@ export function canCustomerAcceptContract(input: {
   const allRequestedDocumentsUploaded = input.documentRequests.every((d) => d.status === "UPLOADED");
   return (
     Boolean(input.lockedAt) &&
+    input.totalAmountRubles != null &&
     !isOrderExecutionStatus(input.requestStatus) &&
     allContractBundlesApproved &&
     allRequestedDocumentsUploaded

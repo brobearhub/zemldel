@@ -111,6 +111,11 @@ enum RequestRemarkAuthorSide {
   PROVIDER
 }
 
+enum RequestPriceProposalAuthorSide {
+  CUSTOMER
+  PROVIDER
+}
+
 enum ReviewDirection {
   CUSTOMER_TO_PROVIDER
   PROVIDER_TO_CUSTOMER
@@ -267,6 +272,8 @@ model User {
   createdRequestRemarks     RequestRemark[]          @relation("RequestRemarkCreatedByUser")
   doneRequestRemarks        RequestRemark[]          @relation("RequestRemarkDoneByUser")
   createdRequestPayments    RequestPayment[]         @relation("RequestPaymentCreatedByUser")
+  proposedRequestPrices     RequestPriceProposal[]   @relation("RequestPriceProposalProposedBy")
+  acceptedRequestPrices     RequestPriceProposal[]   @relation("RequestPriceProposalAcceptedBy")
   authoredReviews           Review[]                 @relation("ReviewAuthor")
   subjectReviews            Review[]                 @relation("ReviewSubject")
   repliedReviews            Review[]                 @relation("ReviewRepliedBy")
@@ -392,6 +399,7 @@ model Provider {
   requestOffers     RequestProviderOffer[]
   reminders         RequestReminder[]
   requestPayments   RequestPayment[]
+  requestPriceProposals RequestPriceProposal[]
   reviews           Review[]
   stories           Story[]
   storyFollowers    StoryAuthorFollow[]
@@ -605,6 +613,7 @@ model Request {
   reminders         RequestReminder[]
   remarks           RequestRemark[]
   payments          RequestPayment[]
+  priceProposals    RequestPriceProposal[]
   reviews           Review[]
 
   createdAt DateTime @default(now())
@@ -729,6 +738,30 @@ model RequestPayment {
 
   @@index([requestId, paidAt])
   @@index([providerId, paidAt])
+}
+
+model RequestPriceProposal {
+  id               String                         @id @default(uuid()) @db.Uuid
+  requestId        String                         @db.Uuid
+  providerId       String                         @db.Uuid
+  amountRubles     Int
+  authorSide       RequestPriceProposalAuthorSide
+  proposedByUserId String?                        @db.Uuid
+  acceptedAt       DateTime?
+  acceptedByUserId String?                        @db.Uuid
+  supersededAt     DateTime?
+
+  request      Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  provider     Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  proposedBy   User?    @relation("RequestPriceProposalProposedBy", fields: [proposedByUserId], references: [id], onDelete: SetNull)
+  acceptedBy   User?    @relation("RequestPriceProposalAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([requestId, providerId, createdAt])
+  @@index([providerId, createdAt])
+  @@index([requestId, supersededAt])
 }
 
 enum RequestPaymentType {

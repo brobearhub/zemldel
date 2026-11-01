@@ -22,6 +22,41 @@ function makeService(
 }
 
 describe('RequestsService acceptContractByCustomer', () => {
+  it('blocks contract acceptance without an agreed price', async () => {
+    const tx = {
+      request: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'DISCUSSING',
+          providerId: 'p1',
+          lockedAt: new Date('2026-08-06T00:00:00.000Z'),
+          customerUserId: 'u1',
+          totalAmountRubles: null,
+          serviceId: null,
+          categoryId: null,
+        }),
+        update: vi.fn(),
+      },
+      requestContractFile: { findMany: vi.fn() },
+      requestDocumentRequest: { count: vi.fn() },
+      legalAcceptance: { create: vi.fn() },
+      requestEvent: { create: vi.fn() },
+    };
+    const prisma = {
+      $transaction: async (fn: (client: typeof tx) => Promise<unknown>) =>
+        await fn(tx),
+    };
+
+    await expect(
+      makeService(prisma).acceptContractByCustomer('u1', 'r1', {
+        termsVersion: '2026-08-04',
+      }),
+    ).rejects.toMatchObject({
+      message: 'Price must be agreed before contract acceptance',
+    });
+    expect(tx.requestContractFile.findMany).not.toHaveBeenCalled();
+  });
+
   it('blocks contract acceptance until all requested documents are uploaded', async () => {
     const tx = {
       request: {
@@ -31,6 +66,7 @@ describe('RequestsService acceptContractByCustomer', () => {
           providerId: 'p1',
           lockedAt: new Date('2026-08-06T00:00:00.000Z'),
           customerUserId: 'u1',
+          totalAmountRubles: 12000,
           dealTerms: {},
           serviceId: null,
           categoryId: null,
@@ -70,6 +106,7 @@ describe('RequestsService acceptContractByCustomer', () => {
           providerId: 'p1',
           lockedAt: new Date('2026-08-06T00:00:00.000Z'),
           customerUserId: 'u1',
+          totalAmountRubles: 12000,
           dealTerms: {},
           serviceId: null,
           categoryId: null,
@@ -112,6 +149,7 @@ describe('RequestsService acceptContractByCustomer', () => {
           providerId: 'p1',
           lockedAt: null,
           customerUserId: 'u1',
+          totalAmountRubles: 12000,
           dealTerms: {},
           serviceId: null,
           categoryId: null,

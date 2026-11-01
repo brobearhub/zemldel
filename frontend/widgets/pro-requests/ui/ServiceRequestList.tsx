@@ -34,6 +34,7 @@ export function ServiceRequestList({ items, minRows = 6, allowLockedClick }: Pro
         const price = resolveRequestPriceView({
           totalAmountRubles: item.totalAmountRubles,
           servicePriceRubles: item.servicePriceRubles,
+          priceProposal: item.priceProposal,
         });
         return (
           <FeedListItem

@@ -155,6 +155,7 @@ function BoardCard({
                 <RequestPriceBlock
                   totalAmountRubles={item.totalAmountRubles}
                   servicePriceRubles={item.servicePriceRubles}
+                  priceProposal={item.priceProposal}
                   serviceId={item.serviceId}
                 />
               </Box>

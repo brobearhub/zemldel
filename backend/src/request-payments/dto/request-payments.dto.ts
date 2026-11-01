@@ -12,12 +12,32 @@ import {
 } from 'class-validator';
 import { RequestPaymentItemDto } from '../../requests/dto/request.dto';
 
-export class SetRequestTotalDto {
-  @ApiProperty({ example: 25000, description: 'Полная цена в рублях' })
+export class CreateRequestPriceProposalDto {
+  @ApiProperty({ example: 25000, description: 'Предложенная цена в рублях' })
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  totalAmountRubles!: number;
+  amountRubles!: number;
+}
+
+export class RequestPriceProposalDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  providerId!: string;
+
+  @ApiProperty({ example: 25000 })
+  amountRubles!: number;
+
+  @ApiProperty({ enum: ['CUSTOMER', 'PROVIDER'] })
+  authorSide!: 'CUSTOMER' | 'PROVIDER';
+
+  @ApiProperty({ nullable: true })
+  acceptedAt!: string | null;
+
+  @ApiProperty()
+  createdAt!: string;
 }
 
 export class CreateRequestPaymentDto {
@@ -53,6 +73,15 @@ export class CreateRequestPaymentDto {
 export class RequestFinanceDto {
   @ApiProperty({ nullable: true, example: 25000 })
   totalAmountRubles!: number | null;
+
+  @ApiProperty({ type: RequestPriceProposalDto, nullable: true })
+  priceProposal!: RequestPriceProposalDto | null;
+
+  @ApiProperty()
+  canProposePrice!: boolean;
+
+  @ApiProperty()
+  canAcceptPrice!: boolean;
 
   @ApiProperty({ example: 5000 })
   paidAmountRubles!: number;

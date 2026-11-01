@@ -27,11 +27,24 @@ const approvedFullBundle = {
 };
 
 describe("canCustomerAcceptContract", () => {
+  it("requires an agreed price", () => {
+    expect(
+      canCustomerAcceptContract({
+        requestStatus: "DISCUSSING",
+        lockedAt: "2026-08-06T00:00:00.000Z",
+        totalAmountRubles: null,
+        contractBundles: [approvedFullBundle],
+        documentRequests: [],
+      }),
+    ).toBe(false);
+  });
+
   it("requires approved full bundle", () => {
     expect(
       canCustomerAcceptContract({
         requestStatus: "DISCUSSING",
         lockedAt: "2026-08-06T00:00:00.000Z",
+        totalAmountRubles: 12000,
         contractBundles: [
           {
             ...approvedFullBundle,
@@ -48,6 +61,7 @@ describe("canCustomerAcceptContract", () => {
       canCustomerAcceptContract({
         requestStatus: "DISCUSSING",
         lockedAt: "2026-08-06T00:00:00.000Z",
+        totalAmountRubles: 12000,
         contractBundles: [
           {
             ...approvedFullBundle,
@@ -64,6 +78,7 @@ describe("canCustomerAcceptContract", () => {
       canCustomerAcceptContract({
         requestStatus: "DISCUSSING",
         lockedAt: "2026-08-06T00:00:00.000Z",
+        totalAmountRubles: 12000,
         contractBundles: [approvedFullBundle],
         documentRequests: [
           {
@@ -88,6 +103,7 @@ describe("canCustomerAcceptContract", () => {
       canCustomerAcceptContract({
         requestStatus: "DISCUSSING",
         lockedAt: "2026-08-06T00:00:00.000Z",
+        totalAmountRubles: 12000,
         contractBundles: [approvedFullBundle],
         documentRequests: [
           {
@@ -112,6 +128,7 @@ describe("canCustomerAcceptContract", () => {
       canCustomerAcceptContract({
         requestStatus: "DISCUSSING",
         lockedAt: "2026-08-06T00:00:00.000Z",
+        totalAmountRubles: 12000,
         contractBundles: [
           approvedFullBundle,
           {
