@@ -128,6 +128,7 @@ const select = {
   payments: {
     select: {
       id: true,
+      providerId: true,
       type: true,
       amountRubles: true,
       comment: true,
@@ -1083,6 +1084,19 @@ export class RequestsService {
     input: { text: string },
   ): Promise<RequestRemarkDto> {
     const updated = await this.prisma.$transaction(async (tx) => {
+      const lock = await tx.request.updateMany({
+        where: {
+          id: requestId,
+          customerUserId: actorUserId,
+          status: { in: ['ACCEPTANCE_PENDING', 'ACTIVE'] },
+        },
+        data: { updatedAt: new Date() },
+      });
+      if (lock.count !== 1) {
+        throw new ForbiddenException(
+          'Remarks can be added only during acceptance or work',
+        );
+      }
       const current = await tx.request.findFirst({
         where: { id: requestId, customerUserId: actorUserId },
         select: { id: true, status: true },
@@ -1296,6 +1310,19 @@ export class RequestsService {
     }
 
     const created = await this.prisma.$transaction(async (tx) => {
+      const lock = await tx.request.updateMany({
+        where: {
+          id: req.id,
+          providerId: actorProviderId,
+          status: { in: ['ACCEPTANCE_PENDING', 'ACTIVE'] },
+        },
+        data: { updatedAt: new Date() },
+      });
+      if (lock.count !== 1) {
+        throw new ForbiddenException(
+          'Remarks can be added only during acceptance or work',
+        );
+      }
       const row = await tx.request.findUnique({
         where: { id: req.id },
         select: { id: true, status: true },
@@ -2636,12 +2663,17 @@ export class RequestsService {
         data: { supersededAt: now },
       });
 
+      const selectedAcceptedProposal = req.priceProposals?.find(
+        (proposal) =>
+          proposal.providerId === input.providerId &&
+          proposal.acceptedAt != null,
+      );
       const next = await tx.request.update({
         where: { id: req.id },
         data: {
           providerId: input.providerId,
           lockedAt: req.lockedAt ?? now,
-          totalAmountRubles: null,
+          totalAmountRubles: selectedAcceptedProposal?.amountRubles ?? null,
         },
         select,
       });
@@ -2873,6 +2905,19 @@ export class RequestsService {
     let updated: Prisma.RequestGetPayload<{ select: typeof select }>;
     try {
       updated = await this.prisma.$transaction(async (tx) => {
+        const lock = await tx.request.updateMany({
+          where: { id, providerId: actorProviderId, status: 'ACTIVE' },
+          data: { updatedAt: new Date() },
+        });
+        if (lock.count !== 1) {
+          const current = await tx.request.findFirst({
+            where: { id, providerId: actorProviderId },
+            select,
+          });
+          if (!current) throw new NotFoundException('Request not found');
+          if (current.status === 'ACCEPTANCE_PENDING') return current;
+          throw new ForbiddenException('Request must be in work');
+        }
         const current = await tx.request.findFirst({
           where: { id, providerId: actorProviderId },
           select,

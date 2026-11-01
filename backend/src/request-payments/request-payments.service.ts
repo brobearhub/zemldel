@@ -81,6 +81,7 @@ type PriceRequestState = {
   status: string;
   contractAcceptedAt: Date | null;
   providerId: string | null;
+  lockedAt: Date | null;
   customerUserId: string | null;
   totalAmountRubles: number | null;
   payments: PaymentRow[];
@@ -148,6 +149,16 @@ function toFinanceDto(
   };
 }
 
+function scopedTotalAmount(
+  requestProviderId: string | null,
+  providerId: string,
+  storedTotal: number | null,
+  proposal: PriceProposalRow | null,
+): number | null {
+  if (proposal?.acceptedAt) return proposal.amountRubles;
+  return requestProviderId === providerId ? storedTotal : null;
+}
+
 @Injectable()
 export class RequestPaymentsService {
   constructor(
@@ -184,7 +195,11 @@ export class RequestPaymentsService {
         lockedAt: true,
         contractAcceptedAt: true,
         totalAmountRubles: true,
-        payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
+        payments: {
+          where: { providerId: input.providerId },
+          select: paymentSelect,
+          orderBy: { paidAt: 'asc' },
+        },
         priceProposals: {
           where: { providerId: input.providerId, supersededAt: null },
           select: priceProposalSelect,
@@ -356,7 +371,12 @@ export class RequestPaymentsService {
       requestId: input.requestId,
     });
     return toFinanceDto(
-      request.totalAmountRubles,
+      scopedTotalAmount(
+        request.providerId,
+        providerId,
+        request.totalAmountRubles,
+        request.priceProposals?.[0] ?? null,
+      ),
       request.payments,
       request.customerUserId,
       request.priceProposals?.[0] ?? null,
@@ -368,7 +388,9 @@ export class RequestPaymentsService {
   async getForCustomer(input: {
     actorUserId: string;
     requestId: string;
+    conversationId?: string;
   }): Promise<RequestFinanceDto> {
+    const providerId = await this.resolveCustomerFinanceProviderId(input);
     const request = await this.prisma.request.findFirst({
       where: { id: input.requestId, customerUserId: input.actorUserId },
       select: {
@@ -377,9 +399,13 @@ export class RequestPaymentsService {
         providerId: true,
         customerUserId: true,
         totalAmountRubles: true,
-        payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
+        payments: {
+          where: { providerId },
+          select: paymentSelect,
+          orderBy: { paidAt: 'asc' },
+        },
         priceProposals: {
-          where: { supersededAt: null },
+          where: { providerId, supersededAt: null },
           select: priceProposalSelect,
           orderBy: { createdAt: 'desc' },
           take: 1,
@@ -395,7 +421,12 @@ export class RequestPaymentsService {
       throw new NotFoundException('Request not found');
     }
     return toFinanceDto(
-      request.totalAmountRubles,
+      scopedTotalAmount(
+        request.providerId,
+        providerId,
+        request.totalAmountRubles,
+        request.priceProposals?.[0] ?? null,
+      ),
       request.payments,
       request.customerUserId,
       request.priceProposals?.[0] ?? null,
@@ -457,6 +488,8 @@ export class RequestPaymentsService {
       const lock = await tx.request.updateMany({
         where: {
           id: input.request.id,
+          providerId: input.request.providerId,
+          lockedAt: input.request.lockedAt,
           contractAcceptedAt: null,
           status: { in: ['NEW', 'DISCUSSING', 'TERMS_AGREED'] },
         },
@@ -558,6 +591,8 @@ export class RequestPaymentsService {
       const lock = await tx.request.updateMany({
         where: {
           id: input.request.id,
+          providerId: input.request.providerId,
+          lockedAt: input.request.lockedAt,
           contractAcceptedAt: null,
           status: { in: ['NEW', 'DISCUSSING', 'TERMS_AGREED'] },
         },
@@ -653,6 +688,18 @@ export class RequestPaymentsService {
     const paidAt = null;
 
     const updated = await this.prisma.$transaction(async (tx) => {
+      const lock = await tx.request.updateMany({
+        where: {
+          id: request.id,
+          providerId: request.providerId,
+          lockedAt: request.lockedAt,
+          status: request.status,
+        },
+        data: { updatedAt: new Date() },
+      });
+      if (lock.count !== 1) {
+        throw new ForbiddenException('Request provider scope has changed');
+      }
       await tx.requestPayment.create({
         data: {
           requestId: request.id,
@@ -677,7 +724,11 @@ export class RequestPaymentsService {
         where: { id: request.id },
         select: {
           totalAmountRubles: true,
-          payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
+          payments: {
+            where: { providerId },
+            select: paymentSelect,
+            orderBy: { paidAt: 'asc' },
+          },
         },
       });
     });
@@ -721,8 +772,25 @@ export class RequestPaymentsService {
 
     const now = new Date();
     const updated = await this.prisma.$transaction(async (tx) => {
+      const lock = await tx.request.updateMany({
+        where: {
+          id: request.id,
+          providerId: request.providerId,
+          lockedAt: request.lockedAt,
+          status: request.status,
+        },
+        data: { updatedAt: now },
+      });
+      if (lock.count !== 1) {
+        throw new ForbiddenException('Request provider scope has changed');
+      }
       const changed = await tx.requestPayment.updateMany({
-        where: { id: input.paymentId, requestId: request.id, paidAt: null },
+        where: {
+          id: input.paymentId,
+          requestId: request.id,
+          providerId,
+          paidAt: null,
+        },
         data: { paidAt: now },
       });
       if (changed.count !== 1)
@@ -747,7 +815,11 @@ export class RequestPaymentsService {
         where: { id: request.id },
         select: {
           totalAmountRubles: true,
-          payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
+          payments: {
+            where: { providerId },
+            select: paymentSelect,
+            orderBy: { paidAt: 'asc' },
+          },
         },
       });
     });
@@ -775,28 +847,11 @@ export class RequestPaymentsService {
     actorUserId: string;
     requestId: string;
     paymentId: string;
+    conversationId?: string;
   }): Promise<RequestFinanceDto> {
-    const request = await this.prisma.request.findFirst({
-      where: { id: input.requestId, customerUserId: input.actorUserId },
-      select: {
-        id: true,
-        status: true,
-        providerId: true,
-        customerUserId: true,
-        lockedAt: true,
-        contractAcceptedAt: true,
-        totalAmountRubles: true,
-        payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
-        priceProposals: {
-          where: { supersededAt: null },
-          select: priceProposalSelect,
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-        },
-      },
-    });
-    if (!request) throw new NotFoundException('Request not found');
+    const request = await this.loadCustomerRequest(input);
     this.assertPaymentMutable(request.status);
+    const providerId = await this.resolvePaymentProviderId(request, input);
 
     const payment = request.payments.find((p) => p.id === input.paymentId);
     if (!payment) throw new NotFoundException('Payment not found');
@@ -805,8 +860,25 @@ export class RequestPaymentsService {
 
     const now = new Date();
     const updated = await this.prisma.$transaction(async (tx) => {
+      const lock = await tx.request.updateMany({
+        where: {
+          id: request.id,
+          providerId: request.providerId,
+          lockedAt: request.lockedAt,
+          status: request.status,
+        },
+        data: { updatedAt: now },
+      });
+      if (lock.count !== 1) {
+        throw new ForbiddenException('Request provider scope has changed');
+      }
       const changed = await tx.requestPayment.updateMany({
-        where: { id: input.paymentId, requestId: request.id, paidAt: null },
+        where: {
+          id: input.paymentId,
+          requestId: request.id,
+          providerId,
+          paidAt: null,
+        },
         data: { paidAt: now },
       });
       if (changed.count !== 1)
@@ -817,7 +889,7 @@ export class RequestPaymentsService {
           requestId: request.id,
           type: 'PAYMENT_MARKED_PAID',
           actorUserId: input.actorUserId,
-          actorProviderId: request.providerId!,
+          actorProviderId: providerId,
           payload: {
             paymentId: payment.id,
             amountRubles: payment.amountRubles,
@@ -831,7 +903,11 @@ export class RequestPaymentsService {
         where: { id: request.id },
         select: {
           totalAmountRubles: true,
-          payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
+          payments: {
+            where: { providerId },
+            select: paymentSelect,
+            orderBy: { paidAt: 'asc' },
+          },
         },
       });
     });
@@ -840,7 +916,7 @@ export class RequestPaymentsService {
       requestId: request.id,
       actorUserId: input.actorUserId,
       customerUserId: request.customerUserId,
-      requestProviderId: request.providerId,
+      requestProviderId: providerId,
       actorProviderId: null,
       body: `Клиент отметил оплату ${formatRubles(payment.amountRubles)}: ${payment.comment}`,
     });
@@ -859,11 +935,11 @@ export class RequestPaymentsService {
     actorUserId: string;
     requestId: string;
     amountRubles: number;
+    conversationId?: string;
   }): Promise<RequestFinanceDto> {
     const request = await this.loadCustomerRequest(input);
     this.assertPriceMutable(request);
-    const providerId =
-      request.providerId ?? request.priceProposals?.[0]?.providerId;
+    const providerId = await this.resolvePaymentProviderId(request, input);
     if (!providerId) {
       throw new BadRequestException(
         'Provider must be selected before customer price proposal',
@@ -882,6 +958,7 @@ export class RequestPaymentsService {
     actorUserId: string;
     requestId: string;
     proposalId: string;
+    conversationId?: string;
   }): Promise<RequestFinanceDto> {
     const request = await this.loadCustomerRequest(input);
     this.assertPriceMutable(request);
@@ -906,15 +983,28 @@ export class RequestPaymentsService {
     amountRubles: number;
     comment: string;
     type?: RequestPaymentType;
+    conversationId?: string;
   }): Promise<RequestFinanceDto> {
     const request = await this.loadCustomerRequest(input);
     this.assertPaymentMutable(request.status);
     const comment = input.comment.trim();
     if (comment.length < 1)
       throw new BadRequestException('Comment is required');
-    const providerId = await this.resolvePaymentProviderId(request);
+    const providerId = await this.resolvePaymentProviderId(request, input);
     const type: RequestPaymentType = input.type ?? 'OTHER';
     const updated = await this.prisma.$transaction(async (tx) => {
+      const lock = await tx.request.updateMany({
+        where: {
+          id: request.id,
+          providerId: request.providerId,
+          lockedAt: request.lockedAt,
+          status: request.status,
+        },
+        data: { updatedAt: new Date() },
+      });
+      if (lock.count !== 1) {
+        throw new ForbiddenException('Request provider scope has changed');
+      }
       await tx.requestPayment.create({
         data: {
           requestId: request.id,
@@ -939,7 +1029,11 @@ export class RequestPaymentsService {
         where: { id: request.id },
         select: {
           totalAmountRubles: true,
-          payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
+          payments: {
+            where: { providerId },
+            select: paymentSelect,
+            orderBy: { paidAt: 'asc' },
+          },
         },
       });
     });
@@ -965,19 +1059,26 @@ export class RequestPaymentsService {
   private async loadCustomerRequest(input: {
     actorUserId: string;
     requestId: string;
+    conversationId?: string;
   }) {
+    const providerId = await this.resolveCustomerFinanceProviderId(input);
     const request = await this.prisma.request.findFirst({
-      where: { id: input.requestId },
+      where: { id: input.requestId, customerUserId: input.actorUserId },
       select: {
         id: true,
         status: true,
         contractAcceptedAt: true,
         providerId: true,
+        lockedAt: true,
         customerUserId: true,
         totalAmountRubles: true,
-        payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
+        payments: {
+          where: { providerId },
+          select: paymentSelect,
+          orderBy: { paidAt: 'asc' },
+        },
         priceProposals: {
-          where: { supersededAt: null },
+          where: { providerId, supersededAt: null },
           select: priceProposalSelect,
           orderBy: { createdAt: 'desc' },
         },
@@ -990,20 +1091,51 @@ export class RequestPaymentsService {
     return request;
   }
 
-  private async resolvePaymentProviderId(request: {
-    id: string;
-    providerId: string | null;
-  }) {
+  private async resolvePaymentProviderId(
+    request: {
+      id: string;
+      providerId: string | null;
+    },
+    input?: { actorUserId: string; requestId: string; conversationId?: string },
+  ) {
     if (request.providerId) return request.providerId;
+    if (!input) {
+      throw new BadRequestException('Conversation is required before lock');
+    }
+    return this.resolveCustomerFinanceProviderId(input);
+  }
+
+  private async resolveCustomerFinanceProviderId(input: {
+    actorUserId: string;
+    requestId: string;
+    conversationId?: string;
+  }): Promise<string> {
+    const owner = await this.prisma.request.findFirst({
+      where: { id: input.requestId, customerUserId: input.actorUserId },
+      select: { providerId: true, lockedAt: true, customerUserId: true },
+    });
+    if (!owner || owner.customerUserId !== input.actorUserId) {
+      const exists = await this.prisma.request.findFirst({
+        where: { id: input.requestId },
+        select: { id: true },
+      });
+      if (exists) throw new ForbiddenException('Forbidden');
+      throw new NotFoundException('Request not found');
+    }
+    if (owner.providerId) return owner.providerId;
+    if (!input.conversationId) {
+      throw new BadRequestException('Conversation is required before lock');
+    }
     const conversation = await this.prisma.conversation.findFirst({
-      where: { requestId: request.id },
+      where: {
+        id: input.conversationId,
+        requestId: input.requestId,
+        customerUserId: input.actorUserId,
+      },
       select: { providerId: true },
-      orderBy: { createdAt: 'asc' },
     });
     if (!conversation) {
-      throw new BadRequestException(
-        'Расход можно добавить, когда в заявке есть исполнитель',
-      );
+      throw new ForbiddenException('Conversation does not belong to request');
     }
     return conversation.providerId;
   }

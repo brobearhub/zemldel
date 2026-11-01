@@ -18,6 +18,296 @@ function makeService(prisma: object, providerId = PROVIDER_ID) {
 }
 
 describe('RequestPaymentsService', () => {
+  it('provider finance reads only payments from its server-derived scope', async () => {
+    const prisma = {
+      request: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'DISCUSSING',
+          serviceId: null,
+          categoryId: null,
+          providerId: null,
+          customerUserId: 'customer',
+          lockedAt: null,
+          contractAcceptedAt: null,
+          totalAmountRubles: null,
+          payments: [],
+          priceProposals: [],
+          providerOffers: [{ providerId: PROVIDER_ID, status: 'SELECTED' }],
+        }),
+      },
+    };
+
+    await makeService(prisma).getForProvider({
+      actorUserId: 'provider-user',
+      requestId: 'r1',
+    });
+
+    expect(prisma.request.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          payments: expect.objectContaining({
+            where: { providerId: PROVIDER_ID },
+          }),
+        }),
+      }),
+    );
+  });
+
+  it('provider cannot mark another provider payment', async () => {
+    const prisma = {
+      request: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'DISCUSSING',
+          serviceId: null,
+          categoryId: null,
+          providerId: null,
+          customerUserId: 'customer',
+          lockedAt: null,
+          contractAcceptedAt: null,
+          totalAmountRubles: null,
+          payments: [],
+          priceProposals: [],
+          providerOffers: [{ providerId: PROVIDER_ID, status: 'SELECTED' }],
+        }),
+      },
+      $transaction: vi.fn(),
+    };
+
+    await expect(
+      makeService(prisma).markPaymentPaidForProvider({
+        actorUserId: 'provider-user',
+        requestId: 'r1',
+        paymentId: 'payment-b',
+      }),
+    ).rejects.toThrow('Payment not found');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('customer before lock reads finance only for its validated conversation', async () => {
+    const prisma = {
+      conversation: {
+        findFirst: vi.fn().mockResolvedValue({
+          providerId: 'provider-b',
+        }),
+      },
+      request: {
+        findFirst: vi.fn().mockResolvedValue({
+          status: 'DISCUSSING',
+          contractAcceptedAt: null,
+          providerId: null,
+          customerUserId: 'customer',
+          totalAmountRubles: null,
+          payments: [],
+          priceProposals: [],
+        }),
+      },
+    };
+
+    await makeService(prisma).getForCustomer({
+      actorUserId: 'customer',
+      requestId: 'r1',
+      conversationId: 'conversation-b',
+    });
+
+    expect(prisma.conversation.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'conversation-b',
+        requestId: 'r1',
+        customerUserId: 'customer',
+      },
+      select: { providerId: true },
+    });
+    expect(prisma.request.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          payments: expect.objectContaining({
+            where: { providerId: 'provider-b' },
+          }),
+          priceProposals: expect.objectContaining({
+            where: {
+              providerId: 'provider-b',
+              supersededAt: null,
+            },
+          }),
+        }),
+      }),
+    );
+  });
+
+  it('provider A mutation is denied when customer selects B before transaction', async () => {
+    const state = {
+      providerId: null as string | null,
+      lockedAt: null as Date | null,
+      payments: [] as Array<{ providerId: string; amountRubles: number }>,
+    };
+    const tx = {
+      request: {
+        updateMany: vi
+          .fn()
+          .mockImplementation(
+            ({
+              where,
+            }: {
+              where: { providerId?: string | null; lockedAt?: null };
+            }) => ({
+              count:
+                state.providerId === (where.providerId ?? state.providerId) &&
+                (where.lockedAt !== null || state.lockedAt === null)
+                  ? 1
+                  : 0,
+            }),
+          ),
+      },
+      requestPayment: {
+        create: vi
+          .fn()
+          .mockImplementation(
+            ({
+              data,
+            }: {
+              data: { providerId: string; amountRubles: number };
+            }) => {
+              state.payments.push(data);
+            },
+          ),
+      },
+      requestEvent: { create: vi.fn() },
+    };
+    const prisma = {
+      request: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'DISCUSSING',
+          serviceId: null,
+          categoryId: null,
+          providerId: null,
+          customerUserId: 'customer',
+          lockedAt: null,
+          contractAcceptedAt: null,
+          totalAmountRubles: null,
+          payments: [],
+          priceProposals: [],
+          providerOffers: [{ providerId: PROVIDER_ID, status: 'SELECTED' }],
+        }),
+      },
+      $transaction: vi.fn(
+        async (fn: (client: typeof tx) => Promise<unknown>) => {
+          state.providerId = 'provider-b';
+          state.lockedAt = NOW;
+          return fn(tx);
+        },
+      ),
+    };
+
+    await expect(
+      makeService(prisma).addPaymentForProvider({
+        actorUserId: 'provider-a-user',
+        requestId: 'r1',
+        amountRubles: 5000,
+        comment: 'Аванс A',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(state.payments).toEqual([]);
+  });
+
+  it('FREEFORM A/B keeps scoped proposals and payments when select B rejects late A write', async () => {
+    const state = {
+      providerId: null as string | null,
+      lockedAt: null as Date | null,
+      proposals: [
+        { providerId: PROVIDER_ID, amountRubles: 10000 },
+        { providerId: 'provider-b', amountRubles: 20000 },
+      ],
+      payments: [
+        { providerId: PROVIDER_ID, amountRubles: 1000 },
+        { providerId: 'provider-b', amountRubles: 2000 },
+      ],
+    };
+    const before = structuredClone(state);
+    const tx = {
+      request: {
+        updateMany: vi.fn().mockImplementation(() => ({
+          count: state.providerId == null && state.lockedAt == null ? 1 : 0,
+        })),
+      },
+      requestPayment: {
+        create: vi
+          .fn()
+          .mockImplementation(({ data }) => state.payments.push(data)),
+      },
+      requestEvent: { create: vi.fn() },
+    };
+    const prisma = {
+      request: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'freeform-r1',
+          status: 'DISCUSSING',
+          serviceId: null,
+          categoryId: null,
+          providerId: null,
+          customerUserId: 'customer',
+          lockedAt: null,
+          contractAcceptedAt: null,
+          totalAmountRubles: 10000,
+          payments: state.payments.filter(
+            (payment) => payment.providerId === PROVIDER_ID,
+          ),
+          priceProposals: [],
+          providerOffers: [{ providerId: PROVIDER_ID, status: 'SELECTED' }],
+        }),
+      },
+      $transaction: vi.fn(
+        async (callback: (client: typeof tx) => Promise<unknown>) => {
+          state.providerId = 'provider-b';
+          state.lockedAt = NOW;
+          return callback(tx);
+        },
+      ),
+    };
+
+    await expect(
+      makeService(prisma).addPaymentForProvider({
+        actorUserId: 'provider-a-user',
+        requestId: 'freeform-r1',
+        amountRubles: 3000,
+        comment: 'Поздний платёж A',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(state.proposals).toEqual(before.proposals);
+    expect(state.payments).toEqual(before.payments);
+    expect(state.providerId).toBe('provider-b');
+  });
+
+  it('customer locked to B cannot mark payment from A', async () => {
+    const prisma = {
+      request: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'ACTIVE',
+          providerId: 'provider-b',
+          customerUserId: 'customer',
+          lockedAt: NOW,
+          contractAcceptedAt: NOW,
+          totalAmountRubles: 20000,
+          payments: [],
+          priceProposals: [],
+        }),
+      },
+      $transaction: vi.fn(),
+    };
+
+    await expect(
+      makeService(prisma).markPaymentPaidForCustomer({
+        actorUserId: 'customer',
+        requestId: 'r1',
+        paymentId: 'payment-a',
+      }),
+    ).rejects.toThrow('Payment not found');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   it('opposite side accepts a provider proposal and atomically sets total', async () => {
     const proposal = {
       id: 'pp1',
@@ -383,6 +673,8 @@ describe('RequestPaymentsService', () => {
       request: {
         findFirst: vi.fn().mockResolvedValue({
           customerUserId: 'u1',
+          providerId: PROVIDER_ID,
+          lockedAt: NOW,
           status: 'ACTIVE',
           contractAcceptedAt: NOW,
           totalAmountRubles: 25000,
@@ -491,6 +783,7 @@ describe('RequestPaymentsService', () => {
       requestPayment: { create: vi.fn().mockResolvedValue(null) },
       requestEvent: { create: vi.fn().mockResolvedValue(null) },
       request: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         findFirstOrThrow: vi.fn().mockResolvedValue({
           totalAmountRubles: 25000,
           payments: [],
@@ -503,6 +796,7 @@ describe('RequestPaymentsService', () => {
           id: 'r1',
           status: 'ACCEPTED',
           providerId: PROVIDER_ID,
+          customerUserId: 'u1',
           lockedAt: NOW,
           totalAmountRubles: 25000,
           payments: [],
@@ -538,6 +832,7 @@ describe('RequestPaymentsService', () => {
       requestPayment: { create: vi.fn().mockResolvedValue(null) },
       requestEvent: { create: vi.fn().mockResolvedValue(null) },
       request: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         findFirstOrThrow: vi.fn().mockResolvedValue({
           totalAmountRubles: 25000,
           payments: [],
@@ -550,6 +845,7 @@ describe('RequestPaymentsService', () => {
           id: 'r1',
           status: 'ACCEPTED',
           providerId: PROVIDER_ID,
+          customerUserId: 'u1',
           lockedAt: NOW,
           totalAmountRubles: 25000,
           payments: [],
@@ -593,6 +889,7 @@ describe('RequestPaymentsService', () => {
       requestPayment: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
       requestEvent: { create: vi.fn().mockResolvedValue(null) },
       request: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         findFirstOrThrow: vi.fn().mockResolvedValue({
           totalAmountRubles: 25000,
           payments: [{ ...payment, paidAt: NOW }],
@@ -605,6 +902,7 @@ describe('RequestPaymentsService', () => {
           id: 'r1',
           status: 'ACCEPTED',
           providerId: PROVIDER_ID,
+          customerUserId: 'u1',
           lockedAt: NOW,
           totalAmountRubles: 25000,
           payments: [payment],
@@ -621,7 +919,12 @@ describe('RequestPaymentsService', () => {
 
     expect(tx.requestPayment.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'p1', requestId: 'r1', paidAt: null },
+        where: {
+          id: 'p1',
+          requestId: 'r1',
+          providerId: PROVIDER_ID,
+          paidAt: null,
+        },
       }),
     );
     expect(tx.requestEvent.create).toHaveBeenCalledWith(
@@ -655,6 +958,7 @@ describe('RequestPaymentsService', () => {
         requestPayment: { create: vi.fn().mockResolvedValue(payment) },
         requestEvent: { create: vi.fn().mockResolvedValue(null) },
         request: {
+          updateMany: vi.fn().mockResolvedValue({ count: 1 }),
           findFirstOrThrow: vi.fn().mockResolvedValue({
             totalAmountRubles: 25000,
             payments: [payment],
@@ -729,6 +1033,7 @@ describe('RequestPaymentsService', () => {
         requestPayment: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
         requestEvent: { create: vi.fn().mockResolvedValue(null) },
         request: {
+          updateMany: vi.fn().mockResolvedValue({ count: 1 }),
           findFirstOrThrow: vi.fn().mockResolvedValue({
             totalAmountRubles: 25000,
             payments: [paidPayment],

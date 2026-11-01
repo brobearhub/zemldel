@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
 import { ApiOkResponse, ApiParam, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { InternalAuthService } from '../auth/internal-auth.service';
@@ -7,6 +7,7 @@ import {
   CreateRequestPriceProposalDto,
   CreateRequestPaymentDto,
   RequestFinanceDto,
+  RequestFinanceContextDto,
 } from './dto/request-payments.dto';
 import { RequestPaymentsService } from './request-payments.service';
 
@@ -107,10 +108,12 @@ export class RequestPaymentsController {
   getForCustomer(
     @Req() request: Request,
     @Param('requestId') requestId: string,
+    @Query() query: RequestFinanceContextDto,
   ) {
     return this.payments.getForCustomer({
       actorUserId: this.getRequiredActorUserId(request),
       requestId,
+      conversationId: query.conversationId,
     });
   }
 
@@ -126,6 +129,7 @@ export class RequestPaymentsController {
       actorUserId: this.getRequiredActorUserId(request),
       requestId,
       amountRubles: body.amountRubles,
+      conversationId: body.conversationId,
     });
   }
 
@@ -137,11 +141,13 @@ export class RequestPaymentsController {
     @Req() request: Request,
     @Param('requestId') requestId: string,
     @Param('proposalId') proposalId: string,
+    @Query() query: RequestFinanceContextDto,
   ) {
     return this.payments.acceptPriceForCustomer({
       actorUserId: this.getRequiredActorUserId(request),
       requestId,
       proposalId,
+      conversationId: query.conversationId,
     });
   }
 
@@ -159,6 +165,7 @@ export class RequestPaymentsController {
       amountRubles: body.amountRubles,
       comment: body.comment,
       type: body.type,
+      conversationId: body.conversationId,
     });
   }
 
@@ -170,11 +177,13 @@ export class RequestPaymentsController {
     @Req() request: Request,
     @Param('requestId') requestId: string,
     @Param('paymentId') paymentId: string,
+    @Query() query: RequestFinanceContextDto,
   ) {
     return this.payments.markPaymentPaidForCustomer({
       actorUserId: this.getRequiredActorUserId(request),
       requestId,
       paymentId,
+      conversationId: query.conversationId,
     });
   }
 }

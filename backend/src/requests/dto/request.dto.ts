@@ -1167,6 +1167,7 @@ export type RequestDbRow = {
   }>;
   payments?: Array<{
     id: string;
+    providerId?: string;
     type: RequestPaymentType;
     amountRubles: number;
     comment: string;
@@ -1260,19 +1261,32 @@ function toFinanceDto(
       payments: [] as RequestPaymentItemDto[],
     };
   }
-  const payments = row.payments ?? [];
+  const financeProviderId = actorProviderId ?? row.providerId ?? null;
+  const payments = financeProviderId
+    ? (row.payments ?? []).filter(
+        (payment) => payment.providerId === financeProviderId,
+      )
+    : [];
   const proposal =
-    row.priceProposals?.find(
-      (item) => actorProviderId == null || item.providerId === actorProviderId,
-    ) ?? null;
+    financeProviderId == null
+      ? null
+      : (row.priceProposals?.find(
+          (item) => item.providerId === financeProviderId,
+        ) ?? null);
   const priceMutable =
     row.contractAcceptedAt == null && !isOrderExecutionStatus(row.status);
+  const scopedTotalAmountRubles =
+    proposal?.acceptedAt != null
+      ? proposal.amountRubles
+      : row.providerId === financeProviderId
+        ? (row.totalAmountRubles ?? null)
+        : null;
   const paidAmountRubles = sumPaidRublesByType(
     payments as unknown as PaymentAmountWithTypeAndPaidAt[],
     'CONTRACT',
   );
   return {
-    totalAmountRubles: row.totalAmountRubles ?? null,
+    totalAmountRubles: scopedTotalAmountRubles,
     servicePriceRubles: row.servicePriceRubles ?? null,
     priceProposal: proposal
       ? {
@@ -1294,7 +1308,7 @@ function toFinanceDto(
       proposal.authorSide !== viewerSide,
     paidAmountRubles,
     remainingAmountRubles: remainingRubles(
-      row.totalAmountRubles ?? null,
+      scopedTotalAmountRubles,
       paidAmountRubles,
     ),
     payments: payments.map((payment) => ({

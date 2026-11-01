@@ -6,6 +6,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   Min,
   MinLength,
@@ -18,6 +19,18 @@ export class CreateRequestPriceProposalDto {
   @IsInt()
   @Min(1)
   amountRubles!: number;
+
+  @ApiProperty({ required: false, format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  conversationId?: string;
+}
+
+export class RequestFinanceContextDto {
+  @ApiProperty({ required: false, format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  conversationId?: string;
 }
 
 export class RequestPriceProposalDto {
@@ -41,6 +54,11 @@ export class RequestPriceProposalDto {
 }
 
 export class CreateRequestPaymentDto {
+  @ApiProperty({ required: false, format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  conversationId?: string;
+
   @ApiProperty({
     required: false,
     enum: ['CONTRACT', 'OTHER'],

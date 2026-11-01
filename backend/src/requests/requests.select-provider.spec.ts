@@ -66,6 +66,73 @@ describe('formatCustomerSelectProviderChatMessage', () => {
 });
 
 describe('RequestsService.selectProviderByCustomer', () => {
+  it('сохраняет принятую цену выбранного provider B и не переносит цену A', async () => {
+    const acceptedAt = new Date('2026-08-05T00:00:00.000Z');
+    const row = makeRequestRow({
+      providerId: null,
+      totalAmountRubles: 11000,
+      priceProposals: [
+        {
+          id: 'proposal-a',
+          providerId: 'provider-a',
+          amountRubles: 11000,
+          authorSide: 'PROVIDER',
+          acceptedAt,
+          supersededAt: null,
+          createdAt: acceptedAt,
+        },
+        {
+          id: 'proposal-b',
+          providerId: 'provider-b',
+          amountRubles: 22000,
+          authorSide: 'PROVIDER',
+          acceptedAt,
+          supersededAt: null,
+          createdAt: acceptedAt,
+        },
+      ],
+    });
+    const tx = {
+      request: {
+        findUnique: vi.fn().mockResolvedValue(row),
+        update: vi.fn().mockImplementation(({ data }) => ({
+          ...row,
+          ...data,
+          providerOffers: [],
+        })),
+      },
+      requestProviderOffer: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ id: 'offer-b', status: 'SELECTED' }),
+        upsert: vi.fn().mockResolvedValue({ id: 'offer-b' }),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+      requestPriceProposal: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+      conversation: { findFirst: vi.fn().mockResolvedValue(null) },
+      requestEvent: { create: vi.fn() },
+    };
+    const prisma = {
+      $transaction: async (fn: (client: typeof tx) => Promise<unknown>) =>
+        fn(tx),
+    };
+
+    await makeService(prisma).svc.selectProviderByCustomer('cu1', 'r1', {
+      providerId: 'provider-b',
+    });
+
+    expect(tx.request.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          providerId: 'provider-b',
+          totalAmountRubles: 22000,
+        }),
+      }),
+    );
+  });
+
   it('после DECLINED снова ставит SELECTED и шлёт сообщение в чат', async () => {
     const row = makeRequestRow({
       providerId: 'old-provider',

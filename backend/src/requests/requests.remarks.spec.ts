@@ -36,6 +36,56 @@ function makeService(prisma: PrismaService) {
 }
 
 describe('RequestsService remarks checklist', () => {
+  it('provider OPEN remark loses deterministic race to mark-rendered without state change', async () => {
+    const state = {
+      status: 'ACTIVE',
+      remarks: [] as string[],
+    };
+    const tx = {
+      request: {
+        updateMany: vi.fn().mockImplementation(() => ({
+          count: state.status === 'ACTIVE' ? 1 : 0,
+        })),
+        findUnique: vi.fn().mockImplementation(() => ({
+          id: 'r1',
+          status: state.status,
+          providerId: 'p1',
+        })),
+      },
+      requestRemark: {
+        create: vi.fn().mockImplementation(() => {
+          state.remarks.push('OPEN');
+        }),
+      },
+    };
+    const prisma = makePrisma(tx);
+    Object.assign(prisma, {
+      request: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'ACTIVE',
+          providerId: 'p1',
+        }),
+      },
+      $transaction: async (
+        callback: (transaction: Prisma.TransactionClient) => Promise<unknown>,
+      ) => {
+        state.status = 'ACCEPTANCE_PENDING';
+        return callback(tx as Prisma.TransactionClient);
+      },
+    });
+    const svc = makeService(prisma);
+    vi.spyOn(svc, 'getProById').mockResolvedValue(
+      {} as Awaited<ReturnType<RequestsService['getProById']>>,
+    );
+
+    await expect(
+      svc.createRemarkByProvider('p1', 'r1', { text: 'Новое замечание' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(state.status).toBe('ACCEPTANCE_PENDING');
+    expect(state.remarks).toEqual([]);
+  });
+
   it.each([
     ['', 'пустой'],
     ['   ', 'пробельный'],
@@ -141,6 +191,7 @@ describe('RequestsService remarks checklist', () => {
   it('createRemarkByProvider создаёт замечание сразу отправленным (sentAt!=null)', async () => {
     const tx = {
       request: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         findUnique: vi
           .fn()
           .mockResolvedValue({ id: 'r1', status: 'ACCEPTANCE_PENDING' }),
@@ -229,6 +280,7 @@ describe('RequestsService remarks checklist', () => {
   it('markServiceRenderedByProvider блокирует переход при OPEN замечаниях', async () => {
     const tx = {
       request: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         findFirst: vi.fn().mockResolvedValue({
           id: 'r1',
           status: 'ACTIVE',
@@ -255,7 +307,10 @@ describe('RequestsService remarks checklist', () => {
 
   it('foreign provider не может сдать чужой результат', async () => {
     const tx = {
-      request: { findFirst: vi.fn().mockResolvedValue(null) },
+      request: {
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
     };
     const svc = makeService(makePrisma(tx));
 
