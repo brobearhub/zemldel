@@ -29,7 +29,6 @@ import { resolveRequestPriceView } from "@/entities/request/lib/request-finance"
 import { useConfirm } from "@/shared/ui/confirm";
 import { resolveRequestPaymentPermissions } from "../model/request-payment-permissions";
 
-const CLOSED: readonly RequestStatus[] = ["COMPLETED", "CANCELLED", "CLOSED"];
 const PAYMENT_ACTION_SLOT_WIDTH = 32;
 const PAYMENT_SECTION_GRID_SX = {
   display: "grid",
@@ -232,7 +231,6 @@ export function RequestPayments(props: RequestPaymentsProps) {
     canProposePrice: props.canProposePrice,
     canAcceptPrice: props.canAcceptPrice,
   });
-  const canEdit = permissions.canEditPayments;
   const priceView = resolveRequestPriceView({
     totalAmountRubles: props.totalAmountRubles,
     servicePriceRubles: props.servicePriceRubles,
@@ -262,9 +260,9 @@ export function RequestPayments(props: RequestPaymentsProps) {
   const totalIsSet = total != null;
   const canEditTotal = permissions.canProposePrice;
   const isEditingTotal = canEditTotal && (props.priceProposal == null || totalEditOpen);
-  const canAddContractPayments = canEdit;
-  const canAddOtherPayments = canEdit;
-  const canMarkPaid = !CLOSED.includes(props.status);
+  const canAddContractPayments = permissions.canAddPayment;
+  const canAddOtherPayments = permissions.canAddPayment;
+  const canMarkPaid = permissions.canMarkPaid;
   const contractPayments = payments
     .filter((p) => p.type === "CONTRACT")
     .slice()

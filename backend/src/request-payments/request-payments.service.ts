@@ -19,7 +19,18 @@ import { formatRubles } from '../requests/lib/service-price-rubles';
 import { ChatService } from '../chat/chat.service';
 import type { RequestFinanceDto } from './dto/request-payments.dto';
 
-const CLOSED_STATUSES = new Set(['COMPLETED', 'CANCELLED', 'CLOSED']);
+const PAYMENT_BLOCKED_STATUSES = new Set(['CANCELLED', 'CLOSED']);
+const PRICE_MUTABLE_STATUSES = new Set(['NEW', 'DISCUSSING', 'TERMS_AGREED']);
+
+function isPriceMutable(request: {
+  status: string;
+  contractAcceptedAt: Date | null;
+}): boolean {
+  return (
+    request.contractAcceptedAt == null &&
+    PRICE_MUTABLE_STATUSES.has(request.status)
+  );
+}
 
 const paymentSelect = {
   id: true,
@@ -316,8 +327,8 @@ export class RequestPaymentsService {
     }
   }
 
-  private assertWritable(status: string) {
-    if (CLOSED_STATUSES.has(status)) {
+  private assertPaymentMutable(status: string) {
+    if (PAYMENT_BLOCKED_STATUSES.has(status)) {
       throw new ForbiddenException(
         'Finance cannot be changed after the request is closed',
       );
@@ -328,12 +339,11 @@ export class RequestPaymentsService {
     status: string;
     contractAcceptedAt: Date | null;
   }) {
-    if (request.contractAcceptedAt || request.status === 'ACTIVE') {
+    if (!isPriceMutable(request)) {
       throw new ForbiddenException(
         'Price cannot be changed after contract acceptance',
       );
     }
-    this.assertWritable(request.status);
   }
 
   async getForProvider(input: {
@@ -351,7 +361,7 @@ export class RequestPaymentsService {
       request.customerUserId,
       request.priceProposals?.[0] ?? null,
       'PROVIDER',
-      request.contractAcceptedAt == null && request.status !== 'ACTIVE',
+      isPriceMutable(request),
     );
   }
 
@@ -390,7 +400,7 @@ export class RequestPaymentsService {
       request.customerUserId,
       request.priceProposals?.[0] ?? null,
       'CUSTOMER',
-      request.contractAcceptedAt == null && request.status !== 'ACTIVE',
+      isPriceMutable(request),
       request.providerId != null || request.priceProposals.length > 0,
     );
   }
@@ -633,7 +643,7 @@ export class RequestPaymentsService {
       providerId,
       requestId: input.requestId,
     });
-    this.assertWritable(request.status);
+    this.assertPaymentMutable(request.status);
 
     const comment = input.comment.trim();
     if (comment.length < 1)
@@ -688,7 +698,7 @@ export class RequestPaymentsService {
       request.customerUserId,
       request.priceProposals?.[0] ?? null,
       'PROVIDER',
-      request.contractAcceptedAt == null && request.status !== 'ACTIVE',
+      isPriceMutable(request),
     );
   }
 
@@ -702,7 +712,7 @@ export class RequestPaymentsService {
       providerId,
       requestId: input.requestId,
     });
-    this.assertWritable(request.status);
+    this.assertPaymentMutable(request.status);
 
     const payment = request.payments.find((p) => p.id === input.paymentId);
     if (!payment) throw new NotFoundException('Payment not found');
@@ -757,7 +767,7 @@ export class RequestPaymentsService {
       request.customerUserId,
       request.priceProposals?.[0] ?? null,
       'PROVIDER',
-      request.contractAcceptedAt == null && request.status !== 'ACTIVE',
+      isPriceMutable(request),
     );
   }
 
@@ -786,7 +796,7 @@ export class RequestPaymentsService {
       },
     });
     if (!request) throw new NotFoundException('Request not found');
-    this.assertWritable(request.status);
+    this.assertPaymentMutable(request.status);
 
     const payment = request.payments.find((p) => p.id === input.paymentId);
     if (!payment) throw new NotFoundException('Payment not found');
@@ -841,7 +851,7 @@ export class RequestPaymentsService {
       request.customerUserId,
       request.priceProposals?.[0] ?? null,
       'CUSTOMER',
-      request.contractAcceptedAt == null && request.status !== 'ACTIVE',
+      isPriceMutable(request),
     );
   }
 
@@ -898,7 +908,7 @@ export class RequestPaymentsService {
     type?: RequestPaymentType;
   }): Promise<RequestFinanceDto> {
     const request = await this.loadCustomerRequest(input);
-    this.assertWritable(request.status);
+    this.assertPaymentMutable(request.status);
     const comment = input.comment.trim();
     if (comment.length < 1)
       throw new BadRequestException('Comment is required');
@@ -948,7 +958,7 @@ export class RequestPaymentsService {
       request.customerUserId,
       request.priceProposals?.[0] ?? null,
       'CUSTOMER',
-      request.contractAcceptedAt == null && request.status !== 'ACTIVE',
+      isPriceMutable(request),
     );
   }
 

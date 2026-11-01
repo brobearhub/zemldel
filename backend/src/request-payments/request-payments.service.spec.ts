@@ -5,13 +5,13 @@ import { RequestPaymentsService } from './request-payments.service';
 const NOW = new Date('2026-08-13T00:00:00.000Z');
 const PROVIDER_ID = '11111111-1111-1111-1111-111111111111';
 
-function makeService(prisma: object) {
+function makeService(prisma: object, providerId = PROVIDER_ID) {
   return new RequestPaymentsService(
     prisma as never,
     {
       getServiceManagementContext: vi.fn().mockResolvedValue({
         isPlatformAdmin: false,
-        providerId: PROVIDER_ID,
+        providerId,
       }),
     } as never,
   );
@@ -353,12 +353,12 @@ describe('RequestPaymentsService', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('addPaymentForProvider rejects after COMPLETED', async () => {
+  it('addPaymentForProvider rejects after CANCELLED', async () => {
     const prisma = {
       request: {
         findFirst: vi.fn().mockResolvedValue({
           id: 'r1',
-          status: 'COMPLETED',
+          status: 'CANCELLED',
           providerId: PROVIDER_ID,
           lockedAt: NOW,
           totalAmountRubles: 25000,
@@ -634,5 +634,347 @@ describe('RequestPaymentsService', () => {
         }),
       }),
     );
+  });
+
+  it.each([
+    { side: 'provider' as const, actorUserId: 'provider-user' },
+    { side: 'customer' as const, actorUserId: 'customer' },
+  ])(
+    '$side can add CONTRACT payment after COMPLETED',
+    async ({ side, actorUserId }) => {
+      const payment = {
+        id: 'p2',
+        type: 'CONTRACT' as const,
+        amountRubles: 5000,
+        comment: 'Финальный платёж',
+        paidAt: null,
+        createdAt: NOW,
+        createdByUserId: actorUserId,
+      };
+      const tx = {
+        requestPayment: { create: vi.fn().mockResolvedValue(payment) },
+        requestEvent: { create: vi.fn().mockResolvedValue(null) },
+        request: {
+          findFirstOrThrow: vi.fn().mockResolvedValue({
+            totalAmountRubles: 25000,
+            payments: [payment],
+          }),
+        },
+      };
+      const request = {
+        id: 'r1',
+        status: 'COMPLETED',
+        providerId: PROVIDER_ID,
+        customerUserId: 'customer',
+        lockedAt: NOW,
+        contractAcceptedAt: NOW,
+        totalAmountRubles: 25000,
+        priceProposals: [],
+        payments: [],
+      };
+      const prisma = {
+        request: { findFirst: vi.fn().mockResolvedValue(request) },
+        $transaction: vi.fn((fn: (client: typeof tx) => unknown) => fn(tx)),
+      };
+      const service = makeService(prisma);
+
+      const dto =
+        side === 'provider'
+          ? await service.addPaymentForProvider({
+              actorUserId,
+              requestId: 'r1',
+              amountRubles: 5000,
+              comment: 'Финальный платёж',
+              type: 'CONTRACT',
+            })
+          : await service.addPaymentForCustomer({
+              actorUserId,
+              requestId: 'r1',
+              amountRubles: 5000,
+              comment: 'Финальный платёж',
+              type: 'CONTRACT',
+            });
+
+      expect(tx.requestPayment.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            requestId: 'r1',
+            providerId: PROVIDER_ID,
+            createdByUserId: actorUserId,
+            paidAt: null,
+          }),
+        }),
+      );
+      expect(dto.remainingAmountRubles).toBe(25000);
+    },
+  );
+
+  it.each([
+    { side: 'provider' as const, actorUserId: 'provider-user' },
+    { side: 'customer' as const, actorUserId: 'customer' },
+  ])(
+    '$side can mark CONTRACT payment paid after COMPLETED without changing request status',
+    async ({ side, actorUserId }) => {
+      const payment = {
+        id: 'p1',
+        type: 'CONTRACT' as const,
+        amountRubles: 5000,
+        comment: 'Финальный платёж',
+        paidAt: null,
+        createdAt: NOW,
+        createdByUserId: 'provider-user',
+      };
+      const paidPayment = { ...payment, paidAt: NOW };
+      const tx = {
+        requestPayment: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+        requestEvent: { create: vi.fn().mockResolvedValue(null) },
+        request: {
+          findFirstOrThrow: vi.fn().mockResolvedValue({
+            totalAmountRubles: 25000,
+            payments: [paidPayment],
+          }),
+          update: vi.fn(),
+        },
+      };
+      const request = {
+        id: 'r1',
+        status: 'COMPLETED',
+        providerId: PROVIDER_ID,
+        customerUserId: 'customer',
+        lockedAt: NOW,
+        contractAcceptedAt: NOW,
+        totalAmountRubles: 25000,
+        priceProposals: [],
+        payments: [payment],
+      };
+      const prisma = {
+        request: { findFirst: vi.fn().mockResolvedValue(request) },
+        $transaction: vi.fn((fn: (client: typeof tx) => unknown) => fn(tx)),
+      };
+      const service = makeService(prisma);
+
+      const dto =
+        side === 'provider'
+          ? await service.markPaymentPaidForProvider({
+              actorUserId,
+              requestId: 'r1',
+              paymentId: 'p1',
+            })
+          : await service.markPaymentPaidForCustomer({
+              actorUserId,
+              requestId: 'r1',
+              paymentId: 'p1',
+            });
+
+      expect(dto.paidAmountRubles).toBe(5000);
+      expect(dto.remainingAmountRubles).toBe(20000);
+      expect(tx.request.update).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['CANCELLED', 'CLOSED'])(
+    '%s rejects adding and marking payments',
+    async (status) => {
+      const payment = {
+        id: 'p1',
+        type: 'CONTRACT' as const,
+        amountRubles: 5000,
+        comment: 'Аванс',
+        paidAt: null,
+        createdAt: NOW,
+        createdByUserId: 'provider-user',
+      };
+      const prisma = {
+        request: {
+          findFirst: vi.fn().mockResolvedValue({
+            id: 'r1',
+            status,
+            providerId: PROVIDER_ID,
+            customerUserId: 'customer',
+            lockedAt: NOW,
+            contractAcceptedAt: NOW,
+            totalAmountRubles: 25000,
+            priceProposals: [],
+            payments: [payment],
+          }),
+        },
+      };
+      const service = makeService(prisma);
+
+      await expect(
+        service.addPaymentForProvider({
+          actorUserId: 'provider-user',
+          requestId: 'r1',
+          amountRubles: 5000,
+          comment: 'Аванс',
+          type: 'CONTRACT',
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(
+        service.markPaymentPaidForProvider({
+          actorUserId: 'provider-user',
+          requestId: 'r1',
+          paymentId: 'p1',
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    },
+  );
+
+  it.each(['CANCELLED', 'CLOSED'])(
+    'customer financial writes are rejected in %s',
+    async (status) => {
+      const payment = {
+        id: 'p1',
+        type: 'CONTRACT' as const,
+        amountRubles: 5000,
+        comment: 'Аванс',
+        paidAt: null,
+        createdAt: NOW,
+        createdByUserId: 'customer',
+      };
+      const prisma = {
+        request: {
+          findFirst: vi.fn().mockResolvedValue({
+            id: 'r1',
+            status,
+            providerId: PROVIDER_ID,
+            customerUserId: 'customer',
+            lockedAt: NOW,
+            contractAcceptedAt: NOW,
+            totalAmountRubles: 25000,
+            priceProposals: [],
+            payments: [payment],
+          }),
+        },
+      };
+      const service = makeService(prisma);
+
+      await expect(
+        service.addPaymentForCustomer({
+          actorUserId: 'customer',
+          requestId: 'r1',
+          amountRubles: 5000,
+          comment: 'Аванс',
+          type: 'CONTRACT',
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(
+        service.markPaymentPaidForCustomer({
+          actorUserId: 'customer',
+          requestId: 'r1',
+          paymentId: 'p1',
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    },
+  );
+
+  it('rejects price proposal and acceptance after COMPLETED', async () => {
+    const proposal = {
+      id: 'pp1',
+      providerId: PROVIDER_ID,
+      amountRubles: 25000,
+      authorSide: 'PROVIDER' as const,
+      proposedByUserId: 'provider-user',
+      acceptedAt: null,
+      acceptedByUserId: null,
+      supersededAt: null,
+      createdAt: NOW,
+    };
+    const prisma = {
+      request: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'COMPLETED',
+          providerId: PROVIDER_ID,
+          customerUserId: 'customer',
+          lockedAt: NOW,
+          contractAcceptedAt: NOW,
+          totalAmountRubles: 25000,
+          priceProposals: [proposal],
+          payments: [],
+        }),
+      },
+    };
+    const service = makeService(prisma);
+
+    await expect(
+      service.proposePriceForCustomer({
+        actorUserId: 'customer',
+        requestId: 'r1',
+        amountRubles: 30000,
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      service.acceptPriceForCustomer({
+        actorUserId: 'customer',
+        requestId: 'r1',
+        proposalId: 'pp1',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('rejects a former provider from late payments after COMPLETED', async () => {
+    const prisma = {
+      request: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'COMPLETED',
+          providerId: PROVIDER_ID,
+          customerUserId: 'customer',
+          lockedAt: NOW,
+          contractAcceptedAt: NOW,
+          totalAmountRubles: 25000,
+          priceProposals: [],
+          payments: [],
+        }),
+      },
+    };
+
+    await expect(
+      makeService(prisma, 'former-provider').addPaymentForProvider({
+        actorUserId: 'former-user',
+        requestId: 'r1',
+        amountRubles: 5000,
+        comment: 'Чужой платёж',
+        type: 'CONTRACT',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('rejects repeated paid mark without a second write', async () => {
+    const paidPayment = {
+      id: 'p1',
+      type: 'CONTRACT' as const,
+      amountRubles: 5000,
+      comment: 'Финальный платёж',
+      paidAt: NOW,
+      createdAt: NOW,
+      createdByUserId: 'provider-user',
+    };
+    const prisma = {
+      request: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'COMPLETED',
+          providerId: PROVIDER_ID,
+          customerUserId: 'customer',
+          lockedAt: NOW,
+          contractAcceptedAt: NOW,
+          totalAmountRubles: 25000,
+          priceProposals: [],
+          payments: [paidPayment],
+        }),
+      },
+      $transaction: vi.fn(),
+    };
+
+    await expect(
+      makeService(prisma).markPaymentPaidForProvider({
+        actorUserId: 'provider-user',
+        requestId: 'r1',
+        paymentId: 'p1',
+      }),
+    ).rejects.toThrow('Payment is already marked as paid');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });
