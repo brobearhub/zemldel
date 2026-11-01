@@ -35,7 +35,7 @@ export type ChatEnsureResponse = {
 export type ChatConversationAccessDto = {
   canRead: true;
   canWrite: boolean;
-  reason?: string;
+  reasonCode?: string;
 };
 
 export type ChatServiceRequestConversationListItemDto = {

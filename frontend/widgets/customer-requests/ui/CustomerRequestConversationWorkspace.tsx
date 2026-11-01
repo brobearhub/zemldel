@@ -97,6 +97,11 @@ import {
   RequestCadastralNumbers,
 } from "@/widgets/request-cadastral-numbers";
 import type { ChatEnsureResponse } from "@/entities/chat/dto/chat.dto";
+import {
+  resolveActiveConversationId,
+  resolveProviderSelectionVisibility,
+  resolveSelectionAfterProviderSelect,
+} from "@/widgets/customer-requests/model/conversation-selection";
 
 function pickTitle(req: RequestCustomerDto) {
   if (req.subjectType === "SERVICE") return req.serviceTitle ?? "Заявка по услуге";
@@ -283,11 +288,15 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
   }, [loadWorkStages]);
 
   useEffect(() => {
-    if (selectedConversationId) return;
-    if (conversations.length > 0) {
-      setSelectedConversationId(conversations[0].conversationId);
-    }
-  }, [conversations, selectedConversationId]);
+    setSelectedConversationId((currentConversationId) =>
+      resolveActiveConversationId({
+        conversations,
+        currentConversationId,
+        lockedAt: req.lockedAt,
+        selectedProviderId: req.providerId,
+      }),
+    );
+  }, [conversations, req.lockedAt, req.providerId]);
 
   const activeOffer =
     req.offers.find((offer) => offer.providerId === selectedConversation?.providerId) ??
@@ -473,7 +482,45 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
       if (!res.ok) {
         throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось выбрать исполнителя" : "Не удалось выбрать исполнителя");
       }
-      setReq(payload as RequestCustomerDto);
+      const nextRequest = payload as RequestCustomerDto;
+      setReq(nextRequest);
+      // После server lock прежний тред нельзя оставлять доступным для ввода.
+      setSelectedConversationId(null);
+
+      let nextConversations = await loadConversations();
+      if (!nextConversations.some((conversation) => conversation.providerId === providerId)) {
+        const ensureResponse = await fetch("/api/chat/ensure", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ serviceRequestId: req.id }),
+        });
+        const ensurePayload = (await ensureResponse.json().catch(() => null)) as
+          | ChatEnsureResponse
+          | { error?: string }
+          | null;
+        if (!ensureResponse.ok || !ensurePayload || !("conversationId" in ensurePayload)) {
+          throw new Error("Исполнитель выбран, но открыть выбранный чат не удалось");
+        }
+        nextConversations = [
+          ...nextConversations,
+          {
+            conversationId: ensurePayload.conversationId,
+            providerId,
+            providerName,
+            lastMessageAt: null,
+            lastSnippet: null,
+          },
+        ];
+      }
+      setConversations(nextConversations);
+      setSelectedConversationId(
+        resolveSelectionAfterProviderSelect({
+          previousConversationId: selectedConversationId,
+          selectedProviderId: providerId,
+          conversations: nextConversations,
+          succeeded: true,
+        }),
+      );
       setNotice(`Вы выбрали «${providerName}». Договор пришлёт исполнитель, перед подписанием вы его увидите.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось выбрать исполнителя");
@@ -761,6 +808,10 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
 
   const activePanel = panelItems.find((p) => p.id === activePanelId && (p.visible ?? true));
   const isPanelOpen = Boolean(activePanel);
+  const showProviderSelection = resolveProviderSelectionVisibility({
+    subjectType: req.subjectType,
+    lockedAt: req.lockedAt,
+  });
   const panelTitle =
     activePanel?.id === "payment"
       ? "Цена и оплата"
@@ -987,7 +1038,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
                               {hasContractBundles ? "Договор прикреплён" : "Ожидаем договор"}
                             </Button>
                           </Stack>
-                        ) : isServiceRequest || isExclusiveStatus ? null : (
+                        ) : !showProviderSelection ? null : (
                           <Stack direction="row" spacing={1} sx={{ pr: 1 }}>
                             <Button
                               color="secondary"
@@ -1120,6 +1171,17 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
             conversationId={selectedConversationId}
             title="Чат"
             subtitle={selectedConversation?.providerName ?? pickTitle(req)}
+            requestLockedAt={req.lockedAt}
+            selectedProviderId={req.providerId}
+            onOpenSelectedConversation={() => {
+              const nextConversationId = resolveActiveConversationId({
+                conversations,
+                currentConversationId: selectedConversationId,
+                lockedAt: req.lockedAt,
+                selectedProviderId: req.providerId,
+              });
+              setSelectedConversationId(nextConversationId);
+            }}
             inputPlaceholder={req.subjectType === "SERVICE" ? DEFAULT_SERVICE_QUESTION : undefined}
             autoFocusInput={justCreated}
           />

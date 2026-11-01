@@ -87,8 +87,11 @@ export class ChatConversationAccessDto {
   @ApiProperty()
   canWrite!: boolean;
 
-  @ApiProperty({ required: false })
-  reason?: string;
+  @ApiProperty({
+    required: false,
+    example: 'CHAT_ARCHIVED_AFTER_PROVIDER_SELECTION',
+  })
+  reasonCode?: string;
 }
 
 export class ChatPostMessageResponseDto {

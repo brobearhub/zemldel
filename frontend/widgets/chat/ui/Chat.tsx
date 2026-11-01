@@ -36,6 +36,7 @@ export type ChatRenderableRow =
       clientMessageId: string;
       body: string;
       error?: string;
+      retryable?: boolean;
       replyToPreview?: { senderLabel: string; snippet: string };
     };
 
@@ -359,9 +360,11 @@ export function Chat({
                   <Typography variant="caption" color="error">
                     {row.error ?? "Не удалось отправить"}
                   </Typography>
-                  <Button size="small" variant="outlined" color="inherit" onClick={() => onRetry(row.clientMessageId)}>
-                    Повторить
-                  </Button>
+                  {row.retryable !== false ? (
+                    <Button size="small" variant="outlined" color="inherit" onClick={() => onRetry(row.clientMessageId)}>
+                      Повторить
+                    </Button>
+                  ) : null}
                 </Stack>
               </Paper>
             </Box>
