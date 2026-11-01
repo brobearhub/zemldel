@@ -27,6 +27,7 @@ import {
 } from "@/entities/request/api/request-payments";
 import { resolveRequestPriceView } from "@/entities/request/lib/request-finance";
 import { useConfirm } from "@/shared/ui/confirm";
+import { resolveRequestPaymentPermissions } from "../model/request-payment-permissions";
 
 const CLOSED: readonly RequestStatus[] = ["COMPLETED", "CANCELLED", "CLOSED"];
 const PAYMENT_ACTION_SLOT_WIDTH = 32;
@@ -224,7 +225,14 @@ export type RequestPaymentsProps = {
 
 export function RequestPayments(props: RequestPaymentsProps) {
   const confirm = useConfirm();
-  const canEdit = !CLOSED.includes(props.status) && (props.mode === "customer" || !props.isLocked);
+  const permissions = resolveRequestPaymentPermissions({
+    status: props.status,
+    mode: props.mode,
+    isLocked: Boolean(props.isLocked),
+    canProposePrice: props.canProposePrice,
+    canAcceptPrice: props.canAcceptPrice,
+  });
+  const canEdit = permissions.canEditPayments;
   const priceView = resolveRequestPriceView({
     totalAmountRubles: props.totalAmountRubles,
     servicePriceRubles: props.servicePriceRubles,
@@ -252,7 +260,7 @@ export function RequestPayments(props: RequestPaymentsProps) {
   const payments = props.payments ?? [];
   const total = props.totalAmountRubles;
   const totalIsSet = total != null;
-  const canEditTotal = canEdit && props.canProposePrice;
+  const canEditTotal = permissions.canProposePrice;
   const isEditingTotal = canEditTotal && (props.priceProposal == null || totalEditOpen);
   const canAddContractPayments = canEdit;
   const canAddOtherPayments = canEdit;
@@ -310,7 +318,7 @@ export function RequestPayments(props: RequestPaymentsProps) {
   }
 
   async function acceptPrice() {
-    if (!props.priceProposal || !props.canAcceptPrice || isBusy) return;
+    if (!props.priceProposal || !permissions.canAcceptPrice || isBusy) return;
     setSaving(true);
     setPendingAction("accept-price");
     setError(null);
@@ -539,7 +547,7 @@ export function RequestPayments(props: RequestPaymentsProps) {
                 </Stack>
               ) : null}
 
-              {props.canAcceptPrice && props.priceProposal ? (
+              {permissions.canAcceptPrice && props.priceProposal ? (
                 <Button
                   variant="contained"
                   color="success"
