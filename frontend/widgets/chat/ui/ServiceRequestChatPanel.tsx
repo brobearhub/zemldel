@@ -15,10 +15,10 @@ import type {
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import { Chat, type ChatRenderableRow, type ChatReplyTarget } from "./Chat";
 import {
-  CHAT_ARCHIVED_REASON_CODE,
   createClosedChatAccess,
   resolveChatAccess,
   resolveChatError,
+  resolveChatPostFailure,
 } from "@/widgets/chat/model/chat-access";
 import { ChatReadOnlyNotice } from "./ChatReadOnlyNotice";
 
@@ -391,6 +391,18 @@ export function ServiceRequestChatPanel({
     [conversationId]
   );
 
+  const applyPostFailure = useCallback((error: unknown) => {
+    const failure = resolveChatPostFailure({
+      message: error instanceof Error ? error.message : "Ошибка отправки",
+      retryable:
+        error instanceof ChatPostError ? error.retryable : true,
+    });
+    if (failure.access) {
+      setAccess(failure.access);
+    }
+    return failure;
+  }, []);
+
   const handleSend = useCallback(async () => {
     const trimmed = draft.trim();
     if (!trimmed || !conversationId || sending || !access.canWrite) {
@@ -416,16 +428,7 @@ export function ServiceRequestChatPanel({
     try {
       await postOutbound(trimmed, replyToMessageId, clientMessageId);
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Ошибка отправки";
-      if (e instanceof ChatPostError && !e.retryable) {
-        setAccess(
-          resolveChatAccess({
-            canRead: true,
-            canWrite: false,
-            reasonCode: CHAT_ARCHIVED_REASON_CODE,
-          }),
-        );
-      }
+      const failure = applyPostFailure(e);
       setOutbound((prev) =>
         prev.map((o) => {
           if (o.clientMessageId !== clientMessageId || o.type !== "pending") {
@@ -437,15 +440,23 @@ export function ServiceRequestChatPanel({
             body: o.body,
             replyToMessageId: o.replyToMessageId,
             replyToPreview: o.replyToPreview,
-            error: message,
-            retryable: e instanceof ChatPostError ? e.retryable : true,
+            error: failure.message,
+            retryable: failure.retryable,
           };
         })
       );
     } finally {
       setSending(false);
     }
-  }, [access.canWrite, conversationId, draft, pendingReply, postOutbound, sending]);
+  }, [
+    access.canWrite,
+    applyPostFailure,
+    conversationId,
+    draft,
+    pendingReply,
+    postOutbound,
+    sending,
+  ]);
 
   const handleRetry = useCallback(
     async (clientMessageId: string) => {
@@ -467,7 +478,7 @@ export function ServiceRequestChatPanel({
       try {
         await postOutbound(row.body, row.replyToMessageId, clientMessageId);
       } catch (e) {
-        const message = e instanceof Error ? e.message : "Ошибка отправки";
+        const failure = applyPostFailure(e);
         setOutbound((prev) =>
           prev.map((o) => {
             if (o.clientMessageId !== clientMessageId || o.type !== "pending") return o;
@@ -477,8 +488,8 @@ export function ServiceRequestChatPanel({
               body: o.body,
               replyToMessageId: o.replyToMessageId,
               replyToPreview: o.replyToPreview,
-              error: message,
-              retryable: e instanceof ChatPostError ? e.retryable : true,
+              error: failure.message,
+              retryable: failure.retryable,
             };
           })
         );
@@ -486,7 +497,7 @@ export function ServiceRequestChatPanel({
         setSending(false);
       }
     },
-    [outbound, postOutbound]
+    [applyPostFailure, outbound, postOutbound]
   );
 
   const handleReplyToMessage = useCallback((message: ChatMessageDto) => {

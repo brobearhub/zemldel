@@ -77,3 +77,24 @@ export function resolveChatError(payload: unknown): {
         : "Ошибка отправки";
   return { message, retryable: true };
 }
+
+export function resolveChatPostFailure(error: {
+  readonly message: string;
+  readonly retryable: boolean;
+}): {
+  readonly message: string;
+  readonly retryable: boolean;
+  readonly access: ChatAccessState | null;
+} {
+  return {
+    message: error.message,
+    retryable: error.retryable,
+    access: error.retryable
+      ? null
+      : resolveChatAccess({
+          canRead: true,
+          canWrite: false,
+          reasonCode: CHAT_ARCHIVED_REASON_CODE,
+        }),
+  };
+}

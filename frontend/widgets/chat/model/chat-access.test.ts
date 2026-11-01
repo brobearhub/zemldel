@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createClosedChatAccess,
   resolveChatAccess,
+  resolveChatPostFailure,
   resolveChatError,
 } from "./chat-access";
 
@@ -46,5 +47,20 @@ describe("chat access model", () => {
         "Этот диалог сохранён в архиве: заказчик выбрал другого исполнителя.",
       retryable: false,
     });
+  });
+
+  it("lock при retry сразу закрывает composer через access", () => {
+    const failure = resolveChatPostFailure({
+      message:
+        "Этот диалог сохранён в архиве: заказчик выбрал другого исполнителя.",
+      retryable: false,
+    });
+
+    expect(failure.access).toMatchObject({
+      status: "ready",
+      canWrite: false,
+      reasonCode: "CHAT_ARCHIVED_AFTER_PROVIDER_SELECTION",
+    });
+    expect(failure.retryable).toBe(false);
   });
 });
