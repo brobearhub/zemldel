@@ -19,11 +19,12 @@ import type {
 } from './chat-presence';
 
 const SNIPPET_LEN = 160;
+const CHAT_ARCHIVED_REASON_CODE = 'CHAT_ARCHIVED_AFTER_PROVIDER_SELECTION';
 type ChatAccessAction = 'read' | 'write';
 export type ChatConversationAccessDto = {
   canRead: true;
   canWrite: boolean;
-  reason?: string;
+  reasonCode?: string;
 };
 
 export type ChatMessageDto = {
@@ -198,22 +199,20 @@ export class ChatService {
       subject.conversationProviderId,
     );
 
-    // Archive rule (applies even when serviceId is set after conversion):
-    // - customer: forbidden (only chosen provider thread remains)
-    // - provider (member of the conversation provider): read allowed, write forbidden
+    // Архивный FREEFORM-тред остаётся обеим сторонам для чтения.
     if (lockedToOtherProvider) {
       const isCustomer = req.customerUserId === userId;
       const isProviderMember = activeMemberProviderIds.includes(
         subject.conversationProviderId,
       );
-      if (isCustomer) {
-        throw new ForbiddenException('Request is locked');
-      }
-      if (!isProviderMember) {
+      if (!isCustomer && !isProviderMember) {
         throw new ForbiddenException('Forbidden');
       }
       if (action === 'write') {
-        throw new ForbiddenException('Request is locked');
+        throw new ForbiddenException({
+          code: CHAT_ARCHIVED_REASON_CODE,
+          message: 'Conversation is archived after provider selection',
+        });
       }
       return;
     }
@@ -679,7 +678,13 @@ export class ChatService {
   ): Promise<ServiceRequestConversationListItemDto[]> {
     const req = await this.prisma.request.findUnique({
       where: { id: requestId },
-      select: { id: true, customerUserId: true, status: true },
+      select: {
+        id: true,
+        customerUserId: true,
+        status: true,
+        providerId: true,
+        lockedAt: true,
+      },
     });
     if (!req) {
       throw new NotFoundException('Service request not found');
@@ -692,11 +697,18 @@ export class ChatService {
       throw new ForbiddenException('Request is closed');
     }
 
+    const conversationVisibility: Prisma.ConversationWhereInput =
+      req.lockedAt && req.providerId
+        ? {
+            OR: [{ messages: { some: {} } }, { providerId: req.providerId }],
+          }
+        : { messages: { some: {} } };
+
     const rows = await this.prisma.conversation.findMany({
       where: {
         requestId: req.id,
         customerUserId: actorUserId,
-        messages: { some: {} },
+        ...conversationVisibility,
       },
       select: {
         id: true,
@@ -859,12 +871,19 @@ export class ChatService {
       await this.assertConversationAccess(actorUserId, conversationId, 'write');
       return { canRead: true as const, canWrite: true };
     } catch (error) {
-      const reason =
+      const response =
         error instanceof ForbiddenException ||
         error instanceof BadRequestException
-          ? error.message
-          : 'Forbidden';
-      return { canRead: true as const, canWrite: false, reason };
+          ? error.getResponse()
+          : null;
+      const reasonCode =
+        response &&
+        typeof response === 'object' &&
+        'code' in response &&
+        typeof response.code === 'string'
+          ? response.code
+          : undefined;
+      return { canRead: true as const, canWrite: false, reasonCode };
     }
   }
 
