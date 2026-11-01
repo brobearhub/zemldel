@@ -1,7 +1,10 @@
-import type { RequestPaymentItemDto } from "@/entities/request";
+import type { RequestPaymentItemDto, RequestPriceProposalDto } from "@/entities/request";
 
 export type RequestFinanceDto = {
   totalAmountRubles: number | null;
+  priceProposal: RequestPriceProposalDto | null;
+  canProposePrice: boolean;
+  canAcceptPrice: boolean;
   paidAmountRubles: number;
   remainingAmountRubles: number | null;
   payments: RequestPaymentItemDto[];
@@ -24,13 +27,18 @@ export async function fetchProRequestFinance(requestId: string): Promise<Request
   return parseJson<RequestFinanceDto>(res, "Не удалось загрузить оплату");
 }
 
-export async function setProRequestTotal(requestId: string, totalAmountRubles: number): Promise<RequestFinanceDto> {
-  const res = await fetch(`/api/pro/requests/${requestId}/finance`, {
-    method: "PATCH",
+export async function proposeProRequestPrice(requestId: string, amountRubles: number): Promise<RequestFinanceDto> {
+  const res = await fetch(`/api/pro/requests/${requestId}/price-proposals`, {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ totalAmountRubles }),
+    body: JSON.stringify({ amountRubles }),
   });
-  return parseJson<RequestFinanceDto>(res, "Не удалось сохранить цену");
+  return parseJson<RequestFinanceDto>(res, "Не удалось предложить цену");
+}
+
+export async function acceptProRequestPrice(requestId: string, proposalId: string): Promise<RequestFinanceDto> {
+  const res = await fetch(`/api/pro/requests/${requestId}/price-proposals/${proposalId}/accept`, { method: "POST" });
+  return parseJson<RequestFinanceDto>(res, "Не удалось принять цену");
 }
 
 export async function addProRequestPayment(
@@ -55,13 +63,18 @@ export async function fetchCustomerRequestFinance(requestId: string): Promise<Re
   return parseJson<RequestFinanceDto>(res, "Не удалось загрузить оплату");
 }
 
-export async function setCustomerRequestTotal(requestId: string, totalAmountRubles: number): Promise<RequestFinanceDto> {
-  const res = await fetch(`/api/requests/${requestId}/finance`, {
-    method: "PATCH",
+export async function proposeCustomerRequestPrice(requestId: string, amountRubles: number): Promise<RequestFinanceDto> {
+  const res = await fetch(`/api/requests/${requestId}/price-proposals`, {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ totalAmountRubles }),
+    body: JSON.stringify({ amountRubles }),
   });
-  return parseJson<RequestFinanceDto>(res, "Не удалось сохранить цену");
+  return parseJson<RequestFinanceDto>(res, "Не удалось предложить цену");
+}
+
+export async function acceptCustomerRequestPrice(requestId: string, proposalId: string): Promise<RequestFinanceDto> {
+  const res = await fetch(`/api/requests/${requestId}/price-proposals/${proposalId}/accept`, { method: "POST" });
+  return parseJson<RequestFinanceDto>(res, "Не удалось принять цену");
 }
 
 export async function addCustomerRequestPayment(

@@ -306,6 +306,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
   const canAcceptContract = canCustomerAcceptContract({
     requestStatus: req.status,
     lockedAt: req.lockedAt,
+    totalAmountRubles: req.totalAmountRubles,
     contractBundles,
     documentRequests: docRequests,
   });
@@ -718,6 +719,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
   const priceView = resolveRequestPriceView({
     totalAmountRubles: req.totalAmountRubles,
     servicePriceRubles: req.servicePriceRubles,
+    priceProposal: req.priceProposal,
   });
   const createdNotice = justCreated
     ? `Заявка создана: ${headerTitle}${priceView.statedAmount != null ? `, ${formatRubles(priceView.statedAmount)}` : ""}. Напишите исполнителю, что нужно`
@@ -782,6 +784,9 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
         lockedAt={req.lockedAt}
         totalAmountRubles={req.totalAmountRubles}
         servicePriceRubles={req.servicePriceRubles}
+        priceProposal={req.priceProposal}
+        canProposePrice={req.canProposePrice}
+        canAcceptPrice={req.canAcceptPrice}
         paidAmountRubles={req.paidAmountRubles}
         remainingAmountRubles={req.remainingAmountRubles}
         payments={req.payments}
@@ -823,12 +828,14 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
                   <RequestPriceBlock
                     totalAmountRubles={req.totalAmountRubles}
                     servicePriceRubles={req.servicePriceRubles}
+                    priceProposal={req.priceProposal}
                     serviceId={req.serviceId}
                   />
                   {req.status === "ACCEPTANCE_PENDING" ? (
                     <RequestPriceBlock
                       totalAmountRubles={req.totalAmountRubles}
                       servicePriceRubles={req.servicePriceRubles}
+                      priceProposal={req.priceProposal}
                       statedOnly
                     />
                   ) : null}
@@ -1071,6 +1078,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
                 <RequestPriceBlock
                   totalAmountRubles={req.totalAmountRubles}
                   servicePriceRubles={req.servicePriceRubles}
+                  priceProposal={req.priceProposal}
                   statedOnly
                 />
                 {termsError ? <Alert severity="error">{termsError}</Alert> : null}
@@ -1096,7 +1104,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
                 variant="contained"
                 color="success"
                 loading={pendingAction === "accept-contract"}
-                disabled={busy || termsBusy || !termsAccepted || !termsVersion}
+                disabled={busy || termsBusy || !termsAccepted || !termsVersion || req.totalAmountRubles == null}
                 onClick={() => void acceptContract()}
               >
                 Подписать договор

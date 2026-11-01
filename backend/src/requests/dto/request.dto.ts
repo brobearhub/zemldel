@@ -109,6 +109,41 @@ export type RequestProviderOfferStatus = 'SELECTED' | 'DECLINED';
 
 export type RequestPaymentType = 'CONTRACT' | 'OTHER';
 
+export type RequestPriceProposalAuthorSide = 'CUSTOMER' | 'PROVIDER';
+
+export class RequestPriceProposalDto {
+  @ApiProperty({ format: 'uuid' })
+  @Expose()
+  @IsUUID()
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  @Expose()
+  @IsUUID()
+  providerId!: string;
+
+  @ApiProperty({ example: 12000 })
+  @Expose()
+  @IsInt()
+  amountRubles!: number;
+
+  @ApiProperty({ enum: ['CUSTOMER', 'PROVIDER'] })
+  @Expose()
+  @IsEnum(['CUSTOMER', 'PROVIDER'])
+  authorSide!: RequestPriceProposalAuthorSide;
+
+  @ApiProperty({ nullable: true })
+  @Expose()
+  @IsOptional()
+  @IsString()
+  acceptedAt!: string | null;
+
+  @ApiProperty()
+  @Expose()
+  @IsString()
+  createdAt!: string;
+}
+
 export class RequestPaymentItemDto {
   @ApiProperty({ format: 'uuid' })
   @Expose()
@@ -627,6 +662,21 @@ export class RequestCustomerDto {
   @IsInt()
   servicePriceRubles!: number | null;
 
+  @ApiProperty({ type: RequestPriceProposalDto, nullable: true })
+  @Expose()
+  @Type(() => RequestPriceProposalDto)
+  priceProposal!: RequestPriceProposalDto | null;
+
+  @ApiProperty()
+  @Expose()
+  @IsBoolean()
+  canProposePrice!: boolean;
+
+  @ApiProperty()
+  @Expose()
+  @IsBoolean()
+  canAcceptPrice!: boolean;
+
   @ApiProperty({ example: 0 })
   @Expose()
   @IsInt()
@@ -941,6 +991,21 @@ export class RequestProDto {
   @IsInt()
   servicePriceRubles!: number | null;
 
+  @ApiProperty({ type: RequestPriceProposalDto, nullable: true })
+  @Expose()
+  @Type(() => RequestPriceProposalDto)
+  priceProposal!: RequestPriceProposalDto | null;
+
+  @ApiProperty()
+  @Expose()
+  @IsBoolean()
+  canProposePrice!: boolean;
+
+  @ApiProperty()
+  @Expose()
+  @IsBoolean()
+  canAcceptPrice!: boolean;
+
   @ApiProperty({ example: 0 })
   @Expose()
   @IsInt()
@@ -1059,6 +1124,14 @@ export type RequestDbRow = {
     createdAt: Date;
     createdByUserId?: string | null;
   }>;
+  priceProposals?: Array<{
+    id: string;
+    providerId: string;
+    amountRubles: number;
+    authorSide: RequestPriceProposalAuthorSide;
+    acceptedAt: Date | null;
+    createdAt: Date;
+  }>;
 };
 
 function toRequestCityDto(row: RequestDbRow): RequestCityDto | null {
@@ -1084,17 +1157,31 @@ function paymentAuthorSide(
   return 'PROVIDER';
 }
 
-function toFinanceDto(row: RequestDbRow, reveal: boolean) {
+function toFinanceDto(
+  row: RequestDbRow,
+  reveal: boolean,
+  viewerSide: RequestPriceProposalAuthorSide,
+  actorProviderId?: string,
+) {
   if (!reveal) {
     return {
       totalAmountRubles: null,
       servicePriceRubles: null,
+      priceProposal: null,
+      canProposePrice: false,
+      canAcceptPrice: false,
       paidAmountRubles: 0,
       remainingAmountRubles: null,
       payments: [] as RequestPaymentItemDto[],
     };
   }
   const payments = row.payments ?? [];
+  const proposal =
+    row.priceProposals?.find(
+      (item) => actorProviderId == null || item.providerId === actorProviderId,
+    ) ?? null;
+  const priceMutable =
+    row.contractAcceptedAt == null && !isOrderExecutionStatus(row.status);
   const paidAmountRubles = sumPaidRublesByType(
     payments as unknown as PaymentAmountWithTypeAndPaidAt[],
     'CONTRACT',
@@ -1102,6 +1189,24 @@ function toFinanceDto(row: RequestDbRow, reveal: boolean) {
   return {
     totalAmountRubles: row.totalAmountRubles ?? null,
     servicePriceRubles: row.servicePriceRubles ?? null,
+    priceProposal: proposal
+      ? {
+          id: proposal.id,
+          providerId: proposal.providerId,
+          amountRubles: proposal.amountRubles,
+          authorSide: proposal.authorSide,
+          acceptedAt: proposal.acceptedAt?.toISOString() ?? null,
+          createdAt: proposal.createdAt.toISOString(),
+        }
+      : null,
+    canProposePrice:
+      priceMutable &&
+      (viewerSide === 'PROVIDER' || row.providerId != null || proposal != null),
+    canAcceptPrice:
+      priceMutable &&
+      proposal != null &&
+      proposal.acceptedAt == null &&
+      proposal.authorSide !== viewerSide,
     paidAmountRubles,
     remainingAmountRubles: remainingRubles(
       row.totalAmountRubles ?? null,
@@ -1195,7 +1300,7 @@ export function requestRowToCustomerDtoPlain(
       customerName: row.customerUser?.name ?? null,
       customerEmail: row.customerUser?.email ?? null,
       cadastralNumbers: row.cadastralNumbers ?? [],
-      ...toFinanceDto(row, true),
+      ...toFinanceDto(row, true, 'CUSTOMER'),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       canDeleteByCustomer: canCustomerDeleteRequest(row, hasProviderResponse),
@@ -1311,7 +1416,7 @@ export function requestRowToProDtoPlain(
       providerLastMessage,
       awaitingCustomerReply,
       lastMessageAt,
-      ...toFinanceDto(row, !locked),
+      ...toFinanceDto(row, !locked, 'PROVIDER', actorProviderId),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     },

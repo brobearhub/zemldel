@@ -543,6 +543,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   const priceView = resolveRequestPriceView({
     totalAmountRubles: req.totalAmountRubles,
     servicePriceRubles: req.servicePriceRubles,
+    priceProposal: req.priceProposal,
   });
   const customerFields = getCustomerContactFields({
     customerName: req.customerName,
@@ -605,6 +606,9 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
         isLocked={req.isLocked}
         totalAmountRubles={req.totalAmountRubles}
         servicePriceRubles={req.servicePriceRubles}
+        priceProposal={req.priceProposal}
+        canProposePrice={req.canProposePrice}
+        canAcceptPrice={req.canAcceptPrice}
         paidAmountRubles={req.paidAmountRubles}
         remainingAmountRubles={req.remainingAmountRubles}
         payments={req.payments}
@@ -637,12 +641,14 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
               <RequestPriceBlock
                 totalAmountRubles={req.totalAmountRubles}
                 servicePriceRubles={req.servicePriceRubles}
+                priceProposal={req.priceProposal}
                 serviceId={req.isLocked ? null : req.serviceId}
               />
               {req.status === "ACCEPTANCE_PENDING" ? (
                 <RequestPriceBlock
                   totalAmountRubles={req.totalAmountRubles}
                   servicePriceRubles={req.servicePriceRubles}
+                  priceProposal={req.priceProposal}
                   statedOnly
                 />
               ) : null}

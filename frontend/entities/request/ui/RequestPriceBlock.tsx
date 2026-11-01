@@ -2,11 +2,13 @@
 
 import { Stack, Typography } from "@mui/material";
 import { formatRubles, resolveRequestPriceView } from "@/entities/request/lib/request-finance";
+import type { RequestPriceProposalDto } from "@/entities/request/dto/request.dto";
 import Link from "@/shared/ui/Link";
 
 type Props = {
   totalAmountRubles: number | null;
   servicePriceRubles: number | null;
+  priceProposal?: RequestPriceProposalDto | null;
   serviceId?: string | null;
   /** Короткая строка «Цена: …» для договора и приёмки. */
   statedOnly?: boolean;
@@ -15,15 +17,15 @@ type Props = {
 export function RequestPriceBlock({
   totalAmountRubles,
   servicePriceRubles,
+  priceProposal = null,
   serviceId,
   statedOnly = false,
 }: Props) {
-  const view = resolveRequestPriceView({ totalAmountRubles, servicePriceRubles });
+  const view = resolveRequestPriceView({ totalAmountRubles, servicePriceRubles, priceProposal });
   if (statedOnly) {
-    if (view.statedAmount == null) return null;
     return (
       <Typography variant="body2" sx={{ color: "text.secondary" }}>
-        Цена: {formatRubles(view.statedAmount)}
+        {view.statedAmount == null ? "Цена не согласована" : `Цена: ${formatRubles(view.statedAmount)}`}
       </Typography>
     );
   }
@@ -52,6 +54,11 @@ export function RequestPriceBlock({
       {view.changedNote ? (
         <Typography variant="body2" sx={{ color: "text.secondary", overflowWrap: "anywhere" }}>
           {view.changedNote}
+        </Typography>
+      ) : null}
+      {view.servicePriceLabel ? (
+        <Typography variant="body2" sx={{ color: "text.secondary", overflowWrap: "anywhere" }}>
+          {view.servicePriceLabel}
         </Typography>
       ) : null}
     </Stack>

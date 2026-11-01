@@ -12,15 +12,18 @@ import {
   parseRublesInput,
   type RequestPaymentItemDto,
   type RequestPaymentType,
+  type RequestPriceProposalDto,
   type RequestStatus,
 } from "@/entities/request";
 import {
+  acceptCustomerRequestPrice,
+  acceptProRequestPrice,
   addCustomerRequestPayment,
   addProRequestPayment,
   markCustomerRequestPaymentPaid,
   markProRequestPaymentPaid,
-  setCustomerRequestTotal,
-  setProRequestTotal,
+  proposeCustomerRequestPrice,
+  proposeProRequestPrice,
 } from "@/entities/request/api/request-payments";
 import { resolveRequestPriceView } from "@/entities/request/lib/request-finance";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -209,6 +212,9 @@ export type RequestPaymentsProps = {
   isLocked?: boolean;
   totalAmountRubles: number | null;
   servicePriceRubles: number | null;
+  priceProposal: RequestPriceProposalDto | null;
+  canProposePrice: boolean;
+  canAcceptPrice: boolean;
   paidAmountRubles: number;
   remainingAmountRubles: number | null;
   payments: readonly RequestPaymentItemDto[];
@@ -222,9 +228,11 @@ export function RequestPayments(props: RequestPaymentsProps) {
   const priceView = resolveRequestPriceView({
     totalAmountRubles: props.totalAmountRubles,
     servicePriceRubles: props.servicePriceRubles,
+    priceProposal: props.priceProposal,
   });
   const [totalInput, setTotalInput] = useState(() => {
     if (props.totalAmountRubles != null) return String(props.totalAmountRubles);
+    if (props.priceProposal != null) return String(props.priceProposal.amountRubles);
     if (props.servicePriceRubles != null) return String(props.servicePriceRubles);
     return "";
   });
@@ -244,8 +252,8 @@ export function RequestPayments(props: RequestPaymentsProps) {
   const payments = props.payments ?? [];
   const total = props.totalAmountRubles;
   const totalIsSet = total != null;
-  const canEditTotal = canEdit;
-  const isEditingTotal = canEditTotal && (!totalIsSet || totalEditOpen);
+  const canEditTotal = canEdit && props.canProposePrice;
+  const isEditingTotal = canEditTotal && (props.priceProposal == null || totalEditOpen);
   const canAddContractPayments = canEdit;
   const canAddOtherPayments = canEdit;
   const canMarkPaid = !CLOSED.includes(props.status);
@@ -275,7 +283,7 @@ export function RequestPayments(props: RequestPaymentsProps) {
     return String(rubles);
   }
 
-  async function saveTotal() {
+  async function proposePrice() {
     const rubles = parseRublesInput(totalInput);
     if (rubles == null) {
       setError("Укажите полную цену больше нуля (целое число рублей)");
@@ -286,15 +294,35 @@ export function RequestPayments(props: RequestPaymentsProps) {
     setError(null);
     try {
       if (props.mode === "provider") {
-        await setProRequestTotal(props.requestId, rubles);
+        await proposeProRequestPrice(props.requestId, rubles);
       } else {
-        await setCustomerRequestTotal(props.requestId, rubles);
+        await proposeCustomerRequestPrice(props.requestId, rubles);
       }
       setTotalInput("");
       setTotalEditOpen(false);
       await props.onChanged?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось сохранить цену");
+      setError(e instanceof Error ? e.message : "Не удалось предложить цену");
+    } finally {
+      setSaving(false);
+      setPendingAction(null);
+    }
+  }
+
+  async function acceptPrice() {
+    if (!props.priceProposal || !props.canAcceptPrice || isBusy) return;
+    setSaving(true);
+    setPendingAction("accept-price");
+    setError(null);
+    try {
+      if (props.mode === "provider") {
+        await acceptProRequestPrice(props.requestId, props.priceProposal.id);
+      } else {
+        await acceptCustomerRequestPrice(props.requestId, props.priceProposal.id);
+      }
+      await props.onChanged?.();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось принять цену");
     } finally {
       setSaving(false);
       setPendingAction(null);
@@ -371,7 +399,7 @@ export function RequestPayments(props: RequestPaymentsProps) {
   return (
     <Stack spacing={1.5} sx={{ flex: 1, minHeight: "100%", minWidth: 0, maxWidth: "100%" }}>
       <Typography variant="body2" sx={{ color: "text.secondary" }}>
-        Договоритесь о цене в чате и зафиксируйте её здесь
+        Одна сторона предлагает цену, противоположная — явно принимает
       </Typography>
       <Typography variant="body2" sx={{ color: "text.secondary" }}>
         Оплата идёт напрямую между вами и {props.mode === "provider" ? "клиентом" : "исполнителем"}. Здесь вы фиксируете договорённости и отметки.
@@ -398,13 +426,17 @@ export function RequestPayments(props: RequestPaymentsProps) {
             <PaymentAmountCell
               typographySx={PAYMENT_AMOUNT_TOTAL_TYPO_SX}
                 action={
-                canEditTotal && totalIsSet ? (
+                canEditTotal && !isEditingTotal ? (
                   <Button
                     aria-label="Редактировать цену"
                     size="small"
                     disabled={isBusy}
                     onClick={() => {
-                      setTotalInput(formatRublesForInput(total));
+                      setTotalInput(
+                        formatRublesForInput(
+                          props.priceProposal?.amountRubles ?? props.totalAmountRubles ?? props.servicePriceRubles ?? 0,
+                        ),
+                      );
                       setTotalEditOpen(true);
                     }}
                     startIcon={<EditOutlinedIcon fontSize="small" />}
@@ -417,7 +449,11 @@ export function RequestPayments(props: RequestPaymentsProps) {
                 ) : null
               }
             >
-              {totalIsSet ? formatRubles(total) : null}
+              {totalIsSet
+                ? `Согласовано: ${formatRubles(total)}`
+                : props.priceProposal
+                  ? `Предложено: ${formatRubles(props.priceProposal.amountRubles)}`
+                  : "Цена не согласована"}
             </PaymentAmountCell>
 
             {contractPayments.length > 0 ? (
@@ -480,16 +516,16 @@ export function RequestPayments(props: RequestPaymentsProps) {
                     slotProps={{ htmlInput: { inputMode: "decimal" } }}
                   />
                   <IconButton
-                    aria-label="Сохранить цену"
+                    aria-label="Предложить цену"
                     color="primary"
                     loading={pendingAction === "total"}
                     disabled={isBusy}
-                    onClick={() => void saveTotal()}
+                    onClick={() => void proposePrice()}
                   >
                     <CheckIcon />
                   </IconButton>
                   <Typography variant="caption" sx={{ display: { xs: "inline", sm: "none" }, color: "text.secondary" }}>
-                    Сохранить
+                    Предложить
                   </Typography>
                   {totalIsSet ? (
                     <IconButton
@@ -501,6 +537,18 @@ export function RequestPayments(props: RequestPaymentsProps) {
                     </IconButton>
                   ) : null}
                 </Stack>
+              ) : null}
+
+              {props.canAcceptPrice && props.priceProposal ? (
+                <Button
+                  variant="contained"
+                  color="success"
+                  loading={pendingAction === "accept-price"}
+                  disabled={isBusy}
+                  onClick={() => void acceptPrice()}
+                >
+                  Принять {formatRubles(props.priceProposal.amountRubles)}
+                </Button>
               ) : null}
 
               {priceView.servicePriceLabel &&

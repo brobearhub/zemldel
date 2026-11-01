@@ -1,12 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
 import { ApiOkResponse, ApiParam, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import { ApiStandardErrors } from '../common/swagger/api-standard-errors.decorator';
 import {
+  CreateRequestPriceProposalDto,
   CreateRequestPaymentDto,
   RequestFinanceDto,
-  SetRequestTotalDto,
 } from './dto/request-payments.dto';
 import { RequestPaymentsService } from './request-payments.service';
 
@@ -36,18 +36,34 @@ export class RequestPaymentsController {
     });
   }
 
-  @Patch('pro/requests/:requestId/finance')
+  @Post('pro/requests/:requestId/price-proposals')
   @ApiParam({ name: 'requestId', type: String })
   @ApiOkResponse({ type: RequestFinanceDto })
-  setTotalForProvider(
+  proposePriceForProvider(
     @Req() request: Request,
     @Param('requestId') requestId: string,
-    @Body() body: SetRequestTotalDto,
+    @Body() body: CreateRequestPriceProposalDto,
   ) {
-    return this.payments.setTotalForProvider({
+    return this.payments.proposePriceForProvider({
       actorUserId: this.getRequiredActorUserId(request),
       requestId,
-      totalAmountRubles: body.totalAmountRubles,
+      amountRubles: body.amountRubles,
+    });
+  }
+
+  @Post('pro/requests/:requestId/price-proposals/:proposalId/accept')
+  @ApiParam({ name: 'requestId', type: String })
+  @ApiParam({ name: 'proposalId', type: String })
+  @ApiOkResponse({ type: RequestFinanceDto })
+  acceptPriceForProvider(
+    @Req() request: Request,
+    @Param('requestId') requestId: string,
+    @Param('proposalId') proposalId: string,
+  ) {
+    return this.payments.acceptPriceForProvider({
+      actorUserId: this.getRequiredActorUserId(request),
+      requestId,
+      proposalId,
     });
   }
 
@@ -98,18 +114,34 @@ export class RequestPaymentsController {
     });
   }
 
-  @Patch('requests/mine/:requestId/finance')
+  @Post('requests/mine/:requestId/price-proposals')
   @ApiParam({ name: 'requestId', type: String })
   @ApiOkResponse({ type: RequestFinanceDto })
-  setTotalForCustomer(
+  proposePriceForCustomer(
     @Req() request: Request,
     @Param('requestId') requestId: string,
-    @Body() body: SetRequestTotalDto,
+    @Body() body: CreateRequestPriceProposalDto,
   ) {
-    return this.payments.setTotalForCustomer({
+    return this.payments.proposePriceForCustomer({
       actorUserId: this.getRequiredActorUserId(request),
       requestId,
-      totalAmountRubles: body.totalAmountRubles,
+      amountRubles: body.amountRubles,
+    });
+  }
+
+  @Post('requests/mine/:requestId/price-proposals/:proposalId/accept')
+  @ApiParam({ name: 'requestId', type: String })
+  @ApiParam({ name: 'proposalId', type: String })
+  @ApiOkResponse({ type: RequestFinanceDto })
+  acceptPriceForCustomer(
+    @Req() request: Request,
+    @Param('requestId') requestId: string,
+    @Param('proposalId') proposalId: string,
+  ) {
+    return this.payments.acceptPriceForCustomer({
+      actorUserId: this.getRequiredActorUserId(request),
+      requestId,
+      proposalId,
     });
   }
 

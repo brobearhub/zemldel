@@ -14,57 +14,59 @@ export type RequestPriceView = {
   headline: string;
   changedNote: string | null;
   servicePriceLabel: string | null;
-  /** Сумма для строки «Цена: …», когда цена уже есть. */
+  proposedAmount: number | null;
+  agreedAmount: number | null;
+  /** Только согласованная сумма для юридически значимых шагов. */
   statedAmount: number | null;
 };
 
 /**
- * Why: три состояния из решения владельца, без статусов «предложена / согласована».
- * Снимок услуги остаётся, даже если полную цену потом меняют.
+ * Why: справочная, предложенная и согласованная цены имеют разный юридический смысл.
  */
 export function resolveRequestPriceView(input: {
   totalAmountRubles: number | null;
   servicePriceRubles: number | null;
+  priceProposal: {
+    id: string;
+    amountRubles: number;
+    authorSide: "CUSTOMER" | "PROVIDER";
+  } | null;
 }): RequestPriceView {
   const total = input.totalAmountRubles;
   const service = input.servicePriceRubles;
-  if (total == null && service == null) {
+  const proposal = input.priceProposal;
+  const servicePriceLabel = service != null ? `Справочная цена услуги: ${formatRubles(service)}` : null;
+  if (total != null) {
     return {
-      triggerCaption: "Цена не указана",
-      headline: "Цена не указана",
-      changedNote: null,
-      servicePriceLabel: null,
-      statedAmount: null,
+      triggerCaption: `Согласовано: ${formatRubles(total)}`,
+      headline: `Согласовано: ${formatRubles(total)}`,
+      changedNote:
+        service != null && total !== service ? `Отличается от справочной цены услуги` : null,
+      servicePriceLabel,
+      proposedAmount: null,
+      agreedAmount: total,
+      statedAmount: total,
     };
   }
-  const amount = total ?? service;
-  if (amount == null) {
+  if (proposal != null) {
     return {
-      triggerCaption: "Цена не указана",
-      headline: "Цена не указана",
+      triggerCaption: `Предложено: ${formatRubles(proposal.amountRubles)}`,
+      headline: `Предложено: ${formatRubles(proposal.amountRubles)}`,
       changedNote: null,
-      servicePriceLabel: null,
+      servicePriceLabel,
+      proposedAmount: proposal.amountRubles,
+      agreedAmount: null,
       statedAmount: null,
-    };
-  }
-  const unchangedService = service != null && (total == null || total === service);
-  if (unchangedService) {
-    const label = `Цена по услуге: ${formatRubles(service)}`;
-    return {
-      triggerCaption: label,
-      headline: label,
-      changedNote: null,
-      servicePriceLabel: `Цена услуги: ${formatRubles(service)}`,
-      statedAmount: service,
     };
   }
   return {
-    triggerCaption: formatRubles(amount),
-    headline: formatRubles(amount),
-    changedNote:
-      service != null ? `Изменена относительно услуги (было ${formatRubles(service)})` : null,
-    servicePriceLabel: service != null ? `Цена услуги: ${formatRubles(service)}` : null,
-    statedAmount: amount,
+    triggerCaption: "Цена не согласована",
+    headline: "Цена не согласована",
+    changedNote: null,
+    servicePriceLabel,
+    proposedAmount: null,
+    agreedAmount: null,
+    statedAmount: null,
   };
 }
 

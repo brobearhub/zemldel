@@ -137,6 +137,18 @@ const select = {
     },
     orderBy: { paidAt: 'asc' },
   },
+  priceProposals: {
+    where: { supersededAt: null },
+    select: {
+      id: true,
+      providerId: true,
+      amountRubles: true,
+      authorSide: true,
+      acceptedAt: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  },
 } satisfies Prisma.RequestSelect;
 
 type SubjectType = 'SERVICE' | 'CATEGORY' | 'FREEFORM';
@@ -597,7 +609,12 @@ export class RequestsService {
   ): Promise<RequestCustomerDto> {
     const service = await this.prisma.service.findFirst({
       where: { id: serviceId, status: 'PUBLISHED' },
-      select: { id: true, providerId: true, price: true },
+      select: {
+        id: true,
+        providerId: true,
+        price: true,
+        createdByUserId: true,
+      },
     });
     if (!service) {
       throw new NotFoundException('Published service not found');
@@ -635,6 +652,7 @@ export class RequestsService {
 
     const created = await this.prisma.$transaction(async (tx) => {
       const now = new Date();
+      const servicePriceRubles = parseServicePriceRubles(service.price);
       const next = await tx.request.create({
         data: {
           status: 'NEW',
@@ -658,10 +676,31 @@ export class RequestsService {
           message,
           location: null,
           cadastralNumbers: normalizeCadastralNumbers(input.cadastralNumbers),
-          servicePriceRubles: parseServicePriceRubles(service.price),
+          servicePriceRubles,
         },
         select,
       });
+
+      const initialPriceProposal =
+        servicePriceRubles == null
+          ? null
+          : await tx.requestPriceProposal.create({
+              data: {
+                requestId: next.id,
+                providerId: service.providerId,
+                amountRubles: servicePriceRubles,
+                authorSide: 'PROVIDER',
+                proposedByUserId: service.createdByUserId,
+              },
+              select: {
+                id: true,
+                providerId: true,
+                amountRubles: true,
+                authorSide: true,
+                acceptedAt: true,
+                createdAt: true,
+              },
+            });
 
       await this.addEvent(tx, {
         requestId: next.id,
@@ -670,7 +709,10 @@ export class RequestsService {
         payload: { providerId: service.providerId, autoLocked: true },
       });
 
-      return next;
+      return {
+        ...next,
+        priceProposals: initialPriceProposal ? [initialPriceProposal] : [],
+      };
     });
 
     return requestRowToCustomerDtoPlain(created as unknown as RequestDbRow);
@@ -2533,11 +2575,21 @@ export class RequestsService {
         data: { status: 'DECLINED', declinedAt: now },
       });
 
+      await tx.requestPriceProposal.updateMany({
+        where: {
+          requestId: req.id,
+          providerId: { not: input.providerId },
+          supersededAt: null,
+        },
+        data: { supersededAt: now },
+      });
+
       const next = await tx.request.update({
         where: { id: req.id },
         data: {
           providerId: input.providerId,
           lockedAt: req.lockedAt ?? now,
+          totalAmountRubles: null,
         },
         select,
       });
@@ -2605,6 +2657,11 @@ export class RequestsService {
       if (!req.providerId || !hasRequestLock(req)) {
         throw new BadRequestException(
           'Provider must be selected before contract acceptance',
+        );
+      }
+      if (req.totalAmountRubles == null) {
+        throw new ConflictException(
+          'Price must be agreed before contract acceptance',
         );
       }
       const contractDocs = await tx.requestContractFile.findMany({

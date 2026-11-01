@@ -56,6 +56,15 @@ export type RequestCustomerOfferDto = {
 
 export type RequestPaymentType = "CONTRACT" | "OTHER";
 
+export type RequestPriceProposalDto = {
+  id: string;
+  providerId: string;
+  amountRubles: number;
+  authorSide: "CUSTOMER" | "PROVIDER";
+  acceptedAt: string | null;
+  createdAt: string;
+};
+
 export type RequestPaymentItemDto = {
   id: string;
   type: RequestPaymentType;
@@ -111,6 +120,9 @@ export type RequestCustomerDto = {
   updatedAt: string;
   totalAmountRubles: number | null;
   servicePriceRubles: number | null;
+  priceProposal: RequestPriceProposalDto | null;
+  canProposePrice: boolean;
+  canAcceptPrice: boolean;
   paidAmountRubles: number;
   remainingAmountRubles: number | null;
   payments: RequestPaymentItemDto[];
@@ -167,6 +179,9 @@ export type RequestProDto = {
   lastMessageAt: string | null;
   totalAmountRubles: number | null;
   servicePriceRubles: number | null;
+  priceProposal: RequestPriceProposalDto | null;
+  canProposePrice: boolean;
+  canAcceptPrice: boolean;
   paidAmountRubles: number;
   remainingAmountRubles: number | null;
   payments: RequestPaymentItemDto[];

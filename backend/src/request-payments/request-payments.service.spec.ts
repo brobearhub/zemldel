@@ -18,7 +18,232 @@ function makeService(prisma: object) {
 }
 
 describe('RequestPaymentsService', () => {
-  it('setTotalForProvider rejects other provider', async () => {
+  it('opposite side accepts a provider proposal and atomically sets total', async () => {
+    const proposal = {
+      id: 'pp1',
+      requestId: 'r1',
+      providerId: PROVIDER_ID,
+      amountRubles: 12000,
+      authorSide: 'PROVIDER',
+      proposedByUserId: 'provider-user',
+      acceptedAt: null,
+      acceptedByUserId: null,
+      supersededAt: null,
+      createdAt: NOW,
+    };
+    const tx = {
+      requestPriceProposal: {
+        findFirst: vi.fn().mockResolvedValue(proposal),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+      request: {
+        update: vi.fn().mockResolvedValue({
+          totalAmountRubles: 12000,
+          payments: [],
+          priceProposals: [
+            { ...proposal, acceptedAt: NOW, acceptedByUserId: 'customer' },
+          ],
+        }),
+      },
+      requestEvent: { create: vi.fn().mockResolvedValue(null) },
+    };
+    const prisma = {
+      request: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'DISCUSSING',
+          providerId: PROVIDER_ID,
+          customerUserId: 'customer',
+          totalAmountRubles: null,
+          payments: [],
+          priceProposals: [proposal],
+        }),
+      },
+      $transaction: vi.fn((fn: (client: typeof tx) => unknown) => fn(tx)),
+    };
+
+    const dto = await makeService(prisma).acceptPriceForCustomer({
+      actorUserId: 'customer',
+      requestId: 'r1',
+      proposalId: 'pp1',
+    });
+
+    expect(tx.requestPriceProposal.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'pp1',
+        requestId: 'r1',
+        providerId: PROVIDER_ID,
+        acceptedAt: null,
+        supersededAt: null,
+      },
+      data: { acceptedAt: expect.any(Date), acceptedByUserId: 'customer' },
+    });
+    expect(tx.request.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { totalAmountRubles: 12000 } }),
+    );
+    expect(dto.totalAmountRubles).toBe(12000);
+  });
+
+  it('proposal author side cannot accept its own proposal', async () => {
+    const prisma = {
+      request: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'DISCUSSING',
+          providerId: PROVIDER_ID,
+          customerUserId: 'customer',
+          totalAmountRubles: null,
+          payments: [],
+          priceProposals: [
+            {
+              id: 'pp1',
+              providerId: PROVIDER_ID,
+              amountRubles: 12000,
+              authorSide: 'CUSTOMER',
+              acceptedAt: null,
+              supersededAt: null,
+            },
+          ],
+        }),
+      },
+    };
+
+    await expect(
+      makeService(prisma).acceptPriceForCustomer({
+        actorUserId: 'customer',
+        requestId: 'r1',
+        proposalId: 'pp1',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('stale proposal cannot be accepted', async () => {
+    const prisma = {
+      request: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'DISCUSSING',
+          providerId: PROVIDER_ID,
+          customerUserId: 'customer',
+          totalAmountRubles: null,
+          payments: [],
+          priceProposals: [
+            {
+              id: 'pp1',
+              providerId: PROVIDER_ID,
+              amountRubles: 12000,
+              authorSide: 'PROVIDER',
+              acceptedAt: null,
+              supersededAt: NOW,
+            },
+          ],
+        }),
+      },
+    };
+
+    await expect(
+      makeService(prisma).acceptPriceForCustomer({
+        actorUserId: 'customer',
+        requestId: 'r1',
+        proposalId: 'pp1',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('new proposal supersedes current proposal and clears agreed total', async () => {
+    const tx = {
+      requestPriceProposal: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        create: vi.fn().mockResolvedValue({
+          id: 'pp2',
+          providerId: PROVIDER_ID,
+          amountRubles: 15000,
+          authorSide: 'CUSTOMER',
+          proposedByUserId: 'customer',
+          acceptedAt: null,
+          acceptedByUserId: null,
+          supersededAt: null,
+          createdAt: NOW,
+        }),
+      },
+      request: {
+        update: vi.fn().mockResolvedValue({
+          totalAmountRubles: null,
+          payments: [],
+          priceProposals: [
+            {
+              id: 'pp2',
+              providerId: PROVIDER_ID,
+              amountRubles: 15000,
+              authorSide: 'CUSTOMER',
+              proposedByUserId: 'customer',
+              acceptedAt: null,
+              acceptedByUserId: null,
+              supersededAt: null,
+              createdAt: NOW,
+            },
+          ],
+        }),
+      },
+      requestEvent: { create: vi.fn().mockResolvedValue(null) },
+    };
+    const prisma = {
+      request: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'DISCUSSING',
+          providerId: PROVIDER_ID,
+          customerUserId: 'customer',
+          totalAmountRubles: 12000,
+          payments: [],
+          priceProposals: [{ id: 'pp1', providerId: PROVIDER_ID }],
+        }),
+      },
+      $transaction: vi.fn((fn: (client: typeof tx) => unknown) => fn(tx)),
+    };
+
+    const dto = await makeService(prisma).proposePriceForCustomer({
+      actorUserId: 'customer',
+      requestId: 'r1',
+      amountRubles: 15000,
+    });
+
+    expect(tx.requestPriceProposal.updateMany).toHaveBeenCalledWith({
+      where: { requestId: 'r1', providerId: PROVIDER_ID, supersededAt: null },
+      data: { supersededAt: expect.any(Date) },
+    });
+    expect(tx.request.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { totalAmountRubles: null } }),
+    );
+    expect(dto.totalAmountRubles).toBeNull();
+  });
+
+  it('proposal is rejected after contract acceptance', async () => {
+    const prisma = {
+      request: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'ACTIVE',
+          contractAcceptedAt: NOW,
+          providerId: PROVIDER_ID,
+          customerUserId: 'customer',
+          totalAmountRubles: 12000,
+          payments: [],
+          priceProposals: [],
+        }),
+      },
+    };
+
+    await expect(
+      makeService(prisma).proposePriceForCustomer({
+        actorUserId: 'customer',
+        requestId: 'r1',
+        amountRubles: 15000,
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('proposePriceForProvider rejects other provider', async () => {
     const prisma = {
       request: {
         findFirst: vi.fn().mockResolvedValue({
@@ -26,16 +251,18 @@ describe('RequestPaymentsService', () => {
           status: 'ACTIVE',
           providerId: 'other',
           lockedAt: NOW,
+          contractAcceptedAt: null,
           totalAmountRubles: null,
+          priceProposals: [],
           payments: [],
         }),
       },
     };
     await expect(
-      makeService(prisma).setTotalForProvider({
+      makeService(prisma).proposePriceForProvider({
         actorUserId: 'u1',
         requestId: 'r1',
-        totalAmountRubles: 25000,
+        amountRubles: 25000,
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
@@ -49,6 +276,8 @@ describe('RequestPaymentsService', () => {
           providerId: PROVIDER_ID,
           lockedAt: NOW,
           totalAmountRubles: 25000,
+          contractAcceptedAt: null,
+          priceProposals: [],
           payments: [],
         }),
       },
@@ -68,7 +297,10 @@ describe('RequestPaymentsService', () => {
       request: {
         findFirst: vi.fn().mockResolvedValue({
           customerUserId: 'u1',
+          status: 'ACTIVE',
+          contractAcceptedAt: NOW,
           totalAmountRubles: 25000,
+          priceProposals: [],
           payments: [
             {
               id: 'p1',
@@ -92,7 +324,7 @@ describe('RequestPaymentsService', () => {
     expect(dto.payments[0]?.createdBySide).toBeNull();
   });
 
-  it('setTotalForCustomer rejects a stranger with 403', async () => {
+  it('proposePriceForCustomer rejects a stranger with 403', async () => {
     const prisma = {
       request: {
         findFirst: vi.fn().mockResolvedValue({
@@ -100,25 +332,42 @@ describe('RequestPaymentsService', () => {
           status: 'NEW',
           providerId: PROVIDER_ID,
           customerUserId: 'owner',
+          contractAcceptedAt: null,
           totalAmountRubles: null,
+          priceProposals: [],
           payments: [],
         }),
       },
     };
     await expect(
-      makeService(prisma).setTotalForCustomer({
+      makeService(prisma).proposePriceForCustomer({
         actorUserId: 'stranger',
         requestId: 'r1',
-        totalAmountRubles: 15000,
+        amountRubles: 15000,
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('setTotalForProvider allows the selected provider before lock', async () => {
+  it('proposePriceForProvider creates an active proposal without agreeing total', async () => {
+    const proposal = {
+      id: 'pp1',
+      providerId: PROVIDER_ID,
+      amountRubles: 15000,
+      authorSide: 'PROVIDER' as const,
+      proposedByUserId: 'u1',
+      acceptedAt: null,
+      acceptedByUserId: null,
+      supersededAt: null,
+      createdAt: NOW,
+    };
     const tx = {
+      requestPriceProposal: {
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        create: vi.fn().mockResolvedValue(proposal),
+      },
       request: {
         update: vi.fn().mockResolvedValue({
-          totalAmountRubles: 15000,
+          totalAmountRubles: null,
           payments: [],
         }),
       },
@@ -133,18 +382,21 @@ describe('RequestPaymentsService', () => {
           providerId: PROVIDER_ID,
           customerUserId: 'customer',
           lockedAt: null,
+          contractAcceptedAt: null,
           totalAmountRubles: null,
           payments: [],
+          priceProposals: [],
         }),
       },
       $transaction: vi.fn((fn: (client: typeof tx) => unknown) => fn(tx)),
     };
-    const dto = await makeService(prisma).setTotalForProvider({
+    const dto = await makeService(prisma).proposePriceForProvider({
       actorUserId: 'u1',
       requestId: 'r1',
-      totalAmountRubles: 15000,
+      amountRubles: 15000,
     });
-    expect(dto.totalAmountRubles).toBe(15000);
+    expect(dto.totalAmountRubles).toBeNull();
+    expect(dto.priceProposal?.amountRubles).toBe(15000);
   });
 
   it('addPaymentForProvider creates CONTRACT payment as scheduled (paidAt=null)', async () => {

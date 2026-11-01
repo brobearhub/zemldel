@@ -71,6 +71,16 @@ describe('RequestsService.createForService', () => {
       request: {
         create: vi.fn().mockResolvedValue(created),
       },
+      requestPriceProposal: {
+        create: vi.fn().mockResolvedValue({
+          id: 'pp1',
+          providerId: 'p1',
+          amountRubles: 15000,
+          authorSide: 'PROVIDER',
+          acceptedAt: null,
+          createdAt: new Date('2026-08-06T00:00:00.000Z'),
+        }),
+      },
       requestEvent: {
         create: vi.fn().mockResolvedValue({ id: 'e1' }),
       },
@@ -81,6 +91,7 @@ describe('RequestsService.createForService', () => {
           id: 's1',
           providerId: 'p1',
           price: '15 000 ₽',
+          createdByUserId: 'provider-user',
         }),
       },
       user: {
@@ -131,6 +142,25 @@ describe('RequestsService.createForService', () => {
         }),
       }),
     );
+    expect(tx.requestPriceProposal.create).toHaveBeenCalledWith({
+      data: {
+        requestId: 'r1',
+        providerId: 'p1',
+        amountRubles: 15000,
+        authorSide: 'PROVIDER',
+        proposedByUserId: 'provider-user',
+      },
+      select: {
+        id: true,
+        providerId: true,
+        amountRubles: true,
+        authorSide: true,
+        acceptedAt: true,
+        createdAt: true,
+      },
+    });
+    expect(dto.totalAmountRubles).toBeNull();
+    expect(dto.priceProposal?.amountRubles).toBe(15000);
     expect(dto.providerId).toBe('p1');
     expect(dto.lockedAt).not.toBeNull();
     expect(dto.selectedProviderIds).toEqual(['p1']);
