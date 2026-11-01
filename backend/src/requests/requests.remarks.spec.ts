@@ -84,6 +84,14 @@ describe('RequestsService remarks checklist', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(state.status).toBe('ACCEPTANCE_PENDING');
     expect(state.remarks).toEqual([]);
+    expect(tx.request.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'r1',
+        providerId: 'p1',
+        status: 'ACTIVE',
+      },
+      data: { updatedAt: expect.any(Date) },
+    });
   });
 
   it.each([

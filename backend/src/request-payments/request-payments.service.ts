@@ -159,6 +159,35 @@ function scopedTotalAmount(
   return requestProviderId === providerId ? storedTotal : null;
 }
 
+function toScopedFinanceDto(input: {
+  requestProviderId: string | null;
+  financeProviderId: string;
+  storedTotal: number | null;
+  payments: PaymentRow[];
+  customerUserId: string | null;
+  proposal: PriceProposalRow | null;
+  viewerSide: 'CUSTOMER' | 'PROVIDER';
+  priceMutable: boolean;
+}): RequestFinanceDto {
+  const proposal =
+    input.proposal?.providerId === input.financeProviderId
+      ? input.proposal
+      : null;
+  return toFinanceDto(
+    scopedTotalAmount(
+      input.requestProviderId,
+      input.financeProviderId,
+      input.storedTotal,
+      proposal,
+    ),
+    input.payments,
+    input.customerUserId,
+    proposal,
+    input.viewerSide,
+    input.priceMutable,
+  );
+}
+
 @Injectable()
 export class RequestPaymentsService {
   constructor(
@@ -483,12 +512,21 @@ export class RequestPaymentsService {
     authorSide: 'CUSTOMER' | 'PROVIDER';
     amountRubles: number;
   }): Promise<RequestFinanceDto> {
+    if (
+      input.request.lockedAt != null &&
+      input.request.providerId !== input.providerId
+    ) {
+      throw new ForbiddenException('Request provider scope has changed');
+    }
     const now = new Date();
     const updated = await this.prisma.$transaction(async (tx) => {
       const lock = await tx.request.updateMany({
         where: {
           id: input.request.id,
-          providerId: input.request.providerId,
+          providerId:
+            input.request.lockedAt != null
+              ? input.providerId
+              : input.request.providerId,
           lockedAt: input.request.lockedAt,
           contractAcceptedAt: null,
           status: { in: ['NEW', 'DISCUSSING', 'TERMS_AGREED'] },
@@ -585,13 +623,22 @@ export class RequestPaymentsService {
         'Own-side price proposal cannot be accepted',
       );
     }
+    if (
+      input.request.lockedAt != null &&
+      input.request.providerId !== input.providerId
+    ) {
+      throw new ForbiddenException('Request provider scope has changed');
+    }
 
     const now = new Date();
     const updated = await this.prisma.$transaction(async (tx) => {
       const lock = await tx.request.updateMany({
         where: {
           id: input.request.id,
-          providerId: input.request.providerId,
+          providerId:
+            input.request.lockedAt != null
+              ? input.providerId
+              : input.request.providerId,
           lockedAt: input.request.lockedAt,
           contractAcceptedAt: null,
           status: { in: ['NEW', 'DISCUSSING', 'TERMS_AGREED'] },
@@ -743,14 +790,16 @@ export class RequestPaymentsService {
       body: `Исполнитель добавил ${label} ${formatRubles(input.amountRubles)}: ${comment}`,
     });
 
-    return toFinanceDto(
-      updated.totalAmountRubles,
-      updated.payments,
-      request.customerUserId,
-      request.priceProposals?.[0] ?? null,
-      'PROVIDER',
-      isPriceMutable(request),
-    );
+    return toScopedFinanceDto({
+      requestProviderId: request.providerId,
+      financeProviderId: providerId,
+      storedTotal: updated.totalAmountRubles,
+      payments: updated.payments,
+      customerUserId: request.customerUserId,
+      proposal: request.priceProposals?.[0] ?? null,
+      viewerSide: 'PROVIDER',
+      priceMutable: isPriceMutable(request),
+    });
   }
 
   async markPaymentPaidForProvider(input: {
@@ -833,14 +882,16 @@ export class RequestPaymentsService {
       body: `Исполнитель отметил оплату ${formatRubles(payment.amountRubles)}: ${payment.comment}`,
     });
 
-    return toFinanceDto(
-      updated.totalAmountRubles,
-      updated.payments,
-      request.customerUserId,
-      request.priceProposals?.[0] ?? null,
-      'PROVIDER',
-      isPriceMutable(request),
-    );
+    return toScopedFinanceDto({
+      requestProviderId: request.providerId,
+      financeProviderId: providerId,
+      storedTotal: updated.totalAmountRubles,
+      payments: updated.payments,
+      customerUserId: request.customerUserId,
+      proposal: request.priceProposals?.[0] ?? null,
+      viewerSide: 'PROVIDER',
+      priceMutable: isPriceMutable(request),
+    });
   }
 
   async markPaymentPaidForCustomer(input: {
@@ -921,14 +972,16 @@ export class RequestPaymentsService {
       body: `Клиент отметил оплату ${formatRubles(payment.amountRubles)}: ${payment.comment}`,
     });
 
-    return toFinanceDto(
-      updated.totalAmountRubles,
-      updated.payments,
-      request.customerUserId,
-      request.priceProposals?.[0] ?? null,
-      'CUSTOMER',
-      isPriceMutable(request),
-    );
+    return toScopedFinanceDto({
+      requestProviderId: request.providerId,
+      financeProviderId: providerId,
+      storedTotal: updated.totalAmountRubles,
+      payments: updated.payments,
+      customerUserId: request.customerUserId,
+      proposal: request.priceProposals?.[0] ?? null,
+      viewerSide: 'CUSTOMER',
+      priceMutable: isPriceMutable(request),
+    });
   }
 
   async proposePriceForCustomer(input: {
@@ -1046,14 +1099,16 @@ export class RequestPaymentsService {
       actorProviderId: null,
       body: `Клиент добавил ${label} ${formatRubles(input.amountRubles)}: ${comment}`,
     });
-    return toFinanceDto(
-      updated.totalAmountRubles,
-      updated.payments,
-      request.customerUserId,
-      request.priceProposals?.[0] ?? null,
-      'CUSTOMER',
-      isPriceMutable(request),
-    );
+    return toScopedFinanceDto({
+      requestProviderId: request.providerId,
+      financeProviderId: providerId,
+      storedTotal: updated.totalAmountRubles,
+      payments: updated.payments,
+      customerUserId: request.customerUserId,
+      proposal: request.priceProposals?.[0] ?? null,
+      viewerSide: 'CUSTOMER',
+      priceMutable: isPriceMutable(request),
+    });
   }
 
   private async loadCustomerRequest(input: {
