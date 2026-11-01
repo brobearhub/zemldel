@@ -2,6 +2,22 @@ import { describe, expect, it } from "vitest";
 import { resolveRequestPaymentPermissions } from "./request-payment-permissions";
 
 describe("resolveRequestPaymentPermissions", () => {
+  it("allows customer first price proposal before lock after server conversation validation", () => {
+    expect(
+      resolveRequestPaymentPermissions({
+        status: "DISCUSSING",
+        mode: "customer",
+        isLocked: false,
+        canProposePrice: true,
+        canAcceptPrice: false,
+      }),
+    ).toMatchObject({
+      canEditPrice: true,
+      canProposePrice: true,
+      canAcceptPrice: false,
+    });
+  });
+
   it("allows the selected provider to propose and accept price from server-derived flags", () => {
     expect(
       resolveRequestPaymentPermissions({

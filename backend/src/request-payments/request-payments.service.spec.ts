@@ -375,6 +375,151 @@ describe('RequestPaymentsService', () => {
     expect(dto.totalAmountRubles).toBe(12000);
   });
 
+  it.each([{ action: 'propose' as const }, { action: 'accept' as const }])(
+    'provider A $action price response excludes provider B payments',
+    async ({ action }) => {
+      const proposal = {
+        id: 'proposal-a',
+        providerId: PROVIDER_ID,
+        amountRubles: 12000,
+        authorSide:
+          action === 'accept' ? ('CUSTOMER' as const) : ('PROVIDER' as const),
+        proposedByUserId: action === 'accept' ? 'customer' : 'provider-a-user',
+        acceptedAt: null,
+        acceptedByUserId: null,
+        supersededAt: null,
+        createdAt: NOW,
+      };
+      const payments = [
+        {
+          id: 'payment-a',
+          providerId: PROVIDER_ID,
+          type: 'CONTRACT' as const,
+          amountRubles: 1000,
+          comment: 'Комментарий A',
+          paidAt: NOW,
+          createdAt: NOW,
+          createdByUserId: 'provider-a-user',
+        },
+        {
+          id: 'payment-b',
+          providerId: 'provider-b',
+          type: 'OTHER' as const,
+          amountRubles: 99000,
+          comment: 'Секретный комментарий B',
+          paidAt: NOW,
+          createdAt: NOW,
+          createdByUserId: 'provider-b-user',
+        },
+      ];
+      const tx = {
+        request: {
+          updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+          update: vi.fn().mockImplementation(
+            ({
+              select,
+              data,
+            }: {
+              select: {
+                payments: { where?: { providerId: string } };
+              };
+              data: { totalAmountRubles: number | null };
+            }) => ({
+              totalAmountRubles: data.totalAmountRubles,
+              payments: select.payments.where
+                ? payments.filter(
+                    (payment) =>
+                      payment.providerId === select.payments.where?.providerId,
+                  )
+                : payments,
+            }),
+          ),
+        },
+        requestPriceProposal: {
+          updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+          create: vi.fn().mockResolvedValue(proposal),
+        },
+        requestEvent: { create: vi.fn() },
+      };
+      const prisma = {
+        request: {
+          findFirst: vi.fn().mockResolvedValue({
+            id: 'r1',
+            status: 'DISCUSSING',
+            serviceId: null,
+            categoryId: null,
+            providerId: null,
+            customerUserId: 'customer',
+            lockedAt: null,
+            contractAcceptedAt: null,
+            totalAmountRubles: null,
+            payments: [payments[0]],
+            priceProposals: action === 'accept' ? [proposal] : [],
+            providerOffers: [{ providerId: PROVIDER_ID, status: 'SELECTED' }],
+          }),
+        },
+        $transaction: vi.fn((callback: (client: typeof tx) => unknown) =>
+          callback(tx),
+        ),
+      };
+      const service = makeService(prisma);
+
+      const dto =
+        action === 'propose'
+          ? await service.proposePriceForProvider({
+              actorUserId: 'provider-a-user',
+              requestId: 'r1',
+              amountRubles: 12000,
+            })
+          : await service.acceptPriceForProvider({
+              actorUserId: 'provider-a-user',
+              requestId: 'r1',
+              proposalId: proposal.id,
+            });
+
+      expect(dto.payments).toEqual([
+        expect.objectContaining({
+          id: 'payment-a',
+          amountRubles: 1000,
+          comment: 'Комментарий A',
+        }),
+      ]);
+      expect(JSON.stringify(dto)).not.toContain('Секретный комментарий B');
+      expect(JSON.stringify(dto)).not.toContain('99000');
+    },
+  );
+
+  it('customer can make first proposal in validated FREEFORM conversation', async () => {
+    const prisma = {
+      request: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'DISCUSSING',
+          providerId: null,
+          customerUserId: 'customer',
+          lockedAt: null,
+          contractAcceptedAt: null,
+          totalAmountRubles: null,
+          payments: [],
+          priceProposals: [],
+        }),
+      },
+      conversation: {
+        findFirst: vi.fn().mockResolvedValue({ providerId: PROVIDER_ID }),
+      },
+    };
+
+    const dto = await makeService(prisma).getForCustomer({
+      actorUserId: 'customer',
+      requestId: 'r1',
+      conversationId: 'conversation-a',
+    });
+
+    expect(dto.priceProposal).toBeNull();
+    expect(dto.canProposePrice).toBe(true);
+    expect(dto.canAcceptPrice).toBe(false);
+  });
+
   it('customer accept A is denied after select B and keeps B total intact', async () => {
     const proposalA = {
       id: 'proposal-a',
