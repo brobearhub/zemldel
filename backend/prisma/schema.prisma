@@ -271,6 +271,7 @@ model User {
   customerConversations     Conversation[]           @relation("ConversationCustomer")
   createdRequestRemarks     RequestRemark[]          @relation("RequestRemarkCreatedByUser")
   doneRequestRemarks        RequestRemark[]          @relation("RequestRemarkDoneByUser")
+  submittedRequestDeliveries RequestDeliverySubmission[] @relation("RequestDeliverySubmissionSubmittedByUser")
   createdRequestPayments    RequestPayment[]         @relation("RequestPaymentCreatedByUser")
   proposedRequestPrices     RequestPriceProposal[]   @relation("RequestPriceProposalProposedBy")
   acceptedRequestPrices     RequestPriceProposal[]   @relation("RequestPriceProposalAcceptedBy")
@@ -421,6 +422,7 @@ model Provider {
   verificationRequests     ProviderVerificationRequest[]
   createdRequestRemarks RequestRemark[] @relation("RequestRemarkCreatedByProvider")
   doneRequestRemarks    RequestRemark[] @relation("RequestRemarkDoneByProvider")
+  requestDeliverySubmissions RequestDeliverySubmission[]
   activeUsers       User[]                 @relation("ActiveProvider")
   city              City?                  @relation("ProviderCity", fields: [cityId], references: [id], onDelete: SetNull)
   createdAt         DateTime               @default(now())
@@ -612,6 +614,7 @@ model Request {
   workStages        RequestWorkStage[]
   reminders         RequestReminder[]
   remarks           RequestRemark[]
+  deliverySubmissions RequestDeliverySubmission[]
   payments          RequestPayment[]
   priceProposals    RequestPriceProposal[]
   reviews           Review[]
@@ -694,6 +697,7 @@ model RequestWorkStageDocSlot {
 model RequestRemark {
   id         String                @id @default(uuid()) @db.Uuid
   requestId  String                @db.Uuid
+  submissionId String?             @db.Uuid
   authorSide RequestRemarkAuthorSide
   status     RequestRemarkStatus   @default(OPEN)
   text       String
@@ -706,6 +710,7 @@ model RequestRemark {
   sentAt              DateTime?
 
   request           Request   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  submission        RequestDeliverySubmission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
   createdByUser     User?     @relation("RequestRemarkCreatedByUser", fields: [createdByUserId], references: [id], onDelete: SetNull)
   doneByUser        User?     @relation("RequestRemarkDoneByUser", fields: [doneByUserId], references: [id], onDelete: SetNull)
   createdByProvider Provider? @relation("RequestRemarkCreatedByProvider", fields: [createdByProviderId], references: [id], onDelete: SetNull)
@@ -715,8 +720,28 @@ model RequestRemark {
   updatedAt DateTime @updatedAt
 
   @@index([requestId, createdAt])
+  @@index([submissionId])
   @@index([requestId, status])
   @@index([authorSide, status])
+}
+
+model RequestDeliverySubmission {
+  id                String   @id @default(uuid()) @db.Uuid
+  requestId         String   @db.Uuid
+  providerId        String   @db.Uuid
+  sequence          Int
+  summary           String
+  submittedByUserId String   @db.Uuid
+  submittedAt       DateTime @default(now())
+
+  request         Request         @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  provider        Provider        @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  submittedByUser User            @relation("RequestDeliverySubmissionSubmittedByUser", fields: [submittedByUserId], references: [id], onDelete: Restrict)
+  remarks         RequestRemark[]
+
+  @@unique([requestId, sequence])
+  @@index([requestId, submittedAt])
+  @@index([providerId, submittedAt])
 }
 
 model RequestPayment {

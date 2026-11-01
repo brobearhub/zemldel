@@ -26,6 +26,11 @@ import {
   sumPaidRublesByType,
   type PaymentAmountWithTypeAndPaidAt,
 } from './request-finance';
+import {
+  RequestRemarkDto,
+  type RequestRemarkAuthorSide,
+  type RequestRemarkStatus,
+} from './request-remark.dto';
 
 export type RequestStatus =
   | 'NEW'
@@ -461,6 +466,31 @@ export class RequestCityDto {
   regionName!: string;
 }
 
+export class RequestDeliverySubmissionDto {
+  @ApiProperty({ format: 'uuid' })
+  @Expose()
+  id!: string;
+
+  @ApiProperty({ type: 'integer', minimum: 1 })
+  @Expose()
+  sequence!: number;
+
+  @ApiProperty()
+  @Expose()
+  @IsString()
+  summary!: string;
+
+  @ApiProperty()
+  @Expose()
+  @IsString()
+  submittedAt!: string;
+
+  @ApiProperty({ type: [RequestRemarkDto] })
+  @Expose()
+  @Type(() => RequestRemarkDto)
+  remarks!: RequestRemarkDto[];
+}
+
 export class RequestCustomerDto {
   @ApiProperty({ format: 'uuid' })
   @Expose()
@@ -590,6 +620,16 @@ export class RequestCustomerDto {
   @IsOptional()
   @IsString()
   acceptedAt!: string | null;
+
+  @ApiProperty({ type: RequestDeliverySubmissionDto, nullable: true })
+  @Expose()
+  @Type(() => RequestDeliverySubmissionDto)
+  currentSubmission!: RequestDeliverySubmissionDto | null;
+
+  @ApiProperty({ type: [RequestDeliverySubmissionDto] })
+  @Expose()
+  @Type(() => RequestDeliverySubmissionDto)
+  deliverySubmissions!: RequestDeliverySubmissionDto[];
 
   @ApiProperty({ nullable: true, example: null })
   @Expose()
@@ -895,6 +935,16 @@ export class RequestProDto {
   @IsString()
   acceptedAt!: string | null;
 
+  @ApiProperty({ type: RequestDeliverySubmissionDto, nullable: true })
+  @Expose()
+  @Type(() => RequestDeliverySubmissionDto)
+  currentSubmission!: RequestDeliverySubmissionDto | null;
+
+  @ApiProperty({ type: [RequestDeliverySubmissionDto] })
+  @Expose()
+  @Type(() => RequestDeliverySubmissionDto)
+  deliverySubmissions!: RequestDeliverySubmissionDto[];
+
   @ApiProperty({ nullable: true, example: null })
   @Expose()
   @IsOptional()
@@ -1132,6 +1182,22 @@ export type RequestDbRow = {
     acceptedAt: Date | null;
     createdAt: Date;
   }>;
+  deliverySubmissions?: Array<{
+    id: string;
+    sequence: number;
+    summary: string;
+    submittedAt: Date;
+    remarks: Array<{
+      id: string;
+      requestId: string;
+      authorSide: RequestRemarkAuthorSide;
+      status: RequestRemarkStatus;
+      text: string;
+      createdAt: Date;
+      doneAt: Date | null;
+      sentAt: Date | null;
+    }>;
+  }>;
 };
 
 function toRequestCityDto(row: RequestDbRow): RequestCityDto | null {
@@ -1142,6 +1208,25 @@ function toRequestCityDto(row: RequestDbRow): RequestCityDto | null {
     regionCode: row.requestCity.regionCode,
     regionName: row.requestCity.regionName,
   };
+}
+
+function toDeliverySubmissionsDto(row: RequestDbRow) {
+  return (row.deliverySubmissions ?? []).map((submission) => ({
+    id: submission.id,
+    sequence: submission.sequence,
+    summary: submission.summary,
+    submittedAt: submission.submittedAt.toISOString(),
+    remarks: submission.remarks.map((remark) => ({
+      id: remark.id,
+      requestId: remark.requestId,
+      authorSide: remark.authorSide,
+      status: remark.status,
+      text: remark.text,
+      createdAt: remark.createdAt.toISOString(),
+      doneAt: remark.doneAt ? remark.doneAt.toISOString() : null,
+      sentAt: remark.sentAt ? remark.sentAt.toISOString() : null,
+    })),
+  }));
 }
 
 export function resolveFiasInactiveWarning(row: RequestDbRow): boolean {
@@ -1241,6 +1326,7 @@ export function requestRowToCustomerDtoPlain(
   const customerLastMessage = options?.customerLastMessage ?? null;
   const awaitingProviderReply = options?.awaitingProviderReply ?? false;
   const offers = row.providerOffers ?? [];
+  const deliverySubmissions = toDeliverySubmissionsDto(row);
   const selected = offers.filter((o) => o.status === 'SELECTED');
   const declined = offers.filter((o) => o.status === 'DECLINED');
   const lastSelectionAt =
@@ -1284,6 +1370,8 @@ export function requestRowToCustomerDtoPlain(
         : null,
       autoAcceptAt: row.autoAcceptAt ? row.autoAcceptAt.toISOString() : null,
       acceptedAt: row.acceptedAt ? row.acceptedAt.toISOString() : null,
+      currentSubmission: deliverySubmissions.at(-1) ?? null,
+      deliverySubmissions,
       serviceTitle: row.service?.title ?? null,
       serviceImage: nonemptyOrNull(row.service?.image),
       categoryName: nonemptyOrNull(row.category?.name),
@@ -1345,6 +1433,7 @@ export function requestRowToProDtoPlain(
   const canRevealBasicDetails = !locked || revealMessageForLocked;
 
   const offers = row.providerOffers ?? [];
+  const deliverySubmissions = toDeliverySubmissionsDto(row);
   const myOffer = offers.find((o) => o.providerId === actorProviderId) ?? null;
 
   const subjectType = locked
@@ -1396,6 +1485,8 @@ export function requestRowToProDtoPlain(
         : null,
       autoAcceptAt: row.autoAcceptAt ? row.autoAcceptAt.toISOString() : null,
       acceptedAt: row.acceptedAt ? row.acceptedAt.toISOString() : null,
+      currentSubmission: deliverySubmissions.at(-1) ?? null,
+      deliverySubmissions,
       // Why: имя и фото видны в ленте сразу; телефон и email — только после фиксации.
       customerName: locked
         ? null

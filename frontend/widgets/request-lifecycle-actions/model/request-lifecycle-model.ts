@@ -1,4 +1,8 @@
-import type { RequestCustomerDto, RequestProDto, RequestStatus } from "@/entities/request";
+import type {
+  RequestCustomerDto,
+  RequestProDto,
+  RequestStatus,
+} from "@/entities/request";
 import {
   formatRubles,
   formatRequestDate,
@@ -46,6 +50,14 @@ export type RequestLifecycleViewModel = {
   infoRows: RequestLifecycleInfoRow[];
   actions: RequestLifecycleActionDescriptor[];
   autoAcceptAtLabel: string | null;
+  deliverySubmissionPrompt: string | null;
+  deliverySubmissions: Array<{
+    id: string;
+    sequence: number;
+    summary: string;
+    submittedAt: string;
+    remarks: Array<{ id: string; text: string; status: "OPEN" | "DONE" }>;
+  }>;
 };
 
 export type BuildCustomerRequestLifecycleInput = {
@@ -59,7 +71,8 @@ export type BuildProviderRequestLifecycleInput = {
   request: RequestProDto;
 };
 
-export type BuildRequestLifecycleInput = BuildCustomerRequestLifecycleInput | BuildProviderRequestLifecycleInput;
+export type BuildRequestLifecycleInput =
+  BuildCustomerRequestLifecycleInput | BuildProviderRequestLifecycleInput;
 
 function resolveStateIdFromRequest(req: {
   status: RequestStatus;
@@ -69,7 +82,8 @@ function resolveStateIdFromRequest(req: {
   if (status === "CLOSED") return "CLOSED";
   if (status === "CANCELLED") return "CANCELLED";
   if (status === "COMPLETED") return "COMPLETED";
-  if (status === "ACCEPTANCE_PENDING" || status === "ACCEPTED") return "ACCEPTANCE";
+  if (status === "ACCEPTANCE_PENDING" || status === "ACCEPTED")
+    return "ACCEPTANCE";
   if (status === "ACTIVE") return "WORK";
   if (isContractPhase(req)) return "CONTRACT";
   if (status === "DISCUSSING" || status === "TERMS_AGREED") return "DISCUSSING";
@@ -94,7 +108,11 @@ function buildCustomerPendingInfo(req: RequestCustomerDto): string | null {
 
 function buildProviderPendingInfo(req: RequestProDto): string | null {
   if (req.offerStatus === "DECLINED") return "Вы отказались от предложения.";
-  if (req.offerStatus === "SELECTED" && hasRequestLock(req) && !isOrderExecutionStatus(req.status)) {
+  if (
+    req.offerStatus === "SELECTED" &&
+    hasRequestLock(req) &&
+    !isOrderExecutionStatus(req.status)
+  ) {
     return "Клиент выбрал вас исполнителем. Подготовьте и отправьте договор.";
   }
   return null;
@@ -111,10 +129,17 @@ type ProviderStateCtx = {
 
 type RequestLifecycleState<TCtx> = {
   id: RequestLifecycleStateId;
-  build: (ctx: TCtx) => Pick<RequestLifecycleViewModel, "note" | "actions" | "autoAcceptAtLabel">;
+  build: (
+    ctx: TCtx,
+  ) => Pick<
+    RequestLifecycleViewModel,
+    "note" | "actions" | "autoAcceptAtLabel"
+  >;
 };
 
-function buildCustomerState(id: RequestLifecycleStateId): RequestLifecycleState<CustomerStateCtx> {
+function buildCustomerState(
+  id: RequestLifecycleStateId,
+): RequestLifecycleState<CustomerStateCtx> {
   if (id === "CONTRACT") {
     return {
       id,
@@ -142,7 +167,14 @@ function buildCustomerState(id: RequestLifecycleStateId): RequestLifecycleState<
         note: remainingPayNote(request.remainingAmountRubles),
         actions:
           request.status === "ACCEPTANCE_PENDING"
-            ? [{ id: "acceptResult", label: "Принять результат", variant: "contained", color: "success" }]
+            ? [
+                {
+                  id: "acceptResult",
+                  label: "Принять результат",
+                  variant: "contained",
+                  color: "success",
+                },
+              ]
             : [],
         autoAcceptAtLabel:
           request.status === "ACCEPTANCE_PENDING" && request.autoAcceptAt
@@ -162,7 +194,9 @@ function buildCustomerState(id: RequestLifecycleStateId): RequestLifecycleState<
   };
 }
 
-function buildProviderState(id: RequestLifecycleStateId): RequestLifecycleState<ProviderStateCtx> {
+function buildProviderState(
+  id: RequestLifecycleStateId,
+): RequestLifecycleState<ProviderStateCtx> {
   if (id === "CONTRACT") {
     return {
       id,
@@ -170,8 +204,16 @@ function buildProviderState(id: RequestLifecycleStateId): RequestLifecycleState<
         note: buildProviderPendingInfo(request),
         actions: request.isLocked
           ? []
-          : !isOrderExecutionStatus(request.status) && request.offerStatus === "SELECTED"
-            ? [{ id: "declineOffer", label: "Отказаться от заявки", variant: "outlined", color: "secondary" }]
+          : !isOrderExecutionStatus(request.status) &&
+              request.offerStatus === "SELECTED"
+            ? [
+                {
+                  id: "declineOffer",
+                  label: "Отказаться от заявки",
+                  variant: "outlined",
+                  color: "secondary",
+                },
+              ]
             : [],
         autoAcceptAtLabel: null,
       }),
@@ -186,7 +228,14 @@ function buildProviderState(id: RequestLifecycleStateId): RequestLifecycleState<
         actions: request.isLocked
           ? []
           : request.status === "ACTIVE"
-            ? [{ id: "markRendered", label: "Услуга выполнена", variant: "contained", color: "success" }]
+            ? [
+                {
+                  id: "markRendered",
+                  label: "Услуга выполнена",
+                  variant: "contained",
+                  color: "success",
+                },
+              ]
             : [],
         autoAcceptAtLabel: null,
       }),
@@ -226,15 +275,26 @@ function buildProviderState(id: RequestLifecycleStateId): RequestLifecycleState<
     build: ({ request }) => ({
       note: buildProviderPendingInfo(request),
       actions:
-        request.isLocked || isOrderExecutionStatus(request.status) || request.offerStatus !== "SELECTED"
+        request.isLocked ||
+        isOrderExecutionStatus(request.status) ||
+        request.offerStatus !== "SELECTED"
           ? []
-          : [{ id: "declineOffer", label: "Отказаться от заявки", variant: "outlined", color: "secondary" }],
+          : [
+              {
+                id: "declineOffer",
+                label: "Отказаться от заявки",
+                variant: "outlined",
+                color: "secondary",
+              },
+            ],
       autoAcceptAtLabel: null,
     }),
   };
 }
 
-export function buildRequestLifecycleViewModel(input: BuildRequestLifecycleInput): RequestLifecycleViewModel {
+export function buildRequestLifecycleViewModel(
+  input: BuildRequestLifecycleInput,
+): RequestLifecycleViewModel {
   const stateId = resolveStateIdFromRequest(input.request);
 
   const infoRows: RequestLifecycleInfoRow[] = [];
@@ -248,12 +308,18 @@ export function buildRequestLifecycleViewModel(input: BuildRequestLifecycleInput
     !hasRequestLock(input.request) &&
     (input.request.status === "NEW" || input.request.status === "DISCUSSING")
   ) {
-    infoRows.push({ label: "Клиент общается с компаниями", value: String(input.request.conversationsCount) });
+    infoRows.push({
+      label: "Клиент общается с компаниями",
+      value: String(input.request.conversationsCount),
+    });
   }
 
   const lockedAlert =
     input.side === "provider" && input.request.isLocked
-      ? { title: "Клиент выбрал другого исполнителя. Переписка сохранена для просмотра." }
+      ? {
+          title:
+            "Клиент выбрал другого исполнителя. Переписка сохранена для просмотра.",
+        }
       : undefined;
 
   const stateVm =
@@ -272,6 +338,13 @@ export function buildRequestLifecycleViewModel(input: BuildRequestLifecycleInput
     infoRows,
     actions: stateVm.actions,
     autoAcceptAtLabel: stateVm.autoAcceptAtLabel,
+    deliverySubmissionPrompt:
+      input.side === "provider" && input.request.status === "ACTIVE"
+        ? (input.request.deliverySubmissions?.length ?? 0) > 0
+          ? "Что исправлено"
+          : "Итог результата"
+        : null,
+    deliverySubmissions: input.request.deliverySubmissions ?? [],
   };
 }
 
@@ -280,6 +353,8 @@ export function isLifecycleEmpty(vm: RequestLifecycleViewModel): boolean {
     !vm.lockedAlert &&
     !vm.note &&
     !vm.autoAcceptAtLabel &&
+    !vm.deliverySubmissionPrompt &&
+    vm.deliverySubmissions.length === 0 &&
     vm.infoRows.length === 0 &&
     vm.actions.length === 0
   );

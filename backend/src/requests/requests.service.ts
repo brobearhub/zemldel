@@ -149,6 +149,28 @@ const select = {
     },
     orderBy: { createdAt: 'desc' },
   },
+  deliverySubmissions: {
+    orderBy: { sequence: 'asc' },
+    select: {
+      id: true,
+      sequence: true,
+      summary: true,
+      submittedAt: true,
+      remarks: {
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          requestId: true,
+          authorSide: true,
+          status: true,
+          text: true,
+          createdAt: true,
+          doneAt: true,
+          sentAt: true,
+        },
+      },
+    },
+  },
 } satisfies Prisma.RequestSelect;
 
 type SubjectType = 'SERVICE' | 'CATEGORY' | 'FREEFORM';
@@ -458,32 +480,54 @@ export class RequestsService {
     tx: Prisma.TransactionClient,
     row: Prisma.RequestGetPayload<{ select: typeof select }>,
     opts: {
-      actorProviderId: string | null;
-      emitServiceRenderedEvent?: boolean;
+      actorProviderId: string;
+      actorUserId: string;
+      summary: string;
     },
   ) {
     const now = new Date();
     const autoAcceptAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-    if (opts.emitServiceRenderedEvent) {
-      await this.addEvent(tx, {
+    const lastSubmission = await tx.requestDeliverySubmission.aggregate({
+      where: { requestId: row.id },
+      _max: { sequence: true },
+    });
+    const submission = await tx.requestDeliverySubmission.create({
+      data: {
         requestId: row.id,
-        type: 'SERVICE_RENDERED',
-        actorProviderId: opts.actorProviderId,
-        payload: { at: now.toISOString() },
-      });
-    }
+        providerId: opts.actorProviderId,
+        sequence: (lastSubmission._max.sequence ?? 0) + 1,
+        summary: opts.summary,
+        submittedByUserId: opts.actorUserId,
+        submittedAt: now,
+      },
+      select: { id: true, sequence: true },
+    });
 
-    const next = await tx.request.update({
-      where: { id: row.id },
+    const cas = await tx.request.updateMany({
+      where: { id: row.id, status: 'ACTIVE' },
       data: {
         status: 'ACCEPTANCE_PENDING',
         acceptanceRequestedAt: now,
         autoAcceptAt,
       },
-      select,
     });
+    if (cas.count !== 1) {
+      throw new ConflictException('Request status changed');
+    }
 
+    const next = await tx.request.findUnique({ where: { id: row.id }, select });
+    if (!next) throw new NotFoundException('Request not found');
+
+    await this.addEvent(tx, {
+      requestId: row.id,
+      type: 'SERVICE_RENDERED',
+      actorProviderId: opts.actorProviderId,
+      payload: {
+        at: now.toISOString(),
+        submissionId: submission.id,
+        sequence: submission.sequence,
+      },
+    });
     await this.addEvent(tx, {
       requestId: row.id,
       type: 'ACCEPTANCE_REQUESTED',
@@ -491,6 +535,8 @@ export class RequestsService {
       payload: {
         at: now.toISOString(),
         autoAcceptAt: autoAcceptAt.toISOString(),
+        submissionId: submission.id,
+        sequence: submission.sequence,
       },
     });
 
@@ -945,9 +991,15 @@ export class RequestsService {
           throw new BadRequestException('At least one remark is required');
         }
       } else {
+        const currentSubmission = await tx.requestDeliverySubmission.findFirst({
+          where: { requestId: normalized.id },
+          orderBy: { sequence: 'desc' },
+          select: { id: true },
+        });
         await tx.requestRemark.create({
           data: {
             requestId: normalized.id,
+            submissionId: currentSubmission?.id ?? null,
             authorSide: 'CUSTOMER',
             status: 'OPEN',
             text: trimmed,
@@ -2811,40 +2863,75 @@ export class RequestsService {
   async markServiceRenderedByProvider(
     actorProviderId: string,
     id: string,
+    input: { summary: string },
+    actorUserId = actorProviderId,
   ): Promise<RequestCustomerDto> {
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const current = await tx.request.findFirst({
-        where: { id, providerId: actorProviderId },
+    const summary = input.summary.trim();
+    if (summary.length < 1 || summary.length > 2000) {
+      throw new BadRequestException('Invalid delivery summary');
+    }
+    let updated: Prisma.RequestGetPayload<{ select: typeof select }>;
+    try {
+      updated = await this.prisma.$transaction(async (tx) => {
+        const current = await tx.request.findFirst({
+          where: { id, providerId: actorProviderId },
+          select,
+        });
+        if (!current) throw new NotFoundException('Request not found');
+        if (current.status === 'ACCEPTANCE_PENDING') return current;
+        if (current.status !== 'ACTIVE') {
+          throw new ForbiddenException('Request must be in work');
+        }
+
+        // Why: нельзя уходить в приёмку, пока открыты замечания любой стороны.
+        const openRemarksCount = await tx.requestRemark.count({
+          where: { requestId: current.id, status: 'OPEN' },
+        });
+        if (openRemarksCount > 0) {
+          throw new BadRequestException(
+            'Нельзя отметить услугу выполненной, пока есть невыполненные замечания',
+          );
+        }
+
+        return this.transitionToAcceptancePending(tx, current, {
+          actorProviderId,
+          actorUserId,
+          summary,
+        });
+      });
+    } catch (error) {
+      if (
+        !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+        error.code !== 'P2002'
+      ) {
+        throw error;
+      }
+      const current = await this.prisma.request.findFirst({
+        where: {
+          id,
+          providerId: actorProviderId,
+          status: 'ACCEPTANCE_PENDING',
+        },
         select,
       });
-      if (!current) throw new NotFoundException('Request not found');
-      if (current.status !== 'ACTIVE') {
-        throw new ForbiddenException('Request must be in work');
-      }
-
-      // Why: нельзя уходить в приёмку, пока открыты замечания любой стороны.
-      const openRemarksCount = await tx.requestRemark.count({
-        where: { requestId: current.id, status: 'OPEN' },
-      });
-      if (openRemarksCount > 0) {
-        throw new BadRequestException(
-          'Нельзя отметить услугу выполненной, пока есть невыполненные замечания',
-        );
-      }
-
-      return this.transitionToAcceptancePending(tx, current, {
-        actorProviderId,
-        emitServiceRenderedEvent: true,
-      });
-    });
+      if (!current) throw error;
+      updated = current;
+    }
     return requestRowToCustomerDtoPlain(updated as unknown as RequestDbRow);
   }
 
   async requestAcceptanceByProvider(
     actorProviderId: string,
     id: string,
+    input: { summary: string },
+    actorUserId = actorProviderId,
   ): Promise<RequestCustomerDto> {
-    return this.markServiceRenderedByProvider(actorProviderId, id);
+    return this.markServiceRenderedByProvider(
+      actorProviderId,
+      id,
+      input,
+      actorUserId,
+    );
   }
 
   async completeByProvider(

@@ -24,7 +24,9 @@ export function isOrderExecutionStatus(status: RequestStatus) {
 }
 
 /** Заявка зафиксирована за исполнителем (фаза заказа/договора и далее). */
-export function hasRequestLock(row: { lockedAt: string | null | undefined }): boolean {
+export function hasRequestLock(row: {
+  lockedAt: string | null | undefined;
+}): boolean {
   return row.lockedAt != null;
 }
 
@@ -82,6 +84,14 @@ export type RequestCityDto = {
   regionName: string;
 };
 
+export type RequestDeliverySubmissionDto = {
+  id: string;
+  sequence: number;
+  summary: string;
+  submittedAt: string;
+  remarks: import("./request-remark.dto").RequestRemarkDto[];
+};
+
 export type RequestCustomerDto = {
   id: string;
   subjectType: RequestSubjectType;
@@ -98,6 +108,8 @@ export type RequestCustomerDto = {
   acceptanceRequestedAt: string | null;
   autoAcceptAt: string | null;
   acceptedAt: string | null;
+  currentSubmission?: RequestDeliverySubmissionDto | null;
+  deliverySubmissions?: RequestDeliverySubmissionDto[];
   selectedProviderIds: string[];
   declinedProviderIds: string[];
   lastSelectionAt: string | null;
@@ -154,6 +166,8 @@ export type RequestProDto = {
   acceptanceRequestedAt: string | null;
   autoAcceptAt: string | null;
   acceptedAt: string | null;
+  currentSubmission?: RequestDeliverySubmissionDto | null;
+  deliverySubmissions?: RequestDeliverySubmissionDto[];
   offerStatus: RequestProviderOfferStatus | null;
   offerSelectedAt: string | null;
   offerDeclinedAt: string | null;
@@ -218,7 +232,10 @@ export function getRequestStatusLabel(status: RequestStatus): string {
 }
 
 /** Текст для карточки заявки: сообщение клиента или название услуги. */
-export function resolveRequestDetailBody(message: string | null, serviceTitle: string | null): string | null {
+export function resolveRequestDetailBody(
+  message: string | null,
+  serviceTitle: string | null,
+): string | null {
   const fromMessage = message?.trim();
   if (fromMessage) return fromMessage;
   const fromService = serviceTitle?.trim();
@@ -230,14 +247,19 @@ export function resolveRequestDetailBody(message: string | null, serviceTitle: s
  * Заголовок карточки заявки.
  * Why: заявка со страницы услуги называется по услуге, остальные остаются «Заявка».
  */
-export function resolveRequestDetailTitle(subjectType: RequestSubjectType, serviceTitle: string | null): string {
+export function resolveRequestDetailTitle(
+  subjectType: RequestSubjectType,
+  serviceTitle: string | null,
+): string {
   if (subjectType !== "SERVICE") return "Заявка";
   const name = serviceTitle?.trim();
   return name || "Заявка";
 }
 
 /** Подпись кнопки исполнителя: имя провайдера, если оно есть. */
-export function resolveProviderTriggerLabel(providerName: string | null): string {
+export function resolveProviderTriggerLabel(
+  providerName: string | null,
+): string {
   const name = providerName?.trim();
   return name || "Исполнитель";
 }

@@ -25,14 +25,16 @@ export type CreateProviderRequestLifecycleBehaviorInput = {
   isMarkRenderedDisabled?: boolean;
   actions: {
     startWork: () => Promise<void> | void;
-    markRendered: () => Promise<void> | void;
+    markRendered: (summary: string) => Promise<void> | void;
     requestAcceptance: () => Promise<void> | void;
     complete: () => Promise<void> | void;
     declineOffer: () => Promise<void> | void;
   };
 };
 
-function isRequestLifecycleActionId(value: string): value is RequestLifecycleActionId {
+function isRequestLifecycleActionId(
+  value: string,
+): value is RequestLifecycleActionId {
   return (
     value === "openOfferDialog" ||
     value === "acceptResult" ||
@@ -54,7 +56,7 @@ export function createCustomerRequestLifecycleBehavior(
         request: input.request,
         canAcceptContract: input.canAcceptContract,
       }),
-    run: async ({ id }) => {
+    run: async ({ id, payload }) => {
       if (!isRequestLifecycleActionId(id)) return;
       if (id === "openOfferDialog") {
         input.actions.openOfferDialog();
@@ -75,22 +77,36 @@ export function createProviderRequestLifecycleBehavior(
 ): RequestLifecycleBehavior {
   return {
     getViewModel: () => {
-      const vm = buildRequestLifecycleViewModel({ side: "provider", request: input.request });
+      const vm = buildRequestLifecycleViewModel({
+        side: "provider",
+        request: input.request,
+      });
       const markRenderedBlocked = Boolean(input.isMarkRenderedDisabled);
       return {
         ...vm,
         // Why: при OPEN-замечаниях кнопка disabled — рядом нужно явное объяснение.
         note: markRenderedBlocked ? MARK_RENDERED_BLOCKED_NOTE : vm.note,
         actions: vm.actions.map((a) =>
-          a.id === "markRendered" && markRenderedBlocked ? { ...a, disabled: true } : a,
+          a.id === "markRendered" && markRenderedBlocked
+            ? { ...a, disabled: true }
+            : a,
         ),
       };
     },
-    run: async ({ id }) => {
+    run: async ({ id, payload }) => {
       if (!isRequestLifecycleActionId(id)) return;
       if (id === "startWork") return await input.actions.startWork();
-      if (id === "markRendered") return await input.actions.markRendered();
-      if (id === "requestAcceptance") return await input.actions.requestAcceptance();
+      if (
+        id === "markRendered" &&
+        typeof payload === "object" &&
+        payload &&
+        "summary" in payload &&
+        typeof payload.summary === "string"
+      ) {
+        return await input.actions.markRendered(payload.summary);
+      }
+      if (id === "requestAcceptance")
+        return await input.actions.requestAcceptance();
       if (id === "complete") return await input.actions.complete();
       if (id === "declineOffer") return await input.actions.declineOffer();
     },
