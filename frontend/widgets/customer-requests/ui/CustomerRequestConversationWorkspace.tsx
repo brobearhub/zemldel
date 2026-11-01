@@ -30,7 +30,7 @@ import {
   type ChatServiceRequestConversationListItemDto,
 } from "@/entities/chat";
 import {
-  getRequestStatusLabel,
+  getRequestDisplayStatusLabel,
   hasRequestLock,
   isOrderExecutionStatus,
   mergeWorkStageStatusOptions,
@@ -80,7 +80,7 @@ import {
 import type { CustomerContractBundleListItem } from "@/features/request-contract-files/ui/CustomerRequestContractFilesClient";
 import { canCustomerAcceptContract } from "@/widgets/customer-requests/lib/can-accept-contract";
 import { CustomerRequestDocumentsSection } from "@/widgets/customer-requests/ui/CustomerRequestDocumentsSection";
-import { useConfirm } from "@/shared/ui/confirm";
+import { useConfirm, useConfirmWithReason } from "@/shared/ui/confirm";
 import { getConversationWorkspaceCopy } from "@/widgets/customer-requests/lib/conversation-workspace-copy";
 import {
   canShowCustomerCounterpartyButton,
@@ -90,7 +90,7 @@ import {
 import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
 import PaymentIcon from "@mui/icons-material/Payment";
 import PinDropOutlinedIcon from "@mui/icons-material/PinDropOutlined";
-import { deleteCustomerRequest } from "@/entities/request/api/customer-requests";
+import { cancelCustomerRequestProviderSelection, deleteCustomerRequest } from "@/entities/request/api/customer-requests";
 import {
   appendCustomerCadastralNumber,
   deleteCustomerCadastralNumber,
@@ -183,6 +183,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
   const [termsVersion, setTermsVersion] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const confirm = useConfirm();
+  const confirmWithReason = useConfirmWithReason();
 
   const selectedConversation = useMemo(
     () => conversations.find((c) => c.conversationId === selectedConversationId) ?? null,
@@ -269,6 +270,42 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
     }
     setReq(payload as RequestCustomerDto);
   }, [req.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let inFlight = false;
+    const syncVisibleRequest = async () => {
+      if (cancelled || inFlight || document.visibilityState !== "visible" || busy) return;
+      inFlight = true;
+      try {
+        const [response, list] = await Promise.all([
+          fetch(`/api/requests/${req.id}`, { cache: "no-store" }),
+          loadConversations(),
+        ]);
+        const payload = (await response.json().catch(() => null)) as RequestCustomerDto | null;
+        if (!response.ok || !payload || cancelled) return;
+        setReq(payload);
+        setConversations(list);
+        setConversationsLoaded(true);
+      } catch {
+        // The next focus or interval retries; keep the last usable view.
+      } finally {
+        inFlight = false;
+      }
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void syncVisibleRequest();
+    };
+    window.addEventListener("focus", onVisibilityChange);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    const intervalId = window.setInterval(() => void syncVisibleRequest(), 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", onVisibilityChange);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [busy, loadConversations, req.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -424,7 +461,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
   }, [isExclusiveStatus, req.id]);
 
   useEffect(() => {
-    if (!hasRequestLock(req)) return;
+    if (!isExclusiveStatus) return;
 
     let cancelled = false;
     const refreshIfWaitingForDocs = async () => {
@@ -442,10 +479,10 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [req.id, req.lockedAt]);
+  }, [isExclusiveStatus, req.id]);
 
   useEffect(() => {
-    if (!hasRequestLock(req) || hasContractBundles) return;
+    if (!isExclusiveStatus || hasContractBundles) return;
 
     let cancelled = false;
     const refreshIfWaitingForContractFiles = async () => {
@@ -464,7 +501,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [hasContractBundles, req.id, req.status]);
+  }, [hasContractBundles, isExclusiveStatus, req.id, req.status]);
 
   function canInitiateOrderFor(providerId: string) {
     if (isExclusiveStatus || req.status === "CLOSED") return false;
@@ -519,7 +556,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
     const ok = await confirm({
       title: `Выбрать «${providerName}» исполнителем?`,
       description:
-        "Остальные компании получат отказ, переписка с ними сохранится. Договор пришлёт исполнитель — перед подписанием вы его увидите. Изменить выбор после этого нельзя.",
+        "Остальные компании получат отказ, переписка с ними сохранится. До заключения договора вы сможете отменить выбор и вернуться к откликам.",
       confirmText: "Выбрать",
       confirmColor: "success",
     });
@@ -551,6 +588,33 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
       setNotice(`Вы выбрали «${providerName}». Договор пришлёт исполнитель, перед подписанием вы его увидите.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось выбрать исполнителя");
+    } finally {
+      setBusy(false);
+      setPendingAction(null);
+    }
+  }
+
+  async function cancelProviderSelection() {
+    const reason = await confirmWithReason({
+      title: "Отменить выбор исполнителя?",
+      description: "Договор ещё не заключён. Текущая цена перестанет действовать, а другие отклики снова можно будет выбрать.",
+      reasonLabel: "Причина для исполнителя",
+      confirmText: "Отменить выбор",
+      confirmColor: "warning",
+    });
+    if (reason === null) return;
+    setBusy(true);
+    setPendingAction("cancel-selection");
+    setError(null);
+    setNotice(null);
+    try {
+      const next = await cancelCustomerRequestProviderSelection(req.id, reason);
+      setReq(next);
+      setChatRecovery(null);
+      setSelectedConversationId(null);
+      setNotice("Выбор отменён. Можно продолжить общение и выбрать другого исполнителя.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось отменить выбор исполнителя");
     } finally {
       setBusy(false);
       setPendingAction(null);
@@ -927,7 +991,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
             <RequestDetailHeaderCard
               title={headerTitle}
               subtitle={pickTitle(req)}
-              statusLabel={getRequestStatusLabel(req.status)}
+              statusLabel={getRequestDisplayStatusLabel(req)}
               body={requestBody}
               lead={
                 <Stack spacing={0.5} sx={{ minWidth: 0 }}>
@@ -1044,6 +1108,22 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
             onOpenOfferDialog={openContractDialog}
             onContractBundlesChange={setContractBundles}
           />
+
+          {req.subjectType !== "SERVICE" && req.providerId && req.lockedAt &&
+            !req.contractAcceptedAt &&
+            ["NEW", "DISCUSSING", "TERMS_AGREED"].includes(req.status) ? (
+            <Box>
+              <Button
+                variant="outlined"
+                color="warning"
+                disabled={busy}
+                loading={pendingAction === "cancel-selection"}
+                onClick={() => void cancelProviderSelection()}
+              >
+                Отменить выбор исполнителя
+              </Button>
+            </Box>
+          ) : null}
 
           <Paper variant="outlined" sx={{ overflow: "hidden" }}>
             <Box sx={{ px: 2, py: 1.5 }}>

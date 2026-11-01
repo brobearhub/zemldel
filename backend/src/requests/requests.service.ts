@@ -186,6 +186,14 @@ function subjectTypeOf(
   return 'FREEFORM';
 }
 
+type LockedRequestRow = {
+  id: string;
+  status: RequestDbRow['status'];
+  providerId: string | null;
+  customerUserId: string | null;
+  cadastralNumbers: string[];
+};
+
 @Injectable()
 export class RequestsService {
   constructor(
@@ -216,6 +224,22 @@ export class RequestsService {
       },
       select: { id: true },
     });
+  }
+
+  private async lockRequestRow(
+    tx: Prisma.TransactionClient,
+    requestId: string,
+  ): Promise<LockedRequestRow | null> {
+    // Why: FOR UPDATE держит строку до commit и не даёт второй записи прочитать устаревший массив.
+    const rows = await tx.$queryRaw<LockedRequestRow[]>(
+      Prisma.sql`
+        SELECT id, status, "providerId", "customerUserId", "cadastralNumbers"
+        FROM "Request"
+        WHERE id = ${requestId}::uuid
+        FOR UPDATE
+      `,
+    );
+    return rows[0] ?? null;
   }
 
   private isUuid(value: string) {
@@ -1259,7 +1283,13 @@ export class RequestsService {
     actorProviderId: string,
     requestId: string,
   ): Promise<RequestRemarkDto[]> {
-    await this.requireProviderAccessToRequest(actorProviderId, requestId);
+    const request = await this.requireProviderAccessToRequest(
+      actorProviderId,
+      requestId,
+    );
+    if (request.providerId !== actorProviderId) {
+      throw new ForbiddenException('Request is assigned to another provider');
+    }
     const rows = await this.prisma.requestRemark.findMany({
       where: { requestId },
       select: {
@@ -1391,11 +1421,10 @@ export class RequestsService {
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
-      const row = await tx.request.findUnique({
-        where: { id: req.id },
-        select: { id: true, status: true },
-      });
-      if (!row) throw new NotFoundException('Request not found');
+      const row = await this.lockRequestRow(tx, req.id);
+      if (!row || row.providerId !== actorProviderId) {
+        throw new ForbiddenException('Request is assigned to another provider');
+      }
       if (row.status !== 'ACTIVE') {
         throw new ForbiddenException(
           'Remarks can be completed only during work',
@@ -1615,11 +1644,10 @@ export class RequestsService {
     mutate: (current: string[]) => string[],
   ): Promise<RequestCustomerDto> {
     await this.prisma.$transaction(async (tx) => {
-      const current = await tx.request.findFirst({
-        where: { id: requestId, customerUserId: actorUserId },
-        select: { id: true, status: true, cadastralNumbers: true },
-      });
-      if (!current) throw new NotFoundException('Request not found');
+      const current = await this.lockRequestRow(tx, requestId);
+      if (!current || current.customerUserId !== actorUserId) {
+        throw new NotFoundException('Request not found');
+      }
       this.assertCadastralMutationsAllowed(current.status);
       const next = mutate(current.cadastralNumbers ?? []);
       await tx.request.update({
@@ -1636,16 +1664,11 @@ export class RequestsService {
     mutate: (current: string[]) => string[],
   ): Promise<RequestProDto> {
     await this.prisma.$transaction(async (tx) => {
-      const access = await this.requireProviderAccessToRequest(
-        actorProviderId,
-        requestId,
-      );
-      this.assertCadastralMutationsAllowed(access.status);
-      const current = await tx.request.findUnique({
-        where: { id: requestId },
-        select: { id: true, cadastralNumbers: true },
-      });
-      if (!current) throw new NotFoundException('Request not found');
+      const current = await this.lockRequestRow(tx, requestId);
+      if (!current || current.providerId !== actorProviderId) {
+        throw new ForbiddenException('Request is assigned to another provider');
+      }
+      this.assertCadastralMutationsAllowed(current.status);
       const next = mutate(current.cadastralNumbers ?? []);
       await tx.request.update({
         where: { id: current.id },
@@ -2623,7 +2646,9 @@ export class RequestsService {
       const now = new Date();
       // Why: after provider decline the offer row stays DECLINED; "Запросить снова"
       // must flip it back to SELECTED, otherwise pro UI keeps showing the refusal.
-      const reRequested = offer?.status === 'DECLINED';
+      const reRequested =
+        offer?.status === 'DECLINED' ||
+        offer?.status === 'CANCELLED_BY_CUSTOMER';
       await tx.requestProviderOffer.upsert({
         where: {
           requestId_providerId: {
@@ -2650,6 +2675,7 @@ export class RequestsService {
         where: {
           requestId: req.id,
           providerId: { not: input.providerId },
+          status: 'SELECTED',
         },
         data: { status: 'DECLINED', declinedAt: now },
       });
@@ -2712,6 +2738,113 @@ export class RequestsService {
       await this.chat.notifyMessageCreated(updated.createdMessageId);
     }
 
+    return requestRowToCustomerDtoPlain(
+      updated.request as unknown as RequestDbRow,
+    );
+  }
+
+  async cancelProviderSelectionByCustomer(
+    actorUserId: string,
+    requestId: string,
+    input: { reason: string },
+  ): Promise<RequestCustomerDto> {
+    const reason = input.reason.trim();
+    if (!reason || reason.length > 1000) {
+      throw new BadRequestException('Reason must be 1–1000 characters');
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const locked = await this.lockRequestRow(tx, requestId);
+      if (!locked || locked.customerUserId !== actorUserId) {
+        throw new NotFoundException('Request not found');
+      }
+      const current = await tx.request.findUnique({
+        where: { id: requestId },
+        select,
+      });
+      if (!current) throw new NotFoundException('Request not found');
+      const req = current as unknown as RequestDbRow;
+      if (
+        req.serviceId ||
+        !req.providerId ||
+        !req.lockedAt ||
+        req.contractAcceptedAt ||
+        !['NEW', 'DISCUSSING', 'TERMS_AGREED'].includes(req.status)
+      ) {
+        throw new ConflictException('Provider selection cannot be cancelled');
+      }
+
+      const providerId = req.providerId;
+      const now = new Date();
+      await tx.requestProviderOffer.updateMany({
+        where: { requestId, providerId, status: 'SELECTED' },
+        data: { status: 'CANCELLED_BY_CUSTOMER', declinedAt: now },
+      });
+      await tx.requestPriceProposal.updateMany({
+        where: { requestId, providerId, supersededAt: null },
+        data: { supersededAt: now },
+      });
+      await tx.requestContractFile.updateMany({
+        where: {
+          requestId,
+          providerId,
+          status: { in: ['PENDING_CUSTOMER', 'APPROVED'] },
+        },
+        data: {
+          status: 'REVISION_REQUESTED',
+          decidedByUserId: actorUserId,
+          decidedAt: now,
+          revisionMessage:
+            'Выбор исполнителя отменён заказчиком. Для новой сделки загрузите актуальный договор.',
+        },
+      });
+      const next = await tx.request.update({
+        where: { id: requestId },
+        data: {
+          providerId: null,
+          lockedAt: null,
+          status: 'DISCUSSING',
+          totalAmountRubles: null,
+          offerVersion: null,
+        },
+        select,
+      });
+      await this.addEvent(tx, {
+        requestId,
+        type: 'CUSTOMER_CANCELLED_PROVIDER_SELECTION',
+        actorUserId,
+        payload: { providerId, reason },
+      });
+
+      const conversation = await tx.conversation.findFirst({
+        where: { requestId, providerId },
+        select: { id: true },
+      });
+      let createdMessageId: string | null = null;
+      if (conversation) {
+        const message = await tx.message.create({
+          data: {
+            id: randomUUID(),
+            conversationId: conversation.id,
+            senderUserId: actorUserId,
+            clientMessageId: randomUUID(),
+            body: `Заказчик отменил выбор исполнителя. Причина: ${reason}`,
+          },
+          select: { id: true },
+        });
+        createdMessageId = message.id;
+        await tx.conversation.update({
+          where: { id: conversation.id },
+          data: { lastMessageAt: now },
+          select: { id: true },
+        });
+      }
+      return { request: next, createdMessageId };
+    });
+
+    if (updated.createdMessageId) {
+      await this.chat.notifyMessageCreated(updated.createdMessageId);
+    }
     return requestRowToCustomerDtoPlain(
       updated.request as unknown as RequestDbRow,
     );

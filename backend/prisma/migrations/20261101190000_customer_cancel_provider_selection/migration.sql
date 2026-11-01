@@ -1,0 +1,1 @@
+ALTER TYPE "RequestProviderOfferStatus" ADD VALUE 'CANCELLED_BY_CUSTOMER';

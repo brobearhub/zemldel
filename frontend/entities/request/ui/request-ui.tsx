@@ -22,6 +22,7 @@ import {
   getRequestCardAccentColor,
   getCustomerRequestFlowActiveStepId,
   getRequestFlowActiveStepId,
+  getRequestDisplayStatusLabel,
   getRequestStatusColor,
   isOpenRequestStatus,
   type RequestStatusFilter,
@@ -282,7 +283,7 @@ export function RequestCard({
               </Typography>
               <Chip
                 size="small"
-                label={getRequestStatusLabel(request.status)}
+                label={getRequestDisplayStatusLabel(request)}
                 color={getRequestStatusColor(request.status)}
                 variant={request.status === "CANCELLED" || request.status === "CLOSED" ? "outlined" : "filled"}
               />

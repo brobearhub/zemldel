@@ -36,6 +36,32 @@ function makeService(prisma: PrismaService) {
 }
 
 describe('RequestsService remarks checklist', () => {
+  it('listRemarksByProvider не отдаёт замечания архивному provider', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const prisma = {
+      requestRemark: { findMany },
+    } as unknown as PrismaService;
+    const svc = makeService(prisma);
+    vi.spyOn(
+      svc as unknown as {
+        requireProviderAccessToRequest: (
+          actorProviderId: string,
+          requestId: string,
+        ) => Promise<{ id: string; status: string; providerId: string }>;
+      },
+      'requireProviderAccessToRequest',
+    ).mockResolvedValue({
+      id: 'r1',
+      status: 'ACTIVE',
+      providerId: 'p2',
+    });
+
+    await expect(svc.listRemarksByProvider('p1', 'r1')).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(findMany).not.toHaveBeenCalled();
+  });
+
   it('provider OPEN remark loses deterministic race to mark-rendered without state change', async () => {
     const state = {
       status: 'ACTIVE',
@@ -247,9 +273,15 @@ describe('RequestsService remarks checklist', () => {
 
   it('completeRemarkByProvider запрещает закрывать замечание, созданное провайдером', async () => {
     const tx = {
-      request: {
-        findUnique: vi.fn().mockResolvedValue({ id: 'r1', status: 'ACTIVE' }),
-      },
+      $queryRaw: vi.fn().mockResolvedValue([
+        {
+          id: 'r1',
+          status: 'ACTIVE',
+          providerId: 'p1',
+          cadastralNumbers: [],
+        },
+      ]),
+      request: {},
       requestRemark: {
         findFirst: vi.fn().mockResolvedValue({
           id: 'rm1',
@@ -283,6 +315,44 @@ describe('RequestsService remarks checklist', () => {
     await expect(
       svc.completeRemarkByProvider('p1', 'r1', 'rm1'),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('completeRemarkByProvider повторно проверяет выбранного provider внутри транзакции', async () => {
+    const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([
+        {
+          id: 'r1',
+          status: 'ACTIVE',
+          providerId: 'p2',
+          cadastralNumbers: [],
+        },
+      ]),
+      request: {},
+      requestRemark: {
+        findFirst: vi.fn(),
+        update: vi.fn(),
+      },
+      requestEvent: { create: vi.fn() },
+    };
+    const prisma = makePrisma(tx);
+    Object.assign(prisma, {
+      request: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ id: 'r1', status: 'ACTIVE', providerId: 'p1' }),
+      },
+    });
+    const svc = makeService(prisma);
+    vi.spyOn(svc, 'getProById').mockResolvedValue(
+      {} as Awaited<ReturnType<RequestsService['getProById']>>,
+    );
+
+    await expect(
+      svc.completeRemarkByProvider('p1', 'r1', 'rm1'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(tx.$queryRaw).toHaveBeenCalledOnce();
+    expect(tx.requestRemark.update).not.toHaveBeenCalled();
+    expect(tx.requestEvent.create).not.toHaveBeenCalled();
   });
 
   it('markServiceRenderedByProvider блокирует переход при OPEN замечаниях', async () => {

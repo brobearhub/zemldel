@@ -28,12 +28,16 @@ function makeService(prisma: any) {
 describe('RequestsService cadastral numbers', () => {
   it('appendCadastralNumberByCustomer rejects duplicate values', async () => {
     const tx = {
-      request: {
-        findFirst: vi.fn().mockResolvedValue({
+      $queryRaw: vi.fn().mockResolvedValue([
+        {
           id: 'r1',
           status: 'NEW',
+          providerId: null,
+          customerUserId: 'u1',
           cadastralNumbers: ['50:12:0000000:51755'],
-        }),
+        },
+      ]),
+      request: {
         update: vi.fn(),
       },
     };
@@ -47,16 +51,21 @@ describe('RequestsService cadastral numbers', () => {
         value: '50:12:0000000:51755',
       }),
     ).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.request.update).not.toHaveBeenCalled();
   });
 
   it('deleteCadastralNumberByCustomer removes item by index', async () => {
     const tx = {
-      request: {
-        findFirst: vi.fn().mockResolvedValue({
+      $queryRaw: vi.fn().mockResolvedValue([
+        {
           id: 'r1',
           status: 'ACTIVE',
+          providerId: null,
+          customerUserId: 'u1',
           cadastralNumbers: ['50:12:0000000:51755', '50:12:0000000:51756'],
-        }),
+        },
+      ]),
+      request: {
         update: vi.fn(),
       },
     };
@@ -75,11 +84,15 @@ describe('RequestsService cadastral numbers', () => {
 
   it('appendCadastralNumberByProvider blocks terminal requests', async () => {
     const tx = {
-      request: {
-        findUnique: vi.fn().mockResolvedValue({
+      $queryRaw: vi.fn().mockResolvedValue([
+        {
           id: 'r1',
+          status: 'COMPLETED',
+          providerId: 'p1',
           cadastralNumbers: [],
-        }),
+        },
+      ]),
+      request: {
         update: vi.fn(),
       },
     };
@@ -87,9 +100,6 @@ describe('RequestsService cadastral numbers', () => {
       $transaction: async (fn: any) => await fn(tx),
     };
     const svc = makeService(prisma);
-    (svc as any).requireProviderAccessToRequest = vi
-      .fn()
-      .mockResolvedValue({ id: 'r1', status: 'COMPLETED' });
 
     await expect(
       svc.appendCadastralNumberByProvider('p1', 'r1', {
@@ -98,14 +108,46 @@ describe('RequestsService cadastral numbers', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  it('appendCadastralNumberByProvider повторно проверяет выбранного provider внутри транзакции', async () => {
+    const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([
+        {
+          id: 'r1',
+          status: 'ACTIVE',
+          providerId: 'p2',
+          cadastralNumbers: [],
+        },
+      ]),
+      request: {
+        update: vi.fn(),
+      },
+    };
+    const prisma = {
+      $transaction: async (fn: any) => await fn(tx),
+    };
+    const svc = makeService(prisma);
+
+    await expect(
+      svc.appendCadastralNumberByProvider('p1', 'r1', {
+        value: '50:12:0000000:51755',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(tx.$queryRaw).toHaveBeenCalledOnce();
+    expect(tx.request.update).not.toHaveBeenCalled();
+  });
+
   it('updateCadastralNumberByCustomer rejects invalid index', async () => {
     const tx = {
-      request: {
-        findFirst: vi.fn().mockResolvedValue({
+      $queryRaw: vi.fn().mockResolvedValue([
+        {
           id: 'r1',
           status: 'NEW',
+          providerId: null,
+          customerUserId: 'u1',
           cadastralNumbers: ['50:12:0000000:51755'],
-        }),
+        },
+      ]),
+      request: {
         update: vi.fn(),
       },
     };
@@ -119,16 +161,21 @@ describe('RequestsService cadastral numbers', () => {
         value: '50:12:0000000:51756',
       }),
     ).rejects.toBeInstanceOf(NotFoundException);
+    expect(tx.request.update).not.toHaveBeenCalled();
   });
 
   it('appendCadastralNumberByCustomer rejects blank value', async () => {
     const tx = {
-      request: {
-        findFirst: vi.fn().mockResolvedValue({
+      $queryRaw: vi.fn().mockResolvedValue([
+        {
           id: 'r1',
           status: 'NEW',
+          providerId: null,
+          customerUserId: 'u1',
           cadastralNumbers: [],
-        }),
+        },
+      ]),
+      request: {
         update: vi.fn(),
       },
     };
@@ -140,5 +187,6 @@ describe('RequestsService cadastral numbers', () => {
     await expect(
       svc.appendCadastralNumberByCustomer('u1', 'r1', { value: '   ' }),
     ).rejects.toBeInstanceOf(BadRequestException);
+    expect(tx.request.update).not.toHaveBeenCalled();
   });
 });

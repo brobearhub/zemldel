@@ -7,7 +7,6 @@ import {
   formatRubles,
   formatRequestDate,
   hasRequestLock,
-  isContractPhase,
   isOrderExecutionStatus,
   isOpenRequestStatus,
 } from "@/entities/request";
@@ -77,6 +76,7 @@ export type BuildRequestLifecycleInput =
 function resolveStateIdFromRequest(req: {
   status: RequestStatus;
   lockedAt: string | null;
+  totalAmountRubles: number | null;
 }): RequestLifecycleStateId {
   const { status } = req;
   if (status === "CLOSED") return "CLOSED";
@@ -85,7 +85,8 @@ function resolveStateIdFromRequest(req: {
   if (status === "ACCEPTANCE_PENDING" || status === "ACCEPTED")
     return "ACCEPTANCE";
   if (status === "ACTIVE") return "WORK";
-  if (isContractPhase(req)) return "CONTRACT";
+  if ((status === "TERMS_AGREED" && hasRequestLock(req)) ||
+    (status === "DISCUSSING" && hasRequestLock(req) && req.totalAmountRubles != null)) return "CONTRACT";
   if (status === "DISCUSSING" || status === "TERMS_AGREED") return "DISCUSSING";
   return "NEW";
 }
@@ -108,12 +109,23 @@ function buildCustomerPendingInfo(req: RequestCustomerDto): string | null {
 
 function buildProviderPendingInfo(req: RequestProDto): string | null {
   if (req.offerStatus === "DECLINED") return "Вы отказались от предложения.";
+  if (req.offerStatus === "CANCELLED_BY_CUSTOMER") return "Заказчик отменил выбор до заключения договора. Причина указана в чате.";
   if (
     req.offerStatus === "SELECTED" &&
     hasRequestLock(req) &&
     !isOrderExecutionStatus(req.status)
   ) {
-    return "Клиент выбрал вас исполнителем. Подготовьте и отправьте договор.";
+    if (req.status === "NEW") {
+      return req.subjectType === "SERVICE"
+        ? "Новая заявка по вашей услуге. Ответьте клиенту и обсудите условия."
+        : "Клиент выбрал вас исполнителем. Ответьте и обсудите условия.";
+    }
+    if (req.totalAmountRubles == null) {
+      return "Обсудите условия и согласуйте цену с заказчиком.";
+    }
+    return req.subjectType === "SERVICE"
+      ? "Цена согласована. Подготовьте и отправьте договор."
+      : "Клиент выбрал вас исполнителем. Подготовьте и отправьте договор.";
   }
   return null;
 }

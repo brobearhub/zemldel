@@ -49,7 +49,7 @@ export function canProviderManageDealDocuments(req: {
   return hasRequestLock(req) && !req.isLocked;
 }
 
-export type RequestProviderOfferStatus = "SELECTED" | "DECLINED";
+export type RequestProviderOfferStatus = "SELECTED" | "DECLINED" | "CANCELLED_BY_CUSTOMER";
 
 export type RequestCustomerOfferDto = {
   providerId: string;
