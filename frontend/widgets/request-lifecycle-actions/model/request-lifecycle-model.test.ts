@@ -132,6 +132,69 @@ describe("buildRequestLifecycleViewModel", () => {
     );
   });
 
+  it("customer: exposes current summary, date and version in acceptance view", () => {
+    const submittedAt = "2026-02-01T10:00:00.000Z";
+    const req = makeCustomer({
+      status: "ACCEPTANCE_PENDING",
+      currentSubmission: {
+        id: "s2",
+        sequence: 2,
+        summary: "Исправлены замечания",
+        submittedAt,
+        remarks: [],
+      },
+      deliverySubmissions: [
+        {
+          id: "s1",
+          sequence: 1,
+          summary: "Первая версия",
+          submittedAt: "2026-01-30T10:00:00.000Z",
+          remarks: [],
+        },
+        {
+          id: "s2",
+          sequence: 2,
+          summary: "Исправлены замечания",
+          submittedAt,
+          remarks: [],
+        },
+      ],
+    });
+
+    const vm = buildRequestLifecycleViewModel({
+      side: "customer",
+      request: req,
+      canAcceptContract: false,
+    });
+
+    expect(vm.deliverySubmissions).toHaveLength(2);
+    expect(vm.deliverySubmissions[1]).toMatchObject({
+      sequence: 2,
+      summary: "Исправлены замечания",
+      submittedAt,
+    });
+  });
+
+  it("provider: repeats submission with copy Что исправлено", () => {
+    const vm = buildRequestLifecycleViewModel({
+      side: "provider",
+      request: makeProvider({
+        status: "ACTIVE",
+        deliverySubmissions: [
+          {
+            id: "s1",
+            sequence: 1,
+            summary: "Первая версия",
+            submittedAt: "2026-01-30T10:00:00.000Z",
+            remarks: [],
+          },
+        ],
+      }),
+    });
+
+    expect(vm.deliverySubmissionPrompt).toBe("Что исправлено");
+  });
+
   it("customer: shows open offer action when contract can be accepted", () => {
     const req = makeCustomer({
       status: "DISCUSSING",

@@ -1,4 +1,8 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { RequestsService } from './requests.service';
 
@@ -11,6 +15,17 @@ function makeService(prisma: any) {
 }
 
 describe('RequestsService remarks checklist', () => {
+  it('invalid summary атомарно не начинает сдачу', async () => {
+    const transaction = vi.fn();
+    const svc = makeService({ $transaction: transaction });
+
+    await expect(
+      svc.markServiceRenderedByProvider('p1', 'r1', { summary: '   ' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
   it('sendRemarksByCustomer требует хотя бы одно OPEN замечание заказчика, если текст не передан', async () => {
     const tx = {
       request: {
@@ -211,6 +226,19 @@ describe('RequestsService remarks checklist', () => {
     expect(tx.requestRemark.count).toHaveBeenCalledWith({
       where: { requestId: 'r1', status: 'OPEN' },
     });
+  });
+
+  it('foreign provider не может сдать чужой результат', async () => {
+    const tx = {
+      request: { findFirst: vi.fn().mockResolvedValue(null) },
+    };
+    const svc = makeService({
+      $transaction: async (fn: any) => await fn(tx),
+    });
+
+    await expect(
+      svc.markServiceRenderedByProvider('p2', 'r1', { summary: 'Готово' }),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('markServiceRenderedByProvider создаёт первую версию сдачи до запуска срока приёмки', async () => {
