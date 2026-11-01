@@ -6,7 +6,7 @@ import CheckIcon from "@mui/icons-material/Check";
 import { Box, Button, CircularProgress, Tooltip, Typography } from "@mui/material";
 import Link from "@/shared/ui/Link";
 import {
-  getRequestStatusLabel,
+  getRequestDisplayStatusLabel,
   orderReplyPreview,
   ReplyPreviewLines,
   visibleReplyPreview,
@@ -282,7 +282,7 @@ export function ServiceRequestRow({ request, title, showCustomerAvatar = false, 
             textTransform: "uppercase",
           }}
         >
-          {getRequestStatusLabel(request.status)}
+          {getRequestDisplayStatusLabel(request)}
         </Typography>
 
         <Box

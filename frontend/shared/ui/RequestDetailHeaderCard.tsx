@@ -34,8 +34,6 @@ export function RequestDetailHeaderCard({
   lead,
 }: RequestDetailHeaderCardProps) {
   const hasFooter = Boolean(afterBody || footerEnd);
-  const sideBySide = Boolean(details && body);
-
   return (
     <Box
       sx={(theme) => ({
@@ -49,7 +47,7 @@ export function RequestDetailHeaderCard({
     >
       <Stack spacing={2}>
         <Stack
-          direction="row"
+          direction={{ xs: "column", sm: "row" }}
           spacing={2}
           sx={{
             alignItems: "flex-start",
@@ -98,15 +96,16 @@ export function RequestDetailHeaderCard({
 
         {details || body ? (
           <Stack
-            direction={sideBySide ? { xs: "row-reverse", md: "column" } : "column"}
-            spacing={sideBySide ? { xs: 3, md: 2 } : 2}
+            direction="column"
+            spacing={2}
             useFlexGap
             sx={{
-              alignItems: "stretch"
+              alignItems: "stretch",
+              minWidth: 0,
             }}
           >
             {details ? (
-              <Box sx={sideBySide ? { flexShrink: 0 } : undefined }>{details}</Box>
+              <Box sx={{ minWidth: 0, maxWidth: "100%" }}>{details}</Box>
             ) : null}
 
             {body ? (
@@ -118,12 +117,7 @@ export function RequestDetailHeaderCard({
                   bgcolor: "background.paper",
                   border: `1px solid ${alpha(theme.palette.common.black, 0.06)}`,
                   boxShadow: `0 1px 2px ${alpha(theme.palette.common.black, 0.04)}`,
-                  ...(sideBySide
-                    ? {
-                        flex: { xs: "1 1 auto", md: "none" },
-                        minWidth: 0,
-                      }
-                    : null),
+                  minWidth: 0,
                 })}
               >
                 <Typography
@@ -142,10 +136,10 @@ export function RequestDetailHeaderCard({
 
         {hasFooter ? (
           <Stack
-            direction="row"
+            direction={{ xs: "column", sm: "row" }}
             spacing={1}
             sx={{
-              alignItems: "center",
+              alignItems: { xs: "stretch", sm: "center" },
               justifyContent: "space-between",
               width: "100%",
               pt: { xs: 2, sm: 1 }

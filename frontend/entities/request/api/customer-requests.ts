@@ -35,6 +35,30 @@ export async function selectCustomerRequestProvider(
   return payload as RequestCustomerDto;
 }
 
+export async function cancelCustomerRequestProviderSelection(
+  requestId: string,
+  reason: string,
+  fetcher: Fetcher = fetch,
+): Promise<RequestCustomerDto> {
+  const response = await fetcher(`/api/requests/${requestId}/cancel-provider-selection`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason }),
+  });
+  const payload = (await response.json().catch(() => null)) as
+    | RequestCustomerDto
+    | { error?: string }
+    | null;
+  if (!response.ok || !payload || typeof payload !== "object" || !("id" in payload)) {
+    throw new Error(
+      payload && typeof payload === "object" && "error" in payload && payload.error
+        ? payload.error
+        : "Не удалось отменить выбор исполнителя",
+    );
+  }
+  return payload as RequestCustomerDto;
+}
+
 export async function deleteCustomerRequest(requestId: string): Promise<{ ok: true }> {
   const res = await fetch(`/api/requests/${requestId}`, {
     method: "DELETE",

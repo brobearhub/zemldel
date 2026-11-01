@@ -110,7 +110,10 @@ export const ORDER_STATUSES = [
 
 export type RequestSubjectType = 'FREEFORM' | 'CATEGORY' | 'SERVICE';
 
-export type RequestProviderOfferStatus = 'SELECTED' | 'DECLINED';
+export type RequestProviderOfferStatus =
+  | 'SELECTED'
+  | 'DECLINED'
+  | 'CANCELLED_BY_CUSTOMER';
 
 export type RequestPaymentType = 'CONTRACT' | 'OTHER';
 
@@ -198,9 +201,9 @@ export class RequestCustomerOfferDto {
   @IsUUID()
   providerId!: string;
 
-  @ApiProperty({ enum: ['SELECTED', 'DECLINED'] })
+  @ApiProperty({ enum: ['SELECTED', 'DECLINED', 'CANCELLED_BY_CUSTOMER'] })
   @Expose()
-  @IsEnum(['SELECTED', 'DECLINED'])
+  @IsEnum(['SELECTED', 'DECLINED', 'CANCELLED_BY_CUSTOMER'])
   status!: RequestProviderOfferStatus;
 }
 
@@ -837,13 +840,13 @@ export class RequestProDto {
   providerId!: string | null;
 
   @ApiProperty({
-    enum: ['SELECTED', 'DECLINED'],
+    enum: ['SELECTED', 'DECLINED', 'CANCELLED_BY_CUSTOMER'],
     nullable: true,
     example: null,
   })
   @Expose()
   @IsOptional()
-  @IsEnum(['SELECTED', 'DECLINED'])
+  @IsEnum(['SELECTED', 'DECLINED', 'CANCELLED_BY_CUSTOMER'])
   offerStatus!: RequestProviderOfferStatus | null;
 
   @ApiProperty({ nullable: true, example: null })
@@ -1484,9 +1487,7 @@ export function requestRowToProDtoPlain(
       fiasInactiveWarning: resolveFiasInactiveWarning(row),
       message: canRevealBasicDetails ? row.message : null,
       location: canRevealBasicDetails ? row.location : null,
-      cadastralNumbers: canRevealBasicDetails
-        ? (row.cadastralNumbers ?? [])
-        : [],
+      cadastralNumbers: locked ? [] : (row.cadastralNumbers ?? []),
       lockedAt: row.lockedAt ? row.lockedAt.toISOString() : null,
       dealTerms: locked ? null : (row.dealTerms ?? null),
       offerVersion: row.offerVersion ?? null,

@@ -321,6 +321,30 @@ export class RequestsController {
     return this.requests.selectProviderByCustomer(userId, id, { providerId });
   }
 
+  @Post('requests/mine/:id/cancel-provider-selection')
+  @ApiParam({ name: 'id', type: String })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { reason: { type: 'string', minLength: 1, maxLength: 1000 } },
+      required: ['reason'],
+    },
+  })
+  @ApiOkResponse({ type: RequestCustomerDto })
+  async customerCancelProviderSelection(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Body() body: { reason?: unknown },
+  ) {
+    const userId = this.requests.getRequiredActorUserId(request);
+    if (typeof body?.reason !== 'string') {
+      throw new BadRequestException('reason is required');
+    }
+    return this.requests.cancelProviderSelectionByCustomer(userId, id, {
+      reason: body.reason,
+    });
+  }
+
   @Post('requests/mine/:id/accept-contract')
   @ApiParam({ name: 'id', type: String })
   @ApiBody({

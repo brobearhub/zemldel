@@ -1,5 +1,5 @@
 import type { RequestCustomerDto, RequestStatus } from "../dto/request.dto";
-import { getRequestStatusLabel, isContractPhase, isOrderExecutionStatus } from "../dto/request.dto";
+import { getRequestStatusLabel, isOrderExecutionStatus } from "../dto/request.dto";
 
 export type RequestStatusFilter = "ALL" | RequestStatus;
 
@@ -12,9 +12,10 @@ export type StatusProgressStep = {
 export type RequestFlowStepperInput = {
   status: RequestStatus;
   lockedAt: string | null;
+  totalAmountRubles?: number | null;
 };
 
-type CustomerRequestStepperInput = Pick<RequestCustomerDto, "status" | "dealTerms" | "lockedAt">;
+type CustomerRequestStepperInput = Pick<RequestCustomerDto, "status" | "dealTerms" | "lockedAt" | "totalAmountRubles">;
 
 const ORDER_STATUS_STEPPER_FLOW = ["CONTRACT", "WORK", "ACCEPTANCE", "COMPLETED"] as const;
 type OrderStepperStepId = (typeof ORDER_STATUS_STEPPER_FLOW)[number];
@@ -92,16 +93,29 @@ function buildOrderPhaseSteps(status: RequestStatus): StatusProgressStep[] {
   }));
 }
 
+function isVisibleContractStep(input: RequestFlowStepperInput) {
+  return input.lockedAt != null &&
+    (input.status === "TERMS_AGREED" ||
+      (input.status === "DISCUSSING" && input.totalAmountRubles != null));
+}
+
 export function getRequestFlowActiveStepId(input: RequestFlowStepperInput) {
   const { status } = input;
   if (status === "CLOSED" || status === "CANCELLED") return status;
-  if (isContractPhase(input)) return "CONTRACT";
   if (isOrderExecutionStatus(status)) return getOrderFlowActiveStepId(status);
-  return status === "TERMS_AGREED" ? "DISCUSSING" : status;
+  return isVisibleContractStep(input)
+    ? "CONTRACT"
+    : status === "TERMS_AGREED" ? "DISCUSSING" : status;
 }
 
 export function getCustomerRequestFlowActiveStepId(req: CustomerRequestStepperInput) {
   return getRequestFlowActiveStepId(req);
+}
+
+export function getRequestDisplayStatusLabel(input: RequestFlowStepperInput) {
+  return getRequestFlowActiveStepId(input) === "CONTRACT"
+    ? "Договор"
+    : getRequestStatusLabel(input.status);
 }
 
 export function buildRequestFlowSteps(input: RequestFlowStepperInput): StatusProgressStep[] {
@@ -117,16 +131,16 @@ export function buildRequestFlowSteps(input: RequestFlowStepperInput): StatusPro
   const preOrderIds: PreOrderStepId[] = ["NEW", "DISCUSSING"];
 
   const preOrderIndex =
-    isOrderExecutionStatus(status) || isContractPhase(input)
+    isOrderExecutionStatus(status) || isVisibleContractStep(input)
       ? preOrderIds.length
-      : status === "TERMS_AGREED" || status === "DISCUSSING"
+      : status === "DISCUSSING" || status === "TERMS_AGREED"
         ? preOrderIds.indexOf("DISCUSSING")
         : preOrderIds.indexOf("NEW");
 
   const preOrderSteps: StatusProgressStep[] = preOrderIds.map((id) => ({
     id,
     label: getRequestStatusLabel(id),
-    completed: isOrderExecutionStatus(status) || isContractPhase(input)
+    completed: isOrderExecutionStatus(status) || isVisibleContractStep(input)
       ? true
       : preOrderIds.indexOf(id) < preOrderIndex,
   }));
@@ -137,15 +151,11 @@ export function buildRequestFlowSteps(input: RequestFlowStepperInput): StatusPro
     ...step,
     completed: isOrderExecutionStatus(status)
       ? step.completed
-      : isContractPhase(input)
-        ? step.id === "CONTRACT"
-          ? false
-          : false
-        : false,
+      : false,
   }));
 
-  // When in contract phase, CONTRACT is active (not completed); later order steps incomplete.
-  if (isContractPhase(input)) {
+  // Selection alone does not advance the visible stage; agreed terms do.
+  if (isVisibleContractStep(input)) {
     return [
       ...preOrderSteps,
       ...ORDER_STATUS_STEPPER_FLOW.map((step) => ({

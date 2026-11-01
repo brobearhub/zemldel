@@ -199,6 +199,7 @@ describe("buildRequestLifecycleViewModel", () => {
     const req = makeCustomer({
       status: "DISCUSSING",
       lockedAt: "2026-08-06T00:00:00.000Z",
+      totalAmountRubles: 12000,
     });
     const vm = buildRequestLifecycleViewModel({
       side: "customer",
@@ -309,6 +310,7 @@ describe("buildRequestLifecycleViewModel", () => {
       request: req,
     });
     expect(vm.actions.map((a) => a.id)).toContain("declineOffer");
+    expect(vm.note).toBe("Новая заявка по вашей услуге. Ответьте клиенту и обсудите условия.");
   });
 
   it("provider: hides dialogs info row once a provider is chosen", () => {

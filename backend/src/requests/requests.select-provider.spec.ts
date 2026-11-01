@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { formatCustomerSelectProviderChatMessage } from './dto/select-provider.dto';
 import { RequestsService } from './requests.service';
@@ -255,5 +255,131 @@ describe('RequestsService.selectProviderByCustomer', () => {
     await expect(
       svc.selectProviderByCustomer('cu1', 'r1', { providerId: 'p1' }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
+describe('RequestsService.cancelProviderSelectionByCustomer', () => {
+  it('reopens a FREEFORM request and clears the selected deal price before contract', async () => {
+    const row = makeRequestRow({
+      categoryId: null,
+      providerId: 'p1',
+      lockedAt: new Date(),
+      status: 'TERMS_AGREED',
+      totalAmountRubles: 12000,
+      providerOffers: [
+        {
+          providerId: 'p1',
+          status: 'SELECTED',
+          selectedAt: new Date(),
+          declinedAt: null,
+        },
+      ],
+    });
+    const tx = {
+      $queryRaw: vi
+        .fn()
+        .mockResolvedValue([{ id: 'r1', customerUserId: 'cu1' }]),
+      request: {
+        findUnique: vi.fn().mockResolvedValue(row),
+        update: vi.fn().mockImplementation(({ data }) => ({
+          ...row,
+          ...data,
+          providerOffers: [
+            {
+              providerId: 'p1',
+              status: 'CANCELLED_BY_CUSTOMER',
+              selectedAt: new Date(),
+              declinedAt: new Date(),
+            },
+          ],
+        })),
+      },
+      requestProviderOffer: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+      requestPriceProposal: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+      requestContractFile: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+      conversation: { findFirst: vi.fn().mockResolvedValue(null) },
+      requestEvent: { create: vi.fn() },
+    };
+    const prisma = {
+      $transaction: async (fn: (client: typeof tx) => Promise<unknown>) =>
+        fn(tx),
+    };
+    const { svc } = makeService(prisma);
+
+    const result = await svc.cancelProviderSelectionByCustomer('cu1', 'r1', {
+      reason: 'Не согласовали условия',
+    });
+
+    expect(tx.request.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          providerId: null,
+          lockedAt: null,
+          status: 'DISCUSSING',
+          totalAmountRubles: null,
+        }),
+      }),
+    );
+    expect(tx.requestPriceProposal.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          providerId: 'p1',
+          supersededAt: null,
+        }),
+      }),
+    );
+    expect(tx.requestContractFile.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          providerId: 'p1',
+          status: { in: ['PENDING_CUSTOMER', 'APPROVED'] },
+        }),
+        data: expect.objectContaining({ status: 'REVISION_REQUESTED' }),
+      }),
+    );
+    expect(tx.requestProviderOffer.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: 'CANCELLED_BY_CUSTOMER' }),
+      }),
+    );
+    expect(result.providerId).toBeNull();
+  });
+
+  it.each([
+    { serviceId: 'service-1', contractAcceptedAt: null },
+    { serviceId: null, contractAcceptedAt: new Date() },
+  ])('does not release a SERVICE or signed request', async (overrides) => {
+    const row = makeRequestRow({
+      providerId: 'p1',
+      lockedAt: new Date(),
+      ...overrides,
+    });
+    const tx = {
+      $queryRaw: vi
+        .fn()
+        .mockResolvedValue([{ id: 'r1', customerUserId: 'cu1' }]),
+      request: {
+        findUnique: vi.fn().mockResolvedValue(row),
+        update: vi.fn(),
+      },
+    };
+    const prisma = {
+      $transaction: async (fn: (client: typeof tx) => Promise<unknown>) =>
+        fn(tx),
+    };
+    const { svc } = makeService(prisma);
+
+    await expect(
+      svc.cancelProviderSelectionByCustomer('cu1', 'r1', {
+        reason: 'Изменились условия',
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.request.update).not.toHaveBeenCalled();
   });
 });

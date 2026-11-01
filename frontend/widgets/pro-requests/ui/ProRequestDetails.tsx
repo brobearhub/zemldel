@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Backdrop,
@@ -16,7 +16,6 @@ import {
 import { RequestCityInactiveWarning } from "@/shared/ui/RequestCityInactiveWarning";
 import {
   canProviderManageDealDocuments,
-  getRequestStatusLabel,
   mergeWorkStageStatusOptions,
   RequestPriceBlock,
   resolvePaymentTriggerLabel,
@@ -68,6 +67,8 @@ import {
 import { submitProRequestDelivery } from "@/entities/request/api/request-delivery-submission";
 import { shouldShowProviderPaymentPanel } from "../model/request-payment-panel-visibility";
 import { buildRequestCompletionDescription } from "../model/request-completion-copy";
+import { createExclusiveRequestGuard } from "../model/exclusive-request-guard";
+import { resolveProviderRequestScreenModel } from "../model/provider-request-screen-model";
 import { deleteProRequestContractFile } from "@/entities/request/api/pro-contract-files";
 import type {
   ProContractBundleItem,
@@ -108,6 +109,14 @@ type Props = {
 
 export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   const [req, setReq] = useState(initialRequest);
+  const [exclusiveRequestGuard] = useState(createExclusiveRequestGuard);
+  const exclusiveScopeRef = useRef(`${initialRequest.id}:${initialRequest.isLocked}`);
+  const exclusiveScope = `${req.id}:${req.isLocked}`;
+  if (exclusiveScopeRef.current !== exclusiveScope) {
+    exclusiveScopeRef.current = exclusiveScope;
+    exclusiveRequestGuard.invalidate();
+  }
+  const screenModel = resolveProviderRequestScreenModel(req);
   const [busy, setBusy] = useState(false);
   const [uploadBusy, setUploadBusy] = useState(false);
   const [uploadNames, setUploadNames] = useState<string[]>([]);
@@ -151,6 +160,11 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   const hasUploadedDocs = docRequests.some((d) => d.status === "UPLOADED");
 
   const loadWorkStages = useCallback(async () => {
+    if (!screenModel.showDealWorkflow) {
+      setWorkStages([]);
+      setWorkStageStatusOptions([...SYSTEM_WORK_STAGE_STATUSES]);
+      return;
+    }
     if (
       req.status !== "ACTIVE" &&
       req.status !== "ACCEPTANCE_PENDING" &&
@@ -160,6 +174,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
       setWorkStages([]);
       return;
     }
+    const generation = exclusiveRequestGuard.capture();
     const [stages, statuses] = await Promise.all([
       fetchProWorkStages(req.id),
       fetchWorkStageStatuses().catch(() => ({
@@ -167,29 +182,50 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
         custom: [],
       })),
     ]);
+    if (!exclusiveRequestGuard.isCurrent(generation)) return;
     setWorkStages(stages);
     setWorkStageStatusOptions(mergeWorkStageStatusOptions(statuses.custom));
-  }, [req.id, req.status]);
+  }, [
+    exclusiveRequestGuard,
+    req.id,
+    req.status,
+    screenModel.showDealWorkflow,
+  ]);
 
   async function loadRemarks() {
+    if (!screenModel.showDealWorkflow) return;
+    const generation = exclusiveRequestGuard.capture();
     const list = await fetchProRequestRemarks(req.id);
+    if (!exclusiveRequestGuard.isCurrent(generation)) return;
     setRemarks(list);
   }
 
   useEffect(() => {
-    if (!isOrderExecutionStatus(req.status)) {
+    if (
+      !screenModel.showDealWorkflow ||
+      !isOrderExecutionStatus(req.status)
+    ) {
       setRemarks([]);
       setRemarksError(null);
       return;
     }
+    const generation = exclusiveRequestGuard.capture();
     let cancelled = false;
     setRemarksError(null);
     (async () => {
       try {
         const list = await fetchProRequestRemarks(req.id);
-        if (!cancelled) setRemarks(list);
+        if (
+          !cancelled &&
+          exclusiveRequestGuard.isCurrent(generation)
+        ) {
+          setRemarks(list);
+        }
       } catch (e) {
-        if (!cancelled)
+        if (
+          !cancelled &&
+          exclusiveRequestGuard.isCurrent(generation)
+        )
           setRemarksError(
             e instanceof Error ? e.message : "Не удалось загрузить замечания",
           );
@@ -198,7 +234,12 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [req.id, req.status]);
+  }, [
+    exclusiveRequestGuard,
+    req.id,
+    req.status,
+    screenModel.showDealWorkflow,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -218,16 +259,39 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   }, [loadWorkStages]);
 
   useEffect(() => {
+    if (screenModel.showDealWorkflow) return;
+    setError(null);
+    setRemarksError(null);
+    setWorkStages([]);
+    setWorkStageStatusOptions([...SYSTEM_WORK_STAGE_STATUSES]);
+    setRemarks([]);
+    setContractBundles([]);
+    setContractBundlesLoaded(false);
+    setMiscFiles([]);
+    setMiscLoaded(false);
+    setDocRequests([]);
+    setDocRequestsLoaded(false);
+    setActivePanelId(null);
+  }, [screenModel.showDealWorkflow]);
+
+  useEffect(() => {
     if (!showContractWorkflow || contractBundlesLoaded) return;
+    const generation = exclusiveRequestGuard.capture();
     let cancelled = false;
     (async () => {
       try {
         const payload = await fetchProRequestContractBundles(req.id);
-        if (cancelled) return;
+        if (
+          cancelled ||
+          !exclusiveRequestGuard.isCurrent(generation)
+        ) return;
         setContractBundles(payload);
         setContractBundlesLoaded(true);
       } catch (e) {
-        if (!cancelled) {
+        if (
+          !cancelled &&
+          exclusiveRequestGuard.isCurrent(generation)
+        ) {
           setContractBundlesLoaded(true);
           setError(
             e instanceof Error ? e.message : "Не удалось загрузить договоры",
@@ -238,19 +302,31 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [contractBundlesLoaded, req.id, showContractWorkflow]);
+  }, [
+    contractBundlesLoaded,
+    exclusiveRequestGuard,
+    req.id,
+    showContractWorkflow,
+  ]);
 
   useEffect(() => {
     if (!showContractWorkflow || miscLoaded) return;
+    const generation = exclusiveRequestGuard.capture();
     let cancelled = false;
     (async () => {
       try {
         const payload = await fetchProRequestMiscFiles(req.id);
-        if (cancelled) return;
+        if (
+          cancelled ||
+          !exclusiveRequestGuard.isCurrent(generation)
+        ) return;
         setMiscFiles(payload);
         setMiscLoaded(true);
       } catch (e) {
-        if (!cancelled) {
+        if (
+          !cancelled &&
+          exclusiveRequestGuard.isCurrent(generation)
+        ) {
           setMiscLoaded(true);
           setError(
             e instanceof Error ? e.message : "Не удалось загрузить документы",
@@ -261,19 +337,31 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [miscLoaded, req.id, showContractWorkflow]);
+  }, [
+    exclusiveRequestGuard,
+    miscLoaded,
+    req.id,
+    showContractWorkflow,
+  ]);
 
   useEffect(() => {
     if (!showContractWorkflow || docRequestsLoaded) return;
+    const generation = exclusiveRequestGuard.capture();
     let cancelled = false;
     (async () => {
       try {
         const payload = await fetchProRequestDocumentRequests(req.id);
-        if (cancelled) return;
+        if (
+          cancelled ||
+          !exclusiveRequestGuard.isCurrent(generation)
+        ) return;
         setDocRequests(payload);
         setDocRequestsLoaded(true);
       } catch (e) {
-        if (!cancelled) {
+        if (
+          !cancelled &&
+          exclusiveRequestGuard.isCurrent(generation)
+        ) {
           setDocRequestsLoaded(true);
           setError(
             e instanceof Error
@@ -286,7 +374,12 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [docRequestsLoaded, req.id, showContractWorkflow]);
+  }, [
+    docRequestsLoaded,
+    exclusiveRequestGuard,
+    req.id,
+    showContractWorkflow,
+  ]);
 
   const refresh = useCallback(async () => {
     const res = await fetch(`/api/pro/requests/${req.id}`, {
@@ -323,6 +416,34 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
       socket.off("chat.unreadHint", handler);
     };
   }, [socket, req.id, refresh]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let inFlight = false;
+    const syncVisibleRequest = async () => {
+      if (cancelled || inFlight || document.visibilityState !== "visible" || isBusy) return;
+      inFlight = true;
+      try {
+        await refresh();
+      } catch {
+        // The next focus or interval retries; keep the last usable view.
+      } finally {
+        inFlight = false;
+      }
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void syncVisibleRequest();
+    };
+    window.addEventListener("focus", onVisibilityChange);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    const intervalId = window.setInterval(() => void syncVisibleRequest(), 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", onVisibilityChange);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [isBusy, refresh]);
 
   async function refreshContractBundles() {
     try {
@@ -628,7 +749,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     {
       id: "cadastral",
       label: "Кадастровый номер",
-      visible: true,
+      visible: screenModel.showCadastralPanel,
       endIcon: <PinDropOutlinedIcon />,
     },
     {
@@ -712,9 +833,9 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
         avatarSrc={req.customerImage}
         avatarName={req.customerName}
       />
-    ) : (
+    ) : activePanel?.id === "cadastral" ? (
       <RequestCadastralNumbers behavior={cadastralBehavior} busy={isBusy} />
-    );
+    ) : null;
 
   return (
     <Stack spacing={2}>
@@ -728,15 +849,15 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
         <RequestDetailHeaderCard
           title={headerTitle}
           subtitle={subtitle}
-          statusLabel={getRequestStatusLabel(req.status)}
+          statusLabel={screenModel.statusLabel}
           body={messageBody}
-          footerEnd={
+          footerEnd={screenModel.showDealWorkflow ? (
             <RequestDetailPanelTriggers
               items={panelItems}
               onOpen={(id) => setActivePanelId(id as never)}
             />
-          }
-          lead={
+          ) : null}
+          lead={screenModel.showDealWorkflow ? (
             <Stack spacing={0.5} sx={{ minWidth: 0 }}>
               <RequestPriceBlock
                 totalAmountRubles={req.totalAmountRubles}
@@ -753,14 +874,18 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
                 />
               ) : null}
             </Stack>
-          }
-          details={
+          ) : null}
+          details={screenModel.showDealWorkflow ? (
             <RequestDetails
               busy={isBusy}
               behavior={createProviderRequestDetailsBehavior({ request: req })}
             />
-          }
-          afterBody={
+          ) : (
+            <Alert severity="info">
+              Клиент выбрал другого исполнителя. Вам доступен архив переписки.
+            </Alert>
+          )}
+          afterBody={screenModel.showDealWorkflow ? (
             <RequestLifecycleActions
               busy={isBusy}
               behavior={createProviderRequestLifecycleBehavior({
@@ -800,7 +925,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
                 },
               })}
             />
-          }
+          ) : null}
         />
       </RequestDetailPanelLayer>
 
@@ -864,57 +989,61 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
         </Paper>
       </Backdrop>
 
-      <RequestReviewsPanel
-        requestId={req.id}
-        status={req.status}
-        side="provider"
-      />
+      {screenModel.showDealWorkflow ? (
+        <>
+          <RequestReviewsPanel
+            requestId={req.id}
+            status={req.status}
+            side="provider"
+          />
 
-      <RequestWorkProgress
-        mode="provider"
-        requestId={req.id}
-        requestStatus={req.status}
-        stages={workStages}
-        statusOptions={workStageStatusOptions}
-        busy={isBusy}
-        onRefresh={loadWorkStages}
-        onError={(message) => setError(message)}
-      />
+          <RequestWorkProgress
+            mode="provider"
+            requestId={req.id}
+            requestStatus={req.status}
+            stages={workStages}
+            statusOptions={workStageStatusOptions}
+            busy={isBusy}
+            onRefresh={loadWorkStages}
+            onError={(message) => setError(message)}
+          />
 
-      <RequestRemarks
-        busy={isBusy}
-        behavior={createProviderRequestRemarksBehavior({
-          request: req,
-          remarks,
-          actions: {
-            remarkAdd,
-            remarkComplete,
-          },
-        })}
-      />
+          <RequestRemarks
+            busy={isBusy}
+            behavior={createProviderRequestRemarksBehavior({
+              request: req,
+              remarks,
+              actions: {
+                remarkAdd,
+                remarkComplete,
+              },
+            })}
+          />
 
-      <ProRequestDocumentsSection
-        open={showContractWorkflow}
-        requestId={req.id}
-        requestStatus={req.status}
-        isBusy={isBusy}
-        docRequestsLoaded={docRequestsLoaded}
-        contractBundlesLoaded={contractBundlesLoaded}
-        miscLoaded={miscLoaded}
-        docRequests={docRequests}
-        contractBundles={contractBundles}
-        miscFiles={miscFiles}
-        uploadBusy={uploadBusy}
-        uploadNames={uploadNames}
-        onCreateDocRequest={createDocRequest}
-        onCancelDocRequest={cancelDocRequest}
-        onUploadContractBundle={uploadContractBundle}
-        onDeleteContractBundle={deleteContractBundle}
-        onUploadMiscFiles={uploadMiscFiles}
-        onDeleteMiscFile={deleteMiscFile}
-      />
+          <ProRequestDocumentsSection
+            open={showContractWorkflow}
+            requestId={req.id}
+            requestStatus={req.status}
+            isBusy={isBusy}
+            docRequestsLoaded={docRequestsLoaded}
+            contractBundlesLoaded={contractBundlesLoaded}
+            miscLoaded={miscLoaded}
+            docRequests={docRequests}
+            contractBundles={contractBundles}
+            miscFiles={miscFiles}
+            uploadBusy={uploadBusy}
+            uploadNames={uploadNames}
+            onCreateDocRequest={createDocRequest}
+            onCancelDocRequest={cancelDocRequest}
+            onUploadContractBundle={uploadContractBundle}
+            onDeleteContractBundle={deleteContractBundle}
+            onUploadMiscFiles={uploadMiscFiles}
+            onDeleteMiscFile={deleteMiscFile}
+          />
 
-      <RequestRemindersPanel requestId={req.id} />
+          <RequestRemindersPanel requestId={req.id} />
+        </>
+      ) : null}
     </Stack>
   );
 }
