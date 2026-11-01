@@ -461,7 +461,6 @@ export class RequestPaymentsService {
       request.priceProposals?.[0] ?? null,
       'CUSTOMER',
       isPriceMutable(request),
-      request.providerId != null || request.priceProposals.length > 0,
     );
   }
 
@@ -561,7 +560,11 @@ export class RequestPaymentsService {
         data: { totalAmountRubles: null },
         select: {
           totalAmountRubles: true,
-          payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
+          payments: {
+            where: { providerId: input.providerId },
+            select: paymentSelect,
+            orderBy: { paidAt: 'asc' },
+          },
         },
       });
       await tx.requestEvent.create({
@@ -668,7 +671,11 @@ export class RequestPaymentsService {
         data: { totalAmountRubles: proposal.amountRubles },
         select: {
           totalAmountRubles: true,
-          payments: { select: paymentSelect, orderBy: { paidAt: 'asc' } },
+          payments: {
+            where: { providerId: input.providerId },
+            select: paymentSelect,
+            orderBy: { paidAt: 'asc' },
+          },
         },
       });
       await tx.requestEvent.create({
