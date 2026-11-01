@@ -38,6 +38,68 @@ describe('RequestsService remarks checklist', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('sendRemarksByCustomer связывает новое замечание с текущей версией сдачи', async () => {
+    const now = new Date('2026-11-01T10:00:00.000Z');
+    const tx = {
+      request: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'ACCEPTANCE_PENDING',
+          autoAcceptAt: null,
+          customerUserId: 'u1',
+        }),
+        update: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'ACTIVE',
+          serviceId: null,
+          categoryId: null,
+          providerId: 'p1',
+          customerUserId: 'u1',
+          requestCityId: null,
+          message: null,
+          location: null,
+          cadastralNumbers: [],
+          lockedAt: now,
+          dealTerms: null,
+          offerVersion: null,
+          termsVersion: null,
+          contractAcceptedAt: now,
+          acceptanceRequestedAt: null,
+          autoAcceptAt: null,
+          acceptedAt: null,
+          totalAmountRubles: null,
+          servicePriceRubles: null,
+          createdAt: now,
+          updatedAt: now,
+          service: null,
+          category: null,
+          provider: null,
+          customerUser: null,
+          providerOffers: [],
+          payments: [],
+          priceProposals: [],
+          deliverySubmissions: [],
+        }),
+      },
+      requestDeliverySubmission: {
+        findFirst: vi.fn().mockResolvedValue({ id: 's2' }),
+      },
+      requestRemark: {
+        create: vi.fn().mockResolvedValue({ id: 'rm1' }),
+      },
+      requestEvent: { create: vi.fn() },
+    };
+    const prisma = { $transaction: async (fn: any) => await fn(tx) };
+    const svc = makeService(prisma);
+
+    await svc.sendRemarksByCustomer('u1', 'r1', { remarks: 'Нужно исправить' });
+
+    expect(tx.requestRemark.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ submissionId: 's2' }),
+      select: { id: true },
+    });
+  });
+
   it('createRemarkByProvider создаёт замечание сразу отправленным (sentAt!=null)', async () => {
     const tx = {
       request: {
@@ -144,10 +206,127 @@ describe('RequestsService remarks checklist', () => {
     const svc = makeService(prisma);
 
     await expect(
-      svc.markServiceRenderedByProvider('p1', 'r1'),
+      svc.markServiceRenderedByProvider('p1', 'r1', { summary: 'Готово' }),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(tx.requestRemark.count).toHaveBeenCalledWith({
       where: { requestId: 'r1', status: 'OPEN' },
     });
+  });
+
+  it('markServiceRenderedByProvider создаёт первую версию сдачи до запуска срока приёмки', async () => {
+    const now = new Date('2026-11-01T10:00:00.000Z');
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    const tx = {
+      request: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'ACTIVE',
+          providerId: 'p1',
+        }),
+        update: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'ACCEPTANCE_PENDING',
+          serviceId: null,
+          categoryId: null,
+          providerId: 'p1',
+          customerUserId: 'u1',
+          requestCityId: null,
+          message: null,
+          location: null,
+          cadastralNumbers: [],
+          lockedAt: now,
+          dealTerms: null,
+          offerVersion: null,
+          termsVersion: null,
+          contractAcceptedAt: now,
+          acceptanceRequestedAt: now,
+          autoAcceptAt: new Date('2026-11-08T10:00:00.000Z'),
+          acceptedAt: null,
+          totalAmountRubles: null,
+          servicePriceRubles: null,
+          createdAt: now,
+          updatedAt: now,
+          service: null,
+          category: null,
+          provider: null,
+          customerUser: null,
+          providerOffers: [],
+          payments: [],
+          priceProposals: [],
+        }),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'ACCEPTANCE_PENDING',
+          serviceId: null,
+          categoryId: null,
+          providerId: 'p1',
+          customerUserId: 'u1',
+          requestCityId: null,
+          message: null,
+          location: null,
+          cadastralNumbers: [],
+          lockedAt: now,
+          dealTerms: null,
+          offerVersion: null,
+          termsVersion: null,
+          contractAcceptedAt: now,
+          acceptanceRequestedAt: now,
+          autoAcceptAt: new Date('2026-11-08T10:00:00.000Z'),
+          acceptedAt: null,
+          totalAmountRubles: null,
+          servicePriceRubles: null,
+          createdAt: now,
+          updatedAt: now,
+          service: null,
+          category: null,
+          provider: null,
+          customerUser: null,
+          providerOffers: [],
+          payments: [],
+          priceProposals: [],
+          deliverySubmissions: [],
+        }),
+      },
+      requestRemark: { count: vi.fn().mockResolvedValue(0) },
+      requestDeliverySubmission: {
+        aggregate: vi.fn().mockResolvedValue({ _max: { sequence: null } }),
+        create: vi.fn().mockResolvedValue({
+          id: 's1',
+          requestId: 'r1',
+          providerId: 'p1',
+          sequence: 1,
+          summary: 'Результат готов',
+          submittedByUserId: null,
+          submittedAt: now,
+        }),
+      },
+      requestEvent: { create: vi.fn() },
+    };
+    const prisma = { $transaction: async (fn: any) => await fn(tx) };
+    const svc = makeService(prisma);
+
+    await svc.markServiceRenderedByProvider('p1', 'r1', {
+      summary: 'Результат готов',
+    });
+
+    expect(tx.requestDeliverySubmission.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        requestId: 'r1',
+        providerId: 'p1',
+        sequence: 1,
+        summary: 'Результат готов',
+      }),
+      select: expect.any(Object),
+    });
+    expect(tx.request.updateMany).toHaveBeenCalledWith({
+      where: { id: 'r1', status: 'ACTIVE' },
+      data: expect.objectContaining({
+        status: 'ACCEPTANCE_PENDING',
+        acceptanceRequestedAt: now,
+      }),
+    });
+    vi.useRealTimers();
   });
 });

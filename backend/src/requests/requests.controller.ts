@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -48,6 +49,7 @@ import {
   RequestCadastralNumberUpdateDto,
 } from './dto/request-cadastral-number.dto';
 import { parseDeclineOfferDto } from './dto/decline-offer.dto';
+import { MarkRenderedDto, parseMarkRenderedDto } from './dto/mark-rendered.dto';
 import { RequestsService } from './requests.service';
 import {
   ProEligibleCategoryDto,
@@ -910,8 +912,13 @@ export class RequestsController {
 
   @Post('pro/requests/:id/mark-rendered')
   @ApiParam({ name: 'id', type: String })
+  @ApiBody({ type: MarkRenderedDto })
   @ApiOkResponse({ type: RequestCustomerDto })
-  async proMarkRendered(@Req() request: Request, @Param('id') id: string) {
+  async proMarkRendered(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
     const context = await this.requests.getManagementContext(request, 'read');
     if (context.isPlatformAdmin) {
       throw new ForbiddenException('Forbidden');
@@ -919,13 +926,30 @@ export class RequestsController {
     if (!context.providerId) {
       throw new ForbiddenException('Active provider is required');
     }
-    return this.requests.markServiceRenderedByProvider(context.providerId, id);
+    const { data, issues } = parseMarkRenderedDto(body);
+    if (!data) {
+      throw new BadRequestException({
+        error: 'Invalid delivery summary',
+        issues,
+      });
+    }
+    return this.requests.markServiceRenderedByProvider(
+      context.providerId,
+      id,
+      data,
+      context.actorUserId,
+    );
   }
 
   @Post('pro/requests/:id/request-acceptance')
   @ApiParam({ name: 'id', type: String })
+  @ApiBody({ type: MarkRenderedDto })
   @ApiOkResponse({ type: RequestCustomerDto })
-  async proRequestAcceptance(@Req() request: Request, @Param('id') id: string) {
+  async proRequestAcceptance(
+    @Req() request: Request,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
     const context = await this.requests.getManagementContext(request, 'read');
     if (context.isPlatformAdmin) {
       throw new ForbiddenException('Forbidden');
@@ -933,7 +957,19 @@ export class RequestsController {
     if (!context.providerId) {
       throw new ForbiddenException('Active provider is required');
     }
-    return this.requests.requestAcceptanceByProvider(context.providerId, id);
+    const { data, issues } = parseMarkRenderedDto(body);
+    if (!data) {
+      throw new BadRequestException({
+        error: 'Invalid delivery summary',
+        issues,
+      });
+    }
+    return this.requests.requestAcceptanceByProvider(
+      context.providerId,
+      id,
+      data,
+      context.actorUserId,
+    );
   }
 
   @Post('pro/requests/:id/complete')

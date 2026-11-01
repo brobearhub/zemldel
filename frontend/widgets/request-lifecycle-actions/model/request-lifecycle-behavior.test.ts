@@ -1,11 +1,18 @@
-import type { RequestCustomerDto, RequestProDto, RequestStatus, RequestSubjectType } from "@/entities/request";
+import type {
+  RequestCustomerDto,
+  RequestProDto,
+  RequestStatus,
+  RequestSubjectType,
+} from "@/entities/request";
 import {
   createCustomerRequestLifecycleBehavior,
   createProviderRequestLifecycleBehavior,
 } from "./request-lifecycle-behavior";
 import { vi } from "vitest";
 
-function makeCustomer(overrides: Partial<RequestCustomerDto> = {}): RequestCustomerDto {
+function makeCustomer(
+  overrides: Partial<RequestCustomerDto> = {},
+): RequestCustomerDto {
   return {
     id: "r1",
     subjectType: "FREEFORM" satisfies RequestSubjectType,
@@ -110,7 +117,10 @@ describe("request-lifecycle behavior", () => {
     const acceptResult = vi.fn();
 
     const behavior = createCustomerRequestLifecycleBehavior({
-      request: makeCustomer({ status: "DISCUSSING", lockedAt: "2026-08-06T00:00:00.000Z" }),
+      request: makeCustomer({
+        status: "DISCUSSING",
+        lockedAt: "2026-08-06T00:00:00.000Z",
+      }),
       canAcceptContract: true,
       actions: { openOfferDialog, acceptResult },
     });
@@ -130,7 +140,9 @@ describe("request-lifecycle behavior", () => {
       actions: { openOfferDialog: vi.fn(), acceptResult },
     });
 
-    expect(behavior.getViewModel().actions.map((a) => a.id)).toEqual(["acceptResult"]);
+    expect(behavior.getViewModel().actions.map((a) => a.id)).toEqual([
+      "acceptResult",
+    ]);
     await behavior.run({ id: "acceptResult" });
     expect(acceptResult).toHaveBeenCalledTimes(1);
   });
@@ -150,8 +162,11 @@ describe("request-lifecycle behavior", () => {
       },
     });
 
-    await behavior.run({ id: "markRendered" });
-    expect(markRendered).toHaveBeenCalledTimes(1);
+    await behavior.run({
+      id: "markRendered",
+      payload: { summary: "Результат готов" },
+    });
+    expect(markRendered).toHaveBeenCalledWith("Результат готов");
 
     await behavior.run({ id: "declineOffer" });
     expect(declineOffer).toHaveBeenCalledTimes(1);
@@ -171,7 +186,9 @@ describe("request-lifecycle behavior", () => {
     });
 
     const vm = behavior.getViewModel();
-    expect(vm.actions.find((a) => a.id === "markRendered")?.disabled).toBe(true);
+    expect(vm.actions.find((a) => a.id === "markRendered")?.disabled).toBe(
+      true,
+    );
     expect(vm.note).toMatch(/невыполненные замечания/i);
   });
 });
