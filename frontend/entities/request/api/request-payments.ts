@@ -58,38 +58,45 @@ export async function markProRequestPaymentPaid(requestId: string, paymentId: st
   return parseJson<RequestFinanceDto>(res, "Не удалось отметить платёж как оплаченный");
 }
 
-export async function fetchCustomerRequestFinance(requestId: string): Promise<RequestFinanceDto> {
-  const res = await fetch(`/api/requests/${requestId}/payments`, { cache: "no-store" });
+function financeContextQuery(conversationId?: string): string {
+  return conversationId
+    ? `?conversationId=${encodeURIComponent(conversationId)}`
+    : "";
+}
+
+export async function fetchCustomerRequestFinance(requestId: string, conversationId?: string): Promise<RequestFinanceDto> {
+  const res = await fetch(`/api/requests/${requestId}/payments${financeContextQuery(conversationId)}`, { cache: "no-store" });
   return parseJson<RequestFinanceDto>(res, "Не удалось загрузить оплату");
 }
 
-export async function proposeCustomerRequestPrice(requestId: string, amountRubles: number): Promise<RequestFinanceDto> {
+export async function proposeCustomerRequestPrice(requestId: string, amountRubles: number, conversationId?: string): Promise<RequestFinanceDto> {
   const res = await fetch(`/api/requests/${requestId}/price-proposals`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ amountRubles }),
+    body: JSON.stringify({ amountRubles, conversationId }),
   });
   return parseJson<RequestFinanceDto>(res, "Не удалось предложить цену");
 }
 
-export async function acceptCustomerRequestPrice(requestId: string, proposalId: string): Promise<RequestFinanceDto> {
-  const res = await fetch(`/api/requests/${requestId}/price-proposals/${proposalId}/accept`, { method: "POST" });
+export async function acceptCustomerRequestPrice(requestId: string, proposalId: string, conversationId?: string): Promise<RequestFinanceDto> {
+  const res = await fetch(`/api/requests/${requestId}/price-proposals/${proposalId}/accept${financeContextQuery(conversationId)}`, { method: "POST" });
   return parseJson<RequestFinanceDto>(res, "Не удалось принять цену");
 }
 
 export async function addCustomerRequestPayment(
   requestId: string,
   input: { amountRubles: number; comment: string; type?: "CONTRACT" | "OTHER" },
+  conversationId?: string,
 ): Promise<RequestFinanceDto> {
   const res = await fetch(`/api/requests/${requestId}/payments`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    body: JSON.stringify({ ...input, conversationId }),
   });
   return parseJson<RequestFinanceDto>(res, "Не удалось добавить отметку");
 }
 
-export async function markCustomerRequestPaymentPaid(requestId: string, paymentId: string): Promise<RequestFinanceDto> {
-  const res = await fetch(`/api/requests/${requestId}/payments/${paymentId}/paid`, { method: "POST" });
+export async function markCustomerRequestPaymentPaid(requestId: string, paymentId: string, conversationId?: string): Promise<RequestFinanceDto> {
+  const res = await fetch(`/api/requests/${requestId}/payments/${paymentId}/paid${financeContextQuery(conversationId)}`, { method: "POST" });
   return parseJson<RequestFinanceDto>(res, "Не удалось отметить платёж как оплаченный");
 }
