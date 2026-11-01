@@ -1278,7 +1278,7 @@ function toFinanceDto(
   const scopedTotalAmountRubles =
     proposal?.acceptedAt != null
       ? proposal.amountRubles
-      : row.providerId === financeProviderId
+      : financeProviderId != null && row.providerId === financeProviderId
         ? (row.totalAmountRubles ?? null)
         : null;
   const paidAmountRubles = sumPaidRublesByType(
