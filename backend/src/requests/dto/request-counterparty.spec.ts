@@ -191,6 +191,7 @@ describe('requestRowToCustomerDtoPlain counterparty contacts', () => {
 describe('request finance mapping', () => {
   const payment = {
     id: 'p1',
+    providerId: PROVIDER_ID,
     type: 'CONTRACT' as const,
     amountRubles: 5000,
     comment: 'Аванс',
@@ -198,21 +199,33 @@ describe('request finance mapping', () => {
     createdAt: NOW,
   };
 
-  it('отдаёт цену и журнал до lock заказчику и исполнителю, который видит заявку', () => {
+  it('до lock скрывает unscoped финансы у заказчика и отдаёт provider только его scope', () => {
     const row = makeRow({
       totalAmountRubles: 25000,
       servicePriceRubles: 12000,
       payments: [payment],
+      priceProposals: [
+        {
+          id: 'proposal-1',
+          providerId: PROVIDER_ID,
+          amountRubles: 25000,
+          authorSide: 'CUSTOMER',
+          acceptedAt: NOW,
+          createdAt: NOW,
+        },
+      ],
     });
     const customer = requestRowToCustomerDtoPlain(row);
     const provider = requestRowToProDtoPlain(row, 0, PROVIDER_ID);
-    expect(customer.totalAmountRubles).toBe(25000);
+    expect(customer.totalAmountRubles).toBeNull();
     expect(customer.servicePriceRubles).toBe(12000);
-    expect(customer.paidAmountRubles).toBe(5000);
-    expect(customer.remainingAmountRubles).toBe(20000);
-    expect(customer.payments[0]?.createdBySide).toBeNull();
+    expect(customer.paidAmountRubles).toBe(0);
+    expect(customer.remainingAmountRubles).toBeNull();
+    expect(customer.payments).toEqual([]);
     expect(provider.totalAmountRubles).toBe(25000);
     expect(provider.servicePriceRubles).toBe(12000);
+    expect(provider.paidAmountRubles).toBe(5000);
+    expect(provider.remainingAmountRubles).toBe(20000);
     expect(provider.payments).toHaveLength(1);
   });
 

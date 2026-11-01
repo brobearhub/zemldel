@@ -49,6 +49,7 @@ function makeAcceptedRequest() {
     payments: [
       {
         id: 'payment-1',
+        providerId: 'provider-1',
         type: 'CONTRACT',
         amountRubles: 5000,
         comment: 'Аванс',
