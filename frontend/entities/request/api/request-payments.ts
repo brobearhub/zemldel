@@ -64,8 +64,15 @@ function financeContextQuery(conversationId?: string): string {
     : "";
 }
 
-export async function fetchCustomerRequestFinance(requestId: string, conversationId?: string): Promise<RequestFinanceDto> {
-  const res = await fetch(`/api/requests/${requestId}/payments${financeContextQuery(conversationId)}`, { cache: "no-store" });
+export async function fetchCustomerRequestFinance(
+  requestId: string,
+  conversationId?: string,
+  signal?: AbortSignal,
+): Promise<RequestFinanceDto> {
+  const res = await fetch(
+    `/api/requests/${requestId}/payments${financeContextQuery(conversationId)}`,
+    { cache: "no-store", signal },
+  );
   return parseJson<RequestFinanceDto>(res, "Не удалось загрузить оплату");
 }
 

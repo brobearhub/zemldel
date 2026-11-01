@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Alert,
@@ -113,6 +113,7 @@ import {
   fetchCustomerRequestFinance,
   type RequestFinanceDto,
 } from "@/entities/request/api/request-payments";
+import { createLatestFinanceRequestRunner } from "../model/latest-finance-request";
 
 function pickTitle(req: RequestCustomerDto) {
   if (req.subjectType === "SERVICE") return req.serviceTitle ?? "Заявка по услуге";
@@ -154,6 +155,9 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
       : null,
     payments: initialRequest.lockedAt ? initialRequest.payments : [],
   });
+  const financeRequestRunner = useRef(
+    createLatestFinanceRequestRunner<RequestFinanceDto>(setFinance),
+  );
   const [conversations, setConversations] = useState<ChatServiceRequestConversationListItemDto[]>([]);
   const [conversationsLoaded, setConversationsLoaded] = useState(false);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
@@ -187,14 +191,21 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
 
   const refreshFinance = useCallback(async () => {
     if (!req.lockedAt && !selectedConversationId) {
+      financeRequestRunner.current.cancel();
       return;
     }
-    const next = await fetchCustomerRequestFinance(
-      req.id,
-      selectedConversationId ?? undefined,
+    const conversationId = req.lockedAt
+      ? undefined
+      : (selectedConversationId ?? undefined);
+    const financeKey = req.lockedAt
+      ? `provider:${req.providerId ?? "missing"}`
+      : `conversation:${selectedConversationId}`;
+    await financeRequestRunner.current.run(
+      financeKey,
+      (signal) =>
+        fetchCustomerRequestFinance(req.id, conversationId, signal),
     );
-    setFinance(next);
-  }, [req.id, req.lockedAt, selectedConversationId]);
+  }, [req.id, req.lockedAt, req.providerId, selectedConversationId]);
 
   useEffect(() => {
     void refreshFinance().catch((financeError: unknown) => {
@@ -205,6 +216,13 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
       );
     });
   }, [refreshFinance]);
+
+  useEffect(
+    () => () => {
+      financeRequestRunner.current.cancel();
+    },
+    [],
+  );
 
   const loadConversations = useCallback(async () => {
     return fetchCustomerRequestConversations(req.id);
