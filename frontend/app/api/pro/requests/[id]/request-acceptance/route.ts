@@ -2,17 +2,35 @@ import { NextResponse } from "next/server";
 import { fetchBackendAsUser } from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
 
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const { id } = await params;
   try {
     const session = await getServerAuthSession();
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session?.user?.id)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const response = await fetchBackendAsUser(`/pro/requests/${id}/request-acceptance`, session.user.id, { method: "POST" });
-    const payload = await response.json().catch(() => ({ error: "Failed to request acceptance" }));
+    const body: unknown = await request.json().catch(() => null);
+    const response = await fetchBackendAsUser(
+      `/pro/requests/${id}/request-acceptance`,
+      session.user.id,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    );
+    const payload = await response
+      .json()
+      .catch(() => ({ error: "Failed to request acceptance" }));
     return NextResponse.json(payload, { status: response.status });
   } catch (error) {
     console.error("Error requesting acceptance:", error);
-    return NextResponse.json({ error: "Failed to request acceptance" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to request acceptance" },
+      { status: 500 },
+    );
   }
 }

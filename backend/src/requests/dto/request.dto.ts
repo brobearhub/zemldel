@@ -1433,7 +1433,7 @@ export function requestRowToProDtoPlain(
   const canRevealBasicDetails = !locked || revealMessageForLocked;
 
   const offers = row.providerOffers ?? [];
-  const deliverySubmissions = toDeliverySubmissionsDto(row);
+  const deliverySubmissions = locked ? [] : toDeliverySubmissionsDto(row);
   const myOffer = offers.find((o) => o.providerId === actorProviderId) ?? null;
 
   const subjectType = locked

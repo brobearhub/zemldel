@@ -509,17 +509,15 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
           const res = await fetch(`/api/pro/requests/${req.id}/complete`, {
             method: "POST",
           });
-          const payload = (await res.json().catch(() => null)) as
-            { error?: string } | unknown | null;
-          if (!res.ok)
-            throw new Error(
-              payload &&
-                typeof payload === "object" &&
-                payload &&
-                "error" in (payload as any)
-                ? ((payload as any).error as string)
-                : "Не удалось завершить",
-            );
+          const payload: unknown = await res.json().catch(() => null);
+          const errorMessage =
+            payload &&
+            typeof payload === "object" &&
+            "error" in payload &&
+            typeof payload.error === "string"
+              ? payload.error
+              : "Не удалось завершить";
+          if (!res.ok) throw new Error(errorMessage);
           await refresh();
           setNotice("Сделка завершена.");
           return;

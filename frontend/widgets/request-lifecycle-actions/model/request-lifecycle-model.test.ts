@@ -1,7 +1,17 @@
-import type { RequestCustomerDto, RequestProDto, RequestStatus, RequestSubjectType } from "@/entities/request";
-import { buildRequestLifecycleViewModel, isLifecycleEmpty } from "./request-lifecycle-model";
+import type {
+  RequestCustomerDto,
+  RequestProDto,
+  RequestStatus,
+  RequestSubjectType,
+} from "@/entities/request";
+import {
+  buildRequestLifecycleViewModel,
+  isLifecycleEmpty,
+} from "./request-lifecycle-model";
 
-function makeCustomer(overrides: Partial<RequestCustomerDto> = {}): RequestCustomerDto {
+function makeCustomer(
+  overrides: Partial<RequestCustomerDto> = {},
+): RequestCustomerDto {
   return {
     id: "r1",
     subjectType: "FREEFORM" satisfies RequestSubjectType,
@@ -18,6 +28,8 @@ function makeCustomer(overrides: Partial<RequestCustomerDto> = {}): RequestCusto
     acceptanceRequestedAt: null,
     autoAcceptAt: null,
     acceptedAt: null,
+    currentSubmission: null,
+    deliverySubmissions: [],
     selectedProviderIds: [],
     declinedProviderIds: [],
     lastSelectionAt: null,
@@ -71,6 +83,8 @@ function makeProvider(overrides: Partial<RequestProDto> = {}): RequestProDto {
     acceptanceRequestedAt: null,
     autoAcceptAt: null,
     acceptedAt: null,
+    currentSubmission: null,
+    deliverySubmissions: [],
     offerStatus: null,
     offerSelectedAt: null,
     offerDeclinedAt: null,
@@ -106,30 +120,59 @@ describe("buildRequestLifecycleViewModel", () => {
       status: "ACCEPTANCE_PENDING",
       autoAcceptAt: new Date("2026-02-01T10:00:00.000Z").toISOString(),
     });
-    const vm = buildRequestLifecycleViewModel({ side: "customer", request: req, canAcceptContract: false });
+    const vm = buildRequestLifecycleViewModel({
+      side: "customer",
+      request: req,
+      canAcceptContract: false,
+    });
 
     expect(vm.actions.map((a) => a.id)).toEqual(["acceptResult"]);
-    expect(vm.autoAcceptAtLabel?.startsWith("Проверьте результат до ")).toBe(true);
+    expect(vm.autoAcceptAtLabel?.startsWith("Проверьте результат до ")).toBe(
+      true,
+    );
   });
 
   it("customer: shows open offer action when contract can be accepted", () => {
-    const req = makeCustomer({ status: "DISCUSSING", lockedAt: "2026-08-06T00:00:00.000Z" });
-    const vm = buildRequestLifecycleViewModel({ side: "customer", request: req, canAcceptContract: true });
+    const req = makeCustomer({
+      status: "DISCUSSING",
+      lockedAt: "2026-08-06T00:00:00.000Z",
+    });
+    const vm = buildRequestLifecycleViewModel({
+      side: "customer",
+      request: req,
+      canAcceptContract: true,
+    });
 
     expect(vm.actions.map((a) => a.id)).toEqual(["openOfferDialog"]);
   });
 
   it("provider: shows locked alert and hides actions when request is locked", () => {
-    const req = makeProvider({ status: "ACTIVE", isLocked: true, offerStatus: "SELECTED" });
-    const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
+    const req = makeProvider({
+      status: "ACTIVE",
+      isLocked: true,
+      offerStatus: "SELECTED",
+    });
+    const vm = buildRequestLifecycleViewModel({
+      side: "provider",
+      request: req,
+    });
 
-    expect(vm.lockedAlert?.title).toBe("Клиент выбрал другого исполнителя. Переписка сохранена для просмотра.");
+    expect(vm.lockedAlert?.title).toBe(
+      "Клиент выбрал другого исполнителя. Переписка сохранена для просмотра.",
+    );
     expect(vm.actions).toEqual([]);
   });
 
   it("provider: ACTIVE shows markRendered", () => {
-    const req = makeProvider({ status: "ACTIVE", offerStatus: "SELECTED", lockedAt: "2026-08-06T00:00:00.000Z" });
-    const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
+    const req = makeProvider({
+      status: "ACTIVE",
+      offerStatus: "SELECTED",
+      lockedAt: "2026-08-06T00:00:00.000Z",
+    });
+    const vm = buildRequestLifecycleViewModel({
+      side: "provider",
+      request: req,
+    });
 
     expect(vm.actions.map((a) => a.id)).not.toContain("startWork");
     expect(vm.actions.map((a) => a.id)).toContain("markRendered");
@@ -141,7 +184,10 @@ describe("buildRequestLifecycleViewModel", () => {
       offerStatus: "SELECTED",
       lockedAt: "2026-08-06T00:00:00.000Z",
     });
-    const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
+    const vm = buildRequestLifecycleViewModel({
+      side: "provider",
+      request: req,
+    });
 
     expect(vm.actions.map((a) => a.id)).not.toContain("requestAcceptance");
     expect(vm.actions.map((a) => a.id)).not.toContain("markRendered");
@@ -149,16 +195,27 @@ describe("buildRequestLifecycleViewModel", () => {
 
   it("provider: allows decline on non-execution status when offer is selected", () => {
     const req = makeProvider({ status: "DISCUSSING", offerStatus: "SELECTED" });
-    const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
+    const vm = buildRequestLifecycleViewModel({
+      side: "provider",
+      request: req,
+    });
 
     expect(vm.actions.map((a) => a.id)).toContain("declineOffer");
-    expect(vm.actions.find((a) => a.id === "declineOffer")?.label).toBe("Отказаться от заявки");
+    expect(vm.actions.find((a) => a.id === "declineOffer")?.label).toBe(
+      "Отказаться от заявки",
+    );
   });
 
   it("provider: includes dialogs info row while client is choosing", () => {
     const req = makeProvider({ status: "DISCUSSING", conversationsCount: 1 });
-    const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
-    expect(vm.infoRows).toContainEqual({ label: "Клиент общается с компаниями", value: "1" });
+    const vm = buildRequestLifecycleViewModel({
+      side: "provider",
+      request: req,
+    });
+    expect(vm.infoRows).toContainEqual({
+      label: "Клиент общается с компаниями",
+      value: "1",
+    });
   });
 
   it("provider: SERVICE never shows dialogs info row", () => {
@@ -168,8 +225,13 @@ describe("buildRequestLifecycleViewModel", () => {
       lockedAt: null,
       conversationsCount: 1,
     });
-    const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
-    expect(vm.infoRows.map((r) => r.label)).not.toContain("Клиент общается с компаниями");
+    const vm = buildRequestLifecycleViewModel({
+      side: "provider",
+      request: req,
+    });
+    expect(vm.infoRows.map((r) => r.label)).not.toContain(
+      "Клиент общается с компаниями",
+    );
   });
 
   it("provider: SERVICE allows decline before execution even when request is locked", () => {
@@ -179,14 +241,26 @@ describe("buildRequestLifecycleViewModel", () => {
       offerStatus: "SELECTED",
       lockedAt: "2026-08-06T00:00:00.000Z",
     });
-    const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
+    const vm = buildRequestLifecycleViewModel({
+      side: "provider",
+      request: req,
+    });
     expect(vm.actions.map((a) => a.id)).toContain("declineOffer");
   });
 
   it("provider: hides dialogs info row once a provider is chosen", () => {
-    const req = makeProvider({ status: "DISCUSSING", lockedAt: "2026-08-06T00:00:00.000Z", conversationsCount: 1 });
-    const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
-    expect(vm.infoRows.map((r) => r.label)).not.toContain("Клиент общается с компаниями");
+    const req = makeProvider({
+      status: "DISCUSSING",
+      lockedAt: "2026-08-06T00:00:00.000Z",
+      conversationsCount: 1,
+    });
+    const vm = buildRequestLifecycleViewModel({
+      side: "provider",
+      request: req,
+    });
+    expect(vm.infoRows.map((r) => r.label)).not.toContain(
+      "Клиент общается с компаниями",
+    );
   });
 
   it("customer: ACCEPTED hides auto-accept note", () => {
@@ -194,14 +268,23 @@ describe("buildRequestLifecycleViewModel", () => {
       status: "ACCEPTED",
       autoAcceptAt: new Date("2026-02-01T10:00:00.000Z").toISOString(),
     });
-    const vm = buildRequestLifecycleViewModel({ side: "customer", request: req, canAcceptContract: false });
+    const vm = buildRequestLifecycleViewModel({
+      side: "customer",
+      request: req,
+      canAcceptContract: false,
+    });
     expect(vm.autoAcceptAtLabel).toBeNull();
   });
 
   it("provider: hides dialogs info row once work started", () => {
     const req = makeProvider({ status: "ACTIVE", conversationsCount: 3 });
-    const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
-    expect(vm.infoRows.map((r) => r.label)).not.toContain("Клиент общается с компаниями");
+    const vm = buildRequestLifecycleViewModel({
+      side: "provider",
+      request: req,
+    });
+    expect(vm.infoRows.map((r) => r.label)).not.toContain(
+      "Клиент общается с компаниями",
+    );
   });
 
   it("provider: ACCEPTANCE_PENDING shows auto-accept date", () => {
@@ -211,8 +294,13 @@ describe("buildRequestLifecycleViewModel", () => {
       lockedAt: "2026-08-06T00:00:00.000Z",
       autoAcceptAt: new Date("2026-02-01T10:00:00.000Z").toISOString(),
     });
-    const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
-    expect(vm.autoAcceptAtLabel?.startsWith("Ждём проверки заказчика до ")).toBe(true);
+    const vm = buildRequestLifecycleViewModel({
+      side: "provider",
+      request: req,
+    });
+    expect(
+      vm.autoAcceptAtLabel?.startsWith("Ждём проверки заказчика до "),
+    ).toBe(true);
   });
 
   it("provider: allows complete while remaining payment is positive", () => {
@@ -225,7 +313,10 @@ describe("buildRequestLifecycleViewModel", () => {
       paidAmountRubles: 5000,
       remainingAmountRubles: 20000,
     });
-    const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
+    const vm = buildRequestLifecycleViewModel({
+      side: "provider",
+      request: req,
+    });
     const complete = vm.actions.find((a) => a.id === "complete");
     expect(complete?.disabled).toBeFalsy();
     expect(vm.note).toContain("Осталось доплатить");
@@ -241,7 +332,10 @@ describe("buildRequestLifecycleViewModel", () => {
       paidAmountRubles: 25000,
       remainingAmountRubles: 0,
     });
-    const vm = buildRequestLifecycleViewModel({ side: "provider", request: req });
+    const vm = buildRequestLifecycleViewModel({
+      side: "provider",
+      request: req,
+    });
     expect(vm.actions.find((a) => a.id === "complete")?.disabled).toBeFalsy();
     expect(vm.note).toBeNull();
   });
@@ -263,7 +357,11 @@ describe("buildRequestLifecycleViewModel", () => {
 
   it("isLifecycleEmpty: true when nothing to show", () => {
     const req = makeCustomer({ status: "NEW" });
-    const vm = buildRequestLifecycleViewModel({ side: "customer", request: req, canAcceptContract: false });
+    const vm = buildRequestLifecycleViewModel({
+      side: "customer",
+      request: req,
+      canAcceptContract: false,
+    });
     expect(isLifecycleEmpty(vm)).toBe(true);
   });
 });
