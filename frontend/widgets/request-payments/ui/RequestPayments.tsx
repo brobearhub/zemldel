@@ -207,6 +207,7 @@ function AddPaymentTrigger({
 export type RequestPaymentsProps = {
   mode: "customer" | "provider";
   requestId: string;
+  conversationId?: string;
   status: RequestStatus;
   lockedAt: string | null | undefined;
   isLocked?: boolean;
@@ -302,7 +303,11 @@ export function RequestPayments(props: RequestPaymentsProps) {
       if (props.mode === "provider") {
         await proposeProRequestPrice(props.requestId, rubles);
       } else {
-        await proposeCustomerRequestPrice(props.requestId, rubles);
+        await proposeCustomerRequestPrice(
+          props.requestId,
+          rubles,
+          props.conversationId,
+        );
       }
       setTotalInput("");
       setTotalEditOpen(false);
@@ -324,7 +329,11 @@ export function RequestPayments(props: RequestPaymentsProps) {
       if (props.mode === "provider") {
         await acceptProRequestPrice(props.requestId, props.priceProposal.id);
       } else {
-        await acceptCustomerRequestPrice(props.requestId, props.priceProposal.id);
+        await acceptCustomerRequestPrice(
+          props.requestId,
+          props.priceProposal.id,
+          props.conversationId,
+        );
       }
       await props.onChanged?.();
     } catch (e) {
@@ -354,7 +363,11 @@ export function RequestPayments(props: RequestPaymentsProps) {
       if (props.mode === "provider") {
         await addProRequestPayment(props.requestId, payload);
       } else {
-        await addCustomerRequestPayment(props.requestId, payload);
+        await addCustomerRequestPayment(
+          props.requestId,
+          payload,
+          props.conversationId,
+        );
       }
       if (input.type === "CONTRACT") {
         setContractAmountInput("");
@@ -391,7 +404,11 @@ export function RequestPayments(props: RequestPaymentsProps) {
       if (props.mode === "provider") {
         await markProRequestPaymentPaid(props.requestId, paymentId);
       } else {
-        await markCustomerRequestPaymentPaid(props.requestId, paymentId);
+        await markCustomerRequestPaymentPaid(
+          props.requestId,
+          paymentId,
+          props.conversationId,
+        );
       }
       await props.onChanged?.();
     } catch (e) {

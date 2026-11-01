@@ -550,9 +550,12 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
 
       throw new Error("Unsupported action");
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Не удалось выполнить действие",
-      );
+      const actionError =
+        e instanceof Error
+          ? e
+          : new Error("Не удалось выполнить действие");
+      setError(actionError.message);
+      throw actionError;
     } finally {
       setBusy(false);
     }

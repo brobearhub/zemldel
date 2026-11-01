@@ -171,6 +171,31 @@ describe("RequestLifecycleActions delivery dialog", () => {
     expect(markRendered).toHaveBeenCalledWith("Результат готов");
   });
 
+  it("не закрывает диалог и сохраняет итог при ошибке сдачи", async () => {
+    const user = userEvent.setup();
+    const markRendered = vi
+      .fn<(summary: string) => Promise<void>>()
+      .mockRejectedValue(new Error("Сдача отклонена"));
+    const { behavior } = createProviderBehavior(
+      makeProvider(),
+      markRendered,
+    );
+
+    render(<RequestLifecycleActions behavior={behavior} />);
+
+    await user.click(screen.getByRole("button", { name: "Услуга выполнена" }));
+    const input = screen.getByRole("textbox", { name: "Итог результата" });
+    await user.type(input, "Итог для повторной отправки");
+    await user.click(
+      screen.getByRole("button", { name: "Передать на принятие" }),
+    );
+
+    expect(
+      await screen.findByRole("textbox", { name: "Итог результата" }),
+    ).toHaveValue("Итог для повторной отправки");
+    expect(markRendered).toHaveBeenCalledTimes(1);
+  });
+
   it("при повторной сдаче показывает «Что исправлено»", async () => {
     const user = userEvent.setup();
     const { behavior } = createProviderBehavior(

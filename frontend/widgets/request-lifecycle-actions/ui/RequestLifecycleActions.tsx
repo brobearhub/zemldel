@@ -243,6 +243,9 @@ export function RequestLifecycleActions(props: RequestLifecycleActionsProps) {
                 }),
               )
                 .then(() => setSubmissionDialogOpen(false))
+                .catch(() => {
+                  // Контейнер уже показал доменную ошибку; диалог и итог сохраняем.
+                })
                 .finally(() => setPendingId(null));
             }}
           >

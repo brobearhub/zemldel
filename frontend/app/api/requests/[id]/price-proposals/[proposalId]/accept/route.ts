@@ -3,15 +3,19 @@ import { getServerAuthSession } from "@/core/auth";
 import { fetchBackendAsUser } from "@/shared/api/backend/server";
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string; proposalId: string }> },
 ) {
   const { id, proposalId } = await params;
   try {
     const session = await getServerAuthSession();
     if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const conversationId = new URL(request.url).searchParams.get("conversationId");
+    const query = conversationId
+      ? `?conversationId=${encodeURIComponent(conversationId)}`
+      : "";
     const response = await fetchBackendAsUser(
-      `/requests/mine/${id}/price-proposals/${proposalId}/accept`,
+      `/requests/mine/${id}/price-proposals/${proposalId}/accept${query}`,
       session.user.id,
       { method: "POST" },
     );

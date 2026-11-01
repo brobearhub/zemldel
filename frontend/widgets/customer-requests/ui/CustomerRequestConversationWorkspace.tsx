@@ -109,6 +109,10 @@ import {
   selectProviderAndPrepareConversation,
   type SelectedProviderChatResult,
 } from "@/features/select-request-provider";
+import {
+  fetchCustomerRequestFinance,
+  type RequestFinanceDto,
+} from "@/entities/request/api/request-payments";
 
 function pickTitle(req: RequestCustomerDto) {
   if (req.subjectType === "SERVICE") return req.serviceTitle ?? "Заявка по услуге";
@@ -129,6 +133,27 @@ type ChatRecovery = Extract<
 export function CustomerRequestConversationWorkspace({ initialRequest, justCreated = false }: Props) {
   const router = useRouter();
   const [req, setReq] = useState<RequestCustomerDto>(initialRequest);
+  const [finance, setFinance] = useState<RequestFinanceDto>({
+    totalAmountRubles: initialRequest.lockedAt
+      ? initialRequest.totalAmountRubles
+      : null,
+    priceProposal: initialRequest.lockedAt
+      ? (initialRequest.priceProposal ?? null)
+      : null,
+    canProposePrice: initialRequest.lockedAt
+      ? initialRequest.canProposePrice
+      : false,
+    canAcceptPrice: initialRequest.lockedAt
+      ? initialRequest.canAcceptPrice
+      : false,
+    paidAmountRubles: initialRequest.lockedAt
+      ? initialRequest.paidAmountRubles
+      : 0,
+    remainingAmountRubles: initialRequest.lockedAt
+      ? initialRequest.remainingAmountRubles
+      : null,
+    payments: initialRequest.lockedAt ? initialRequest.payments : [],
+  });
   const [conversations, setConversations] = useState<ChatServiceRequestConversationListItemDto[]>([]);
   const [conversationsLoaded, setConversationsLoaded] = useState(false);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
@@ -159,6 +184,27 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
     () => conversations.find((c) => c.conversationId === selectedConversationId) ?? null,
     [conversations, selectedConversationId]
   );
+
+  const refreshFinance = useCallback(async () => {
+    if (!req.lockedAt && !selectedConversationId) {
+      return;
+    }
+    const next = await fetchCustomerRequestFinance(
+      req.id,
+      selectedConversationId ?? undefined,
+    );
+    setFinance(next);
+  }, [req.id, req.lockedAt, selectedConversationId]);
+
+  useEffect(() => {
+    void refreshFinance().catch((financeError: unknown) => {
+      setError(
+        financeError instanceof Error
+          ? financeError.message
+          : "Не удалось загрузить оплату",
+      );
+    });
+  }, [refreshFinance]);
 
   const loadConversations = useCallback(async () => {
     return fetchCustomerRequestConversations(req.id);
@@ -307,7 +353,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
   const canAcceptContract = canCustomerAcceptContract({
     requestStatus: req.status,
     lockedAt: req.lockedAt,
-    totalAmountRubles: req.totalAmountRubles,
+    totalAmountRubles: finance.totalAmountRubles,
     contractBundles,
     documentRequests: docRequests,
   });
@@ -652,7 +698,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
   }
 
   async function acceptResult() {
-    const remaining = req.remainingAmountRubles ?? 0;
+    const remaining = finance.remainingAmountRubles ?? 0;
     const ok = await confirm({
       title: "Принять результат?",
       description: [
@@ -754,9 +800,9 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
   const showCounterparty = canShowCustomerCounterpartyButton({ lockedAt: req.lockedAt });
   const showPayment = true;
   const priceView = resolveRequestPriceView({
-    totalAmountRubles: req.totalAmountRubles,
+    totalAmountRubles: finance.totalAmountRubles,
     servicePriceRubles: req.servicePriceRubles,
-    priceProposal: req.priceProposal,
+    priceProposal: finance.priceProposal,
   });
   const createdNotice = justCreated
     ? `Заявка создана: ${headerTitle}${priceView.statedAmount != null ? `, ${formatRubles(priceView.statedAmount)}` : ""}. Напишите исполнителю, что нужно`
@@ -769,7 +815,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
 
   const panelItems = [
     { id: "cadastral", label: "Кадастровый номер", visible: true, endIcon: <PinDropOutlinedIcon /> },
-    { id: "payment", label: resolvePaymentTriggerLabel(req.totalAmountRubles), caption: priceView.triggerCaption, visible: showPayment, endIcon: <PaymentIcon /> },
+    { id: "payment", label: resolvePaymentTriggerLabel(finance.totalAmountRubles), caption: priceView.triggerCaption, visible: showPayment, endIcon: <PaymentIcon /> },
     { id: "counterparty", label: resolveProviderTriggerLabel(req.providerName), visible: showCounterparty, endIcon: <AssignmentIndIcon /> },
   ] as const;
 
@@ -821,18 +867,19 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
       <RequestPayments
         mode="customer"
         requestId={req.id}
+        conversationId={selectedConversationId ?? undefined}
         status={req.status}
         lockedAt={req.lockedAt}
-        totalAmountRubles={req.totalAmountRubles}
+        totalAmountRubles={finance.totalAmountRubles}
         servicePriceRubles={req.servicePriceRubles}
-        priceProposal={req.priceProposal}
-        canProposePrice={req.canProposePrice}
-        canAcceptPrice={req.canAcceptPrice}
-        paidAmountRubles={req.paidAmountRubles}
-        remainingAmountRubles={req.remainingAmountRubles}
-        payments={req.payments}
+        priceProposal={finance.priceProposal}
+        canProposePrice={finance.canProposePrice}
+        canAcceptPrice={finance.canAcceptPrice}
+        paidAmountRubles={finance.paidAmountRubles}
+        remainingAmountRubles={finance.remainingAmountRubles}
+        payments={finance.payments}
         busy={busy}
-        onChanged={refreshRequest}
+        onChanged={refreshFinance}
       />
     ) : activePanel?.id === "counterparty" ? (
       <RequestCounterpartyPanel fields={providerFields} avatarSrc={req.providerImage} avatarName={req.providerName} />
@@ -867,16 +914,16 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
               lead={
                 <Stack spacing={0.5} sx={{ minWidth: 0 }}>
                   <RequestPriceBlock
-                    totalAmountRubles={req.totalAmountRubles}
+                    totalAmountRubles={finance.totalAmountRubles}
                     servicePriceRubles={req.servicePriceRubles}
-                    priceProposal={req.priceProposal}
+                    priceProposal={finance.priceProposal}
                     serviceId={req.serviceId}
                   />
                   {req.status === "ACCEPTANCE_PENDING" ? (
                     <RequestPriceBlock
-                      totalAmountRubles={req.totalAmountRubles}
+                      totalAmountRubles={finance.totalAmountRubles}
                       servicePriceRubles={req.servicePriceRubles}
-                      priceProposal={req.priceProposal}
+                      priceProposal={finance.priceProposal}
                       statedOnly
                     />
                   ) : null}
@@ -1117,9 +1164,9 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
                   {termsVersion ? ` (версия ${termsVersion})` : ""}.
                 </Typography>
                 <RequestPriceBlock
-                  totalAmountRubles={req.totalAmountRubles}
+                  totalAmountRubles={finance.totalAmountRubles}
                   servicePriceRubles={req.servicePriceRubles}
-                  priceProposal={req.priceProposal}
+                  priceProposal={finance.priceProposal}
                   statedOnly
                 />
                 {termsError ? <Alert severity="error">{termsError}</Alert> : null}
@@ -1145,7 +1192,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
                 variant="contained"
                 color="success"
                 loading={pendingAction === "accept-contract"}
-                disabled={busy || termsBusy || !termsAccepted || !termsVersion || req.totalAmountRubles == null}
+                disabled={busy || termsBusy || !termsAccepted || !termsVersion || finance.totalAmountRubles == null}
                 onClick={() => void acceptContract()}
               >
                 Подписать договор
