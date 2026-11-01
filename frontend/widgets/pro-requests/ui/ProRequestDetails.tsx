@@ -22,7 +22,6 @@ import {
   resolvePaymentTriggerLabel,
   resolveRequestDetailBody,
   resolveRequestDetailTitle,
-  formatRubles,
   resolveRequestPriceView,
   SYSTEM_WORK_STAGE_STATUSES,
   type RequestRemarkDto,
@@ -64,6 +63,7 @@ import {
   fetchProRequestRemarks,
 } from "@/entities/request/api/request-remarks";
 import { shouldShowProviderPaymentPanel } from "../model/request-payment-panel-visibility";
+import { buildRequestCompletionDescription } from "../model/request-completion-copy";
 import {
   deleteProRequestContractFile,
 } from "@/entities/request/api/pro-contract-files";
@@ -684,12 +684,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
                     const remaining = req.remainingAmountRubles ?? 0;
                     const ok = await confirm({
                       title: "Завершить заявку?",
-                      description: [
-                        "После завершения отмечать оплаты по заявке будет нельзя.",
-                        remaining > 0 ? `Остаток ${formatRubles(remaining)} ещё не отмечен оплаченным.` : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" "),
+                      description: buildRequestCompletionDescription(remaining),
                       confirmText: "Завершить",
                       confirmColor: "success",
                     });

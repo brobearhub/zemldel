@@ -1,6 +1,16 @@
 import type { RequestStatus } from "@/entities/request";
 
-const CLOSED_STATUSES: readonly RequestStatus[] = ["COMPLETED", "CANCELLED", "CLOSED"];
+const PRICE_BLOCKED_STATUSES: readonly RequestStatus[] = ["COMPLETED", "CANCELLED", "CLOSED"];
+const PAYMENT_BLOCKED_STATUSES: readonly RequestStatus[] = ["CANCELLED", "CLOSED"];
+
+export type RequestPaymentPermissions = {
+  canEditPrice: boolean;
+  canAddPayment: boolean;
+  canMarkPaid: boolean;
+  canEditPayments: boolean;
+  canProposePrice: boolean;
+  canAcceptPrice: boolean;
+};
 
 export function resolveRequestPaymentPermissions(input: {
   status: RequestStatus;
@@ -8,14 +18,22 @@ export function resolveRequestPaymentPermissions(input: {
   isLocked: boolean;
   canProposePrice: boolean;
   canAcceptPrice: boolean;
-}) {
-  const canEditPayments =
-    !CLOSED_STATUSES.includes(input.status) && (input.mode === "customer" || !input.isLocked);
+}): RequestPaymentPermissions {
+  const canEditPrice =
+    !PRICE_BLOCKED_STATUSES.includes(input.status) &&
+    (input.canProposePrice || input.canAcceptPrice);
+  const canAddPayment =
+    !PAYMENT_BLOCKED_STATUSES.includes(input.status) &&
+    (input.mode === "customer" || !input.isLocked);
+  const canMarkPaid = canAddPayment;
   return {
-    canEditPayments,
+    canEditPrice,
+    canAddPayment,
+    canMarkPaid,
+    canEditPayments: canAddPayment,
     canProposePrice:
-      !CLOSED_STATUSES.includes(input.status) && input.canProposePrice,
+      canEditPrice && input.canProposePrice,
     canAcceptPrice:
-      !CLOSED_STATUSES.includes(input.status) && input.canAcceptPrice,
+      canEditPrice && input.canAcceptPrice,
   };
 }
