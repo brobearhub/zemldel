@@ -340,11 +340,11 @@ export function buildRequestLifecycleViewModel(
     autoAcceptAtLabel: stateVm.autoAcceptAtLabel,
     deliverySubmissionPrompt:
       input.side === "provider" && input.request.status === "ACTIVE"
-        ? (input.request.deliverySubmissions?.length ?? 0) > 0
+        ? input.request.deliverySubmissions.length > 0
           ? "Что исправлено"
           : "Итог результата"
         : null,
-    deliverySubmissions: input.request.deliverySubmissions ?? [],
+    deliverySubmissions: input.request.deliverySubmissions,
   };
 }
 

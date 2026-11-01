@@ -108,8 +108,8 @@ export type RequestCustomerDto = {
   acceptanceRequestedAt: string | null;
   autoAcceptAt: string | null;
   acceptedAt: string | null;
-  currentSubmission?: RequestDeliverySubmissionDto | null;
-  deliverySubmissions?: RequestDeliverySubmissionDto[];
+  currentSubmission: RequestDeliverySubmissionDto | null;
+  deliverySubmissions: RequestDeliverySubmissionDto[];
   selectedProviderIds: string[];
   declinedProviderIds: string[];
   lastSelectionAt: string | null;
@@ -166,8 +166,8 @@ export type RequestProDto = {
   acceptanceRequestedAt: string | null;
   autoAcceptAt: string | null;
   acceptedAt: string | null;
-  currentSubmission?: RequestDeliverySubmissionDto | null;
-  deliverySubmissions?: RequestDeliverySubmissionDto[];
+  currentSubmission: RequestDeliverySubmissionDto | null;
+  deliverySubmissions: RequestDeliverySubmissionDto[];
   offerStatus: RequestProviderOfferStatus | null;
   offerSelectedAt: string | null;
   offerDeclinedAt: string | null;

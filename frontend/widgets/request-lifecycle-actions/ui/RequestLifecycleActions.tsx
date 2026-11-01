@@ -16,6 +16,7 @@ import {
 import type { RequestLifecycleBehavior } from "../model/request-lifecycle-behavior";
 import { isLifecycleEmpty } from "../model/request-lifecycle-model";
 import { normalizeDeliverySummary } from "../model/delivery-submission-dialog-model";
+import { splitSafeSummaryLinks } from "../model/delivery-summary-links";
 
 export type RequestLifecycleActionsProps = {
   behavior: RequestLifecycleBehavior;
@@ -104,7 +105,21 @@ export function RequestLifecycleActions(props: RequestLifecycleActionsProps) {
                   variant="body2"
                   sx={{ whiteSpace: "pre-wrap", mt: 0.5 }}
                 >
-                  {submission.summary}
+                  {splitSafeSummaryLinks(submission.summary).map(
+                    (part, index) =>
+                      part.type === "link" ? (
+                        <a
+                          key={`${part.value}-${index}`}
+                          href={part.value}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                        >
+                          {part.value}
+                        </a>
+                      ) : (
+                        part.value
+                      ),
+                  )}
                 </Typography>
                 {submission.remarks.map((remark) => (
                   <Typography
