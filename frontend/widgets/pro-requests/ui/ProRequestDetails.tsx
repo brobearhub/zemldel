@@ -63,6 +63,7 @@ import {
   createProRequestRemark,
   fetchProRequestRemarks,
 } from "@/entities/request/api/request-remarks";
+import { shouldShowProviderPaymentPanel } from "../model/request-payment-panel-visibility";
 import {
   deleteProRequestContractFile,
 } from "@/entities/request/api/pro-contract-files";
@@ -539,7 +540,11 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     lockedAt: req.lockedAt,
     isLocked: req.isLocked,
   });
-  const showPayment = !req.isLocked;
+  const showPayment = shouldShowProviderPaymentPanel({
+    isLocked: req.isLocked,
+    canProposePrice: req.canProposePrice,
+    canAcceptPrice: req.canAcceptPrice,
+  });
   const priceView = resolveRequestPriceView({
     totalAmountRubles: req.totalAmountRubles,
     servicePriceRubles: req.servicePriceRubles,
