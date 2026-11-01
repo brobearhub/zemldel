@@ -444,6 +444,19 @@ export class RequestPaymentsService {
   }): Promise<RequestFinanceDto> {
     const now = new Date();
     const updated = await this.prisma.$transaction(async (tx) => {
+      const lock = await tx.request.updateMany({
+        where: {
+          id: input.request.id,
+          contractAcceptedAt: null,
+          status: { in: ['NEW', 'DISCUSSING', 'TERMS_AGREED'] },
+        },
+        data: { updatedAt: now },
+      });
+      if (lock.count !== 1) {
+        throw new ForbiddenException(
+          'Price cannot be changed after contract acceptance',
+        );
+      }
       await tx.requestPriceProposal.updateMany({
         where: {
           requestId: input.request.id,
@@ -532,6 +545,19 @@ export class RequestPaymentsService {
 
     const now = new Date();
     const updated = await this.prisma.$transaction(async (tx) => {
+      const lock = await tx.request.updateMany({
+        where: {
+          id: input.request.id,
+          contractAcceptedAt: null,
+          status: { in: ['NEW', 'DISCUSSING', 'TERMS_AGREED'] },
+        },
+        data: { updatedAt: now },
+      });
+      if (lock.count !== 1) {
+        throw new ForbiddenException(
+          'Price cannot be changed after contract acceptance',
+        );
+      }
       const accepted = await tx.requestPriceProposal.updateMany({
         where: {
           id: proposal.id,

@@ -37,6 +37,7 @@ describe('RequestPaymentsService', () => {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
       request: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         update: vi.fn().mockResolvedValue({
           totalAmountRubles: 12000,
           payments: [],
@@ -167,6 +168,7 @@ describe('RequestPaymentsService', () => {
         }),
       },
       request: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         update: vi.fn().mockResolvedValue({
           totalAmountRubles: null,
           payments: [],
@@ -241,6 +243,90 @@ describe('RequestPaymentsService', () => {
         amountRubles: 15000,
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('does not change price when contract is accepted after preload but before mutation transaction', async () => {
+    const state = {
+      status: 'DISCUSSING',
+      contractAcceptedAt: null as Date | null,
+      totalAmountRubles: 12000,
+      proposals: [
+        {
+          id: 'pp1',
+          providerId: PROVIDER_ID,
+          amountRubles: 12000,
+          authorSide: 'PROVIDER' as const,
+          proposedByUserId: 'provider-user',
+          acceptedAt: NOW,
+          acceptedByUserId: 'customer',
+          supersededAt: null as Date | null,
+          createdAt: NOW,
+        },
+      ],
+    };
+    const tx = {
+      request: {
+        updateMany: vi.fn().mockImplementation(() => ({
+          count: state.contractAcceptedAt == null ? 1 : 0,
+        })),
+        update: vi.fn().mockImplementation(() => {
+          state.totalAmountRubles = 0;
+          return { totalAmountRubles: null, payments: [] };
+        }),
+      },
+      requestPriceProposal: {
+        updateMany: vi.fn().mockImplementation(() => {
+          state.proposals[0].supersededAt = NOW;
+          return { count: 1 };
+        }),
+        create: vi.fn().mockImplementation(() => {
+          const proposal: (typeof state.proposals)[number] = {
+            ...state.proposals[0],
+            id: 'pp2',
+            amountRubles: 15000,
+            authorSide: 'CUSTOMER',
+            acceptedAt: null,
+            acceptedByUserId: null,
+            supersededAt: null,
+          };
+          state.proposals.push(proposal);
+          return proposal;
+        }),
+      },
+      requestEvent: { create: vi.fn().mockResolvedValue(null) },
+    };
+    const prisma = {
+      request: {
+        findFirst: vi.fn().mockImplementation(() => ({
+          id: 'r1',
+          status: state.status,
+          contractAcceptedAt: state.contractAcceptedAt,
+          providerId: PROVIDER_ID,
+          customerUserId: 'customer',
+          totalAmountRubles: state.totalAmountRubles,
+          payments: [],
+          priceProposals: state.proposals.map((proposal) => ({ ...proposal })),
+        })),
+      },
+      $transaction: vi.fn(
+        async (fn: (client: typeof tx) => Promise<unknown>) => {
+          state.status = 'ACTIVE';
+          state.contractAcceptedAt = NOW;
+          return fn(tx);
+        },
+      ),
+    };
+
+    await expect(
+      makeService(prisma).proposePriceForCustomer({
+        actorUserId: 'customer',
+        requestId: 'r1',
+        amountRubles: 15000,
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(state.totalAmountRubles).toBe(12000);
+    expect(state.proposals).toHaveLength(1);
+    expect(state.proposals[0]?.supersededAt).toBeNull();
   });
 
   it('proposePriceForProvider rejects other provider', async () => {
@@ -366,6 +452,7 @@ describe('RequestPaymentsService', () => {
         create: vi.fn().mockResolvedValue(proposal),
       },
       request: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         update: vi.fn().mockResolvedValue({
           totalAmountRubles: null,
           payments: [],

@@ -2643,6 +2643,17 @@ export class RequestsService {
     });
 
     const updated = await this.prisma.$transaction(async (tx) => {
+      // Request row is the serialization boundary shared with price mutations.
+      // The conditional lock prevents a price write from committing after this acceptance.
+      const lock = await tx.request.updateMany({
+        where: {
+          id: requestId,
+          customerUserId: actorUserId,
+          contractAcceptedAt: null,
+          status: { in: ['NEW', 'DISCUSSING', 'TERMS_AGREED'] },
+        },
+        data: { updatedAt: new Date() },
+      });
       const current = await tx.request.findUnique({
         where: { id: requestId },
         select,
@@ -2654,12 +2665,30 @@ export class RequestsService {
       if (req.customerUserId !== actorUserId) {
         throw new ForbiddenException('Forbidden');
       }
+      if (lock.count !== 1) {
+        throw new ConflictException('Request is not editable');
+      }
       if (!req.providerId || !hasRequestLock(req)) {
         throw new BadRequestException(
           'Provider must be selected before contract acceptance',
         );
       }
       if (req.totalAmountRubles == null) {
+        throw new ConflictException(
+          'Price must be agreed before contract acceptance',
+        );
+      }
+      const agreedPriceProposal = await tx.requestPriceProposal.findFirst({
+        where: {
+          requestId: req.id,
+          providerId: req.providerId,
+          amountRubles: req.totalAmountRubles,
+          acceptedAt: { not: null },
+          supersededAt: null,
+        },
+        select: { id: true },
+      });
+      if (!agreedPriceProposal) {
         throw new ConflictException(
           'Price must be agreed before contract acceptance',
         );
