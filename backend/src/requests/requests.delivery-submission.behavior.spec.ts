@@ -234,6 +234,10 @@ class DeliverySubmissionStore {
   private makeTx(owner: TransactionOwner) {
     const state = owner.local;
     return {
+      $queryRaw: (query: Prisma.Sql) =>
+        Promise.resolve(
+          query.values[0] === state.request.id ? [requestRow(state)] : [],
+        ),
       request: {
         findFirst: ({
           where,

@@ -124,6 +124,7 @@ describe("request-lifecycle behavior", () => {
       request: makeCustomer({
         status: "DISCUSSING",
         lockedAt: "2026-08-06T00:00:00.000Z",
+        totalAmountRubles: 12000,
       }),
       canAcceptContract: true,
       actions: { openOfferDialog, acceptResult },
