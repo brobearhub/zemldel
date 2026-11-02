@@ -1,4 +1,6 @@
 "use client";
+import { RequestUnavailableNotice, isRequestAccessFailure, type RequestAccessFailure } from "@/shared/ui/RequestUnavailableNotice";
+import { extractAcceptContractError } from "../lib/contract-acceptance-error";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -122,6 +124,8 @@ type ChatRecovery = Extract<SelectedProviderChatResult, { kind: "recovery-requir
 
 export function CustomerRequestConversationWorkspace({ initialRequest, justCreated = false }: Props) {
   const router = useRouter();
+  const [unavailable, setUnavailable] = useState<RequestAccessFailure | null>(null);
+  const documentsRef = useRef<HTMLDivElement>(null);
   const [req, setReq] = useState<RequestCustomerDto>(initialRequest);
   const [finance, setFinance] = useState<RequestFinanceDto>({
     totalAmountRubles: initialRequest.lockedAt ? initialRequest.totalAmountRubles : null,
@@ -258,12 +262,16 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
     requestId: req.id,
     refreshAt: req.status === "ACCEPTANCE_PENDING" ? req.autoAcceptAt : null,
     scope: `${req.id}:${req.providerId}:${req.lockedAt}:${selectedConversationId}`,
-    paused: syncPaused,
+    paused: syncPaused || unavailable !== null,
     onRefresh: async (signal) => {
       const response = await fetch(`/api/requests/${req.id}`, {
         cache: "no-store",
         signal,
       });
+      if (isRequestAccessFailure(response.status)) {
+        if (!signal.aborted) setUnavailable(response.status);
+        return;
+      }
       const next = (await response.json()) as RequestCustomerDto;
       if (!response.ok || !next?.id || signal.aborted) return;
       const exclusive = hasRequestLock(next);
@@ -367,6 +375,10 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
     contractBundles,
     documentRequests: docRequests,
   });
+
+  useEffect(() => {
+    if (contractDialogOpen && !canAcceptContract) setTermsAccepted(false);
+  }, [contractDialogOpen, canAcceptContract]);
 
   function canInitiateOrderFor(providerId: string) {
     if (isExclusiveStatus || req.status === "CLOSED") return false;
@@ -583,31 +595,11 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
     }
   }
 
-  function extractAcceptContractError(payload: unknown) {
-    if (!payload || typeof payload !== "object") return "Не удалось заключить договор";
-    const record = payload as { error?: unknown; message?: unknown };
-    const raw =
-      typeof record.error === "string" && record.error.trim()
-        ? record.error
-        : typeof record.message === "string" && record.message.trim()
-          ? record.message
-          : Array.isArray(record.message) && typeof record.message[0] === "string"
-            ? record.message[0]
-            : null;
-    if (!raw) return "Не удалось заключить договор";
-    if (/all contract bundles must be approved/i.test(raw)) {
-      return "Одобрите все пакеты договора.";
-    }
-    if (/approved contract bundle/i.test(raw)) {
-      return "Нужен одобренный пакет договора с файлом подписи.";
-    }
-    if (/requested documents/i.test(raw)) {
-      return "Загрузите все запрошенные документы.";
-    }
-    return raw;
-  }
-
   async function acceptContract() {
+    if (!canAcceptContract) {
+      setTermsError(!allRequestedDocumentsUploaded ? "Загрузите все запрошенные документы." : "Проверьте документы и согласованную цену.");
+      return;
+    }
     if (!termsVersion) {
       setTermsError("Версия пользовательского соглашения не загружена");
       return;
@@ -767,7 +759,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
     servicePriceRubles: req.servicePriceRubles,
     priceProposal: finance.priceProposal,
   });
-  const createdNotice = justCreated
+  const createdNotice = justCreated && req.status === "NEW" && (req.subjectType === "SERVICE" || !req.lockedAt)
     ? req.subjectType === "SERVICE"
       ? req.message?.trim()
         ? "Заявка отправлена исполнителю услуги. Ответ появится в этом чате. Здесь можно уточнить задачу и согласовать условия."
@@ -885,6 +877,8 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
     ) : (
       <RequestCadastralNumbers behavior={cadastralBehavior} busy={busy} />
     );
+
+  if (unavailable) return <RequestUnavailableNotice status={unavailable} returnHref="/profile?section=requests" />;
 
   return (
     <ChatBodyWithSidePanelLayout
@@ -1012,6 +1006,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
             })}
           />
 
+          <div ref={documentsRef}>
           <CustomerRequestDocumentsSection
             open={isExclusiveStatus}
             request={req}
@@ -1030,6 +1025,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
             onContractBundlesChange={setContractBundles}
             onContractDecisionBusyChange={setContractDecisionBusy}
           />
+          </div>
 
           {req.subjectType !== "SERVICE" &&
           req.providerId &&
@@ -1239,6 +1235,12 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
                   priceProposal={finance.priceProposal}
                   statedOnly
                 />
+                {!canAcceptContract ? <Alert severity="warning" action={
+                  !allRequestedDocumentsUploaded ? <Button color="inherit" onClick={() => {
+                    setContractDialogOpen(false);
+                    requestAnimationFrame(() => documentsRef.current?.scrollIntoView({ block: "center", behavior: "smooth" }));
+                  }}>Загрузить документы</Button> : undefined
+                }>{!allRequestedDocumentsUploaded ? "Исполнитель запросил документы. Загрузите их перед заключением договора." : "Условия заявки изменились. Проверьте документы и согласованную цену."}</Alert> : null}
                 {termsError ? <Alert severity="error">{termsError}</Alert> : null}
                 {termsBusy ? (
                   <Typography
@@ -1263,7 +1265,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
                 variant="contained"
                 color="success"
                 loading={pendingAction === "accept-contract"}
-                disabled={busy || termsBusy || !termsAccepted || !termsVersion || finance.totalAmountRubles == null}
+                disabled={busy || termsBusy || !termsAccepted || !termsVersion || !canAcceptContract}
                 onClick={() => void acceptContract()}
               >
                 Подписать договор

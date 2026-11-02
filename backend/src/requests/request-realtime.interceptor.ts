@@ -36,6 +36,21 @@ export class RequestRealtimeInterceptor implements NestInterceptor {
       /(?:^|\/)requests\/(?:mine\/)?:(requestId|id)(?:\/|$)/,
     );
     if (match) requestId = params[match[1]];
+    // A deleted row cannot identify its recipients after commit.
+    let deletedRecipients: string[] | undefined;
+    if (
+      request.method === 'DELETE' &&
+      route === 'requests/mine/:id' &&
+      requestId
+    ) {
+      try {
+        deletedRecipients = await this.getRecipients(requestId);
+      } catch (error) {
+        this.logger.warn(
+          `Could not snapshot deletion recipients: ${String(error)}`,
+        );
+      }
+    }
     // Legacy endpoints without requestId must be resolved before deletion.
     try {
       if (route === 'pro/contract-files/:fileId') {
@@ -73,7 +88,12 @@ export class RequestRealtimeInterceptor implements NestInterceptor {
           const id =
             requestId ??
             (route === 'chat/ensure' ? body?.serviceRequestId : undefined);
-          if (id) await this.notify(id);
+          if (id) {
+            const recipients =
+              deletedRecipients ?? (await this.getRecipients(id));
+            for (const userId of recipients)
+              this.gateway.emitRequestChanged(userId, id);
+          }
         } catch (error) {
           // A notification failure must never turn a committed write into a failed response.
           this.logger.warn(`Request notification failed: ${String(error)}`);
@@ -83,7 +103,7 @@ export class RequestRealtimeInterceptor implements NestInterceptor {
     );
   }
 
-  private async notify(requestId: string) {
+  private async getRecipients(requestId: string): Promise<string[]> {
     const request = await this.prisma.request.findUnique({
       where: { id: requestId },
       select: {
@@ -93,7 +113,7 @@ export class RequestRealtimeInterceptor implements NestInterceptor {
         conversations: { select: { providerId: true } },
       },
     });
-    if (!request) return;
+    if (!request) return [];
     const providerIds = [
       ...new Set(
         [
@@ -110,7 +130,6 @@ export class RequestRealtimeInterceptor implements NestInterceptor {
     const users = new Set(members.map((m) => m.userId));
     if (request.customerUserId) users.add(request.customerUserId);
     // No deal data is sent to archived providers; their HTTP reads enforce current access.
-    for (const userId of users)
-      this.gateway.emitRequestChanged(userId, requestId);
+    return [...users];
   }
 }

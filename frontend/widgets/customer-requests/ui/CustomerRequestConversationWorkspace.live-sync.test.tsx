@@ -3,6 +3,7 @@ import { fetchCustomerRequestConversations } from "@/entities/chat";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RequestCustomerDto } from "@/entities/request";
 import { ConfirmProvider } from "@/shared/ui/confirm";
+import { fetchCustomerRequestDocumentRequests } from "@/entities/request/api/request-document-requests";
 import { fetchCustomerWorkStages } from "@/entities/request/api/request-work-stages";
 import { CustomerRequestConversationWorkspace } from "./CustomerRequestConversationWorkspace";
 
@@ -36,6 +37,7 @@ describe("customer request sections follow live updates", () => {
     vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
     vi.stubGlobal("fetch", vi.fn(async (url) => new Response(JSON.stringify(String(url).endsWith("contract-bundles") ? [] : request))));
     vi.mocked(fetchCustomerWorkStages).mockResolvedValue([]);
+    vi.mocked(fetchCustomerRequestDocumentRequests).mockResolvedValue([]);
     vi.mocked(fetchCustomerRequestConversations).mockResolvedValue([]);
   });
   afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
@@ -64,4 +66,40 @@ describe("customer request sections follow live updates", () => {
     await act(async () => { window.dispatchEvent(new CustomEvent("request:changed", { detail: { requestId: "request-a" } })); });
     expect(screen.getByTestId("active-chat")).toHaveTextContent("chat-b");
   });
+  it.each([401,403,404])('clears customer details on an access failure %s', async status => {
+    await act(async () => {render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={request} /></ConfirmProvider>);});
+    vi.mocked(fetch).mockImplementation(async () => new Response('{}', {status}));
+    await act(async () => {window.dispatchEvent(new Event('request:sync'));});
+    expect(screen.getByRole('heading', {name: status===401 ? 'Сессия завершена' : 'Заявка недоступна'})).toBeInTheDocument();
+    expect(screen.queryByText(request.message!)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('stages')).not.toBeInTheDocument();
+  });
+
+  it('preserves the customer workspace on a transient server failure', async () => {
+    await act(async () => {render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={request} /></ConfirmProvider>);});
+    vi.mocked(fetch).mockImplementation(async () => new Response('{}', {status:503}));
+    await act(async () => {window.dispatchEvent(new Event('focus'));});
+    expect(screen.getByTestId('stages')).toBeInTheDocument();
+    expect(screen.queryByText('Заявка недоступна')).not.toBeInTheDocument();
+  });
+
+  it('blocks an already open confirmation when a new document is requested', async () => {
+    const draft={...request,status:'DISCUSSING',contractAcceptedAt:null} as RequestCustomerDto;
+    vi.mocked(fetch).mockImplementation(async url => new Response(JSON.stringify(
+      String(url).includes('/legal-docs/') ? {version:'v1'} : String(url).endsWith('contract-bundles') ? [{status:'APPROVED'}] : draft
+    )));
+    await act(async () => {render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={draft} justCreated /></ConfirmProvider>);});
+    expect(screen.queryByText(/Заявка опубликована. Подходящие исполнители/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button',{name:'Заключить договор'}));
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('checkbox',{name:/Я согласен/}));
+    expect(screen.getByRole('button',{name:'Подписать договор'})).toBeEnabled();
+    vi.mocked(fetchCustomerRequestDocumentRequests).mockResolvedValue([{id:'new-document',status:'REQUESTED'}] as never);
+    await act(async () => {window.dispatchEvent(new CustomEvent('request:changed',{detail:{requestId:request.id}}));});
+    expect(screen.getByRole('button',{name:'Подписать договор'})).toBeDisabled();
+    expect(screen.getByText('Исполнитель запросил документы. Загрузите их перед заключением договора.')).toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'Загрузить документы'})).toBeEnabled();
+    expect(vi.mocked(fetch).mock.calls.some(([url, options]) => String(url).includes('accept-contract') && options?.method==='POST')).toBe(false);
+  });
+
 });

@@ -50,3 +50,20 @@ describe("optional signature in the upload dialog", () => {
     await waitFor(() => expect(upload).toHaveBeenCalledWith({ document, signature }));
   });
 });
+
+describe('upload recovery', () => {
+  it('keeps both files after failure and retries only when requested', async () => {
+    const { upload, dialog } = openUpload();
+    upload.mockRejectedValueOnce(new Error('Нет соединения с сервером.')).mockResolvedValueOnce(undefined);
+    fireEvent.change(dialog.getByLabelText('Файл договора'), {target:{files:[document]}});
+    fireEvent.change(dialog.getByLabelText('Файл подписи'), {target:{files:[signature]}});
+    fireEvent.click(dialog.getByRole('button',{name:'Загрузить'}));
+    await waitFor(() => expect(dialog.getByRole('alert')).toHaveTextContent('Нет соединения'));
+    expect(dialog.getByRole('button',{name:document.name})).toBeEnabled();
+    expect(dialog.getByRole('button',{name:signature.name})).toBeEnabled();
+    expect(upload).toHaveBeenCalledTimes(1);
+    fireEvent.click(dialog.getByRole('button',{name:'Загрузить'}));
+    await waitFor(() => expect(screen.queryByRole('dialog',{name:'Загрузить договор'})).not.toBeInTheDocument());
+    expect(upload).toHaveBeenNthCalledWith(2,{document,signature});
+  });
+});

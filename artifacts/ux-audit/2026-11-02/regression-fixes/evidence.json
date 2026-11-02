@@ -1,0 +1,48 @@
+{
+  "base": "4ed829c",
+  "tests": {
+    "backend": {
+      "passed": 375,
+      "files": 73
+    },
+    "frontend": {
+      "passed": 585,
+      "files": 129
+    }
+  },
+  "build": {
+    "backend": "passed",
+    "frontend": "passed"
+  },
+  "lint": {
+    "backendErrors": 0,
+    "frontendErrors": 0,
+    "backendWarnings": 311,
+    "frontendWarnings": 4
+  },
+  "requests": {
+    "deletedLive": "cb56f4a6-ad26-4889-bd57-8f99af5b3951",
+    "deletedMissedTrial": "9e52c32f-d5f9-4eff-ab05-789f92991072",
+    "deletedSuppressedEvent": "ef459c8f-4fd7-415d-b428-1df4b8f5d2cf",
+    "contractRecovery": "420c5ad9-a17c-4c77-b060-5b61a3e1d9fa"
+  },
+  "browser": {
+    "deletedCardRemovedWithoutReload": true,
+    "directDeletedProviderUrl": "localized terminal",
+    "directDeletedCustomerUrl": "localized terminal",
+    "invalidFileApi": 422,
+    "offlineFilePreserved": true,
+    "retryBundleCount": 1,
+    "openContractBlockedByNewDocument": true,
+    "consentReset": true,
+    "contractRecoveryStatus": "ACTIVE",
+    "customerMobileOverflow": false
+  },
+  "missedEvent": {
+    "suppressed": 1,
+    "apiStatus": 404,
+    "terminalAfterFocus": true,
+    "exclusiveFirstTriggerNotAsserted": true
+  },
+  "committed": false
+}

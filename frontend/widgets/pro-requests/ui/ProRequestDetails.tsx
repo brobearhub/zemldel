@@ -1,4 +1,5 @@
 "use client";
+import { RequestUnavailableNotice, isRequestAccessFailure, type RequestAccessFailure } from "@/shared/ui/RequestUnavailableNotice";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -88,10 +89,12 @@ type Props = {
   initialRequest: RequestProDto;
   subtitle: string;
   onRequestChange?: (request: RequestProDto) => void;
+  onUnavailable?: (status: RequestAccessFailure) => void;
 };
 
-export function ProRequestDetails({ initialRequest, subtitle, onRequestChange }: Props) {
+export function ProRequestDetails({ initialRequest, subtitle, onRequestChange, onUnavailable }: Props) {
   const [req, setReq] = useState(initialRequest);
+  const [unavailable, setUnavailable] = useState<RequestAccessFailure | null>(null);
   useEffect(() => {
     onRequestChange?.(req);
   }, [req, onRequestChange]);
@@ -208,12 +211,20 @@ export function ProRequestDetails({ initialRequest, subtitle, onRequestChange }:
     requestId: req.id,
     refreshAt: req.status === "ACCEPTANCE_PENDING" ? req.autoAcceptAt : null,
     scope: `${req.id}:${req.isLocked}`,
-    paused: isBusy,
+    paused: isBusy || unavailable !== null,
     onRefresh: async (signal) => {
       const response = await fetch(`/api/pro/requests/${req.id}`, {
         cache: "no-store",
         signal,
       });
+      if (isRequestAccessFailure(response.status)) {
+        if (!signal.aborted) {
+          exclusiveRequestGuard.invalidate();
+          setUnavailable(response.status);
+          onUnavailable?.(response.status);
+        }
+        return;
+      }
       const next = (await response.json()) as RequestProDto;
       if (!response.ok || !next?.id || signal.aborted) return;
       if (!resolveProviderRequestScreenModel(next).showDealWorkflow) {
@@ -329,10 +340,15 @@ export function ProRequestDetails({ initialRequest, subtitle, onRequestChange }:
     setNotice(null);
     try {
       await uploadProRequestContractBundle(req.id, input);
-      await Promise.all([refresh(), refreshContractBundles()]);
+      // Once upload succeeds, a failed refresh must not invite a duplicate upload.
       setNotice("Договор прикреплён к заявке.");
+      await Promise.all([refresh(), refreshContractBundles()]).catch(() => {
+        setNotice("Договор загружен. Не удалось обновить список — вернитесь во вкладку, чтобы повторить обновление.");
+      });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось загрузить договор");
+      const error = e instanceof Error ? e : new Error("Не удалось загрузить договор. Повторите попытку.");
+      setError(error.message);
+      throw error;
     } finally {
       const elapsed = Date.now() - startedAt;
       const minMs = 600;
@@ -629,6 +645,8 @@ export function ProRequestDetails({ initialRequest, subtitle, onRequestChange }:
     ) : activePanel?.id === "cadastral" ? (
       <RequestCadastralNumbers behavior={cadastralBehavior} busy={isBusy} />
     ) : null;
+
+  if (unavailable) return <RequestUnavailableNotice status={unavailable} returnHref="/pro/requests" />;
 
   return (
     <Stack spacing={2}>

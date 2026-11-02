@@ -1,3 +1,5 @@
+import { validateContractUploadFiles, contractUploadError } from "../lib/contract-upload-validation";
+
 export type ProContractBundleStatus = "PENDING_CUSTOMER" | "APPROVED" | "REVISION_REQUESTED";
 
 export type ProContractBundleFile = {
@@ -53,12 +55,19 @@ export async function fetchProRequestContractBundles(requestId: string): Promise
 }
 
 export async function uploadProRequestContractBundle(requestId: string, input: { document: File; signature?: File | null }) {
+  const validation = validateContractUploadFiles(input.document, input.signature);
+  if (validation) throw new Error(validation);
   const form = new FormData();
   form.append("document", input.document);
   if (input.signature) form.append("signature", input.signature);
-  const res = await fetch(`/api/pro/requests/${requestId}/contract-bundles`, { method: "POST", body: form });
+  let res: Response;
+  try {
+    res = await fetch(`/api/pro/requests/${requestId}/contract-bundles`, { method: "POST", body: form });
+  } catch {
+    throw new Error("Нет соединения с сервером. Проверьте интернет и повторите загрузку — выбранные файлы сохранены.");
+  }
   const payload = await safeJson(res);
-  if (!res.ok) throw new Error(extractError(payload, "Не удалось загрузить договор"));
+  if (!res.ok) throw new Error(contractUploadError(payload, res.status));
   return payload as { bundleId: string };
 }
 
