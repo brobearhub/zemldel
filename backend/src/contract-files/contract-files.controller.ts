@@ -28,6 +28,7 @@ import type { Request, Response } from 'express';
 import { memoryStorage } from 'multer';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
+import { create as contentDisposition } from 'content-disposition';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import { ContractFilesService } from './contract-files.service';
 import { OkResponseDto } from '../common/dto/ok-response.dto';
@@ -248,7 +249,7 @@ export class ContractFilesController {
         document: { type: 'string', format: 'binary' },
         signature: { type: 'string', format: 'binary' },
       },
-      required: ['document', 'signature'],
+      required: ['document'],
     },
   })
   @ApiOkResponse({
@@ -300,13 +301,10 @@ export class ContractFilesController {
 
     const document = files?.document?.[0];
     const signature = files?.signature?.[0];
-    if (!document || !signature) {
+    if (!document) {
       throw new UnprocessableEntityException({
         error: 'Validation failed',
-        issues: [
-          { path: ['document'], message: 'document is required' },
-          { path: ['signature'], message: 'signature is required' },
-        ],
+        issues: [{ path: ['document'], message: 'document is required' }],
       });
     }
 
@@ -481,7 +479,7 @@ export class ContractFilesController {
     res.setHeader('content-type', mimeType);
     res.setHeader(
       'content-disposition',
-      `${disposition}; filename="${fileName}"`,
+      contentDisposition(fileName, { type: disposition }),
     );
     res.setHeader('cache-control', 'private, no-store');
     await pipeline(stream, res);
@@ -521,7 +519,7 @@ export class ContractFilesController {
     res.setHeader('content-type', mimeType);
     res.setHeader(
       'content-disposition',
-      `${disposition}; filename="${fileName}"`,
+      contentDisposition(fileName, { type: disposition }),
     );
     res.setHeader('cache-control', 'private, no-store');
     await pipeline(stream, res);

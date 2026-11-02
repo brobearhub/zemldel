@@ -2939,29 +2939,6 @@ export class RequestsService {
         );
       }
 
-      const signatures = await tx.requestContractFile.findMany({
-        where: {
-          requestId: req.id,
-          providerId: req.providerId,
-          role: 'CONTRACT_SIGNATURE',
-          bundleId: { in: bundleIds },
-        },
-        select: { bundleId: true },
-        distinct: ['bundleId'],
-        take: 50,
-      });
-      const signedBundleIds = new Set(
-        signatures
-          .map((r) => r.bundleId)
-          .filter((v): v is string => typeof v === 'string'),
-      );
-
-      if (bundleIds.some((id) => !signedBundleIds.has(id))) {
-        throw new ConflictException(
-          'All approved contract bundles must have a signature',
-        );
-      }
-
       const pendingRequestedDocs = await tx.requestDocumentRequest.count({
         where: {
           requestId: req.id,

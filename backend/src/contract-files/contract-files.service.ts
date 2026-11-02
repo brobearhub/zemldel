@@ -411,65 +411,61 @@ export class ContractFilesService {
     actorUserId: string;
     requestId: string;
     document: Express.Multer.File;
-    signature: Express.Multer.File;
+    signature?: Express.Multer.File;
   }) {
     const providerId = await this.requireProviderId(input.actorUserId);
     await this.assertProviderCanManageFiles({
       providerId,
       requestId: input.requestId,
     });
-
     const docExt = normalizeExt(
       input.document.originalname,
       input.document.mimetype,
     );
     if (!docExt) throw new BadRequestException('Unsupported document type');
-    const sigExt = normalizeSigExt(input.signature.originalname);
-    if (!sigExt) throw new BadRequestException('Unsupported signature type');
-
     if (!input.document.buffer || input.document.buffer.length === 0) {
       throw new BadRequestException('Empty document');
     }
-    if (!input.signature.buffer || input.signature.buffer.length === 0) {
+    const signature = input.signature;
+    const sigExt = signature ? normalizeSigExt(signature.originalname) : null;
+    if (signature && !sigExt)
+      throw new BadRequestException('Unsupported signature type');
+    if (signature && (!signature.buffer || signature.buffer.length === 0)) {
       throw new BadRequestException('Empty signature');
     }
 
     const bundleId = randomUUID();
     const documentId = randomUUID();
-    const signatureId = randomUUID();
-
     const docKey = `${this.s3.privatePrefix}requests/${input.requestId}/contract-bundles/${bundleId}/${documentId}${docExt}`;
-    const sigKey = `${this.s3.privatePrefix}requests/${input.requestId}/contract-bundles/${bundleId}/${signatureId}${sigExt}`;
-
-    const docOriginalName = decodePossiblyMisencodedFileName(
-      input.document.originalname,
-    );
-    const sigOriginalName = decodePossiblyMisencodedFileName(
-      input.signature.originalname,
-    );
-    const docHash = sha256Buffer(input.document.buffer);
-    const sigHash = sha256Buffer(input.signature.buffer);
-
-    await this.s3.client.send(
-      new PutObjectCommand({
-        Bucket: this.s3.privateBucket,
-        Key: docKey,
-        Body: input.document.buffer,
-        ContentType: input.document.mimetype,
-        CacheControl: 'private, no-store',
-      }),
-    );
-    await this.s3.client.send(
-      new PutObjectCommand({
-        Bucket: this.s3.privateBucket,
-        Key: sigKey,
-        Body: input.signature.buffer,
-        ContentType: input.signature.mimetype || 'application/octet-stream',
-        CacheControl: 'private, no-store',
-      }),
-    );
-
+    const signatureId = signature ? randomUUID() : null;
+    const sigKey = signatureId
+      ? `${this.s3.privatePrefix}requests/${input.requestId}/contract-bundles/${bundleId}/${signatureId}${sigExt}`
+      : null;
+    const uploadedKeys: string[] = [];
     try {
+      await this.s3.client.send(
+        new PutObjectCommand({
+          Bucket: this.s3.privateBucket,
+          Key: docKey,
+          Body: input.document.buffer,
+          ContentType: input.document.mimetype,
+          CacheControl: 'private, no-store',
+        }),
+      );
+      uploadedKeys.push(docKey);
+      if (signature && sigKey) {
+        await this.s3.client.send(
+          new PutObjectCommand({
+            Bucket: this.s3.privateBucket,
+            Key: sigKey,
+            Body: signature.buffer,
+            ContentType: signature.mimetype || 'application/octet-stream',
+            CacheControl: 'private, no-store',
+          }),
+        );
+        uploadedKeys.push(sigKey);
+      }
+
       await this.prisma.$transaction(async (tx) => {
         await tx.requestContractFile.create({
           data: {
@@ -480,53 +476,51 @@ export class ContractFilesService {
             status: 'PENDING_CUSTOMER',
             role: 'CONTRACT_DOCUMENT',
             bundleId,
-            originalName: docOriginalName,
+            originalName: decodePossiblyMisencodedFileName(
+              input.document.originalname,
+            ),
             mimeType: input.document.mimetype,
             sizeBytes: input.document.size,
-            sha256: docHash,
+            sha256: sha256Buffer(input.document.buffer),
             storageRelPath: docKey,
           } satisfies Prisma.RequestContractFileCreateInput,
           select: { id: true },
         });
-
-        await tx.requestContractFile.create({
-          data: {
-            id: signatureId,
-            request: { connect: { id: input.requestId } },
-            provider: { connect: { id: providerId } },
-            uploadedByUser: { connect: { id: input.actorUserId } },
-            status: 'PENDING_CUSTOMER',
-            role: 'CONTRACT_SIGNATURE',
-            bundleId,
-            originalName: sigOriginalName,
-            mimeType: input.signature.mimetype || 'application/octet-stream',
-            sizeBytes: input.signature.size,
-            sha256: sigHash,
-            storageRelPath: sigKey,
-          } satisfies Prisma.RequestContractFileCreateInput,
-          select: { id: true },
-        });
+        if (signature && signatureId && sigKey) {
+          await tx.requestContractFile.create({
+            data: {
+              id: signatureId,
+              request: { connect: { id: input.requestId } },
+              provider: { connect: { id: providerId } },
+              uploadedByUser: { connect: { id: input.actorUserId } },
+              status: 'PENDING_CUSTOMER',
+              role: 'CONTRACT_SIGNATURE',
+              bundleId,
+              originalName: decodePossiblyMisencodedFileName(
+                signature.originalname,
+              ),
+              mimeType: signature.mimetype || 'application/octet-stream',
+              sizeBytes: signature.size,
+              sha256: sha256Buffer(signature.buffer),
+              storageRelPath: sigKey,
+            } satisfies Prisma.RequestContractFileCreateInput,
+            select: { id: true },
+          });
+        }
       });
-    } catch (e) {
-      await this.s3.client
-        .send(
-          new DeleteObjectCommand({
-            Bucket: this.s3.privateBucket,
-            Key: docKey,
-          }),
-        )
-        .catch(() => null);
-      await this.s3.client
-        .send(
-          new DeleteObjectCommand({
-            Bucket: this.s3.privateBucket,
-            Key: sigKey,
-          }),
-        )
-        .catch(() => null);
-      throw e;
+    } catch (error) {
+      await Promise.allSettled(
+        uploadedKeys.map((key) =>
+          this.s3.client.send(
+            new DeleteObjectCommand({
+              Bucket: this.s3.privateBucket,
+              Key: key,
+            }),
+          ),
+        ),
+      );
+      throw error;
     }
-
     return { bundleId };
   }
 

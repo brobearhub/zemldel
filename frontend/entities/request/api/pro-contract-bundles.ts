@@ -52,10 +52,10 @@ export async function fetchProRequestContractBundles(requestId: string): Promise
   return Array.isArray(payload) ? (payload as ProContractBundleItem[]) : [];
 }
 
-export async function uploadProRequestContractBundle(requestId: string, input: { document: File; signature: File }) {
+export async function uploadProRequestContractBundle(requestId: string, input: { document: File; signature?: File | null }) {
   const form = new FormData();
   form.append("document", input.document);
-  form.append("signature", input.signature);
+  if (input.signature) form.append("signature", input.signature);
   const res = await fetch(`/api/pro/requests/${requestId}/contract-bundles`, { method: "POST", body: form });
   const payload = await safeJson(res);
   if (!res.ok) throw new Error(extractError(payload, "Не удалось загрузить договор"));

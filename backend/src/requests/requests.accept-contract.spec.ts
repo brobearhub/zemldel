@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { RequestsService } from './requests.service';
 
@@ -22,6 +22,114 @@ function makeService(
 }
 
 describe('RequestsService acceptContractByCustomer', () => {
+  it.each([
+    ['SERVICE', false],
+    ['SERVICE', true],
+    ['FREEFORM', false],
+    ['FREEFORM', true],
+  ] as const)(
+    'accepts an approved %s document, signature attached: %s',
+    async (subject, hasSignature) => {
+      const now = new Date('2026-11-02T00:00:00.000Z');
+      const current = {
+        id: 'r1',
+        status: 'DISCUSSING',
+        providerId: 'p1',
+        lockedAt: now,
+        customerUserId: 'u1',
+        totalAmountRubles: 12000,
+        serviceId: subject === 'SERVICE' ? 's1' : null,
+        categoryId: null,
+        requestCityId: null,
+        message: 'Test request',
+        location: null,
+        createdAt: now,
+        updatedAt: now,
+        providerOffers: [],
+        payments: [],
+        priceProposals: [],
+      };
+      const document = { bundleId: 'b1', status: 'APPROVED' };
+      const findMany = vi.fn(({ where }: { where: { role: string } }) =>
+        Promise.resolve(
+          where.role === 'CONTRACT_DOCUMENT'
+            ? [document]
+            : hasSignature
+              ? [{ bundleId: 'b1' }]
+              : [],
+        ),
+      );
+      const tx = {
+        request: {
+          updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+          findUnique: vi.fn().mockResolvedValue(current),
+          update: vi.fn().mockResolvedValue({
+            ...current,
+            status: 'ACTIVE',
+            contractAcceptedAt: now,
+          }),
+        },
+        requestPriceProposal: {
+          findFirst: vi.fn().mockResolvedValue({ id: 'pp1' }),
+        },
+        requestContractFile: { findMany },
+        requestDocumentRequest: { count: vi.fn().mockResolvedValue(0) },
+        legalAcceptance: { create: vi.fn().mockResolvedValue({ id: 'a1' }) },
+        requestEvent: { create: vi.fn().mockResolvedValue({ id: 'e1' }) },
+      };
+      const prisma = {
+        $transaction: async (run: (client: typeof tx) => Promise<unknown>) =>
+          run(tx),
+      };
+      const result = await makeService(prisma).acceptContractByCustomer(
+        'u1',
+        'r1',
+        { termsVersion: '2026-08-04' },
+      );
+      expect(result.status).toBe('ACTIVE');
+      expect(tx.legalAcceptance.create).toHaveBeenCalledOnce();
+      expect(findMany).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ role: 'CONTRACT_SIGNATURE' }),
+        }),
+      );
+    },
+  );
+
+  it('still requires a contract document', async () => {
+    const current = {
+      id: 'r1',
+      customerUserId: 'u1',
+      providerId: 'p1',
+      lockedAt: new Date(),
+      status: 'DISCUSSING',
+      totalAmountRubles: 12000,
+      serviceId: null,
+      categoryId: null,
+    };
+    const tx = {
+      request: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        findUnique: vi.fn().mockResolvedValue(current),
+        update: vi.fn(),
+      },
+      requestPriceProposal: {
+        findFirst: vi.fn().mockResolvedValue({ id: 'pp1' }),
+      },
+      requestContractFile: { findMany: vi.fn().mockResolvedValue([]) },
+    };
+    const prisma = {
+      $transaction: async (run: (client: typeof tx) => Promise<unknown>) =>
+        run(tx),
+    };
+    await expect(
+      makeService(prisma).acceptContractByCustomer('u1', 'r1', {
+        termsVersion: '2026-08-04',
+      }),
+    ).rejects.toThrow('At least one approved contract bundle is required');
+    expect(tx.request.update).not.toHaveBeenCalled();
+  });
+
   it('blocks a legacy total without an active accepted provider proposal', async () => {
     const now = new Date('2026-08-06T00:00:00.000Z');
     const current = {
@@ -53,7 +161,7 @@ describe('RequestsService acceptContractByCustomer', () => {
         findMany: vi
           .fn()
           .mockResolvedValueOnce([{ bundleId: 'b1', status: 'APPROVED' }])
-          .mockResolvedValueOnce([{ bundleId: 'b1' }]),
+          .mockResolvedValueOnce([{ bundleId: 'b1', status: 'APPROVED' }]),
       },
       requestDocumentRequest: { count: vi.fn().mockResolvedValue(0) },
       legalAcceptance: { create: vi.fn().mockResolvedValue({ id: 'a1' }) },
@@ -129,8 +237,8 @@ describe('RequestsService acceptContractByCustomer', () => {
       requestContractFile: {
         findMany: vi
           .fn()
-          .mockResolvedValueOnce([{ bundleId: 'b1' }])
-          .mockResolvedValueOnce([{ bundleId: 'b1' }]),
+          .mockResolvedValueOnce([{ bundleId: 'b1', status: 'APPROVED' }])
+          .mockResolvedValueOnce([{ bundleId: 'b1', status: 'APPROVED' }]),
       },
       requestDocumentRequest: {
         count: vi.fn().mockResolvedValue(2),
@@ -150,7 +258,9 @@ describe('RequestsService acceptContractByCustomer', () => {
     const svc = makeService(prisma);
     await expect(
       svc.acceptContractByCustomer('u1', 'r1', { termsVersion: '2026-08-04' }),
-    ).rejects.toBeInstanceOf(ConflictException);
+    ).rejects.toMatchObject({
+      message: 'All requested documents must be uploaded',
+    });
   });
 
   it('blocks contract acceptance until all contract bundles are approved', async () => {

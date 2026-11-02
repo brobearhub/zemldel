@@ -56,7 +56,7 @@ describe("canCustomerAcceptContract", () => {
     ).toBe(false);
   });
 
-  it("requires signature attached", () => {
+  it("allows an approved document without a signature", () => {
     expect(
       canCustomerAcceptContract({
         requestStatus: "DISCUSSING",
@@ -70,7 +70,7 @@ describe("canCustomerAcceptContract", () => {
         ],
         documentRequests: [],
       })
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("requires all requested documents uploaded", () => {

@@ -5,6 +5,10 @@ import { ConfirmProvider } from "@/shared/ui/confirm";
 import { fetchProRequestContractBundles, fetchProRequestMiscFiles } from "@/entities/request/api/pro-contract-bundles";
 import { fetchProRequestDocumentRequests } from "@/entities/request/api/request-document-requests";
 import { ProRequestDetails } from "./ProRequestDetails";
+import { ProRequestWorkspace } from "./ProRequestWorkspace";
+vi.mock("@/widgets/chat/ui/ServiceRequestChatPanel", () => ({
+  ServiceRequestChatPanel: ({requestArchived}: {requestArchived: boolean}) => <div data-testid="chat-readonly">{String(requestArchived)}</div>,
+}));
 
 vi.mock("@/widgets/chat/socket/ChatSocketContext", () => ({ useChatSocket: () => ({ socket: null }) }));
 vi.mock("./RequestRemindersPanel", () => ({ RequestRemindersPanel: () => null }));
@@ -52,5 +56,14 @@ describe("provider request sections follow live updates", () => {
     expect(screen.getByText("Клиент выбрал другого исполнителя. Вам доступен архив переписки.")).toBeInTheDocument();
     expect(screen.queryByTestId("contracts")).not.toBeInTheDocument();
     expect(fetchProRequestContractBundles).toHaveBeenCalledTimes(readsBefore);
+  });
+
+  it("passes refreshed request permissions to the already open chat", async () => {
+    await act(async () => {render(<ConfirmProvider><ProRequestWorkspace initialRequest={request} subtitle="" /></ConfirmProvider>);});
+    expect(screen.getByTestId("chat-readonly")).toHaveTextContent("false");
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({...request, isLocked: true, providerId: "other-provider"})));
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    expect(screen.getByTestId("chat-readonly")).toHaveTextContent("true");
+    expect(screen.getByText("Клиент выбрал другого исполнителя. Вам доступен архив переписки.")).toBeInTheDocument();
   });
 });

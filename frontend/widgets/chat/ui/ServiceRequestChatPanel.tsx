@@ -21,6 +21,8 @@ import {
   resolveChatPostFailure,
 } from "@/widgets/chat/model/chat-access";
 import { ChatReadOnlyNotice } from "./ChatReadOnlyNotice";
+import { useVisibleRefresh } from "@/shared/lib/use-visible-refresh";
+import { CHAT_ARCHIVED_REASON_CODE } from "@/widgets/chat/model/chat-access";
 
 class ChatPostError extends Error {
   constructor(
@@ -65,6 +67,7 @@ type Props = {
   autoFocusInput?: boolean;
   requestLockedAt?: string | null;
   selectedProviderId?: string | null;
+  requestArchived?: boolean;
   onOpenSelectedConversation?: () => void;
 };
 
@@ -77,12 +80,14 @@ export function ServiceRequestChatPanel({
   autoFocusInput,
   requestLockedAt,
   selectedProviderId,
+  requestArchived = false,
   onOpenSelectedConversation,
 }: Props) {
   const { data: session } = useSession();
   const currentUserId = session?.user?.id ?? "";
 
-  const { socket, socketConnected, setOpenConversationId, joinConversationRoom, clearUnreadForRequest } = useChatSocket();
+  const { socket, socketConnected, setOpenConversationId, joinConversationRoom, clearUnreadForRequest } =
+    useChatSocket();
 
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [serverMessages, setServerMessages] = useState<ChatMessageDto[]>([]);
@@ -92,7 +97,14 @@ export function ServiceRequestChatPanel({
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
-  const [access, setAccess] = useState(createClosedChatAccess);
+  const [serverAccess, setAccess] = useState(createClosedChatAccess);
+  const access = requestArchived
+    ? resolveChatAccess({
+        canRead: true,
+        canWrite: false,
+        reasonCode: CHAT_ARCHIVED_REASON_CODE,
+      })
+    : serverAccess;
   const [viewerSide, setViewerSide] = useState<ChatViewerSide | null>(null);
   const [peerOnline, setPeerOnline] = useState(false);
   const [presenceReady, setPresenceReady] = useState(false);
@@ -108,7 +120,10 @@ export function ServiceRequestChatPanel({
   }, [serverMessages]);
 
   const rows: ChatRenderableRow[] = useMemo(() => {
-    const serverRows: ChatRenderableRow[] = serverMessages.map((message) => ({ kind: "message", message }));
+    const serverRows: ChatRenderableRow[] = serverMessages.map((message) => ({
+      kind: "message",
+      message,
+    }));
     const pendingKeys = new Set(serverMessages.map((m) => m.clientMessageId));
     const tail = outbound
       .filter((o) => !pendingKeys.has(o.clientMessageId))
@@ -139,7 +154,9 @@ export function ServiceRequestChatPanel({
       mode === "tail" && last
         ? new URLSearchParams({ after: last.id, limit: "50" })
         : new URLSearchParams({ limit: "50" });
-    const response = await fetch(`/api/chat/conversations/${convId}/messages?${search.toString()}`, { cache: "no-store" });
+    const response = await fetch(`/api/chat/conversations/${convId}/messages?${search.toString()}`, {
+      cache: "no-store",
+    });
     const payload = (await response.json().catch(() => null)) as ChatMessageDto[] | { error?: string } | null;
     if (!response.ok) {
       const message =
@@ -164,10 +181,12 @@ export function ServiceRequestChatPanel({
 
   const markRead = useCallback(
     async (convId: string) => {
-      const response = await fetch(`/api/chat/conversations/${convId}/read`, { method: "POST" }).catch(() => null);
+      const response = await fetch(`/api/chat/conversations/${convId}/read`, {
+        method: "POST",
+      }).catch(() => null);
       if (response?.ok) clearUnreadForRequest(serviceRequestId);
     },
-    [clearUnreadForRequest, serviceRequestId]
+    [clearUnreadForRequest, serviceRequestId],
   );
 
   useEffect(() => {
@@ -186,7 +205,9 @@ export function ServiceRequestChatPanel({
     (async () => {
       try {
         async function loadAccess(convId: string) {
-          const response = await fetch(`/api/chat/conversations/${convId}/access`, { cache: "no-store" }).catch(() => null);
+          const response = await fetch(`/api/chat/conversations/${convId}/access`, { cache: "no-store" }).catch(
+            () => null,
+          );
           if (!response?.ok) {
             if (!cancelled) setAccess(resolveChatAccess(null));
             return;
@@ -212,9 +233,7 @@ export function ServiceRequestChatPanel({
           body: JSON.stringify({ serviceRequestId }),
         });
         const ensurePayload = (await ensureResponse.json().catch(() => null)) as
-          | ChatEnsureResponse
-          | { error?: string; message?: string }
-          | null;
+          ChatEnsureResponse | { error?: string; message?: string } | null;
 
         if (!ensureResponse.ok) {
           const message =
@@ -252,10 +271,28 @@ export function ServiceRequestChatPanel({
     forcedConversationId,
     requestLockedAt,
     selectedProviderId,
+    requestArchived,
     loadMessages,
     markRead,
     setOpenConversationId,
   ]);
+
+  const refreshAccess = useVisibleRefresh({
+    scope: `${serviceRequestId}:${conversationId}:${requestLockedAt}:${selectedProviderId}:${requestArchived}`,
+    paused: !conversationId || loading,
+    onRefresh: async (signal) => {
+      try {
+        const response = await fetch(`/api/chat/conversations/${conversationId}/access`, { cache: "no-store", signal });
+        const payload = response.ok ? ((await response.json()) as ChatConversationAccessDto) : null;
+        if (!signal.aborted) setAccess(resolveChatAccess(payload));
+      } catch {
+        if (!signal.aborted) setAccess(resolveChatAccess(null));
+      }
+    },
+  });
+  useEffect(() => {
+    if (socketConnected) refreshAccess();
+  }, [socketConnected, refreshAccess]);
 
   useEffect(() => {
     if (!conversationId || !socketConnected) {
@@ -379,7 +416,8 @@ export function ServiceRequestChatPanel({
           replyToMessageId: replyToMessageId ?? undefined,
         }),
       });
-      const payload = (await response.json().catch(() => null)) as ChatPostMessageResponse | { code?: string; error?: string; message?: string } | null;
+      const payload = (await response.json().catch(() => null)) as
+        ChatPostMessageResponse | { code?: string; error?: string; message?: string } | null;
       if (!response.ok) {
         const error = resolveChatError(payload);
         throw new ChatPostError(error.message, error.retryable);
@@ -388,14 +426,13 @@ export function ServiceRequestChatPanel({
       setServerMessages((prev) => mergeServerMessages(prev, data.message));
       setOutbound((prev) => prev.filter((o) => o.clientMessageId !== clientMessageId));
     },
-    [conversationId]
+    [conversationId],
   );
 
   const applyPostFailure = useCallback((error: unknown) => {
     const failure = resolveChatPostFailure({
       message: error instanceof Error ? error.message : "Ошибка отправки",
-      retryable:
-        error instanceof ChatPostError ? error.retryable : true,
+      retryable: error instanceof ChatPostError ? error.retryable : true,
     });
     if (failure.access) {
       setAccess(failure.access);
@@ -410,7 +447,12 @@ export function ServiceRequestChatPanel({
     }
     const clientMessageId = crypto.randomUUID();
     const replyToMessageId = pendingReply?.messageId;
-    const replyToPreview = pendingReply ? { senderLabel: pendingReply.senderLabel, snippet: pendingReply.bodySnippet } : undefined;
+    const replyToPreview = pendingReply
+      ? {
+          senderLabel: pendingReply.senderLabel,
+          snippet: pendingReply.bodySnippet,
+        }
+      : undefined;
 
     setOutbound((prev) => [
       ...prev,
@@ -443,23 +485,16 @@ export function ServiceRequestChatPanel({
             error: failure.message,
             retryable: failure.retryable,
           };
-        })
+        }),
       );
     } finally {
       setSending(false);
     }
-  }, [
-    access.canWrite,
-    applyPostFailure,
-    conversationId,
-    draft,
-    pendingReply,
-    postOutbound,
-    sending,
-  ]);
+  }, [access.canWrite, applyPostFailure, conversationId, draft, pendingReply, postOutbound, sending]);
 
   const handleRetry = useCallback(
     async (clientMessageId: string) => {
+      if (!access.canWrite || sending) return;
       const row = outbound.find((o) => o.clientMessageId === clientMessageId && o.type === "failed");
       if (!row || row.type !== "failed" || !row.retryable) return;
       setOutbound((prev) =>
@@ -472,7 +507,7 @@ export function ServiceRequestChatPanel({
             replyToMessageId: o.replyToMessageId,
             replyToPreview: o.replyToPreview,
           };
-        })
+        }),
       );
       setSending(true);
       try {
@@ -491,28 +526,38 @@ export function ServiceRequestChatPanel({
               error: failure.message,
               retryable: failure.retryable,
             };
-          })
+          }),
         );
       } finally {
         setSending(false);
       }
     },
-    [applyPostFailure, outbound, postOutbound]
+    [applyPostFailure, outbound, postOutbound, access.canWrite, sending],
   );
 
-  const handleReplyToMessage = useCallback((message: ChatMessageDto) => {
-    const snippet = message.body.length > 160 ? `${message.body.slice(0, 160)}…` : message.body;
-    setPendingReply({
-      messageId: message.id,
-      senderLabel: message.senderName ?? "Участник",
-      bodySnippet: snippet,
-    });
-  }, []);
+  const handleReplyToMessage = useCallback(
+    (message: ChatMessageDto) => {
+      if (!access.canWrite) return;
+      const snippet = message.body.length > 160 ? `${message.body.slice(0, 160)}…` : message.body;
+      setPendingReply({
+        messageId: message.id,
+        senderLabel: message.senderName ?? "Участник",
+        bodySnippet: snippet,
+      });
+    },
+    [access.canWrite],
+  );
 
   return (
     <Paper
       variant="outlined"
-      sx={{ height: "100%", minHeight: 420, display: "flex", flexDirection: "column", overflow: "hidden" }}
+      sx={{
+        height: "100%",
+        minHeight: 420,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+      }}
     >
       <Box
         sx={(theme) => ({
@@ -525,9 +570,15 @@ export function ServiceRequestChatPanel({
           ...(headerFlash
             ? {
                 "@keyframes chatHeaderShine": {
-                  "0%": { transform: "translateX(-140%) skewX(-20deg)", opacity: 0 },
+                  "0%": {
+                    transform: "translateX(-140%) skewX(-20deg)",
+                    opacity: 0,
+                  },
                   "15%": { opacity: 0.65 },
-                  "100%": { transform: "translateX(260%) skewX(-20deg)", opacity: 0 },
+                  "100%": {
+                    transform: "translateX(260%) skewX(-20deg)",
+                    opacity: 0,
+                  },
                 },
                 "&::after": {
                   content: '""',
@@ -551,9 +602,13 @@ export function ServiceRequestChatPanel({
             : null),
         })}
       >
-        <Stack direction="row" spacing={1} sx={{
-          alignItems: "center"
-        }}>
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            alignItems: "center",
+          }}
+        >
           {viewerSide ? (
             <Box
               sx={{
@@ -565,23 +620,36 @@ export function ServiceRequestChatPanel({
               }}
             />
           ) : null}
-          <Typography variant="h6" sx={{
-            fontWeight: 800
-          }}>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 800,
+            }}
+          >
             {title}
           </Typography>
         </Stack>
         {subtitle ? (
-          <Typography variant="body2" sx={{
-            color: "text.secondary"
-          }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+            }}
+          >
             {subtitle}
           </Typography>
         ) : null}
       </Box>
 
       {!bootError && access.status !== "loading" && !access.canWrite ? (
-        <Box sx={{ px: 2, py: 1.25, borderBottom: "1px solid", borderBottomColor: "divider" }}>
+        <Box
+          sx={{
+            px: 2,
+            py: 1.25,
+            borderBottom: "1px solid",
+            borderBottomColor: "divider",
+          }}
+        >
           <ChatReadOnlyNotice
             message={access.message ?? "Этот диалог доступен только для просмотра."}
             reasonCode={access.reasonCode}
@@ -617,10 +685,20 @@ export function ServiceRequestChatPanel({
       </Box>
 
       {!socketConnected ? (
-        <Stack sx={{ px: 2, py: 1, borderTop: "1px solid", borderTopColor: "divider" }}>
-          <Typography variant="caption" sx={{
-            color: "text.secondary"
-          }}>
+        <Stack
+          sx={{
+            px: 2,
+            py: 1,
+            borderTop: "1px solid",
+            borderTopColor: "divider",
+          }}
+        >
+          <Typography
+            variant="caption"
+            sx={{
+              color: "text.secondary",
+            }}
+          >
             Соединение с чатом: нет. Сообщения будут догружаться при возвращении/по таймеру.
           </Typography>
         </Stack>
@@ -628,4 +706,3 @@ export function ServiceRequestChatPanel({
     </Paper>
   );
 }
-

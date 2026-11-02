@@ -59,14 +59,8 @@ import { DEFAULT_SERVICE_QUESTION } from "@/features/create-service-request-lead
 import Link from "@/shared/ui/Link";
 import { RequestDetailHeaderCard } from "@/shared/ui/RequestDetailHeaderCard";
 import { createCustomerRequestDetailsBehavior, RequestDetails } from "@/widgets/request-details";
-import {
-  createCustomerRequestLifecycleBehavior,
-  RequestLifecycleActions,
-} from "@/widgets/request-lifecycle-actions";
-import {
-  createCustomerRequestRemarksBehavior,
-  RequestRemarks,
-} from "@/widgets/request-remarks";
+import { createCustomerRequestLifecycleBehavior, RequestLifecycleActions } from "@/widgets/request-lifecycle-actions";
+import { createCustomerRequestRemarksBehavior, RequestRemarks } from "@/widgets/request-remarks";
 import { RequestWorkProgress } from "@/widgets/request-work-progress";
 import { RequestPayments } from "@/widgets/request-payments";
 import { RequestReviewsPanel } from "@/widgets/request-reviews";
@@ -90,16 +84,16 @@ import {
 import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
 import PaymentIcon from "@mui/icons-material/Payment";
 import PinDropOutlinedIcon from "@mui/icons-material/PinDropOutlined";
-import { cancelCustomerRequestProviderSelection, deleteCustomerRequest } from "@/entities/request/api/customer-requests";
+import {
+  cancelCustomerRequestProviderSelection,
+  deleteCustomerRequest,
+} from "@/entities/request/api/customer-requests";
 import {
   appendCustomerCadastralNumber,
   deleteCustomerCadastralNumber,
   updateCustomerCadastralNumber,
 } from "@/entities/request/api/request-cadastral-numbers";
-import {
-  createRequestCadastralBehavior,
-  RequestCadastralNumbers,
-} from "@/widgets/request-cadastral-numbers";
+import { createRequestCadastralBehavior, RequestCadastralNumbers } from "@/widgets/request-cadastral-numbers";
 import {
   resolveActiveConversationId,
   resolveProviderSelectionVisibility,
@@ -109,10 +103,7 @@ import {
   selectProviderAndPrepareConversation,
   type SelectedProviderChatResult,
 } from "@/features/select-request-provider";
-import {
-  fetchCustomerRequestFinance,
-  type RequestFinanceDto,
-} from "@/entities/request/api/request-payments";
+import { fetchCustomerRequestFinance, type RequestFinanceDto } from "@/entities/request/api/request-payments";
 import { useVisibleRefresh } from "@/shared/lib/use-visible-refresh";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import { createLatestFinanceRequestRunner } from "../model/latest-finance-request";
@@ -128,38 +119,21 @@ type Props = {
   justCreated?: boolean;
 };
 
-type ChatRecovery = Extract<
-  SelectedProviderChatResult,
-  { kind: "recovery-required" }
->;
+type ChatRecovery = Extract<SelectedProviderChatResult, { kind: "recovery-required" }>;
 
 export function CustomerRequestConversationWorkspace({ initialRequest, justCreated = false }: Props) {
   const router = useRouter();
   const [req, setReq] = useState<RequestCustomerDto>(initialRequest);
   const [finance, setFinance] = useState<RequestFinanceDto>({
-    totalAmountRubles: initialRequest.lockedAt
-      ? initialRequest.totalAmountRubles
-      : null,
-    priceProposal: initialRequest.lockedAt
-      ? (initialRequest.priceProposal ?? null)
-      : null,
-    canProposePrice: initialRequest.lockedAt
-      ? initialRequest.canProposePrice
-      : false,
-    canAcceptPrice: initialRequest.lockedAt
-      ? initialRequest.canAcceptPrice
-      : false,
-    paidAmountRubles: initialRequest.lockedAt
-      ? initialRequest.paidAmountRubles
-      : 0,
-    remainingAmountRubles: initialRequest.lockedAt
-      ? initialRequest.remainingAmountRubles
-      : null,
+    totalAmountRubles: initialRequest.lockedAt ? initialRequest.totalAmountRubles : null,
+    priceProposal: initialRequest.lockedAt ? (initialRequest.priceProposal ?? null) : null,
+    canProposePrice: initialRequest.lockedAt ? initialRequest.canProposePrice : false,
+    canAcceptPrice: initialRequest.lockedAt ? initialRequest.canAcceptPrice : false,
+    paidAmountRubles: initialRequest.lockedAt ? initialRequest.paidAmountRubles : 0,
+    remainingAmountRubles: initialRequest.lockedAt ? initialRequest.remainingAmountRubles : null,
     payments: initialRequest.lockedAt ? initialRequest.payments : [],
   });
-  const financeRequestRunner = useRef(
-    createLatestFinanceRequestRunner<RequestFinanceDto>(setFinance),
-  );
+  const financeRequestRunner = useRef(createLatestFinanceRequestRunner<RequestFinanceDto>(setFinance));
   const [conversations, setConversations] = useState<ChatServiceRequestConversationListItemDto[]>([]);
   const [conversationsLoaded, setConversationsLoaded] = useState(false);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
@@ -179,9 +153,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
   const [remarks, setRemarks] = useState<RequestRemarkDto[]>([]);
   const [remarksError, setRemarksError] = useState<string | null>(null);
   const [workStages, setWorkStages] = useState<WorkStageDto[]>([]);
-  const [workStageStatusOptions] = useState<WorkStageStatusOptionDto[]>(
-    mergeWorkStageStatusOptions([])
-  );
+  const [workStageStatusOptions] = useState<WorkStageStatusOptionDto[]>(mergeWorkStageStatusOptions([]));
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
   const [activePanelId, setActivePanelId] = useState<"payment" | "counterparty" | "cadastral" | null>(null);
   const [termsBusy, setTermsBusy] = useState(false);
@@ -194,7 +166,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
 
   const selectedConversation = useMemo(
     () => conversations.find((c) => c.conversationId === selectedConversationId) ?? null,
-    [conversations, selectedConversationId]
+    [conversations, selectedConversationId],
   );
 
   const refreshFinance = useCallback(async () => {
@@ -202,27 +174,19 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
       financeRequestRunner.current.cancel();
       return;
     }
-    const conversationId = req.lockedAt
-      ? undefined
-      : (selectedConversationId ?? undefined);
+    const conversationId = req.lockedAt ? undefined : (selectedConversationId ?? undefined);
     const financeKey = req.lockedAt
       ? `provider:${req.providerId ?? "missing"}`
       : `conversation:${selectedConversationId}`;
-    await financeRequestRunner.current.run(
-      financeKey,
-      (signal) =>
-        fetchCustomerRequestFinance(req.id, conversationId, signal),
+    await financeRequestRunner.current.run(financeKey, (signal) =>
+      fetchCustomerRequestFinance(req.id, conversationId, signal),
     );
   }, [req.id, req.lockedAt, req.providerId, selectedConversationId]);
 
   useEffect(() => {
     if (syncPaused || req.lockedAt) return;
     void refreshFinance().catch((financeError: unknown) => {
-      setError(
-        financeError instanceof Error
-          ? financeError.message
-          : "Не удалось загрузить оплату",
-      );
+      setError(financeError instanceof Error ? financeError.message : "Не удалось загрузить оплату");
     });
     const runner = financeRequestRunner.current;
     return () => runner.cancel();
@@ -275,7 +239,9 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
     const payload = (await res.json().catch(() => null)) as RequestCustomerDto | { error?: string } | null;
     if (!res.ok) {
       throw new Error(
-        payload && typeof payload === "object" && "error" in payload && payload.error ? payload.error : "Не удалось обновить заявку"
+        payload && typeof payload === "object" && "error" in payload && payload.error
+          ? payload.error
+          : "Не удалось обновить заявку",
       );
     }
     setReq(payload as RequestCustomerDto);
@@ -294,22 +260,29 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
     scope: `${req.id}:${req.providerId}:${req.lockedAt}:${selectedConversationId}`,
     paused: syncPaused,
     onRefresh: async (signal) => {
-      const response = await fetch(`/api/requests/${req.id}`, { cache: "no-store", signal });
-      const next = await response.json() as RequestCustomerDto;
+      const response = await fetch(`/api/requests/${req.id}`, {
+        cache: "no-store",
+        signal,
+      });
+      const next = (await response.json()) as RequestCustomerDto;
       if (!response.ok || !next?.id || signal.aborted) return;
       const exclusive = hasRequestLock(next);
       const executing = isOrderExecutionStatus(next.status);
       const [chats, bundles, documents, stages, nextRemarks] = await Promise.allSettled([
         loadConversations(),
         exclusive
-          ? fetch(`/api/requests/${req.id}/contract-bundles`, { cache: "no-store", signal })
-            .then(async (res) => {
+          ? fetch(`/api/requests/${req.id}/contract-bundles`, {
+              cache: "no-store",
+              signal,
+            }).then(async (res) => {
               if (!res.ok) throw new Error("Не удалось загрузить договоры");
-              return await res.json() as CustomerContractBundleListItem[];
+              return (await res.json()) as CustomerContractBundleListItem[];
             })
           : Promise.resolve([]),
         exclusive ? fetchCustomerRequestDocumentRequests(req.id) : Promise.resolve([]),
-        ["ACTIVE", "ACCEPTANCE_PENDING", "ACCEPTED", "COMPLETED"].includes(next.status) ? fetchCustomerWorkStages(req.id) : Promise.resolve([]),
+        ["ACTIVE", "ACCEPTANCE_PENDING", "ACCEPTED", "COMPLETED"].includes(next.status)
+          ? fetchCustomerWorkStages(req.id)
+          : Promise.resolve([]),
         executing ? fetchCustomerRequestRemarks(req.id) : Promise.resolve([]),
       ]);
       if (signal.aborted) return;
@@ -354,30 +327,38 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
     setRemarks(list);
   }, [req.id]);
 
-  const loadWorkStages = useCallback(async (isCurrent = () => true) => {
-    if (
-      req.status !== "ACTIVE" &&
-      req.status !== "ACCEPTANCE_PENDING" &&
-      req.status !== "ACCEPTED" &&
-      req.status !== "COMPLETED"
-    ) {
-      setWorkStages([]);
-      return;
-    }
-    const stages = await fetchCustomerWorkStages(req.id);
-    if (isCurrent()) setWorkStages(stages);
-  }, [req.id, req.status]);
+  const loadWorkStages = useCallback(
+    async (isCurrent = () => true) => {
+      if (
+        req.status !== "ACTIVE" &&
+        req.status !== "ACCEPTANCE_PENDING" &&
+        req.status !== "ACCEPTED" &&
+        req.status !== "COMPLETED"
+      ) {
+        setWorkStages([]);
+        return;
+      }
+      const stages = await fetchCustomerWorkStages(req.id);
+      if (isCurrent()) setWorkStages(stages);
+    },
+    [req.id, req.status],
+  );
 
+  const conversationSelectionScope = `${req.id}:${req.providerId}:${req.lockedAt}`;
+  const previousSelectionScope = useRef<string | null>(null);
   useEffect(() => {
+    const scopeChanged = previousSelectionScope.current !== conversationSelectionScope;
+    previousSelectionScope.current = conversationSelectionScope;
     setSelectedConversationId((currentConversationId) =>
       resolveActiveConversationId({
         conversations,
         currentConversationId,
         lockedAt: req.lockedAt,
         selectedProviderId: req.providerId,
+        preferSelectedProvider: scopeChanged,
       }),
     );
-  }, [conversations, req.lockedAt, req.providerId]);
+  }, [conversations, conversationSelectionScope, req.lockedAt, req.providerId]);
 
   const activeOffer =
     req.offers.find((offer) => offer.providerId === selectedConversation?.providerId) ??
@@ -389,7 +370,6 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
   const isServiceRequest = req.subjectType === "SERVICE";
   const conversationCopy = getConversationWorkspaceCopy(req.subjectType);
   const hasContractBundles = contractBundles.length > 0;
-  const hasApprovedContractBundle = contractBundles.some((b) => b.status === "APPROVED" && Boolean(b.signature));
   const hasRevisionRequested = contractBundles.some((b) => b.status === "REVISION_REQUESTED");
   const hasPending = contractBundles.some((b) => b.status === "PENDING_CUSTOMER");
   const allRequestedDocumentsUploaded = docRequests.every((d) => d.status === "UPLOADED");
@@ -411,15 +391,14 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
     setTermsBusy(true);
     setTermsError(null);
     try {
-      const res = await fetch(`/api/legal-docs/terms/current`, { cache: "no-store" });
-      const payload = (await res.json().catch(() => null)) as
-        | { error?: string }
-        | { version: string }
-        | null;
+      const res = await fetch(`/api/legal-docs/terms/current`, {
+        cache: "no-store",
+      });
+      const payload = (await res.json().catch(() => null)) as { error?: string } | { version: string } | null;
       if (!res.ok || !payload || typeof payload !== "object" || !("version" in payload) || !payload.version) {
         throw new Error(
           payload && typeof payload === "object" && "error" in payload
-            ? payload.error ?? "Не удалось загрузить соглашение"
+            ? (payload.error ?? "Не удалось загрузить соглашение")
             : "Не удалось загрузить соглашение",
         );
       }
@@ -436,10 +415,16 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`/api/requests/${req.id}/accept-terms`, { method: "POST" });
+      const res = await fetch(`/api/requests/${req.id}/accept-terms`, {
+        method: "POST",
+      });
       const payload = (await res.json().catch(() => null)) as { error?: string } | RequestCustomerDto | null;
       if (!res.ok) {
-        throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось согласовать условия" : "Не удалось согласовать условия");
+        throw new Error(
+          payload && typeof payload === "object" && "error" in payload
+            ? (payload.error ?? "Не удалось согласовать условия")
+            : "Не удалось согласовать условия",
+        );
       }
       setReq(payload as RequestCustomerDto);
       setNotice("Условия согласованы.");
@@ -495,7 +480,8 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
   async function cancelProviderSelection() {
     const reason = await confirmWithReason({
       title: "Отменить выбор исполнителя?",
-      description: "Договор ещё не заключён. Текущая цена перестанет действовать, а другие отклики снова можно будет выбрать.",
+      description:
+        "Договор ещё не заключён. Текущая цена перестанет действовать, а другие отклики снова можно будет выбрать.",
       reasonLabel: "Причина для исполнителя",
       confirmText: "Отменить выбор",
       confirmColor: "warning",
@@ -651,9 +637,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
         body: JSON.stringify({ termsVersion }),
       });
       const payload = (await res.json().catch(() => null)) as
-        | { error?: string; message?: string }
-        | RequestCustomerDto
-        | null;
+        { error?: string; message?: string } | RequestCustomerDto | null;
       if (!res.ok) {
         throw new Error(extractAcceptContractError(payload));
       }
@@ -695,10 +679,16 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`/api/requests/${req.id}/accept-result`, { method: "POST" });
+      const res = await fetch(`/api/requests/${req.id}/accept-result`, {
+        method: "POST",
+      });
       const payload = (await res.json().catch(() => null)) as { error?: string } | unknown | null;
       if (!res.ok) {
-        throw new Error(payload && typeof payload === "object" && payload && "error" in (payload as any) ? ((payload as any).error as string) : "Не удалось принять результат");
+        throw new Error(
+          payload && typeof payload === "object" && payload && "error" in (payload as any)
+            ? ((payload as any).error as string)
+            : "Не удалось принять результат",
+        );
       }
       await refreshRequest();
       setNotice("Результат принят.");
@@ -731,7 +721,11 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
       });
       const payload = (await res.json().catch(() => null)) as { error?: string } | unknown | null;
       if (!res.ok) {
-        throw new Error(payload && typeof payload === "object" && payload && "error" in (payload as any) ? ((payload as any).error as string) : "Не удалось отправить замечания");
+        throw new Error(
+          payload && typeof payload === "object" && payload && "error" in (payload as any)
+            ? ((payload as any).error as string)
+            : "Не удалось отправить замечания",
+        );
       }
       await refreshRequest();
       await loadRemarks().catch(() => null);
@@ -777,7 +771,9 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
 
   const requestBody = resolveRequestDetailBody(req.message, req.serviceTitle);
   const headerTitle = resolveRequestDetailTitle(req.subjectType, req.serviceTitle);
-  const showCounterparty = canShowCustomerCounterpartyButton({ lockedAt: req.lockedAt });
+  const showCounterparty = canShowCustomerCounterpartyButton({
+    lockedAt: req.lockedAt,
+  });
   const showPayment = true;
   const priceView = resolveRequestPriceView({
     totalAmountRubles: finance.totalAmountRubles,
@@ -798,9 +794,25 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
   });
 
   const panelItems = [
-    { id: "cadastral", label: "Кадастровый номер", visible: true, endIcon: <PinDropOutlinedIcon /> },
-    { id: "payment", label: resolvePaymentTriggerLabel(finance.totalAmountRubles), caption: priceView.triggerCaption, visible: showPayment, endIcon: <PaymentIcon /> },
-    { id: "counterparty", label: resolveProviderTriggerLabel(req.providerName), visible: showCounterparty, endIcon: <AssignmentIndIcon /> },
+    {
+      id: "cadastral",
+      label: "Кадастровый номер",
+      visible: true,
+      endIcon: <PinDropOutlinedIcon />,
+    },
+    {
+      id: "payment",
+      label: resolvePaymentTriggerLabel(finance.totalAmountRubles),
+      caption: priceView.triggerCaption,
+      visible: showPayment,
+      endIcon: <PaymentIcon />,
+    },
+    {
+      id: "counterparty",
+      label: resolveProviderTriggerLabel(req.providerName),
+      visible: showCounterparty,
+      endIcon: <AssignmentIndIcon />,
+    },
   ] as const;
 
   const cadastralBehavior = useMemo(
@@ -931,14 +943,16 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
               }
               details={
                 <RequestDetails
-                    busy={busy}
-                    behavior={createCustomerRequestDetailsBehavior({
-                      request: req,
-                      canAcceptContract,
-                    })}
-                  />
+                  busy={busy}
+                  behavior={createCustomerRequestDetailsBehavior({
+                    request: req,
+                    canAcceptContract,
+                  })}
+                />
               }
-              footerEnd={<RequestDetailPanelTriggers items={panelItems} onOpen={(id) => setActivePanelId(id as never)} />}
+              footerEnd={
+                <RequestDetailPanelTriggers items={panelItems} onOpen={(id) => setActivePanelId(id as never)} />
+              }
               afterBody={
                 <Stack
                   direction="row"
@@ -946,8 +960,9 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
                   useFlexGap
                   sx={{
                     alignItems: "center",
-                    flexWrap: "wrap"
-                  }}>
+                    flexWrap: "wrap",
+                  }}
+                >
                   <RequestLifecycleActions
                     busy={busy}
                     behavior={createCustomerRequestLifecycleBehavior({
@@ -1029,9 +1044,11 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
             onContractDecisionBusyChange={setContractDecisionBusy}
           />
 
-          {req.subjectType !== "SERVICE" && req.providerId && req.lockedAt &&
-            !req.contractAcceptedAt &&
-            ["NEW", "DISCUSSING", "TERMS_AGREED"].includes(req.status) ? (
+          {req.subjectType !== "SERVICE" &&
+          req.providerId &&
+          req.lockedAt &&
+          !req.contractAcceptedAt &&
+          ["NEW", "DISCUSSING", "TERMS_AGREED"].includes(req.status) ? (
             <Box>
               <Button
                 variant="outlined"
@@ -1047,12 +1064,19 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
 
           <Paper variant="outlined" sx={{ overflow: "hidden" }}>
             <Box sx={{ px: 2, py: 1.5 }}>
-              <Typography sx={{
-                fontWeight: 800
-              }}>{conversationCopy.title}</Typography>
-              <Typography variant="body2" sx={{
-                color: "text.secondary"
-              }}>
+              <Typography
+                sx={{
+                  fontWeight: 800,
+                }}
+              >
+                {conversationCopy.title}
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.secondary",
+                }}
+              >
                 {conversations.length === 0 && req.subjectType !== "SERVICE"
                   ? "Отклики и чаты с исполнителями появятся здесь."
                   : conversationCopy.description}
@@ -1067,13 +1091,20 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
                       Чат ещё не начат. Нажмите кнопку ниже, чтобы открыть диалог с исполнителем.
                     </Typography>
                     <Box>
-                      <Button variant="contained" loading={pendingAction === "chat"} disabled={busy} onClick={() => void ensureServiceChat()}>
+                      <Button
+                        variant="contained"
+                        loading={pendingAction === "chat"}
+                        disabled={busy}
+                        onClick={() => void ensureServiceChat()}
+                      >
                         Начать чат
                       </Button>
                     </Box>
                   </Stack>
                 ) : (
-                  <Typography sx={{ color: "text.secondary" }}>Заявка опубликована и ждёт откликов. Ответы исполнителей появятся здесь.</Typography>
+                  <Typography sx={{ color: "text.secondary" }}>
+                    Заявка опубликована и ждёт откликов. Ответы исполнителей появятся здесь.
+                  </Typography>
                 )}
               </Box>
             ) : (
@@ -1088,41 +1119,21 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
                     <ListItem
                       key={c.conversationId}
                       disablePadding
-                      secondaryAction={
-                        req.status === "CLOSED" ? null : isChosenProvider ? (
-                          <Stack direction="row" spacing={1} sx={{ pr: 1 }}>
-                            <Button size="small" variant="outlined" disabled sx={{ whiteSpace: "nowrap" }}>
-                              {isOrderExecutionStatus(req.status) || req.status === "CANCELLED"
-                                ? getRequestDisplayStatusLabel(req)
-                                : hasContractBundles ? "Договор прикреплён" : "Ожидаем договор"}
-                            </Button>
-                          </Stack>
-                        ) : !showProviderSelection ? null : (
-                          <Stack direction="row" spacing={1} sx={{ pr: 1 }}>
-                            <Button
-                              color="secondary"
-                              size="small"
-                              variant="contained"
-                              loading={pendingAction === `select:${c.providerId}`}
-                              disabled={!rowCanInitiate || busy}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void selectProvider(c.providerId, c.providerName);
-                              }}
-                              sx={{ whiteSpace: "nowrap" }}
-                            >
-                              {isDeclined ? "Предложить снова" : "Выбрать исполнителем"}
-                            </Button>
-                          </Stack>
-                        )
-                      }
+                      sx={{
+                        flexDirection: { xs: "column", sm: "row" },
+                        alignItems: "stretch",
+                      }}
                     >
                       <ListItemButton
                         selected={c.conversationId === selectedConversationId}
                         onClick={() => setSelectedConversationId(c.conversationId)}
                         sx={{
+                          minWidth: 0,
+                          flex: 1,
                           "&.Mui-selected": { bgcolor: "action.selected" },
-                          "&.Mui-selected:hover": { bgcolor: "action.selected" },
+                          "&.Mui-selected:hover": {
+                            bgcolor: "action.selected",
+                          },
                         }}
                       >
                         <ListItemText
@@ -1133,24 +1144,71 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
                               useFlexGap
                               sx={{
                                 alignItems: "center",
-                                flexWrap: "wrap"
-                              }}>
-                              <Typography component="span" sx={{
-                                fontWeight: c.conversationId === selectedConversationId ? 800 : 700
-                              }}>
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <Typography
+                                component="span"
+                                sx={{
+                                  overflowWrap: "anywhere",
+                                  fontWeight: c.conversationId === selectedConversationId ? 800 : 700,
+                                }}
+                              >
                                 {c.providerName}
                               </Typography>
                               {/* Why: offer SELECTED значит «заявка отправлена компании», исполнителем она становится только после фиксации. */}
                               {isChosenProvider ? <Chip size="small" color="success" label="Исполнитель" /> : null}
-                              {!isSelected && isDeclined ? <Chip size="small" variant="outlined" label="Отказ" /> : null}
+                              {!isSelected && isDeclined ? (
+                                <Chip size="small" variant="outlined" label="Отказ" />
+                              ) : null}
                             </Stack>
                           }
                           secondary={c.lastSnippet ?? "—"}
                           slotProps={{
-                            secondary: { noWrap: true }
+                            secondary: { noWrap: true },
                           }}
                         />
                       </ListItemButton>
+                      {req.status !== "CLOSED" && (isChosenProvider || showProviderSelection) ? (
+                        <Box
+                          sx={{
+                            flexShrink: 0,
+                            display: "flex",
+                            alignItems: "center",
+                            px: 2,
+                            pb: { xs: 1.5, sm: 0 },
+                          }}
+                        >
+                          {isChosenProvider ? (
+                            <Stack direction="row" spacing={1} sx={{ pr: 1 }}>
+                              <Button size="small" variant="outlined" disabled sx={{ whiteSpace: "nowrap" }}>
+                                {isOrderExecutionStatus(req.status) || req.status === "CANCELLED"
+                                  ? getRequestDisplayStatusLabel(req)
+                                  : hasContractBundles
+                                    ? "Договор прикреплён"
+                                    : "Ожидаем договор"}
+                              </Button>
+                            </Stack>
+                          ) : !showProviderSelection ? null : (
+                            <Stack direction="row" spacing={1} sx={{ pr: 1 }}>
+                              <Button
+                                color="secondary"
+                                size="small"
+                                variant="contained"
+                                loading={pendingAction === `select:${c.providerId}`}
+                                disabled={!rowCanInitiate || busy}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void selectProvider(c.providerId, c.providerName);
+                                }}
+                                sx={{ whiteSpace: "nowrap" }}
+                              >
+                                {isDeclined ? "Предложить снова" : "Выбрать исполнителем"}
+                              </Button>
+                            </Stack>
+                          )}
+                        </Box>
+                      ) : null}
                     </ListItem>
                   );
                 })}
@@ -1169,11 +1227,14 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
             <DialogTitle>Подписание договора с исполнителем</DialogTitle>
             <DialogContent dividers>
               <Stack spacing={1.5}>
-                <Typography variant="body2" sx={{
-                  color: "text.secondary"
-                }}>
-                  Договор заключается напрямую между вами и исполнителем (по согласованным условиям
-                  сделки и файлам договора). Платформа стороной этого договора не является — см.{" "}
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "text.secondary",
+                  }}
+                >
+                  Договор заключается напрямую между вами и исполнителем (по согласованным условиям сделки и файлам
+                  договора). Платформа стороной этого договора не является — см.{" "}
                   <Box
                     component="a"
                     href="/terms"
@@ -1192,16 +1253,17 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
                   statedOnly
                 />
                 {termsError ? <Alert severity="error">{termsError}</Alert> : null}
-                {termsBusy ? <Typography sx={{
-                  color: "text.secondary"
-                }}>Загрузка версии соглашения…</Typography> : null}
+                {termsBusy ? (
+                  <Typography
+                    sx={{
+                      color: "text.secondary",
+                    }}
+                  >
+                    Загрузка версии соглашения…
+                  </Typography>
+                ) : null}
                 <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={termsAccepted}
-                      onChange={(e) => setTermsAccepted(e.target.checked)}
-                    />
-                  }
+                  control={<Checkbox checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} />}
                   label="Я согласен(а) с договором исполнителя и пользовательским соглашением платформы"
                 />
               </Stack>
@@ -1232,6 +1294,9 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
             subtitle={selectedConversation?.providerName ?? pickTitle(req)}
             requestLockedAt={req.lockedAt}
             selectedProviderId={req.providerId}
+            requestArchived={Boolean(
+              req.lockedAt && selectedConversation && selectedConversation.providerId !== req.providerId,
+            )}
             onOpenSelectedConversation={() => {
               const nextConversationId = resolveActiveConversationId({
                 conversations,
@@ -1262,9 +1327,11 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
           </Paper>
         ) : (
           <Paper variant="outlined" sx={{ p: 2.5 }}>
-            <Typography sx={{
-              color: "text.secondary"
-            }}>
+            <Typography
+              sx={{
+                color: "text.secondary",
+              }}
+            >
               {!conversationsLoaded
                 ? "Загружаем переписку…"
                 : conversations.length > 0
