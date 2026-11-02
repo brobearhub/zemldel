@@ -59,16 +59,8 @@ describe("CustomerRequestContractFilesClient", () => {
     consoleError.mockRestore();
   });
 
-  it("передаёт родителю список после одобрения договора", async () => {
+  it("одобряет договор без подписи и передаёт родителю обновлённый список", async () => {
     const pending = bundle("dogovor.pdf");
-    pending.signature = {
-      id: "sig-1",
-      originalName: "dogovor.sig",
-      mimeType: "application/pgp-signature",
-      sizeBytes: 4,
-      createdAt: "2026-10-06T00:00:00.000Z",
-      updatedAt: "2026-10-06T00:00:00.000Z",
-    };
     const approved = { ...pending, status: "APPROVED" as const };
     const onBundlesChange = vi.fn();
 

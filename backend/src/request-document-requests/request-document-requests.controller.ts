@@ -26,6 +26,7 @@ import type { Request, Response } from 'express';
 import { memoryStorage } from 'multer';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
+import { create as contentDisposition } from 'content-disposition';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import { OkResponseDto } from '../common/dto/ok-response.dto';
 import { ApiValidationErrorResponseDto } from '../common/dto/api-error-response.dto';
@@ -221,7 +222,7 @@ export class RequestDocumentRequestsController {
     res.setHeader('content-type', mimeType);
     res.setHeader(
       'content-disposition',
-      `${disposition}; filename="${fileName}"`,
+      contentDisposition(fileName, { type: disposition }),
     );
     res.setHeader('cache-control', 'private, no-store');
     await pipeline(stream, res);
@@ -253,7 +254,7 @@ export class RequestDocumentRequestsController {
     res.setHeader('content-type', mimeType);
     res.setHeader(
       'content-disposition',
-      `${disposition}; filename="${fileName}"`,
+      contentDisposition(fileName, { type: disposition }),
     );
     res.setHeader('cache-control', 'private, no-store');
     await pipeline(stream, res);

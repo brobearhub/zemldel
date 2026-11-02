@@ -160,7 +160,6 @@ export function CustomerRequestContractFilesClient({
           const bundle = bundles.find((b) => b.bundleId === f.id);
           if (!bundle) return null;
           const canDecide = bundle.status === "PENDING_CUSTOMER";
-          const signatureMissing = !bundle.signature;
 
           return (
             <>
@@ -185,10 +184,10 @@ export function CustomerRequestContractFilesClient({
                 <Typography
                   variant="body2"
                   sx={{
-                    color: "warning.main",
+                    color: "text.secondary",
                     px: 1
                   }}>
-                  Подпись (.sig) ещё не прикреплена
+                  Файл подписи не приложен.
                 </Typography>
               )}
 
@@ -198,7 +197,7 @@ export function CustomerRequestContractFilesClient({
                     variant="contained"
                     color="success"
                     loading={approvingBundleId === bundle.bundleId}
-                    disabled={busy || signatureMissing}
+                    disabled={busy}
                     onClick={() => void approve(bundle.bundleId)}
                   >
                     Одобрить

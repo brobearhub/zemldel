@@ -11,7 +11,7 @@ export function canCustomerAcceptContract(input: {
 }) {
   const allContractBundlesApproved =
     input.contractBundles.length > 0 &&
-    input.contractBundles.every((b) => b.status === "APPROVED" && Boolean(b.signature));
+    input.contractBundles.every((b) => b.status === "APPROVED");
   const allRequestedDocumentsUploaded = input.documentRequests.every((d) => d.status === "UPLOADED");
   return (
     Boolean(input.lockedAt) &&

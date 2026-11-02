@@ -24,6 +24,17 @@ const conversations: ChatServiceRequestConversationListItemDto[] = [
 ];
 
 describe("resolveActiveConversationId", () => {
+  it("preserves a valid archived conversation during ordinary refresh", () => {
+    expect(resolveActiveConversationId({ conversations, currentConversationId: "conversation-a",
+      lockedAt: "2026-11-01", selectedProviderId: "provider-b", preferSelectedProvider: false,
+    })).toBe("conversation-a");
+  });
+
+  it("falls back to the chosen provider if the archived conversation disappears", () => {
+    expect(resolveActiveConversationId({ conversations, currentConversationId: "missing",
+      lockedAt: "2026-11-01", selectedProviderId: "provider-b", preferSelectedProvider: false,
+    })).toBe("conversation-b");
+  });
   it("после lock выбирает тред выбранного provider, а не первый по активности", () => {
     expect(
       resolveActiveConversationId({

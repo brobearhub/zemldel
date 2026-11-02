@@ -40,25 +40,13 @@ import Link from "@/shared/ui/Link";
 import { RequestDetailHeaderCard } from "@/shared/ui/RequestDetailHeaderCard";
 import { RequestDetailPanelLayer } from "@/shared/ui/RequestDetailPanelLayer";
 import { RequestDetailPanelTriggers } from "@/shared/ui/RequestDetailPanelTriggers";
-import {
-  createProviderRequestDetailsBehavior,
-  RequestDetails,
-} from "@/widgets/request-details";
-import {
-  createProviderRequestLifecycleBehavior,
-  RequestLifecycleActions,
-} from "@/widgets/request-lifecycle-actions";
-import {
-  createProviderRequestRemarksBehavior,
-  RequestRemarks,
-} from "@/widgets/request-remarks";
+import { createProviderRequestDetailsBehavior, RequestDetails } from "@/widgets/request-details";
+import { createProviderRequestLifecycleBehavior, RequestLifecycleActions } from "@/widgets/request-lifecycle-actions";
+import { createProviderRequestRemarksBehavior, RequestRemarks } from "@/widgets/request-remarks";
 import { RequestWorkProgress } from "@/widgets/request-work-progress";
 import { RequestPayments } from "@/widgets/request-payments";
 import { RequestReviewsPanel } from "@/widgets/request-reviews";
-import {
-  fetchProWorkStages,
-  fetchWorkStageStatuses,
-} from "@/entities/request/api/request-work-stages";
+import { fetchProWorkStages, fetchWorkStageStatuses } from "@/entities/request/api/request-work-stages";
 import {
   completeProRequestRemark,
   createProRequestRemark,
@@ -70,10 +58,7 @@ import { buildRequestCompletionDescription } from "../model/request-completion-c
 import { createExclusiveRequestGuard } from "../model/exclusive-request-guard";
 import { resolveProviderRequestScreenModel } from "../model/provider-request-screen-model";
 import { deleteProRequestContractFile } from "@/entities/request/api/pro-contract-files";
-import type {
-  ProContractBundleItem,
-  ProMiscFileItem,
-} from "@/entities/request/api/pro-contract-bundles";
+import type { ProContractBundleItem, ProMiscFileItem } from "@/entities/request/api/pro-contract-bundles";
 import {
   deleteProRequestContractBundle,
   fetchProRequestContractBundles,
@@ -98,18 +83,19 @@ import {
   deleteProCadastralNumber,
   updateProCadastralNumber,
 } from "@/entities/request/api/request-cadastral-numbers";
-import {
-  createRequestCadastralBehavior,
-  RequestCadastralNumbers,
-} from "@/widgets/request-cadastral-numbers";
+import { createRequestCadastralBehavior, RequestCadastralNumbers } from "@/widgets/request-cadastral-numbers";
 
 type Props = {
   initialRequest: RequestProDto;
   subtitle: string;
+  onRequestChange?: (request: RequestProDto) => void;
 };
 
-export function ProRequestDetails({ initialRequest, subtitle }: Props) {
+export function ProRequestDetails({ initialRequest, subtitle, onRequestChange }: Props) {
   const [req, setReq] = useState(initialRequest);
+  useEffect(() => {
+    onRequestChange?.(req);
+  }, [req, onRequestChange]);
   const [exclusiveRequestGuard] = useState(createExclusiveRequestGuard);
   const exclusiveScopeRef = useRef(`${initialRequest.id}:${initialRequest.isLocked}`);
   const exclusiveScope = `${req.id}:${req.isLocked}`;
@@ -126,74 +112,60 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [contractBundlesLoaded, setContractBundlesLoaded] = useState(false);
-  const [contractBundles, setContractBundles] = useState<
-    ProContractBundleItem[]
-  >([]);
+  const [contractBundles, setContractBundles] = useState<ProContractBundleItem[]>([]);
   const [miscLoaded, setMiscLoaded] = useState(false);
   const [miscFiles, setMiscFiles] = useState<ProMiscFileItem[]>([]);
   const [docRequestsLoaded, setDocRequestsLoaded] = useState(false);
-  const [docRequests, setDocRequests] = useState<RequestDocumentRequestDto[]>(
-    [],
-  );
+  const [docRequests, setDocRequests] = useState<RequestDocumentRequestDto[]>([]);
   const [remarks, setRemarks] = useState<RequestRemarkDto[]>([]);
   const [remarksError, setRemarksError] = useState<string | null>(null);
   const [workStages, setWorkStages] = useState<WorkStageDto[]>([]);
-  const [workStageStatusOptions, setWorkStageStatusOptions] = useState<
-    WorkStageStatusOptionDto[]
-  >([...SYSTEM_WORK_STAGE_STATUSES]);
+  const [workStageStatusOptions, setWorkStageStatusOptions] = useState<WorkStageStatusOptionDto[]>([
+    ...SYSTEM_WORK_STAGE_STATUSES,
+  ]);
   const confirm = useConfirm();
   const confirmWithReason = useConfirmWithReason();
   const { socket } = useChatSocket();
-  const [activePanelId, setActivePanelId] = useState<
-    "payment" | "counterparty" | "cadastral" | null
-  >(null);
+  const [activePanelId, setActivePanelId] = useState<"payment" | "counterparty" | "cadastral" | null>(null);
 
   const isBusy = busy || uploadBusy || paymentsBusy || progressBusy;
   const showContractWorkflow = canProviderManageDealDocuments(req);
-  const hasPendingContractFiles = contractBundles.some(
-    (b) => b.status === "PENDING_CUSTOMER",
-  );
-  const hasRevisionRequested = contractBundles.some(
-    (b) => b.status === "REVISION_REQUESTED",
-  );
+  const hasPendingContractFiles = contractBundles.some((b) => b.status === "PENDING_CUSTOMER");
+  const hasRevisionRequested = contractBundles.some((b) => b.status === "REVISION_REQUESTED");
   const hasApproved = contractBundles.some((b) => b.status === "APPROVED");
-  const hasPendingRequestedDocs = docRequests.some(
-    (d) => d.status === "REQUESTED",
-  );
+  const hasPendingRequestedDocs = docRequests.some((d) => d.status === "REQUESTED");
   const hasUploadedDocs = docRequests.some((d) => d.status === "UPLOADED");
 
-  const loadWorkStages = useCallback(async (isCurrent = () => true) => {
-    if (!screenModel.showDealWorkflow) {
-      setWorkStages([]);
-      setWorkStageStatusOptions([...SYSTEM_WORK_STAGE_STATUSES]);
-      return;
-    }
-    if (
-      req.status !== "ACTIVE" &&
-      req.status !== "ACCEPTANCE_PENDING" &&
-      req.status !== "ACCEPTED" &&
-      req.status !== "COMPLETED"
-    ) {
-      setWorkStages([]);
-      return;
-    }
-    const generation = exclusiveRequestGuard.capture();
-    const [stages, statuses] = await Promise.all([
-      fetchProWorkStages(req.id),
-      fetchWorkStageStatuses().catch(() => ({
-        system: [...SYSTEM_WORK_STAGE_STATUSES],
-        custom: [],
-      })),
-    ]);
-    if (!isCurrent() || !exclusiveRequestGuard.isCurrent(generation)) return;
-    setWorkStages(stages);
-    setWorkStageStatusOptions(mergeWorkStageStatusOptions(statuses.custom));
-  }, [
-    exclusiveRequestGuard,
-    req.id,
-    req.status,
-    screenModel.showDealWorkflow,
-  ]);
+  const loadWorkStages = useCallback(
+    async (isCurrent = () => true) => {
+      if (!screenModel.showDealWorkflow) {
+        setWorkStages([]);
+        setWorkStageStatusOptions([...SYSTEM_WORK_STAGE_STATUSES]);
+        return;
+      }
+      if (
+        req.status !== "ACTIVE" &&
+        req.status !== "ACCEPTANCE_PENDING" &&
+        req.status !== "ACCEPTED" &&
+        req.status !== "COMPLETED"
+      ) {
+        setWorkStages([]);
+        return;
+      }
+      const generation = exclusiveRequestGuard.capture();
+      const [stages, statuses] = await Promise.all([
+        fetchProWorkStages(req.id),
+        fetchWorkStageStatuses().catch(() => ({
+          system: [...SYSTEM_WORK_STAGE_STATUSES],
+          custom: [],
+        })),
+      ]);
+      if (!isCurrent() || !exclusiveRequestGuard.isCurrent(generation)) return;
+      setWorkStages(stages);
+      setWorkStageStatusOptions(mergeWorkStageStatusOptions(statuses.custom));
+    },
+    [exclusiveRequestGuard, req.id, req.status, screenModel.showDealWorkflow],
+  );
 
   async function loadRemarks() {
     if (!screenModel.showDealWorkflow) return;
@@ -223,8 +195,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     const res = await fetch(`/api/pro/requests/${req.id}`, {
       cache: "no-store",
     });
-    const payload = (await res.json().catch(() => null)) as
-      { error?: string } | RequestProDto | null;
+    const payload = (await res.json().catch(() => null)) as { error?: string } | RequestProDto | null;
     if (!res.ok) {
       throw new Error(
         payload && typeof payload === "object" && "error" in payload
@@ -239,8 +210,11 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     scope: `${req.id}:${req.isLocked}`,
     paused: isBusy,
     onRefresh: async (signal) => {
-      const response = await fetch(`/api/pro/requests/${req.id}`, { cache: "no-store", signal });
-      const next = await response.json() as RequestProDto;
+      const response = await fetch(`/api/pro/requests/${req.id}`, {
+        cache: "no-store",
+        signal,
+      });
+      const next = (await response.json()) as RequestProDto;
       if (!response.ok || !next?.id || signal.aborted) return;
       if (!resolveProviderRequestScreenModel(next).showDealWorkflow) {
         // Never request deal resources for an archived provider.
@@ -255,7 +229,9 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
         documentsAvailable ? fetchProRequestContractBundles(req.id) : Promise.resolve([]),
         documentsAvailable ? fetchProRequestMiscFiles(req.id) : Promise.resolve([]),
         documentsAvailable ? fetchProRequestDocumentRequests(req.id) : Promise.resolve([]),
-        ["ACTIVE", "ACCEPTANCE_PENDING", "ACCEPTED", "COMPLETED"].includes(next.status) ? fetchProWorkStages(req.id) : Promise.resolve([]),
+        ["ACTIVE", "ACCEPTANCE_PENDING", "ACCEPTED", "COMPLETED"].includes(next.status)
+          ? fetchProWorkStages(req.id)
+          : Promise.resolve([]),
         executing ? fetchWorkStageStatuses() : Promise.resolve(null),
         executing ? fetchProRequestRemarks(req.id) : Promise.resolve([]),
       ]);
@@ -330,9 +306,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
       await refreshDocRequests();
       setNotice("Запрос документа отправлен.");
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Не удалось запросить документ",
-      );
+      setError(e instanceof Error ? e.message : "Не удалось запросить документ");
     } finally {
       setBusy(false);
     }
@@ -354,21 +328,16 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
       await refreshDocRequests();
       setNotice("Запрос документа отменён.");
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Не удалось отменить запрос документа",
-      );
+      setError(e instanceof Error ? e.message : "Не удалось отменить запрос документа");
     } finally {
       setBusy(false);
     }
   }
 
-  async function uploadContractBundle(input: {
-    document: File;
-    signature: File;
-  }) {
+  async function uploadContractBundle(input: { document: File; signature?: File | null }) {
     const startedAt = Date.now();
     setUploadBusy(true);
-    setUploadNames([input.document.name, input.signature.name]);
+    setUploadNames([input.document.name, ...(input.signature ? [input.signature.name] : [])]);
     setError(null);
     setNotice(null);
     try {
@@ -391,8 +360,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   async function deleteContractBundle(bundleId: string) {
     const ok = await confirm({
       title: "Удалить пакет договора?",
-      description:
-        "Договор и подпись будут удалены из заявки. Это действие нельзя отменить.",
+      description: "Договор и подпись будут удалены из заявки. Это действие нельзя отменить.",
       confirmText: "Удалить пакет",
       confirmColor: "error",
     });
@@ -423,9 +391,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
       await refreshMiscFiles();
       setNotice("Документы прикреплены.");
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Не удалось загрузить документы",
-      );
+      setError(e instanceof Error ? e.message : "Не удалось загрузить документы");
     } finally {
       const elapsed = Date.now() - startedAt;
       const minMs = 600;
@@ -466,8 +432,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     try {
       if (action === "confirm") {
         if (req.status === "ACTIVE") {
-          if (typeof value !== "string")
-            throw new Error("Укажите итог результата");
+          if (typeof value !== "string") throw new Error("Укажите итог результата");
           await submitProRequestDelivery(req.id, value);
           await refresh();
           setNotice("Услуга передана на принятие клиенту.");
@@ -479,10 +444,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
           });
           const payload: unknown = await res.json().catch(() => null);
           const errorMessage =
-            payload &&
-            typeof payload === "object" &&
-            "error" in payload &&
-            typeof payload.error === "string"
+            payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
               ? payload.error
               : "Не удалось завершить";
           if (!res.ok) throw new Error(errorMessage);
@@ -502,8 +464,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ reason: normalizedReason }),
         });
-        const payload = (await res.json().catch(() => null)) as
-          { error?: string } | RequestProDto | null;
+        const payload = (await res.json().catch(() => null)) as { error?: string } | RequestProDto | null;
         if (!res.ok) {
           throw new Error(
             payload && typeof payload === "object" && "error" in payload
@@ -518,10 +479,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
 
       throw new Error("Unsupported action");
     } catch (e) {
-      const actionError =
-        e instanceof Error
-          ? e
-          : new Error("Не удалось выполнить действие");
+      const actionError = e instanceof Error ? e : new Error("Не удалось выполнить действие");
       setError(actionError.message);
       throw actionError;
     } finally {
@@ -540,9 +498,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
       await loadRemarks();
       setNotice("Замечание добавлено.");
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Не удалось добавить замечание",
-      );
+      setError(e instanceof Error ? e.message : "Не удалось добавить замечание");
     } finally {
       setBusy(false);
     }
@@ -557,21 +513,14 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
       await loadRemarks();
       setNotice("Замечание отмечено как выполненное.");
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Не удалось отметить замечание выполненным",
-      );
+      setError(e instanceof Error ? e.message : "Не удалось отметить замечание выполненным");
     } finally {
       setBusy(false);
     }
   }
 
   const messageBody = resolveRequestDetailBody(req.message, req.serviceTitle);
-  const headerTitle = resolveRequestDetailTitle(
-    req.subjectType,
-    req.serviceTitle,
-  );
+  const headerTitle = resolveRequestDetailTitle(req.subjectType, req.serviceTitle);
   const showCounterparty = canShowProviderCounterpartyButton({
     lockedAt: req.lockedAt,
     isLocked: req.isLocked,
@@ -652,9 +601,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     [req.cadastralNumbers, req.id, req.status],
   );
 
-  const activePanel = panelItems.find(
-    (p) => p.id === activePanelId && (p.visible ?? true),
-  );
+  const activePanel = panelItems.find((p) => p.id === activePanelId && (p.visible ?? true));
   const isPanelOpen = Boolean(activePanel);
   const panelTitle =
     activePanel?.id === "payment"
@@ -691,11 +638,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
         onChanged={refresh}
       />
     ) : activePanel?.id === "counterparty" ? (
-      <RequestCounterpartyPanel
-        fields={customerFields}
-        avatarSrc={req.customerImage}
-        avatarName={req.customerName}
-      />
+      <RequestCounterpartyPanel fields={customerFields} avatarSrc={req.customerImage} avatarName={req.customerName} />
     ) : activePanel?.id === "cadastral" ? (
       <RequestCadastralNumbers behavior={cadastralBehavior} busy={isBusy} />
     ) : null;
@@ -714,89 +657,89 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
           subtitle={subtitle}
           statusLabel={screenModel.statusLabel}
           body={messageBody}
-          footerEnd={screenModel.showDealWorkflow ? (
-            <RequestDetailPanelTriggers
-              items={panelItems}
-              onOpen={(id) => setActivePanelId(id as never)}
-            />
-          ) : null}
-          lead={screenModel.showDealWorkflow ? (
-            <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-              <RequestPriceBlock
-                totalAmountRubles={req.totalAmountRubles}
-                servicePriceRubles={req.servicePriceRubles}
-                priceProposal={req.priceProposal}
-                serviceId={req.isLocked ? null : req.serviceId}
-              />
-              {req.status === "ACCEPTANCE_PENDING" ? (
+          footerEnd={
+            screenModel.showDealWorkflow ? (
+              <RequestDetailPanelTriggers items={panelItems} onOpen={(id) => setActivePanelId(id as never)} />
+            ) : null
+          }
+          lead={
+            screenModel.showDealWorkflow ? (
+              <Stack spacing={0.5} sx={{ minWidth: 0 }}>
                 <RequestPriceBlock
                   totalAmountRubles={req.totalAmountRubles}
                   servicePriceRubles={req.servicePriceRubles}
                   priceProposal={req.priceProposal}
-                  statedOnly
+                  serviceId={req.isLocked ? null : req.serviceId}
                 />
-              ) : null}
-            </Stack>
-          ) : null}
-          details={screenModel.showDealWorkflow ? (
-            <RequestDetails
-              busy={isBusy}
-              behavior={createProviderRequestDetailsBehavior({ request: req })}
-            />
-          ) : (
-            <Alert severity="info">
-              Клиент выбрал другого исполнителя. Вам доступен архив переписки.
-            </Alert>
-          )}
-          afterBody={screenModel.showDealWorkflow ? (
-            <RequestLifecycleActions
-              busy={isBusy}
-              behavior={createProviderRequestLifecycleBehavior({
-                request: req,
-                isMarkRenderedDisabled: remarks.some(
-                  (r) => r.status === "OPEN",
-                ),
-                actions: {
-                  startWork: async () => undefined,
-                  markRendered: async (summary) => {
-                    await runAction("confirm", summary);
+                {req.status === "ACCEPTANCE_PENDING" ? (
+                  <RequestPriceBlock
+                    totalAmountRubles={req.totalAmountRubles}
+                    servicePriceRubles={req.servicePriceRubles}
+                    priceProposal={req.priceProposal}
+                    statedOnly
+                  />
+                ) : null}
+              </Stack>
+            ) : null
+          }
+          details={
+            screenModel.showDealWorkflow ? (
+              <RequestDetails
+                busy={isBusy}
+                behavior={createProviderRequestDetailsBehavior({
+                  request: req,
+                })}
+              />
+            ) : (
+              <Alert severity="info">Клиент выбрал другого исполнителя. Вам доступен архив переписки.</Alert>
+            )
+          }
+          afterBody={
+            screenModel.showDealWorkflow ? (
+              <RequestLifecycleActions
+                busy={isBusy}
+                behavior={createProviderRequestLifecycleBehavior({
+                  request: req,
+                  isMarkRenderedDisabled: remarks.some((r) => r.status === "OPEN"),
+                  actions: {
+                    startWork: async () => undefined,
+                    markRendered: async (summary) => {
+                      await runAction("confirm", summary);
+                    },
+                    requestAcceptance: async () => undefined,
+                    complete: async () => {
+                      const remaining = req.remainingAmountRubles ?? 0;
+                      const ok = await confirm({
+                        title: "Завершить заявку?",
+                        description: buildRequestCompletionDescription(remaining),
+                        confirmText: "Завершить",
+                        confirmColor: "success",
+                      });
+                      if (!ok) return;
+                      await runAction("confirm");
+                    },
+                    declineOffer: async () => {
+                      const reason = await confirmWithReason({
+                        title: "Отказаться от заявки?",
+                        description:
+                          "Вы больше не будете исполнителем по этой заявке. Клиент сможет выбрать другого исполнителя. Это действие нельзя отменить.",
+                        reasonLabel: "Причина",
+                        confirmText: "Да, отказаться",
+                        confirmColor: "error",
+                      });
+                      if (reason == null) return;
+                      await runAction("decline", reason);
+                    },
                   },
-                  requestAcceptance: async () => undefined,
-                  complete: async () => {
-                    const remaining = req.remainingAmountRubles ?? 0;
-                    const ok = await confirm({
-                      title: "Завершить заявку?",
-                      description: buildRequestCompletionDescription(remaining),
-                      confirmText: "Завершить",
-                      confirmColor: "success",
-                    });
-                    if (!ok) return;
-                    await runAction("confirm");
-                  },
-                  declineOffer: async () => {
-                    const reason = await confirmWithReason({
-                      title: "Отказаться от заявки?",
-                      description:
-                        "Вы больше не будете исполнителем по этой заявке. Клиент сможет выбрать другого исполнителя. Это действие нельзя отменить.",
-                      reasonLabel: "Причина",
-                      confirmText: "Да, отказаться",
-                      confirmColor: "error",
-                    });
-                    if (reason == null) return;
-                    await runAction("decline", reason);
-                  },
-                },
-              })}
-            />
-          ) : null}
+                })}
+              />
+            ) : null
+          }
         />
       </RequestDetailPanelLayer>
 
       {req.fiasInactiveWarning ? (
-        <RequestCityInactiveWarning
-          show={req.fiasInactiveWarning}
-          city={req.requestCity}
-        />
+        <RequestCityInactiveWarning show={req.fiasInactiveWarning} city={req.requestCity} />
       ) : null}
 
       {notice ? <Alert severity="success">{notice}</Alert> : null}
@@ -854,12 +797,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
 
       {screenModel.showDealWorkflow ? (
         <>
-          <RequestReviewsPanel
-            key={req.id}
-            requestId={req.id}
-            status={req.status}
-            side="provider"
-          />
+          <RequestReviewsPanel key={req.id} requestId={req.id} status={req.status} side="provider" />
 
           <RequestWorkProgress
             mode="provider"

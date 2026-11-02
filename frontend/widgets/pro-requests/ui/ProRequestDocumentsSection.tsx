@@ -51,7 +51,7 @@ export type ProRequestDocumentsSectionProps = {
 
   onCreateDocRequest: (title: string) => Promise<void> | void;
   onCancelDocRequest: (docRequestId: string) => Promise<void> | void;
-  onUploadContractBundle: (input: { document: File; signature: File }) => Promise<void> | void;
+  onUploadContractBundle: (input: { document: File; signature?: File | null }) => Promise<void> | void;
   onDeleteContractBundle: (bundleId: string) => Promise<void> | void;
   onUploadMiscFiles: (files: File[]) => Promise<void> | void;
   onDeleteMiscFile: (fileId: string) => Promise<void> | void;
@@ -252,10 +252,10 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
                       <Typography
                         variant="body2"
                         sx={{
-                          color: "warning.main",
+                          color: "text.secondary",
                           px: 1
                         }}>
-                        Подпись (.sig) не прикреплена
+                        Файл подписи не приложен.
                       </Typography>
                     )}
                     {!isOrderExecutionStatus(props.requestStatus) ? (
@@ -416,19 +416,20 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
             <Typography sx={{
               color: "text.secondary"
             }}>
-              Прикрепите файл договора и файл подписи <b>.sig</b>, <b>.sgn</b> или <b>.p7s</b>.
+              Загрузите договор в PDF или DOCX. Готовый файл подписи можно приложить при наличии.
             </Typography>
 
             <Stack spacing={1}>
               <Typography sx={{
                 fontWeight: 800
-              }}>Договор</Typography>
+              }}>Договор · обязательно</Typography>
               <Button component="label" variant="outlined" disabled={props.isBusy} sx={{ alignSelf: "flex-start" }}>
                 {bundleDocument ? bundleDocument.name : "Выбрать файл"}
                 <input
                   hidden
                   type="file"
                   accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  aria-label="Файл договора"
                   onChange={(e) => {
                     const file = e.currentTarget.files?.[0] ?? null;
                     e.currentTarget.value = "";
@@ -441,13 +442,14 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
             <Stack spacing={1}>
               <Typography sx={{
                 fontWeight: 800
-              }}>Подпись</Typography>
+              }}>Файл подписи · необязательно</Typography>
               <Button component="label" variant="outlined" disabled={props.isBusy} sx={{ alignSelf: "flex-start" }}>
-                {bundleSignature ? bundleSignature.name : "Выбрать файл подписи"}
+                {bundleSignature ? bundleSignature.name : "Прикрепить файл подписи"}
                 <input
                   hidden
                   type="file"
                   accept=".sig,.sgn,.p7s,application/pgp-signature,application/pkcs7-signature,application/octet-stream"
+                  aria-label="Файл подписи"
                   onChange={(e) => {
                     const file = e.currentTarget.files?.[0] ?? null;
                     e.currentTarget.value = "";
@@ -455,6 +457,14 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
                   }}
                 />
               </Button>
+              <Typography variant="caption" color="text.secondary">
+                Уже созданная подпись в формате .sig, .sgn или .p7s. Прикрепление файла не подписывает договор на сайте.
+              </Typography>
+              {bundleSignature ? (
+                <Button size="small" disabled={props.isBusy} onClick={() => setBundleSignature(null)} sx={{ alignSelf: "flex-start" }}>
+                  Убрать файл подписи
+                </Button>
+              ) : null}
             </Stack>
           </Stack>
         </DialogContent>
@@ -465,9 +475,9 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
           <Button
             variant="contained"
             loading={pendingAction === "upload-bundle"}
-            disabled={props.isBusy || !bundleDocument || !bundleSignature}
+            disabled={props.isBusy || !bundleDocument}
             onClick={async () => {
-              if (!bundleDocument || !bundleSignature) return;
+              if (!bundleDocument) return;
               await runPending("upload-bundle", () => props.onUploadContractBundle({ document: bundleDocument, signature: bundleSignature }));
               setBundleDialogOpen(false);
               setBundleDocument(null);
