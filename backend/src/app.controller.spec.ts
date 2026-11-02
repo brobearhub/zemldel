@@ -6,9 +6,9 @@ describe('AppController', () => {
   let appController: AppController;
 
   describe('root', () => {
-    it('should return "Hello World!"', () => {
+    it('returns the API identity', () => {
       appController = new AppController(new AppService());
-      expect(appController.getHello()).toBe('Hello World!');
+      expect(appController.getHello()).toBe('ZemledelPro API');
     });
   });
 });

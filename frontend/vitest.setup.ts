@@ -1,6 +1,21 @@
 import '@testing-library/jest-dom/vitest';
 import 'whatwg-fetch';
 
+// Vitest 3 keeps existing Node globals. Node 26 exposes localStorage without
+// browser storage semantics; use this test environment's real jsdom Storage.
+const browserWindow = (globalThis as typeof globalThis & {
+  jsdom?: { window: Window };
+}).jsdom?.window;
+if (browserWindow) {
+  for (const key of ['localStorage', 'sessionStorage'] as const) {
+    Object.defineProperty(globalThis, key, {
+      configurable: true,
+      writable: true,
+      value: browserWindow[key],
+    });
+  }
+}
+
 if (typeof window !== 'undefined' && !window.matchMedia) {
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
