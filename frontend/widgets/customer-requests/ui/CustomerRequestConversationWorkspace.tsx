@@ -105,7 +105,6 @@ import {
 } from "@/features/select-request-provider";
 import { fetchCustomerRequestFinance, type RequestFinanceDto } from "@/entities/request/api/request-payments";
 import { useVisibleRefresh } from "@/shared/lib/use-visible-refresh";
-import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import { createLatestFinanceRequestRunner } from "../model/latest-finance-request";
 
 function pickTitle(req: RequestCustomerDto) {
@@ -142,7 +141,6 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
   const [contractDecisionBusy, setContractDecisionBusy] = useState(false);
   const [paymentsBusy, setPaymentsBusy] = useState(false);
   const [progressBusy, setProgressBusy] = useState(false);
-  const { socket } = useChatSocket();
   /** Какая кнопка этого экрана запустила запрос: спиннер только на ней. */
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -256,7 +254,9 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
     setRemarksError(null);
   }, [req.providerId, req.lockedAt]);
 
-  const syncRequest = useVisibleRefresh({
+  useVisibleRefresh({
+    requestId: req.id,
+    refreshAt: req.status === "ACCEPTANCE_PENDING" ? req.autoAcceptAt : null,
     scope: `${req.id}:${req.providerId}:${req.lockedAt}:${selectedConversationId}`,
     paused: syncPaused,
     onRefresh: async (signal) => {
@@ -286,7 +286,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
         executing ? fetchCustomerRequestRemarks(req.id) : Promise.resolve([]),
       ]);
       if (signal.aborted) return;
-      // Commit one cycle together; a slow section cannot be restarted by the next timer tick.
+      // Commit one cycle together; events received during it queue a follow-up read.
       if (next.status !== req.status) setNotice(null);
       setReq(next);
       if (chats.status === "fulfilled") {
@@ -308,19 +308,6 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
       }
     },
   });
-
-  useEffect(() => {
-    if (!socket) return;
-    const handler = (hint: { requestId?: string }) => {
-      if (hint.requestId === req.id) syncRequest();
-    };
-    socket.on("chat.unreadHint", handler);
-    socket.on("connect", syncRequest);
-    return () => {
-      socket.off("chat.unreadHint", handler);
-      socket.off("connect", syncRequest);
-    };
-  }, [socket, req.id, syncRequest]);
 
   const loadRemarks = useCallback(async () => {
     const list = await fetchCustomerRequestRemarks(req.id);

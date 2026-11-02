@@ -44,11 +44,11 @@ describe("customer request sections follow live updates", () => {
     await act(async () => { render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={request} /></ConfirmProvider>); });
     expect(screen.getByTestId("stages")).toHaveTextContent("");
     vi.mocked(fetchCustomerWorkStages).mockResolvedValue([{ title: "Новый опубликованный этап" }] as never);
-    await act(() => vi.advanceTimersByTimeAsync(5000));
+    await act(async () => { window.dispatchEvent(new CustomEvent("request:changed", { detail: { requestId: "request-a" } })); });
     expect(screen.getByTestId("stages")).toHaveTextContent("Новый опубликованный этап");
   });
 
-  it("keeps a manually opened archive across timer/focus updates but follows a changed provider", async () => {
+  it("keeps a manually opened archive across events/focus updates but follows a changed provider", async () => {
     vi.mocked(fetchCustomerRequestConversations).mockResolvedValue([
       {conversationId: "chat-a", providerId: "provider-a", providerName: "Company A"},
       {conversationId: "chat-b", providerId: "provider-b", providerName: "Company B"},
@@ -61,7 +61,7 @@ describe("customer request sections follow live updates", () => {
     expect(screen.getByTestId("active-chat")).toHaveTextContent("chat-b");
     fireEvent.click(screen.getByRole("button", { name: /Company A.*Исполнитель/ }));
     vi.mocked(fetch).mockImplementation(async (url) => new Response(JSON.stringify(String(url).endsWith("contract-bundles") ? [] : {...request, providerId: "provider-b", selectedProviderIds: ["provider-b"]})));
-    await act(() => vi.advanceTimersByTimeAsync(5000));
+    await act(async () => { window.dispatchEvent(new CustomEvent("request:changed", { detail: { requestId: "request-a" } })); });
     expect(screen.getByTestId("active-chat")).toHaveTextContent("chat-b");
   });
 });

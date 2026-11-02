@@ -41,12 +41,12 @@ describe("live chat access", () => {
     expect(screen.getByLabelText("draft")).toBeEnabled();
   });
 
-  it("refreshes access on a timer and focus for independently opened chats", async () => {
+  it("refreshes access on a request event and focus for independently opened chats", async () => {
     render(<ServiceRequestChatPanel serviceRequestId="request" conversationId="chat" />);
     await act(async () => {});
     expect(screen.getByText("Send")).toBeEnabled();
     canWrite = false;
-    await act(() => vi.advanceTimersByTimeAsync(5000));
+    await act(async () => { window.dispatchEvent(new CustomEvent("request:changed", { detail: { requestId: "request" } })); });
     expect(screen.getByLabelText("draft")).toBeDisabled();
     expect(screen.getByText(/Этот диалог сохранён в архиве/)).toBeInTheDocument();
     canWrite = true;

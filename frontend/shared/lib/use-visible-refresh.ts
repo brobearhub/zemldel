@@ -7,12 +7,14 @@ export function useVisibleRefresh({
   onRefresh,
   scope,
   paused = false,
-  intervalMs = 5000,
+  requestId,
+  refreshAt,
 }: {
   onRefresh: (signal: AbortSignal) => Promise<void>;
   scope: string;
   paused?: boolean;
-  intervalMs?: number;
+  requestId?: string;
+  refreshAt?: string | null;
 }) {
   const callback = useRef(onRefresh);
   const trigger = useRef<() => void>(() => {});
@@ -21,14 +23,20 @@ export function useVisibleRefresh({
   useEffect(() => {
     if (paused) return;
     let controller: AbortController | null = null;
+    let pending = false;
+    let disposed = false;
     const refresh = () => {
-      if (controller || document.visibilityState !== "visible") return;
+      if (disposed || document.visibilityState !== "visible") return;
+      if (controller) { pending = true; return; }
       const current = new AbortController();
       controller = current;
       void callback.current(current.signal).catch(() => {
-        // Preserve the usable view on transient errors; retry on focus or the next tick.
+        // Preserve the usable view; reconnect, focus or another event retries.
       }).finally(() => {
-        if (controller === current) controller = null;
+        if (controller === current) {
+          controller = null;
+          if (pending) { pending = false; refresh(); }
+        }
       });
     };
     const onVisibilityChange = () => {
@@ -38,20 +46,32 @@ export function useVisibleRefresh({
         controller = null;
       }
     };
+    const onChanged = (event: Event) => {
+      if ((event as CustomEvent<{ requestId: string }>).detail?.requestId === requestId) refresh();
+    };
     trigger.current = refresh;
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", onVisibilityChange);
-    const interval = window.setInterval(refresh, intervalMs);
+    window.addEventListener("request:changed", onChanged);
+    window.addEventListener("request:sync", refresh);
+    window.addEventListener("online", refresh);
+    // Auto-acceptance is calculated by the API on read: refresh once at its deadline.
+    const delay = refreshAt ? Date.parse(refreshAt) - Date.now() : NaN;
+    const deadline = delay > 0 ? window.setTimeout(refresh, delay) : undefined;
     // Also recover immediately after a local mutation or a scope change.
     refresh();
     return () => {
+      disposed = true;
       trigger.current = () => {};
       controller?.abort();
-      window.clearInterval(interval);
+      window.removeEventListener("request:changed", onChanged);
+      window.removeEventListener("request:sync", refresh);
+      window.removeEventListener("online", refresh);
+      window.clearTimeout(deadline);
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [scope, paused, intervalMs]);
+  }, [scope, paused, requestId, refreshAt]);
 
   return useCallback(() => trigger.current(), []);
 }

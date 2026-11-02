@@ -139,6 +139,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(`${USER_PREFIX}${userId}`).emit('chat.unreadHint', payload);
   }
 
+  emitRequestChanged(userId: string, requestId: string) {
+    this.server
+      .to(`${USER_PREFIX}${userId}`)
+      .emit('request.changed', { requestId });
+  }
+
   emitPresenceUpdated(
     conversationId: string,
     payload: ChatPresenceUpdatedPayload,

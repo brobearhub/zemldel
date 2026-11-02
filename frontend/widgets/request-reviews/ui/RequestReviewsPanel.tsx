@@ -76,6 +76,7 @@ export function RequestReviewsPanel({ requestId, status, side }: Props) {
   }, [canReview, requestId]);
 
   useVisibleRefresh({
+    requestId,
     scope: `${requestId}:${side}`,
     paused: !canReview || busy,
     onRefresh: load,
