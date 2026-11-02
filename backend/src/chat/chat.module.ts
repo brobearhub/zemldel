@@ -10,6 +10,6 @@ import { SocketJwtService } from './socket-jwt.service';
   imports: [PrismaModule, AuthModule],
   controllers: [ChatController],
   providers: [ChatService, ChatGateway, SocketJwtService],
-  exports: [ChatService],
+  exports: [ChatService, ChatGateway],
 })
 export class ChatModule {}

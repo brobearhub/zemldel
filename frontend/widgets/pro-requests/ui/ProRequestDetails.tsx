@@ -74,7 +74,6 @@ import {
 import { ProRequestDocumentsSection } from "@/widgets/pro-requests/ui/ProRequestDocumentsSection";
 import { useConfirm, useConfirmWithReason } from "@/shared/ui/confirm";
 import { useVisibleRefresh } from "@/shared/lib/use-visible-refresh";
-import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
 import PaymentIcon from "@mui/icons-material/Payment";
 import PinDropOutlinedIcon from "@mui/icons-material/PinDropOutlined";
@@ -125,7 +124,6 @@ export function ProRequestDetails({ initialRequest, subtitle, onRequestChange }:
   ]);
   const confirm = useConfirm();
   const confirmWithReason = useConfirmWithReason();
-  const { socket } = useChatSocket();
   const [activePanelId, setActivePanelId] = useState<"payment" | "counterparty" | "cadastral" | null>(null);
 
   const isBusy = busy || uploadBusy || paymentsBusy || progressBusy;
@@ -206,7 +204,9 @@ export function ProRequestDetails({ initialRequest, subtitle, onRequestChange }:
     setReq(payload as RequestProDto);
   }, [req.id]);
 
-  const syncRequest = useVisibleRefresh({
+  useVisibleRefresh({
+    requestId: req.id,
+    refreshAt: req.status === "ACCEPTANCE_PENDING" ? req.autoAcceptAt : null,
     scope: `${req.id}:${req.isLocked}`,
     paused: isBusy,
     onRefresh: async (signal) => {
@@ -254,19 +254,6 @@ export function ProRequestDetails({ initialRequest, subtitle, onRequestChange }:
       setDocRequestsLoaded(true);
     },
   });
-
-  useEffect(() => {
-    if (!socket) return;
-    const handler = (hint: { requestId?: string }) => {
-      if (hint.requestId === req.id) syncRequest();
-    };
-    socket.on("chat.unreadHint", handler);
-    socket.on("connect", syncRequest);
-    return () => {
-      socket.off("chat.unreadHint", handler);
-      socket.off("connect", syncRequest);
-    };
-  }, [socket, req.id, syncRequest]);
 
   async function refreshContractBundles() {
     try {

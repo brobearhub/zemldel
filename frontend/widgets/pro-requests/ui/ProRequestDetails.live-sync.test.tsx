@@ -44,7 +44,7 @@ describe("provider request sections follow live updates", () => {
     await act(async () => { render(<ConfirmProvider><ProRequestDetails initialRequest={request} subtitle="" /></ConfirmProvider>); });
     expect(screen.getByTestId("contracts")).toHaveTextContent("PENDING_CUSTOMER");
     vi.mocked(fetchProRequestContractBundles).mockResolvedValue([{ status: "APPROVED" }] as never);
-    await act(() => vi.advanceTimersByTimeAsync(5000));
+    await act(async () => { window.dispatchEvent(new CustomEvent("request:changed", { detail: { requestId: "request-a" } })); });
     expect(screen.getByTestId("contracts")).toHaveTextContent("APPROVED");
   });
 
@@ -52,7 +52,7 @@ describe("provider request sections follow live updates", () => {
     await act(async () => { render(<ConfirmProvider><ProRequestDetails initialRequest={request} subtitle="" /></ConfirmProvider>); });
     const readsBefore = vi.mocked(fetchProRequestContractBundles).mock.calls.length;
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ ...request, isLocked: true })));
-    await act(() => vi.advanceTimersByTimeAsync(5000));
+    await act(async () => { window.dispatchEvent(new CustomEvent("request:changed", { detail: { requestId: "request-a" } })); });
     expect(screen.getByText("Клиент выбрал другого исполнителя. Вам доступен архив переписки.")).toBeInTheDocument();
     expect(screen.queryByTestId("contracts")).not.toBeInTheDocument();
     expect(fetchProRequestContractBundles).toHaveBeenCalledTimes(readsBefore);
@@ -62,7 +62,7 @@ describe("provider request sections follow live updates", () => {
     await act(async () => {render(<ConfirmProvider><ProRequestWorkspace initialRequest={request} subtitle="" /></ConfirmProvider>);});
     expect(screen.getByTestId("chat-readonly")).toHaveTextContent("false");
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({...request, isLocked: true, providerId: "other-provider"})));
-    await act(() => vi.advanceTimersByTimeAsync(5000));
+    await act(async () => { window.dispatchEvent(new CustomEvent("request:changed", { detail: { requestId: "request-a" } })); });
     expect(screen.getByTestId("chat-readonly")).toHaveTextContent("true");
     expect(screen.getByText("Клиент выбрал другого исполнителя. Вам доступен архив переписки.")).toBeInTheDocument();
   });

@@ -106,6 +106,10 @@ export function ChatSocketProvider({ children }: Props) {
 
       s.on("connect", () => {
         setSocketConnected(true);
+        window.dispatchEvent(new Event("request:sync"));
+      });
+      s.on("request.changed", (payload: { requestId: string }) => {
+        window.dispatchEvent(new CustomEvent("request:changed", { detail: payload }));
       });
       s.on("disconnect", () => {
         setSocketConnected(false);

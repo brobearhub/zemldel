@@ -278,6 +278,7 @@ export function ServiceRequestChatPanel({
   ]);
 
   const refreshAccess = useVisibleRefresh({
+    requestId: serviceRequestId,
     scope: `${serviceRequestId}:${conversationId}:${requestLockedAt}:${selectedProviderId}:${requestArchived}`,
     paused: !conversationId || loading,
     onRefresh: async (signal) => {

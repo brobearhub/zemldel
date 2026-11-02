@@ -9,17 +9,17 @@ describe("visible request refresh", () => {
   });
   afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.useRealTimers(); });
 
-  it("refreshes on mount, at the interval, and on focus", async () => {
+  it("refreshes on mount and focus without polling", async () => {
     const load = vi.fn().mockResolvedValue(undefined);
     renderHook(() => useVisibleRefresh({ scope: "request-a", onRefresh: load }));
     expect(load).toHaveBeenCalledTimes(1);
     await act(() => vi.advanceTimersByTimeAsync(5000));
-    expect(load).toHaveBeenCalledTimes(2);
+    expect(load).toHaveBeenCalledTimes(1);
     await act(async () => { window.dispatchEvent(new Event("focus")); });
-    expect(load).toHaveBeenCalledTimes(3);
+    expect(load).toHaveBeenCalledTimes(2);
   });
 
-  it("deduplicates overlapping timer, socket and focus updates", async () => {
+  it("deduplicates concurrent socket and focus updates", async () => {
     const load = vi.fn(() => new Promise<void>(() => {}));
     const { result } = renderHook(() => useVisibleRefresh({ scope: "a", onRefresh: load }));
     await act(async () => {
@@ -74,7 +74,43 @@ describe("visible request refresh", () => {
     );
     await act(async () => {});
     rerender({ load: next });
-    await act(() => vi.advanceTimersByTimeAsync(5000));
+    await act(async () => { window.dispatchEvent(new Event("request:sync")); });
     expect(next).toHaveBeenCalledTimes(1);
   });
+  it("filters unrelated requests and queues invalidation received during a read", async () => {
+    let finish!: () => void;
+    const load = vi.fn().mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; })).mockResolvedValue(undefined);
+    const { unmount } = renderHook(() => useVisibleRefresh({scope: "a", requestId: "a", onRefresh: load}));
+    await act(async () => {window.dispatchEvent(new CustomEvent("request:changed", {detail: {requestId: "b"}}));});
+    finish();
+    await act(async () => {});
+    expect(load).toHaveBeenCalledTimes(1);
+    let finishSecond!: () => void;
+    load.mockImplementationOnce(() => new Promise<void>(resolve => { finishSecond = resolve; }));
+    await act(async () => {window.dispatchEvent(new CustomEvent("request:changed", {detail: {requestId: "a"}}));});
+    await act(async () => {window.dispatchEvent(new CustomEvent("request:changed", {detail: {requestId: "a"}}));});
+    expect(load).toHaveBeenCalledTimes(2);
+    await act(async () => {finishSecond();});
+    expect(load).toHaveBeenCalledTimes(3);
+    unmount();
+    window.dispatchEvent(new Event("request:sync"));
+    expect(load).toHaveBeenCalledTimes(3);
+  });
+
+  it("resynchronizes on reconnect and schedules only one deadline read", async () => {
+    const load = vi.fn().mockResolvedValue(undefined);
+    renderHook(() => useVisibleRefresh({scope: "a", requestId: "a", onRefresh: load,
+      refreshAt: new Date(Date.now() + 7000).toISOString()}));
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    expect(load).toHaveBeenCalledTimes(1);
+    await act(() => vi.advanceTimersByTimeAsync(2000));
+    expect(load).toHaveBeenCalledTimes(2);
+    await act(() => vi.advanceTimersByTimeAsync(60000));
+    expect(load).toHaveBeenCalledTimes(2);
+    await act(async () => {window.dispatchEvent(new Event("request:sync"));});
+    expect(load).toHaveBeenCalledTimes(3);
+    await act(async () => {window.dispatchEvent(new Event("online"));});
+    expect(load).toHaveBeenCalledTimes(4);
+  });
+
 });
