@@ -8,11 +8,12 @@ import { DEFAULT_SERVICE_QUESTION } from "@/features/create-service-request-lead
 
 type Props = {
   serviceId: string;
+  serviceTitle?: string;
   initialCustomerEmail: string | null;
 };
 
-export function ServiceLeadCaptureForm({ serviceId, initialCustomerEmail }: Props) {
-  const form = useServiceLeadCapture({ serviceId, initialCustomerEmail });
+export function ServiceLeadCaptureForm({ serviceId, serviceTitle, initialCustomerEmail }: Props) {
+  const form = useServiceLeadCapture({ serviceId, serviceTitle, initialCustomerEmail });
 
   return (
     <Stack component="form" spacing={2.25} onSubmit={(e) => { e.preventDefault(); void form.submit(); }}>
@@ -71,7 +72,7 @@ export function ServiceLeadCaptureForm({ serviceId, initialCustomerEmail }: Prop
         }}
         fullWidth
       >
-        Отправить заявку
+        Продолжить
       </Button>
 
       <Typography variant="caption" sx={{ color: "text.disabled", lineHeight: 1.66, letterSpacing: "0.4px" }}>

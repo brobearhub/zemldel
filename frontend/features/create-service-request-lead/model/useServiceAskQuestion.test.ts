@@ -1,6 +1,8 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useServiceAskQuestion } from "./useServiceAskQuestion";
+import { ServiceRequestAuthRequiredError } from "../api/service-request-lead.api";
+import { readPendingRequestDraft } from "@/entities/request";
 
 const router = {
   push: vi.fn(),
@@ -17,7 +19,8 @@ vi.mock("next/navigation", () => ({
   useRouter: () => router,
 }));
 
-vi.mock("@/features/create-service-request-lead/api/service-request-lead.api", () => ({
+vi.mock("@/features/create-service-request-lead/api/service-request-lead.api", async (importOriginal: <T>() => Promise<T>) => ({
+  ...await importOriginal<typeof import("../api/service-request-lead.api")>(),
   createServiceRequest: (...args: unknown[]) => api.createServiceRequest(...args),
   ensureRequestConversation: (...args: unknown[]) => api.ensureRequestConversation(...args),
   postConversationMessage: (...args: unknown[]) => api.postConversationMessage(...args),
@@ -26,6 +29,17 @@ vi.mock("@/features/create-service-request-lead/api/service-request-lead.api", (
 describe("useServiceAskQuestion", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.sessionStorage.clear();
+  });
+
+  it("saves the SERVICE question and returns to sign-in after session expiry", async () => {
+    api.createServiceRequest.mockRejectedValue(new ServiceRequestAuthRequiredError("expired"));
+    const { result } = renderHook(() => useServiceAskQuestion({ serviceId: "s1", serviceTitle: "Межевание" }));
+    await act(async () => {
+      await result.current.submit({ questionText: "Можно завтра?", cadastralNumbers: ["66:41:0000000:001"] });
+    });
+    expect(readPendingRequestDraft()).toMatchObject({ kind: "SERVICE", serviceId: "s1", message: "Можно завтра?", cadastralNumbers: ["66:41:0000000:001"] });
+    expect(router.push).toHaveBeenCalledWith(expect.stringContaining("/signin?intent=service-request&account=customer"));
   });
 
   it("всегда создаёт чат для SERVICE-заявки, даже при пустом вопросе", async () => {

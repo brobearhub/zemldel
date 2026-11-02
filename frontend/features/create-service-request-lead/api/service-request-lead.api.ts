@@ -38,6 +38,8 @@ type CreateServiceRequestInput = {
   cadastralNumbers: string[];
 };
 
+export class ServiceRequestAuthRequiredError extends Error {}
+
 export async function createServiceRequest(input: CreateServiceRequestInput): Promise<RequestCustomerDto> {
   const res = await fetch(`/api/services/${encodeURIComponent(input.serviceId)}/requests`, {
     method: "POST",
@@ -46,6 +48,7 @@ export async function createServiceRequest(input: CreateServiceRequestInput): Pr
   });
 
   const payload = (await res.json().catch(() => null)) as RequestCustomerDto | { error?: string } | null;
+  if (res.status === 401) throw new ServiceRequestAuthRequiredError("Сессия завершилась. Войдите ещё раз.");
   if (!res.ok || !payload || typeof payload !== "object" || ("error" in payload && payload.error)) {
     const errorMessage =
       payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"

@@ -49,18 +49,18 @@ export function ServiceLeadSection({ serviceId, serviceTitle, isAuthenticated, i
           >
             <Stack spacing={2.25}>
               <Stack spacing={0.5}>
-                <Typography variant="h5">{isAuthenticated ? "Оставить заявку" : "Получить консультацию"}</Typography>
+                <Typography variant="h5">Оставить заявку</Typography>
                 <Typography variant="body2" sx={{ color: "text.secondary" }}>
                   {isAuthenticated
                     ? `Мы создадим заявку по услуге «${serviceTitle}», откроем чат с исполнителем и, если добавите вопрос, отправим его в чат сразу.`
-                    : "Укажите почту — отправим подтверждение и передадим заявку специалисту."}
+                    : "После входа или регистрации отправим заявку исполнителю этой услуги и откроем чат. Введённые данные сохранятся."}
                 </Typography>
               </Stack>
 
               {isAuthenticated ? (
-                <ServiceAskQuestionButton serviceId={serviceId} />
+                <ServiceAskQuestionButton serviceId={serviceId} serviceTitle={serviceTitle} />
               ) : (
-                <ServiceLeadCaptureForm serviceId={serviceId} initialCustomerEmail={initialCustomerEmail} />
+                <ServiceLeadCaptureForm serviceId={serviceId} serviceTitle={serviceTitle} initialCustomerEmail={initialCustomerEmail} />
               )}
             </Stack>
           </Paper>

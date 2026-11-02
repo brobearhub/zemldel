@@ -13,10 +13,11 @@ import { DEFAULT_SERVICE_QUESTION } from "@/features/create-service-request-lead
 
 type Props = {
   serviceId: string;
+  serviceTitle?: string;
 };
 
-export function ServiceAskQuestionButton({ serviceId }: Props) {
-  const form = useServiceAskQuestion({ serviceId });
+export function ServiceAskQuestionButton({ serviceId, serviceTitle }: Props) {
+  const form = useServiceAskQuestion({ serviceId, serviceTitle });
   const [question, setQuestion] = useState("");
   const [cadastralNumbers, setCadastralNumbers] = useState<CadastralNumberParts[]>([createEmptyCadastralParts()]);
 

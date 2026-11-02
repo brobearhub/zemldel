@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
@@ -61,6 +61,12 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
   const [slotTitles, setSlotTitles] = useState<Record<string, string>>({});
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const slotInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const onBusyChange = props.onBusyChange;
+  useEffect(() => {
+    onBusyChange?.(localBusy);
+    return () => onBusyChange?.(false);
+  }, [onBusyChange, localBusy]);
 
   if (!visible) return null;
 
@@ -253,9 +259,11 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
           <Typography variant="body2" sx={{
             color: "text.secondary"
           }}>
-            {props.mode === "provider"
+            {canMutate
               ? "Этапов пока нет. Добавьте первый этап выполнения работ."
-              : "Исполнитель пока не опубликовал этапы."}
+              : props.requestStatus === "ACTIVE"
+                ? "Исполнитель пока не опубликовал этапы."
+                : "В этой заявке нет опубликованных этапов. Итог работ — в истории сдачи результата."}
           </Typography>
         ) : (
           props.stages.map((stage, index) => (

@@ -8,12 +8,13 @@ import { buildRequestAuthHref, savePendingRequestDraft } from "@/entities/reques
 
 type Props = {
   serviceId: string;
+  serviceTitle?: string;
   isAuthenticated: boolean;
   sx?: SxProps<Theme>;
   fullWidth?: boolean;
 };
 
-export function ServiceQuickApplyButton({ serviceId, isAuthenticated, sx, fullWidth }: Props) {
+export function ServiceQuickApplyButton({ serviceId, serviceTitle, isAuthenticated, sx, fullWidth }: Props) {
   const router = useRouter();
   const [guestBusy, setGuestBusy] = useState(false);
 
@@ -29,6 +30,7 @@ export function ServiceQuickApplyButton({ serviceId, isAuthenticated, sx, fullWi
       savePendingRequestDraft({
         kind: "SERVICE",
         serviceId,
+        subjectTitle: serviceTitle,
         customerName: null,
         customerEmail: null,
         customerPhone: null,
@@ -40,7 +42,7 @@ export function ServiceQuickApplyButton({ serviceId, isAuthenticated, sx, fullWi
     } finally {
       setGuestBusy(false);
     }
-  }, [isAuthenticated, router, serviceId]);
+  }, [isAuthenticated, router, serviceId, serviceTitle]);
 
   const busy = guestBusy;
 

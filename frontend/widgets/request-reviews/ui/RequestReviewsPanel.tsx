@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Alert, Button, Paper, Rating, Stack, TextField, Typography } from "@mui/material";
 import {
   createRequestReview,
@@ -9,6 +9,7 @@ import {
   type ReviewDto,
 } from "@/entities/review";
 import type { RequestStatus } from "@/entities/request";
+import { useVisibleRefresh } from "@/shared/lib/use-visible-refresh";
 
 type Side = "customer" | "provider";
 
@@ -49,7 +50,8 @@ function ReviewCard({ review }: { review: ReviewDto }) {
 
 export function RequestReviewsPanel({ requestId, status, side }: Props) {
   const [items, setItems] = useState<ReviewDto[]>([]);
-  const [rating, setRating] = useState<number | null>(5);
+  const [rating, setRating] = useState<number | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const [text, setText] = useState("");
   const [reply, setReply] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -59,18 +61,25 @@ export function RequestReviewsPanel({ requestId, status, side }: Props) {
 
   const canReview = REVIEWABLE.has(status);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal) => {
     if (!canReview) return;
     try {
-      setItems(await fetchRequestReviews(requestId));
+      const nextItems = await fetchRequestReviews(requestId);
+      if (signal?.aborted) return;
+      setItems(nextItems);
+      setLoaded(true);
+      setError(null);
     } catch (e) {
+      if (signal?.aborted) return;
       setError(e instanceof Error ? e.message : "Не удалось загрузить отзывы");
     }
   }, [canReview, requestId]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useVisibleRefresh({
+    scope: `${requestId}:${side}`,
+    paused: !canReview || busy,
+    onRefresh: load,
+  });
 
   if (!canReview) return null;
 
@@ -80,7 +89,8 @@ export function RequestReviewsPanel({ requestId, status, side }: Props) {
   const providerReview = items.find((item) => item.direction === "PROVIDER_TO_CUSTOMER") ?? null;
 
   async function submitReview() {
-    if (!rating) {
+    if (!loaded || ownReview || busy) return;
+    if (rating == null || !Number.isInteger(rating) || rating < 1 || rating > 5) {
       setError("Поставьте оценку от 1 до 5.");
       return;
     }
@@ -125,15 +135,22 @@ export function RequestReviewsPanel({ requestId, status, side }: Props) {
         {notice ? <Alert severity="success">{notice}</Alert> : null}
         {customerReview ? <ReviewCard review={customerReview} /> : null}
         {providerReview ? <ReviewCard review={providerReview} /> : null}
-        {!ownReview ? (
+        {!loaded ? <Typography variant="body2">Загружаем отзывы…</Typography> : null}
+        {loaded && !ownReview ? (
           <Stack spacing={1.5}>
             <Typography variant="body2">
               {side === "customer" ? "Оцените работу исполнителя" : "Оцените заказчика"}
             </Typography>
             <Rating
+              name={`request-review-${side}-${requestId}`}
               value={rating}
+              disabled={busy}
+              getLabelText={(value) => `Оценка ${value} из 5`}
               onChange={(_event, value) => setRating(value)}
             />
+            {rating == null ? (
+              <Typography variant="caption" color="text.secondary">Выберите оценку от 1 до 5.</Typography>
+            ) : null}
             <TextField
               label="Комментарий"
               value={text}

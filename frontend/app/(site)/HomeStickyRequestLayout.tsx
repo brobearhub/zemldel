@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { SITE_CONTENT_GAP_PX, SITE_HEADER_SPACER_PX, SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
 import { HomeStoriesStrip } from "@/widgets/home-stories";
+import { HomeIntroBanner } from "@/widgets/public-service/ui/HomeIntroBanner";
 import { HomeMobileHelpButton } from "@/widgets/public-service/ui/HomeMobileHelpButton";
 import { PublicUnlinkedRequestForm } from "@/widgets/public-service/ui/PublicUnlinkedRequestForm";
 import { HomeServicesByCity } from "@/widgets/services/ui/HomeServicesByCity";
@@ -44,8 +45,23 @@ const visuallyHiddenSx = {
 
 export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) {
   const catsBarRef = useRef<HTMLDivElement | null>(null);
+  const requestFormRef = useRef<HTMLDivElement | null>(null);
   const [catsBarHeightPx, setCatsBarHeightPx] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
+
+  const openRequestForm = () => {
+    const form = requestFormRef.current;
+    if (form && form.getBoundingClientRect().width > 0) {
+      form.scrollIntoView({ block: "nearest" });
+      form.querySelector<HTMLTextAreaElement>("textarea:not([aria-hidden='true'])")?.focus({ preventScroll: true });
+    } else {
+      setHelpOpen(true);
+    }
+  };
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("requestDraft") === "1") setHelpOpen(true);
+  }, []);
 
   const rootCategories = [...categories]
     .filter((c) => c.parentId == null)
@@ -99,6 +115,10 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) 
       >
         <HomeStoriesStrip />
 
+        {!isAuthenticated ? (
+          <HomeIntroBanner onCreateRequest={openRequestForm} />
+        ) : null}
+
         <Box
           ref={catsBarRef}
           sx={{
@@ -146,21 +166,35 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) 
             })}
           >
             <Stack spacing={{ xs: 3, md: 3 }}>
+              {isAuthenticated ? (
+                <Box
+                  sx={(theme) => ({
+                    display: { xs: "block", tablet: "none" },
+                    [theme.media.phoneLandscape]: { display: "block" },
+                  })}
+                >
+                  <Button variant="contained" size="small" fullWidth onClick={() => setHelpOpen(true)}>
+                    Создать заявку
+                  </Button>
+                </Box>
+              ) : null}
               <Box
-                sx={(theme) => ({
-                  display: { xs: "block", tablet: "none" },
-                  [theme.media.phoneLandscape]: { display: "block" },
-                })}
+                component="section"
+                id="home-services"
+                aria-label="Каталог услуг"
+                tabIndex={-1}
+                sx={{
+                  scrollMarginTop: `calc(${SITE_STICKY_TOP_PX}px + var(--home-cats-bar-h, 0px) + 16px)`,
+                  outline: "none",
+                }}
               >
-                <Button variant="contained" size="small" fullWidth onClick={() => setHelpOpen(true)}>
-                  Создать заявку
-                </Button>
+                <HomeServicesByCity />
               </Box>
-              <HomeServicesByCity />
             </Stack>
           </Box>
 
           <Box
+            ref={requestFormRef}
             sx={(theme) => ({
               display: { xs: "none", tablet: "block" },
               order: { tablet: 1 },
