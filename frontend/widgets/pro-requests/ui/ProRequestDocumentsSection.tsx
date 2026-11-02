@@ -62,6 +62,7 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
   const [docTitle, setDocTitle] = useState("");
 
   const [bundleDialogOpen, setBundleDialogOpen] = useState(false);
+  const [bundleError, setBundleError] = useState<string | null>(null);
   const [bundleDocument, setBundleDocument] = useState<File | null>(null);
   const [bundleSignature, setBundleSignature] = useState<File | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
@@ -418,6 +419,7 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
             }}>
               Загрузите договор в PDF или DOCX. Готовый файл подписи можно приложить при наличии.
             </Typography>
+            {bundleError ? <Alert severity="error">{bundleError}</Alert> : null}
 
             <Stack spacing={1}>
               <Typography sx={{
@@ -434,6 +436,7 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
                     const file = e.currentTarget.files?.[0] ?? null;
                     e.currentTarget.value = "";
                     setBundleDocument(file);
+                    setBundleError(null);
                   }}
                 />
               </Button>
@@ -478,10 +481,15 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
             disabled={props.isBusy || !bundleDocument}
             onClick={async () => {
               if (!bundleDocument) return;
-              await runPending("upload-bundle", () => props.onUploadContractBundle({ document: bundleDocument, signature: bundleSignature }));
-              setBundleDialogOpen(false);
-              setBundleDocument(null);
-              setBundleSignature(null);
+              setBundleError(null);
+              try {
+                await runPending("upload-bundle", () => props.onUploadContractBundle({ document: bundleDocument, signature: bundleSignature }));
+                setBundleDialogOpen(false);
+                setBundleDocument(null);
+                setBundleSignature(null);
+              } catch (error) {
+                setBundleError(error instanceof Error ? error.message : "Не удалось загрузить договор. Повторите попытку.");
+              }
             }}
           >
             Загрузить

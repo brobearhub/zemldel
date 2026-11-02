@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ExecutionContext } from '@nestjs/common';
-import { lastValueFrom, of, throwError } from 'rxjs';
+import { lastValueFrom, of, throwError, defer } from 'rxjs';
 import { RequestRealtimeInterceptor } from './request-realtime.interceptor';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { ChatGateway } from '../chat/chat.gateway';
@@ -113,5 +113,43 @@ describe('request realtime invalidation', () => {
         }),
       ),
     ).toEqual({ ok: true });
+  });
+  it('notifies pre-delete participants only after the row is deleted', async () => {
+    const { interceptor, context, prisma, gateway } = setup(
+      'DELETE',
+      '/requests/mine/:id',
+    );
+    let committed = false;
+    gateway.emitRequestChanged.mockImplementation(() => {
+      expect(committed).toBe(true);
+    });
+    const stream = await interceptor.intercept(context, {
+      handle: () =>
+        defer(() => {
+          committed = true;
+          prisma.request.findUnique.mockResolvedValue(null as never);
+          return of({ ok: true });
+        }),
+    });
+    expect(gateway.emitRequestChanged).not.toHaveBeenCalled();
+    await lastValueFrom(stream);
+    expect(prisma.request.findUnique).toHaveBeenCalledTimes(1);
+    expect(gateway.emitRequestChanged.mock.calls).toEqual([
+      ['selected-user', 'r'],
+      ['archived-user', 'r'],
+      ['customer', 'r'],
+    ]);
+  });
+
+  it('does not notify snapshotted participants if deletion fails', async () => {
+    const { interceptor, context, gateway } = setup(
+      'DELETE',
+      '/requests/mine/:id',
+    );
+    const stream = await interceptor.intercept(context, {
+      handle: () => throwError(() => new Error('Conflict')),
+    });
+    await expect(lastValueFrom(stream)).rejects.toThrow('Conflict');
+    expect(gateway.emitRequestChanged).not.toHaveBeenCalled();
   });
 });

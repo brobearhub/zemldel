@@ -66,4 +66,24 @@ describe("provider request sections follow live updates", () => {
     expect(screen.getByTestId("chat-readonly")).toHaveTextContent("true");
     expect(screen.getByText("Клиент выбрал другого исполнителя. Вам доступен архив переписки.")).toBeInTheDocument();
   });
+  it.each([401, 403, 404])('closes the whole workspace on access failure %s', async status => {
+    await act(async () => { render(<ConfirmProvider><ProRequestWorkspace initialRequest={request} subtitle="" /></ConfirmProvider>); });
+    vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({error: 'gone'}), {status}));
+    await act(async () => { window.dispatchEvent(new CustomEvent('request:changed', {detail: {requestId: request.id}})); });
+    expect(screen.getByRole('heading', {name: status === 401 ? 'Сессия завершена' : 'Заявка недоступна'})).toBeInTheDocument();
+    expect(screen.queryByTestId('chat-readonly')).not.toBeInTheDocument();
+    expect(screen.queryByText('Цена и оплата')).not.toBeInTheDocument();
+  });
+
+  it('recovers a missed deletion notification on focus but preserves the workspace on 503', async () => {
+    await act(async () => { render(<ConfirmProvider><ProRequestWorkspace initialRequest={request} subtitle="" /></ConfirmProvider>); });
+    vi.mocked(fetch).mockImplementation(async () => new Response('{}', {status: 503}));
+    await act(async () => { window.dispatchEvent(new Event('focus')); });
+    expect(screen.getByTestId('chat-readonly')).toBeInTheDocument();
+    vi.mocked(fetch).mockImplementation(async () => new Response('{}', {status: 404}));
+    await act(async () => { window.dispatchEvent(new Event('focus')); });
+    expect(screen.getByText('Заявка недоступна')).toBeInTheDocument();
+    expect(screen.queryByTestId('chat-readonly')).not.toBeInTheDocument();
+  });
+
 });

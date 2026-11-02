@@ -125,7 +125,13 @@ export class ContractFilesController {
       fileFilter: (_req, file, cb) => {
         const ext = normalizeExt(file.originalname, file.mimetype);
         if (!ext) {
-          cb(new Error('Unsupported file type'), false);
+          cb(
+            new UnprocessableEntityException({
+              message:
+                'Допустимы договоры PDF/DOCX и готовые подписи .sig, .sgn или .p7s.',
+            }),
+            false,
+          );
           return;
         }
         cb(null, true);
@@ -187,7 +193,13 @@ export class ContractFilesController {
       fileFilter: (_req, file, cb) => {
         const ext = normalizeExt(file.originalname, file.mimetype);
         if (!ext) {
-          cb(new Error('Unsupported file type'), false);
+          cb(
+            new UnprocessableEntityException({
+              message:
+                'Допустимы договоры PDF/DOCX и готовые подписи .sig, .sgn или .p7s.',
+            }),
+            false,
+          );
           return;
         }
         cb(null, true);
@@ -281,7 +293,13 @@ export class ContractFilesController {
                 ? Boolean(normalizeSigExt(file.originalname))
                 : false;
           if (!ok) {
-            cb(new Error('Unsupported file type'), false);
+            cb(
+              new UnprocessableEntityException({
+                message:
+                  'Допустимы договоры PDF/DOCX и готовые подписи .sig, .sgn или .p7s.',
+              }),
+              false,
+            );
             return;
           }
           cb(null, true);
