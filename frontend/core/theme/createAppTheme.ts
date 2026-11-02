@@ -187,6 +187,28 @@ export function createAppTheme(mode: PaletteMode) {
       button: { fontWeight: 800 },
     },
     components: {
+      MuiInputLabel: {
+        styleOverrides: {
+          root: ({ theme }) => ({
+            // Sage primary is too pale for small label text on a white field.
+            // Keep error/disabled states and contextual glass-form colors.
+            "&.Mui-focused:where(:not(.Mui-error, .Mui-disabled))": {
+              color: theme.palette.text.primary,
+            },
+          }),
+        },
+      },
+      MuiDialogContent: {
+        styleOverrides: {
+          root: ({ theme }) => ({
+            // MUI removes this padding after DialogTitle. Floating labels then
+            // extend above the scroll container and get clipped on focus/value.
+            ".MuiDialogTitle-root + &:has(.MuiInputLabel-root)": {
+              paddingTop: theme.spacing(2),
+            },
+          }),
+        },
+      },
       MuiCssBaseline: {
         styleOverrides: (theme) => {
           const autofillBg = theme.palette.background.default;
