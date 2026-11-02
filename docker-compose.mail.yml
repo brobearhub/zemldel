@@ -1,0 +1,7 @@
+services:
+  mailcatcher:
+    image: sj26/mailcatcher@sha256:572048324658d2198e0a96785cca4f0260f2c4cadb2cb057bd837b9ee0c60533
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1026:1025"
+      - "127.0.0.1:1081:1080"
