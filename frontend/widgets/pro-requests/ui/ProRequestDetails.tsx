@@ -88,6 +88,7 @@ import {
 } from "@/entities/request/api/request-document-requests";
 import { ProRequestDocumentsSection } from "@/widgets/pro-requests/ui/ProRequestDocumentsSection";
 import { useConfirm, useConfirmWithReason } from "@/shared/ui/confirm";
+import { useVisibleRefresh } from "@/shared/lib/use-visible-refresh";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
 import PaymentIcon from "@mui/icons-material/Payment";
@@ -118,6 +119,8 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   }
   const screenModel = resolveProviderRequestScreenModel(req);
   const [busy, setBusy] = useState(false);
+  const [paymentsBusy, setPaymentsBusy] = useState(false);
+  const [progressBusy, setProgressBusy] = useState(false);
   const [uploadBusy, setUploadBusy] = useState(false);
   const [uploadNames, setUploadNames] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -145,7 +148,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     "payment" | "counterparty" | "cadastral" | null
   >(null);
 
-  const isBusy = busy || uploadBusy;
+  const isBusy = busy || uploadBusy || paymentsBusy || progressBusy;
   const showContractWorkflow = canProviderManageDealDocuments(req);
   const hasPendingContractFiles = contractBundles.some(
     (b) => b.status === "PENDING_CUSTOMER",
@@ -159,7 +162,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   );
   const hasUploadedDocs = docRequests.some((d) => d.status === "UPLOADED");
 
-  const loadWorkStages = useCallback(async () => {
+  const loadWorkStages = useCallback(async (isCurrent = () => true) => {
     if (!screenModel.showDealWorkflow) {
       setWorkStages([]);
       setWorkStageStatusOptions([...SYSTEM_WORK_STAGE_STATUSES]);
@@ -182,7 +185,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
         custom: [],
       })),
     ]);
-    if (!exclusiveRequestGuard.isCurrent(generation)) return;
+    if (!isCurrent() || !exclusiveRequestGuard.isCurrent(generation)) return;
     setWorkStages(stages);
     setWorkStageStatusOptions(mergeWorkStageStatusOptions(statuses.custom));
   }, [
@@ -201,64 +204,6 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
   }
 
   useEffect(() => {
-    if (
-      !screenModel.showDealWorkflow ||
-      !isOrderExecutionStatus(req.status)
-    ) {
-      setRemarks([]);
-      setRemarksError(null);
-      return;
-    }
-    const generation = exclusiveRequestGuard.capture();
-    let cancelled = false;
-    setRemarksError(null);
-    (async () => {
-      try {
-        const list = await fetchProRequestRemarks(req.id);
-        if (
-          !cancelled &&
-          exclusiveRequestGuard.isCurrent(generation)
-        ) {
-          setRemarks(list);
-        }
-      } catch (e) {
-        if (
-          !cancelled &&
-          exclusiveRequestGuard.isCurrent(generation)
-        )
-          setRemarksError(
-            e instanceof Error ? e.message : "Не удалось загрузить замечания",
-          );
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    exclusiveRequestGuard,
-    req.id,
-    req.status,
-    screenModel.showDealWorkflow,
-  ]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        await loadWorkStages();
-      } catch (e) {
-        if (!cancelled)
-          setError(
-            e instanceof Error ? e.message : "Не удалось загрузить этапы работ",
-          );
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [loadWorkStages]);
-
-  useEffect(() => {
     if (screenModel.showDealWorkflow) return;
     setError(null);
     setRemarksError(null);
@@ -273,113 +218,6 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     setDocRequestsLoaded(false);
     setActivePanelId(null);
   }, [screenModel.showDealWorkflow]);
-
-  useEffect(() => {
-    if (!showContractWorkflow || contractBundlesLoaded) return;
-    const generation = exclusiveRequestGuard.capture();
-    let cancelled = false;
-    (async () => {
-      try {
-        const payload = await fetchProRequestContractBundles(req.id);
-        if (
-          cancelled ||
-          !exclusiveRequestGuard.isCurrent(generation)
-        ) return;
-        setContractBundles(payload);
-        setContractBundlesLoaded(true);
-      } catch (e) {
-        if (
-          !cancelled &&
-          exclusiveRequestGuard.isCurrent(generation)
-        ) {
-          setContractBundlesLoaded(true);
-          setError(
-            e instanceof Error ? e.message : "Не удалось загрузить договоры",
-          );
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    contractBundlesLoaded,
-    exclusiveRequestGuard,
-    req.id,
-    showContractWorkflow,
-  ]);
-
-  useEffect(() => {
-    if (!showContractWorkflow || miscLoaded) return;
-    const generation = exclusiveRequestGuard.capture();
-    let cancelled = false;
-    (async () => {
-      try {
-        const payload = await fetchProRequestMiscFiles(req.id);
-        if (
-          cancelled ||
-          !exclusiveRequestGuard.isCurrent(generation)
-        ) return;
-        setMiscFiles(payload);
-        setMiscLoaded(true);
-      } catch (e) {
-        if (
-          !cancelled &&
-          exclusiveRequestGuard.isCurrent(generation)
-        ) {
-          setMiscLoaded(true);
-          setError(
-            e instanceof Error ? e.message : "Не удалось загрузить документы",
-          );
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    exclusiveRequestGuard,
-    miscLoaded,
-    req.id,
-    showContractWorkflow,
-  ]);
-
-  useEffect(() => {
-    if (!showContractWorkflow || docRequestsLoaded) return;
-    const generation = exclusiveRequestGuard.capture();
-    let cancelled = false;
-    (async () => {
-      try {
-        const payload = await fetchProRequestDocumentRequests(req.id);
-        if (
-          cancelled ||
-          !exclusiveRequestGuard.isCurrent(generation)
-        ) return;
-        setDocRequests(payload);
-        setDocRequestsLoaded(true);
-      } catch (e) {
-        if (
-          !cancelled &&
-          exclusiveRequestGuard.isCurrent(generation)
-        ) {
-          setDocRequestsLoaded(true);
-          setError(
-            e instanceof Error
-              ? e.message
-              : "Не удалось загрузить список документов",
-          );
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    docRequestsLoaded,
-    exclusiveRequestGuard,
-    req.id,
-    showContractWorkflow,
-  ]);
 
   const refresh = useCallback(async () => {
     const res = await fetch(`/api/pro/requests/${req.id}`, {
@@ -397,53 +235,62 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
     setReq(payload as RequestProDto);
   }, [req.id]);
 
-  // Why: selection/re-request updates offerStatus on the server; chat WS alone would
-  // only append a message, so details note/actions need a refetch on unreadHint.
-  useEffect(() => {
-    if (!socket) {
-      return;
-    }
-    const handler = (hint: { requestId?: string }) => {
-      if (hint.requestId !== req.id) {
+  const syncRequest = useVisibleRefresh({
+    scope: `${req.id}:${req.isLocked}`,
+    paused: isBusy,
+    onRefresh: async (signal) => {
+      const response = await fetch(`/api/pro/requests/${req.id}`, { cache: "no-store", signal });
+      const next = await response.json() as RequestProDto;
+      if (!response.ok || !next?.id || signal.aborted) return;
+      if (!resolveProviderRequestScreenModel(next).showDealWorkflow) {
+        // Never request deal resources for an archived provider.
+        if (next.status !== req.status) setNotice(null);
+        setReq(next);
         return;
       }
-      void refresh().catch(() => {
-        // Best-effort; chat message still arrives via message.created.
-      });
-    };
-    socket.on("chat.unreadHint", handler);
-    return () => {
-      socket.off("chat.unreadHint", handler);
-    };
-  }, [socket, req.id, refresh]);
+      const generation = exclusiveRequestGuard.capture();
+      const executing = isOrderExecutionStatus(next.status);
+      const documentsAvailable = canProviderManageDealDocuments(next);
+      const [bundles, files, documents, stages, statuses, nextRemarks] = await Promise.allSettled([
+        documentsAvailable ? fetchProRequestContractBundles(req.id) : Promise.resolve([]),
+        documentsAvailable ? fetchProRequestMiscFiles(req.id) : Promise.resolve([]),
+        documentsAvailable ? fetchProRequestDocumentRequests(req.id) : Promise.resolve([]),
+        ["ACTIVE", "ACCEPTANCE_PENDING", "ACCEPTED", "COMPLETED"].includes(next.status) ? fetchProWorkStages(req.id) : Promise.resolve([]),
+        executing ? fetchWorkStageStatuses() : Promise.resolve(null),
+        executing ? fetchProRequestRemarks(req.id) : Promise.resolve([]),
+      ]);
+      if (signal.aborted || !exclusiveRequestGuard.isCurrent(generation)) return;
+      if (next.status !== req.status) setNotice(null);
+      setReq(next);
+      if (bundles.status === "fulfilled") setContractBundles(bundles.value);
+      if (files.status === "fulfilled") setMiscFiles(files.value);
+      if (documents.status === "fulfilled") setDocRequests(documents.value);
+      if (stages.status === "fulfilled") setWorkStages(stages.value);
+      if (statuses.status === "fulfilled" && statuses.value) {
+        setWorkStageStatusOptions(mergeWorkStageStatusOptions(statuses.value.custom));
+      }
+      if (nextRemarks.status === "fulfilled") {
+        setRemarks(nextRemarks.value);
+        setRemarksError(null);
+      }
+      setContractBundlesLoaded(true);
+      setMiscLoaded(true);
+      setDocRequestsLoaded(true);
+    },
+  });
 
   useEffect(() => {
-    let cancelled = false;
-    let inFlight = false;
-    const syncVisibleRequest = async () => {
-      if (cancelled || inFlight || document.visibilityState !== "visible" || isBusy) return;
-      inFlight = true;
-      try {
-        await refresh();
-      } catch {
-        // The next focus or interval retries; keep the last usable view.
-      } finally {
-        inFlight = false;
-      }
+    if (!socket) return;
+    const handler = (hint: { requestId?: string }) => {
+      if (hint.requestId === req.id) syncRequest();
     };
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") void syncVisibleRequest();
-    };
-    window.addEventListener("focus", onVisibilityChange);
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    const intervalId = window.setInterval(() => void syncVisibleRequest(), 3000);
+    socket.on("chat.unreadHint", handler);
+    socket.on("connect", syncRequest);
     return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-      window.removeEventListener("focus", onVisibilityChange);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
+      socket.off("chat.unreadHint", handler);
+      socket.off("connect", syncRequest);
     };
-  }, [isBusy, refresh]);
+  }, [socket, req.id, syncRequest]);
 
   async function refreshContractBundles() {
     try {
@@ -774,16 +621,31 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
         numbers: req.cadastralNumbers ?? [],
         actions: {
           add: async (value) => {
-            const next = await appendProCadastralNumber(req.id, value);
-            setReq(next);
+            setBusy(true);
+            try {
+              const next = await appendProCadastralNumber(req.id, value);
+              setReq(next);
+            } finally {
+              setBusy(false);
+            }
           },
           edit: async (index, value) => {
-            const next = await updateProCadastralNumber(req.id, index, value);
-            setReq(next);
+            setBusy(true);
+            try {
+              const next = await updateProCadastralNumber(req.id, index, value);
+              setReq(next);
+            } finally {
+              setBusy(false);
+            }
           },
           delete: async (index) => {
-            const next = await deleteProCadastralNumber(req.id, index);
-            setReq(next);
+            setBusy(true);
+            try {
+              const next = await deleteProCadastralNumber(req.id, index);
+              setReq(next);
+            } finally {
+              setBusy(false);
+            }
           },
         },
       }),
@@ -825,6 +687,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
         remainingAmountRubles={req.remainingAmountRubles}
         payments={req.payments}
         busy={isBusy}
+        onBusyChange={setPaymentsBusy}
         onChanged={refresh}
       />
     ) : activePanel?.id === "counterparty" ? (
@@ -992,6 +855,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
       {screenModel.showDealWorkflow ? (
         <>
           <RequestReviewsPanel
+            key={req.id}
             requestId={req.id}
             status={req.status}
             side="provider"
@@ -1004,6 +868,7 @@ export function ProRequestDetails({ initialRequest, subtitle }: Props) {
             stages={workStages}
             statusOptions={workStageStatusOptions}
             busy={isBusy}
+            onBusyChange={setProgressBusy}
             onRefresh={loadWorkStages}
             onError={(message) => setError(message)}
           />

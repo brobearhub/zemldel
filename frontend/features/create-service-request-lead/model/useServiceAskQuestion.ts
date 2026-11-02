@@ -6,10 +6,13 @@ import {
   createServiceRequest,
   ensureRequestConversation,
   postConversationMessage,
+  ServiceRequestAuthRequiredError,
 } from "@/features/create-service-request-lead/api/service-request-lead.api";
+import { buildRequestAuthHref, savePendingRequestDraft } from "@/entities/request";
 
 type Input = {
   serviceId: string;
+  serviceTitle?: string;
 };
 
 type SubmitInput = {
@@ -54,7 +57,15 @@ export function useServiceAskQuestion(input: Input) {
       router.push(`/profile/requests/${created.id}`);
       router.refresh();
     } catch (e) {
-      if (createdRequestId && !chatEnsured) {
+      if (!createdRequestId && e instanceof ServiceRequestAuthRequiredError) {
+        savePendingRequestDraft({
+          kind: "SERVICE", serviceId: input.serviceId, subjectTitle: input.serviceTitle,
+          customerName: null, customerEmail: null, customerPhone: null,
+          message: normalizeQuestion(submitInput.questionText) || null,
+          requestCityId: null, cadastralNumbers: submitInput.cadastralNumbers,
+        });
+        router.push(buildRequestAuthHref("signin", { kind: "SERVICE", serviceId: input.serviceId }, true));
+      } else if (createdRequestId && !chatEnsured) {
         setError("Заявка создана, но открыть чат не удалось. Откройте заявку в профиле и попробуйте снова.");
       } else if (createdRequestId && chatEnsured) {
         setError("Заявка создана, но отправить сообщение не удалось. Откройте заявку и отправьте его в чате.");
@@ -64,7 +75,7 @@ export function useServiceAskQuestion(input: Input) {
     } finally {
       setBusy(false);
     }
-  }, [input.serviceId, router]);
+  }, [input.serviceId, input.serviceTitle, router]);
 
   return { busy, error, setError, submit };
 }

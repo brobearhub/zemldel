@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   Alert,
@@ -17,10 +17,10 @@ import type { CitySuggestItemDto } from "@/entities/city";
 import { LocationField, useSelectedCity } from "@/features/select-city";
 import { CadastralNumberChipsField } from "@/shared/ui/CadastralNumberChipsField";
 import {
-  REQUESTS_PROFILE_URL,
-  REQUESTS_PROFILE_RESUME_URL,
   buildRequestAuthHref,
+  readPendingRequestDraft,
   savePendingRequestDraft,
+  cadastralPartsFromInput,
   collectCadastralNumbersFromParts,
   createEmptyCadastralParts,
   type CadastralNumberParts,
@@ -68,6 +68,26 @@ export function PublicUnlinkedRequestForm({
   }));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const restored = useRef(false);
+
+  useEffect(() => {
+    if (restored.current) return;
+    restored.current = true;
+    if (isAuthenticated && new URLSearchParams(window.location.search).get("requestDraft") !== "1") return;
+    const saved = readPendingRequestDraft();
+    if (!saved || saved.kind === "SERVICE" || saved.createdRequestId) return;
+    const savedCategory = saved.kind === "CATEGORY"
+      ? categories.find((item) => item.id === saved.categoryId) ??
+        (sectionCategory?.id === saved.categoryId ? sectionCategory : null)
+      : null;
+    if (saved.kind === "CATEGORY" && !savedCategory) return;
+    setForm({
+      message: saved.message ?? "",
+      cadastralNumbers: saved.cadastralNumbers.length ? saved.cadastralNumbers.map(cadastralPartsFromInput) : [createEmptyCadastralParts()],
+      category: savedCategory,
+    });
+    if (saved.requestCity) setCityOverride(saved.requestCity);
+  }, [categories, isAuthenticated, sectionCategory]);
 
   const subcategory = categories.find((option) => option.id === form.category?.id) ?? null;
   const category = subcategory ?? sectionCategory;
@@ -118,55 +138,36 @@ export function PublicUnlinkedRequestForm({
       const message = normalizeNullableString(form.message.trim());
       const cadastralNumbers = cadastral.numbers;
 
-      if (category) {
-        if (isAuthenticated) {
-          const res = await fetch(`/api/service-categories/${category.id}/requests`, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ message, requestCityId, cadastralNumbers }),
-          });
-          const payload = (await res.json().catch(() => null)) as { error?: string } | null;
-          if (!res.ok) {
-            throw new Error(payload?.error ?? "Не удалось создать заявку");
-          }
-          router.push(REQUESTS_PROFILE_URL);
-          return;
-        }
-
-        savePendingRequestDraft({
-          kind: "CATEGORY",
-          categoryId: category.id,
-          message,
-          requestCityId,
-          cadastralNumbers,
-        });
-
-        router.push(buildRequestAuthHref("signup", { kind: "CATEGORY", categoryId: category.id }));
-        return;
-      }
+      const draft = {
+        ...(category ? { kind: "CATEGORY" as const, categoryId: category.id } : { kind: "FREEFORM" as const }),
+        message,
+        requestCityId,
+        requestCity: city,
+        subjectTitle: category?.name ?? null,
+        cadastralNumbers,
+      };
 
       if (isAuthenticated) {
-        const res = await fetch("/api/requests", {
+        const res = await fetch(category ? `/api/service-categories/${category.id}/requests` : "/api/requests", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ message, requestCityId, cadastralNumbers }),
         });
-        const payload = (await res.json().catch(() => null)) as { error?: string } | null;
-        if (!res.ok) {
+        if (res.status === 401) {
+          savePendingRequestDraft(draft);
+          router.push(buildRequestAuthHref("signin", draft, true));
+          return;
+        }
+        const payload = (await res.json().catch(() => null)) as { id?: string; error?: string } | null;
+        if (!res.ok || !payload?.id) {
           throw new Error(payload?.error ?? "Не удалось создать заявку");
         }
-        router.push(REQUESTS_PROFILE_URL);
+        router.push(`/profile/requests/${payload.id}?created=1`);
         return;
       }
 
-      savePendingRequestDraft({
-        kind: "FREEFORM",
-        message,
-        requestCityId,
-        cadastralNumbers,
-      });
-
-      router.push(buildRequestAuthHref("signup", { kind: "FREEFORM" }));
+      savePendingRequestDraft(draft);
+      router.push(buildRequestAuthHref("signup", draft));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось создать заявку");
     } finally {

@@ -1,5 +1,7 @@
 "use client";
 
+import type { CitySuggestItemDto } from "@/entities/city";
+
 export const REQUEST_INTENT = "service-request";
 export const REQUESTS_PROFILE_URL = "/profile?section=requests";
 export const REQUESTS_PROFILE_RESUME_URL = "/profile?section=requests&requestResume=1";
@@ -7,7 +9,14 @@ export const REQUESTS_PROFILE_RESUME_URL = "/profile?section=requests&requestRes
 const STORAGE_KEY = "pending-service-request";
 const SUBMITTING_TTL_MS = 15_000;
 
-export type PendingRequestDraft =
+type PendingRequestContext = {
+  draftId?: string;
+  subjectTitle?: string | null;
+  requestCity?: CitySuggestItemDto | null;
+  createdRequestId?: string | null;
+};
+
+export type PendingRequestDraft = PendingRequestContext & (
   | {
       kind: "SERVICE";
       serviceId: string;
@@ -39,10 +48,26 @@ export type PendingRequestDraft =
       state: "pending" | "submitting";
       updatedAt: number;
       lastError: string | null;
-    };
+    });
+
+function readDraftContext(value: PendingRequestContext): PendingRequestContext {
+  const city = value.requestCity;
+  return {
+    draftId: typeof value.draftId === "string" ? value.draftId : undefined,
+    subjectTitle: typeof value.subjectTitle === "string" ? value.subjectTitle : null,
+    requestCity: city && typeof city.id === "string" && typeof city.name === "string" &&
+      typeof city.regionCode === "string" && typeof city.regionName === "string" && typeof city.displayName === "string"
+      ? city : null,
+    createdRequestId: typeof value.createdRequestId === "string" ? value.createdRequestId : null,
+  };
+}
 
 function canUseStorage() {
-  return typeof window !== "undefined" && typeof window.sessionStorage !== "undefined";
+  try {
+    return typeof window !== "undefined" && typeof window.sessionStorage !== "undefined";
+  } catch {
+    return false;
+  }
 }
 
 function normalizeNullableString(value: string | null | undefined) {
@@ -64,6 +89,7 @@ export function readPendingRequestDraft(): PendingRequestDraft | null {
     if (parsed.kind === "SERVICE") {
       if (typeof (parsed as any).serviceId !== "string" || !(parsed as any).serviceId) return null;
       return {
+        ...readDraftContext(parsed),
         kind: "SERVICE",
         serviceId: String((parsed as any).serviceId),
         customerName: normalizeNullableString((parsed as any).customerName ?? null),
@@ -80,6 +106,7 @@ export function readPendingRequestDraft(): PendingRequestDraft | null {
     if (parsed.kind === "CATEGORY") {
       if (typeof (parsed as any).categoryId !== "string" || !(parsed as any).categoryId) return null;
       return {
+        ...readDraftContext(parsed),
         kind: "CATEGORY",
         categoryId: String((parsed as any).categoryId),
         message: normalizeNullableString((parsed as any).message ?? null),
@@ -92,6 +119,7 @@ export function readPendingRequestDraft(): PendingRequestDraft | null {
     }
     if (parsed.kind === "FREEFORM") {
       return {
+        ...readDraftContext(parsed),
         kind: "FREEFORM",
         message: normalizeNullableString((parsed as any).message ?? null),
         requestCityId: normalizeNullableString((parsed as any).requestCityId ?? null),
@@ -108,13 +136,18 @@ export function readPendingRequestDraft(): PendingRequestDraft | null {
 }
 
 export function writePendingRequestDraft(draft: PendingRequestDraft) {
-  if (!canUseStorage()) return;
-  window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+  try {
+    if (!canUseStorage()) throw new Error();
+    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+  } catch {
+    throw new Error("Не удалось сохранить заявку в этой вкладке. Разрешите хранение данных сайта и попробуйте ещё раз.");
+  }
 }
 
-export function clearPendingRequestDraft() {
+export function clearPendingRequestDraft(expectedDraftId?: string) {
   if (!canUseStorage()) return;
-  window.sessionStorage.removeItem(STORAGE_KEY);
+  if (expectedDraftId && readPendingRequestDraft()?.draftId !== expectedDraftId) return;
+  try { window.sessionStorage.removeItem(STORAGE_KEY); } catch { /* Navigation can still open a request that was created successfully. */ }
 }
 
 export function savePendingRequestDraft(
@@ -159,6 +192,7 @@ export function savePendingRequestDraft(
     };
   }
 
+  nextDraft = { ...nextDraft, draftId: crypto.randomUUID() };
   writePendingRequestDraft(nextDraft);
   return nextDraft;
 }
@@ -171,12 +205,27 @@ export function markPendingRequestSubmitting() {
   return next;
 }
 
-export function markPendingRequestFailed(errorMessage: string) {
+export function markPendingRequestFailed(errorMessage: string, expectedDraftId?: string) {
   const draft = readPendingRequestDraft();
-  if (!draft) return null;
+  if (!draft || (expectedDraftId && draft.draftId !== expectedDraftId)) return null;
   const next = { ...draft, state: "pending" as const, updatedAt: Date.now(), lastError: errorMessage };
   writePendingRequestDraft(next);
   return next;
+}
+
+export function markPendingRequestCreated(requestId: string, expectedDraftId?: string) {
+  const draft = readPendingRequestDraft();
+  if (!draft || (expectedDraftId && draft.draftId !== expectedDraftId)) return;
+  writePendingRequestDraft({ ...draft, createdRequestId: requestId, updatedAt: Date.now() });
+}
+
+export function getPendingRequestEditHref(draft: PendingRequestDraft) {
+  const path = draft.kind === "SERVICE"
+    ? `/services/${encodeURIComponent(draft.serviceId)}`
+    : draft.kind === "CATEGORY"
+      ? `/service-categories/${encodeURIComponent(draft.categoryId)}`
+      : "/";
+  return `${path}?requestDraft=1${draft.kind === "SERVICE" ? "#consultation" : ""}`;
 }
 
 export function isPendingRequestSubmitting(draft: PendingRequestDraft | null) {
@@ -189,10 +238,13 @@ export function buildRequestAuthHref(
   subject:
     | { kind: "SERVICE"; serviceId: string }
     | { kind: "CATEGORY"; categoryId: string }
-    | { kind: "FREEFORM" }
+    | { kind: "FREEFORM" },
+  reauthenticate = false,
 ) {
   const url = new URL(mode === "signin" ? "/signin" : "/signup", "http://local");
   url.searchParams.set("intent", REQUEST_INTENT);
+  url.searchParams.set("account", "customer");
+  if (reauthenticate) url.searchParams.set("reauth", "1");
   if (subject.kind === "SERVICE") {
     url.searchParams.set("kind", "SERVICE");
     url.searchParams.set("serviceId", subject.serviceId);

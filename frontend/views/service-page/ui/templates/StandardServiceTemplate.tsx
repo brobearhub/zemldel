@@ -27,6 +27,7 @@ export function StandardServiceTemplate({ service, session }: Props) {
         <ProviderSection
           providerId={providerId}
           serviceId={service.id}
+          serviceTitle={service.title}
           isAuthenticated={isAuthenticated}
           imageSide="right"
         />
@@ -74,16 +75,18 @@ async function ServiceReviewsBlock({
 async function ProviderSection({
   providerId,
   serviceId,
+  serviceTitle,
   isAuthenticated,
   imageSide = "left",
 }: {
   providerId: string;
   serviceId: string;
+  serviceTitle: string;
   isAuthenticated: boolean;
   imageSide?: "left" | "right";
 }) {
   const provider = await getPublicProviderProfile(providerId);
   if (!provider) return null;
-  return <ServiceProviderSection provider={provider} serviceId={serviceId} isAuthenticated={isAuthenticated} imageSide={imageSide} />;
+  return <ServiceProviderSection provider={provider} serviceId={serviceId} serviceTitle={serviceTitle} isAuthenticated={isAuthenticated} imageSide={imageSide} />;
 }
 

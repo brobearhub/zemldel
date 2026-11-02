@@ -1,17 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   buildRequestAuthHref,
   collectCadastralNumbersFromParts,
   createEmptyCadastralParts,
   savePendingRequestDraft,
+  readPendingRequestDraft,
+  cadastralPartsFromInput,
   type CadastralNumberParts,
 } from "@/entities/request";
 
 type Input = {
   serviceId: string;
+  serviceTitle?: string;
   initialCustomerEmail: string | null;
 };
 
@@ -26,6 +29,14 @@ export function useServiceLeadCapture(input: Input) {
   const [cadastralNumbers, setCadastralNumbers] = useState<CadastralNumberParts[]>([createEmptyCadastralParts()]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const draft = readPendingRequestDraft();
+    if (draft?.kind !== "SERVICE" || draft.serviceId !== input.serviceId || draft.createdRequestId) return;
+    setCustomerEmail(draft.customerEmail ?? input.initialCustomerEmail ?? "");
+    setQuestion(draft.message ?? "");
+    setCadastralNumbers(draft.cadastralNumbers.length ? draft.cadastralNumbers.map(cadastralPartsFromInput) : [createEmptyCadastralParts()]);
+  }, [input.serviceId, input.initialCustomerEmail]);
 
   const validationError = useMemo(() => {
     const email = customerEmail.trim();
@@ -54,6 +65,7 @@ export function useServiceLeadCapture(input: Input) {
       savePendingRequestDraft({
         kind: "SERVICE",
         serviceId: input.serviceId,
+        subjectTitle: input.serviceTitle,
         customerName: null,
         customerEmail: email,
         customerPhone: null,

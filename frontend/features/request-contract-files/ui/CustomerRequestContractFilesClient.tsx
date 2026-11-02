@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Alert,
@@ -52,12 +52,18 @@ export function CustomerRequestContractFilesClient({
   requestId,
   bundles,
   onBundlesChange,
+  onBusyChange,
 }: {
   requestId: string;
   bundles: CustomerContractBundleListItem[];
   onBundlesChange?: (next: CustomerContractBundleListItem[]) => void;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    onBusyChange?.(busy);
+    return () => onBusyChange?.(false);
+  }, [onBusyChange, busy]);
   const [approvingBundleId, setApprovingBundleId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

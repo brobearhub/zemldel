@@ -9,6 +9,7 @@ export type RequestWorkProgressProps = {
   stages: WorkStageDto[];
   statusOptions: WorkStageStatusOptionDto[];
   busy?: boolean;
+  onBusyChange?: (busy: boolean) => void;
   onRefresh: () => Promise<void>;
   onError?: (message: string) => void;
 };

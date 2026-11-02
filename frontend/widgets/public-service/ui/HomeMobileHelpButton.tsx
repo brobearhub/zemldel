@@ -78,7 +78,7 @@ export function HomeMobileHelpButton({ isAuthenticated, categories, open: openPr
     <>
       {mounted ? createPortal(launcher, document.body) : null}
 
-      <Dialog fullScreen open={open} onClose={() => setOpen(false)} sx={{ zIndex: 1500 }}>
+      <Dialog fullScreen aria-label="Создать заявку" open={open} onClose={() => setOpen(false)}>
         <IconButton
           aria-label="Закрыть"
           onClick={() => setOpen(false)}

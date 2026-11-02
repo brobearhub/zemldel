@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import AddIcon from "@mui/icons-material/Add";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
@@ -220,6 +220,7 @@ export type RequestPaymentsProps = {
   remainingAmountRubles: number | null;
   payments: readonly RequestPaymentItemDto[];
   busy?: boolean;
+  onBusyChange?: (busy: boolean) => void;
   onChanged?: () => Promise<void> | void;
 };
 
@@ -253,6 +254,12 @@ export function RequestPayments(props: RequestPaymentsProps) {
   const [saving, setSaving] = useState(false);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const onBusyChange = props.onBusyChange;
+  useEffect(() => {
+    onBusyChange?.(saving);
+    return () => onBusyChange?.(false);
+  }, [onBusyChange, saving]);
 
   const isBusy = Boolean(props.busy) || saving;
   const remaining = props.remainingAmountRubles;
@@ -422,7 +429,13 @@ export function RequestPayments(props: RequestPaymentsProps) {
   return (
     <Stack spacing={1.5} sx={{ flex: 1, minHeight: "100%", minWidth: 0, maxWidth: "100%" }}>
       <Typography variant="body2" sx={{ color: "text.secondary" }}>
-        Одна сторона предлагает цену, противоположная — явно принимает
+        {props.status === "COMPLETED"
+          ? "Работы завершены. Здесь можно зафиксировать поступившие оплаты."
+          : props.status === "CLOSED" || props.status === "CANCELLED"
+            ? "Заявка закрыта. Здесь сохранена история цены и оплат."
+            : permissions.canEditPrice
+              ? "Одна сторона предлагает цену, противоположная — явно принимает"
+              : "Согласованная цена работ и история оплат по заявке."}
       </Typography>
       <Typography variant="body2" sx={{ color: "text.secondary" }}>
         Оплата идёт напрямую между вами и {props.mode === "provider" ? "клиентом" : "исполнителем"}. Здесь вы фиксируете договорённости и отметки.

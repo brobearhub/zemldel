@@ -1,0 +1,56 @@
+import { act, cleanup, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { RequestProDto } from "@/entities/request";
+import { ConfirmProvider } from "@/shared/ui/confirm";
+import { fetchProRequestContractBundles, fetchProRequestMiscFiles } from "@/entities/request/api/pro-contract-bundles";
+import { fetchProRequestDocumentRequests } from "@/entities/request/api/request-document-requests";
+import { ProRequestDetails } from "./ProRequestDetails";
+
+vi.mock("@/widgets/chat/socket/ChatSocketContext", () => ({ useChatSocket: () => ({ socket: null }) }));
+vi.mock("./RequestRemindersPanel", () => ({ RequestRemindersPanel: () => null }));
+vi.mock("./ProRequestDocumentsSection", () => ({
+  ProRequestDocumentsSection: ({ contractBundles }: { contractBundles: { status: string }[] }) =>
+    <div data-testid="contracts">{contractBundles.map((b) => b.status).join(",")}</div>,
+}));
+vi.mock("@/entities/request/api/pro-contract-bundles", () => ({
+  fetchProRequestContractBundles: vi.fn(), fetchProRequestMiscFiles: vi.fn(),
+}));
+vi.mock("@/entities/request/api/request-document-requests", () => ({ fetchProRequestDocumentRequests: vi.fn() }));
+
+const request = {
+  id: "request-a", subjectType: "FREEFORM", status: "DISCUSSING", providerId: "provider-a",
+  lockedAt: "2026-11-01", isLocked: false, message: "Тестовая задача", offerStatus: "SELECTED",
+  cadastralNumbers: [], payments: [], deliverySubmissions: [], currentSubmission: null,
+  totalAmountRubles: 12000, servicePriceRubles: null, priceProposal: null,
+  remainingAmountRubles: 12000, paidAmountRubles: 0, contractAcceptedAt: null,
+} as unknown as RequestProDto;
+
+describe("provider request sections follow live updates", () => {
+  beforeEach(() => {
+    vi.useFakeTimers(); vi.clearAllMocks();
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(request))));
+    vi.mocked(fetchProRequestMiscFiles).mockResolvedValue([]);
+    vi.mocked(fetchProRequestDocumentRequests).mockResolvedValue([]);
+    vi.mocked(fetchProRequestContractBundles).mockResolvedValue([{ status: "PENDING_CUSTOMER" }] as never);
+  });
+  afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+  it("updates a contract decision even when the request status has not changed", async () => {
+    await act(async () => { render(<ConfirmProvider><ProRequestDetails initialRequest={request} subtitle="" /></ConfirmProvider>); });
+    expect(screen.getByTestId("contracts")).toHaveTextContent("PENDING_CUSTOMER");
+    vi.mocked(fetchProRequestContractBundles).mockResolvedValue([{ status: "APPROVED" }] as never);
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    expect(screen.getByTestId("contracts")).toHaveTextContent("APPROVED");
+  });
+
+  it("does not read exclusive resources when the next snapshot archives the provider", async () => {
+    await act(async () => { render(<ConfirmProvider><ProRequestDetails initialRequest={request} subtitle="" /></ConfirmProvider>); });
+    const readsBefore = vi.mocked(fetchProRequestContractBundles).mock.calls.length;
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ ...request, isLocked: true })));
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    expect(screen.getByText("Клиент выбрал другого исполнителя. Вам доступен архив переписки.")).toBeInTheDocument();
+    expect(screen.queryByTestId("contracts")).not.toBeInTheDocument();
+    expect(fetchProRequestContractBundles).toHaveBeenCalledTimes(readsBefore);
+  });
+});

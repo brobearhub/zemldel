@@ -32,4 +32,21 @@ describe("RequestPayments first customer proposal", () => {
       screen.getByRole("button", { name: "Предложить цену" }),
     ).toBeEnabled();
   });
+
+  it("shows final price copy while keeping late payment recording available", () => {
+    render(
+      <ConfirmProvider>
+        <RequestPayments
+          mode="provider" requestId="completed" status="COMPLETED" lockedAt="2026-11-01"
+          totalAmountRubles={12000} servicePriceRubles={12000} priceProposal={null}
+          canProposePrice canAcceptPrice={false} paidAmountRubles={0}
+          remainingAmountRubles={12000} payments={[]}
+        />
+      </ConfirmProvider>,
+    );
+    expect(screen.getByText("Работы завершены. Здесь можно зафиксировать поступившие оплаты.")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Полная цена, ₽" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Добавить оплату" })).toBeEnabled();
+    expect(screen.queryByText(/Одна сторона предлагает цену/)).not.toBeInTheDocument();
+  });
 });

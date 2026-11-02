@@ -6,15 +6,12 @@ import { useRouter } from "next/navigation";
 import { Alert, Button, Paper, Stack, Typography } from "@mui/material";
 import {
   clearPendingRequestDraft,
-  isPendingRequestSubmitting,
-  markPendingRequestFailed,
-  markPendingRequestSubmitting,
+  buildRequestAuthHref,
   readPendingRequestDraft,
   formatReplyPreview,
-  type PendingRequestDraft,
   type RequestCustomerDto,
 } from "@/entities/request";
-import type { ChatEnsureResponse } from "@/entities/chat/dto/chat.dto";
+import { PendingRequestAuthRequiredError, resumePendingRequest } from "@/entities/request/api/resume-pending-request";
 import { deleteCustomerRequest } from "@/entities/request/api/customer-requests";
 import { useConfirm } from "@/shared/ui/confirm";
 import { CustomerRequestReplyDialog } from "./CustomerRequestReplyDialog";
@@ -32,6 +29,10 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [resuming, setResuming] = useState(false);
+  const [resumeError, setResumeError] = useState<string | null>(null);
+  const [hasResumeDraft, setHasResumeDraft] = useState(false);
+  const [resumeAttempt, setResumeAttempt] = useState(0);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [replyItem, setReplyItem] = useState<RequestCustomerDto | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
@@ -68,109 +69,33 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
 
   useEffect(() => {
     if (!autoResumeEnabled) return;
-
     let cancelled = false;
-
-    async function resume(draft: PendingRequestDraft) {
-      if (isPendingRequestSubmitting(draft)) {
-        if (!cancelled) {
-          await load();
-          onAutoResumeFinished?.();
-        }
+    const draft = readPendingRequestDraft();
+    setHasResumeDraft(Boolean(draft));
+    if (!draft) {
+      setResumeError("Черновик заявки не найден в этой вкладке. Создайте новую заявку.");
+      onAutoResumeFinished?.();
+      return;
+    }
+    setResuming(true);
+    setResumeError(null);
+    void resumePendingRequest(draft).then((created) => {
+      if (cancelled) return;
+      clearPendingRequestDraft(draft.draftId);
+      router.replace(`/profile/requests/${created.id}?created=1`);
+      router.refresh();
+    }).catch((error: unknown) => {
+      if (cancelled) return;
+      if (error instanceof PendingRequestAuthRequiredError) {
+        router.push(buildRequestAuthHref("signin", draft, true));
         return;
       }
-      markPendingRequestSubmitting();
-
-      try {
-        const url =
-          draft.kind === "SERVICE"
-            ? `/api/services/${draft.serviceId}/requests`
-            : draft.kind === "CATEGORY"
-              ? `/api/service-categories/${draft.categoryId}/requests`
-              : "/api/requests";
-
-        const body =
-          draft.kind === "SERVICE"
-            ? {
-                customerName: draft.customerName,
-                customerEmail: draft.customerEmail,
-                customerPhone: draft.customerPhone,
-                message: draft.message,
-                requestCityId: draft.requestCityId,
-                cadastralNumbers: draft.cadastralNumbers,
-              }
-            : draft.kind === "CATEGORY"
-              ? {
-                  message: draft.message,
-                  requestCityId: draft.requestCityId,
-                  cadastralNumbers: draft.cadastralNumbers,
-                }
-              : {
-                  message: draft.message,
-                  requestCityId: draft.requestCityId,
-                  cadastralNumbers: draft.cadastralNumbers,
-                };
-
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        const payload = (await res.json().catch(() => null)) as RequestCustomerDto | { error?: string } | null;
-        if (!res.ok || !payload || typeof payload !== "object" || ("error" in payload && payload.error)) {
-          const errorMessage =
-            payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
-              ? payload.error
-              : "Не удалось создать заявку";
-          throw new Error(errorMessage);
-        }
-
-        const created = payload as RequestCustomerDto;
-
-        // Ensure chat + send first message for SERVICE requests (so provider thread appears immediately).
-        const typedMessage = (draft.message ?? "").trim();
-        if (draft.kind === "SERVICE" && typedMessage) {
-          try {
-            const ensureRes = await fetch("/api/chat/ensure", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ serviceRequestId: created.id }),
-            });
-            const ensured = (await ensureRes.json().catch(() => null)) as ChatEnsureResponse | { error?: string } | null;
-            if (ensureRes.ok && ensured && typeof ensured === "object" && "conversationId" in ensured) {
-              await fetch(`/api/chat/conversations/${(ensured as ChatEnsureResponse).conversationId}/messages`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ body: typedMessage, clientMessageId: crypto.randomUUID() }),
-              }).catch(() => null);
-            }
-          } catch {
-            // Fallback: request detail page can ensure chat manually.
-          }
-        }
-
-        clearPendingRequestDraft();
-        if (!cancelled) {
-          const createdQuery = draft.kind === "SERVICE" && !typedMessage ? "?created=1" : "";
-          router.push(`/profile/requests/${created.id}${createdQuery}`);
-          router.refresh();
-        }
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : "Не удалось создать заявку";
-        markPendingRequestFailed(msg);
-        if (!cancelled) setError(msg);
-      }
-    }
-
-    const draft = readPendingRequestDraft();
-    if (draft) {
-      void resume(draft);
-    }
-
-    return () => {
-      cancelled = true;
-    };
-  }, [autoResumeEnabled, onAutoResumeFinished, router]);
+      setResumeError(error instanceof Error ? error.message : "Не удалось отправить заявку. Черновик сохранён.");
+    }).finally(() => {
+      if (!cancelled) setResuming(false);
+    });
+    return () => { cancelled = true; };
+  }, [autoResumeEnabled, onAutoResumeFinished, router, resumeAttempt]);
 
   async function refresh() {
     setRefreshing(true);
@@ -228,6 +153,13 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
         </Button>
       </Stack>
 
+      {resuming ? <Alert severity="info" role="status">Отправляем сохранённую заявку…</Alert> : null}
+      {resumeError ? (
+        <Alert severity="warning" action={hasResumeDraft
+          ? <Button color="inherit" disabled={resuming} onClick={() => setResumeAttempt((value) => value + 1)}>Повторить отправку</Button>
+          : <Button component={Link} href="/" color="inherit">Создать заявку</Button>
+        }>{resumeError}</Alert>
+      ) : null}
       {error ? <Alert severity="error">{error}</Alert> : null}
 
       {items.length === 0 && !loading ? (

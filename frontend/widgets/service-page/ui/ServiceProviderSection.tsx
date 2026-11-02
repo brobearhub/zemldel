@@ -101,11 +101,12 @@ function providerTypeLabel(type: PublicProviderProfileDto["type"]): string {
 type Props = {
   provider: PublicProviderProfileDto;
   serviceId: string;
+  serviceTitle?: string;
   isAuthenticated: boolean;
   imageSide?: "left" | "right";
 };
 
-export function ServiceProviderSection({ provider, serviceId, isAuthenticated, imageSide = "left" }: Props) {
+export function ServiceProviderSection({ provider, serviceId, serviceTitle, isAuthenticated, imageSide = "left" }: Props) {
   const isRight = imageSide === "right";
 
   return (
@@ -241,6 +242,7 @@ export function ServiceProviderSection({ provider, serviceId, isAuthenticated, i
             <Stack direction={{ xs: "column", md: "row" }} spacing={{ xs: 1, md: 3 }} sx={{ alignItems: { md: "center" } }}>
               <ServiceQuickApplyButton
                 serviceId={serviceId}
+                serviceTitle={serviceTitle}
                 isAuthenticated={isAuthenticated}
                 sx={{
                   bgcolor: "secondary.main",

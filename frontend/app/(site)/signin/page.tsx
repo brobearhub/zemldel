@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { Alert, Box, Button, Stack, TextField, Typography } from "@mui/material";
-import { signIn, useSession } from "next-auth/react";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent } from "react";
 import { resolvePostSignInPath } from "./resolve-post-sign-in-path";
@@ -11,6 +11,8 @@ import Link from "@/shared/ui/Link";
 import { RainGlassPaper } from "@/shared/ui/RainGlassPaper";
 import { LogoFull } from "@/shared/ui/LogoFull";
 import { PasswordVisibilityButton } from "@/shared/ui/PasswordVisibilityButton";
+import { PendingRequestAuthSummary, usePendingRequestContext } from "@/features/continue-request";
+import { REQUEST_INTENT, REQUESTS_PROFILE_RESUME_URL, REQUESTS_PROFILE_URL } from "@/entities/request";
 
 export default function SignInPage() {
   return (
@@ -38,29 +40,60 @@ function SignInPageContent() {
   const [formError, setFormError] = useState<string | null>(null);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const reauthResetDone = useRef(false);
+  const [reauthReady, setReauthReady] = useState(false);
   const { data: session, status } = useSession();
 
   const returnTo = searchParams.get("returnTo");
+  const intent = searchParams.get("intent");
+  const isRequestIntent = intent === REQUEST_INTENT;
+  const pending = usePendingRequestContext({
+    intent,
+    kind: searchParams.get("kind"),
+    serviceId: searchParams.get("serviceId"),
+    categoryId: searchParams.get("categoryId"),
+  });
+  const effectiveReturnTo = isRequestIntent ? (pending.draft ? REQUESTS_PROFILE_RESUME_URL : REQUESTS_PROFILE_URL) : returnTo;
+  const wrongAccount = isRequestIntent && status === "authenticated" && session?.user.accountKind === "PROVIDER";
   const passwordResetNotice = searchParams.get("notice") === "password-reset";
+  const reauthenticate = searchParams.get("reauth") === "1";
   const signUpParams = new URLSearchParams(searchParams.toString());
   signUpParams.delete("notice");
+  signUpParams.delete("reauth");
   const signUpQuery = signUpParams.toString();
   const signUpHref = signUpQuery ? `/signup?${signUpQuery}` : "/signup";
 
   useEffect(() => {
+    if (pending.draft?.kind === "SERVICE") setEmail(pending.draft.customerEmail ?? "");
+  }, [pending.draft]);
+
+  useEffect(() => {
+    if (!reauthenticate || reauthResetDone.current || status === "loading") return;
+    reauthResetDone.current = true;
+    if (status === "authenticated") {
+      void signOut({ redirect: false }).then(() => setReauthReady(true), () => setReauthReady(true));
+    } else {
+      setReauthReady(true);
+    }
+  }, [reauthenticate, status]);
+
+  useEffect(() => {
     if (status !== "authenticated" || !session?.user) return;
+    if (reauthenticate) return;
+    if (isRequestIntent && (!pending.loaded || session.user.accountKind === "PROVIDER")) return;
     const hasProviderMembership = session.user.memberships.some((membership) => membership.status === "ACTIVE");
     router.replace(
       resolvePostSignInPath({
         accountKind: session.user.accountKind === "PROVIDER" ? "PROVIDER" : "CUSTOMER",
         hasProviderMembership,
-        returnTo,
+        returnTo: effectiveReturnTo,
       }),
     );
-  }, [status, session, returnTo, router]);
+  }, [status, session, effectiveReturnTo, router, isRequestIntent, pending.loaded, reauthenticate]);
 
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (reauthenticate && !reauthReady) return;
     const emailMissing = email.trim().length === 0;
     const passwordMissing = password.length === 0;
     setEmailError(emailMissing);
@@ -92,6 +125,11 @@ function SignInPageContent() {
         return;
       }
 
+      if (isRequestIntent && payload?.accountKind === "PROVIDER") {
+        setFormError("Это аккаунт исполнителя. Для отправки заявки войдите в аккаунт клиента.");
+        return;
+      }
+
       const res = await signIn("credentials", {
         email,
         password,
@@ -108,7 +146,7 @@ function SignInPageContent() {
       const nextPath = resolvePostSignInPath({
         accountKind: payload?.accountKind === "PROVIDER" ? "PROVIDER" : "CUSTOMER",
         hasProviderMembership: payload?.hasProviderMembership === true,
-        returnTo,
+        returnTo: effectiveReturnTo,
       });
 
       router.push(nextPath);
@@ -128,10 +166,18 @@ function SignInPageContent() {
         <Stack spacing={2.5}>
           <Stack spacing={1} sx={{ alignItems: "center" }}>
             <LogoFull size={80} layout="right" tone="light" priority />
+            {isRequestIntent ? <Typography component="h1" variant="h5" sx={{ color: "inherit", textAlign: "center" }}>{pending.loaded && !pending.draft ? "Вход в аккаунт" : "Вход для отправки заявки"}</Typography> : null}
           </Stack>
 
           {passwordResetNotice ? (
             <Alert severity="success">Пароль обновлён. Войдите с новым паролем.</Alert>
+          ) : null}
+          {reauthenticate ? <Alert severity="info">{pending.draft ? "Сессия завершилась. Заявка сохранена — войдите ещё раз, чтобы отправить её." : "Сессия завершилась. Войдите ещё раз."}</Alert> : null}
+          {isRequestIntent ? <PendingRequestAuthSummary draft={pending.draft} loaded={pending.loaded} mode="signin" /> : null}
+          {wrongAccount ? (
+            <Alert severity="warning" action={<Button color="inherit" onClick={() => void signOut({ redirect: false })}>Сменить аккаунт</Button>}>
+              Вы вошли как исполнитель. Для отправки заявки нужен аккаунт клиента. Черновик сохранён.
+            </Alert>
           ) : null}
           {formError ? (
             <Alert severity="error" role="alert">
@@ -190,9 +236,10 @@ function SignInPageContent() {
                 color="primary"
                 type="submit"
                 loading={loading}
+                disabled={wrongAccount || (isRequestIntent && !pending.loaded) || (reauthenticate && !reauthReady)}
                 sx={{ minHeight: 44 }}
               >
-                Войти
+                {isRequestIntent && pending.draft ? "Войти и отправить заявку" : "Войти"}
               </Button>
             </Stack>
           </Box>

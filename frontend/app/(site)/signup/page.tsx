@@ -23,7 +23,9 @@ import {
 import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { REQUEST_INTENT as SERVICE_REQUEST_INTENT } from "@/entities/request";
+import { REQUEST_INTENT as SERVICE_REQUEST_INTENT, REQUESTS_PROFILE_RESUME_URL, REQUESTS_PROFILE_URL, getPendingRequestEditHref } from "@/entities/request";
+import { PendingRequestAuthSummary, usePendingRequestContext } from "@/features/continue-request";
+import { resolvePostSignInPath } from "../signin/resolve-post-sign-in-path";
 import type { CitySuggestItemDto } from "@/entities/city";
 import { LocationField } from "@/features/select-city";
 import { Markdown } from "@/shared/ui/Markdown";
@@ -168,9 +170,15 @@ function SignUpPageContent() {
   const [versionsError, setVersionsError] = useState<string | null>(null);
 
   const intent = searchParams.get("intent");
-  const returnTo = searchParams.get("returnTo");
+  const isRequestIntent = intent === SERVICE_REQUEST_INTENT;
+  const pending = usePendingRequestContext({
+    intent,
+    kind: searchParams.get("kind"),
+    serviceId: searchParams.get("serviceId"),
+    categoryId: searchParams.get("categoryId"),
+  });
   const accountParam = searchParams.get("account");
-  const accountKind = accountParam === "provider" ? "PROVIDER" : accountParam === "customer" ? "CUSTOMER" : null;
+  const accountKind = isRequestIntent ? "CUSTOMER" : accountParam === "provider" ? "PROVIDER" : accountParam === "customer" ? "CUSTOMER" : null;
   const signInHref = searchParams.toString() ? `/signin?${searchParams.toString()}` : "/signin";
 
   const chooseAccount = (account: SignupAccount) => {
@@ -183,16 +191,36 @@ function SignUpPageContent() {
   const passwordMismatch = showConfirmPassword && confirmPassword.length > 0 && confirmPassword !== password;
 
   useEffect(() => {
+    if (!pending.draft) return;
+    if (pending.draft.requestCity) setCustomerCity(pending.draft.requestCity);
+    if (pending.draft.kind === "SERVICE") {
+      setEmail(pending.draft.customerEmail ?? "");
+      setName(pending.draft.customerName ?? "");
+    }
+  }, [pending.draft]);
+
+  useEffect(() => {
     if (submitted.current || status !== "authenticated" || !session?.user) return;
+    if (isRequestIntent && !pending.loaded) return;
+    if (isRequestIntent && session.user.accountKind === "PROVIDER") {
+      router.replace(signInHref);
+      return;
+    }
     const hasProviderMembership = session.user.memberships.some((membership) => membership.status === "ACTIVE");
     router.replace(
-      session.user.accountKind === "PROVIDER"
+      isRequestIntent
+        ? resolvePostSignInPath({
+            accountKind: session.user.accountKind === "PROVIDER" ? "PROVIDER" : "CUSTOMER",
+            hasProviderMembership,
+            returnTo: pending.draft ? REQUESTS_PROFILE_RESUME_URL : REQUESTS_PROFILE_URL,
+          })
+        : session.user.accountKind === "PROVIDER"
         ? hasProviderMembership
           ? "/pro"
           : "/providers/new"
         : "/profile",
     );
-  }, [status, session, router]);
+  }, [status, session, router, isRequestIntent, pending.loaded, pending.draft, signInHref]);
 
   useEffect(() => {
     let cancelled = false;
@@ -395,8 +423,8 @@ function SignUpPageContent() {
       const nextPath =
         accountKind === "PROVIDER"
           ? "/providers/new?welcome=1"
-          : intent === SERVICE_REQUEST_INTENT && returnTo
-            ? returnTo
+          : isRequestIntent
+            ? pending.draft ? REQUESTS_PROFILE_RESUME_URL : REQUESTS_PROFILE_URL
             : "/profile?welcome=1";
 
       submitted.current = true;
@@ -502,8 +530,12 @@ function SignUpPageContent() {
                 })}>
                 <IconButton
                   type="button"
-                  aria-label="Изменить роль"
+                  aria-label={isRequestIntent ? "Вернуться к заявке" : "Изменить роль"}
                   onClick={() => {
+                    if (isRequestIntent) {
+                      router.push(pending.draft ? getPendingRequestEditHref(pending.draft) : "/");
+                      return;
+                    }
                     const params = new URLSearchParams(searchParams.toString());
                     params.delete("account");
                     const query = params.toString();
@@ -536,6 +568,14 @@ function SignUpPageContent() {
                 </Typography>
                 <Box aria-hidden sx={{ flex: "0 0 44px" }} />
               </Box>
+              {isRequestIntent ? (
+                <Typography variant="body2" sx={{ textAlign: "center", mt: 1 }}>
+                  Уже есть аккаунт? <Link href={signInHref} style={{ color: "inherit", fontWeight: 700 }}>Войти и продолжить</Link>
+                </Typography>
+              ) : null}
+              {isRequestIntent ? (
+                <Box sx={{ mt: 2 }}><PendingRequestAuthSummary draft={pending.draft} loaded={pending.loaded} mode="signup" /></Box>
+              ) : null}
               <Box
                 aria-hidden
                 sx={(theme) => ({
@@ -723,7 +763,12 @@ function SignUpPageContent() {
               {accountKind === "CUSTOMER" ? (
               <Box sx={(theme) => ({ display: "flex", justifyContent: "center", transform: { xs: "translateY(-0.5rem)", tablet: "translateY(0)" }, [theme.media.phoneLandscape]: { transform: "translateY(-0.5rem)" } })}>
                 <LocationField
-                  label="Город"
+                  label="Город профиля"
+                  caption={isRequestIntent ? "Город профиля" : undefined}
+                  helperText={isRequestIntent ? pending.draft?.requestCityId
+                    ? "Можно изменить. Место работ в заявке останется прежним."
+                    : "Город вашего профиля. Место работ можно уточнить в чате с исполнителем."
+                    : undefined}
                   emptyLabel="Выберите город"
                   tone="light"
                   value={customerCity}
@@ -822,10 +867,10 @@ function SignUpPageContent() {
                 color="secondary"
                 type="submit"
                 loading={loading}
-                disabled={!versionsReady}
+                disabled={!versionsReady || (isRequestIntent && !pending.loaded)}
                 sx={{ minHeight: 44 }}
               >
-                Создать аккаунт
+                {isRequestIntent && pending.draft ? "Создать аккаунт и отправить заявку" : "Создать аккаунт"}
               </Button>
               {!versionsReady && !versionsError ? (
                 <Typography variant="body2" sx={{ textAlign: "center" }}>

@@ -28,6 +28,7 @@ type Props = {
   onDeleteRequestedDocument: (docRequestId: string) => Promise<void> | void;
   onUploadRequestedDocument: (docRequestId: string, file: File) => Promise<void> | void;
   onOpenOfferDialog: () => void;
+  onContractDecisionBusyChange?: (busy: boolean) => void;
   onContractBundlesChange: (next: CustomerContractBundleListItem[]) => void;
 };
 
@@ -41,6 +42,8 @@ function CustomerDocumentsBanners(props: {
 }) {
   const { request, hasContractBundles, docRequests, allRequestedDocumentsUploaded, hasRevisionRequested, hasPending } =
     props;
+
+  if (isOrderExecutionStatus(request.status) || ["CLOSED", "CANCELLED"].includes(request.status)) return null;
 
   return (
     <>
@@ -220,6 +223,7 @@ export function CustomerRequestDocumentsSection(props: Props) {
         requestId={props.request.id}
         bundles={props.contractBundles}
         onBundlesChange={props.onContractBundlesChange}
+        onBusyChange={props.onContractDecisionBusyChange}
       />
 
       <CustomerAcceptContractActions
