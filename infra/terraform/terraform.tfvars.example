@@ -1,10 +1,29 @@
-cloud_id       = "b1g40l910a4onvsk2ja2"
-folder_id      = "b1gcdvf6jupvtiplmo6"
-domain         = "zemledelpro.ru"
-cdn_domain     = "cdn.zemledelpro.ru"
-operator_cidr  = "203.0.113.10/32"
-ssh_public_key = "ssh-ed25519 AAAA... user@host"
+domain            = "zemledelpro.ru"
+backup_start_date = "2026-11-03" # replace with the actual deployment date
 
-# Сгенерировать автоматически: ./scripts/generate-tfvars.sh
-# Пароль БД — не коммитить. Задайте через окружение:
-# export TF_VAR_postgres_password='...'
+# Create separate prod network, 192.168.10.0/24, Moscow.
+existing_vpc_id = null
+
+# NEW PostgreSQL 18: primary + 2 replicas. Filters select an existing tariff.
+# Capacity is per node; arbitrary sizes without a matching tariff are rejected.
+db_cpu             = 2
+db_ram_mb          = 2048
+db_disk_mb         = 30720
+db_node_count      = 3
+db_public_access   = true
+backup_copy_count  = 1
+
+s3_preset_id         = 5137 # Standard 10 GB per bucket; no automatic paid upgrade
+cdn_preset_id        = 5211
+cdn_traffic_limit_gb = 250
+enable_cdn_tls      = false # set true AFTER DNS delegation and propagation
+
+# Populate only AFTER AppPlatform gives you the real records.
+# Keep this empty for the first apply. Never use guessed IPs/technical domains.
+dns_records = {}
+# dns_records = {
+#   frontend = { name = "@", type = "A", value = "IP_FROM_FRONTEND_APPPLATFORM" }
+#   api      = { name = "api", type = "CNAME", value = "HOST_FROM_BACKEND_APPPLATFORM" }
+#   www      = { name = "www", type = "CNAME", value = "zemledelpro.ru" }
+#   mail_spf = { name = "@", type = "TXT", value = "VALUE_FROM_SMTP_PROVIDER" }
+# }

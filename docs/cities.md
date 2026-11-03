@@ -2,7 +2,7 @@
 
 Таблица `City` — офлайн-справочник локаций РФ из XML-выгрузок ГАР/ФИАС.
 
-**Оглавление:** [Обзор](#обзор) · [Чистая база: порядок заливки](#чистая-база-порядок-заливки) · [Схема работы](#схема-работы) · [Локально](#локально) · [Production](#production-yandex-cloud) · [Код](#где-лежит-код) · [Troubleshooting](#troubleshooting)
+**Оглавление:** [Обзор](#обзор) · [Чистая база: порядок заливки](#чистая-база-порядок-заливки) · [Схема работы](#схема-работы) · [Локально](#локально) · [Production](#production-timeweb-cloud) · [Код](#где-лежит-код) · [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -38,7 +38,7 @@ Inactivate города **не показываются** в автокомпл�
 | Окружение | `DATABASE_URL` |
 |-----------|----------------|
 | Local | `postgres://postgres:postgres@localhost:5421/new_gorisons` |
-| Prod | `deploy/.secrets/database.url` (после `terraform apply`) |
+| Prod | PostgreSQL 18 в Timeweb Cloud; строку подключения взять в панели Timeweb и передать через `DATABASE_URL` |
 
 Имя таблицы в SQL: `"City"` (кавычки и регистр важны).
 
@@ -48,19 +48,31 @@ Inactivate города **не показываются** в автокомпл�
 
 Шпаргалка: поднять пустую БД и залить справочники. Команды из `backend/`, `DATABASE_URL` смотрит на нужную БД.
 
+### Первый шаг: миграции production
+
+В терминале из `backend/` с `DATABASE_URL`, указывающим на нужную production-базу, выполните:
+
+```bash
+npm run db:migrate:deploy
+```
+
+Убедитесь по выводу, что миграции прошли без ошибки и были направлены в нужную базу. Если результат неясен, в том же окружении проверьте `npm run db:migrate:status`. При передаче вывода не публикуйте строку подключения, пароль или токены. Факт запуска команды сам по себе не подтверждает успешное применение миграций.
+
+`npm run deploy` тоже выполняет миграции, но дополнительно запускает сиды и сборку. Справочник городов он не переносит: для него нужны отдельные шаги ниже.
+
 ### 0. Один раз: клиент PostgreSQL нужной версии
 
-Major-версия `pg_dump` / `pg_restore` должна совпадать с сервером (сейчас **17**).
+Для локального PostgreSQL 17 и production PostgreSQL 18 используйте клиентские утилиты PostgreSQL **18**: `pg_dump` не может выгружать данные с сервера более новой major-версии. Проверяйте совместимость дампа и целевого сервера перед восстановлением.
 
 ```bash
 brew list --versions | grep -i postgres   # что стоит
 pg_dump --version                         # что в PATH
 
-brew install postgresql@17                # если 17 нет
-export PG_BIN_DIR=/opt/homebrew/opt/postgresql@17/bin
+brew install postgresql@18                # если 18 нет
+export PG_BIN_DIR=/opt/homebrew/opt/postgresql@18/bin
 ```
 
-`PG_BIN_DIR` читают `cities:backup` и `cities:restore`. Без него берётся `pg_dump` из `PATH`. Можно вместо этого сделать 17 основной: `brew unlink postgresql@16 && brew link --force postgresql@17`.
+`PG_BIN_DIR` читают `cities:backup` и `cities:restore`. Без него утилиты берутся из `PATH`. Локальный сервер проекта остаётся PostgreSQL 17; `PG_BIN_DIR` меняет только используемые клиентские утилиты.
 
 ### 1. До сброса: снять дамп справочника
 
@@ -76,7 +88,7 @@ npm run cities:backup        # → backups/cities-YYYYMMDD.dump
 
 | # | Что | Команда | Заполняет |
 |---|-----|---------|-----------|
-| 1 | Схема | `npm run db:migrate:deploy` (dev: `db:migrate:dev`) | все таблицы, пустые |
+| 1 | Схема | `npm run db:migrate:deploy` (dev: `db:migrate:dev`) | таблицы, индексы и другие объекты схемы; миграции могут содержать преобразования данных |
 | 2 | Города, регионы, столицы | `npm run cities:restore -- --file backups/cities-YYYYMMDD.dump` | `City`, `Region`, `RegionalCapital` |
 | 3 | Категории услуг | `npm run db:seed` | `ServiceCategory` |
 | 4 | Админ | зарегистрироваться на сайте, затем SQL ниже | `User.systemRole` |
@@ -126,13 +138,13 @@ SELECT
                            │ merge-restore (без DELETE)
                            ▼
 ┌─────────────────────────────────────────────────────────┐
-│  Prod PostgreSQL (Yandex Managed)                       │
+│  Prod PostgreSQL 18 (Timeweb Cloud)                     │
 │  npm run cities:restore -- --file backups/cities-….dump │
-│  (с локального компа, prod DATABASE_URL + ваш IP в SG)  │
+│  (с локального компа при разрешённом доступе к БД)      │
 └─────────────────────────────────────────────────────────┘
 ```
 
-**Почему не import на prod-ВМ:** диск ~30 GB, `gar_xml.zip` ~50+ GB.
+**Почему не import в production:** архив `gar_xml.zip` занимает ~50+ GB; его обработка выполняется локально. На production передаётся только дамп справочника.
 
 ### Merge-restore (общие правила)
 
@@ -192,11 +204,11 @@ npm run cities:backup                      # → backups/cities-YYYYMMDD.dump
 npm run cities:backup -- --out /path/x.dump
 ```
 
-Клиент `pg_dump` должен быть той же major-версии, что сервер (сейчас 17):
+Для локального PostgreSQL 17 и production PostgreSQL 18 используйте клиент PostgreSQL 18:
 
 ```bash
-brew install postgresql@17
-export PG_BIN_DIR=/opt/homebrew/opt/postgresql@17/bin   # берут cities:backup и cities:restore
+brew install postgresql@18
+export PG_BIN_DIR=/opt/homebrew/opt/postgresql@18/bin   # берут cities:backup и cities:restore
 ```
 
 Проверка: `pg_restore -l backups/cities-*.dump | grep "TABLE DATA"` — три таблицы.
@@ -213,82 +225,31 @@ Merge по `garObjectId`: UPDATE существующих (prod `City.id` сох
 
 ---
 
-## Production (Yandex Cloud)
+## Production (Timeweb Cloud)
+
+Production — управляемый PostgreSQL 18 в Timeweb Cloud. Актуальные параметры, ограничения сети и инструкции по резервному копированию — в [документации базы](database.md).
 
 ### Доступ к PostgreSQL
 
-- **Целевой способ:** restore **с локального компа** напрямую в Managed PostgreSQL (public IP на кластере + SG: `operator_cidr` → `:6432`). **ВМ не нужна.**
-- **Fallback:** через SSH-туннель на prod-ВМ → `deploy/scripts/cities-restore-prod.sh` (если IP изменился и SG ещё не обновлён).
-- **pgAdmin:** клиент на вашей машине; [встроенного pgAdmin в YC нет](https://yandex.cloud/ru/docs/managed-postgresql/operations/connect).
+Возьмите строку подключения, порт и параметры TLS из панели Timeweb Cloud. Для запуска `cities:backup` и `cities:restore` с локального компьютера нужен разрешённый сетевой доступ к кластеру; при закрытой приватной сети используйте согласованный безопасный способ доступа. Не копируйте строку подключения в Git, чат или журнал команд.
 
-Сертификат CA: https://storage.yandexcloud.net/cloud-certs/CA.pem  
-Порт: **6432**, SSL: `verify-full`.
+Перед изменениями production убедитесь, что доступен актуальный бэкап и что `DATABASE_URL` указывает на нужную базу. Для этой операции нужен оператор с правами записи.
 
-### Restore дампа на prod (основной сценарий)
+### Restore дампа на prod
+
+1. Локально подготовьте дамп по разделу «Локально».
+2. В безопасном окружении задайте `DATABASE_URL` для Timeweb и проверьте доступ. Используйте PostgreSQL client 18 (`PG_BIN_DIR` выше).
+3. Из `backend/` выполните:
 
 ```bash
-# 1. Локально: import + бэкап (см. раздел «Локально»)
-
-# 2. Restore на prod с локального компа
-cd backend
-export DATABASE_URL="$(cat ../deploy/.secrets/database.url)"
-curl -fsSL -o ~/.postgresql/root.crt https://storage.yandexcloud.net/cloud-certs/CA.pem
-chmod 0600 ~/.postgresql/root.crt
-
 npm run cities:restore -- --file backups/cities-YYYYMMDD.dump
 ```
 
-Проверка: `GET /cities/suggest?q=Моск` на prod.
+Это операция записи в production: скрипт выполняет merge справочника. После неё проверьте `GET /cities/suggest?q=Моск` на действующем backend.
 
-### Fallback: restore через ВМ
+### Бэкап и восстановление
 
-Если PostgreSQL ещё без public IP:
-
-```bash
-yc compute instance start <vm-id>   # если ВМ выключена
-source deploy/.deploy.env
-
-./deploy/scripts/cities-restore-prod.sh backend/backups/cities-YYYYMMDD.dump
-```
-
-### Бэкап `"City"` с prod (audit)
-
-Только с prod-ВМ (если нет прямого доступа к PG):
-
-```bash
-source deploy/.deploy.env
-
-ssh -i "${SSH_KEY_PATH}" "${VM_USER}@${VM_HOST}" bash -s <<'EOF'
-set -euo pipefail
-mkdir -p /tmp/backups
-source /opt/zemledel/.env
-curl -fsSL -o /tmp/YandexCA.crt https://storage.yandexcloud.net/cloud-certs/CA.pem
-docker run --rm \
-  -v /tmp/YandexCA.crt:/root/.postgresql/root.crt:ro \
-  postgres:17-alpine \
-  pg_dump "${DATABASE_URL}" \
-    -t '"City"' --data-only --no-owner --no-privileges -F c \
-    -f /tmp/backups/city-prod.dump
-ls -lh /tmp/backups/city-prod.dump
-EOF
-
-scp -i "${SSH_KEY_PATH}" "${VM_USER}@${VM_HOST}:/tmp/backups/city-prod.dump" ./backups/
-```
-
-### pgAdmin через SSH tunnel
-
-Если PG доступен только из VPC:
-
-```bash
-ssh -L 15432:<POSTGRES_RW_FQDN>:6432 ubuntu@<VM_HOST>
-```
-
-pgAdmin → `localhost:15432`, SSL `verify-full`.
-
-### DR: бэкап всего кластера
-
-Автобэкапы Managed PostgreSQL (~02:00 UTC, `infra/terraform/postgres.tf`).  
-Restore через консоль YC — откат **всей** БД, не только `"City"`.
+`npm run cities:backup` сохраняет только справочники, а не всю базу. Для восстановления после сбоя нужны отдельные резервные копии всей БД в Timeweb, проверка их расписания и тест восстановления. Восстановление всего кластера может затронуть все данные, а не только города.
 
 ---
 
@@ -299,7 +260,6 @@ Restore через консоль YC — откат **всей** БД, не то
 | Import GAR + reconcile | `backend/scripts/import-gar-cities.ts` → `npm run cities:update` |
 | Reconcile SQL | `backend/scripts/import-gar-cities-reconcile.ts` |
 | Restore merge | `backend/scripts/restore-city-dump.ts` → `npm run cities:restore` |
-| Prod wrapper (fallback) | `deploy/scripts/cities-restore-prod.sh` |
 | API suggest | `backend/src/cities/cities.service.ts` → `GET /cities/suggest` |
 | Admin import runs | `GET /admin/city-import-runs`, UI `/admin/cities/imports` |
 | BFF suggest | `frontend/app/api/cities/suggest/route.ts` |
@@ -321,4 +281,4 @@ Restore через консоль YC — откат **всей** БД, не то
 
 ### `pg_dump: aborting because of server version mismatch`
 
-Major-версия клиента должна совпадать с сервером (`server version: 17.x; pg_dump version: 16.x`). См. [шаг 0](#0-один-раз-клиент-postgresql-нужной-версии): `brew install postgresql@17` + `PG_BIN_DIR`.
+`pg_dump` не поддерживает выгрузку с сервера более новой major-версии. Для production PostgreSQL 18 установите клиент 18: см. [шаг 0](#0-один-раз-клиент-postgresql-нужной-версии).
