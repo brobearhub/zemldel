@@ -1,6 +1,18 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ChatInboxItemDto {
+  @ApiPropertyOptional()
+  conversationId?: string;
+
+  @ApiPropertyOptional()
+  peerName?: string;
+
+  @ApiPropertyOptional()
+  requestStatus?: string;
+
+  @ApiPropertyOptional()
+  contractPhase?: boolean;
+
   @ApiProperty({ format: 'uuid' })
   serviceRequestId!: string;
 

@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createServiceRequest,
+  completeServiceRequestCreation,
   ensureRequestConversation,
   postConversationMessage,
   ServiceRequestAuthRequiredError,
@@ -50,10 +51,11 @@ export function useServiceAskQuestion(input: Input) {
         await postConversationMessage({
           conversationId: ensured.conversationId,
           body: message,
-          clientMessageId: crypto.randomUUID(),
+          clientMessageId: created.id,
         });
       }
 
+      completeServiceRequestCreation(input.serviceId, created.id);
       router.push(`/profile/requests/${created.id}`);
       router.refresh();
     } catch (e) {

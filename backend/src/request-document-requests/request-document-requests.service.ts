@@ -1,3 +1,4 @@
+import { withWriteOperation } from '../common/idempotency/write-operation';
 import {
   BadGatewayException,
   BadRequestException,
@@ -10,7 +11,7 @@ import {
   GetObjectCommand,
   PutObjectCommand,
 } from '@aws-sdk/client-s3';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -271,6 +272,7 @@ export class RequestDocumentRequestsService {
 
   async uploadForCustomer(input: {
     actorUserId: string;
+    operationId?: string;
     requestId: string;
     docRequestId: string;
     file: Express.Multer.File;
@@ -286,11 +288,12 @@ export class RequestDocumentRequestsService {
       throw new ForbiddenException('Forbidden');
     }
 
+    const providerId = request.providerId;
     const doc = await this.prisma.requestDocumentRequest.findFirst({
       where: {
         id: input.docRequestId,
         requestId: request.id,
-        providerId: request.providerId,
+        providerId,
       },
       select: { id: true, storageRelPath: true },
     });
@@ -304,61 +307,115 @@ export class RequestDocumentRequestsService {
       throw new BadRequestException('Empty file');
     }
 
-    const newKey = `${this.s3.privatePrefix}requests/${request.id}/document-requests/${doc.id}${ext}`;
+    const newKey = `${this.s3.privatePrefix}requests/${request.id}/document-requests/${doc.id}/${randomUUID()}${ext}`;
     const originalName = decodePossiblyMisencodedFileName(
       input.file.originalname,
     );
     const hash = sha256Buffer(input.file.buffer);
-
-    await this.s3.client.send(
-      new PutObjectCommand({
-        Bucket: this.s3.privateBucket,
-        Key: newKey,
-        Body: input.file.buffer,
-        ContentType: input.file.mimetype,
-        CacheControl: 'private, no-store',
-      }),
-    );
-
+    let uploaded = false;
+    let previousKey: string | null = null;
     try {
-      await this.prisma.requestDocumentRequest.update({
-        where: { id: doc.id },
-        data: {
-          status: 'UPLOADED',
-          uploadedByUserId: input.actorUserId,
-          uploadedAt: new Date(),
-          originalName,
-          mimeType: input.file.mimetype,
-          sizeBytes: input.file.size,
-          sha256: hash,
-          storageRelPath: newKey,
+      const result = await this.prisma.$transaction(
+        async (tx) => {
+          const lock = await tx.request.updateMany({
+            where: {
+              id: request.id,
+              customerUserId: input.actorUserId,
+              providerId,
+              lockedAt: request.lockedAt,
+              status: request.status,
+            },
+            data: { updatedAt: new Date() },
+          });
+          if (lock.count !== 1)
+            throw new ForbiddenException('Request provider scope has changed');
+          const current = await tx.requestDocumentRequest.findFirst({
+            where: {
+              id: doc.id,
+              requestId: request.id,
+              providerId,
+            },
+            select: { storageRelPath: true },
+          });
+          if (!current)
+            throw new NotFoundException('Document request not found');
+          previousKey = current.storageRelPath;
+          return withWriteOperation(
+            tx,
+            {
+              actorUserId: input.actorUserId,
+              scope: `customer-document:${request.id}:${doc.id}:${providerId}`,
+              key: input.operationId,
+              input: {
+                name: originalName,
+                type: input.file.mimetype,
+                sha256: hash,
+              },
+            },
+            async () => {
+              await this.s3.client.send(
+                new PutObjectCommand({
+                  Bucket: this.s3.privateBucket,
+                  Key: newKey,
+                  Body: input.file.buffer,
+                  ContentType: input.file.mimetype,
+                  CacheControl: 'private, no-store',
+                }),
+              );
+              uploaded = true;
+              await tx.requestDocumentRequest.update({
+                where: { id: doc.id },
+                data: {
+                  status: 'UPLOADED',
+                  uploadedByUserId: input.actorUserId,
+                  uploadedAt: new Date(),
+                  originalName,
+                  mimeType: input.file.mimetype,
+                  sizeBytes: input.file.size,
+                  sha256: hash,
+                  storageRelPath: newKey,
+                },
+                select: { id: true },
+              });
+              return { ok: true };
+            },
+          );
         },
-        select: { id: true },
-      });
-    } catch (e) {
-      await this.s3.client
-        .send(
-          new DeleteObjectCommand({
-            Bucket: this.s3.privateBucket,
-            Key: newKey,
-          }),
-        )
-        .catch(() => null);
-      throw e;
+        { maxWait: 10_000, timeout: 60_000 },
+      );
+      if (!result.replayed && previousKey && previousKey !== newKey) {
+        await this.s3.client
+          .send(
+            new DeleteObjectCommand({
+              Bucket: this.s3.privateBucket,
+              Key: previousKey,
+            }),
+          )
+          .catch(() => null);
+      }
+      return result.value;
+    } catch (error) {
+      if (uploaded) {
+        // A connection error during COMMIT is ambiguous: never delete a possibly committed file.
+        const current = await this.prisma.requestDocumentRequest
+          .findFirst({
+            where: { id: doc.id },
+            select: { storageRelPath: true },
+          })
+          .catch(() => undefined);
+        if (current !== undefined && current?.storageRelPath !== newKey) {
+          await this.s3.client
+            .send(
+              new DeleteObjectCommand({
+                Bucket: this.s3.privateBucket,
+                Key: newKey,
+              }),
+            )
+            .catch(() => null);
+        }
+      }
+      throw error;
     }
-
-    if (doc.storageRelPath && doc.storageRelPath !== newKey) {
-      await this.s3.client
-        .send(
-          new DeleteObjectCommand({
-            Bucket: this.s3.privateBucket,
-            Key: doc.storageRelPath,
-          }),
-        )
-        .catch(() => null);
-    }
-
-    return { ok: true };
   }
 
   async getDownloadStreamForProvider(input: {

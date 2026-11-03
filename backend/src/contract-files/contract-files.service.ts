@@ -1,3 +1,4 @@
+import { withWriteOperation } from '../common/idempotency/write-operation';
 import {
   BadRequestException,
   BadGatewayException,
@@ -409,12 +410,13 @@ export class ContractFilesService {
 
   async uploadBundleForProvider(input: {
     actorUserId: string;
+    operationId?: string;
     requestId: string;
     document: Express.Multer.File;
     signature?: Express.Multer.File;
   }) {
     const providerId = await this.requireProviderId(input.actorUserId);
-    await this.assertProviderCanManageFiles({
+    const request = await this.assertProviderCanManageFiles({
       providerId,
       requestId: input.requestId,
     });
@@ -434,94 +436,168 @@ export class ContractFilesService {
       throw new BadRequestException('Empty signature');
     }
 
-    const bundleId = randomUUID();
-    const documentId = randomUUID();
-    const docKey = `${this.s3.privatePrefix}requests/${input.requestId}/contract-bundles/${bundleId}/${documentId}${docExt}`;
-    const signatureId = signature ? randomUUID() : null;
-    const sigKey = signatureId
-      ? `${this.s3.privatePrefix}requests/${input.requestId}/contract-bundles/${bundleId}/${signatureId}${sigExt}`
-      : null;
     const uploadedKeys: string[] = [];
-    try {
-      await this.s3.client.send(
-        new PutObjectCommand({
-          Bucket: this.s3.privateBucket,
-          Key: docKey,
-          Body: input.document.buffer,
-          ContentType: input.document.mimetype,
-          CacheControl: 'private, no-store',
-        }),
-      );
-      uploadedKeys.push(docKey);
-      if (signature && sigKey) {
+    const upload = async (transaction?: Prisma.TransactionClient) => {
+      const bundleId = randomUUID();
+      const documentId = randomUUID();
+      const docKey = `${this.s3.privatePrefix}requests/${input.requestId}/contract-bundles/${bundleId}/${documentId}${docExt}`;
+      const signatureId = signature ? randomUUID() : null;
+      const sigKey = signatureId
+        ? `${this.s3.privatePrefix}requests/${input.requestId}/contract-bundles/${bundleId}/${signatureId}${sigExt}`
+        : null;
+      try {
         await this.s3.client.send(
           new PutObjectCommand({
             Bucket: this.s3.privateBucket,
-            Key: sigKey,
-            Body: signature.buffer,
-            ContentType: signature.mimetype || 'application/octet-stream',
+            Key: docKey,
+            Body: input.document.buffer,
+            ContentType: input.document.mimetype,
             CacheControl: 'private, no-store',
           }),
         );
-        uploadedKeys.push(sigKey);
-      }
+        uploadedKeys.push(docKey);
+        if (signature && sigKey) {
+          await this.s3.client.send(
+            new PutObjectCommand({
+              Bucket: this.s3.privateBucket,
+              Key: sigKey,
+              Body: signature.buffer,
+              ContentType: signature.mimetype || 'application/octet-stream',
+              CacheControl: 'private, no-store',
+            }),
+          );
+          uploadedKeys.push(sigKey);
+        }
 
-      await this.prisma.$transaction(async (tx) => {
-        await tx.requestContractFile.create({
-          data: {
-            id: documentId,
-            request: { connect: { id: input.requestId } },
-            provider: { connect: { id: providerId } },
-            uploadedByUser: { connect: { id: input.actorUserId } },
-            status: 'PENDING_CUSTOMER',
-            role: 'CONTRACT_DOCUMENT',
-            bundleId,
-            originalName: decodePossiblyMisencodedFileName(
-              input.document.originalname,
-            ),
-            mimeType: input.document.mimetype,
-            sizeBytes: input.document.size,
-            sha256: sha256Buffer(input.document.buffer),
-            storageRelPath: docKey,
-          } satisfies Prisma.RequestContractFileCreateInput,
-          select: { id: true },
-        });
-        if (signature && signatureId && sigKey) {
+        const persist = async (tx: Prisma.TransactionClient) => {
           await tx.requestContractFile.create({
             data: {
-              id: signatureId,
+              id: documentId,
               request: { connect: { id: input.requestId } },
               provider: { connect: { id: providerId } },
               uploadedByUser: { connect: { id: input.actorUserId } },
               status: 'PENDING_CUSTOMER',
-              role: 'CONTRACT_SIGNATURE',
+              role: 'CONTRACT_DOCUMENT',
               bundleId,
               originalName: decodePossiblyMisencodedFileName(
-                signature.originalname,
+                input.document.originalname,
               ),
-              mimeType: signature.mimetype || 'application/octet-stream',
-              sizeBytes: signature.size,
-              sha256: sha256Buffer(signature.buffer),
-              storageRelPath: sigKey,
+              mimeType: input.document.mimetype,
+              sizeBytes: input.document.size,
+              sha256: sha256Buffer(input.document.buffer),
+              storageRelPath: docKey,
             } satisfies Prisma.RequestContractFileCreateInput,
             select: { id: true },
           });
-        }
-      });
-    } catch (error) {
-      await Promise.allSettled(
-        uploadedKeys.map((key) =>
-          this.s3.client.send(
-            new DeleteObjectCommand({
-              Bucket: this.s3.privateBucket,
-              Key: key,
-            }),
+          if (signature && signatureId && sigKey) {
+            await tx.requestContractFile.create({
+              data: {
+                id: signatureId,
+                request: { connect: { id: input.requestId } },
+                provider: { connect: { id: providerId } },
+                uploadedByUser: { connect: { id: input.actorUserId } },
+                status: 'PENDING_CUSTOMER',
+                role: 'CONTRACT_SIGNATURE',
+                bundleId,
+                originalName: decodePossiblyMisencodedFileName(
+                  signature.originalname,
+                ),
+                mimeType: signature.mimetype || 'application/octet-stream',
+                sizeBytes: signature.size,
+                sha256: sha256Buffer(signature.buffer),
+                storageRelPath: sigKey,
+              } satisfies Prisma.RequestContractFileCreateInput,
+              select: { id: true },
+            });
+          }
+        };
+        if (transaction) await persist(transaction);
+        else await this.prisma.$transaction(persist);
+      } catch (error) {
+        await Promise.allSettled(
+          uploadedKeys.map((key) =>
+            this.s3.client.send(
+              new DeleteObjectCommand({
+                Bucket: this.s3.privateBucket,
+                Key: key,
+              }),
+            ),
           ),
-        ),
+        );
+        throw error;
+      }
+      return { bundleId };
+    };
+    if (!input.operationId) return upload();
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const locked = await tx.request.updateMany({
+            where: {
+              id: request.id,
+              providerId: request.providerId,
+              lockedAt: request.lockedAt,
+              status: request.status,
+            },
+            data: { updatedAt: new Date() },
+          });
+          if (locked.count !== 1)
+            throw new ForbiddenException('Request provider scope has changed');
+          const result = await withWriteOperation(
+            tx,
+            {
+              actorUserId: input.actorUserId,
+              scope: `contract-bundle:${request.id}:${providerId}`,
+              key: input.operationId,
+              input: {
+                document: {
+                  name: input.document.originalname,
+                  type: input.document.mimetype,
+                  sha256: sha256Buffer(input.document.buffer),
+                },
+                signature: signature
+                  ? {
+                      name: signature.originalname,
+                      sha256: sha256Buffer(signature.buffer),
+                    }
+                  : null,
+              },
+            },
+            () => upload(tx),
+          );
+          return result.value;
+        },
+        { maxWait: 10_000, timeout: 60_000 },
       );
+    } catch (error) {
+      if (uploadedKeys.length) {
+        // Preserve files if the commit outcome is unknown or the DB cannot be reached.
+        const references = await this.prisma.requestContractFile
+          .findMany({
+            where: { storageRelPath: { in: uploadedKeys } },
+            select: { storageRelPath: true },
+          })
+          .catch(() => null);
+        if (references) {
+          const committed = new Set(
+            references.map((row) => row.storageRelPath),
+          );
+          await Promise.allSettled(
+            uploadedKeys
+              .filter((key) => !committed.has(key))
+              .map((key) =>
+                this.s3.client.send(
+                  new DeleteObjectCommand({
+                    Bucket: this.s3.privateBucket,
+                    Key: key,
+                  }),
+                ),
+              ),
+          );
+        }
+      }
       throw error;
     }
-    return { bundleId };
   }
 
   async listBundlesForCustomer(input: {

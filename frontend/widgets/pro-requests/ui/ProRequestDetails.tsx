@@ -134,6 +134,8 @@ export function ProRequestDetails({ initialRequest, subtitle, onRequestChange, o
   const hasPendingContractFiles = contractBundles.some((b) => b.status === "PENDING_CUSTOMER");
   const hasRevisionRequested = contractBundles.some((b) => b.status === "REVISION_REQUESTED");
   const hasApproved = contractBundles.some((b) => b.status === "APPROVED");
+  const contractNextStepVisible = screenModel.showDealWorkflow && showContractWorkflow && !req.contractAcceptedAt && ["NEW", "DISCUSSING", "TERMS_AGREED"].includes(req.status) && req.totalAmountRubles != null;
+  const contractNextStep = !contractBundlesLoaded ? "Проверяем состояние договора…" : hasPendingContractFiles ? "Договор отправлен. Ждём решения клиента." : hasRevisionRequested ? "Клиент просит доработать договор. Обновите файл в документах." : hasApproved ? "Договор одобрен. Ждём заключения договора клиентом." : "Цена согласована. Подготовьте и отправьте договор в разделе документов.";
   const hasPendingRequestedDocs = docRequests.some((d) => d.status === "REQUESTED");
   const hasUploadedDocs = docRequests.some((d) => d.status === "UPLOADED");
 
@@ -662,6 +664,7 @@ export function ProRequestDetails({ initialRequest, subtitle, onRequestChange, o
           subtitle={subtitle}
           statusLabel={screenModel.statusLabel}
           body={messageBody}
+          nextStep={contractNextStepVisible ? <Alert severity="info" icon={false} sx={{ bgcolor: "background.paper", color: "text.primary", border: 1, borderColor: "divider" }}>{contractNextStep}</Alert> : null}
           footerEnd={
             screenModel.showDealWorkflow ? (
               <RequestDetailPanelTriggers items={panelItems} onOpen={(id) => setActivePanelId(id as never)} />
@@ -696,7 +699,7 @@ export function ProRequestDetails({ initialRequest, subtitle, onRequestChange, o
                 })}
               />
             ) : (
-              <Alert severity="info">Клиент выбрал другого исполнителя. Вам доступен архив переписки.</Alert>
+              null
             )
           }
           afterBody={
@@ -705,6 +708,7 @@ export function ProRequestDetails({ initialRequest, subtitle, onRequestChange, o
                 busy={isBusy}
                 behavior={createProviderRequestLifecycleBehavior({
                   request: req,
+                  contractNextStepVisible,
                   isMarkRenderedDisabled: remarks.some((r) => r.status === "OPEN"),
                   actions: {
                     startWork: async () => undefined,

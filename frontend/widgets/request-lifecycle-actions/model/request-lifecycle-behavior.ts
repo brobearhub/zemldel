@@ -23,6 +23,8 @@ export type CreateProviderRequestLifecycleBehaviorInput = {
   request: RequestProDto;
   /** Если true — disable кнопки "Услуга выполнена" (markRendered). */
   isMarkRenderedDisabled?: boolean;
+  /** Live document state is displayed in the header instead of a static upload hint. */
+  contractNextStepVisible?: boolean;
   actions: {
     startWork: () => Promise<void> | void;
     markRendered: (summary: string) => Promise<void> | void;
@@ -85,7 +87,7 @@ export function createProviderRequestLifecycleBehavior(
       return {
         ...vm,
         // Why: при OPEN-замечаниях кнопка disabled — рядом нужно явное объяснение.
-        note: markRenderedBlocked ? MARK_RENDERED_BLOCKED_NOTE : vm.note,
+        note: markRenderedBlocked ? MARK_RENDERED_BLOCKED_NOTE : input.contractNextStepVisible ? null : vm.note,
         actions: vm.actions.map((a) =>
           a.id === "markRendered" && markRenderedBlocked
             ? { ...a, disabled: true }

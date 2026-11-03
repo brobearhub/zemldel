@@ -1,3 +1,4 @@
+import { withWriteOperation } from '../common/idempotency/write-operation';
 import {
   BadRequestException,
   ConflictException,
@@ -652,25 +653,45 @@ export class RequestsService {
       actor.customerCityId,
     );
 
-    const created = await this.prisma.request.create({
-      data: {
-        status: 'NEW',
-        categoryId: category.id,
-        providerId: null,
-        serviceId: null,
-        customerUserId: actor.id,
-        requestCityId,
-        customerName: actor.name ?? null,
-        customerEmail: actor.email,
-        customerPhone: input.customerPhone ?? actor.phone ?? null,
-        message: input.message ?? null,
-        location: null,
-        cadastralNumbers: normalizeCadastralNumbers(input.cadastralNumbers),
-      },
-      select,
-    });
+    const create = (db: Pick<Prisma.TransactionClient, 'request'>) =>
+      db.request.create({
+        data: {
+          status: 'NEW',
+          categoryId: category.id,
+          providerId: null,
+          serviceId: null,
+          customerUserId: actor.id,
+          requestCityId,
+          customerName: actor.name ?? null,
+          customerEmail: actor.email,
+          customerPhone: input.customerPhone ?? actor.phone ?? null,
+          message: input.message ?? null,
+          location: null,
+          cadastralNumbers: normalizeCadastralNumbers(input.cadastralNumbers),
+        },
+        select,
+      });
 
-    return requestRowToCustomerDtoPlain(created as unknown as RequestDbRow);
+    if (!input.operationId)
+      return requestRowToCustomerDtoPlain(
+        (await create(this.prisma)) as unknown as RequestDbRow,
+      );
+    const result = await this.prisma.$transaction((tx) =>
+      withWriteOperation(
+        tx,
+        {
+          actorUserId,
+          scope: `request:category:${category.id}`,
+          key: input.operationId,
+          input,
+        },
+        async () =>
+          requestRowToCustomerDtoPlain(
+            (await create(tx)) as unknown as RequestDbRow,
+          ),
+      ),
+    );
+    return result.value;
   }
 
   async createForService(
@@ -721,7 +742,7 @@ export class RequestsService {
       actor?.customerCityId ?? null,
     );
 
-    const created = await this.prisma.$transaction(async (tx) => {
+    const create = async (tx: Prisma.TransactionClient) => {
       const now = new Date();
       const servicePriceRubles = parseServicePriceRubles(service.price);
       const next = await tx.request.create({
@@ -784,9 +805,23 @@ export class RequestsService {
         ...next,
         priceProposals: initialPriceProposal ? [initialPriceProposal] : [],
       };
-    });
-
-    return requestRowToCustomerDtoPlain(created as unknown as RequestDbRow);
+    };
+    const result = await this.prisma.$transaction((tx) =>
+      withWriteOperation(
+        tx,
+        {
+          actorUserId: actor?.id ?? '',
+          scope: `request:service:${service.id}`,
+          key: actor ? input.operationId : undefined,
+          input,
+        },
+        async () =>
+          requestRowToCustomerDtoPlain(
+            (await create(tx)) as unknown as RequestDbRow,
+          ),
+      ),
+    );
+    return result.value;
   }
 
   async createUnlinked(
@@ -820,25 +855,45 @@ export class RequestsService {
       actor.customerCityId,
     );
 
-    const created = await this.prisma.request.create({
-      data: {
-        status: 'NEW',
-        serviceId: null,
-        categoryId: null,
-        providerId: null,
-        customerUserId: actor.id,
-        requestCityId,
-        customerName: actor.name ?? null,
-        customerEmail: actor.email,
-        customerPhone: input.customerPhone ?? actor.phone ?? null,
-        message,
-        location: null,
-        cadastralNumbers: normalizeCadastralNumbers(input.cadastralNumbers),
-      },
-      select,
-    });
+    const create = (db: Pick<Prisma.TransactionClient, 'request'>) =>
+      db.request.create({
+        data: {
+          status: 'NEW',
+          serviceId: null,
+          categoryId: null,
+          providerId: null,
+          customerUserId: actor.id,
+          requestCityId,
+          customerName: actor.name ?? null,
+          customerEmail: actor.email,
+          customerPhone: input.customerPhone ?? actor.phone ?? null,
+          message,
+          location: null,
+          cadastralNumbers: normalizeCadastralNumbers(input.cadastralNumbers),
+        },
+        select,
+      });
 
-    return requestRowToCustomerDtoPlain(created as unknown as RequestDbRow);
+    if (!input.operationId)
+      return requestRowToCustomerDtoPlain(
+        (await create(this.prisma)) as unknown as RequestDbRow,
+      );
+    const result = await this.prisma.$transaction((tx) =>
+      withWriteOperation(
+        tx,
+        {
+          actorUserId,
+          scope: 'request:freeform',
+          key: input.operationId,
+          input,
+        },
+        async () =>
+          requestRowToCustomerDtoPlain(
+            (await create(tx)) as unknown as RequestDbRow,
+          ),
+      ),
+    );
+    return result.value;
   }
 
   // --- Customer: read ---

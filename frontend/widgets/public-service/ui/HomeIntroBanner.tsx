@@ -23,7 +23,7 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
         my: 2,
         p: { xs: "18px", md: "28px" },
         borderRadius: "18px",
-        bgcolor: "primary.main",
+        bgcolor: "#325E49",
         color: colors.text,
       }}
     >
@@ -37,7 +37,7 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
       >
         <Stack spacing={1.25} sx={{ flex: 1, minWidth: 0 }}>
           <Typography
-            sx={{ fontSize: 11, lineHeight: "15px", fontWeight: 800, letterSpacing: "1.5px", color: colors.muted, opacity: 0.75 }}
+            sx={{ fontSize: 11, lineHeight: "15px", fontWeight: 800, letterSpacing: "1.5px", color: colors.muted }}
           >
             ЗЕМЛЯ • ДОМ • ДОКУМЕНТЫ
           </Typography>
@@ -84,7 +84,7 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
               </Button>
               <Typography
                 align="center"
-                sx={{ fontSize: { xs: 13, md: 14 }, lineHeight: { xs: "18px", md: "19px" }, opacity: 0.96 }}
+                sx={{ fontSize: { xs: 13, md: 14 }, lineHeight: { xs: "18px", md: "19px" } }}
               >
                 Обратитесь сразу к исполнителю услуги.
               </Typography>
@@ -115,7 +115,7 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
               </Button>
               <Typography
                 align="center"
-                sx={{ fontSize: { xs: 13, md: 14 }, lineHeight: { xs: "18px", md: "19px" }, opacity: 0.96 }}
+                sx={{ fontSize: { xs: 13, md: 14 }, lineHeight: { xs: "18px", md: "19px" } }}
               >
                 Сравните отклики и выберите одного исполнителя
               </Typography>
@@ -124,7 +124,7 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
         </Box>
       </Box>
 
-      <Typography sx={{ mt: 2, fontSize: 13, lineHeight: "18px", color: colors.muted, opacity: 0.75 }}>
+      <Typography sx={{ mt: 2, fontSize: 13, lineHeight: "18px", color: colors.muted }}>
         Условия и цену согласуете в чате до договора.
       </Typography>
     </Box>

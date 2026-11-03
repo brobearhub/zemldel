@@ -96,7 +96,7 @@ function buildOrderPhaseSteps(status: RequestStatus): StatusProgressStep[] {
 function isVisibleContractStep(input: RequestFlowStepperInput) {
   return input.lockedAt != null &&
     (input.status === "TERMS_AGREED" ||
-      (input.status === "DISCUSSING" && input.totalAmountRubles != null));
+      ((input.status === "NEW" || input.status === "DISCUSSING") && input.totalAmountRubles != null));
 }
 
 export function getRequestFlowActiveStepId(input: RequestFlowStepperInput) {

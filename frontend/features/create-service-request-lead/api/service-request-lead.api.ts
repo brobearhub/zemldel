@@ -1,5 +1,7 @@
 "use client";
 
+import { fetchIdempotentWrite, completeWriteIntent } from "@/shared/api/idempotent-write";
+
 import type { RequestCustomerDto } from "@/entities/request";
 import type { ChatEnsureResponse, ChatPostMessageResponse } from "@/entities/chat/dto/chat.dto";
 
@@ -14,7 +16,7 @@ function normalizeNullableString(value: string) {
 }
 
 export async function postServiceRequestLead(input: PostLeadInput): Promise<void> {
-  const res = await fetch(`/api/services/${encodeURIComponent(input.serviceId)}/requests`, {
+  const res = await fetchIdempotentWrite(`/api/services/${encodeURIComponent(input.serviceId)}/requests`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -41,11 +43,11 @@ type CreateServiceRequestInput = {
 export class ServiceRequestAuthRequiredError extends Error {}
 
 export async function createServiceRequest(input: CreateServiceRequestInput): Promise<RequestCustomerDto> {
-  const res = await fetch(`/api/services/${encodeURIComponent(input.serviceId)}/requests`, {
+  const res = await fetchIdempotentWrite(`/api/services/${encodeURIComponent(input.serviceId)}/requests`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ message: input.message, cadastralNumbers: input.cadastralNumbers }),
-  });
+  }, {retainUntilComplete:true});
 
   const payload = (await res.json().catch(() => null)) as RequestCustomerDto | { error?: string } | null;
   if (res.status === 401) throw new ServiceRequestAuthRequiredError("Сессия завершилась. Войдите ещё раз.");
@@ -113,3 +115,7 @@ export async function postConversationMessage(input: {
   return payload as ChatPostMessageResponse;
 }
 
+
+export function completeServiceRequestCreation(serviceId: string, requestId: string) {
+  completeWriteIntent(`/api/services/${encodeURIComponent(serviceId)}/requests`,requestId);
+}

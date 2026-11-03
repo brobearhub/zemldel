@@ -102,7 +102,7 @@ export function ServiceHeroSection({ vm }: Props) {
 
             <Box sx={{ minWidth: 0, flex: { md: "1 1 0" }, display: "flex", flexDirection: "column", width: "100%" }}>
               <Stack spacing={{ xs: "14px", md: "20px" }} sx={{ minWidth: 0 }}>
-                <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
+                <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: "flex-start", justifyContent: "space-between", gap: 1 }}>
                   <Box
                     sx={{
                       display: "inline-flex",

@@ -57,6 +57,11 @@ export class CreateRequestPaymentDto {
   @ApiProperty({ required: false, format: 'uuid' })
   @IsOptional()
   @IsUUID()
+  operationId?: string;
+
+  @ApiProperty({ required: false, format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
   conversationId?: string;
 
   @ApiProperty({

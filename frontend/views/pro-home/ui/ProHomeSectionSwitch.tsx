@@ -6,7 +6,7 @@ import { useState, type ReactNode } from "react";
 type SectionId = "services" | "free" | "reminders";
 
 const SECTIONS: readonly { id: SectionId; label: string }[] = [
-  { id: "services", label: "Мои услуги" },
+  { id: "services", label: "Заявки по услугам" },
   { id: "free", label: "Свободные заявки" },
   { id: "reminders", label: "Напоминания" },
 ];

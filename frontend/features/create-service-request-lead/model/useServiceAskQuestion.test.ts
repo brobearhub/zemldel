@@ -13,6 +13,7 @@ const api = {
   createServiceRequest: vi.fn(),
   ensureRequestConversation: vi.fn(),
   postConversationMessage: vi.fn(),
+  completeServiceRequestCreation: vi.fn(),
 };
 
 vi.mock("next/navigation", () => ({
@@ -24,6 +25,7 @@ vi.mock("@/features/create-service-request-lead/api/service-request-lead.api", a
   createServiceRequest: (...args: unknown[]) => api.createServiceRequest(...args),
   ensureRequestConversation: (...args: unknown[]) => api.ensureRequestConversation(...args),
   postConversationMessage: (...args: unknown[]) => api.postConversationMessage(...args),
+  completeServiceRequestCreation: (...args: unknown[]) => api.completeServiceRequestCreation(...args),
 }));
 
 describe("useServiceAskQuestion", () => {
@@ -80,10 +82,23 @@ describe("useServiceAskQuestion", () => {
       expect.objectContaining({
         conversationId: "c2",
         body: "Можно завтра?",
-        clientMessageId: expect.any(String),
+        clientMessageId: "r2",
       })
     );
     expect(result.current.error).toBeNull();
+  });
+
+  it("retains creation until the initial chat message is acknowledged and retries with the same message ID", async () => {
+    api.createServiceRequest.mockResolvedValue({ id: "r4" });
+    api.ensureRequestConversation.mockResolvedValue({ conversationId: "c4" });
+    api.postConversationMessage.mockRejectedValueOnce(new Error("lost response")).mockResolvedValueOnce({});
+    const { result } = renderHook(() => useServiceAskQuestion({ serviceId: "s1" }));
+    await act(async () => { await result.current.submit({ questionText: "Можно завтра?", cadastralNumbers: [] }); });
+    expect(api.completeServiceRequestCreation).not.toHaveBeenCalled();
+    await act(async () => { await result.current.submit({ questionText: "Можно завтра?", cadastralNumbers: [] }); });
+    expect(api.postConversationMessage.mock.calls.map(([input]) => input.clientMessageId)).toEqual(["r4", "r4"]);
+    expect(api.completeServiceRequestCreation).toHaveBeenCalledTimes(1);
+    expect(api.completeServiceRequestCreation).toHaveBeenCalledWith("s1", "r4");
   });
 
   it("показывает безопасную ошибку, если чат не удалось открыть", async () => {

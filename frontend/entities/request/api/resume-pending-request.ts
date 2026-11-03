@@ -1,5 +1,7 @@
 "use client";
 
+import { fetchIdempotentWrite } from "@/shared/api/idempotent-write";
+
 import {
   isPendingRequestSubmitting,
   markPendingRequestCreated,
@@ -38,7 +40,7 @@ export function resumePendingRequest(draft: PendingRequestDraft, fetcher: typeof
           customerPhone: draft.customerPhone,
         } : {}),
       };
-      const response = await fetcher(url, {
+      const response = await (fetcher === fetch ? fetchIdempotentWrite : fetcher)(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

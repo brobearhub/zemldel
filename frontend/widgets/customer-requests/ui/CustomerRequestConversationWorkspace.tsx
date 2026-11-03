@@ -467,7 +467,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
       } else {
         setChatRecovery(result.chat);
       }
-      setNotice(`Вы выбрали «${providerName}». Договор пришлёт исполнитель, перед подписанием вы его увидите.`);
+      setNotice(`Вы выбрали «${providerName}». Исполнитель пришлёт договор — вы сможете проверить его перед заключением.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось выбрать исполнителя");
     } finally {
@@ -904,6 +904,14 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
               subtitle={pickTitle(req)}
               statusLabel={getRequestDisplayStatusLabel(req)}
               body={requestBody}
+              nextStep={isExclusiveStatus && !req.contractAcceptedAt && (hasPending || canAcceptContract || hasRevisionRequested) ? (
+                <Alert severity="info" icon={false} sx={{ bgcolor: "background.paper", color: "text.primary", border: 1, borderColor: "divider" }}>
+                  <Stack spacing={1} sx={{ alignItems: "flex-start" }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{hasPending ? "Проверьте договор — исполнитель ждёт вашего решения." : canAcceptContract ? "Документы одобрены. Можно заключить договор." : "Договор на доработке. Ждём обновлённый файл от исполнителя."}</Typography>
+                    {hasPending ? <Button variant="outlined" color="inherit" onClick={() => { const target = document.getElementById("contract-review"); target?.scrollIntoView({ block: "start", behavior: "smooth" }); target?.focus({ preventScroll: true }); }}>Проверить договор</Button> : canAcceptContract ? <Button variant="outlined" color="inherit" disabled={busy} onClick={openContractDialog}>Перейти к заключению</Button> : null}
+                  </Stack>
+                </Alert>
+              ) : null}
               lead={
                 <Stack spacing={0.5} sx={{ minWidth: 0 }}>
                   <RequestPriceBlock
@@ -1207,7 +1215,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
             fullWidth
             maxWidth="md"
           >
-            <DialogTitle>Подписание договора с исполнителем</DialogTitle>
+            <DialogTitle>Заключение договора с исполнителем</DialogTitle>
             <DialogContent dividers>
               <Stack spacing={1.5}>
                 <Typography
@@ -1228,6 +1236,9 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
                     пользовательское соглашение
                   </Box>
                   {termsVersion ? ` (версия ${termsVersion})` : ""}.
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Здесь вы подтверждаете согласие с условиями договора. Подпись КЭП и файл подписи на сайте не создаются.
                 </Typography>
                 <RequestPriceBlock
                   totalAmountRubles={finance.totalAmountRubles}
@@ -1268,7 +1279,7 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
                 disabled={busy || termsBusy || !termsAccepted || !termsVersion || !canAcceptContract}
                 onClick={() => void acceptContract()}
               >
-                Подписать договор
+                Подтвердить заключение
               </Button>
             </DialogActions>
           </Dialog>

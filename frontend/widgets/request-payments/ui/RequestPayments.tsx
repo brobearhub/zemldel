@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import AddIcon from "@mui/icons-material/Add";
 import CheckIcon from "@mui/icons-material/Check";
+import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import QueueIcon from "@mui/icons-material/Queue";
@@ -33,7 +33,7 @@ const PAYMENT_ACTION_SLOT_WIDTH = 32;
 const PAYMENT_SECTION_GRID_SX = {
   display: "grid",
   gridTemplateColumns: {
-    xs: "minmax(0, 1fr) auto auto",
+    xs: "minmax(0, 1fr) auto",
     sm: `minmax(0, 1fr) auto ${PAYMENT_ACTION_SLOT_WIDTH}px`,
   },
   columnGap: 1,
@@ -76,10 +76,10 @@ function PaymentAmountCell({
   sx?: object;
 }) {
   return (
-    <>
-      <Typography sx={{ ...PAYMENT_AMOUNT_SX, ...typographySx, ...sx }}>{children}</Typography>
+    <Box sx={{ display: { xs: "flex", sm: "contents" }, gridColumn: "1 / -1", alignItems: "center", gap: 1, minWidth: 0 }}>
+      <Typography sx={{ ...PAYMENT_AMOUNT_SX, ...typographySx, ...sx, textAlign: { xs: "left", sm: "right" }, flex: 1, overflowWrap: "anywhere" }}>{children}</Typography>
       <Box sx={PAYMENT_ACTION_SLOT_SX}>{action}</Box>
-    </>
+    </Box>
   );
 }
 
@@ -101,60 +101,21 @@ function PaymentListRow({
   authorCaption?: string | null;
 }) {
   return (
-    <>
-      <Stack
-        direction="row"
-        sx={{
-          alignItems: "center",
-          minWidth: 0,
-          gridColumn: 1
-        }}>
-        <Typography variant="body2" noWrap title={comment} sx={{ flexShrink: 1, minWidth: 0 }}>
-          {comment}
+    <Box sx={{ gridColumn: "1 / -1", py: 1.5, borderBottom: 1, borderColor: "divider", minWidth: 0 }}>
+      <Typography variant="body2" sx={{ fontWeight: 600, overflowWrap: "anywhere" }}>{comment}</Typography>
+      <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", mt: 0.75 }}>
+        <Typography sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{formatRubles(amountRubles)}</Typography>
+        <Typography variant="body2" color={paid ? "success.main" : "text.secondary"}>
+          {paid ? "Оплачено" : "Не оплачено"}
         </Typography>
-        <Box sx={{ flex: 1, borderBottom: "1px solid", borderColor: "divider", minWidth: 16, ml: 1, alignSelf: "center" }} />
+        {!paid && onMarkPaid ? (
+          <Button aria-label="Отметить как оплачено" size="small" variant="outlined" color="inherit"
+            loading={Boolean(markPaidLoading)} disabled={Boolean(markPaidDisabled)} onClick={onMarkPaid}
+            sx={{ minHeight: 44 }}>Отметить оплату</Button>
+        ) : null}
       </Stack>
-      <Typography
-        variant="body2"
-        sx={{
-          fontWeight: 700,
-          ...PAYMENT_AMOUNT_SX,
-          color: paid ? "success.main" : undefined
-        }}>
-        {formatRubles(amountRubles)}
-      </Typography>
-      <Box sx={PAYMENT_ACTION_SLOT_SX}>
-        {paid ? (
-          <Stack direction="row" spacing={0.25} sx={{ alignItems: "center", color: "success.main" }}>
-            <CheckIcon fontSize="small" />
-            <Typography variant="caption" sx={{ display: { xs: "inline", sm: "none" } }}>
-              Оплачено
-            </Typography>
-          </Stack>
-        ) : onMarkPaid ? (
-          <Button
-            aria-label="Отметить как оплачено"
-            size="small"
-            loading={Boolean(markPaidLoading)}
-            disabled={Boolean(markPaidDisabled)}
-            onClick={onMarkPaid}
-            startIcon={<CheckIcon fontSize="small" />}
-            sx={{ color: "text.secondary", minWidth: 0, px: 0.5 }}
-          >
-            <Typography component="span" variant="caption" sx={{ display: { xs: "inline", sm: "none" } }}>
-              Оплачено
-            </Typography>
-          </Button>
-        ) : (
-          <CheckIcon fontSize="small" sx={{ color: "text.secondary" }} />
-        )}
-      </Box>
-      {authorCaption ? (
-        <Typography variant="caption" sx={{ color: "text.secondary", gridColumn: "1 / -1" }}>
-          {authorCaption}
-        </Typography>
-      ) : null}
-    </>
+      {authorCaption ? <Typography variant="caption" color="text.secondary">{authorCaption}</Typography> : null}
+    </Box>
   );
 }
 

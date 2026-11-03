@@ -1,5 +1,7 @@
 "use client";
 
+import { fetchIdempotentWrite } from "@/shared/api/idempotent-write";
+
 import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, Button, Stack, TextField, Typography } from "@mui/material";
@@ -68,7 +70,7 @@ export function PublicServiceRequestForm({
 
     try {
       if (isAuthenticated) {
-        const res = await fetch(`/api/services/${serviceId}/requests`, {
+        const res = await fetchIdempotentWrite(`/api/services/${serviceId}/requests`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({

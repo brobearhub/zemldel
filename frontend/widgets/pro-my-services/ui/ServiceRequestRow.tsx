@@ -179,9 +179,9 @@ export function ServiceRequestRow({ request, title, showCustomerAvatar = false, 
     <Box
       sx={{
         display: "grid",
-        gridTemplateColumns,
-        gridTemplateRows: hasPreview ? "auto auto" : "auto",
-        columnGap: 2,
+        gridTemplateColumns: { xs: "minmax(0, 1fr) auto", md: gridTemplateColumns },
+        gridTemplateRows: { xs: "auto auto auto auto", md: hasPreview ? "auto auto" : "auto" },
+        columnGap: { xs: 1, md: 2 },
         alignItems: "center",
         px: 2,
         pt: 1,
@@ -199,14 +199,14 @@ export function ServiceRequestRow({ request, title, showCustomerAvatar = false, 
           display: "grid",
           gridTemplateColumns: "subgrid",
           gridTemplateRows: "subgrid",
-          columnGap: 2,
+          columnGap: { xs: 1, md: 2 },
           alignItems: "center",
           textDecoration: "none",
           color: "inherit",
         }}
       >
         {stamp ? (
-          <Box sx={{ gridColumn: 1, gridRow: "1 / -1", textAlign: "center" }}>
+          <Box sx={{ display: { xs: "none", md: "block" }, gridColumn: 1, gridRow: "1 / -1", textAlign: "center" }}>
             <Typography sx={{ fontSize: 11, lineHeight: 1.2, color: "text.secondary" }}>{stamp.month}</Typography>
             <Typography sx={{ my: 0.25, fontWeight: 800, fontSize: 22, lineHeight: 1, color: "text.secondaryLight" }}>{stamp.day}</Typography>
             
@@ -216,6 +216,7 @@ export function ServiceRequestRow({ request, title, showCustomerAvatar = false, 
 
         <Box
           sx={{
+            display: { xs: "none", md: "block" },
             gridColumn: lineColumn,
             gridRow: "1 / -1",
             width: "1px",
@@ -226,12 +227,12 @@ export function ServiceRequestRow({ request, title, showCustomerAvatar = false, 
         />
 
         {showCustomerAvatar ? (
-          <Box sx={{ gridColumn: avatarColumn ?? undefined, gridRow: "1 / -1", justifySelf: "center" }}>
+          <Box sx={{ display: { xs: "none", md: "block" }, gridColumn: avatarColumn ?? undefined, gridRow: "1 / -1", justifySelf: "center" }}>
             <CustomerAvatar src={customerAvatarSrc(request.customerImage)} name={request.customerName?.trim() || "Заказчик"} />
           </Box>
         ) : null}
 
-        <Box sx={{ gridColumn: textColumn, gridRow: 1, minWidth: 0 }}>
+        <Box sx={{ gridColumn: { xs: "1 / -1", md: textColumn }, gridRow: 1, minWidth: 0 }}>
           <Typography
             sx={{
               minWidth: 0,
@@ -239,7 +240,8 @@ export function ServiceRequestRow({ request, title, showCustomerAvatar = false, 
               lineHeight: 1.4,
               overflow: "hidden",
               textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              whiteSpace: { xs: "normal", md: "nowrap" },
+              overflowWrap: "anywhere",
             }}
           >
             <Box component="span" sx={{ fontWeight: 700, color: "text.primary" }}>
@@ -258,7 +260,8 @@ export function ServiceRequestRow({ request, title, showCustomerAvatar = false, 
                 lineHeight: 1.4,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
+                whiteSpace: { xs: "normal", md: "nowrap" },
+              overflowWrap: "anywhere",
               }}
             >
               {body}
@@ -268,16 +271,17 @@ export function ServiceRequestRow({ request, title, showCustomerAvatar = false, 
 
         <Typography
           sx={{
-            gridColumn: statusColumn,
-            gridRow: "1 / -1",
+            gridColumn: { xs: 1, md: statusColumn },
+            gridRow: { xs: 2, md: "1 / -1" },
             alignSelf: "center",
-            justifySelf: "end",
+            justifySelf: { xs: "start", md: "end" },
             m: 0,
             fontSize: 10,
             fontWeight: 800,
             lineHeight: 1.3,
-            color: "warning.light",
-            whiteSpace: "nowrap",
+            color: "text.secondary",
+            whiteSpace: { xs: "normal", md: "nowrap" },
+              overflowWrap: "anywhere",
             pr: 2.5,
             textTransform: "uppercase",
           }}
@@ -287,11 +291,12 @@ export function ServiceRequestRow({ request, title, showCustomerAvatar = false, 
 
         <Box
           sx={{
-            gridColumn: ageColumn,
-            gridRow: "1 / -1",
+            gridColumn: { xs: 2, md: ageColumn },
+            gridRow: { xs: 2, md: "1 / -1" },
             alignSelf: "center",
             display: "flex",
-            flexDirection: "column",
+            flexDirection: { xs: "row", md: "column" },
+            gap: 0.5,
             alignItems: "center",
             justifyContent: "center",
             textAlign: "center",
@@ -307,15 +312,15 @@ export function ServiceRequestRow({ request, title, showCustomerAvatar = false, 
             />
           ) : (
             <>
-              <Typography sx={{ fontWeight: 800, fontSize: 22, lineHeight: 1, color: "text.secondaryLight" }}>{age.count}</Typography>
-              <Typography sx={{ fontSize: 12, lineHeight: 1.4, color: "text.secondaryLight" }}>{age.label}</Typography>
+              <Typography sx={{ fontWeight: 600, fontSize: { xs: 12, md: 22 }, lineHeight: 1, color: "text.secondary" }}>{age.count}</Typography>
+              <Typography sx={{ fontSize: 12, lineHeight: 1.4, color: "text.secondary" }}>{age.label}</Typography>
             </>
           )}
         </Box>
       </Link>
       {/* Why: пара реплик под именем. Кнопка вне ссылки, чтобы клик не открывал заявку. */}
       {hasPreview ? (
-        <Box sx={{ gridColumn: textColumn, gridRow: 2, mt: 1, minWidth: 0, position: "relative", zIndex: 1, pointerEvents: "none" }}>
+        <Box sx={{ gridColumn: { xs: "1 / -1", md: textColumn }, gridRow: { xs: 3, md: 2 }, mt: 1, minWidth: 0, position: "relative", zIndex: 1, pointerEvents: "none" }}>
           <ReplyPreviewLines
             lines={lines}
             ownAuthor="provider"
@@ -326,8 +331,10 @@ export function ServiceRequestRow({ request, title, showCustomerAvatar = false, 
       {customerReply ? (
         <Box
           sx={{
-            gridColumn: actionColumn ?? undefined,
-            gridRow: "1 / -1",
+            gridColumn: { xs: "1 / -1", md: actionColumn ?? undefined },
+            gridRow: { xs: 4, md: "1 / -1" },
+            justifySelf: { xs: "end", md: "auto" },
+            mt: { xs: 1, md: 0 },
             alignSelf: "center",
             display: "flex",
             alignItems: "center",

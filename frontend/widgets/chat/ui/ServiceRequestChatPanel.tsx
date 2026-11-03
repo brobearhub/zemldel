@@ -23,6 +23,8 @@ import {
 import { ChatReadOnlyNotice } from "./ChatReadOnlyNotice";
 import { useVisibleRefresh } from "@/shared/lib/use-visible-refresh";
 import { CHAT_ARCHIVED_REASON_CODE } from "@/widgets/chat/model/chat-access";
+import { useChatOutbox, type OutboundRow } from "@/widgets/chat/model/use-chat-outbox";
+import { useChatDraft } from "@/widgets/chat/model/use-chat-draft";
 
 class ChatPostError extends Error {
   constructor(
@@ -33,23 +35,6 @@ class ChatPostError extends Error {
   }
 }
 
-type OutboundRow =
-  | {
-      type: "pending";
-      clientMessageId: string;
-      body: string;
-      replyToMessageId?: string;
-      replyToPreview?: { senderLabel: string; snippet: string };
-    }
-  | {
-      type: "failed";
-      clientMessageId: string;
-      body: string;
-      replyToMessageId?: string;
-      replyToPreview?: { senderLabel: string; snippet: string };
-      error?: string;
-      retryable: boolean;
-    };
 
 function mergeServerMessages(prev: ChatMessageDto[], incoming: ChatMessageDto): ChatMessageDto[] {
   if (prev.some((m) => m.id === incoming.id)) {
@@ -91,8 +76,8 @@ export function ServiceRequestChatPanel({
 
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [serverMessages, setServerMessages] = useState<ChatMessageDto[]>([]);
-  const [outbound, setOutbound] = useState<OutboundRow[]>([]);
-  const [draft, setDraft] = useState("");
+  const [outbound, setOutbound] = useChatOutbox(currentUserId, serviceRequestId, forcedConversationId ?? "default");
+  const [draft, setDraft] = useChatDraft(currentUserId, serviceRequestId, forcedConversationId ?? "default");
   const [pendingReply, setPendingReply] = useState<ChatReplyTarget | null>(null);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -118,6 +103,13 @@ export function ServiceRequestChatPanel({
   useEffect(() => {
     serverMessagesRef.current = serverMessages;
   }, [serverMessages]);
+
+  useEffect(() => {
+    const delivered = new Set(serverMessages.map(message => message.clientMessageId));
+    if (outbound.some(row => delivered.has(row.clientMessageId))) {
+      setOutbound(previous => previous.filter(row => !delivered.has(row.clientMessageId)));
+    }
+  }, [serverMessages, outbound, setOutbound]);
 
   const rows: ChatRenderableRow[] = useMemo(() => {
     const serverRows: ChatRenderableRow[] = serverMessages.map((message) => ({
@@ -148,24 +140,36 @@ export function ServiceRequestChatPanel({
     return [...serverRows, ...tail];
   }, [serverMessages, outbound]);
 
-  const loadMessages = useCallback(async (convId: string, mode: "initial" | "tail") => {
+  const loadMessages = useCallback(async (convId: string, mode: "initial" | "tail", signal?: AbortSignal) => {
     const last = serverMessagesRef.current[serverMessagesRef.current.length - 1];
     const search =
       mode === "tail" && last
         ? new URLSearchParams({ after: last.id, limit: "50" })
         : new URLSearchParams({ limit: "50" });
-    const response = await fetch(`/api/chat/conversations/${convId}/messages?${search.toString()}`, {
-      cache: "no-store",
-    });
-    const payload = (await response.json().catch(() => null)) as ChatMessageDto[] | { error?: string } | null;
-    if (!response.ok) {
-      const message =
-        payload && typeof payload === "object" && !Array.isArray(payload) && payload.error
-          ? payload.error
-          : "Не удалось загрузить сообщения";
-      throw new Error(message);
+    let cursor = mode === "tail" ? last?.id : undefined;
+    const all: ChatMessageDto[] = [];
+    for (;;) {
+      if (cursor) search.set("after", cursor);
+      const response = await fetch(`/api/chat/conversations/${convId}/messages?${search.toString()}`, {
+        cache: "no-store",
+        signal,
+      });
+      const payload = (await response.json().catch(() => null)) as ChatMessageDto[] | { error?: string } | null;
+      if (!response.ok) {
+        const message =
+          payload && typeof payload === "object" && !Array.isArray(payload) && payload.error
+            ? payload.error
+            : "Не удалось загрузить сообщения";
+        throw new Error(message);
+      }
+      const page = (payload ?? []) as ChatMessageDto[];
+      if (signal?.aborted) return;
+      all.push(...page);
+      const next = page[page.length - 1]?.id;
+      if (mode !== "tail" || !cursor || page.length < 50 || next === cursor) break;
+      cursor = next;
     }
-    const list = (payload ?? []) as ChatMessageDto[];
+    const list = all;
     if (mode === "initial") {
       setServerMessages([...list].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
     } else {
@@ -191,12 +195,11 @@ export function ServiceRequestChatPanel({
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
 
     setConversationId(null);
     setOpenConversationId(null);
     setServerMessages([]);
-    setOutbound([]);
-    setDraft("");
     setPendingReply(null);
     setBootError(null);
     setAccess(createClosedChatAccess());
@@ -221,7 +224,7 @@ export function ServiceRequestChatPanel({
           setConversationId(forcedConversationId);
           setOpenConversationId(forcedConversationId);
           await loadAccess(forcedConversationId);
-          await loadMessages(forcedConversationId, "initial");
+          await loadMessages(forcedConversationId, "initial", controller.signal);
           if (cancelled) return;
           await markRead(forcedConversationId);
           return;
@@ -250,7 +253,7 @@ export function ServiceRequestChatPanel({
         setOpenConversationId(convId);
         await loadAccess(convId);
 
-        await loadMessages(convId, "initial");
+        await loadMessages(convId, "initial", controller.signal);
         if (cancelled) return;
         await markRead(convId);
       } catch (e) {
@@ -264,6 +267,7 @@ export function ServiceRequestChatPanel({
 
     return () => {
       cancelled = true;
+      controller.abort();
       setOpenConversationId(null);
     };
   }, [
@@ -291,9 +295,24 @@ export function ServiceRequestChatPanel({
       }
     },
   });
+  const refreshMessages = useVisibleRefresh({
+    scope: `messages:${serviceRequestId}:${conversationId}:${requestLockedAt}:${selectedProviderId}:${requestArchived}`,
+    paused: !conversationId || loading,
+    onRefresh: async (signal) => {
+      if (!conversationId) return;
+      await loadMessages(conversationId, "tail", signal);
+      if (!signal.aborted) {
+        setBootError(null);
+        await markRead(conversationId);
+      }
+    },
+  });
   useEffect(() => {
-    if (socketConnected) refreshAccess();
-  }, [socketConnected, refreshAccess]);
+    if (socketConnected) {
+      refreshAccess();
+      refreshMessages();
+    }
+  }, [socketConnected, refreshAccess, refreshMessages]);
 
   useEffect(() => {
     if (!conversationId || !socketConnected) {
@@ -343,7 +362,7 @@ export function ServiceRequestChatPanel({
     return () => {
       socket?.off("message.created", handler);
     };
-  }, [conversationId, socket]);
+  }, [conversationId, socket, setOutbound]);
 
   useEffect(() => {
     if (!conversationId || !viewerSide) {
@@ -491,7 +510,7 @@ export function ServiceRequestChatPanel({
     } finally {
       setSending(false);
     }
-  }, [access.canWrite, applyPostFailure, conversationId, draft, pendingReply, postOutbound, sending]);
+  }, [access.canWrite, applyPostFailure, conversationId, draft, pendingReply, postOutbound, sending, setDraft, setOutbound]);
 
   const handleRetry = useCallback(
     async (clientMessageId: string) => {
@@ -533,7 +552,7 @@ export function ServiceRequestChatPanel({
         setSending(false);
       }
     },
-    [applyPostFailure, outbound, postOutbound, access.canWrite, sending],
+    [applyPostFailure, outbound, postOutbound, access.canWrite, sending, setOutbound],
   );
 
   const handleReplyToMessage = useCallback(
@@ -700,7 +719,7 @@ export function ServiceRequestChatPanel({
               color: "text.secondary",
             }}
           >
-            Соединение с чатом: нет. Сообщения будут догружаться при возвращении/по таймеру.
+            Соединение с чатом потеряно. Переписка обновится после восстановления связи.
           </Typography>
         </Stack>
       ) : null}

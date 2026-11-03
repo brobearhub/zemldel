@@ -43,9 +43,12 @@ describe("provider request sections follow live updates", () => {
   it("updates a contract decision even when the request status has not changed", async () => {
     await act(async () => { render(<ConfirmProvider><ProRequestDetails initialRequest={request} subtitle="" /></ConfirmProvider>); });
     expect(screen.getByTestId("contracts")).toHaveTextContent("PENDING_CUSTOMER");
+    expect(screen.getByText("Договор отправлен. Ждём решения клиента.")).toBeInTheDocument();
+    expect(screen.queryByText("Цена согласована. Подготовьте и отправьте договор.")).not.toBeInTheDocument();
     vi.mocked(fetchProRequestContractBundles).mockResolvedValue([{ status: "APPROVED" }] as never);
     await act(async () => { window.dispatchEvent(new CustomEvent("request:changed", { detail: { requestId: "request-a" } })); });
     expect(screen.getByTestId("contracts")).toHaveTextContent("APPROVED");
+    expect(screen.getByText("Договор одобрен. Ждём заключения договора клиентом.")).toBeInTheDocument();
   });
 
   it("does not read exclusive resources when the next snapshot archives the provider", async () => {
@@ -53,7 +56,7 @@ describe("provider request sections follow live updates", () => {
     const readsBefore = vi.mocked(fetchProRequestContractBundles).mock.calls.length;
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ ...request, isLocked: true })));
     await act(async () => { window.dispatchEvent(new CustomEvent("request:changed", { detail: { requestId: "request-a" } })); });
-    expect(screen.getByText("Клиент выбрал другого исполнителя. Вам доступен архив переписки.")).toBeInTheDocument();
+    expect(screen.getByText("Работу выполняет другой исполнитель")).toBeInTheDocument();
     expect(screen.queryByTestId("contracts")).not.toBeInTheDocument();
     expect(fetchProRequestContractBundles).toHaveBeenCalledTimes(readsBefore);
   });
@@ -64,7 +67,7 @@ describe("provider request sections follow live updates", () => {
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({...request, isLocked: true, providerId: "other-provider"})));
     await act(async () => { window.dispatchEvent(new CustomEvent("request:changed", { detail: { requestId: "request-a" } })); });
     expect(screen.getByTestId("chat-readonly")).toHaveTextContent("true");
-    expect(screen.getByText("Клиент выбрал другого исполнителя. Вам доступен архив переписки.")).toBeInTheDocument();
+    expect(screen.getByText("Работу выполняет другой исполнитель")).toBeInTheDocument();
   });
   it.each([401, 403, 404])('closes the whole workspace on access failure %s', async status => {
     await act(async () => { render(<ConfirmProvider><ProRequestWorkspace initialRequest={request} subtitle="" /></ConfirmProvider>); });

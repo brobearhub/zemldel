@@ -1,5 +1,6 @@
 import {
   Body,
+  HttpException,
   Controller,
   Delete,
   Get,
@@ -328,6 +329,10 @@ export class ContractFilesController {
 
     try {
       const created = await this.contractFiles.uploadBundleForProvider({
+        operationId:
+          typeof request.body?.operationId === 'string'
+            ? request.body.operationId
+            : undefined,
         actorUserId,
         requestId,
         document,
@@ -335,6 +340,8 @@ export class ContractFilesController {
       });
       return res.json(created);
     } catch (e) {
+      if (e instanceof HttpException && [403, 409].includes(e.getStatus()))
+        throw e;
       const msg = e instanceof Error ? e.message : 'Upload failed';
       throw new UnprocessableEntityException({ error: msg });
     }

@@ -275,6 +275,15 @@ function resolveProviderContactEmail(
 }
 
 export class RequestUnlinkedCreateDto {
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Stable ID of a retried creation intent',
+  })
+  @Expose()
+  @IsOptional()
+  @IsUUID()
+  operationId?: string;
+
   @ApiPropertyOptional({ nullable: true, minLength: 10, example: null })
   @Expose()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })
@@ -333,6 +342,15 @@ export function parseRequestUnlinkedCreateDto(body: unknown): {
 }
 
 export class RequestCategoryCreateDto {
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Stable ID of a retried creation intent',
+  })
+  @Expose()
+  @IsOptional()
+  @IsUUID()
+  operationId?: string;
+
   @ApiPropertyOptional({ nullable: true, minLength: 3, example: null })
   @Expose()
   @IsOptional()
@@ -383,6 +401,15 @@ export function parseRequestCategoryCreateDto(body: unknown): {
 }
 
 export class RequestServiceCreateDto {
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Stable ID of a retried creation intent',
+  })
+  @Expose()
+  @IsOptional()
+  @IsUUID()
+  operationId?: string;
+
   @ApiPropertyOptional({ nullable: true, example: null })
   @Expose()
   @IsOptional()

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Alert, Button, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Stack, Typography } from "@mui/material";
 import type { RequestCustomerDto, RequestDocumentRequestDto } from "@/entities/request";
 import { isOrderExecutionStatus, RequestDocumentsList, shouldCollapseDocumentsByDefault } from "@/entities/request";
 import { DocumentsSectionHeader } from "@/features/documents-security-info";
@@ -209,6 +209,16 @@ export function CustomerRequestDocumentsSection(props: Props) {
         hasPending={props.hasPending}
       />
 
+      <Box id="contract-review" tabIndex={-1} sx={{ scrollMarginTop: "96px" }}>
+      <CustomerRequestContractFilesClient
+        requestId={props.request.id}
+        bundles={props.contractBundles}
+        onBundlesChange={props.onContractBundlesChange}
+        onBusyChange={props.onContractDecisionBusyChange}
+      />
+
+      </Box>
+
       <CustomerRequestedDocumentsBlock
         requestId={props.request.id}
         requestStatus={props.request.status}
@@ -217,13 +227,6 @@ export function CustomerRequestDocumentsSection(props: Props) {
         docUploadBusy={props.docUploadBusy}
         onDeleteRequestedDocument={props.onDeleteRequestedDocument}
         onUploadRequestedDocument={props.onUploadRequestedDocument}
-      />
-
-      <CustomerRequestContractFilesClient
-        requestId={props.request.id}
-        bundles={props.contractBundles}
-        onBundlesChange={props.onContractBundlesChange}
-        onBusyChange={props.onContractDecisionBusyChange}
       />
 
       <CustomerAcceptContractActions

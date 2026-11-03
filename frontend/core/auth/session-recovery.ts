@@ -104,7 +104,7 @@ export function createSessionRecoveryFetch(deps: SessionRecoveryDeps): typeof fe
     if (redirecting) return;
     if (!shouldLeaveForSignIn(deps.pathname())) return;
     redirecting = true;
-    deps.redirect(buildSignInHref(deps.returnTo()));
+    deps.redirect(`${buildSignInHref(deps.returnTo())}&reauth=1`);
   }
 
   const recovered: typeof fetch = async (input, init) => {

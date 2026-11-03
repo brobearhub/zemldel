@@ -23,6 +23,39 @@ function makeCreatedMessage(overrides: Partial<any> = {}) {
 }
 
 describe('ChatService.createMessage', () => {
+  it('replays the same message without broadcasting it again', async () => {
+    const prisma = {
+      $transaction: vi.fn().mockRejectedValue({ code: 'P2002' }),
+      message: { findFirst: vi.fn().mockResolvedValue(makeCreatedMessage()) },
+    };
+    const svc = makeService(prisma);
+    (svc as any).assertConversationAccess = vi
+      .fn()
+      .mockResolvedValue(undefined);
+    (svc as any).broadcastMessageCreated = vi.fn();
+    await expect(
+      svc.createMessage('u1', 'c1', { body: 'hello', clientMessageId: 'cm1' }),
+    ).resolves.toMatchObject({ alreadyExisted: true, message: { id: 'm1' } });
+    expect((svc as any).broadcastMessageCreated).not.toHaveBeenCalled();
+  });
+
+  it('rejects reuse of a message ID with changed text', async () => {
+    const prisma = {
+      $transaction: vi.fn().mockRejectedValue({ code: 'P2002' }),
+      message: { findFirst: vi.fn().mockResolvedValue(makeCreatedMessage()) },
+    };
+    const svc = makeService(prisma);
+    (svc as any).assertConversationAccess = vi
+      .fn()
+      .mockResolvedValue(undefined);
+    await expect(
+      svc.createMessage('u1', 'c1', {
+        body: 'changed',
+        clientMessageId: 'cm1',
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
   it('SERVICE: customer message does NOT transition request NEW→DISCUSSING', async () => {
     const prisma = {
       $transaction: vi.fn(async (fn: any) => {

@@ -82,6 +82,7 @@ export class RequestPaymentsController {
       amountRubles: body.amountRubles,
       comment: body.comment,
       type: body.type,
+      operationId: body.operationId,
       paidAt: body.paidAt,
     });
   }
@@ -165,6 +166,7 @@ export class RequestPaymentsController {
       amountRubles: body.amountRubles,
       comment: body.comment,
       type: body.type,
+      operationId: body.operationId,
       conversationId: body.conversationId,
     });
   }

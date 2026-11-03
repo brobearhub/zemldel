@@ -33,6 +33,16 @@ describe("RequestPayments first customer proposal", () => {
     ).toBeEnabled();
   });
 
+  it("distinguishes a pending payment from its confirmation action", () => {
+    render(<ConfirmProvider><RequestPayments mode="provider" requestId="r" status="COMPLETED" lockedAt="2026-11-01"
+      totalAmountRubles={12000} servicePriceRubles={12000} priceProposal={null} canProposePrice={false} canAcceptPrice={false}
+      paidAmountRubles={0} remainingAmountRubles={12000} payments={[{ id: "p", type: "CONTRACT", amountRubles: 1000, comment: "Аванс за подготовку документов", paidAt: null, createdAt: "2026-11-01", createdBySide: "CUSTOMER" }]} /></ConfirmProvider>);
+    expect(screen.getByText("Аванс за подготовку документов")).toBeInTheDocument();
+    expect(screen.getByText("Не оплачено")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Отметить как оплачено" })).toHaveTextContent("Отметить оплату");
+    expect(screen.queryByText("Оплачено", { exact: true })).not.toBeInTheDocument();
+  });
+
   it("shows final price copy while keeping late payment recording available", () => {
     render(
       <ConfirmProvider>

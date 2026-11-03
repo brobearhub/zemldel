@@ -394,6 +394,17 @@ describe("ProMyServicesSection", () => {
     readRequestListCache.mockReturnValue(null);
   });
 
+  it("puts actionable services first and hides empty services until expanded", async () => {
+    fetchRequestList.mockImplementation(async (query: { serviceId: string | null }) => ({ items: query.serviceId === "busy" ? [request({ id: "urgent", customerName: "Ждёт ответа", awaitingCustomerReply: false })] : [] }));
+    render(<ProMyServicesSection services={[{ ...mainService, id: "empty", title: "Пустая услуга" }, { ...mainService, id: "busy", title: "Рабочая услуга" }]} />);
+    expect(await screen.findByRole("link", { name: /Ждёт ответа/ })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Пустая услуга" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Услуги без заявок (1)" }));
+    expect(screen.getByRole("heading", { name: "Пустая услуга" })).toBeVisible();
+    const headings = screen.getAllByRole("heading").map(node => node.textContent);
+    expect(headings.indexOf("Рабочая услуга")).toBeLessThan(headings.indexOf("Пустая услуга"));
+  });
+
   it("разворачивает только один список заявок", async () => {
     const user = userEvent.setup();
     fetchRequestList.mockImplementation(async (query: { serviceId: string | null }) => ({

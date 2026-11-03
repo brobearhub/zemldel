@@ -4,6 +4,7 @@ import { PublicUnlinkedRequestForm } from "./PublicUnlinkedRequestForm";
 import { readPendingRequestDraft } from "@/entities/request";
 
 const push = vi.fn();
+vi.mock("next-auth/react", () => ({ useSession: () => ({ data: { user: { id: "test-customer" } } }) }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
@@ -37,7 +38,7 @@ describe("PublicUnlinkedRequestForm", () => {
   });
 
   it("opens the created FREEFORM request instead of the general list", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 201, json: async () => ({ id: "new-request" }) }));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({id: "new-request"}), {status:201})));
     render(<PublicUnlinkedRequestForm isAuthenticated />);
     fireEvent.change(screen.getByLabelText(/Что нужно сделать/), { target: { value: "Оформить документы на участок" } });
     fireEvent.click(screen.getByRole("button", { name: "Создать заявку" }));

@@ -1632,7 +1632,7 @@ describe('RequestPaymentsService', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('rejects repeated paid mark without a second write', async () => {
+  it('replays a paid mark without a second write', async () => {
     const paidPayment = {
       id: 'p1',
       type: 'CONTRACT' as const,
@@ -1665,7 +1665,7 @@ describe('RequestPaymentsService', () => {
         requestId: 'r1',
         paymentId: 'p1',
       }),
-    ).rejects.toThrow('Payment is already marked as paid');
+    ).resolves.toMatchObject({ paidAmountRubles: 5000 });
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });

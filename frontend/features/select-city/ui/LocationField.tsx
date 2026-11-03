@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type Ref } from "react";
+import { useId, useState, type Ref } from "react";
 import { Box, Typography } from "@mui/material";
 import type { CitySuggestItemDto } from "@/entities/city";
 import { LocationButton, type LocationIconColor, type LocationTone } from "./LocationButton";
@@ -41,6 +41,7 @@ export function LocationField({
   clearable = true,
   buttonRef,
 }: Props) {
+  const hintId = useId();
   const [open, setOpen] = useState(false);
   const hint = helperText?.trim() ? helperText : null;
 
@@ -60,6 +61,7 @@ export function LocationField({
         onClick={openDialog}
         disabled={disabled}
         error={error}
+        describedBy={hint ? hintId : undefined}
         buttonRef={buttonRef}
         iconColor={iconColor}
         tone={tone}
@@ -67,6 +69,7 @@ export function LocationField({
       />
       {hint ? (
         <Typography
+          id={hintId}
           variant="caption"
           sx={{
             display: "block",

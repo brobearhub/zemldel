@@ -83,76 +83,89 @@ export function ChatSocketProvider({ children }: Props) {
     }
 
     let cancelled = false;
+    let refreshing = false;
+    let retryDelay = 1000;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let tokenController: AbortController | undefined;
+    const url = getChatSocketUrl();
+    if (!url) return;
+    const s = io(url, {
+      autoConnect: false,
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 10_000,
+    });
+    socketRef.current = s;
+    setSocket(s);
 
-    async function connectWithFreshToken() {
-      const tokenResponse = await fetch("/api/chat/socket-token", { cache: "no-store" });
-      const tokenPayload = (await tokenResponse.json().catch(() => null)) as { token?: string } | null;
-      if (!tokenResponse.ok || !tokenPayload?.token) {
-        return null;
-      }
-
-      const url = getChatSocketUrl();
-      if (!url) {
-        return null;
-      }
-
-      const s = io(url, {
-        auth: { token: tokenPayload.token },
-        transports: ["websocket", "polling"],
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 10_000,
-      });
-
-      s.on("connect", () => {
-        setSocketConnected(true);
-        window.dispatchEvent(new Event("request:sync"));
-      });
-      s.on("request.changed", (payload: { requestId: string }) => {
-        window.dispatchEvent(new CustomEvent("request:changed", { detail: payload }));
-      });
-      s.on("disconnect", () => {
-        setSocketConnected(false);
-      });
-      s.on("chat.unreadHint", (hint: ChatUnreadHintPayload) => {
-        applyUnreadHint(hint);
-      });
-
-      return s;
+    function scheduleRetry() {
+      if (cancelled || retryTimer) return;
+      retryTimer = setTimeout(() => {
+        retryTimer = undefined;
+        void refreshToken();
+      }, retryDelay);
+      retryDelay = Math.min(retryDelay * 2, 10_000);
     }
 
-    async function start() {
-      const s = await connectWithFreshToken();
-      if (cancelled || !s) {
-        s?.disconnect();
-        return;
-      }
-      socketRef.current = s;
-      setSocket(s);
-      setSocketConnected(s.connected);
-    }
-
-    void start();
-
-    tokenRefreshRef.current = setInterval(() => {
-      const current = socketRef.current;
-      if (!current) {
-        return;
-      }
-      void (async () => {
-        const tokenResponse = await fetch("/api/chat/socket-token", { cache: "no-store" });
-        const tokenPayload = (await tokenResponse.json().catch(() => null)) as { token?: string } | null;
-        if (!tokenResponse.ok || !tokenPayload?.token) {
+    async function refreshToken() {
+      if (cancelled || refreshing) return;
+      refreshing = true;
+      const controller = new AbortController();
+      tokenController = controller;
+      const timeout = setTimeout(() => controller.abort(), 10_000);
+      try {
+        const response = await fetch("/api/chat/socket-token", { cache: "no-store", signal: controller.signal });
+        const payload = (await response.json().catch(() => null)) as { token?: string } | null;
+        if (cancelled) return;
+        if (!response.ok || !payload?.token) {
+          // Authentication is recovered by the session layer; do not hammer it.
+          if (response.status === 401 || response.status === 403) {
+            if (s.connected) s.disconnect();
+          } else scheduleRetry();
           return;
         }
-        current.auth = { token: tokenPayload.token };
-        current.disconnect();
-        current.connect();
-      })();
-    }, TOKEN_REFRESH_MS);
+        retryDelay = 1000;
+        clearTimeout(retryTimer);
+        retryTimer = undefined;
+        s.auth = { token: payload.token };
+        // Updating credentials must not interrupt a healthy connection or its rooms.
+        if (!s.connected) s.connect();
+      } catch {
+        scheduleRetry();
+      } finally {
+        clearTimeout(timeout);
+        refreshing = false;
+      }
+    }
+
+    s.on("connect", () => {
+      if (cancelled) return;
+      setSocketConnected(true);
+      window.dispatchEvent(new Event("request:sync"));
+    });
+    s.on("request.changed", (payload: { requestId: string }) => {
+      window.dispatchEvent(new CustomEvent("request:changed", { detail: payload }));
+    });
+    s.on("disconnect", (reason) => {
+      setSocketConnected(false);
+      if (reason === "io server disconnect") scheduleRetry();
+    });
+    s.on("connect_error", scheduleRetry);
+    s.on("chat.unreadHint", (hint: ChatUnreadHintPayload) => {
+      applyUnreadHint(hint);
+    });
+
+    const onOnline = () => { void refreshToken(); };
+    window.addEventListener("online", onOnline);
+    void refreshToken();
+    tokenRefreshRef.current = setInterval(onOnline, TOKEN_REFRESH_MS);
 
     return () => {
       cancelled = true;
+      clearTimeout(retryTimer);
+      tokenController?.abort();
+      window.removeEventListener("online", onOnline);
       if (tokenRefreshRef.current) {
         clearInterval(tokenRefreshRef.current);
         tokenRefreshRef.current = null;

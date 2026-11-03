@@ -18,31 +18,35 @@ export function useRequestList(serviceId: string | null) {
 
   useEffect(() => {
     let cancelled = false;
+    let revision = 0;
     const query = { serviceId };
+    const load = async (force = false) => {
+      const ownRevision = ++revision;
+      try {
+        const feed = await (force ? fetchRequestList(query, Date.now(), true) : fetchRequestList(query));
+        if (cancelled || ownRevision !== revision) return;
+        setRequests(withoutCompletedRequests(feed.items)); setError(null);
+      } catch (reason) {
+        if (cancelled || ownRevision !== revision) return;
+        setError(reason instanceof Error && reason.message.trim() ? reason.message : "Не удалось загрузить заявки");
+      }
+    };
     const cachedItems = readOpenRequestList(serviceId);
-    if (cachedItems) {
-      setRequests(cachedItems);
-      setError(null);
-      return;
-    }
-
-    setRequests(null);
-    setError(null);
-    fetchRequestList(query)
-      .then((feed) => {
-        if (cancelled) return;
-        setRequests(withoutCompletedRequests(feed.items));
-        setError(null);
-      })
-      .catch((reason: unknown) => {
-        if (cancelled) return;
-        setRequests(null);
-        const message = reason instanceof Error ? reason.message.trim() : "";
-        setError(message.length > 0 ? message : "Не удалось загрузить заявки");
-      });
-
+    setRequests(cachedItems); setError(null);
+    if (!cachedItems) void load();
+    const refresh = () => { if (document.visibilityState === "visible") void load(true); };
+    window.addEventListener("request:changed", refresh);
+    window.addEventListener("request:sync", refresh);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("online", refresh);
+    document.addEventListener("visibilitychange", refresh);
     return () => {
       cancelled = true;
+      window.removeEventListener("request:changed", refresh);
+      window.removeEventListener("request:sync", refresh);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("online", refresh);
+      document.removeEventListener("visibilitychange", refresh);
     };
   }, [serviceId]);
 

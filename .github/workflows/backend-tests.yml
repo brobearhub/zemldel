@@ -44,4 +44,4 @@ jobs:
           npm ci
           npx prisma generate
           npx prisma migrate deploy
-          npx vitest run src/requests/requests.provider-write-race.integration.spec.ts src/requests/requests.cancel-provider-selection.integration.spec.ts src/requests/requests.select-provider.spec.ts
+          npx vitest run src/common/idempotency/write-operation.integration.spec.ts src/requests/requests.provider-write-race.integration.spec.ts src/requests/requests.cancel-provider-selection.integration.spec.ts src/requests/requests.select-provider.spec.ts

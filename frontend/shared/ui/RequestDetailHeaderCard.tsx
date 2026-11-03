@@ -18,6 +18,7 @@ export type RequestDetailHeaderCardProps = {
   title?: string;
   /** Строка под заголовком, на всю ширину. Для цены, чтобы чип не раздувал ряд. */
   lead?: ReactNode;
+  nextStep?: ReactNode;
 };
 
 /**
@@ -32,6 +33,7 @@ export function RequestDetailHeaderCard({
   footerEnd,
   title = "Заявка",
   lead,
+  nextStep,
 }: RequestDetailHeaderCardProps) {
   const hasFooter = Boolean(afterBody || footerEnd);
   return (
@@ -91,6 +93,8 @@ export function RequestDetailHeaderCard({
             })}
           />
         </Stack>
+
+        {nextStep}
 
         {lead ? <Box sx={{ minWidth: 0, maxWidth: "100%" }}>{lead}</Box> : null}
 

@@ -1,3 +1,4 @@
+import { fetchIdempotentWrite, forgetWriteIntent } from "@/shared/api/idempotent-write";
 import { validateContractUploadFiles, contractUploadError } from "../lib/contract-upload-validation";
 
 export type ProContractBundleStatus = "PENDING_CUSTOMER" | "APPROVED" | "REVISION_REQUESTED";
@@ -62,7 +63,7 @@ export async function uploadProRequestContractBundle(requestId: string, input: {
   if (input.signature) form.append("signature", input.signature);
   let res: Response;
   try {
-    res = await fetch(`/api/pro/requests/${requestId}/contract-bundles`, { method: "POST", body: form });
+    res = await fetchIdempotentWrite(`/api/pro/requests/${requestId}/contract-bundles`, { method: "POST", body: form });
   } catch {
     throw new Error("Нет соединения с сервером. Проверьте интернет и повторите загрузку — выбранные файлы сохранены.");
   }
@@ -75,6 +76,7 @@ export async function deleteProRequestContractBundle(requestId: string, bundleId
   const res = await fetch(`/api/pro/requests/${requestId}/contract-bundles/${bundleId}`, { method: "DELETE" });
   const payload = await safeJson(res);
   if (!res.ok) throw new Error(extractError(payload, "Не удалось удалить договор"));
+  forgetWriteIntent(`/api/pro/requests/${requestId}/contract-bundles`);
   return { ok: true };
 }
 

@@ -47,6 +47,10 @@ export type ChatServiceRequestConversationListItemDto = {
 };
 
 export type ChatInboxItemDto = {
+  conversationId?: string;
+  peerName?: string;
+  requestStatus?: string;
+  contractPhase?: boolean;
   serviceRequestId: string;
   title: string;
   lastMessageAt: string | null;
