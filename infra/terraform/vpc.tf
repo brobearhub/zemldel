@@ -1,18 +1,15 @@
-resource "yandex_vpc_network" "main" {
-  name        = "${var.resource_prefix}-vpc"
-  description = "VPC prod Zemledel"
+resource "twc_vpc" "prod" {
+  count       = var.existing_vpc_id == null ? 1 : 0
+  name        = "zemledel-prod"
+  description = "Production database and manually managed AppPlatform apps"
+  subnet_v4   = "192.168.10.0/24"
+  location    = "ru-3"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
-resource "yandex_vpc_subnet" "a" {
-  name           = "${var.resource_prefix}-subnet-a"
-  zone           = "ru-central1-a"
-  network_id     = yandex_vpc_network.main.id
-  v4_cidr_blocks = ["10.10.1.0/24"]
-}
-
-resource "yandex_vpc_subnet" "b" {
-  name           = "${var.resource_prefix}-subnet-b"
-  zone           = "ru-central1-b"
-  network_id     = yandex_vpc_network.main.id
-  v4_cidr_blocks = ["10.10.2.0/24"]
+locals {
+  vpc_id = var.existing_vpc_id != null ? var.existing_vpc_id : twc_vpc.prod[0].id
 }

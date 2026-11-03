@@ -28,6 +28,8 @@ backend.hcl
 .terraform-state-key.json
 .terraform-outputs.json
 infra/terraform/tfplan
+infra/terraform/*.tfplan
+infra/terraform/**/__pycache__/
 deploy/terraform-outputs.env
 deploy/.secrets/
 deploy/.secrets/**

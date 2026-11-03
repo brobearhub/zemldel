@@ -37,3 +37,20 @@ docker compose -p zemldel-mail -f docker-compose.mail.yml stop
 перезапустите backend.
 
 Документация MailCatcher: https://github.com/sj26/mailcatcher
+
+## Отправка через Yandex Cloud Postbox по HTTPS
+
+В окружении, где SMTP-порты закрыты (например, ONREZA), используйте HTTPS сразу:
+
+```dotenv
+MAIL_TRANSPORT="postbox"
+SMTP_FROM="reset-password@zemledel.pro"
+POSTBOX_ACCESS_KEY_ID="идентификатор-статического-ключа"
+POSTBOX_SECRET_ACCESS_KEY="секретная-часть-статического-ключа"
+```
+
+Ключ должен принадлежать сервисному аккаунту с ролью `postbox.sender` и доступом к адресу Postbox. Это **статический ключ доступа**, а не API-ключ для SMTP. Секрет задаётся только в защищённых переменных окружения. После изменения переменных необходимо перезапустить backend. Postbox должен подтвердить домен отправителя.
+
+В других окружениях можно сохранить SMTP и включить запасной Postbox через `MAIL_POSTBOX_FALLBACK="true"` с теми же `POSTBOX_*` и `SMTP_FROM`. При ошибке установки SMTP-соединения приложение переключится на HTTPS. Если результат отправки по SMTP неоднозначен, автоматического повтора нет, чтобы не отправить письмо дважды. При отсутствии `MAIL_TRANSPORT` используется существующее поведение SMTP/MailCatcher.
+
+Документация: https://yandex.cloud/ru/docs/postbox/operations/send-email

@@ -7,9 +7,9 @@ describe("storageFallbackSrc", () => {
   });
 
   it("подменяет CDN на path-style Object Storage", () => {
-    vi.stubEnv("NEXT_PUBLIC_YA_S3_ENDPOINT", "https://storage.yandexcloud.net");
-    vi.stubEnv("NEXT_PUBLIC_YA_S3_PUBLIC_BUCKET", "zemledel-public-test");
-    vi.stubEnv("NEXT_PUBLIC_YA_S3_FORCE_PATH_STYLE", "true");
+    vi.stubEnv("NEXT_PUBLIC_S3_ENDPOINT", "https://storage.yandexcloud.net");
+    vi.stubEnv("NEXT_PUBLIC_S3_PUBLIC_BUCKET", "zemledel-public-test");
+    vi.stubEnv("NEXT_PUBLIC_S3_FORCE_PATH_STYLE", "true");
 
     expect(
       storageFallbackSrc(
@@ -21,9 +21,9 @@ describe("storageFallbackSrc", () => {
   });
 
   it("сохраняет query", () => {
-    vi.stubEnv("NEXT_PUBLIC_YA_S3_ENDPOINT", "https://storage.yandexcloud.net");
-    vi.stubEnv("NEXT_PUBLIC_YA_S3_PUBLIC_BUCKET", "zemledel-public-test");
-    vi.stubEnv("NEXT_PUBLIC_YA_S3_FORCE_PATH_STYLE", "true");
+    vi.stubEnv("NEXT_PUBLIC_S3_ENDPOINT", "https://storage.yandexcloud.net");
+    vi.stubEnv("NEXT_PUBLIC_S3_PUBLIC_BUCKET", "zemledel-public-test");
+    vi.stubEnv("NEXT_PUBLIC_S3_FORCE_PATH_STYLE", "true");
 
     expect(storageFallbackSrc("https://cdn.zemledelpro.ru/public/a.jpg?v=2")).toBe(
       "https://storage.yandexcloud.net/zemledel-public-test/public/a.jpg?v=2",
@@ -31,9 +31,9 @@ describe("storageFallbackSrc", () => {
   });
 
   it("не трогает чужие хосты и локальные превью", () => {
-    vi.stubEnv("NEXT_PUBLIC_YA_S3_ENDPOINT", "https://storage.yandexcloud.net");
-    vi.stubEnv("NEXT_PUBLIC_YA_S3_PUBLIC_BUCKET", "zemledel-public-test");
-    vi.stubEnv("NEXT_PUBLIC_YA_S3_FORCE_PATH_STYLE", "true");
+    vi.stubEnv("NEXT_PUBLIC_S3_ENDPOINT", "https://storage.yandexcloud.net");
+    vi.stubEnv("NEXT_PUBLIC_S3_PUBLIC_BUCKET", "zemledel-public-test");
+    vi.stubEnv("NEXT_PUBLIC_S3_FORCE_PATH_STYLE", "true");
 
     expect(storageFallbackSrc("https://cdn.example/story.jpg")).toBeNull();
     expect(storageFallbackSrc("blob:http://localhost:4000/preview")).toBeNull();

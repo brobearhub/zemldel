@@ -27,28 +27,28 @@ function normalizePrefix(prefix: string) {
 
 @Injectable()
 export class S3Service {
-  readonly endpoint = requireEnv('YA_S3_ENDPOINT');
-  readonly region = requireEnv('YA_S3_REGION');
+  readonly endpoint = requireEnv('S3_ENDPOINT');
+  readonly region = requireEnv('S3_REGION');
 
-  readonly accessKeyId = requireEnv('YA_S3_KEY');
-  readonly secretAccessKey = requireEnv('YA_S3_SECRET');
+  readonly accessKeyId = requireEnv('S3_KEY');
+  readonly secretAccessKey = requireEnv('S3_SECRET');
 
-  readonly privateBucket = requireEnv('YA_S3_PRIVATE_BUCKET');
-  readonly publicBucket = optionalEnv('YA_S3_PUBLIC_BUCKET');
-  readonly publicCdnBaseUrl = optionalEnv('YA_CDN_PUBLIC_BASE_URL');
+  readonly privateBucket = requireEnv('S3_PRIVATE_BUCKET');
+  readonly publicBucket = optionalEnv('S3_PUBLIC_BUCKET');
+  readonly publicCdnBaseUrl = optionalEnv('CDN_PUBLIC_BASE_URL');
 
   readonly publicPrefix = normalizePrefix(
-    process.env.YA_S3_PUBLIC_PREFIX ?? 'public/',
+    process.env.S3_PUBLIC_PREFIX ?? 'public/',
   );
   readonly privatePrefix = normalizePrefix(
-    process.env.YA_S3_PRIVATE_PREFIX ?? 'private/',
+    process.env.S3_PRIVATE_PREFIX ?? 'private/',
   );
 
   readonly forcePathStyle =
-    (process.env.YA_S3_FORCE_PATH_STYLE ?? 'false') === 'true';
+    (process.env.S3_FORCE_PATH_STYLE ?? 'false') === 'true';
 
   /**
-   * Yandex Object Storage is S3-compatible; we still enforce timeouts for safety.
+   * Use an S3-compatible endpoint with explicit connection and socket timeouts.
    */
   readonly client = new S3Client({
     region: this.region,
@@ -67,14 +67,14 @@ export class S3Service {
 
   requirePublicBucket() {
     if (!this.publicBucket) {
-      throw new Error('Missing env YA_S3_PUBLIC_BUCKET');
+      throw new Error('Missing env S3_PUBLIC_BUCKET');
     }
     return this.publicBucket;
   }
 
   requirePublicCdnBaseUrl() {
     if (!this.publicCdnBaseUrl) {
-      throw new Error('Missing env YA_CDN_PUBLIC_BASE_URL');
+      throw new Error('Missing env CDN_PUBLIC_BASE_URL');
     }
     return this.publicCdnBaseUrl;
   }

@@ -3,6 +3,24 @@ import { fileURLToPath } from "node:url";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
+// Permit direct S3 images only for the configured public bucket (e.g. testing without CDN).
+const storageImagePatterns = [];
+const storageEndpoint = process.env.NEXT_PUBLIC_S3_ENDPOINT?.trim();
+const storageBucket = process.env.NEXT_PUBLIC_S3_PUBLIC_BUCKET?.trim();
+if (storageEndpoint && storageBucket) {
+  const endpoint = new URL(storageEndpoint);
+  if (endpoint.protocol !== "https:") {
+    throw new Error("NEXT_PUBLIC_S3_ENDPOINT must use HTTPS for public images");
+  }
+  const pathStyle = process.env.NEXT_PUBLIC_S3_FORCE_PATH_STYLE === "true";
+  storageImagePatterns.push({
+    protocol: "https",
+    hostname: pathStyle ? endpoint.hostname : `${storageBucket}.${endpoint.hostname}`,
+    port: endpoint.port,
+    pathname: `${endpoint.pathname.replace(/\/+$/, "")}/${pathStyle ? `${encodeURIComponent(storageBucket)}/` : ""}public/**`,
+  });
+}
+
 // Baseline security headers for every marketplace response (SEO audit 2026-10, section 2.3).
 // No Content-Security-Policy yet: roll it out as Report-Only first (GTM, Google Maps, photo CDN).
 const SECURITY_HEADERS = [
@@ -44,6 +62,7 @@ const nextConfig = {
   },
   images: {
     remotePatterns: [
+      ...storageImagePatterns,
       {
         protocol: "https",
         hostname: "cdn.zemledelpro.ru",

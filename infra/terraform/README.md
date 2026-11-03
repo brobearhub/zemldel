@@ -1,71 +1,166 @@
-# Terraform — prod Zemledel (Yandex Cloud)
+# Production-инфраструктура Timeweb
 
-**Зачем:** описывает постоянную инфраструктуру (сеть, БД, бакеты, CDN, ВМ) как код. Изменения — только через `terraform plan` / `apply`, не вручную в консоли.
+Общий порядок настройки и переключения окружений: [Terraform: prod и testing](../../docs/terraform.md).
 
-## Предпосылки
+Отдельное окружение testing без CDN описано в [testing/README.md](testing/README.md). У него свой Terraform root и state; команды prod ниже не используются для testing.
 
-1. Установлены [Terraform](https://developer.hashicorp.com/terraform/install) ≥ 1.5 и [YC CLI](https://yandex.cloud/ru/docs/cli/quickstart) (`yc init`).
-2. Есть `cloud_id`, `folder_id`, SSH-ключ и ваш публичный IP (`operator_cidr`, например `203.0.113.10/32`).
-3. Домен **zemledelpro.ru** — DNS у регистратора или в Cloud DNS.
+Terraform создаёт инфраструктуру для `zemledelpro.ru`. Backend и frontend AppPlatform создаются пользователем отдельно. Регистратор домена остаётся прежним. Существующий SMTP сохраняется.
 
-## Bootstrap: бакет для remote state (один раз, вручную)
+## Состав
 
-**Автоматически:** `./scripts/bootstrap-state.sh` (после `yc init`).
+| Компонент | Конфигурация |
+| --- | --- |
+| Приватная сеть | **Новая** `zemledel-prod`, Москва / `ru-3`, `192.168.10.0/24` |
+| Кластер БД | **Новый** `zemledel-prod-tf`, PostgreSQL 18, MSK-1, мастер + 2 реплики; **на каждом узле** 2 CPU, 2048 МБ RAM, 30720 МБ NVMe |
+| Логическая БД / пользователь | `zemledel_db_prod` / `zemledel_app`, пароль генерируется Terraform; отдельные ресурсы пользователя и БД, пользователь назначается владельцем |
+| Доступ к БД | Приватная сеть + отдельный публичный IPv4 в MSK-1; IP оплачивается отдельно. После привязки IP Terraform запрашивает включение TLS |
+| Резервные копии | Ежедневно, хранить 1 последнюю копию; отдельная платная услуга |
+| S3 public | Standard 10 ГБ, публичные изображения, источник CDN |
+| S3 private | Standard 10 ГБ, приватные документы, без CDN |
+| S3 service account | Одна пара ключей для backend, которому нужны оба бакета |
+| CDN | `cdn.zemledelpro.ru`, HTTPS до S3; лимит раздачи 250 ГБ/месяц |
+| DNS | Добавление существующего домена в Timeweb, CNAME для CDN, дополнительные записи из `dns_records` |
+| Сертификат CDN | Второй этап: выпуск Let's Encrypt и HTTP→HTTPS после распространения DNS |
 
-**Вручную:**
+Не создаются VM, Kubernetes, Redis, registry, почтовый сервер, AppPlatform, секреты приложения или дополнительные окружения. Код проекта сейчас не требует отдельных Redis/очередей. Секреты приложения задаются в AppPlatform вручную.
 
-**Зачем:** state Terraform хранится в Object Storage, а не локально — команда видит одну правду, есть блокировка.
+Старый кластер `4227573`, старая сеть Cute Quail и ресурсы Yandex не импортируются, не изменяются и не удаляются. Удаление старой БД остаётся за пользователем **после** проверки новой БД и переноса данных.
 
-```bash
-export FOLDER_ID="<folder-id>"
-export STATE_BUCKET="prod-zemledel-terraform-state"
+## Ограничения реализации
 
-# Сервисный аккаунт для Terraform state
-yc iam service-account create --name prod-zemledel-terraform --folder-id "$FOLDER_ID"
-export TF_SA_ID=$(yc iam service-account get prod-zemledel-terraform --folder-id "$FOLDER_ID" --format json | jq -r .id)
+- БД, пользователь, логическая база, резервные копии, сеть, S3 и DNS-записи управляются официальным провайдером `twc` **1.8.4**. БД использует готовый тариф, выбранный `data.twc_database_preset.prod` по Москве, CPU/RAM/диску. Переменные размеров — фильтры каталога, а не произвольный конфигуратор; если подходящего тарифа нет, plan завершится ошибкой.
+- При проверке plan 2026-11-03 выбран тариф `4759`: 2 CPU, 2 ГБ RAM, 30 ГБ, 2 800 ₽/месяц за узел; три узла — 8 400 ₽/месяц без резервных копий. Актуальная цена повторно читается из каталога при plan.
+- `db_node_count = 3` передаётся как `replications = 3`: мастер + две реплики. Каждый узел оплачивается отдельно; `database_tariff` показывает цену за узел и сумму за все узлы без резервных копий. Полезный объём базы — 30 ГБ, а не сумма дисков реплик.
+- Создание кластера, публичного IPv4 и изменение репликации выполняет официальный провайдер. IP привязывается после создания кластера; Terraform создаёт пользователя и логическую БД, затем проверяет по API доступность TLS. Успешный ответ на запрос ещё не означает, что TLS включён. Проверяйте TLS в панели и подключение с проверкой сертификата после apply.
+- В `twc` 1.8.4 нет ресурсов CDN и добавления существующего домена в DNS-хостинг. Они и отложенное включение TLS БД используют `Mastercard/restapi` **3.0.0**. DNS-записи создаёт официальный `twc_dns_rr`. Для PostgreSQL документировано увеличение числа узлов без пересоздания; уменьшение не поддерживается. Проверяйте plan перед любыми изменениями. Репликация не заменяет резервное копирование.
+- Выпуск сертификата CDN — асинхронная API-команда, поэтому второй этап использует `terraform_data` и `scripts/ensure-cdn-tls.py`. Скрипт проверяет DNS, существующий сертификат и активные задачи, не запускает повторную задачу поверх уже выполняющейся. Не удаляет сертификат при удалении своего Terraform-объекта. Продление сертификата остаётся управляемому сервису Timeweb; проверяйте его статус в панели.
+- REST-объекты используют `ignore_server_additions`: формат ответа API отличается от запроса, часть полей write-only. В зафиксированной версии REST-провайдера этот режим сохраняет исходный payload в state. Изменения **в HCL** применяются, но ручные изменения CDN/DNS-зоны не исправляются автоматически. Проверяйте соответствие настроек в панели перед последующими apply. Нативные DB/user/instance/S3/DNS/backup/VPC ресурсы обновляются обычным способом.
+- `prevent_destroy` блокирует удаление/замену критичных ресурсов, пока соответствующие блоки остаются в конфигурации. Это не защита от удаления в панели или удаления самого блока из кода.
+- S3 service account даёт доступ к хранилищам аккаунта, а не только к двум бакетам. Используется потому, что backend имеет один S3Client для обоих бакетов. Не публикуйте его ключи во frontend.
+- При заполнении S3 автоматическое повышение тарифа отключено. При достижении лимита CDN раздача остановится. Следите за объёмом и меняйте лимиты осознанно.
 
-yc resource-manager folder add-access-binding "$FOLDER_ID" \
-  --role storage.admin \
-  --subject "serviceAccount:${TF_SA_ID}"
+Предыдущая REST-версия БД не применялась. Если её всё же применили вне этой сессии, остановитесь перед apply: нужен отдельный перенос существующих ресурсов в state официального провайдера. Не допускайте удаления/дублирования кластера.
 
-yc iam access-key create --service-account-id "$TF_SA_ID" --description "terraform-state"
-# Сохраните key_id и secret — они пойдут в backend.hcl (не коммитить!)
+## 1. Подготовка и план
 
-yc storage bucket create --name "$STATE_BUCKET" --default-storage-class standard --max-size 1073741824
+Нужны Terraform >= 1.4.4, Python 3, `curl`, `dig`. Все команды ниже выполняются из корня репозитория. Новая конфигурация использует **новый локальный state**. Не копируйте сюда старый Yandex state и не выполняйте `init -migrate-state` из прежнего backend.
+
+```sh
+umask 077
+cp infra/terraform/terraform.tfvars.example infra/terraform/terraform.tfvars
+export TF_VAR_timeweb_token="$TIMEWEB_CLOUD_TOKEN"
+terraform -chdir=infra/terraform init
+terraform -chdir=infra/terraform fmt -check
+terraform -chdir=infra/terraform validate
+terraform -chdir=infra/terraform plan
 ```
 
-Скопируйте [`backend.hcl.example`](backend.hcl.example) → `backend.hcl`, подставьте ключи и имя бакета.
+Установите `backup_start_date` на день развёртывания. По умолчанию создаётся отдельная сеть prod. Тариф БД выбирается из живого каталога при plan; ID тарифов S3/CDN сверены 2026-11-03; цены и доступность необходимо проверить перед оплатой. План Terraform не рассчитывает стоимость ресурсов и не гарантирует, что API примет все настройки при создании.
 
-```bash
-cp backend.hcl.example backend.hcl   # или bootstrap-state.sh создаст сам
-cp terraform.tfvars.example terraform.tfvars   # или ./scripts/generate-tfvars.sh
+`TIMEWEB_CLOUD_TOKEN` должен быть установлен в текущем терминале. Не записывайте токен в `*.tf`, примеры, команды с буквальным токеном или Git. Скрипты получают токен через окружение; авторизация curl передаётся через stdin.
 
-export TF_VAR_postgres_password='...'
-terraform init -backend-config=backend.hcl
-./scripts/plan.sh
-CONFIRM_APPLY=1 ./scripts/apply.sh
+State содержит пароль БД и S3-ключи **в открытом виде**, несмотря на `sensitive`. State, планы и `terraform.tfvars` исключены из Git. Храните защищённую резервную копию state, не запускайте Terraform одновременно с разных компьютеров. Для совместной работы предварительно настройте отдельный remote backend с блокировкой; он не должен зависеть от управляемых этим state бакетов приложения.
+
+## 2. Создание инфраструктуры
+
+```sh
+terraform -chdir=infra/terraform apply
 ```
 
-## После apply
+Первый apply: `enable_cdn_tls = false`, `dns_records = {}`. Ожидаются только новые ресурсы, без удаления старой БД или приложений. Запуск начинает тарификацию, в том числе за публичный IPv4. Если API создал ресурс, но Terraform завершился с ошибкой, сначала проверьте панель/state; не повторяйте создание вслепую.
 
-1. Запишите outputs: IP ВМ, FQDN Postgres, имена бакетов, registry id, lockbox secret id.
-2. Заполните секреты в Lockbox (консоль или `yc lockbox secret add-version`) — см. [`deploy/FIRST-DEPLOY.md`](../../deploy/FIRST-DEPLOY.md).
-3. A-запись `zemledelpro.ru` → IP ВМ; CNAME `cdn.zemledelpro.ru` → CDN (из output).
-4. PostgreSQL доступен с вашего IP (`operator_cidr`) на порту **6432** — для `cities:restore` с локальной машины.
-5. Первый выкат приложения: [`deploy/deploy.sh`](../../deploy/deploy.sh).
+После завершения проверьте в панели:
 
-## Переменные
+1. PostgreSQL 18, CPU/RAM/диск на каждом узле, мастер + две готовые реплики, новая сеть, TLS включён. До переключения приложения проверьте состояние репликации и используйте адрес подключения к текущему мастеру, выданный сервисом, а не IP конкретной реплики.
+2. БД `zemledel_db_prod`, пользователь `zemledel_app`, возможность подключения с проверкой сертификата и выполнения миграций владельцем БД.
+3. Расписание копирования включено; после первой копии проверьте восстановление.
+4. Оба бакета доступны backend-ключами; приватный файл не открывается анонимно.
+5. CDN получает тестовое изображение из public-бакета по исходному ключу `public/...`.
 
-| Переменная | Описание |
-|------------|----------|
-| `cloud_id` | ID облака |
-| `folder_id` | ID каталога |
-| `domain` | `zemledelpro.ru` |
-| `cdn_domain` | `cdn.zemledelpro.ru` |
-| `operator_cidr` | Ваш IP для SSH и прямого доступа к PostgreSQL (`x.x.x.x/32`) |
-| `ssh_public_key` | Публичный ключ (`ssh-ed25519 ...`) |
-| `postgres_password` | Пароль пользователя БД `zemledel` (через `TF_VAR_postgres_password`, не в git) |
+В панели БД «Подключение» возьмите реальный hostname, порт и CA для `DATABASE_URL`. Не используйте адрес старого кластера. Для TLS `sslmode=verify-full` hostname должен соответствовать сертификату; настройте доверие к CA отдельно для Node/Prisma и утилит PostgreSQL. Наличие VPC не заменяет TLS. Публичный доступ выключайте только после проверки доступа из AppPlatform, включая **сборку** с миграциями.
 
-## Стоимость (оценка)
+```sh
+terraform -chdir=infra/terraform output vpc_id
+terraform -chdir=infra/terraform output database_cluster_id
+terraform -chdir=infra/terraform output database_public_ipv4
+terraform -chdir=infra/terraform output database_tariff
+# Следующие команды показывают секреты в вашем терминале — не присылайте вывод в чат.
+terraform -chdir=infra/terraform output -json database_credentials
+terraform -chdir=infra/terraform output -json backend_storage_environment
+```
 
-≈ **18 250 ₽/мес с НДС** при конфигурации из плана (VM 4 vCPU / 8 GB, PG HA 2× s3-c2-m8). Перед apply — [калькулятор YC](https://yandex.cloud/ru/prices).
+## 3. DNS без переноса регистратора
+
+Terraform добавляет `zemledelpro.ru` в DNS-хостинг Timeweb, **не заказывает регистрацию или трансфер**. Если домен уже добавлен вручную, сначала импортируйте `restapi_object.domain` вместо повторного добавления; формат импорта REST-провайдера смотрите в его документации.
+
+1. Сохраните существующие DNS-записи у текущего DNS-провайдера. Особенно MX, SPF, DKIM, DMARC и записи подтверждения: их потеря может нарушить работу существующего SMTP/почты.
+2. Посмотрите выданные домену NS в панели Timeweb. Введите **именно их** у текущего регистратора.
+3. До смены NS перенесите нужные записи в Timeweb. Для управления через Terraform используйте `dns_records`. Не создавайте повторные записи, уже автоматически добавленные панелью; сначала разберите конфликты.
+4. AppPlatform frontend подключите к `zemledelpro.ru`, backend — к `api.zemledelpro.ru`. Скопируйте выдаваемые AppPlatform значения A/CNAME в `dns_records` и повторите plan/apply. Не ставьте CNAME на корень зоны; используйте вариант A, предоставленный платформой.
+5. Для `www` при необходимости добавьте запись и настройте домен/редирект на стороне frontend AppPlatform.
+
+Поле `dns_records` позволяет внести TXT/MX существующего SMTP. Не меняйте SMTP-провайдера и не придумывайте SPF/DKIM по шаблону. Один домен должен иметь согласованную SPF-запись.
+
+## 4. HTTPS для CDN
+
+После смены NS и распространения записей:
+
+```sh
+terraform -chdir=infra/terraform output -raw cdn_cname_target
+dig +short CNAME cdn.zemledelpro.ru
+```
+
+Значения должны совпасть. Затем в `terraform.tfvars` установите `enable_cdn_tls = true`, выполните `plan`, затем `apply`. Terraform отправит запрос в Timeweb, дождётся выпуска и привязки сертификата и включит HTTP → HTTPS.
+
+Сертификат выпускает Timeweb и затем автоматически его продлевает. Пока сертификат не готов, URL `https://cdn.zemledelpro.ru` не считается рабочим. При ограничивающей CAA-записи разрешите используемый Timeweb удостоверяющий центр до выпуска. См. [инструкцию Timeweb](https://timeweb.cloud/docs/cdn/ssl).
+
+Для доменов frontend/backend AppPlatform автоматически выпускает и устанавливает отдельные сертификаты при подключении доменов. Переключение `enable_cdn_tls` обратно в `false` не удаляет уже выпущенный сертификат.
+
+## 5. База и файлы
+
+Terraform создаёт пустую логическую БД; таблицы и данные не переносит. Перед выключением старой БД выберите сценарий:
+
+- **Новая пустая prod:** по `docs/database.md` применить миграции, восстановить города/регионы/столицы, выполнить сиды. Уже выполненные на старом кластере команды не наполняют новый.
+- **Перенос всех данных:** отдельный полный `pg_dump` / `pg_restore` клиентами PostgreSQL 18 с проверкой результата. Не заменять полный бэкап дампом городов. На время финального переноса остановить запись в старую БД.
+
+Для S3 перенесите объекты из старых public/private бакетов с сохранением **всех ключей и префиксов**. Новые имена бакетов берите из `full_name` в output: Timeweb добавляет префикс к имени. Проверьте число объектов/размеры и чтение выборки после переноса. Terraform не синхронизирует содержимое бакетов.
+
+`DOCUMENTS_MASTER_KEY_BASE64` сохраните прежним, если переносите зашифрованные документы: смена ключа лишит доступа к старым файлам. Полные URL старого CDN в данных также требуют проверки. Сохранение `cdn.zemledelpro.ru` позволяет оставить уже сохранённые ссылки на этот домен.
+
+## 6. AppPlatform вручную
+
+Backend: `/backend`, новая сеть `zemledel-prod` в MSK-1, команда сборки `npm ci --include=dev && npm run deploy`, запуска `npm run start:prod`. `deploy` выполняет миграции/сиды и требует подключения к БД во время сборки.
+
+Переменные backend:
+
+- `DATABASE_URL` — новая БД + корректный TLS.
+- S3/CDN-переменные — из `backend_storage_environment`. Имена переменных нейтральны к провайдеру: `S3_*` и `CDN_PUBLIC_BASE_URL`.
+- `FRONTEND_URL=https://zemledelpro.ru`.
+- Прежний `DOCUMENTS_MASTER_KEY_BASE64`; общие с frontend `INTERNAL_API_SECRET` и `SOCKET_JWT_SECRET`.
+- Действующие `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`.
+
+Frontend:
+
+- `NEXTAUTH_URL=https://zemledelpro.ru`, `BACKEND_API_URL=https://api.zemledelpro.ru`.
+- Согласованные `INTERNAL_API_SECRET`, `SOCKET_JWT_SECRET`, `NEXTAUTH_SECRET`.
+- `NEXT_PUBLIC_CHAT_SOCKET_URL=https://api.zemledelpro.ru`.
+- `cdn.zemledelpro.ru` уже разрешён в `frontend/next.config.mjs`. Не включайте fallback на старый S3. Для прямого fallback на Timeweb S3 задайте `NEXT_PUBLIC_S3_ENDPOINT`, `NEXT_PUBLIC_S3_PUBLIC_BUCKET` и `NEXT_PUBLIC_S3_FORCE_PATH_STYLE` до сборки: Next Image добавит настроенный public-бакет автоматически. Секретные ключи во frontend не передаются.
+
+Перед переключением проверьте вход, сброс пароля через существующий SMTP, загрузку/отображение картинки, приватный документ с авторизацией, чат и соединение с БД. Старые ресурсы удаляются только после этого.
+
+## Проверка конфигурации
+
+```sh
+terraform -chdir=infra/terraform fmt -check -recursive
+terraform -chdir=infra/terraform validate
+python3 -m unittest discover -s infra/terraform/tests -v
+```
+
+`plan` и тесты не заменяют пробное создание: тарифы, API-ограничения, TLS и доступ AppPlatform к новой БД окончательно подтверждаются после apply. В рамках подготовки конфигурации облачные ресурсы не создавались.
+
+## Источники
+
+- [Официальный Terraform-провайдер](https://github.com/timeweb-cloud/terraform-provider-timeweb-cloud), версии зафиксированы в lock-файле.
+- [Официальный SDK / схемы API](https://github.com/timeweb-cloud/sdk-javascript): CreateCluster, UpdateCluster, CreateHttpResource, IssueCertificate, DomainsApi.
+- [REST provider](https://github.com/Mastercard/terraform-provider-restapi).
+- [DNS Timeweb](https://timeweb.cloud/docs/domains/dns-records-management), [создание CDN](https://timeweb.cloud/docs/cdn/create).

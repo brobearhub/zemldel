@@ -1,13 +1,20 @@
-provider "yandex" {
-  cloud_id  = var.cloud_id
-  folder_id = var.folder_id
-  zone      = var.zone
+provider "twc" {
+  token = var.timeweb_token
 }
 
-resource "random_id" "bucket_suffix" {
-  byte_length = 4
+# REST is reserved for CDN; the alias below attaches an existing domain to DNS hosting.
+provider "restapi" {
+  uri                   = "https://api.timeweb.cloud"
+  bearer_token          = var.timeweb_token
+  create_returns_object = true
+  update_method         = "PATCH"
+  timeout               = 120
 }
 
-data "yandex_compute_image" "ubuntu" {
-  family = "ubuntu-2404-lts"
+# add-domain returns no object; its identifier is the domain name itself.
+provider "restapi" {
+  alias        = "domain"
+  uri          = "https://api.timeweb.cloud"
+  bearer_token = var.timeweb_token
+  timeout      = 120
 }

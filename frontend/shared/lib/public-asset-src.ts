@@ -10,13 +10,13 @@ export type DevStorageConfig = {
 const HOSTS = new Set<string>(PUBLIC_CDN_HOSTS);
 
 function publicStorageConfig(): DevStorageConfig | null {
-  const endpoint = process.env.NEXT_PUBLIC_YA_S3_ENDPOINT?.trim() ?? "";
-  const bucket = process.env.NEXT_PUBLIC_YA_S3_PUBLIC_BUCKET?.trim() ?? "";
+  const endpoint = process.env.NEXT_PUBLIC_S3_ENDPOINT?.trim() ?? "";
+  const bucket = process.env.NEXT_PUBLIC_S3_PUBLIC_BUCKET?.trim() ?? "";
   if (!endpoint || !bucket) return null;
   return {
     endpoint,
     bucket,
-    forcePathStyle: process.env.NEXT_PUBLIC_YA_S3_FORCE_PATH_STYLE === "true",
+    forcePathStyle: process.env.NEXT_PUBLIC_S3_FORCE_PATH_STYLE === "true",
   };
 }
 
