@@ -15,9 +15,9 @@ function errorMessage(payload: unknown): string {
   return "Не удалось загрузить заявки";
 }
 
-export async function fetchRequestList(query: RequestListQuery, now = Date.now()): Promise<RequestListFeed> {
+export async function fetchRequestList(query: RequestListQuery, now = Date.now(), force = false): Promise<RequestListFeed> {
   const cachedItems = readRequestListCache(query, now);
-  if (cachedItems) return { items: withoutCompletedRequests(cachedItems) };
+  if (cachedItems && !force) return { items: withoutCompletedRequests(cachedItems) };
 
   const params = new URLSearchParams();
   if (query.serviceId) params.set("serviceId", query.serviceId);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { Box, Collapse, IconButton, Paper, Typography } from "@mui/material";
@@ -11,6 +11,7 @@ import { ServiceRequestRow } from "./ServiceRequestRow";
 
 type Props = {
   serviceId: string | null;
+  onSummary?: (id: string, summary: { count: number; needsReply: number }) => void;
   serviceTitle?: string;
   titleFor?: (request: RequestProDto) => string;
   emptyLabel?: string;
@@ -30,6 +31,7 @@ function rowTitle(request: RequestProDto, serviceTitle: string | undefined, titl
 
 export function ServiceRequestsPanel({
   serviceId,
+  onSummary,
   serviceTitle,
   titleFor,
   emptyLabel = "Пока нет заявок",
@@ -47,9 +49,14 @@ export function ServiceRequestsPanel({
     if (onExpandedChange) onExpandedChange(next);
     else setOwnExpanded(next);
   }
+  const needsReply = requests?.filter(request => !request.awaitingCustomerReply).length ?? 0;
+  useEffect(() => {
+    if (serviceId && requests !== null) onSummary?.(serviceId, { count: requests.length, needsReply });
+  }, [serviceId, requests, needsReply, onSummary]);
+  const ordered = requests ? [...requests].sort((a, b) => Number(a.awaitingCustomerReply) - Number(b.awaitingCustomerReply) || Number(b.status === "NEW") - Number(a.status === "NEW")) : null;
   const canFold = (requests?.length ?? 0) > PREVIEW_COUNT;
-  const previewRequests = canFold ? requests?.slice(0, PREVIEW_COUNT) : requests;
-  const restRequests = canFold ? (requests?.slice(PREVIEW_COUNT) ?? []) : [];
+  const previewRequests = canFold ? ordered?.slice(0, PREVIEW_COUNT) : ordered;
+  const restRequests = canFold ? (ordered?.slice(PREVIEW_COUNT) ?? []) : [];
 
   return (
     <Paper

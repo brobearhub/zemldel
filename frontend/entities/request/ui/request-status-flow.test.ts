@@ -47,9 +47,9 @@ describe("request status flow stepper", () => {
     expect(buildRequestFlowSteps(input).slice(0, 2).every((step) => step.completed)).toBe(true);
   });
 
-  it("agreed price advances a selected DISCUSSING request to contract", () => {
+  it.each(["NEW", "DISCUSSING"] as const)("agreed price advances a selected %s request to contract", (status) => {
     const input = {
-      status: "DISCUSSING" as const,
+      status,
       lockedAt: "2026-08-06T00:00:00.000Z",
       totalAmountRubles: 12000,
     };

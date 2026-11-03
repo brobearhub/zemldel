@@ -26,7 +26,7 @@ export function ProHomePage({ services, reminders, firstSteps }: Props) {
     <Box>
       <Stack spacing={3}>
         <Typography component="h1" variant="h4" sx={{ fontWeight: 800 }}>
-          Кабинет
+          Рабочий день
         </Typography>
         <CabinetNotices welcome="Аккаунт исполнителя создан. Добавьте первую услугу, чтобы заказчики нашли вас." />
         <HomeStoriesStrip scope="provider" />

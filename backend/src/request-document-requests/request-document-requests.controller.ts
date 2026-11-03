@@ -169,6 +169,10 @@ export class RequestDocumentRequestsController {
 
     try {
       await this.requests.uploadForCustomer({
+        operationId:
+          typeof request.body?.operationId === 'string'
+            ? request.body.operationId
+            : undefined,
         actorUserId,
         requestId,
         docRequestId,

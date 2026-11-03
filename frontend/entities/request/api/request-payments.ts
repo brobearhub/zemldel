@@ -1,3 +1,4 @@
+import { fetchIdempotentWrite } from "@/shared/api/idempotent-write";
 import type { RequestPaymentItemDto, RequestPriceProposalDto } from "@/entities/request";
 
 export type RequestFinanceDto = {
@@ -45,7 +46,7 @@ export async function addProRequestPayment(
   requestId: string,
   input: { amountRubles: number; comment: string; type?: "CONTRACT" | "OTHER" },
 ): Promise<RequestFinanceDto> {
-  const res = await fetch(`/api/pro/requests/${requestId}/payments`, {
+  const res = await fetchIdempotentWrite(`/api/pro/requests/${requestId}/payments`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
@@ -95,7 +96,7 @@ export async function addCustomerRequestPayment(
   input: { amountRubles: number; comment: string; type?: "CONTRACT" | "OTHER" },
   conversationId?: string,
 ): Promise<RequestFinanceDto> {
-  const res = await fetch(`/api/requests/${requestId}/payments`, {
+  const res = await fetchIdempotentWrite(`/api/requests/${requestId}/payments`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...input, conversationId }),

@@ -1,0 +1,11 @@
+{
+  "environment": "local",
+  "browserTool": "Chrome DevTools MCP",
+  "freeform": {"requestId": "5d057d6a-430c-4e5c-8c98-11744dbf4fe0", "operationId": "ff4929c4-da2f-4052-bbc2-b10f285be642", "postCount": 2, "recordCount": 1},
+  "service": {"requestId": "1e96547f-b336-480b-b937-6f93feb64fa2", "operationId": "8ca2799d-1767-4e33-afc1-674988e74d07", "postCount": 2, "recordCount": 1},
+  "message": {"id": "c9c7fe9b-acd2-47c7-8b2c-36281d22061c", "clientMessageId": "d435e1be-f969-4ab1-a8bd-7ccd61d76a6a", "postCount": 2, "recordCount": 1},
+  "payment": {"id": "f3ab4d95-d00b-4483-8f2a-4be73e7974ab", "operationId": "87737cb2-c6c7-4d5b-b82e-9e02472c38e3", "postCount": 2, "recordCount": 1, "foreignProviderReplayStatus": 403},
+  "contractBundle": {"id": "4655a2cb-c096-4f83-a0fd-ac22c22e11ee", "operationId": "b9e5a176-ee61-4ba4-ab9b-5fd621642f76", "postCount": 2, "recordCount": 1},
+  "customerDocument": {"id": "e86dc3ae-fef5-4afe-920f-2815dfa97cac", "operationId": "90e35913-8e09-42b8-bb4c-2563cd78d56a", "postCount": 1, "recoveredBy": "server SHA-256 and original filename", "uiConfirmation": "Документ загружен."},
+  "reauthMessage": {"id": "290cfea2-8202-4834-b346-c666f9405ecf", "clientMessageId": "5d133c14-0e07-4524-8e44-43d75bb7c899", "recordCount": 1, "outboxEmptyAfterAcknowledgement": true}
+}

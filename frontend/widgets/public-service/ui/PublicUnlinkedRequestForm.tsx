@@ -1,7 +1,11 @@
 "use client";
 
+import { fetchIdempotentWrite } from "@/shared/api/idempotent-write";
+
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { useRequestFormDraft } from "../model/use-request-form-draft";
 import {
   Alert,
   Button,
@@ -13,7 +17,6 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import type { CitySuggestItemDto } from "@/entities/city";
 import { LocationField, useSelectedCity } from "@/features/select-city";
 import { CadastralNumberChipsField } from "@/shared/ui/CadastralNumberChipsField";
 import {
@@ -23,7 +26,6 @@ import {
   cadastralPartsFromInput,
   collectCadastralNumbersFromParts,
   createEmptyCadastralParts,
-  type CadastralNumberParts,
 } from "@/entities/request";
 import { RequestFormLogo } from "@/widgets/public-service/ui/RequestFormLogo";
 
@@ -36,12 +38,6 @@ type Props = {
   /** Категория раздела. Выбрана, пока не отмечена ни одна подкатегория. */
   sectionCategory?: CategoryOption | null;
   variant?: "card" | "bare";
-};
-
-type FormState = {
-  message: string;
-  cadastralNumbers: CadastralNumberParts[];
-  category: CategoryOption | null;
 };
 
 function normalizeNullableString(value: string) {
@@ -58,20 +54,16 @@ export function PublicUnlinkedRequestForm({
 }: Props) {
   const router = useRouter();
   const selectedCity = useSelectedCity("customer");
-  const [cityOverride, setCityOverride] = useState<CitySuggestItemDto | null | undefined>(undefined);
+  const { data: session } = useSession();
+  const actor = isAuthenticated ? session?.user?.id ?? null : "guest";
+  const { form, setForm, cityOverride, setCityOverride, clearDraft } = useRequestFormDraft(actor, sectionCategory?.id ?? initialCategory?.id ?? "FREEFORM", initialCategory);
   const city = cityOverride === undefined ? selectedCity : cityOverride;
-
-  const [form, setForm] = useState<FormState>(() => ({
-    message: "",
-    cadastralNumbers: [createEmptyCadastralParts()],
-    category: initialCategory,
-  }));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const restored = useRef(false);
 
   useEffect(() => {
-    if (restored.current) return;
+    if (!actor || restored.current) return;
     restored.current = true;
     if (isAuthenticated && new URLSearchParams(window.location.search).get("requestDraft") !== "1") return;
     const saved = readPendingRequestDraft();
@@ -87,14 +79,14 @@ export function PublicUnlinkedRequestForm({
       category: savedCategory,
     });
     if (saved.requestCity) setCityOverride(saved.requestCity);
-  }, [categories, isAuthenticated, sectionCategory]);
+  }, [actor, categories, isAuthenticated, sectionCategory, setForm, setCityOverride]);
 
   const subcategory = categories.find((option) => option.id === form.category?.id) ?? null;
   const category = subcategory ?? sectionCategory;
 
   const { validationError, isBlocked } = useMemo(() => {
     if (!city) {
-      return { validationError: null, isBlocked: true };
+      return { validationError: "Выберите населённый пункт, где нужны работы.", isBlocked: true };
     }
 
     const msg = form.message.trim();
@@ -148,7 +140,7 @@ export function PublicUnlinkedRequestForm({
       };
 
       if (isAuthenticated) {
-        const res = await fetch(category ? `/api/service-categories/${category.id}/requests` : "/api/requests", {
+        const res = await fetchIdempotentWrite(category ? `/api/service-categories/${category.id}/requests` : "/api/requests", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ message, requestCityId, cadastralNumbers }),
@@ -162,11 +154,13 @@ export function PublicUnlinkedRequestForm({
         if (!res.ok || !payload?.id) {
           throw new Error(payload?.error ?? "Не удалось создать заявку");
         }
+        clearDraft();
         router.push(`/profile/requests/${payload.id}?created=1`);
         return;
       }
 
       savePendingRequestDraft(draft);
+      clearDraft();
       router.push(buildRequestAuthHref("signup", draft));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось создать заявку");
@@ -218,7 +212,7 @@ export function PublicUnlinkedRequestForm({
           </Stack>
         )}
 
-        {validationError && !error ? <Alert severity="warning">{validationError}</Alert> : null}
+        {validationError && city && !error ? <Alert severity="warning">{validationError}</Alert> : null}
         {error ? <Alert severity="warning">{error}</Alert> : null}
 
         <Stack spacing={2}>
@@ -226,7 +220,7 @@ export function PublicUnlinkedRequestForm({
             label="Что нужно сделать?"
             value={form.message}
             onChange={(event) => setForm((prev) => ({ ...prev, message: event.target.value }))}
-            disabled={busy}
+            disabled={busy || !actor}
             fullWidth
             multiline
             minRows={3}
@@ -235,19 +229,21 @@ export function PublicUnlinkedRequestForm({
 
           <Stack spacing={2}>
             <LocationField
-              label="Локация"
+              label="Где нужны работы?"
+              caption="Где нужны работы? *"
+              helperText={!city ? "Выберите населённый пункт, чтобы продолжить." : undefined}
               value={city}
               onChange={(next) => {
                 setCityOverride(next);
               }}
-              disabled={busy}
+              disabled={busy || !actor}
               iconColor={city ? "primary" : "accent"}
             />
 
             <CadastralNumberChipsField
               value={form.cadastralNumbers}
               onChange={(cadastralNumbers) => setForm((prev) => ({ ...prev, cadastralNumbers }))}
-              disabled={busy}
+              disabled={busy || !actor}
             />
           </Stack>
         </Stack>
@@ -274,7 +270,7 @@ export function PublicUnlinkedRequestForm({
                     control={
                       <Radio
                         size="small"
-                        disabled={busy}
+                        disabled={busy || !actor}
                         onClick={() => {
                           if (form.category?.id !== option.id) return;
                           setForm((prev) => ({ ...prev, category: null }));
@@ -304,7 +300,7 @@ export function PublicUnlinkedRequestForm({
           variant="contained"
           fullWidth
           loading={busy}
-          disabled={isBlocked}
+          disabled={isBlocked || !actor}
           sx={{
             fontWeight: 500,
             fontSize: 13,
@@ -321,6 +317,9 @@ export function PublicUnlinkedRequestForm({
         >
           {isAuthenticated ? "Создать заявку" : "Продолжить"}
         </Button>
+        {form.message || cityOverride || form.category || form.cadastralNumbers.some(p => p.some(Boolean)) ? (
+          <Stack spacing={0.5}><Typography variant="caption" sx={{ color: "text.secondary", textAlign: "center" }}>Черновик сохраняется в этой вкладке на 24 часа.</Typography><Button type="button" onClick={clearDraft} disabled={busy || !actor} sx={{ alignSelf: "center" }}>Очистить черновик</Button></Stack>
+        ) : null}
       </Stack>
     </Stack>
   );

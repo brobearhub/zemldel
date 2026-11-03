@@ -13,7 +13,7 @@ export function ChatReadOnlyNotice({
   onOpenSelectedConversation,
 }: Props) {
   return (
-    <Alert severity="info" variant="outlined">
+    <Alert severity="info" variant="outlined" sx={reasonCode === CHAT_ARCHIVED_REASON_CODE ? { color: "text.secondary", borderColor: "divider", bgcolor: "action.hover", "& .MuiAlert-icon": { color: "text.secondary" } } : undefined}>
       <Stack spacing={1}>
         <Typography variant="body2">{message}</Typography>
         {reasonCode === CHAT_ARCHIVED_REASON_CODE &&

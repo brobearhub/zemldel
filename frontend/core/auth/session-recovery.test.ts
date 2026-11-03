@@ -91,7 +91,7 @@ describe("createSessionRecoveryFetch", () => {
     expect(response.status).toBe(401);
     expect(calls).toBe(1 + SESSION_RECOVERY_ATTEMPTS);
     expect(sessions).toBe(SESSION_RECOVERY_ATTEMPTS);
-    expect(redirects).toEqual([`/signin?returnTo=${encodeURIComponent("/pro?tab=1")}`]);
+    expect(redirects).toEqual([`/signin?returnTo=${encodeURIComponent("/pro?tab=1")}&reauth=1`]);
   });
 
   it("после успешного повтора отдаёт ответ и начинает счётчик заново", async () => {

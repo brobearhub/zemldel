@@ -1,3 +1,4 @@
+import { withWriteOperation } from '../common/idempotency/write-operation';
 import {
   BadRequestException,
   ForbiddenException,
@@ -721,6 +722,7 @@ export class RequestPaymentsService {
 
   async addPaymentForProvider(input: {
     actorUserId: string;
+    operationId?: string;
     requestId: string;
     amountRubles: number;
     comment: string;
@@ -754,59 +756,72 @@ export class RequestPaymentsService {
       if (lock.count !== 1) {
         throw new ForbiddenException('Request provider scope has changed');
       }
-      await tx.requestPayment.create({
-        data: {
-          requestId: request.id,
-          providerId,
-          type,
-          amountRubles: input.amountRubles,
-          comment,
-          paidAt,
-          createdByUserId: input.actorUserId,
-        },
-      });
-      await tx.requestEvent.create({
-        data: {
-          requestId: request.id,
-          type: 'PAYMENT_ADDED',
+      return withWriteOperation(
+        tx,
+        {
           actorUserId: input.actorUserId,
-          actorProviderId: providerId,
-          payload: { amountRubles: input.amountRubles, comment, type },
+          scope: `payment:PROVIDER:${request.id}:${providerId}`,
+          key: input.operationId,
+          input: { amountRubles: input.amountRubles, comment, type },
         },
-      });
-      return tx.request.findFirstOrThrow({
-        where: { id: request.id },
-        select: {
-          totalAmountRubles: true,
-          payments: {
-            where: { providerId },
-            select: paymentSelect,
-            orderBy: { paidAt: 'asc' },
-          },
+        async () => {
+          await tx.requestPayment.create({
+            data: {
+              requestId: request.id,
+              providerId,
+              type,
+              amountRubles: input.amountRubles,
+              comment,
+              paidAt,
+              createdByUserId: input.actorUserId,
+            },
+          });
+          await tx.requestEvent.create({
+            data: {
+              requestId: request.id,
+              type: 'PAYMENT_ADDED',
+              actorUserId: input.actorUserId,
+              actorProviderId: providerId,
+              payload: { amountRubles: input.amountRubles, comment, type },
+            },
+          });
+          const finance = await tx.request.findFirstOrThrow({
+            where: { id: request.id },
+            select: {
+              totalAmountRubles: true,
+              payments: {
+                where: { providerId },
+                select: paymentSelect,
+                orderBy: { paidAt: 'asc' },
+              },
+            },
+          });
+          return toScopedFinanceDto({
+            requestProviderId: request.providerId,
+            financeProviderId: providerId,
+            storedTotal: finance.totalAmountRubles,
+            payments: finance.payments,
+            customerUserId: request.customerUserId,
+            proposal: request.priceProposals?.[0] ?? null,
+            viewerSide: 'PROVIDER',
+            priceMutable: isPriceMutable(request),
+          });
         },
-      });
+      );
     });
 
     const label = type === 'OTHER' ? 'расход' : 'оплату';
-    await this.postNote({
-      requestId: request.id,
-      actorUserId: input.actorUserId,
-      customerUserId: request.customerUserId,
-      requestProviderId: request.providerId,
-      actorProviderId: providerId,
-      body: `Исполнитель добавил ${label} ${formatRubles(input.amountRubles)}: ${comment}`,
-    });
+    if (!updated.replayed)
+      await this.postNote({
+        requestId: request.id,
+        actorUserId: input.actorUserId,
+        customerUserId: request.customerUserId,
+        requestProviderId: request.providerId,
+        actorProviderId: providerId,
+        body: `Исполнитель добавил ${label} ${formatRubles(input.amountRubles)}: ${comment}`,
+      });
 
-    return toScopedFinanceDto({
-      requestProviderId: request.providerId,
-      financeProviderId: providerId,
-      storedTotal: updated.totalAmountRubles,
-      payments: updated.payments,
-      customerUserId: request.customerUserId,
-      proposal: request.priceProposals?.[0] ?? null,
-      viewerSide: 'PROVIDER',
-      priceMutable: isPriceMutable(request),
-    });
+    return updated.value;
   }
 
   async markPaymentPaidForProvider(input: {
@@ -823,10 +838,10 @@ export class RequestPaymentsService {
 
     const payment = request.payments.find((p) => p.id === input.paymentId);
     if (!payment) throw new NotFoundException('Payment not found');
-    if (payment.paidAt != null)
-      throw new BadRequestException('Payment is already marked as paid');
+    if (payment.paidAt != null) return this.getForProvider(input);
 
     const now = new Date();
+    let didChange = false;
     const updated = await this.prisma.$transaction(async (tx) => {
       const lock = await tx.request.updateMany({
         where: {
@@ -849,24 +864,23 @@ export class RequestPaymentsService {
         },
         data: { paidAt: now },
       });
-      if (changed.count !== 1)
-        throw new BadRequestException('Payment is already marked as paid');
-
-      await tx.requestEvent.create({
-        data: {
-          requestId: request.id,
-          type: 'PAYMENT_MARKED_PAID',
-          actorUserId: input.actorUserId,
-          actorProviderId: providerId,
-          payload: {
-            paymentId: payment.id,
-            amountRubles: payment.amountRubles,
-            comment: payment.comment,
-            type: payment.type,
-            paidAt: now.toISOString(),
+      didChange = changed.count === 1;
+      if (didChange)
+        await tx.requestEvent.create({
+          data: {
+            requestId: request.id,
+            type: 'PAYMENT_MARKED_PAID',
+            actorUserId: input.actorUserId,
+            actorProviderId: providerId,
+            payload: {
+              paymentId: payment.id,
+              amountRubles: payment.amountRubles,
+              comment: payment.comment,
+              type: payment.type,
+              paidAt: now.toISOString(),
+            },
           },
-        },
-      });
+        });
       return tx.request.findFirstOrThrow({
         where: { id: request.id },
         select: {
@@ -880,14 +894,15 @@ export class RequestPaymentsService {
       });
     });
 
-    await this.postNote({
-      requestId: request.id,
-      actorUserId: input.actorUserId,
-      customerUserId: request.customerUserId,
-      requestProviderId: request.providerId,
-      actorProviderId: providerId,
-      body: `Исполнитель отметил оплату ${formatRubles(payment.amountRubles)}: ${payment.comment}`,
-    });
+    if (didChange)
+      await this.postNote({
+        requestId: request.id,
+        actorUserId: input.actorUserId,
+        customerUserId: request.customerUserId,
+        requestProviderId: request.providerId,
+        actorProviderId: providerId,
+        body: `Исполнитель отметил оплату ${formatRubles(payment.amountRubles)}: ${payment.comment}`,
+      });
 
     return toScopedFinanceDto({
       requestProviderId: request.providerId,
@@ -913,10 +928,10 @@ export class RequestPaymentsService {
 
     const payment = request.payments.find((p) => p.id === input.paymentId);
     if (!payment) throw new NotFoundException('Payment not found');
-    if (payment.paidAt != null)
-      throw new BadRequestException('Payment is already marked as paid');
+    if (payment.paidAt != null) return this.getForCustomer(input);
 
     const now = new Date();
+    let didChange = false;
     const updated = await this.prisma.$transaction(async (tx) => {
       const lock = await tx.request.updateMany({
         where: {
@@ -939,24 +954,23 @@ export class RequestPaymentsService {
         },
         data: { paidAt: now },
       });
-      if (changed.count !== 1)
-        throw new BadRequestException('Payment is already marked as paid');
-
-      await tx.requestEvent.create({
-        data: {
-          requestId: request.id,
-          type: 'PAYMENT_MARKED_PAID',
-          actorUserId: input.actorUserId,
-          actorProviderId: providerId,
-          payload: {
-            paymentId: payment.id,
-            amountRubles: payment.amountRubles,
-            comment: payment.comment,
-            type: payment.type,
-            paidAt: now.toISOString(),
+      didChange = changed.count === 1;
+      if (didChange)
+        await tx.requestEvent.create({
+          data: {
+            requestId: request.id,
+            type: 'PAYMENT_MARKED_PAID',
+            actorUserId: input.actorUserId,
+            actorProviderId: providerId,
+            payload: {
+              paymentId: payment.id,
+              amountRubles: payment.amountRubles,
+              comment: payment.comment,
+              type: payment.type,
+              paidAt: now.toISOString(),
+            },
           },
-        },
-      });
+        });
       return tx.request.findFirstOrThrow({
         where: { id: request.id },
         select: {
@@ -970,14 +984,15 @@ export class RequestPaymentsService {
       });
     });
 
-    await this.postNote({
-      requestId: request.id,
-      actorUserId: input.actorUserId,
-      customerUserId: request.customerUserId,
-      requestProviderId: providerId,
-      actorProviderId: null,
-      body: `Клиент отметил оплату ${formatRubles(payment.amountRubles)}: ${payment.comment}`,
-    });
+    if (didChange)
+      await this.postNote({
+        requestId: request.id,
+        actorUserId: input.actorUserId,
+        customerUserId: request.customerUserId,
+        requestProviderId: providerId,
+        actorProviderId: null,
+        body: `Клиент отметил оплату ${formatRubles(payment.amountRubles)}: ${payment.comment}`,
+      });
 
     return toScopedFinanceDto({
       requestProviderId: request.providerId,
@@ -1039,6 +1054,7 @@ export class RequestPaymentsService {
 
   async addPaymentForCustomer(input: {
     actorUserId: string;
+    operationId?: string;
     requestId: string;
     amountRubles: number;
     comment: string;
@@ -1065,57 +1081,70 @@ export class RequestPaymentsService {
       if (lock.count !== 1) {
         throw new ForbiddenException('Request provider scope has changed');
       }
-      await tx.requestPayment.create({
-        data: {
-          requestId: request.id,
-          providerId,
-          type,
-          amountRubles: input.amountRubles,
-          comment,
-          paidAt: null,
-          createdByUserId: input.actorUserId,
-        },
-      });
-      await tx.requestEvent.create({
-        data: {
-          requestId: request.id,
-          type: 'PAYMENT_ADDED',
+      return withWriteOperation(
+        tx,
+        {
           actorUserId: input.actorUserId,
-          actorProviderId: providerId,
-          payload: { amountRubles: input.amountRubles, comment, type },
+          scope: `payment:CUSTOMER:${request.id}:${providerId}`,
+          key: input.operationId,
+          input: { amountRubles: input.amountRubles, comment, type },
         },
-      });
-      return tx.request.findFirstOrThrow({
-        where: { id: request.id },
-        select: {
-          totalAmountRubles: true,
-          payments: {
-            where: { providerId },
-            select: paymentSelect,
-            orderBy: { paidAt: 'asc' },
-          },
+        async () => {
+          await tx.requestPayment.create({
+            data: {
+              requestId: request.id,
+              providerId,
+              type,
+              amountRubles: input.amountRubles,
+              comment,
+              paidAt: null,
+              createdByUserId: input.actorUserId,
+            },
+          });
+          await tx.requestEvent.create({
+            data: {
+              requestId: request.id,
+              type: 'PAYMENT_ADDED',
+              actorUserId: input.actorUserId,
+              actorProviderId: providerId,
+              payload: { amountRubles: input.amountRubles, comment, type },
+            },
+          });
+          const finance = await tx.request.findFirstOrThrow({
+            where: { id: request.id },
+            select: {
+              totalAmountRubles: true,
+              payments: {
+                where: { providerId },
+                select: paymentSelect,
+                orderBy: { paidAt: 'asc' },
+              },
+            },
+          });
+          return toScopedFinanceDto({
+            requestProviderId: request.providerId,
+            financeProviderId: providerId,
+            storedTotal: finance.totalAmountRubles,
+            payments: finance.payments,
+            customerUserId: request.customerUserId,
+            proposal: request.priceProposals?.[0] ?? null,
+            viewerSide: 'CUSTOMER',
+            priceMutable: isPriceMutable(request),
+          });
         },
-      });
+      );
     });
     const label = type === 'OTHER' ? 'расход' : 'оплату';
-    await this.postNote({
-      requestId: request.id,
-      actorUserId: input.actorUserId,
-      customerUserId: request.customerUserId,
-      requestProviderId: providerId,
-      actorProviderId: null,
-      body: `Клиент добавил ${label} ${formatRubles(input.amountRubles)}: ${comment}`,
-    });
-    return toScopedFinanceDto({
-      requestProviderId: request.providerId,
-      financeProviderId: providerId,
-      storedTotal: updated.totalAmountRubles,
-      payments: updated.payments,
-      customerUserId: request.customerUserId,
-      proposal: request.priceProposals?.[0] ?? null,
-      viewerSide: 'CUSTOMER',
-      priceMutable: isPriceMutable(request),
-    });
+    if (!updated.replayed)
+      await this.postNote({
+        requestId: request.id,
+        actorUserId: input.actorUserId,
+        customerUserId: request.customerUserId,
+        requestProviderId: providerId,
+        actorProviderId: null,
+        body: `Клиент добавил ${label} ${formatRubles(input.amountRubles)}: ${comment}`,
+      });
+    return updated.value;
   }
 
   private async loadCustomerRequest(input: {

@@ -237,6 +237,7 @@ model CityImportEvent {
 }
 
 model User {
+  writeOperations WriteOperation[]
   id                        String                   @id @default(uuid()) @db.Uuid
   email                     String                   @unique
   emailVerified             DateTime?
@@ -1277,4 +1278,18 @@ model RequestReminder {
   @@index([requestId, remindAt])
   @@index([providerId, remindAt])
   @@index([providerId, isDone, remindAt])
+}
+
+// One successful response per authenticated actor, endpoint scope and client intent.
+model WriteOperation {
+  actorUserId String @db.Uuid
+  actorUser User @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
+  scope       String
+  key         String @db.Uuid
+  fingerprint String
+  result      Json
+  createdAt   DateTime @default(now())
+
+  @@id([actorUserId, scope, key])
+  @@index([createdAt])
 }

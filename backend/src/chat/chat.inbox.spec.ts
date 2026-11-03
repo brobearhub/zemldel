@@ -9,7 +9,50 @@ function makeService(prisma: any) {
 }
 
 describe('ChatService listInbox', () => {
-  it('customer: filters out threads locked to another provider and groups by requestId', async () => {
+  it.each(['customer', 'provider'] as const)(
+    '%s: agreed SERVICE price shows contract phase before a chat reply',
+    async (role) => {
+      const prisma = {
+        user: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: 'u1',
+            systemRole: 'USER',
+            activeProviderId: 'p1',
+            providerMemberships: [{ providerId: 'p1' }],
+          }),
+        },
+        conversation: {
+          findMany: vi.fn().mockResolvedValue([
+            {
+              id: 'c1',
+              requestId: 'r1',
+              providerId: 'p1',
+              provider: { name: 'Provider' },
+              customerUser: { name: 'Customer' },
+              lastMessageAt: null,
+              createdAt: new Date('2026-11-03'),
+              messages: [],
+              request: {
+                id: 'r1',
+                status: 'NEW',
+                lockedAt: new Date('2026-11-03'),
+                providerId: 'p1',
+                totalAmountRubles: 12000,
+                service: { title: 'Service' },
+                category: null,
+              },
+            },
+          ]),
+        },
+      };
+      const items = await makeService(prisma).listInbox('u1', role);
+      expect(items).toEqual([
+        expect.objectContaining({ requestStatus: 'NEW', contractPhase: true }),
+      ]);
+    },
+  );
+
+  it('customer: filters locked threads but keeps each available provider conversation', async () => {
     const prisma = {
       user: {
         findUnique: vi.fn().mockResolvedValue({
@@ -43,6 +86,8 @@ describe('ChatService listInbox', () => {
           },
           {
             requestId: 'r2',
+            id: 'c9',
+            provider: { name: 'Компания 9' },
             providerId: 'p9',
             lastMessageAt: new Date('2026-08-07T08:00:00.000Z'),
             createdAt: new Date('2026-08-07T07:00:00.000Z'),
@@ -52,6 +97,7 @@ describe('ChatService listInbox', () => {
               lockedAt: null,
               providerId: null,
               service: null,
+              message: 'Межевание участка',
               category: { name: 'Категория 2' },
             },
             messages: [
@@ -60,6 +106,8 @@ describe('ChatService listInbox', () => {
           },
           {
             requestId: 'r2',
+            id: 'c8',
+            provider: { name: 'Компания 8' },
             providerId: 'p8',
             lastMessageAt: new Date('2026-08-06T08:00:00.000Z'),
             createdAt: new Date('2026-08-06T07:00:00.000Z'),
@@ -69,6 +117,7 @@ describe('ChatService listInbox', () => {
               lockedAt: null,
               providerId: null,
               service: null,
+              message: 'Межевание участка',
               category: { name: 'Категория 2' },
             },
             messages: [
@@ -88,8 +137,16 @@ describe('ChatService listInbox', () => {
     expect(items).toEqual([
       expect.objectContaining({
         serviceRequestId: 'r2',
-        title: 'Категория 2',
+        conversationId: 'c9',
+        peerName: 'Компания 9',
+        title: 'Межевание участка',
         lastSnippet: 'msg2',
+      }),
+      expect.objectContaining({
+        conversationId: 'c8',
+        serviceRequestId: 'r2',
+        peerName: 'Компания 8',
+        lastSnippet: 'older',
       }),
     ]);
   });

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   forwardRef,
   Inject,
@@ -53,6 +54,10 @@ export type ServiceRequestConversationListItemDto = {
 };
 
 export type ChatInboxItemDto = {
+  conversationId?: string;
+  peerName?: string;
+  requestStatus?: string;
+  contractPhase?: boolean;
   serviceRequestId: string;
   title: string;
   lastMessageAt: string | null;
@@ -327,9 +332,12 @@ export class ChatService {
     }
 
     const titleFromRequest = (req: {
+      message?: string | null;
       service: { title: string } | null;
       category: { name: string } | null;
-    }) => req.service?.title ?? req.category?.name ?? 'Заявка';
+    }) =>
+      req.service?.title ??
+      (req.message?.trim().slice(0, 120) || req.category?.name || 'Заявка');
 
     const take = 500;
 
@@ -349,6 +357,8 @@ export class ChatService {
           request: { status: { not: 'CLOSED' } },
         },
         select: {
+          id: true,
+          customerUser: { select: { name: true } },
           requestId: true,
           providerId: true,
           lastMessageAt: true,
@@ -356,6 +366,8 @@ export class ChatService {
           request: {
             select: {
               id: true,
+              totalAmountRubles: true,
+              message: true,
               status: true,
               lockedAt: true,
               providerId: true,
@@ -387,6 +399,15 @@ export class ChatService {
         const lastAt = c.lastMessageAt ?? c.messages[0]?.createdAt ?? null;
 
         result.push({
+          conversationId: c.id,
+          peerName: c.customerUser?.name ?? 'Заказчик',
+          requestStatus: c.request.status,
+          contractPhase:
+            c.request.lockedAt != null &&
+            (c.request.status === 'TERMS_AGREED' ||
+              ((c.request.status === 'NEW' ||
+                c.request.status === 'DISCUSSING') &&
+                c.request.totalAmountRubles != null)),
           serviceRequestId: c.requestId,
           title: titleFromRequest(c.request),
           lastMessageAt: lastAt ? lastAt.toISOString() : null,
@@ -405,6 +426,8 @@ export class ChatService {
         request: { status: { not: 'CLOSED' } },
       },
       select: {
+        id: true,
+        provider: { select: { name: true } },
         requestId: true,
         providerId: true,
         lastMessageAt: true,
@@ -412,6 +435,8 @@ export class ChatService {
         request: {
           select: {
             id: true,
+            totalAmountRubles: true,
+            message: true,
             status: true,
             lockedAt: true,
             providerId: true,
@@ -429,13 +454,10 @@ export class ChatService {
       take,
     });
 
-    const seen = new Set<string>();
     const result: ChatInboxItemDto[] = [];
     for (const c of rows) {
       // customer cannot see threads if request is locked to another provider
       if (isLockedToOtherProvider(c.request, c.providerId)) continue;
-      if (seen.has(c.requestId)) continue;
-      seen.add(c.requestId);
 
       const lastBody = c.messages[0]?.body ?? null;
       const snippet =
@@ -445,6 +467,15 @@ export class ChatService {
       const lastAt = c.lastMessageAt ?? c.messages[0]?.createdAt ?? null;
 
       result.push({
+        conversationId: c.id,
+        peerName: c.provider?.name ?? 'Исполнитель',
+        requestStatus: c.request.status,
+        contractPhase:
+          c.request.lockedAt != null &&
+          (c.request.status === 'TERMS_AGREED' ||
+            ((c.request.status === 'NEW' ||
+              c.request.status === 'DISCUSSING') &&
+              c.request.totalAmountRubles != null)),
         serviceRequestId: c.requestId,
         title: titleFromRequest(c.request),
         lastMessageAt: lastAt ? lastAt.toISOString() : null,
@@ -820,7 +851,10 @@ export class ChatService {
       if (!anchor) {
         throw new BadRequestException('Invalid before cursor');
       }
-      where.createdAt = { lt: anchor.createdAt };
+      where.OR = [
+        { createdAt: { lt: anchor.createdAt } },
+        { createdAt: anchor.createdAt, id: { lt: query.before } },
+      ];
     } else if (query.after) {
       const anchor = await this.prisma.message.findFirst({
         where: { id: query.after, conversationId },
@@ -829,17 +863,27 @@ export class ChatService {
       if (!anchor) {
         throw new BadRequestException('Invalid after cursor');
       }
-      where.createdAt = { gt: anchor.createdAt };
+      where.OR = [
+        { createdAt: { gt: anchor.createdAt } },
+        { createdAt: anchor.createdAt, id: { gt: query.after } },
+      ];
     }
 
     const rows = await this.prisma.message.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      // Catch-up must return the NEXT page, not the latest page after the cursor.
+      // The ID breaks ties when messages share the same database timestamp.
+      orderBy: [
+        { createdAt: query.after ? 'asc' : 'desc' },
+        { id: query.after ? 'asc' : 'desc' },
+      ],
       take: limit,
       include: this.messageInclude,
     });
 
-    return rows.reverse().map((r) => this.mapMessageRow(r));
+    return (query.after ? rows : rows.reverse()).map((r) =>
+      this.mapMessageRow(r),
+    );
   }
 
   async markRead(actorUserId: string, conversationId: string) {
@@ -1245,6 +1289,15 @@ export class ChatService {
         });
         if (!existing) {
           throw error;
+        }
+        if (
+          existing.body !== body ||
+          (existing.replyToMessageId ?? null) !==
+            (input.replyToMessageId ?? null)
+        ) {
+          throw new ConflictException(
+            'Этот идентификатор сообщения уже использован с другим текстом',
+          );
         }
         return { message: this.mapMessageRow(existing), alreadyExisted: true };
       }

@@ -15,6 +15,7 @@ export function ServiceLeadSection({ serviceId, serviceTitle, isAuthenticated, i
       id="consultation"
       sx={{
         bgcolor: "#244737",
+        scrollMarginTop: "88px",
         pt: { xs: "40px", md: "113px" },
         pb: { xs: "32px", md: "113px" },
       }}

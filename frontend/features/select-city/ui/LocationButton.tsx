@@ -18,6 +18,7 @@ export type LocationTone = "default" | "light";
 
 type Props = {
   label: string;
+  describedBy?: string;
   onClick: () => void;
   disabled?: boolean;
   error?: boolean;
@@ -32,6 +33,7 @@ type Props = {
 
 export function LocationButton({
   label,
+  describedBy,
   onClick,
   disabled,
   error,
@@ -55,6 +57,7 @@ export function LocationButton({
         ref={buttonRef}
         aria-haspopup="dialog"
         aria-label={label}
+        aria-describedby={describedBy}
         aria-invalid={error || undefined}
         disabled={disabled}
         onClick={onClick}
@@ -75,7 +78,7 @@ export function LocationButton({
           ...(error ? { color: "error.dark", px: 1 } : {}),
           textAlign: "left",
           color: textColor,
-          "&:focus, &:focus-visible": { outline: "none" },
+          "&:focus-visible": { outline: "2px solid", outlineColor: "text.primary", outlineOffset: 2 },
           "&:hover": {
             color: disabled ? textColor : hoverColor,
           },
@@ -119,7 +122,7 @@ export function LocationButton({
             bgcolor: "transparent",
             color: idleColor,
             cursor: disabled ? "default" : "pointer",
-            "&:focus, &:focus-visible": { outline: "none" },
+            "&:focus-visible": { outline: "2px solid", outlineColor: "text.primary", outlineOffset: 2 },
             "&:hover": { color: disabled ? idleColor : hoverColor },
             "&:disabled": { opacity: 0.6 },
           }}

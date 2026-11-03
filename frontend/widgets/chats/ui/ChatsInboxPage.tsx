@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Alert, Badge, Box, Container, List, ListItemButton, ListItemText, Paper, Skeleton, Stack, Typography } from "@mui/material";
+import { Alert, Badge, Box, Button, Container, List, ListItemButton, ListItemText, Paper, Skeleton, Stack, Typography } from "@mui/material";
+import { getRequestStatusLabel, type RequestStatus } from "@/entities/request";
 import { sitePageContainerSx } from "@/shared/config/site-layout";
 import type { ChatInboxItemDto } from "@/entities/chat/dto/chat.dto";
 import { fetchChatInbox } from "@/entities/chat/api/chat-inbox";
@@ -21,6 +22,7 @@ export function ChatsInboxPage() {
   const [items, setItems] = useState<ChatInboxItemDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [attempt, setAttempt] = useState(0);
   const role = useMemo(() => getLastCabinetRole(), []);
 
   useEffect(() => {
@@ -40,7 +42,7 @@ export function ChatsInboxPage() {
     return () => {
       cancelled = true;
     };
-  }, [role]);
+  }, [role, attempt]);
 
   return (
     <main>
@@ -49,7 +51,7 @@ export function ChatsInboxPage() {
           <Stack spacing={2}>
             <Box>
               <Typography component="h1" variant="h5" sx={{ fontWeight: 700 }}>
-                Чат
+                Чаты
               </Typography>
               <Typography variant="body2" sx={{
                 color: "text.secondary"
@@ -58,32 +60,33 @@ export function ChatsInboxPage() {
               </Typography>
             </Box>
 
-            {error ? <Alert severity="error">{error}</Alert> : null}
+            {error ? <Alert severity="error" action={<Button color="inherit" onClick={() => setAttempt(n => n + 1)}>Повторить</Button>}>{error}</Alert> : null}
 
-            {!items ? (
+            {!items && !error ? (
               <Stack spacing={1}>
                 <Skeleton height={56} />
                 <Skeleton height={56} />
                 <Skeleton height={56} />
               </Stack>
-            ) : items.length === 0 ? (
+            ) : !items ? null : items.length === 0 ? (
               <Alert severity="info">Пока нет диалогов.</Alert>
             ) : (
               <List disablePadding>
                 {items.map((row) => {
                   const unread = unreadByRequestId[row.serviceRequestId] ?? 0;
-                  const secondary = row.lastSnippet ? `${row.lastSnippet}${row.lastMessageAt ? ` · ${formatTime(row.lastMessageAt)}` : ""}` : "";
+                  const secondary = row.lastSnippet ?? "";
                   return (
                     <ListItemButton
-                      key={row.serviceRequestId}
+                      key={row.conversationId ?? row.serviceRequestId}
                       component={Link}
-                      href={`/chats/${row.serviceRequestId}`}
-                      sx={{ borderRadius: 1, mb: 0.5 }}
+                      href={`/chats/${row.serviceRequestId}${row.conversationId ? `?conversation=${encodeURIComponent(row.conversationId)}` : ""}`}
+                      sx={{ borderRadius: 1, mb: 0.5, alignItems: "stretch", flexDirection: "column" }}
                     >
+                      <Typography variant="caption" color="text.secondary">{row.peerName ?? "Переписка"} · № {row.serviceRequestId.slice(0, 8)}{row.requestStatus ? ` · ${(row.contractPhase ? "Договор" : getRequestStatusLabel(row.requestStatus as RequestStatus))}` : ""}</Typography>
                       <ListItemText
                         primary={
                           <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
-                            <Typography variant="body1" sx={{ fontWeight: 600 }} noWrap>
+                            <Typography variant="body1" sx={{ fontWeight: 600, overflowWrap: "anywhere" }}>
                               {row.title}
                             </Typography>
                             <Badge color="error" badgeContent={unread} max={99} invisible={unread === 0} />
@@ -94,6 +97,7 @@ export function ChatsInboxPage() {
                           secondary: { sx: { display: "block" }, noWrap: true }
                         }}
                       />
+                      <Typography variant="caption" color="text.secondary">{formatTime(row.lastMessageAt)}</Typography>
                     </ListItemButton>
                   );
                 })}

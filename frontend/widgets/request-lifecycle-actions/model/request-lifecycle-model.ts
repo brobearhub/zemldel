@@ -86,7 +86,7 @@ function resolveStateIdFromRequest(req: {
     return "ACCEPTANCE";
   if (status === "ACTIVE") return "WORK";
   if ((status === "TERMS_AGREED" && hasRequestLock(req)) ||
-    (status === "DISCUSSING" && hasRequestLock(req) && req.totalAmountRubles != null)) return "CONTRACT";
+    ((status === "NEW" || status === "DISCUSSING") && hasRequestLock(req) && req.totalAmountRubles != null)) return "CONTRACT";
   if (status === "DISCUSSING" || status === "TERMS_AGREED") return "DISCUSSING";
   return "NEW";
 }

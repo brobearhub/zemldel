@@ -93,10 +93,10 @@ describe("customer request sections follow live updates", () => {
     fireEvent.click(screen.getByRole('button',{name:'Заключить договор'}));
     await act(async () => {});
     fireEvent.click(screen.getByRole('checkbox',{name:/Я согласен/}));
-    expect(screen.getByRole('button',{name:'Подписать договор'})).toBeEnabled();
+    expect(screen.getByRole('button',{name:'Подтвердить заключение'})).toBeEnabled();
     vi.mocked(fetchCustomerRequestDocumentRequests).mockResolvedValue([{id:'new-document',status:'REQUESTED'}] as never);
     await act(async () => {window.dispatchEvent(new CustomEvent('request:changed',{detail:{requestId:request.id}}));});
-    expect(screen.getByRole('button',{name:'Подписать договор'})).toBeDisabled();
+    expect(screen.getByRole('button',{name:'Подтвердить заключение'})).toBeDisabled();
     expect(screen.getByText('Исполнитель запросил документы. Загрузите их перед заключением договора.')).toBeInTheDocument();
     expect(screen.getByRole('button',{name:'Загрузить документы'})).toBeEnabled();
     expect(vi.mocked(fetch).mock.calls.some(([url, options]) => String(url).includes('accept-contract') && options?.method==='POST')).toBe(false);

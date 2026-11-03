@@ -20,6 +20,9 @@ export function resolvePostSignInPath(input: {
   readonly returnTo: string | null;
 }): string {
   if (input.accountKind === "PROVIDER") {
+    if (input.hasProviderMembership && isSafeReturnToPath(input.returnTo) && isProviderArea(input.returnTo)) {
+      return input.returnTo;
+    }
     return input.hasProviderMembership ? "/pro" : "/providers/new";
   }
 

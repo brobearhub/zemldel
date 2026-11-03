@@ -41,4 +41,11 @@ describe("resolvePostSignInPath", () => {
       }),
     ).toBe("/service/123?q=1");
   });
+  it("returns an authenticated provider to the original request", () => {
+    expect(resolvePostSignInPath({accountKind: "PROVIDER", hasProviderMembership: true, returnTo: "/pro/requests/qa?tab=chat"})).toBe("/pro/requests/qa?tab=chat");
+  });
+  it.each(["https://other.test/pro", "//other.test/pro", "/profile/requests/private"])("does not return a provider to an unsafe or customer path: %s", returnTo => {
+    expect(resolvePostSignInPath({accountKind: "PROVIDER", hasProviderMembership: true, returnTo})).toBe("/pro");
+  });
+
 });
