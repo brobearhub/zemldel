@@ -38,19 +38,19 @@ export default async function IndexPage() {
 
 export const metadata: Metadata = {
   title: "Земледел",
-  description: "Земледел",
+  description: "Команда земельных экспертов",
   openGraph: {
     title: "Земледел",
-    description: "Земледел",
-    url: "https://novagor.ru",
+    description: "Команда земельных экспертов",
+    url: "https://zemledelpro.ru",
     siteName: "Земледел",
-    images: [{ url: "https://novagor.ru/og-image.png" }],
+    images: [{ url: "https://zemledelpro.ru/og-image.png" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Земледел",
     description: "Земледел",
-    images: [{ url: "https://novagor.ru/og-image.png" }],
+    images: [{ url: "https://zemledelpro.ru/og-image.png" }],
   },
 };
 

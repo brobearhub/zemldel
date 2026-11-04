@@ -1,0 +1,14 @@
+node_modules
+dist
+coverage
+backups
+storage
+.env
+.env.*
+*.log
+*.pem
+*-key.json
+.DS_Store
+.git
+.vscode
+test
