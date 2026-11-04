@@ -24,6 +24,11 @@ const conversations: ChatServiceRequestConversationListItemDto[] = [
 ];
 
 describe("resolveActiveConversationId", () => {
+  it("opens the accessible conversation from a messenger link and ignores unknown IDs", () => {
+    const input = { conversations, currentConversationId: null, lockedAt: null, selectedProviderId: null };
+    expect(resolveActiveConversationId({ ...input, requestedConversationId: "conversation-b" })).toBe("conversation-b");
+    expect(resolveActiveConversationId({ ...input, requestedConversationId: "another-users-chat" })).toBe("conversation-a");
+  });
   it("preserves a valid archived conversation during ordinary refresh", () => {
     expect(resolveActiveConversationId({ conversations, currentConversationId: "conversation-a",
       lockedAt: "2026-11-01", selectedProviderId: "provider-b", preferSelectedProvider: false,

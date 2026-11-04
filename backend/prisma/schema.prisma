@@ -2,6 +2,77 @@ generator client {
   provider = "prisma-client-js"
 }
 
+enum MessengerPlatform {
+  TELEGRAM
+  MAX
+}
+
+enum MessengerDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+model MessengerConnection {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  platform MessengerPlatform
+  externalUserId String
+  chatId String
+  displayName String
+  notificationsEnabled Boolean @default(true)
+  blockedAt DateTime?
+  nextSendAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries MessengerDelivery[]
+  @@unique([userId, platform])
+  @@unique([platform, externalUserId])
+}
+
+model MessengerLinkToken {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  platform MessengerPlatform
+  tokenHash String @unique
+  expiresAt DateTime
+  externalUserId String?
+  chatId String?
+  displayName String?
+  confirmedAt DateTime?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, platform])
+}
+
+model MessengerOutbox {
+  messageId String @id @db.Uuid
+  expandedAt DateTime?
+  createdAt DateTime @default(now())
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  @@index([expandedAt, createdAt])
+}
+
+model MessengerDelivery {
+  id String @id @default(uuid()) @db.Uuid
+  messageId String @db.Uuid
+  connectionId String @db.Uuid
+  part Int @default(0)
+  status MessengerDeliveryStatus @default(PENDING)
+  externalMessageId String?
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  leaseToken String?
+  lastError String?
+  createdAt DateTime @default(now())
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  connection MessengerConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  @@unique([messageId, connectionId, part])
+  @@unique([connectionId, externalMessageId])
+  @@index([status, nextAttemptAt])
+  @@index([connectionId, status, createdAt, part, id], map: "MessengerDelivery_connection_pending_order_idx")
+}
+
 datasource db {
   provider = "postgresql"
 }
@@ -237,6 +308,8 @@ model CityImportEvent {
 }
 
 model User {
+  messengerConnections MessengerConnection[]
+  messengerLinkTokens MessengerLinkToken[]
   writeOperations WriteOperation[]
   id                        String                   @id @default(uuid()) @db.Uuid
   email                     String                   @unique
@@ -1136,6 +1209,8 @@ model Conversation {
 }
 
 model Message {
+  messengerOutbox MessengerOutbox?
+  messengerDeliveries MessengerDelivery[]
   id               String       @id @default(uuid()) @db.Uuid
   conversationId   String       @db.Uuid
   senderUserId     String       @db.Uuid

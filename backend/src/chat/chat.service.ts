@@ -1226,6 +1226,7 @@ export class ChatService {
             clientMessageId: input.clientMessageId,
             body,
             replyToMessageId: input.replyToMessageId ?? undefined,
+            messengerOutbox: { create: {} },
           },
           include: this.messageInclude,
         });

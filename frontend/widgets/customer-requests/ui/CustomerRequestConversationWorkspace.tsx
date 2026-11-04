@@ -118,11 +118,12 @@ function pickTitle(req: RequestCustomerDto) {
 type Props = {
   initialRequest: RequestCustomerDto;
   justCreated?: boolean;
+  initialConversationId?: string;
 };
 
 type ChatRecovery = Extract<SelectedProviderChatResult, { kind: "recovery-required" }>;
 
-export function CustomerRequestConversationWorkspace({ initialRequest, justCreated = false }: Props) {
+export function CustomerRequestConversationWorkspace({ initialRequest, justCreated = false, initialConversationId }: Props) {
   const router = useRouter();
   const [unavailable, setUnavailable] = useState<RequestAccessFailure | null>(null);
   const documentsRef = useRef<HTMLDivElement>(null);
@@ -341,19 +342,24 @@ export function CustomerRequestConversationWorkspace({ initialRequest, justCreat
 
   const conversationSelectionScope = `${req.id}:${req.providerId}:${req.lockedAt}`;
   const previousSelectionScope = useRef<string | null>(null);
+  const appliedInitialConversation = useRef(false);
   useEffect(() => {
+    if (!conversationsLoaded) return;
     const scopeChanged = previousSelectionScope.current !== conversationSelectionScope;
     previousSelectionScope.current = conversationSelectionScope;
+    const requestedConversationId = appliedInitialConversation.current ? undefined : initialConversationId;
+    appliedInitialConversation.current = true;
     setSelectedConversationId((currentConversationId) =>
       resolveActiveConversationId({
         conversations,
+        requestedConversationId,
         currentConversationId,
         lockedAt: req.lockedAt,
         selectedProviderId: req.providerId,
         preferSelectedProvider: scopeChanged,
       }),
     );
-  }, [conversations, conversationSelectionScope, req.lockedAt, req.providerId]);
+  }, [conversations, conversationsLoaded, conversationSelectionScope, req.lockedAt, req.providerId, initialConversationId]);
 
   const activeOffer =
     req.offers.find((offer) => offer.providerId === selectedConversation?.providerId) ??

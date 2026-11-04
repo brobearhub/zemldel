@@ -7,14 +7,21 @@ import { CustomerRequestConversationWorkspace } from "@/widgets/customer-request
 type Props = {
   initialRequest: RequestCustomerDto;
   justCreated?: boolean;
+  initialConversationId?: string;
 };
 
-export function CustomerRequestDetailClient({ initialRequest, justCreated = false }: Props) {
+export function CustomerRequestDetailClient({ initialRequest, justCreated = false, initialConversationId }: Props) {
   return (
     <ChatThreeColumnLayout
       left={<></>}
       leftWidth={0}
-      middle={<CustomerRequestConversationWorkspace initialRequest={initialRequest} justCreated={justCreated} />}
+      middle={(
+        <CustomerRequestConversationWorkspace
+          initialRequest={initialRequest}
+          justCreated={justCreated}
+          initialConversationId={initialConversationId}
+        />
+      )}
       right={<></>}
       rightWidth={0}
     />
