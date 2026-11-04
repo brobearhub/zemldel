@@ -78,7 +78,30 @@ export function HomeMobileHelpButton({ isAuthenticated, categories, open: openPr
     <>
       {mounted ? createPortal(launcher, document.body) : null}
 
-      <Dialog fullScreen slotProps={{ paper: { "aria-label": "Создать заявку" } }} open={open} onClose={() => setOpen(false)}>
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        maxWidth={false}
+        slotProps={{
+          paper: {
+            "aria-label": "Создать заявку",
+            sx: {
+              position: "relative",
+              width: { xs: "100%", md: 520 },
+              maxWidth: { xs: "none", md: 520 },
+              height: { xs: "100%", md: "auto" },
+              maxHeight: { xs: "none", md: "calc(100% - 64px)" },
+              m: { xs: 0, md: 4 },
+              borderRadius: { xs: 0, md: "16px" },
+            },
+          },
+          backdrop: {
+            sx: {
+              backgroundColor: "rgba(0, 0, 0, 0.45)",
+            },
+          },
+        }}
+      >
         <IconButton
           aria-label="Закрыть"
           onClick={() => setOpen(false)}
@@ -88,10 +111,10 @@ export function HomeMobileHelpButton({ isAuthenticated, categories, open: openPr
         </IconButton>
         <Box
           sx={{
-            height: "100%",
+            minHeight: 0,
             overflow: "auto",
-            pt: 7,
-            px: 2,
+            pt: { xs: 7, md: 3 },
+            px: { xs: 0, md: 1.5 },
             pb: "calc(24px + env(safe-area-inset-bottom))",
           }}
         >

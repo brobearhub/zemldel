@@ -45,19 +45,8 @@ const visuallyHiddenSx = {
 
 export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) {
   const catsBarRef = useRef<HTMLDivElement | null>(null);
-  const requestFormRef = useRef<HTMLDivElement | null>(null);
   const [catsBarHeightPx, setCatsBarHeightPx] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
-
-  const openRequestForm = () => {
-    const form = requestFormRef.current;
-    if (form && form.getBoundingClientRect().width > 0) {
-      form.scrollIntoView({ block: "nearest" });
-      form.querySelector<HTMLTextAreaElement>("textarea:not([aria-hidden='true'])")?.focus({ preventScroll: true });
-    } else {
-      setHelpOpen(true);
-    }
-  };
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("requestDraft") === "1") setHelpOpen(true);
@@ -116,7 +105,7 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) 
         <HomeStoriesStrip />
 
         {!isAuthenticated ? (
-          <HomeIntroBanner onCreateRequest={openRequestForm} />
+          <HomeIntroBanner onCreateRequest={() => setHelpOpen(true)} />
         ) : null}
 
         <Box
@@ -194,7 +183,6 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) 
           </Box>
 
           <Box
-            ref={requestFormRef}
             sx={(theme) => ({
               display: { xs: "none", tablet: "block" },
               order: { tablet: 1 },
