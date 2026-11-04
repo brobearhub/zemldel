@@ -7,6 +7,7 @@ type ActiveConversationInput = {
   readonly lockedAt: string | null;
   readonly selectedProviderId: string | null;
   readonly preferSelectedProvider?: boolean;
+  readonly requestedConversationId?: string;
 };
 
 export function resolveActiveConversationId({
@@ -15,7 +16,11 @@ export function resolveActiveConversationId({
   lockedAt,
   selectedProviderId,
   preferSelectedProvider = true,
+  requestedConversationId,
 }: ActiveConversationInput): string | null {
+  if (requestedConversationId && conversations.some((c) => c.conversationId === requestedConversationId)) {
+    return requestedConversationId;
+  }
   if (
     !preferSelectedProvider &&
     currentConversationId &&

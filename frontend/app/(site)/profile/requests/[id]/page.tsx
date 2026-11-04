@@ -7,16 +7,16 @@ import { CustomerRequestDetailClient } from "./CustomerRequestDetailClient";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ created?: string }>;
+  searchParams: Promise<{ created?: string; conversationId?: string }>;
 };
 
 export default async function CustomerRequestDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
-  const { created } = await searchParams;
+  const { created, conversationId } = await searchParams;
   const session = await getServerAuthSession();
 
   if (!session?.user?.id) {
-    signInRedirect(`/profile/requests/${id}`);
+    signInRedirect(`/profile/requests/${id}${conversationId ? `?conversationId=${encodeURIComponent(conversationId)}` : ""}`);
   }
 
   let req: RequestCustomerDto;
@@ -31,7 +31,11 @@ export default async function CustomerRequestDetailPage({ params, searchParams }
 
   return (
     <main>
-      <CustomerRequestDetailClient initialRequest={req} justCreated={created === "1"} />
+      <CustomerRequestDetailClient
+        initialRequest={req}
+        justCreated={created === "1"}
+        initialConversationId={conversationId}
+      />
     </main>
   );
 }

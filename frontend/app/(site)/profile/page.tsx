@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { MessengerSettings } from "@/widgets/messenger-settings/ui/MessengerSettings";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
@@ -350,6 +351,7 @@ function ProfileOverview({
 
   return (
     <Stack spacing={3}>
+      <MessengerSettings />
       <Paper elevation={0} sx={cardSx}>
         <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: { xs: 2, md: "24px 32px" } }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 2, md: 4 }, flex: "999 1 320px", minWidth: 0 }}>
@@ -417,14 +419,20 @@ function ProfileOverview({
                 sx={{
                   display: "flex",
                   flexDirection: { xs: "column", sm: "row" },
-                  flexWrap: "wrap",
+                  flexWrap: { xs: "nowrap", sm: "wrap" },
+                  minWidth: 0,
+                  width: "100%",
                   gap: { xs: 0.75, sm: "8px 20px" },
                   color: "text.secondary",
                 }}
               >
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0 }}>
                   <EmailOutlinedIcon sx={{ fontSize: 18 }} />
-                  <Typography variant="body2" noWrap>
+                  <Typography
+                    variant="body2"
+                    noWrap
+                    sx={{ minWidth: 0 }}
+                  >
                     {email || "Email не указан"}
                   </Typography>
                 </Box>

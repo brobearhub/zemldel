@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { MessengersModule } from './messengers/messengers.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { RequestRealtimeInterceptor } from './requests/request-realtime.interceptor';
 import { AppController } from './app.controller';
@@ -25,6 +26,7 @@ import { StoriesModule } from './stories/stories.module';
 
 @Module({
   imports: [
+    MessengersModule,
     PrismaModule,
     LegalDocsModule,
     AuthModule,
