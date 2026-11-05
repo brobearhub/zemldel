@@ -1,16 +1,138 @@
-import { describe, expect, it, vi } from "vitest";
-import { POST, GET } from "./route";
-vi.mock("@/core/auth", () => ({ getServerAuthSession: vi.fn().mockResolvedValue(null) }));
-vi.mock("@/shared/api/backend/server", () => ({ fetchBackendAsUser: vi.fn() }));
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DELETE, GET, PATCH, POST } from "./route";
+
+const { getSession, fetchBackend } = vi.hoisted(() => ({
+  getSession: vi.fn(),
+  fetchBackend: vi.fn(),
+}));
+
+vi.mock("@/core/auth", () => ({ getServerAuthSession: getSession }));
+vi.mock("@/shared/api/backend/server", () => ({
+  fetchBackendAsUser: fetchBackend,
+}));
+
+const context = (path: string[] = []) => ({
+  params: Promise.resolve({ path }),
+});
+
+beforeEach(() => {
+  vi.stubEnv("NEXTAUTH_URL", "https://zemledelpro.ru/");
+  getSession.mockReset().mockResolvedValue(null);
+  fetchBackend.mockReset();
+});
+
+afterEach(() => vi.unstubAllEnvs());
 
 describe("messenger BFF boundaries", () => {
   it("does not expose bot webhooks through the authenticated proxy", async () => {
-    const response = await POST(new Request("http://localhost/api/messengers/TELEGRAM/webhook", { method: "POST" }), { params: Promise.resolve({ path: ["TELEGRAM", "webhook"] }) });
+    const response = await POST(
+      new Request("http://localhost/api/messengers/TELEGRAM/webhook", {
+        method: "POST",
+      }),
+      context(["TELEGRAM", "webhook"]),
+    );
     expect(response.status).toBe(404);
+    expect(fetchBackend).not.toHaveBeenCalled();
   });
-  it("requires a session and rejects cross-origin mutations", async () => {
-    expect((await GET(new Request("http://localhost/api/messengers"), { params: Promise.resolve({}) })).status).toBe(401);
-    const response = await POST(new Request("http://localhost/api/messengers/MAX/link", { method: "POST", headers: { Origin: "https://other.example" } }), { params: Promise.resolve({ path: ["MAX", "link"] }) });
+
+  it("requires a session for status requests", async () => {
+    const response = await GET(
+      new Request("http://localhost/api/messengers"),
+      context(),
+    );
+    expect(response.status).toBe(401);
+  });
+
+  it.each([
+    { handler: POST, method: "POST", path: ["TELEGRAM", "link"] },
+    { handler: POST, method: "POST", path: ["MAX", "link"] },
+    { handler: POST, method: "POST", path: ["MAX", "confirm"] },
+    { handler: PATCH, method: "PATCH", path: ["TELEGRAM", "notifications"] },
+    { handler: DELETE, method: "DELETE", path: ["MAX"] },
+  ])(
+    "allows public-origin $method $path behind an HTTP proxy",
+    async ({ handler, method, path }) => {
+      getSession.mockResolvedValue({ user: { id: "user-1" } });
+      fetchBackend.mockResolvedValue(new Response(null, { status: 204 }));
+      const response = await handler(
+        new Request(`http://0.0.0.0:3000/api/messengers/${path.join("/")}`, {
+          method,
+          headers: { Origin: "https://zemledelpro.ru" },
+        }),
+        context(path),
+      );
+      expect(response.status).toBe(204);
+      expect(fetchBackend).toHaveBeenCalledWith(
+        `/messengers/${path.join("/")}`,
+        "user-1",
+        expect.objectContaining({ method }),
+      );
+    },
+  );
+
+  it.each([
+    "https://other.example",
+    "https://zemledelpro.ru.attacker.example",
+    "http://zemledelpro.ru",
+    "null",
+  ])(
+    "rejects untrusted origin %s even with matching forwarded headers",
+    async (origin) => {
+      getSession.mockResolvedValue({ user: { id: "user-1" } });
+      const response = await POST(
+        new Request("http://0.0.0.0:3000/api/messengers/MAX/link", {
+          method: "POST",
+          headers: {
+            Origin: origin,
+            "x-forwarded-host": origin.replace(/^https?:\/\//, ""),
+            "x-forwarded-proto": "https",
+          },
+        }),
+        context(["MAX", "link"]),
+      );
+      expect(response.status).toBe(403);
+      expect(getSession).not.toHaveBeenCalled();
+      expect(fetchBackend).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([undefined, "https://zemledelpro.ru"])(
+    "still requires a session with origin %s",
+    async (origin) => {
+      const response = await POST(
+        new Request("http://0.0.0.0:3000/api/messengers/MAX/link", {
+          method: "POST",
+          headers: origin ? { Origin: origin } : {},
+        }),
+        context(["MAX", "link"]),
+      );
+      expect(response.status).toBe(401);
+      expect(fetchBackend).not.toHaveBeenCalled();
+    },
+  );
+
+  it("uses the request origin locally without NEXTAUTH_URL", async () => {
+    vi.stubEnv("NEXTAUTH_URL", undefined);
+    const response = await POST(
+      new Request("http://localhost:4000/api/messengers/MAX/link", {
+        method: "POST",
+        headers: { Origin: "http://localhost:4000" },
+      }),
+      context(["MAX", "link"]),
+    );
+    expect(response.status).toBe(401);
+  });
+
+  it("rejects mutations if the configured public URL is invalid", async () => {
+    vi.stubEnv("NEXTAUTH_URL", "invalid-url");
+    const response = await POST(
+      new Request("http://localhost/api/messengers/MAX/link", {
+        method: "POST",
+        headers: { Origin: "http://localhost" },
+      }),
+      context(["MAX", "link"]),
+    );
     expect(response.status).toBe(403);
+    expect(fetchBackend).not.toHaveBeenCalled();
   });
 });
