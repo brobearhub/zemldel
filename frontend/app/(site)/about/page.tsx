@@ -13,7 +13,7 @@ export default async function AboutPage() {
   const rootCategories = categories.filter((c) => c.parentId == null);
 
   return (
-    <main>
+    <>
       <Hero />
       <Box
         component="section"
@@ -28,7 +28,7 @@ export default async function AboutPage() {
       </Box>
       <Contacts />
       <Achievements />
-    </main>
+    </>
   );
 }
 

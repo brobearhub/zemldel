@@ -188,8 +188,23 @@ export const Footer = () => {
               alignItems: "flex-start"
             }}>
               <Typography variant="overline" sx={{ opacity: 0.8, fontWeight: 700 }}>
-                Документы
+                О проекте и документы
               </Typography>
+              <Link
+                component={NextLink}
+                href="/about"
+                sx={{
+                  fontSize: 14,
+                  minHeight: 44,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  color: "inherit",
+                  textDecoration: "none",
+                  "&:hover": { textDecoration: "underline", opacity: 0.85 },
+                }}
+              >
+                О проекте и контакты
+              </Link>
               <Link
                 component={NextLink}
                 href="/terms"

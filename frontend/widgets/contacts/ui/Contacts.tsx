@@ -66,7 +66,7 @@ export const Contacts = () => {
         src="/contacts.jpg"
         alt="Контакты"
         fill
-        priority
+        sizes="max(100vw, 1000px)"
         style={{
           objectFit: "cover",
           objectPosition: "center",
@@ -79,12 +79,20 @@ export const Contacts = () => {
           width: "100%",
           minHeight: "inherit",
           display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
+          gridTemplateColumns: { xs: "minmax(0, 1fr) auto", md: "repeat(5, minmax(0, 1fr))" },
+          px: { xs: 2, md: 0 },
+          gap: { xs: 2, md: 0 },
           alignItems: "center",
         }}
       >
-        <Box sx={{ gridColumn: 1 }} />
-        <Box sx={{ gridColumn: 2, py: { xs: 4, sm: 5, md: 6 }, px: { xs: 1, sm: 2 } }}>
+        <Box sx={{ display: { xs: "none", md: "block" }, gridColumn: 1 }} />
+        <Box
+          sx={{
+            gridColumn: { xs: 1, md: 2 },
+            py: { xs: 4, sm: 5, md: 6 },
+            px: { xs: 0, sm: 2 },
+          }}
+        >
           <Stack spacing={2.5}>
             <Box>
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
@@ -113,10 +121,10 @@ export const Contacts = () => {
             </Box>
           </Stack>
         </Box>
-        <Box sx={{ gridColumn: 3 }} />
+        <Box sx={{ display: { xs: "none", md: "block" }, gridColumn: 3 }} />
         <Box
           sx={{
-            gridColumn: 4,
+            gridColumn: { xs: 2, md: 4 },
             py: { xs: 4, sm: 5, md: 6 },
             px: { xs: 1, sm: 2 },
             display: "flex",
@@ -130,7 +138,8 @@ export const Contacts = () => {
             href={`tel:${PHONE.replace(/\s/g, "")}`}
             sx={{
               fontWeight: 700,
-              fontSize: 18,
+              fontSize: { xs: 15, sm: 18 },
+              whiteSpace: "nowrap",
               color: "#fff !important",
               textDecoration: "none",
               "&:hover": { textDecoration: "underline" },
@@ -177,7 +186,7 @@ export const Contacts = () => {
           </Box>
           
         </Box>
-        <Box sx={{ gridColumn: 5 }} />
+        <Box sx={{ display: { xs: "none", md: "block" }, gridColumn: 5 }} />
       </Box>
     </Box>
   );

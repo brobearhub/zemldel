@@ -4,7 +4,7 @@ import { forwardRef, useEffect, useState, type ImgHTMLAttributes, type Synthetic
 import { Avatar, Box, type AvatarProps } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import Image, { type ImageProps } from "next/image";
-import { storageFallbackSrc } from "@/shared/lib/public-asset-src";
+import { normalizePublicAssetSrc, storageFallbackSrc } from "@/shared/lib/public-asset-src";
 
 type ImageSource = string | null | undefined;
 
@@ -19,8 +19,9 @@ export function useStorageImageSrc(src: ImageSource) {
     setUseFallback(false);
   }, [src]);
 
-  const fallback = src ? storageFallbackSrc(src) : null;
-  const current = useFallback && fallback ? fallback : (src ?? undefined);
+  const normalizedSrc = src ? normalizePublicAssetSrc(src) : undefined;
+  const fallback = normalizedSrc ? storageFallbackSrc(normalizedSrc) : null;
+  const current = useFallback && fallback ? fallback : normalizedSrc;
 
   function onError() {
     if (fallback && !useFallback) setUseFallback(true);
