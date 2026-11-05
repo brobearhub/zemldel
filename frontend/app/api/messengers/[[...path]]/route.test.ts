@@ -16,7 +16,7 @@ const context = (path: string[] = []) => ({
 });
 
 beforeEach(() => {
-  vi.stubEnv("NEXTAUTH_URL", "https://zemledelpro.ru/");
+  vi.stubEnv("NEXTAUTH_URL", "https://zemledel.ru/");
   getSession.mockReset().mockResolvedValue(null);
   fetchBackend.mockReset();
 });
@@ -57,7 +57,7 @@ describe("messenger BFF boundaries", () => {
       const response = await handler(
         new Request(`http://0.0.0.0:3000/api/messengers/${path.join("/")}`, {
           method,
-          headers: { Origin: "https://zemledelpro.ru" },
+          headers: { Origin: "https://zemledel.ru" },
         }),
         context(path),
       );
@@ -72,8 +72,8 @@ describe("messenger BFF boundaries", () => {
 
   it.each([
     "https://other.example",
-    "https://zemledelpro.ru.attacker.example",
-    "http://zemledelpro.ru",
+    "https://zemledel.ru.attacker.example",
+    "http://zemledel.ru",
     "null",
   ])(
     "rejects untrusted origin %s even with matching forwarded headers",
@@ -96,7 +96,7 @@ describe("messenger BFF boundaries", () => {
     },
   );
 
-  it.each([undefined, "https://zemledelpro.ru"])(
+  it.each([undefined, "https://zemledel.ru"])(
     "still requires a session with origin %s",
     async (origin) => {
       const response = await POST(

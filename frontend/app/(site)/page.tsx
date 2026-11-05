@@ -42,15 +42,15 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Земледел",
     description: "Команда земельных экспертов",
-    url: "https://zemledelpro.ru",
+    url: "https://zemledel.ru",
     siteName: "Земледел",
-    images: [{ url: "https://zemledelpro.ru/og-image.png" }],
+    images: [{ url: "https://zemledel.ru/og-image.png" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Земледел",
     description: "Земледел",
-    images: [{ url: "https://zemledelpro.ru/og-image.png" }],
+    images: [{ url: "https://zemledel.ru/og-image.png" }],
   },
 };
 

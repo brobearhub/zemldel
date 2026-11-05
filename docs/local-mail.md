@@ -44,7 +44,7 @@ docker compose -p zemldel-mail -f docker-compose.mail.yml stop
 
 ```dotenv
 MAIL_TRANSPORT="postbox"
-SMTP_FROM="reset-password@zemledel.pro"
+SMTP_FROM="reset-password@zemledel.ru"
 POSTBOX_ACCESS_KEY_ID="идентификатор-статического-ключа"
 POSTBOX_SECRET_ACCESS_KEY="секретная-часть-статического-ключа"
 ```

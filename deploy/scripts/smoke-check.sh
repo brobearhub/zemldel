@@ -3,8 +3,8 @@
 
 set -euo pipefail
 
-DOMAIN="${DOMAIN:-zemledelpro.ru}"
-CDN="${CDN_DOMAIN:-cdn.zemledelpro.ru}"
+DOMAIN="${DOMAIN:-zemledel.ru}"
+CDN="${CDN_DOMAIN:-cdn.zemledel.ru}"
 FAIL=0
 
 check() {

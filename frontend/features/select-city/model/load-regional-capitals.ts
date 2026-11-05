@@ -1,6 +1,5 @@
 import type { CitySuggestItemDto, RegionalCapitalItemDto } from "@/entities/city";
-
-const REQUEST_TIMEOUT_MS = 8000;
+import { fetchCityJson } from "@/shared/lib/fetch-city-json";
 
 let cached: RegionalCapitalItemDto[] | null = null;
 let pending: Promise<RegionalCapitalItemDto[]> | null = null;
@@ -31,12 +30,11 @@ export function loadRegionalCapitals() {
   if (cached) return Promise.resolve(cached);
   if (pending) return pending;
 
-  pending = fetch("/api/cities/capitals", { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })
-    .then(async (response) => {
-      const payload: unknown = await response.json().catch(() => null);
-      if (!response.ok || !Array.isArray(payload) || !payload.every(isCapitalItem)) {
-        throw new Error("Не удалось загрузить города");
-      }
+  pending = fetchCityJson(
+    "/api/cities/capitals",
+    (payload): payload is RegionalCapitalItemDto[] => Array.isArray(payload) && payload.every(isCapitalItem),
+  )
+    .then((payload) => {
       cached = payload;
       return payload;
     })
@@ -47,14 +45,11 @@ export function loadRegionalCapitals() {
   return pending;
 }
 
-export async function suggestCities(query: string) {
+export async function suggestCities(query: string, signal?: AbortSignal) {
   const q = query.trim();
-  const response = await fetch(`/api/cities/suggest?q=${encodeURIComponent(q)}&limit=20`, {
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
-  const payload: unknown = await response.json().catch(() => null);
-  if (!response.ok || !Array.isArray(payload) || !payload.every(isSuggestItem)) {
-    throw new Error("Не удалось найти города");
-  }
-  return payload;
+  return fetchCityJson(
+    `/api/cities/suggest?q=${encodeURIComponent(q)}&limit=20`,
+    (payload): payload is CitySuggestItemDto[] => Array.isArray(payload) && payload.every(isSuggestItem),
+    signal,
+  );
 }

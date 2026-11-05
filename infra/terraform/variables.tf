@@ -6,7 +6,7 @@ variable "timeweb_token" {
 
 variable "domain" {
   type    = string
-  default = "zemledelpro.ru"
+  default = "zemledel.ru"
 }
 
 variable "existing_vpc_id" {

@@ -158,6 +158,19 @@ describe("ProfileMenu", () => {
     expect(navigation.push).toHaveBeenCalledWith("/signin?returnTo=%2Fservice%2F123%3Fq%3D1");
   });
 
+  it.each(["/forgot-password", "/reset-password", "/signin", "/signup"])(
+    "opens sign-in with the cabinet as the return path from %s",
+    async (pathname) => {
+      navigation.pathname = pathname;
+      const { user } = renderWithAuthState("unauth");
+
+      await user.hover(screen.getByLabelText("Профиль"));
+      await user.click(screen.getByText("Клиент"));
+
+      expect(navigation.push).toHaveBeenCalledWith("/signin?returnTo=%2Fprofile");
+    },
+  );
+
   it("navigates to /signin with returnTo=/pro on pro sign-in", async () => {
     const { user } = renderWithAuthState("unauth");
 

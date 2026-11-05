@@ -22,6 +22,18 @@ describe("isSafeReturnToPath", () => {
     expect(isSafeReturnToPath("//evil.test")).toBe(false);
     expect(isSafeReturnToPath("/foo/https://evil.test")).toBe(false);
   });
+
+  it.each([
+    "/signin",
+    "/signup?returnTo=%2Fprofile",
+    "/welcome",
+    "/forgot-password",
+    "/forgot-password?email=user%40example.com",
+    "/reset-password?token=expired#form",
+    "/reset-password/",
+  ])("не сохраняет страницу авторизации как адрес возврата: %s", (path) => {
+    expect(isSafeReturnToPath(path)).toBe(false);
+  });
 });
 
 describe("buildSignInHref", () => {
@@ -31,9 +43,16 @@ describe("buildSignInHref", () => {
     );
   });
 
-  it("подставляет корень, если путь небезопасный", () => {
-    expect(buildSignInHref("https://evil.test")).toBe(`/signin?returnTo=${encodeURIComponent("/")}`);
+  it("подставляет личный кабинет, если путь небезопасный", () => {
+    expect(buildSignInHref("https://evil.test")).toBe(`/signin?returnTo=${encodeURIComponent("/profile")}`);
   });
+
+  it.each(["/forgot-password", "/reset-password?token=expired", "/signin?returnTo=%2Fforgot-password"])(
+    "заменяет возврат на страницу авторизации личным кабинетом: %s",
+    (path) => {
+      expect(buildSignInHref(path)).toBe("/signin?returnTo=%2Fprofile");
+    },
+  );
 });
 
 describe("isSessionRecoveryUrl", () => {
@@ -61,6 +80,13 @@ describe("nextRecoveryStep", () => {
     expect(nextRecoveryStep(SESSION_RECOVERY_ATTEMPTS, "/signin")).toBe("surface");
     expect(nextRecoveryStep(SESSION_RECOVERY_ATTEMPTS, "/signup")).toBe("surface");
   });
+
+  it.each(["/forgot-password", "/reset-password", "/welcome"])(
+    "не прерывает восстановление пароля повторной авторизацией: %s",
+    (path) => {
+      expect(nextRecoveryStep(SESSION_RECOVERY_ATTEMPTS, path)).toBe("surface");
+    },
+  );
 });
 
 describe("createSessionRecoveryFetch", () => {

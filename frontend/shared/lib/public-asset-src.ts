@@ -1,5 +1,5 @@
 /** Публичные CDN. Если браузер их не открыл, тот же ключ читается из Object Storage. */
-export const PUBLIC_CDN_HOSTS = ["cdn.zemledel.pro", "cdn.zemledelpro.ru"] as const;
+export const PUBLIC_CDN_HOSTS = ["cdn.zemledel.ru"] as const;
 
 export type DevStorageConfig = {
   endpoint: string;

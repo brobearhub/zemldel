@@ -6,23 +6,29 @@ export const SESSION_RECOVERY_PAUSE_MS = 300;
 
 export type RecoveryStep = "refresh" | "redirect" | "surface";
 
-const AUTH_PAGE_PREFIXES = ["/signin", "/signup"] as const;
+const AUTH_PAGE_PREFIXES = ["/signin", "/signup", "/welcome", "/forgot-password", "/reset-password"] as const;
+
+function isAuthPage(path: string): boolean {
+  const pathname = path.split(/[?#]/)[0];
+  return AUTH_PAGE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
 
 export function isSafeReturnToPath(value: string | null): value is string {
   if (!value) return false;
   if (!value.startsWith("/")) return false;
   if (value.startsWith("//")) return false;
   if (value.includes("://")) return false;
+  if (isAuthPage(value)) return false;
   return true;
 }
 
 export function buildSignInHref(returnTo: string): string {
-  const safe = isSafeReturnToPath(returnTo) ? returnTo : "/";
+  const safe = isSafeReturnToPath(returnTo) ? returnTo : "/profile";
   return `/signin?returnTo=${encodeURIComponent(safe)}`;
 }
 
 export function shouldLeaveForSignIn(pathname: string): boolean {
-  return !AUTH_PAGE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  return !isAuthPage(pathname);
 }
 
 /**

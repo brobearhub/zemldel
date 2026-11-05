@@ -10,9 +10,10 @@ import {
   type HTMLAttributes,
   type MutableRefObject,
 } from "react";
-import { Autocomplete, Box, Chip, CircularProgress, Stack, TextField, Typography } from "@mui/material";
+import { Autocomplete, Box, Button, Chip, CircularProgress, Stack, TextField, Typography } from "@mui/material";
 import type { AutocompleteProps } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
+import { fetchCityJson } from "@/shared/lib/fetch-city-json";
 import { placeChipLabel, placeKey, type ServicePlace } from "@/entities/service";
 import { displayCityName, formatRegionLabel, shortRegionLabel } from "@/shared/lib/format-city-label";
 
@@ -63,20 +64,18 @@ function isPlaceSuggestPage(value: unknown): value is PlaceSuggestPage {
   return Array.isArray(page.regions) && Array.isArray(page.cities) && typeof page.hasMore === "boolean";
 }
 
-async function fetchPlaceSuggestPage(query: string, offset: number): Promise<PlaceSuggestPage | null> {
+async function fetchPlaceSuggestPage(query: string, offset: number, signal?: AbortSignal): Promise<PlaceSuggestPage> {
   const params = new URLSearchParams({
     q: query,
     limit: String(PLACE_PAGE_SIZE),
     offset: String(offset),
   });
-  const response = await fetch(`/api/cities/place-suggest?${params.toString()}`);
-  const data: unknown = await response.json().catch(() => null);
-  if (!response.ok || !isPlaceSuggestPage(data)) return null;
-  return data;
+  return fetchCityJson(`/api/cities/place-suggest?${params.toString()}`, isPlaceSuggestPage, signal);
 }
 
 type SuggestListboxProps = HTMLAttributes<HTMLUListElement> & {
   onNearEnd?: () => void;
+  onRetry?: () => void;
   optionCount?: number;
   savedScroll?: MutableRefObject<number>;
   ownerState?: unknown;
@@ -84,7 +83,7 @@ type SuggestListboxProps = HTMLAttributes<HTMLUListElement> & {
 };
 
 const GeographySuggestListbox = forwardRef<HTMLUListElement, SuggestListboxProps>(function GeographySuggestListbox(
-  { children, onNearEnd, onScroll, optionCount = 0, ownerState: _ownerState, savedScroll: savedScrollRef, sx, ...props },
+  { children, onNearEnd, onRetry, onScroll, optionCount = 0, ownerState: _ownerState, savedScroll: savedScrollRef, sx, ...props },
   ref,
 ) {
   const endArmed = useRef(true);
@@ -164,6 +163,19 @@ const GeographySuggestListbox = forwardRef<HTMLUListElement, SuggestListboxProps
       ]}
     >
       {children}
+      {onRetry ? (
+        <Box
+          component="li"
+          sx={{ px: 2 }}
+        >
+          <Button
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={onRetry}
+          >
+            Попробуйте еще раз
+          </Button>
+        </Box>
+      ) : null}
     </Box>
   );
 });
@@ -254,6 +266,10 @@ export function ServiceGeographyField({
   const [options, setOptions] = useState<SuggestItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState<"initial" | "more" | null>(null);
+  const [retry, setRetry] = useState(0);
+  const errorRef = useRef(false);
+  const controllerRef = useRef<AbortController | null>(null);
   const requestGen = useRef(0);
   const loadedCities = useRef(0);
   const hasMoreRef = useRef(false);
@@ -268,20 +284,19 @@ export function ServiceGeographyField({
     const offset = loadedCities.current;
     loadingMoreRef.current = true;
     setLoadingMore(true);
-    void fetchPlaceSuggestPage(q, offset)
+    errorRef.current = false;
+    setLoadError(null);
+    void fetchPlaceSuggestPage(q, offset, controllerRef.current?.signal)
       .then((page) => {
         if (requestGen.current !== gen) return;
-        if (!page) {
-          hasMoreRef.current = false;
-          return;
-        }
         loadedCities.current += page.cities.length;
         hasMoreRef.current = page.hasMore;
         setOptions((current) => [...current, ...page.cities]);
       })
       .catch(() => {
         if (requestGen.current !== gen) return;
-        hasMoreRef.current = false;
+        errorRef.current = true;
+        setLoadError("more");
       })
       .finally(() => {
         if (requestGen.current !== gen) return;
@@ -293,6 +308,10 @@ export function ServiceGeographyField({
   useEffect(() => {
     const q = debounced.trim();
     const gen = ++requestGen.current;
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    errorRef.current = false;
+    setLoadError(null);
     listScrollTop.current = 0;
     loadedCities.current = 0;
     hasMoreRef.current = false;
@@ -307,13 +326,9 @@ export function ServiceGeographyField({
     let cancelled = false;
     setLoading(true);
     setOptions([]);
-    void fetchPlaceSuggestPage(q, 0)
+    void fetchPlaceSuggestPage(q, 0, controller.signal)
       .then((page) => {
         if (cancelled || requestGen.current !== gen) return;
-        if (!page) {
-          setOptions([]);
-          return;
-        }
         loadedCities.current = page.cities.length;
         hasMoreRef.current = page.hasMore;
         setOptions([...page.regions, ...page.cities]);
@@ -321,6 +336,7 @@ export function ServiceGeographyField({
       .catch(() => {
         if (cancelled || requestGen.current !== gen) return;
         setOptions([]);
+        setLoadError("initial");
       })
       .finally(() => {
         if (!cancelled && requestGen.current === gen) setLoading(false);
@@ -328,8 +344,9 @@ export function ServiceGeographyField({
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, [debounced]);
+  }, [debounced, retry]);
 
   const visibleOptions = useMemo(() => {
     return options
@@ -366,13 +383,14 @@ export function ServiceGeographyField({
         value={null}
         inputValue={inputValue}
         loading={loading}
+        loadingText="Загрузка…"
         disabled={disabled}
         forcePopupIcon={false}
-        open={open && query.length >= 2}
+        open={open && query.length >= 2 && loadError !== "initial"}
         onClose={() => setOpen(false)}
         filterOptions={(items) => items}
         groupBy={(item) => (item.kind === "region" ? SUGGEST_GROUP_REGION : SUGGEST_GROUP_CITY)}
-        noOptionsText={noOptionsText}
+        noOptionsText={loadError ? "" : noOptionsText}
         getOptionLabel={(item) => suggestLabel(item)}
         isOptionEqualToValue={() => false}
         onInputChange={(_, next, reason) => {
@@ -440,7 +458,10 @@ export function ServiceGeographyField({
             },
             // Кастомный listbox читает эти пропы, тип слота MUI их не знает.
             listbox: {
-              onNearEnd: loadMore,
+              onNearEnd: () => {
+                if (!errorRef.current) loadMore();
+              },
+              onRetry: loadError === "more" && !disabled ? loadMore : undefined,
               optionCount: options.length,
               savedScroll: listScrollTop,
             },
@@ -486,6 +507,23 @@ export function ServiceGeographyField({
           />
         )}
       />
+      {loadError && (loadError === "initial" || !open) && query === debounced.trim() ? (
+        <Button
+          disabled={disabled || loading || loadingMore}
+          onClick={() => {
+            if (loadError === "more") loadMore();
+            else {
+              setLoadError(null);
+              setLoading(true);
+              setRetry((current) => current + 1);
+            }
+            setOpen(true);
+          }}
+          sx={{ alignSelf: "flex-start" }}
+        >
+          Попробуйте еще раз
+        </Button>
+      ) : null}
     </Stack>
   );
 }

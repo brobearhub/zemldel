@@ -13,7 +13,7 @@ describe("storageFallbackSrc", () => {
 
     expect(
       storageFallbackSrc(
-        "https://cdn.zemledel.pro/public/stories/80876fbc-864b-4dd7-a02f-095736741903/photo.webp",
+        "https://cdn.zemledel.ru/public/stories/80876fbc-864b-4dd7-a02f-095736741903/photo.webp",
       ),
     ).toBe(
       "https://storage.yandexcloud.net/zemledel-public-test/public/stories/80876fbc-864b-4dd7-a02f-095736741903/photo.webp",
@@ -25,7 +25,7 @@ describe("storageFallbackSrc", () => {
     vi.stubEnv("NEXT_PUBLIC_S3_PUBLIC_BUCKET", "zemledel-public-test");
     vi.stubEnv("NEXT_PUBLIC_S3_FORCE_PATH_STYLE", "true");
 
-    expect(storageFallbackSrc("https://cdn.zemledelpro.ru/public/a.jpg?v=2")).toBe(
+    expect(storageFallbackSrc("https://cdn.zemledel.ru/public/a.jpg?v=2")).toBe(
       "https://storage.yandexcloud.net/zemledel-public-test/public/a.jpg?v=2",
     );
   });
@@ -40,6 +40,6 @@ describe("storageFallbackSrc", () => {
   });
 
   it("без env фолбека нет", () => {
-    expect(storageFallbackSrc("https://cdn.zemledel.pro/public/a.webp")).toBeNull();
+    expect(storageFallbackSrc("https://cdn.zemledel.ru/public/a.webp")).toBeNull();
   });
 });

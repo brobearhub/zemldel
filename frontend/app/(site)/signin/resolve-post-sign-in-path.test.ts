@@ -2,6 +2,35 @@ import { describe, expect, it } from "vitest";
 import { resolvePostSignInPath } from "./resolve-post-sign-in-path";
 
 describe("resolvePostSignInPath", () => {
+  it.each([
+    null,
+    "/signin",
+    "/signup",
+    "/welcome",
+    "/forgot-password",
+    "/forgot-password?email=user%40example.com",
+    "/reset-password?token=expired",
+    "https://other.test",
+  ])("ведёт клиента в личный кабинет без допустимого адреса возврата: %s", (returnTo) => {
+    expect(
+      resolvePostSignInPath({
+        accountKind: "CUSTOMER",
+        hasProviderMembership: false,
+        returnTo,
+      }),
+    ).toBe("/profile");
+  });
+
+  it.each([true, false])("после восстановления пароля ведёт исполнителя в его кабинет (membership=%s)", (hasProviderMembership) => {
+    expect(
+      resolvePostSignInPath({
+        accountKind: "PROVIDER",
+        hasProviderMembership,
+        returnTo: "/reset-password?token=expired",
+      }),
+    ).toBe(hasProviderMembership ? "/pro" : "/providers/new");
+  });
+
   it("ведёт исполнителя без кабинета создавать профиль", () => {
     expect(
       resolvePostSignInPath({

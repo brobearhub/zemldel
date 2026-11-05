@@ -65,11 +65,7 @@ const nextConfig = {
       ...storageImagePatterns,
       {
         protocol: "https",
-        hostname: "cdn.zemledelpro.ru",
-      },
-      {
-        protocol: "https",
-        hostname: "cdn.zemledel.pro",
+        hostname: "cdn.zemledel.ru",
       },
       {
         protocol: "https",

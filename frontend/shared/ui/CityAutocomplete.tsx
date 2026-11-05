@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Autocomplete, CircularProgress, TextField } from "@mui/material";
+import { Autocomplete, Button, CircularProgress, TextField } from "@mui/material";
 import type { CitySuggestItemDto } from "@/entities/city";
+import { fetchCityJson } from "@/shared/lib/fetch-city-json";
 import { formatCityLabel } from "@/shared/lib/format-city-label";
+
+function isCityList(value: unknown): value is CitySuggestItemDto[] {
+  return Array.isArray(value);
+}
 
 type Props = {
   label: string;
@@ -53,6 +58,12 @@ export function CityAutocomplete({
   const [options, setOptions] = useState<CitySuggestItemDto[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const [capitalsLoading, setCapitalsLoading] = useState(false);
+  const [capitalsError, setCapitalsError] = useState(false);
+  const [suggestError, setSuggestError] = useState(false);
+  const [capitalsRetry, setCapitalsRetry] = useState(0);
+  const [suggestRetry, setSuggestRetry] = useState(0);
+
   const effectiveValue = useMemo(() => {
     if (!value) return null;
     const inOptions = options.find((o) => o.id === value.id);
@@ -65,68 +76,97 @@ export function CityAutocomplete({
       return;
     }
     let cancelled = false;
-    async function loadCapitals() {
-      try {
-        const res = await fetch("/api/cities/capitals");
-        const data = (await res.json().catch(() => [])) as CitySuggestItemDto[] | { error?: string };
-        if (cancelled) return;
-        setCapitals(res.ok && Array.isArray(data) ? data : []);
-      } catch {
-        if (!cancelled) setCapitals([]);
-      }
-    }
-    void loadCapitals();
+    const controller = new AbortController();
+    setCapitalsLoading(true);
+    setCapitalsError(false);
+    void fetchCityJson("/api/cities/capitals", isCityList, controller.signal)
+      .then((data) => {
+        if (!cancelled) setCapitals(data);
+      })
+      .catch(() => {
+        if (!cancelled) setCapitalsError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setCapitalsLoading(false);
+      });
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, [suggestCapitals]);
+  }, [suggestCapitals, capitalsRetry]);
 
   useEffect(() => {
-    let cancelled = false;
-    async function run() {
-      const q = debounced.trim();
-      if (q.length < 2) {
-        setOptions(suggestCapitals ? filterCapitals(capitals, q) : []);
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/cities/suggest?q=${encodeURIComponent(q)}&limit=10`);
-        const data = (await res.json().catch(() => [])) as CitySuggestItemDto[] | { error?: string };
-        if (cancelled) return;
-        if (!res.ok || !Array.isArray(data)) {
-          setOptions([]);
-          return;
-        }
-        setOptions(data);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+    const q = debounced.trim();
+    setSuggestError(false);
+    if (q.length < 2) {
+      setOptions([]);
+      setLoading(false);
+      return;
     }
-    void run();
+    let cancelled = false;
+    const controller = new AbortController();
+    setLoading(true);
+    setOptions([]);
+    void fetchCityJson(`/api/cities/suggest?q=${encodeURIComponent(q)}&limit=10`, isCityList, controller.signal)
+      .then((data) => {
+        if (!cancelled) setOptions(data);
+      })
+      .catch(() => {
+        if (!cancelled) setSuggestError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, [debounced, capitals, suggestCapitals]);
+  }, [debounced, suggestRetry]);
 
   const query = inputValue.trim();
+  const searching = query.length >= 2;
+  const busy = searching ? loading || inputValue !== debounced : suggestCapitals && capitalsLoading;
+  const failed = searching ? suggestError : suggestCapitals && capitalsError;
+  const visibleOptions = searching ? options : suggestCapitals ? filterCapitals(capitals, query) : [];
+  const retryButton = (
+    <Button
+      disabled={disabled || busy}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={() => {
+        if (searching) {
+          setSuggestError(false);
+          setLoading(true);
+          setSuggestRetry((current) => current + 1);
+        } else {
+          setCapitalsError(false);
+          setCapitalsLoading(true);
+          setCapitalsRetry((current) => current + 1);
+        }
+      }}
+    >
+      Попробуйте еще раз
+    </Button>
+  );
   const noOptionsText =
     query.length < 2 ? "Начните вводить (минимум 2 символа)" : "Ничего не найдено";
 
   return (
     <Autocomplete
       value={effectiveValue}
-      options={options}
-      loading={loading}
-      noOptionsText={noOptionsText}
+      options={visibleOptions}
+      loading={busy}
+      loadingText="Загрузка…"
+      noOptionsText={failed ? retryButton : noOptionsText}
       disabled={disabled}
       filterOptions={(x) => x}
       isOptionEqualToValue={(a, b) => a.id === b.id}
       getOptionLabel={(o) => formatCityLabel(o.name, o.regionName)}
       onChange={(_, next) => onChange(next)}
       inputValue={inputValue}
-      onInputChange={(_, next) => setInputValue(next)}
+      onInputChange={(_, next) => {
+        setInputValue(next);
+        setSuggestError(false);
+      }}
       renderInput={(params) => (
         <TextField
           {...params}
@@ -141,7 +181,7 @@ export function CityAutocomplete({
               ...params.slotProps.input,
               endAdornment: (
                 <>
-                  {loading ? <CircularProgress color="inherit" size={18} /> : null}
+                  {busy ? <CircularProgress color="inherit" size={18} /> : null}
                   {params.slotProps.input.endAdornment}
                 </>
               ),

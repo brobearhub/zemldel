@@ -3,9 +3,9 @@ import { buildLlmsTxt, isLlmsTxtPublic } from "./llms-txt";
 
 describe("isLlmsTxtPublic", () => {
   it("открывает файл только на боевом домене", () => {
-    expect(isLlmsTxtPublic("https://zemledelpro.ru")).toBe(true);
-    expect(isLlmsTxtPublic("https://zemledelpro.ru/")).toBe(true);
-    expect(isLlmsTxtPublic("https://www.zemledelpro.ru")).toBe(true);
+    expect(isLlmsTxtPublic("https://zemledel.ru")).toBe(true);
+    expect(isLlmsTxtPublic("https://zemledel.ru/")).toBe(true);
+    expect(isLlmsTxtPublic("https://www.zemledel.ru")).toBe(true);
     expect(isLlmsTxtPublic("http://localhost:4000")).toBe(false);
     expect(isLlmsTxtPublic("https://novagor.ru")).toBe(false);
     expect(isLlmsTxtPublic("не адрес")).toBe(false);
