@@ -7,6 +7,7 @@ import { getActiveMembership, resolveAccountKind } from "@/core/auth/authorizati
 import { ProCabinetLayout } from "@/widgets/pro-dashboard/ui/ProCabinetLayout";
 
 export const metadata: Metadata = {
+  robots: { index: false, follow: true },
   title: "Кабинет исполнителя — Земледел",
 };
 

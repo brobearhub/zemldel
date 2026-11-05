@@ -8,10 +8,15 @@ import { fetchBackendJson } from "@/shared/api/backend/server";
 import { SITE_CONTENT_GAP_PX, SITE_PAGE_PB } from "@/shared/config/site-layout";
 import { displayCityName } from "@/shared/lib/format-city-label";
 import { siteOrigin } from "@/shared/lib/site-origin";
+import { publicPageMetadata, serializeJsonLd } from "@/shared/lib/seo";
 import { ProviderPublicHero } from "@/views/provider-page";
 import { HomeStoriesStrip } from "@/widgets/home-stories";
 
 type Props = { params: Promise<{ slug: string }> };
+
+function getProviderServices(id: string) {
+  return fetchBackendJson<ServiceDto[]>(`/services?providerId=${encodeURIComponent(id)}`);
+}
 
 /** 4 колонки с lg, на каждом более узком брейкпоинте на одну меньше. */
 const catalogGridColumns = {
@@ -25,9 +30,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const provider = await getPublicProviderBySlug(slug);
   if (!provider) return { title: "Исполнитель" };
-  const services = await fetchBackendJson<ServiceDto[]>(
-    `/services?providerId=${encodeURIComponent(provider.id)}`,
-  ).catch(() => []);
+  const services = await getProviderServices(provider.id);
   const city = provider.city?.name ? displayCityName(provider.city.name) : null;
   const serviceTitle = services.find((service) => service.title.trim())?.title.trim() ?? null;
   const title = serviceTitle
@@ -46,11 +49,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const indexable = services.length > 0 || Boolean(description);
   const url = `${siteOrigin()}/providers/${provider.slug}`;
   return {
-    title,
-    description,
-    alternates: { canonical: url },
+    ...publicPageMetadata(title, description ?? `Профиль исполнителя ${provider.name} на Земледеле.`, `/providers/${provider.slug}`),
     robots: indexable ? { index: true, follow: true } : { index: false, follow: false },
-    openGraph: { title, description, url, type: "profile" },
+    openGraph: { title, description, url, type: "profile", images: [{ url: `${siteOrigin()}/hero-bg-house_static_day.jpg` }] },
   };
 }
 
@@ -61,7 +62,7 @@ export default async function ProviderPublicPage({ params }: Props) {
 
   const [reviews, services] = await Promise.all([
     listPublicProviderReviews(provider.id).catch(() => ({ items: [], nextCursor: null })),
-    fetchBackendJson<ServiceDto[]>(`/services?providerId=${encodeURIComponent(provider.id)}`).catch(() => []),
+    getProviderServices(provider.id),
   ]);
   const city = provider.city?.name ? displayCityName(provider.city.name) : null;
   const jsonLd = {
@@ -74,7 +75,7 @@ export default async function ProviderPublicPage({ params }: Props) {
 
   return (
     <Box>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
       <Box
         sx={{
           bgcolor: "primary.main",
@@ -92,7 +93,12 @@ export default async function ProviderPublicPage({ params }: Props) {
         <HomeStoriesStrip providerId={provider.id} />
         <Stack spacing={4}>
           <Stack spacing={2}>
-            <Typography variant="h5">Услуги</Typography>
+            <Typography
+              component="h2"
+              variant="h5"
+            >
+              Услуги
+            </Typography>
             {services.length === 0 ? (
               <Typography sx={{ color: "text.secondary" }}>Пока нет услуг.</Typography>
             ) : (
@@ -112,7 +118,12 @@ export default async function ProviderPublicPage({ params }: Props) {
           </Stack>
 
           <Stack spacing={2}>
-            <Typography variant="h5">Отзывы</Typography>
+            <Typography
+              component="h2"
+              variant="h5"
+            >
+              Отзывы
+            </Typography>
             {reviews.items.length === 0 ? (
               <Typography sx={{ color: "text.secondary" }}>Пока нет отзывов.</Typography>
             ) : (

@@ -1,10 +1,16 @@
 import type { ReactNode } from "react";
+import type { Metadata } from "next";
 import { AppProviders } from "@/core/providers/AppProviders";
 import { nunitoSans } from "@/app/fonts";
 import { isLlmsTxtPublic } from "@/shared/lib/llms-txt";
 import { siteOrigin } from "@/shared/lib/site-origin";
 
 import "./styles/globals.css";
+
+export const metadata: Metadata = {
+  metadataBase: new URL(siteOrigin()),
+  title: "Земледел — земельные и кадастровые услуги",
+};
 
 interface Props {
   readonly children: ReactNode;

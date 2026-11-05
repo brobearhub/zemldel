@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Box, Container } from "@mui/material";
 import { forbidden } from "next/navigation";
@@ -6,6 +7,10 @@ import { AdminSidebar } from "@/widgets/admin-sidebar";
 import { getServerAuthSession } from "@/core/auth";
 import { signInRedirectFromRequest } from "@/core/auth/sign-in-redirect";
 import { fetchBackendJsonAsUser } from "@/shared/api/backend/server";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: true },
+};
 
 interface Props {
   readonly children: ReactNode;

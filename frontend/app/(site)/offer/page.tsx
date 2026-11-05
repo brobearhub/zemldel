@@ -1,3 +1,11 @@
+import { publicPageMetadata } from "@/shared/lib/seo";
+
+export const metadata = publicPageMetadata(
+  "Оферта на платные услуги — Земледел",
+  "Условия оказания платных услуг платформы Земледел: порядок подключения, оплаты и использования.",
+  "/offer",
+);
+
 import { Alert, Container, Paper, Stack, Typography } from "@mui/material";
 import { sitePageContainerSx } from "@/shared/config/site-layout";
 import { loadLegalDoc } from "@/shared/lib/server";

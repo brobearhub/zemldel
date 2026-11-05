@@ -36,7 +36,8 @@ function mapGuestCityToSuggest(
 }
 
 function useGuestCustomerCity(): CitySuggestItemDto | null {
-  const [guestCity, setGuestCity] = useState(() => readGuestCity());
+  // Keep the first browser render identical to SSR; restore the saved city after hydration.
+  const [guestCity, setGuestCity] = useState<ReturnType<typeof readGuestCity>>(null);
 
   useEffect(() => {
     setGuestCity(readGuestCity());

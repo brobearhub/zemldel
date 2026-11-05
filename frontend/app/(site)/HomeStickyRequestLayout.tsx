@@ -2,6 +2,7 @@
 
 import { Box, Button, Container, Stack, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
+import type { ServiceCardItem } from "@/entities/service";
 
 import { SITE_CONTENT_GAP_PX, SITE_HEADER_SPACER_PX, SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
 import { HomeStoriesStrip } from "@/widgets/home-stories";
@@ -22,6 +23,7 @@ type ServiceCategoryRow = {
 type Props = {
   isAuthenticated: boolean;
   categories: ServiceCategoryRow[];
+  initialServices: ServiceCardItem[];
 };
 
 /** Ширина основной области по макету Figma (Desktop - 2). */
@@ -43,7 +45,7 @@ const visuallyHiddenSx = {
   border: 0,
 } as const;
 
-export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) {
+export function HomeStickyRequestLayout({ isAuthenticated, categories, initialServices }: Props) {
   const catsBarRef = useRef<HTMLDivElement | null>(null);
   const [catsBarHeightPx, setCatsBarHeightPx] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -92,9 +94,14 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) 
         "--home-cats-bar-h": `${catsBarHeightPx}px`,
       }}
     >
-      <Typography component="h1" sx={visuallyHiddenSx}>
-        Земледел
-      </Typography>
+      {isAuthenticated ? (
+        <Typography
+          component="h1"
+          sx={visuallyHiddenSx}
+        >
+          Земельные и кадастровые услуги
+        </Typography>
+      ) : null}
       <Container
         maxWidth="xl"
         sx={{
@@ -177,7 +184,7 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories }: Props) 
                   outline: "none",
                 }}
               >
-                <HomeServicesByCity />
+                <HomeServicesByCity initialItems={initialServices} />
               </Box>
             </Stack>
           </Box>

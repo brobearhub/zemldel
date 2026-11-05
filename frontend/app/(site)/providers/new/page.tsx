@@ -5,7 +5,8 @@ import { resolveAccountKind } from "@/core/auth/authorization";
 import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import { ProviderOnboardingForm } from "./ProviderOnboardingForm";
 
-export const metadata: Metadata = { title: "Создание профиля — Земледел" };
+export const metadata: Metadata = {
+  robots: { index: false, follow: true }, title: "Создание профиля — Земледел" };
 
 export default async function NewProviderPage() {
   const session = await getServerAuthSession();

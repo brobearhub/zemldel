@@ -30,7 +30,11 @@ export function ServiceLeadSection({ serviceId, serviceTitle, isAuthenticated, i
           }}
         >
           <Stack spacing={{ xs: 2, md: 3 }} sx={{ color: "common.white", pt: { md: 2 } }}>
-            <Typography variant="h4" sx={{ color: "common.white" }}>
+            <Typography
+              component="h2"
+              variant="h4"
+              sx={{ color: "common.white" }}
+            >
               {serviceTitle}
             </Typography>
             <Typography sx={{ color: "#e8efea", maxWidth: 820, fontSize: { xs: 14, md: 16 }, lineHeight: { xs: 1.43, md: 1.5 } }}>
@@ -50,7 +54,12 @@ export function ServiceLeadSection({ serviceId, serviceTitle, isAuthenticated, i
           >
             <Stack spacing={2.25}>
               <Stack spacing={0.5}>
-                <Typography variant="h5">Оставить заявку</Typography>
+                <Typography
+                  component="h3"
+                  variant="h5"
+                >
+                  Оставить заявку
+                </Typography>
                 <Typography variant="body2" sx={{ color: "text.secondary" }}>
                   {isAuthenticated
                     ? `Мы создадим заявку по услуге «${serviceTitle}», откроем чат с исполнителем и, если добавите вопрос, отправим его в чат сразу.`

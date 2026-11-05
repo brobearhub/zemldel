@@ -57,6 +57,7 @@ export function ServiceHeroSection({ vm }: Props) {
               {vm.imageUrl ? (
                 <CdnFillImage
                   src={vm.imageUrl}
+                  alt={vm.title}
                   sizes="(max-width: 900px) 100vw, 600px"
                   unoptimized={process.env.NODE_ENV !== "production"}
                   style={{ objectFit: "cover", objectPosition: "center" }}
@@ -130,7 +131,10 @@ export function ServiceHeroSection({ vm }: Props) {
                   ) : null}
                 </Box>
 
-                <Typography variant="h4" >
+                <Typography
+                  variant="h4"
+                  component="h1"
+                >
                   {vm.title}
                 </Typography>
 

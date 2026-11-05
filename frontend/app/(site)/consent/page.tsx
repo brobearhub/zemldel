@@ -1,3 +1,11 @@
+import { publicPageMetadata } from "@/shared/lib/seo";
+
+export const metadata = publicPageMetadata(
+  "Согласие на обработку персональных данных — Земледел",
+  "Условия согласия на обработку персональных данных при использовании сервиса Земледел.",
+  "/consent",
+);
+
 import { Alert, Container, Paper, Stack, Typography } from "@mui/material";
 import { sitePageContainerSx } from "@/shared/config/site-layout";
 import { loadLegalDoc } from "@/shared/lib/server";

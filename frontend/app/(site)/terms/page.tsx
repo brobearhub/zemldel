@@ -1,3 +1,11 @@
+import { publicPageMetadata } from "@/shared/lib/seo";
+
+export const metadata = publicPageMetadata(
+  "Пользовательское соглашение — Земледел",
+  "Условия использования сервиса Земледел: регистрация, размещение услуг и заявок, взаимодействие клиентов и исполнителей.",
+  "/terms",
+);
+
 import { Alert, Container, Paper, Stack, Typography } from "@mui/material";
 import { sitePageContainerSx } from "@/shared/config/site-layout";
 import { loadLegalDoc } from "@/shared/lib/server";

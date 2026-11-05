@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Paper, Stack, Typography } from "@mui/material";
 import { ServiceCard, type ServiceCardItem } from "@/entities/service";
 import { useHeaderCity } from "@/features/select-city";
@@ -56,20 +56,22 @@ async function fetchServices(path: string): Promise<ServiceCardItem[]> {
   return Array.isArray(payload) ? (payload as ServiceCardItem[]) : [];
 }
 
-export function HomeServicesByCity() {
+export function HomeServicesByCity({ initialItems }: { initialItems?: ServiceCardItem[] }) {
   const selectedCity = useHeaderCity();
   const cityId = selectedCity?.id ?? null;
   const cityName = selectedCity?.name ?? null;
 
-  const [myCityItems, setMyCityItems] = useState<ServiceCardItem[] | null>(null);
-  const [otherCityItems, setOtherCityItems] = useState<ServiceCardItem[] | null>(null);
+  const [myCityItems, setMyCityItems] = useState<ServiceCardItem[] | null>(initialItems ?? null);
+  const [otherCityItems, setOtherCityItems] = useState<ServiceCardItem[] | null>(initialItems ? [] : null);
   const [error, setError] = useState<string | null>(null);
+  const hasRequested = useRef(false);
 
   useEffect(() => {
+    // The first anonymous render already has the server catalog. City changes still refresh it.
+    if (!cityId && initialItems && !hasRequested.current) return;
+    hasRequested.current = true;
     let alive = true;
     setError(null);
-    setMyCityItems(null);
-    setOtherCityItems(null);
 
     (async () => {
       try {
@@ -104,7 +106,7 @@ export function HomeServicesByCity() {
     return () => {
       alive = false;
     };
-  }, [cityId]);
+  }, [cityId, initialItems]);
 
   const loaded = myCityItems !== null && otherCityItems !== null;
   const showOther = (otherCityItems ?? []).length > 0;

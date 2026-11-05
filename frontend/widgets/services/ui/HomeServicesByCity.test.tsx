@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { Provider } from "react-redux";
 import { configureStore } from "@reduxjs/toolkit";
 import { HomeServicesByCity } from "./HomeServicesByCity";
@@ -38,6 +39,31 @@ describe("HomeServicesByCity", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     window.localStorage.removeItem("zemledel:selected-city:v1");
+  });
+
+  it("includes the server catalog in HTML and does not refetch it before a city is selected", () => {
+    const store = createTestStore({ status: "unauthenticated", user: null, error: null });
+    const fetchMock = vi.spyOn(global, "fetch");
+    const initialItems = [{
+      ...baseService,
+      id: "server-service",
+      title: "Серверная услуга",
+      provider: { id: "p1", name: "Исполнитель", city: null },
+    }];
+    const element = (
+      <Provider store={store}>
+        <CitySelectProvider>
+          <HomeServicesByCity initialItems={initialItems} />
+        </CitySelectProvider>
+      </Provider>
+    );
+
+    const html = renderToString(element);
+    expect(html).toContain("Серверная услуга");
+    expect(html).toContain('href="/services/server-service"');
+    render(element);
+    expect(screen.getByText("Серверная услуга")).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("shows all services for guest in one section (no selected city)", async () => {

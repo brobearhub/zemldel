@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/shared/lib/seo";
 import { Achievements } from "@/widgets/achievements/ui/Achievements";
 import { Contacts } from "@/widgets/contacts/ui/Contacts";
 import { Hero } from "@/widgets/hero/ui/Hero";
@@ -32,7 +32,9 @@ export default async function AboutPage() {
   );
 }
 
-export const metadata: Metadata = {
-  title: "О компании - Земледел",
-};
+export const metadata = publicPageMetadata(
+  "О Земледеле — помощь с землёй и недвижимостью",
+  "Земледел: земельные и кадастровые услуги, оформление документов и помощь с недвижимостью. Направления работы, контакты и информация о проекте.",
+  "/about",
+);
 

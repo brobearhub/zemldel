@@ -1,4 +1,5 @@
-import type { Metadata } from "next";
+import type { ServiceDto } from "@/entities/service";
+import { publicPageMetadata, SITE_DESCRIPTION } from "@/shared/lib/seo";
 import { redirect } from "next/navigation";
 import { fetchBackendJson } from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
@@ -26,31 +27,23 @@ export default async function IndexPage() {
     redirect("/providers/new");
   }
 
-  const categories = await fetchBackendJson<ServiceCategoryRow[]>("/service-categories");
+  const [categories, services] = await Promise.all([
+    fetchBackendJson<ServiceCategoryRow[]>("/service-categories"),
+    fetchBackendJson<ServiceDto[]>("/services"),
+  ]);
 
   return (
     <HomeStickyRequestLayout
       isAuthenticated={Boolean(session?.user?.id)}
       categories={categories}
+      initialServices={services}
     />
   );
 }
 
-export const metadata: Metadata = {
-  title: "Земледел",
-  description: "Команда земельных экспертов",
-  openGraph: {
-    title: "Земледел",
-    description: "Команда земельных экспертов",
-    url: "https://zemledel.ru",
-    siteName: "Земледел",
-    images: [{ url: "https://zemledel.ru/og-image.png" }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Земледел",
-    description: "Земледел",
-    images: [{ url: "https://zemledel.ru/og-image.png" }],
-  },
-};
+export const metadata = publicPageMetadata(
+  "Земельные и кадастровые услуги — Земледел",
+  SITE_DESCRIPTION,
+  "/",
+);
 
