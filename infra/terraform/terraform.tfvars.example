@@ -1,4 +1,4 @@
-domain            = "zemledelpro.ru"
+domain            = "zemledel.ru"
 backup_start_date = "2026-11-03" # replace with the actual deployment date
 
 # Create separate prod network, 192.168.10.0/24, Moscow.
@@ -24,6 +24,6 @@ dns_records = {}
 # dns_records = {
 #   frontend = { name = "@", type = "A", value = "IP_FROM_FRONTEND_APPPLATFORM" }
 #   api      = { name = "api", type = "CNAME", value = "HOST_FROM_BACKEND_APPPLATFORM" }
-#   www      = { name = "www", type = "CNAME", value = "zemledelpro.ru" }
+#   www      = { name = "www", type = "CNAME", value = "zemledel.ru" }
 #   mail_spf = { name = "@", type = "TXT", value = "VALUE_FROM_SMTP_PROVIDER" }
 # }

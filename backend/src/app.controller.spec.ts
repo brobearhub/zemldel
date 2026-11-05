@@ -8,7 +8,7 @@ describe('AppController', () => {
   describe('root', () => {
     it('returns the API identity', () => {
       appController = new AppController(new AppService());
-      expect(appController.getHello()).toBe('ZemledelPro API');
+      expect(appController.getHello()).toBe('Zemledel API');
     });
   });
 });

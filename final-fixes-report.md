@@ -26,7 +26,7 @@
 
 - Focused specs: 2 passed files, 14 passed / 14 tests.
 - Full backend suite: 65 passed files, 1 failed file; 324 passed / 325 tests.
-- Единственное падение full suite — известный baseline `src/app.controller.spec.ts`: expected `Hello World!`, received `ZemledelPro API`.
+- Единственное падение full suite — известный baseline `src/app.controller.spec.ts`: expected `Hello World!`, received `Zemledel API`.
 - Lint: exit 0, 0 errors, 293 существующих warnings.
 - Build: exit 0.
 

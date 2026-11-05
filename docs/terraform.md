@@ -233,7 +233,7 @@ Prod создаётся отдельно от testing:
 - Своя сеть `zemledel-prod`, `192.168.10.0/24`.
 - Отдельный публичный IPv4 для БД: оплачивается отдельно. Terraform привяжет его к кластеру и после этого запросит включение TLS.
 - Два S3-бакета по 10 ГБ.
-- DNS для `zemledelpro.ru` и CDN `cdn.zemledelpro.ru`.
+- DNS для `zemledel.ru` и CDN `cdn.zemledel.ru`.
 
 Все команды по-прежнему вводятся из папки проекта. Если открыли новый терминал, выполните общую подготовку в начале инструкции.
 
@@ -334,9 +334,9 @@ terraform -chdir=infra/terraform output -json backend_storage_environment
 
 Домен остаётся у текущего регистратора. Terraform добавляет его в DNS-хостинг Timeweb.
 
-1. В панели Timeweb откройте домен `zemledelpro.ru`.
+1. В панели Timeweb откройте домен `zemledel.ru`.
 2. До смены NS перенесите в Timeweb существующие DNS-записи, особенно MX/SPF/DKIM/DMARC для действующей почты. Проверьте автоматически созданные записи, чтобы не получить дубликаты.
-3. В AppPlatform подключите `zemledelpro.ru` к frontend и `api.zemledelpro.ru` к backend.
+3. В AppPlatform подключите `zemledel.ru` к frontend и `api.zemledel.ru` к backend.
 4. Выданные AppPlatform значения A/CNAME внесите в `dns_records` файла `infra/terraform/terraform.tfvars`. Не используйте выдуманные IP-адреса и не ставьте CNAME на корень домена.
 5. Примените новые записи:
 
@@ -349,9 +349,9 @@ terraform -chdir=infra/terraform apply
 
 Для prod-приложений задайте:
 
-- Backend: `FRONTEND_URL=https://zemledelpro.ru`.
-- Frontend: `NEXTAUTH_URL=https://zemledelpro.ru`.
-- Frontend: `BACKEND_API_URL=https://api.zemledelpro.ru` и `NEXT_PUBLIC_CHAT_SOCKET_URL=https://api.zemledelpro.ru`.
+- Backend: `FRONTEND_URL=https://zemledel.ru`.
+- Frontend: `NEXTAUTH_URL=https://zemledel.ru`.
+- Frontend: `BACKEND_API_URL=https://api.zemledel.ru` и `NEXT_PUBLIC_CHAT_SOCKET_URL=https://api.zemledel.ru`.
 - В обоих приложениях: согласованные production-секреты. S3-переменные backend возьмите из production-вывода Terraform.
 
 Для доменов backend и frontend AppPlatform автоматически выпускает и устанавливает сертификаты при их подключении. Это отдельные сертификаты от сертификата CDN.
@@ -365,7 +365,7 @@ terraform -chdir=infra/terraform output -raw cdn_cname_target
 ```
 
 ```sh
-dig +short CNAME cdn.zemledelpro.ru
+dig +short CNAME cdn.zemledel.ru
 ```
 
 Значения должны совпасть; завершающую точку в ответе `dig` можно не учитывать. Если они не совпадают, дождитесь распространения DNS и повторите проверку.
@@ -385,7 +385,13 @@ terraform -chdir=infra/terraform plan
 terraform -chdir=infra/terraform apply
 ```
 
-Terraform отправит запрос в Timeweb, дождётся выпуска и привязки сертификата и включит перенаправление HTTP → HTTPS. Сам сертификат создаёт и в дальнейшем автоматически продлевает Timeweb. Пока сертификат не готов, адрес `https://cdn.zemledelpro.ru` ещё нельзя считать рабочим для приложения.
+Terraform отправит запрос в Timeweb, дождётся выпуска и привязки сертификата и включит перенаправление HTTP → HTTPS. Сам сертификат создаёт и в дальнейшем автоматически продлевает Timeweb. Пока сертификат не готов, адрес `https://cdn.zemledel.ru` ещё нельзя считать рабочим для приложения.
+
+## Смена домена существующего prod
+
+Для перехода на `zemledel.ru` используйте [пошаговую инструкцию](domain-change.md).
+Не повторяйте создание БД, восстановление городов и сиды. Существующий CDN
+перенастраивается через список алиасов без создания второго платного ресурса.
 
 ## Что проверить после создания
 

@@ -35,11 +35,14 @@ def main():
 
     def certificate_ready():
         config = api(base + "/configuration")["http_resource_configuration"]
+        # A replacement certificate must keep all custom aliases working.
+        aliases = (config.get("domains") or {}).get("aliases") or []
+        required_domains = {domain, *(alias for alias in aliases if alias.rstrip(".") != target)}
         certificate_id = (config.get("security") or {}).get("certificate_id")
         if not certificate_id:
             return False
         certificates = api("/api/v1/cdn/certificates")["certificates"]
-        return any(c["id"] == certificate_id and domain in c["domains"]
+        return any(c["id"] == certificate_id and required_domains.issubset(set(c["domains"]))
                    and datetime.fromisoformat(c["expires_at"].replace("Z", "+00:00")) > datetime.now(timezone.utc)
                    for c in certificates)
 

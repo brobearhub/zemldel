@@ -1,8 +1,8 @@
 {
-  email {$CADDY_ADMIN_EMAIL:admin@zemledelpro.ru}
+  email {$CADDY_ADMIN_EMAIL:admin@zemledel.ru}
 }
 
-{$DOMAIN:zemledelpro.ru} {
+{$DOMAIN:zemledel.ru} {
   encode gzip
 
   handle /socket.io* {

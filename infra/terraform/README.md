@@ -4,7 +4,10 @@
 
 Отдельное окружение testing без CDN описано в [testing/README.md](testing/README.md). У него свой Terraform root и state; команды prod ниже не используются для testing.
 
-Terraform создаёт инфраструктуру для `zemledelpro.ru`. Backend и frontend AppPlatform создаются пользователем отдельно. Регистратор домена остаётся прежним. Существующий SMTP сохраняется.
+Terraform создаёт инфраструктуру для `zemledel.ru`. Backend и frontend AppPlatform создаются пользователем отдельно. Регистратор домена остаётся прежним. Существующий SMTP сохраняется.
+
+Для смены домена уже работающего prod см. [инструкцию перехода](../../docs/domain-change.md).
+Она не требует новой БД или переноса файлов S3. CDN сохраняет ID и меняет домен раздачи через API.
 
 ## Состав
 
@@ -18,7 +21,7 @@ Terraform создаёт инфраструктуру для `zemledelpro.ru`. B
 | S3 public | Standard 10 ГБ, публичные изображения, источник CDN |
 | S3 private | Standard 10 ГБ, приватные документы, без CDN |
 | S3 service account | Одна пара ключей для backend, которому нужны оба бакета |
-| CDN | `cdn.zemledelpro.ru`, HTTPS до S3; лимит раздачи 250 ГБ/месяц |
+| CDN | `cdn.zemledel.ru`, HTTPS до S3; лимит раздачи 250 ГБ/месяц |
 | DNS | Добавление существующего домена в Timeweb, CNAME для CDN, дополнительные записи из `dns_records` |
 | Сертификат CDN | Второй этап: выпуск Let's Encrypt и HTTP→HTTPS после распространения DNS |
 
@@ -91,12 +94,12 @@ terraform -chdir=infra/terraform output -json backend_storage_environment
 
 ## 3. DNS без переноса регистратора
 
-Terraform добавляет `zemledelpro.ru` в DNS-хостинг Timeweb, **не заказывает регистрацию или трансфер**. Если домен уже добавлен вручную, сначала импортируйте `restapi_object.domain` вместо повторного добавления; формат импорта REST-провайдера смотрите в его документации.
+Terraform добавляет `zemledel.ru` в DNS-хостинг Timeweb, **не заказывает регистрацию или трансфер**. Если домен уже добавлен вручную, сначала импортируйте `restapi_object.domain["zemledel.ru"]` вместо повторного добавления; точная команда приведена в [инструкции перехода](../../docs/domain-change.md).
 
 1. Сохраните существующие DNS-записи у текущего DNS-провайдера. Особенно MX, SPF, DKIM, DMARC и записи подтверждения: их потеря может нарушить работу существующего SMTP/почты.
 2. Посмотрите выданные домену NS в панели Timeweb. Введите **именно их** у текущего регистратора.
 3. До смены NS перенесите нужные записи в Timeweb. Для управления через Terraform используйте `dns_records`. Не создавайте повторные записи, уже автоматически добавленные панелью; сначала разберите конфликты.
-4. AppPlatform frontend подключите к `zemledelpro.ru`, backend — к `api.zemledelpro.ru`. Скопируйте выдаваемые AppPlatform значения A/CNAME в `dns_records` и повторите plan/apply. Не ставьте CNAME на корень зоны; используйте вариант A, предоставленный платформой.
+4. AppPlatform frontend подключите к `zemledel.ru`, backend — к `api.zemledel.ru`. Скопируйте выдаваемые AppPlatform значения A/CNAME в `dns_records` и повторите plan/apply. Не ставьте CNAME на корень зоны; используйте вариант A, предоставленный платформой.
 5. Для `www` при необходимости добавьте запись и настройте домен/редирект на стороне frontend AppPlatform.
 
 Поле `dns_records` позволяет внести TXT/MX существующего SMTP. Не меняйте SMTP-провайдера и не придумывайте SPF/DKIM по шаблону. Один домен должен иметь согласованную SPF-запись.
@@ -107,12 +110,12 @@ Terraform добавляет `zemledelpro.ru` в DNS-хостинг Timeweb, **�
 
 ```sh
 terraform -chdir=infra/terraform output -raw cdn_cname_target
-dig +short CNAME cdn.zemledelpro.ru
+dig +short CNAME cdn.zemledel.ru
 ```
 
 Значения должны совпасть. Затем в `terraform.tfvars` установите `enable_cdn_tls = true`, выполните `plan`, затем `apply`. Terraform отправит запрос в Timeweb, дождётся выпуска и привязки сертификата и включит HTTP → HTTPS.
 
-Сертификат выпускает Timeweb и затем автоматически его продлевает. Пока сертификат не готов, URL `https://cdn.zemledelpro.ru` не считается рабочим. При ограничивающей CAA-записи разрешите используемый Timeweb удостоверяющий центр до выпуска. См. [инструкцию Timeweb](https://timeweb.cloud/docs/cdn/ssl).
+Сертификат выпускает Timeweb и затем автоматически его продлевает. Пока сертификат не готов, URL `https://cdn.zemledel.ru` не считается рабочим. При ограничивающей CAA-записи разрешите используемый Timeweb удостоверяющий центр до выпуска. См. [инструкцию Timeweb](https://timeweb.cloud/docs/cdn/ssl).
 
 Для доменов frontend/backend AppPlatform автоматически выпускает и устанавливает отдельные сертификаты при подключении доменов. Переключение `enable_cdn_tls` обратно в `false` не удаляет уже выпущенный сертификат.
 
@@ -125,26 +128,26 @@ Terraform создаёт пустую логическую БД; таблицы 
 
 Для S3 перенесите объекты из старых public/private бакетов с сохранением **всех ключей и префиксов**. Новые имена бакетов берите из `full_name` в output: Timeweb добавляет префикс к имени. Проверьте число объектов/размеры и чтение выборки после переноса. Terraform не синхронизирует содержимое бакетов.
 
-`DOCUMENTS_MASTER_KEY_BASE64` сохраните прежним, если переносите зашифрованные документы: смена ключа лишит доступа к старым файлам. Полные URL старого CDN в данных также требуют проверки. Сохранение `cdn.zemledelpro.ru` позволяет оставить уже сохранённые ссылки на этот домен.
+`DOCUMENTS_MASTER_KEY_BASE64` сохраните прежним, если переносите зашифрованные документы: смена ключа лишит доступа к старым файлам. При текущей смене домена перенос старых публичных картинок не требуется; новая загрузка будет использовать `cdn.zemledel.ru`.
 
 ## 6. AppPlatform вручную
 
-Backend: `/backend`, новая сеть `zemledel-prod` в MSK-1, команда сборки `npm ci --include=dev && npm run deploy`, запуска `npm run start:prod`. `deploy` выполняет миграции/сиды и требует подключения к БД во время сборки.
+Backend: `/backend`, сеть `zemledel-prod` в MSK-1, команда сборки `npm run tw:build`, запуска `npm run tw:start`. Сборка не подключается к БД; миграции выполняются при старте. Сиды запускаются отдельно.
 
 Переменные backend:
 
 - `DATABASE_URL` — новая БД + корректный TLS.
 - S3/CDN-переменные — из `backend_storage_environment`. Имена переменных нейтральны к провайдеру: `S3_*` и `CDN_PUBLIC_BASE_URL`.
-- `FRONTEND_URL=https://zemledelpro.ru`.
+- `FRONTEND_URL=https://zemledel.ru`.
 - Прежний `DOCUMENTS_MASTER_KEY_BASE64`; общие с frontend `INTERNAL_API_SECRET` и `SOCKET_JWT_SECRET`.
 - Действующие `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`.
 
 Frontend:
 
-- `NEXTAUTH_URL=https://zemledelpro.ru`, `BACKEND_API_URL=https://api.zemledelpro.ru`.
+- `NEXTAUTH_URL=https://zemledel.ru`, `BACKEND_API_URL=https://api.zemledel.ru`.
 - Согласованные `INTERNAL_API_SECRET`, `SOCKET_JWT_SECRET`, `NEXTAUTH_SECRET`.
-- `NEXT_PUBLIC_CHAT_SOCKET_URL=https://api.zemledelpro.ru`.
-- `cdn.zemledelpro.ru` уже разрешён в `frontend/next.config.mjs`. Не включайте fallback на старый S3. Для прямого fallback на Timeweb S3 задайте `NEXT_PUBLIC_S3_ENDPOINT`, `NEXT_PUBLIC_S3_PUBLIC_BUCKET` и `NEXT_PUBLIC_S3_FORCE_PATH_STYLE` до сборки: Next Image добавит настроенный public-бакет автоматически. Секретные ключи во frontend не передаются.
+- `NEXT_PUBLIC_CHAT_SOCKET_URL=https://api.zemledel.ru`.
+- `cdn.zemledel.ru` уже разрешён в `frontend/next.config.mjs`. Не включайте fallback на старый S3. Для прямого fallback на Timeweb S3 задайте `NEXT_PUBLIC_S3_ENDPOINT`, `NEXT_PUBLIC_S3_PUBLIC_BUCKET` и `NEXT_PUBLIC_S3_FORCE_PATH_STYLE` до сборки: Next Image добавит настроенный public-бакет автоматически. Секретные ключи во frontend не передаются.
 
 Перед переключением проверьте вход, сброс пароля через существующий SMTP, загрузку/отображение картинки, приватный документ с авторизацией, чат и соединение с БД. Старые ресурсы удаляются только после этого.
 

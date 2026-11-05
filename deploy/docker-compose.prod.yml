@@ -6,8 +6,8 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      DOMAIN: ${DOMAIN:-zemledelpro.ru}
-      CADDY_ADMIN_EMAIL: ${CADDY_ADMIN_EMAIL:-admin@zemledelpro.ru}
+      DOMAIN: ${DOMAIN:-zemledel.ru}
+      CADDY_ADMIN_EMAIL: ${CADDY_ADMIN_EMAIL:-admin@zemledel.ru}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

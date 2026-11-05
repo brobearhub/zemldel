@@ -20,6 +20,7 @@ import WorkIcon from "@mui/icons-material/Work";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import { signOut } from "next-auth/react";
+import { buildSignInHref } from "@/core/auth/session-recovery";
 import { useAppSelector } from "@/core/store/hooks";
 import { CdnAvatar } from "@/shared/ui/cdn-image";
 import { getActiveMembership, resolveAccountKind } from "@/core/auth/authorization";
@@ -288,7 +289,7 @@ export const ProfileMenu = ({
 
   const handleSignIn = () => {
     const returnTo = buildReturnTo(pathname, searchParams);
-    closeAndGo(() => router.push(`/signin?returnTo=${encodeURIComponent(returnTo)}`));
+    closeAndGo(() => router.push(buildSignInHref(returnTo)));
   };
 
   const handleSignInPro = () => {

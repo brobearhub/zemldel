@@ -5,7 +5,7 @@
   "description": "Zemledel PRO frontend",
   "author": "Zemledel PRO with BroBear.ru",
   "license": "private",
-  "homepage": "https://zemledel.pro",
+  "homepage": "https://zemledel.ru",
   "scripts": {
     "dev": "next -p 4000",
     "build": "next build --webpack",

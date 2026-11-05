@@ -27,7 +27,7 @@ export function resolvePostSignInPath(input: {
   }
 
   if (!isSafeReturnToPath(input.returnTo) || isProviderArea(input.returnTo)) {
-    return input.returnTo && isProviderArea(input.returnTo) ? "/profile" : "/";
+    return "/profile";
   }
 
   return input.returnTo;

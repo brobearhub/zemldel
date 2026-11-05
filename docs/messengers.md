@@ -17,7 +17,7 @@
 
 ## Конфигурация backend
 
-На frontend используется существующая переменная `NEXTAUTH_URL=https://zemledelpro.ru`.
+На frontend используется существующая переменная `NEXTAUTH_URL=https://zemledel.ru`.
 Обработчик `/api/messengers` сверяет Origin изменяющих запросов с этим публичным адресом:
 за reverse proxy внутренний URL Next.js может иметь другой hostname или протокол.
 Токены ботов и webhook-секреты остаются только на backend.
@@ -31,7 +31,7 @@ TELEGRAM_WEBHOOK_SECRET=<случайная строка 16–256 символо
 MAX_BOT_USERNAME=id6679190271_bot
 MAX_BOT_TOKEN=<токен MAX>
 MAX_WEBHOOK_SECRET=<другая случайная строка>
-MESSENGER_SITE_URL=https://zemledelpro.ru
+MESSENGER_SITE_URL=https://zemledel.ru
 MESSENGER_WEBHOOK_BASE_URL=https://<публичный адрес backend>
 MESSENGER_WORKER_ENABLED=true
 ```

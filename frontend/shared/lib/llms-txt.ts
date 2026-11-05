@@ -1,5 +1,5 @@
 /** Боевой сайт. Локальный и любой другой адрес файл не публикуют. */
-const LLMS_TXT_HOSTS = new Set(["zemledelpro.ru", "www.zemledelpro.ru"]);
+const LLMS_TXT_HOSTS = new Set(["zemledel.ru", "www.zemledel.ru"]);
 
 export type LlmsCategory = {
   readonly id: string;

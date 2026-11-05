@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
+  Button,
   Chip,
   CircularProgress,
   List,
@@ -79,14 +80,18 @@ export function LocationPicker({ value, disabled, fill = false, onSelect }: Prop
   const [suggestions, setSuggestions] = useState<CitySuggestItemDto[]>([]);
   const [suggestError, setSuggestError] = useState<string | null>(null);
   const [suggestLoading, setSuggestLoading] = useState(false);
+  const [capitalsRetry, setCapitalsRetry] = useState(0);
+  const [suggestRetry, setSuggestRetry] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
   const debounced = useDebounced(query, 250);
   const trimmed = query.trim();
   const searching = trimmed.length >= 2;
-  const remoteReady = searching && !suggestLoading && !suggestError && suggestions.length > 0;
+  const remoteReady = searching && query === debounced && !suggestLoading && !suggestError && suggestions.length > 0;
 
   useEffect(() => {
     let cancelled = false;
+    setCapitalsLoading(true);
+    setCapitalsError(null);
     loadRegionalCapitals()
       .then((cities) => {
         if (cancelled) return;
@@ -104,7 +109,7 @@ export function LocationPicker({ value, disabled, fill = false, onSelect }: Prop
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [capitalsRetry]);
 
   useEffect(() => {
     const q = debounced.trim();
@@ -116,9 +121,10 @@ export function LocationPicker({ value, disabled, fill = false, onSelect }: Prop
     }
 
     let cancelled = false;
+    const controller = new AbortController();
     setSuggestLoading(true);
     setSuggestError(null);
-    suggestCities(q)
+    suggestCities(q, controller.signal)
       .then((cities) => {
         if (cancelled) return;
         setSuggestions(cities);
@@ -133,8 +139,9 @@ export function LocationPicker({ value, disabled, fill = false, onSelect }: Prop
       });
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, [debounced]);
+  }, [debounced, suggestRetry]);
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: 0 });
@@ -155,11 +162,20 @@ export function LocationPicker({ value, disabled, fill = false, onSelect }: Prop
     setLetter((current) => (current === next ? null : next));
   }
 
-  const listMessage = capitalsLoading
-    ? null
-    : searching
-      ? suggestError ?? (suggestLoading ? null : suggestions.length === 0 ? "Ничего не найдено" : null)
-      : capitalsError ?? (groups.length === 0 ? "Ничего не найдено" : null);
+  const loading = searching ? suggestLoading || query !== debounced : capitalsLoading;
+  const loadError = searching ? suggestError : capitalsError;
+
+  function retry() {
+    if (searching) {
+      setSuggestError(null);
+      setSuggestLoading(true);
+      setSuggestRetry((current) => current + 1);
+    } else {
+      setCapitalsError(null);
+      setCapitalsLoading(true);
+      setCapitalsRetry((current) => current + 1);
+    }
+  }
 
   return (
     <Box
@@ -182,7 +198,7 @@ export function LocationPicker({ value, disabled, fill = false, onSelect }: Prop
             const next = event.target.value;
             setQuery(next);
             setLetter(null);
-            if (next.trim().length >= 2) setSuggestLoading(true);
+            setSuggestError(null);
           }}
           slotProps={{ htmlInput: { "aria-label": "Поиск города" } }}
         />
@@ -285,7 +301,16 @@ export function LocationPicker({ value, disabled, fill = false, onSelect }: Prop
           flexShrink: fill ? 1 : 0,
         }}
       >
-        {capitalsLoading || (searching && suggestLoading && groups.length === 0) ? (
+        {loadError && !loading ? (
+          <Box sx={{ p: 2 }}>
+            <Button
+              onClick={retry}
+              disabled={disabled}
+            >
+              Попробуйте еще раз
+            </Button>
+          </Box>
+        ) : loading && groups.length === 0 ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
             <CircularProgress size={22} />
           </Box>
@@ -339,7 +364,7 @@ export function LocationPicker({ value, disabled, fill = false, onSelect }: Prop
           ))
         ) : (
           <Typography variant="body2" sx={{ color: "text.secondary", px: 2, py: 3 }}>
-            {listMessage ?? "Ничего не найдено"}
+            Ничего не найдено
           </Typography>
         )}
       </Box>
