@@ -143,7 +143,7 @@ async function main() {
     console.log(`${platform}: webhook зарегистрирован`);
   }
   if (!apply)
-    console.log('Режим проверки. Для регистрации: повторите с --apply.');
+    console.log('Режим проверки. Для регистрации: npm run messengers:setup.');
 }
 
 void main().catch((error: unknown) => {
