@@ -1,4 +1,5 @@
 import { publicPageMetadata } from "@/shared/lib/seo";
+import { HowItWorks } from "@/widgets/how-it-works/ui/HowItWorks";
 import { Achievements } from "@/widgets/achievements/ui/Achievements";
 import { Contacts } from "@/widgets/contacts/ui/Contacts";
 import { Hero } from "@/widgets/hero/ui/Hero";
@@ -15,6 +16,7 @@ export default async function AboutPage() {
   return (
     <>
       <Hero />
+      <HowItWorks />
       <Box
         component="section"
         id="services"

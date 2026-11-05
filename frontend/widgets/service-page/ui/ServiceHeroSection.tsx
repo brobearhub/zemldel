@@ -139,9 +139,24 @@ export function ServiceHeroSection({ vm }: Props) {
                 </Typography>
 
                 {vm.description ? (
-                  <Typography sx={{ color: "text.secondary", fontSize: { xs: 14, md: 16 }, lineHeight: { xs: 1.43, md: 1.5 } }}>
-                    {vm.description}
-                  </Typography>
+                  <Stack spacing={1}>
+                    <Typography
+                      component="h2"
+                      variant="subtitle1"
+                      sx={{ fontWeight: 700 }}
+                    >
+                      Описание услуги от исполнителя
+                    </Typography>
+                    <Typography
+                      sx={{
+                        color: "text.secondary",
+                        fontSize: { xs: 14, md: 16 },
+                        lineHeight: { xs: 1.43, md: 1.5 },
+                      }}
+                    >
+                      {vm.description}
+                    </Typography>
+                  </Stack>
                 ) : null}
 
                 {vm.rating ? (

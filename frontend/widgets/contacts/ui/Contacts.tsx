@@ -4,7 +4,6 @@ import { useState } from "react";
 import Image from "next/image";
 import { Box, SvgIcon, Stack, Typography } from "@mui/material";
 import TelegramIcon from "@mui/icons-material/Telegram";
-import VerifiedIcon from "@mui/icons-material/Verified";
 
 const PHONE = "+7 922 104 75 86";
 const MAX_ICON_PATH =
@@ -107,7 +106,6 @@ export const Contacts = () => {
                 >
                   Валерия
                 </Typography>
-                <VerifiedIcon sx={{ fontSize: 20, color: "#1DA1F2", transform: "translate(-7px, -10px)" }} />
               </Box>
               <Typography
                 sx={{

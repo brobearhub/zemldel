@@ -68,6 +68,8 @@ export default async function ProviderPublicPage({ params }: Props) {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
+    "@id": `${siteOrigin()}/providers/${encodeURIComponent(provider.slug)}#provider`,
+    url: `${siteOrigin()}/providers/${encodeURIComponent(provider.slug)}`,
     name: provider.name,
     ...(provider.about?.trim() ? { description: provider.about.trim() } : {}),
     ...(city ? { address: { "@type": "PostalAddress", addressLocality: city } } : {}),

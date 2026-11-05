@@ -3,6 +3,7 @@
 import { Box, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { achievements } from "@/widgets/achievements/model/achievements";
+import Link from "@/shared/ui/Link";
 
 const borderColorSx = (theme: { palette: { mode: string; common: { white: string; black: string } } }) =>
   theme.palette.mode === "dark"
@@ -25,10 +26,9 @@ export const Achievements = () => {
       <Box
         sx={{
           width: "100%",
-          aspectRatio: { xs: "auto", md: "5 / 3" },
           display: "grid",
           gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))", md: "repeat(5, 1fr)" },
-          gridTemplateRows: { xs: "auto", md: "1fr 1fr 1fr" },
+          gridTemplateRows: "auto",
           border: "1px solid",
           borderColor: (theme) => borderColorSx(theme),
           bgcolor: (theme) =>
@@ -67,10 +67,12 @@ export const Achievements = () => {
             gridColumn: { xs: "1 / -1", md: "2 / 5" },
             gridRow: "1",
             display: "flex",
+            flexDirection: "column",
+            gap: 1,
             alignItems: "center",
             justifyContent: "center",
             px: 2,
-            py: { xs: 3, md: 0 },
+            py: { xs: 3, md: 5 },
             borderRight: "1px solid",
             borderBottom: "1px solid",
             borderColor: (theme) => borderColorSx(theme),
@@ -87,7 +89,23 @@ export const Achievements = () => {
               color: "text.primary",
             }}
           >
-            Наши достижения
+            Опыт исполнителя
+          </Typography>
+          <Link
+            href="/providers/valeriya-usova"
+            sx={{
+              fontWeight: 700,
+              textAlign: "center",
+            }}
+          >
+            Валерия — профиль исполнителя
+          </Link>
+          <Typography
+            variant="body2"
+            sx={{ textAlign: "center" }}
+          >
+            Показатели предоставлены исполнителем и относятся к его практике,
+            а не к результатам площадки Земледел.
           </Typography>
         </Box>
 

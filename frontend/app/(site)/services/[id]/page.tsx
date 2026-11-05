@@ -63,7 +63,16 @@ export default async function ServicePage({ params }: Props) {
     ...(service.description ? { description: service.description } : {}),
     ...(placeNames.length ? { areaServed: placeNames } : {}),
     ...(service.provider?.name
-      ? { provider: { "@type": "LocalBusiness", name: service.provider.name } }
+      ? {
+          provider: {
+            "@type": "LocalBusiness",
+            name: service.provider.name,
+            ...(service.provider.slug ? {
+              "@id": `${siteOrigin()}/providers/${encodeURIComponent(service.provider.slug)}#provider`,
+              url: `${siteOrigin()}/providers/${encodeURIComponent(service.provider.slug)}`,
+            } : {}),
+          },
+        }
       : {}),
   };
 
