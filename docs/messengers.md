@@ -17,6 +17,11 @@
 
 ## Конфигурация backend
 
+На frontend используется существующая переменная `NEXTAUTH_URL=https://zemledelpro.ru`.
+Обработчик `/api/messengers` сверяет Origin изменяющих запросов с этим публичным адресом:
+за reverse proxy внутренний URL Next.js может иметь другой hostname или протокол.
+Токены ботов и webhook-секреты остаются только на backend.
+
 В `backend/.env` локально и в серверных секретах при развёртывании:
 
 ```dotenv
