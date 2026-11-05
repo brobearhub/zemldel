@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerAuthSession } from "@/core/auth";
 import { fetchBackendAsUser } from "@/shared/api/backend/server";
+import { isAllowedMessengerRoute } from "./is-allowed-messenger-route";
 
 type Context = { params: Promise<{ path?: string[] }> };
 
@@ -21,15 +22,7 @@ function hasAllowedOrigin(request: Request): boolean {
 async function proxy(request: Request, context: Context) {
   const path = (await context.params).path ?? [];
   const resource = path.join("/");
-  const allowed =
-    request.method === "GET"
-      ? resource === ""
-      : request.method === "POST"
-        ? /^(TELEGRAM|MAX)\/(link|confirm)$/.test(resource)
-        : request.method === "PATCH"
-          ? /^(TELEGRAM|MAX)\/notifications$/.test(resource)
-          : request.method === "DELETE" && /^(TELEGRAM|MAX)$/.test(resource);
-  if (!allowed)
+  if (!isAllowedMessengerRoute(request.method, resource))
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (request.method !== "GET" && !hasAllowedOrigin(request)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
