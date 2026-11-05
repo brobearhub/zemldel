@@ -16,6 +16,7 @@ node_modules/
 .next/
 dist/
 coverage/
+artifacts/
 
 # Terraform
 .terraform/
@@ -33,10 +34,6 @@ infra/terraform/**/__pycache__/
 deploy/terraform-outputs.env
 deploy/.secrets/
 deploy/.secrets/**
-deploy/yandex/*.env
-deploy/yandex/*.crt
-infra/yandex/**/tfplan
-infra/yandex/**/*.tfplan
 crash.log
 override.tf
 override.tf.json
