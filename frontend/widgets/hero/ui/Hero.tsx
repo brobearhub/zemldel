@@ -1,21 +1,17 @@
 "use client";
 
 import Image from "next/image";
-import { Box, Container, Stack, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { Box, Container, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
 
 export const Hero = () => {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"), {
-    noSsr: true,
-  });
   const isLight = theme.palette.mode === "light";
   const posterSrc = isLight ? "/hero-bg-house_static_day.jpg" : "/hero-bg-house_static.jpg";
   const GRID_SIZE = 122;
 
   const [shouldLoadVideo, setShouldLoadVideo] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
-  const [videoSrc, setVideoSrc] = useState<string | null>(null);
+  const videoSrc = isLight ? "/hero-bg_video_house_day_convert.mp4" : "/hero-bg_video_house.mp4";
 
   const [hoverCell, setHoverCell] = useState<{ x: number; y: number; visible: boolean }>({
     x: 0,
@@ -23,46 +19,20 @@ export const Hero = () => {
     visible: false,
   });
 
-  // Устанавливаем флаг монтирования и определяем правильный источник видео
+  // Mobile visitors get the optimized still image, without downloading a decorative video.
   useEffect(() => {
-    setIsMounted(true);
-    
-    // Определяем нужное видео только на клиенте
-    const src = isLight
-      ? "/hero-bg_video_house_day_convert.mp4"
-      : isMobile
-        ? "/hero-bg_video_house_vertical.mp4"
-        : "/hero-bg_video_house.mp4";
-    
-    setVideoSrc(src);
-  }, [isLight, isMobile]);
-
-  // Загружаем видео после монтирования
-  useEffect(() => {
-    if (!isMounted || !videoSrc) return;
-
-    // Если десктоп - загружаем видео сразу
-    if (!isMobile) {
-      setShouldLoadVideo(true);
-      return;
-    }
-
-    // Если мобайл - ждем полной загрузки страницы
-    const loadVideo = () => {
-      if (document.readyState === "complete") {
-        setTimeout(() => {
-          setShouldLoadVideo(true);
-        }, 100);
-      }
+    const desktop = window.matchMedia(`(min-width: ${theme.breakpoints.values.sm}px)`);
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+    const update = () => setShouldLoadVideo(desktop.matches && !reducedMotion.matches && !connection?.saveData);
+    update();
+    desktop.addEventListener("change", update);
+    reducedMotion.addEventListener("change", update);
+    return () => {
+      desktop.removeEventListener("change", update);
+      reducedMotion.removeEventListener("change", update);
     };
-
-    if (document.readyState === "complete") {
-      loadVideo();
-    } else {
-      window.addEventListener("load", loadVideo);
-      return () => window.removeEventListener("load", loadVideo);
-    }
-  }, [isMobile, isMounted, videoSrc]);
+  }, [theme.breakpoints.values.sm]);
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLElement>) => {
@@ -107,6 +77,7 @@ export const Hero = () => {
         src={posterSrc}
         alt="Земледел"
         fill
+        sizes="max(100vw, 180vh)"
         priority
         style={{
           objectFit: "cover",
@@ -209,25 +180,16 @@ export const Hero = () => {
             sx={{
               color: "common.white",
               fontWeight: 900,
-              lineHeight: 0.86,
+              lineHeight: 1.1,
               letterSpacing: "-0.03em",
               textTransform: "none",
-              fontSize: { xs: 60, sm: 104, md: 140 },
+              fontSize: { xs: "clamp(36px, 12vw, 60px)", sm: 104, md: 140 },
               textWrap: "balance",
               mx: "auto",
               position: "relative",
             }}
           >
-            <Box
-              component="span"
-              sx={{
-                position: "absolute",
-                left: { xs: "17.5px", sm: "30.4px", md: "41px" },
-                top: { xs: "-42px", sm: "-73px", md: "-98px" },
-                display: "block"
-              }}>
-              Земледел
-            </Box>
+            Земледел
           </Typography>
 
           <Box

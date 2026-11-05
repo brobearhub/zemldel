@@ -9,6 +9,24 @@ export type DevStorageConfig = {
 
 const HOSTS = new Set<string>(PUBLIC_CDN_HOSTS);
 
+/** Existing public uploads kept their object keys when the site's CDN domain changed. */
+export function normalizePublicAssetSrc(src: string): string {
+  let url: URL;
+  try {
+    url = new URL(src);
+  } catch {
+    return src;
+  }
+  if (
+    url.protocol !== "https:" ||
+    url.hostname !== "cdn.zemledelpro.ru" ||
+    url.port || url.username || url.password ||
+    !url.pathname.startsWith("/public/")
+  ) return src;
+  url.hostname = PUBLIC_CDN_HOSTS[0];
+  return url.toString();
+}
+
 function publicStorageConfig(): DevStorageConfig | null {
   const endpoint = process.env.NEXT_PUBLIC_S3_ENDPOINT?.trim() ?? "";
   const bucket = process.env.NEXT_PUBLIC_S3_PUBLIC_BUCKET?.trim() ?? "";

@@ -1,5 +1,25 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { storageFallbackSrc } from "./public-asset-src";
+import { normalizePublicAssetSrc, storageFallbackSrc } from "./public-asset-src";
+
+describe("normalizePublicAssetSrc", () => {
+  it("restores old public upload URLs while preserving the object key and query", () => {
+    expect(normalizePublicAssetSrc("https://cdn.zemledelpro.ru/public/providers/photo.jpg?v=2"))
+      .toBe("https://cdn.zemledel.ru/public/providers/photo.jpg?v=2");
+  });
+
+  it.each([
+    "https://cdn.zemledel.ru/public/photo.jpg",
+    "https://cdn.zemledelpro.ru/private/photo.jpg",
+    "https://cdn.zemledelpro.ru.example.com/public/photo.jpg",
+    "http://cdn.zemledelpro.ru/public/photo.jpg",
+    "https://cdn.zemledelpro.ru:8443/public/photo.jpg",
+    "https://user@cdn.zemledelpro.ru/public/photo.jpg",
+    "blob:http://localhost:4000/preview",
+    "/local.jpg",
+  ])("leaves unrelated or non-public sources unchanged: %s", (src) => {
+    expect(normalizePublicAssetSrc(src)).toBe(src);
+  });
+});
 
 describe("storageFallbackSrc", () => {
   afterEach(() => {

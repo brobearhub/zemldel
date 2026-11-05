@@ -25,10 +25,10 @@ export const Achievements = () => {
       <Box
         sx={{
           width: "100%",
-          aspectRatio: "5 / 3",
+          aspectRatio: { xs: "auto", md: "5 / 3" },
           display: "grid",
-          gridTemplateColumns: "repeat(5, 1fr)",
-          gridTemplateRows: "1fr 1fr 1fr",
+          gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))", md: "repeat(5, 1fr)" },
+          gridTemplateRows: { xs: "auto", md: "1fr 1fr 1fr" },
           border: "1px solid",
           borderColor: (theme) => borderColorSx(theme),
           bgcolor: (theme) =>
@@ -47,10 +47,11 @@ export const Achievements = () => {
               <Box
                 key={`empty-${row}-${col}`}
                 sx={{
+                  display: { xs: "none", md: "block" },
                   gridColumn: col,
                   gridRow: row,
                   borderRight: isLastCol ? "none" : "1px solid",
-                  borderBottom: isLastRow ? "none" : "1px solid",
+                  borderBottom: { xs: "1px solid", md: isLastRow ? "none" : "1px solid" },
                   borderLeft: "none",
                   borderTop: "none",
                   borderColor: (theme) => borderColorSx(theme),
@@ -63,12 +64,13 @@ export const Achievements = () => {
         {/* Заголовок — три центральные ячейки первого ряда */}
         <Box
           sx={{
-            gridColumn: "2 / 5",
+            gridColumn: { xs: "1 / -1", md: "2 / 5" },
             gridRow: "1",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             px: 2,
+            py: { xs: 3, md: 0 },
             borderRight: "1px solid",
             borderBottom: "1px solid",
             borderColor: (theme) => borderColorSx(theme),
@@ -99,8 +101,8 @@ export const Achievements = () => {
           <Box
             key={item.label}
             sx={{
-              gridColumn: col,
-              gridRow: row,
+              gridColumn: { xs: "auto", md: col },
+              gridRow: { xs: "auto", md: row },
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
@@ -108,7 +110,7 @@ export const Achievements = () => {
               textAlign: "center",
               p: 2,
               borderRight: "1px solid",
-              borderBottom: isLastRow ? "none" : "1px solid",
+              borderBottom: { xs: "1px solid", md: isLastRow ? "none" : "1px solid" },
               borderColor: (theme) => borderColorSx(theme),
             }}
           >
