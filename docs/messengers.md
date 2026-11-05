@@ -52,14 +52,19 @@ npm run db:generate
 npm run db:migrate:deploy
 npm run build
 # Запустить/перезапустить backend с заполненными переменными.
-npx tsx scripts/configure-messengers.ts
-npx tsx scripts/configure-messengers.ts --apply
+npm run messengers:check
+npm run messengers:setup
 ```
 
 Первый вызов только проверяет токен, имя бота и существующие webhooks. Второй регистрирует:
 
 - `POST /messengers/TELEGRAM/webhook`, заголовок `X-Telegram-Bot-Api-Secret-Token`;
 - `POST /messengers/MAX/webhook`, заголовок `X-Max-Bot-Api-Secret`.
+
+Это команды администратора для однократной настройки интеграции. В консоли backend
+на хостинге запускайте их из `/app/backend`, где находится `package.json`.
+Они используют переменные окружения backend и локально установленный `tsx`; `npx` не нужен.
+Обычный пользователь подключает свой аккаунт кнопками в профиле сайта.
 
 Эти адреса должны быть доступны извне по HTTPS. Не направлять webhook на Next.js `/api/messengers`:
 это отдельный авторизованный BFF настроек, он намеренно не проксирует события ботов.

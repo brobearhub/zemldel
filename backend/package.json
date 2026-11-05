@@ -24,6 +24,8 @@
     "db:migrate:reset": "prisma migrate reset",
     "db:migrate:status": "prisma migrate status",
     "db:studio": "prisma studio",
+    "messengers:check": "tsx scripts/configure-messengers.ts",
+    "messengers:setup": "tsx scripts/configure-messengers.ts --apply",
     "cities:update": "tsx scripts/import-gar-cities.ts",
     "cities:backup": "tsx scripts/backup-city-dump.ts",
     "cities:restore": "tsx scripts/restore-city-dump.ts",

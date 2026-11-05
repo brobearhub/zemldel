@@ -2,15 +2,53 @@ import 'dotenv/config';
 import { MessengerConfig } from '../src/messengers/messenger-config';
 import { record } from '../src/messengers/messenger-events';
 
+// Only locally constructed messages are safe to print. Provider responses and
+// network exceptions can contain the Telegram token in a URL.
+class ConfigurationError extends Error {}
+
+function networkFailure(error: unknown): string {
+  const failure = record(error);
+  if (failure.name === 'TimeoutError' || failure.name === 'AbortError')
+    return 'тайм-аут запроса';
+  const code = record(failure.cause).code ?? failure.code;
+  switch (code) {
+    case 'ENOTFOUND':
+    case 'EAI_AGAIN':
+      return 'ошибка DNS';
+    case 'ECONNREFUSED':
+    case 'ECONNRESET':
+    case 'ETIMEDOUT':
+    case 'UND_ERR_CONNECT_TIMEOUT':
+      return 'ошибка подключения к API';
+    case 'UNABLE_TO_VERIFY_LEAF_SIGNATURE':
+    case 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY':
+    case 'SELF_SIGNED_CERT_IN_CHAIN':
+    case 'DEPTH_ZERO_SELF_SIGNED_CERT':
+    case 'CERT_HAS_EXPIRED':
+    case 'ERR_TLS_CERT_ALTNAME_INVALID':
+      return 'ошибка проверки TLS-сертификата; проверьте доверенные CA';
+    default:
+      return 'сетевая ошибка при обращении к API';
+  }
+}
+
 async function main() {
   const config = new MessengerConfig();
   const apply = process.argv.includes('--apply');
   const baseUrl = process.env.MESSENGER_WEBHOOK_BASE_URL;
-  if (!baseUrl || new URL(baseUrl).protocol !== 'https:') {
-    throw new Error(
+  if (!baseUrl) {
+    throw new ConfigurationError(
       'Задайте MESSENGER_WEBHOOK_BASE_URL: публичный HTTPS-адрес backend',
     );
   }
+  try {
+    if (new URL(baseUrl).protocol !== 'https:') throw new Error();
+  } catch {
+    throw new ConfigurationError(
+      'MESSENGER_WEBHOOK_BASE_URL должен быть корректным HTTPS-адресом без кавычек',
+    );
+  }
+  console.log('MESSENGER_WEBHOOK_BASE_URL: формат проверен');
   for (const platform of ['TELEGRAM', 'MAX'] as const) {
     if (!config.configured(platform)) {
       console.log(`${platform}: пропущен, настройки не заполнены`);
@@ -22,18 +60,43 @@ async function main() {
       ? `https://api.telegram.org/bot${bot.token}`
       : 'https://platform-api2.max.ru';
     const call = async (path: string, body?: object) => {
-      const response = await fetch(`${api}/${path}`, {
-        method: body ? 'POST' : 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(!telegram ? { Authorization: bot.token } : {}),
-        },
-        body: body ? JSON.stringify(body) : undefined,
-        signal: AbortSignal.timeout(15000),
-      });
-      const result = record(await response.json());
-      if (!response.ok || result.ok === false || result.success === false)
-        throw new Error(`${platform}: API status ${response.status}`);
+      console.log(`${platform}: запрос ${path}`);
+      let response: Response;
+      try {
+        response = await fetch(`${api}/${path}`, {
+          method: body ? 'POST' : 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(!telegram ? { Authorization: bot.token } : {}),
+          },
+          body: body ? JSON.stringify(body) : undefined,
+          signal: AbortSignal.timeout(15000),
+        });
+      } catch (error) {
+        throw new ConfigurationError(
+          `${platform} ${path}: ${networkFailure(error)}`,
+        );
+      }
+      if (!response.ok) {
+        const hint = [401, 403].includes(response.status)
+          ? `; проверьте ${platform}_BOT_TOKEN и доступ бота к API`
+          : '';
+        throw new ConfigurationError(
+          `${platform} ${path}: HTTP ${response.status}${hint}`,
+        );
+      }
+      let result: Record<string, unknown>;
+      try {
+        result = record(await response.json());
+      } catch {
+        throw new ConfigurationError(
+          `${platform} ${path}: API вернул некорректный JSON (HTTP ${response.status})`,
+        );
+      }
+      if (result.ok === false || result.success === false)
+        throw new ConfigurationError(
+          `${platform} ${path}: API отклонил запрос (HTTP ${response.status})`,
+        );
       return result;
     };
     const target = `${baseUrl.replace(/\/$/, '')}/messengers/${platform}/webhook`;
@@ -43,7 +106,9 @@ async function main() {
       typeof identity.username !== 'string' ||
       identity.username.toLowerCase() !== bot.username.toLowerCase()
     ) {
-      throw new Error(`${platform}: BOT_USERNAME не соответствует токену`);
+      throw new ConfigurationError(
+        `${platform}: ${platform}_BOT_USERNAME не соответствует токену; укажите имя бота без @ и ссылки`,
+      );
     }
     const current = await call(telegram ? 'getWebhookInfo' : 'subscriptions');
     const urls = telegram
@@ -52,7 +117,7 @@ async function main() {
         ? current.subscriptions.map((s: unknown) => record(s).url)
         : [];
     if (urls.some((url) => typeof url === 'string' && url && url !== target)) {
-      throw new Error(
+      throw new ConfigurationError(
         `${platform}: уже подключён к другому сервису. Автоматическая замена отключена.`,
       );
     }
@@ -78,13 +143,15 @@ async function main() {
     console.log(`${platform}: webhook зарегистрирован`);
   }
   if (!apply)
-    console.log('Режим проверки. Для регистрации: повторите с --apply.');
+    console.log('Режим проверки. Для регистрации: npm run messengers:setup.');
 }
 
-void main().catch(() => {
+void main().catch((error: unknown) => {
   // Не выводим сетевое исключение: URL Telegram содержит токен.
   console.error(
-    'Настройка не завершена. Проверьте env, доступность API, соответствие username токену и существующие webhooks.',
+    error instanceof ConfigurationError
+      ? `Настройка не завершена: ${error.message}`
+      : 'Настройка не завершена: неожиданная ошибка. Последняя строка выше указывает этап проверки.',
   );
   process.exitCode = 1;
 });
