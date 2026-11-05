@@ -52,17 +52,18 @@
     "class-validator": "^0.15.1",
     "content-disposition": "^3.0.0",
     "dotenv": "^17.3.1",
+    "grammy": "^1.46.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
     "nodemailer": "^10.1.0",
+    "pg": "^8.20.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "sax": "^1.6.0",
     "socket.io": "^4.8.3",
     "swagger-ui-express": "^5.0.1",
     "tsx": "^4.21.0",
-    "unzipper": "^0.12.3",
-    "pg": "^8.20.0"
+    "unzipper": "^0.12.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -75,6 +76,7 @@
     "@types/multer": "^2.1.0",
     "@types/node": "^22.10.7",
     "@types/nodemailer": "^8.0.2",
+    "@types/pg": "^8.23.1",
     "@types/supertest": "^6.0.2",
     "@vitest/ui": "^3.2.4",
     "eslint": "^9.18.0",
@@ -90,7 +92,6 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0",
-    "vitest": "^3.2.4",
-    "@types/pg": "^8.23.1"
+    "vitest": "^3.2.4"
   }
 }

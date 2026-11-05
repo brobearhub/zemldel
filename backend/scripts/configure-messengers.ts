@@ -1,6 +1,8 @@
 import 'dotenv/config';
+import { GrammyError, HttpError } from 'grammy';
 import { MessengerConfig } from '../src/messengers/messenger-config';
 import { record } from '../src/messengers/messenger-events';
+import { createTelegramApi } from '../src/messengers/telegram-api';
 
 // Only locally constructed messages are safe to print. Provider responses and
 // network exceptions can contain the Telegram token in a URL.
@@ -14,21 +16,55 @@ function networkFailure(error: unknown): string {
   switch (code) {
     case 'ENOTFOUND':
     case 'EAI_AGAIN':
-      return 'ошибка DNS';
+      return `ошибка DNS (${code})`;
     case 'ECONNREFUSED':
     case 'ECONNRESET':
     case 'ETIMEDOUT':
     case 'UND_ERR_CONNECT_TIMEOUT':
-      return 'ошибка подключения к API';
+    case 'ENETUNREACH':
+    case 'EHOSTUNREACH':
+      return `ошибка подключения к API (${code})`;
     case 'UNABLE_TO_VERIFY_LEAF_SIGNATURE':
     case 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY':
     case 'SELF_SIGNED_CERT_IN_CHAIN':
     case 'DEPTH_ZERO_SELF_SIGNED_CERT':
     case 'CERT_HAS_EXPIRED':
     case 'ERR_TLS_CERT_ALTNAME_INVALID':
-      return 'ошибка проверки TLS-сертификата; проверьте доверенные CA';
+      return `ошибка проверки TLS-сертификата (${code}); проверьте доверенные CA`;
     default:
       return 'сетевая ошибка при обращении к API';
+  }
+}
+
+async function callTelegram<T>(
+  method: string,
+  execute: () => Promise<T>,
+): Promise<T> {
+  console.log(`TELEGRAM: запрос ${method}`);
+  try {
+    return await execute();
+  } catch (error) {
+    if (error instanceof GrammyError) {
+      const status =
+        typeof error.error_code === 'number' ? error.error_code : 502;
+      const hint = [401, 403].includes(status)
+        ? '; проверьте TELEGRAM_BOT_TOKEN и доступ бота к API'
+        : '';
+      throw new ConfigurationError(
+        `TELEGRAM ${method}: API status ${status}${hint}`,
+      );
+    }
+    const underlying: unknown =
+      error instanceof HttpError ? error.error : error;
+    const failure = record(underlying);
+    if (failure.name === 'SyntaxError' || failure.type === 'invalid-json') {
+      throw new ConfigurationError(
+        `TELEGRAM ${method}: API вернул некорректный JSON`,
+      );
+    }
+    throw new ConfigurationError(
+      `TELEGRAM ${method}: ${networkFailure(underlying)}`,
+    );
   }
 }
 
@@ -55,19 +91,17 @@ async function main() {
       continue;
     }
     const bot = config.bot(platform);
-    const telegram = platform === 'TELEGRAM';
-    const api = telegram
-      ? `https://api.telegram.org/bot${bot.token}`
-      : 'https://platform-api2.max.ru';
-    const call = async (path: string, body?: object) => {
+    const telegramApi =
+      platform === 'TELEGRAM' ? createTelegramApi(bot.token, 15) : null;
+    const callMax = async (path: string, body?: object) => {
       console.log(`${platform}: запрос ${path}`);
       let response: Response;
       try {
-        response = await fetch(`${api}/${path}`, {
+        response = await fetch(`https://platform-api2.max.ru/${path}`, {
           method: body ? 'POST' : 'GET',
           headers: {
             'Content-Type': 'application/json',
-            ...(!telegram ? { Authorization: bot.token } : {}),
+            Authorization: bot.token,
           },
           body: body ? JSON.stringify(body) : undefined,
           signal: AbortSignal.timeout(15000),
@@ -100,8 +134,9 @@ async function main() {
       return result;
     };
     const target = `${baseUrl.replace(/\/$/, '')}/messengers/${platform}/webhook`;
-    const me = await call(telegram ? 'getMe' : 'me');
-    const identity = telegram ? record(me.result) : me;
+    const identity = telegramApi
+      ? record(await callTelegram('getMe', () => telegramApi.getMe()))
+      : await callMax('me');
     if (
       typeof identity.username !== 'string' ||
       identity.username.toLowerCase() !== bot.username.toLowerCase()
@@ -110,12 +145,18 @@ async function main() {
         `${platform}: ${platform}_BOT_USERNAME не соответствует токену; укажите имя бота без @ и ссылки`,
       );
     }
-    const current = await call(telegram ? 'getWebhookInfo' : 'subscriptions');
-    const urls = telegram
-      ? [record(current.result).url]
-      : Array.isArray(current.subscriptions)
+    let urls: unknown[];
+    if (telegramApi) {
+      const current = await callTelegram('getWebhookInfo', () =>
+        telegramApi.getWebhookInfo(),
+      );
+      urls = [current.url];
+    } else {
+      const current = await callMax('subscriptions');
+      urls = Array.isArray(current.subscriptions)
         ? current.subscriptions.map((s: unknown) => record(s).url)
         : [];
+    }
     if (urls.some((url) => typeof url === 'string' && url && url !== target)) {
       throw new ConfigurationError(
         `${platform}: уже подключён к другому сервису. Автоматическая замена отключена.`,
@@ -125,21 +166,21 @@ async function main() {
       `${platform}: бот проверен; webhook ${urls.includes(target) ? 'уже настроен' : 'готов к настройке'}`,
     );
     if (!apply) continue;
-    await call(
-      telegram ? 'setWebhook' : 'subscriptions',
-      telegram
-        ? {
-            url: target,
-            secret_token: bot.secret,
-            allowed_updates: ['message', 'my_chat_member'],
-            drop_pending_updates: false,
-          }
-        : {
-            url: target,
-            secret: bot.secret,
-            update_types: ['message_created', 'bot_started', 'bot_stopped'],
-          },
-    );
+    if (telegramApi) {
+      await callTelegram('setWebhook', () =>
+        telegramApi.setWebhook(target, {
+          secret_token: bot.secret,
+          allowed_updates: ['message', 'my_chat_member'],
+          drop_pending_updates: false,
+        }),
+      );
+    } else {
+      await callMax('subscriptions', {
+        url: target,
+        secret: bot.secret,
+        update_types: ['message_created', 'bot_started', 'bot_stopped'],
+      });
+    }
     console.log(`${platform}: webhook зарегистрирован`);
   }
   if (!apply)
