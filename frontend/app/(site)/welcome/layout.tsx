@@ -1,6 +1,11 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { getServerAuthSession } from "@/core/auth";
 import { signInRedirect } from "@/core/auth/sign-in-redirect";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: true },
+};
 
 interface Props {
   readonly children: ReactNode;

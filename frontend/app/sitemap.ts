@@ -5,6 +5,9 @@ import { siteOrigin } from "@/shared/lib/site-origin";
 
 const PUBLIC_PAGES = ["/", "/about", "/terms", "/privacy", "/consent", "/offer"] as const;
 
+// Read the current published catalog on every request; never cache a partial build-time snapshot.
+export const dynamic = "force-dynamic";
+
 type SitemapCategory = {
   id: string;
   parentId: string | null;
@@ -12,29 +15,22 @@ type SitemapCategory = {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const origin = siteOrigin();
-  let services: ServiceDto[] = [];
-  let categories: SitemapCategory[] = [];
-  try {
-    services = await fetchBackendJson<ServiceDto[]>("/services");
-  } catch {
-    services = [];
-  }
-  try {
-    categories = await fetchBackendJson<SitemapCategory[]>("/service-categories");
-  } catch {
-    categories = [];
-  }
+  // A failed dependency must return an error, not a successful but incomplete sitemap.
+  const [services, categories] = await Promise.all([
+    fetchBackendJson<ServiceDto[]>("/services"),
+    fetchBackendJson<SitemapCategory[]>("/service-categories"),
+  ]);
 
   const providers = new Map<string, string>();
   for (const service of services) {
     const slug = service.provider?.slug;
-    if (slug) providers.set(slug, `${origin}/providers/${slug}`);
+    if (slug) providers.set(slug, `${origin}/providers/${encodeURIComponent(slug)}`);
   }
 
   return [
     ...PUBLIC_PAGES.map((path) => ({ url: path === "/" ? origin : `${origin}${path}` })),
     ...categories
-      .filter((category) => category.parentId == null && category.id.trim() !== "")
+      .filter((category) => category.id.trim() !== "")
       .map((category) => ({ url: `${origin}/service-categories/${encodeURIComponent(category.id.trim())}` })),
     ...[...providers.values()].map((url) => ({ url })),
     ...services.map((service) => ({ url: `${origin}/services/${service.id}` })),

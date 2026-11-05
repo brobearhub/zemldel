@@ -177,7 +177,8 @@ export function ServiceProviderSection({ provider, serviceId, serviceTitle, isAu
               <Typography variant="caption" sx={{ letterSpacing: "0.4px" }}>
                 {providerTypeLabel(provider.type)}
               </Typography>
-              <Typography 
+              <Typography
+                component="h2"
                 variant="h4"
                 sx={{ color: "common.white" }}
               >

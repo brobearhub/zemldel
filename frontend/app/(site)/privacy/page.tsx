@@ -1,3 +1,11 @@
+import { publicPageMetadata } from "@/shared/lib/seo";
+
+export const metadata = publicPageMetadata(
+  "Политика обработки персональных данных — Земледел",
+  "Политика обработки персональных данных сервиса Земледел: состав данных, цели обработки и права пользователей.",
+  "/privacy",
+);
+
 import { Alert, Container, Paper, Stack, Typography } from "@mui/material";
 import { sitePageContainerSx } from "@/shared/config/site-layout";
 import { loadLegalDoc } from "@/shared/lib/server";

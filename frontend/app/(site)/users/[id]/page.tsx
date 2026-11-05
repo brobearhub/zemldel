@@ -1,6 +1,7 @@
-"use client";
-
-import { use, useEffect, useState } from "react";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { getServerAuthSession } from "@/core/auth";
+import { BackendApiError, fetchBackendJson, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
 import { Container, Rating, Stack, Typography } from "@mui/material";
 import { CdnAvatar } from "@/shared/ui/cdn-image";
 import { displayCityName } from "@/shared/lib/format-city-label";
@@ -14,40 +15,38 @@ type PublicUser = {
   reviewsReceived: Array<{ id: string; rating: number; text: string | null; createdAt: string; providerName: string | null }>;
 };
 
-export default function PublicUserPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
-  const [profile, setProfile] = useState<PublicUser | null>(null);
-  const [missing, setMissing] = useState(false);
+export const metadata: Metadata = {
+  title: "Профиль пользователя — Земледел",
+  robots: { index: false, follow: true },
+};
 
-  useEffect(() => {
-    let alive = true;
-    void fetch(`/api/users/${id}/public`, { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) return null;
-        return (await response.json()) as PublicUser;
-      })
-      .then((payload) => {
-        if (!alive) return;
-        if (!payload) setMissing(true);
-        else setProfile(payload);
-      })
-      .catch(() => {
-        if (alive) setMissing(true);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [id]);
+export default async function PublicUserPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = await getServerAuthSession();
+  let profile: PublicUser;
+  try {
+    const path = `/users/${encodeURIComponent(id)}/public`;
+    profile = session?.user?.id
+      ? await fetchBackendJsonAsUser<PublicUser>(path, session.user.id)
+      : await fetchBackendJson<PublicUser>(path);
+  } catch (error) {
+    if (error instanceof BackendApiError && error.status === 404) notFound();
+    throw error;
+  }
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      {missing ? <Typography>Профиль скрыт.</Typography> : null}
       {profile ? (
         <Stack spacing={3}>
           <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
             <CdnAvatar src={profile.image ?? undefined} sx={{ width: 96, height: 96 }} />
             <Stack>
-              <Typography variant="h4">{profile.name}</Typography>
+              <Typography
+                variant="h4"
+                component="h1"
+              >
+                {profile.name}
+              </Typography>
               {profile.cityName ? (
                 <Typography color="text.secondary">{displayCityName(profile.cityName)}</Typography>
               ) : null}

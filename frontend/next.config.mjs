@@ -55,6 +55,12 @@ const nextConfig = {
   },
   async redirects() {
     return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.zemledel.ru" }],
+        destination: "https://zemledel.ru/:path*",
+        permanent: true,
+      },
       { source: "/login", destination: "/signin", permanent: false },
       { source: "/register", destination: "/signup", permanent: false },
       { source: "/auth", destination: "/signin", permanent: false },

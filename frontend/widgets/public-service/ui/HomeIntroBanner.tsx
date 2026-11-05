@@ -103,7 +103,7 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
           </Stack>
           <Typography
             id="home-intro-title"
-            component="h2"
+            component="h1"
             sx={{
               mt: 1.5,
               fontSize: { xs: 26, md: 38 },
@@ -111,9 +111,9 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
               fontWeight: 700,
             }}
           >
-            Земельный вопрос?
+            Земельные и кадастровые услуги
             <Box component="span" sx={{ display: "block", color: "#CFE6F2" }}>
-              Найдём, с кем его решить.
+              Найдите своего специалиста.
             </Box>
           </Typography>
           <Stack

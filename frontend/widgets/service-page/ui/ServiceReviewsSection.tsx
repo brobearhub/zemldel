@@ -55,7 +55,12 @@ export function ServiceReviewsSection({ ratingValue, reviewCount, reviews, cityL
                   Отзывы
                 </Typography>
               </Box>
-              <Typography variant="h4">Отзывы клиентов</Typography>
+              <Typography
+                component="h2"
+                variant="h4"
+              >
+                Отзывы клиентов
+              </Typography>
               <Typography sx={{ color: "text.secondary", maxWidth: 820, fontSize: { xs: 14, md: 16 }, lineHeight: { xs: 1.43, md: 1.5 } }}>
                 Оценки после завершённых заказов{cityLabel ? ` в ${cityLabel}.` : "."}
               </Typography>
