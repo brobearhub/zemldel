@@ -1,3 +1,5 @@
+import { PlanService } from '../billing/plan.service';
+import { publicServiceForPlan } from '../billing/service-plan';
 import {
   BadRequestException,
   BadGatewayException,
@@ -31,6 +33,8 @@ import {
 } from './service-places';
 
 const serviceSelect = {
+  allRussia: true,
+  regionOrder: true,
   id: true,
   categoryId: true,
   status: true,
@@ -51,6 +55,14 @@ const serviceSelect = {
       slug: true,
       type: true,
       verificationStatus: true,
+      billingTestAccount: {
+        select: {
+          plan: true,
+          planExpiresAt: true,
+          graceUntil: true,
+          autoRenew: true,
+        },
+      },
       city: {
         select: {
           id: true,
@@ -165,6 +177,7 @@ export class ServicesService {
     private readonly authService: AuthService,
     private readonly internalAuthService: InternalAuthService,
     private readonly s3: S3Service,
+    private readonly plans: PlanService = new PlanService(prisma),
   ) {}
 
   private async resolveScopedServiceId(id: string, providerId?: string | null) {
@@ -216,61 +229,53 @@ export class ServicesService {
         ? [{ category: { slug: 'asc' as const } }, { title: 'asc' as const }]
         : catalogOrder;
 
-    let rankCityId: string | null = null;
-
-    if (scope?.cityId) {
-      const city = await this.prisma.city.findUnique({
-        where: { id: scope.cityId },
-        select: { id: true, regionCode: true },
-      });
-      if (!city) return [];
-      rankCityId = city.id;
-      where.OR = [
-        { cities: { some: { cityId: city.id } } },
-        { regions: { some: { regionCode: city.regionCode } } },
-      ];
-    }
-
-    if (scope?.excludeCityId) {
-      const city = await this.prisma.city.findUnique({
-        where: { id: scope.excludeCityId },
-        select: { id: true, regionCode: true },
-      });
-      if (city) {
-        const existingAnd = where.AND
-          ? Array.isArray(where.AND)
-            ? where.AND
-            : [where.AND]
-          : [];
-        where.AND = [
-          ...existingAnd,
-          {
-            NOT: {
-              OR: [
-                { cities: { some: { cityId: city.id } } },
-                { regions: { some: { regionCode: city.regionCode } } },
-              ],
-            },
-          },
-        ];
-      }
-    }
-
-    const rows: ServiceDbRow[] = await this.prisma.service.findMany({
+    const city = scope?.cityId
+      ? await this.prisma.city.findUnique({
+          where: { id: scope.cityId },
+          select: { id: true, regionCode: true },
+        })
+      : null;
+    const excludedCity = scope?.excludeCityId
+      ? await this.prisma.city.findUnique({
+          where: { id: scope.excludeCityId },
+          select: { id: true, regionCode: true },
+        })
+      : null;
+    if (scope?.cityId && !city) return [];
+    const rankCityId = city?.id ?? null;
+    const rows = await this.prisma.service.findMany({
       where,
       select: serviceSelect,
       orderBy,
     });
 
+    const isPublic = !scope?.providerId || scope.publishedOnly;
+    const visible = isPublic
+      ? rows.flatMap((row) => {
+          const effective = publicServiceForPlan(
+            row,
+            row.provider.billingTestAccount,
+          );
+          if (!effective) return [];
+          const matches = (place: { id: string; regionCode: string }) =>
+            effective.allRussia ||
+            effective.cities.some((c) => c.city.id === place.id) ||
+            effective.regions.some((r) => r.regionCode === place.regionCode);
+          return (!city || matches(city)) &&
+            (!excludedCity || !matches(excludedCity))
+            ? [effective]
+            : [];
+        })
+      : rows;
     const ordered = rankCityId
       ? orderByExplicitCity(
-          rows.map((row) => ({
+          visible.map((row) => ({
             row,
             cityIds: row.cities.map((link) => link.city.id),
           })),
           rankCityId,
         ).map((item) => item.row)
-      : rows;
+      : visible;
 
     return ordered.map((row) => serviceDbRowToDtoPlain(row));
   }
@@ -289,7 +294,11 @@ export class ServicesService {
           select: serviceSelect,
         });
 
-    return row ? serviceDbRowToDtoPlain(row as ServiceDbRow) : null;
+    if (!row) return null;
+    const effective = scope?.providerId
+      ? row
+      : publicServiceForPlan(row, row.provider.billingTestAccount);
+    return effective ? serviceDbRowToDtoPlain(effective as ServiceDbRow) : null;
   }
 
   async createService(
@@ -307,13 +316,22 @@ export class ServicesService {
     const resolvedPrice = service.price ?? null;
     if (!resolvedPrice) throw new BadRequestException('price is required');
 
-    const normalized = normalizeServicePlaces(service.places);
+    const normalized = service.allRussia
+      ? { places: [] as NormalizedServicePlace[] }
+      : normalizeServicePlaces(service.places);
     if ('error' in normalized) throw new BadRequestException(normalized.error);
     const storedPlaces = await this.resolveStoredPlaces(normalized.places);
 
     const row = await this.prisma.$transaction(async (tx) => {
+      await this.plans.validateService(
+        scope.providerId,
+        { ...service, regionCodes: storedPlaces.regionCodes },
+        tx,
+      );
       const created = await tx.service.create({
         data: {
+          allRussia: service.allRussia ?? false,
+          regionOrder: storedPlaces.regionCodes,
           categoryId: resolvedCategoryId,
           title: resolvedTitle,
           price: resolvedPrice,
@@ -362,7 +380,9 @@ export class ServicesService {
     const normalizedPlaces =
       service.places === undefined
         ? null
-        : normalizeServicePlaces(service.places);
+        : service.allRussia
+          ? { places: [] as NormalizedServicePlace[] }
+          : normalizeServicePlaces(service.places);
     if (normalizedPlaces && 'error' in normalizedPlaces) {
       throw new BadRequestException(normalizedPlaces.error);
     }
@@ -371,8 +391,55 @@ export class ServicesService {
       : null;
 
     const row = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Service" WHERE id = ${serviceId}::uuid FOR UPDATE`;
+      const before = await tx.service.findUniqueOrThrow({
+        where: { id: serviceId },
+        include: { cities: true, regions: true },
+      });
+      const placesChanged =
+        storedPlaces &&
+        (JSON.stringify([...storedPlaces.cityIds].sort()) !==
+          JSON.stringify(before.cities.map((c) => c.cityId).sort()) ||
+          JSON.stringify(
+            storedPlaces.regions.map((r) => r.regionCode).sort(),
+          ) !== JSON.stringify(before.regions.map((r) => r.regionCode).sort()));
+      await this.plans.validateService(
+        before.providerId,
+        {
+          stockBadge:
+            service.stockBadge !== before.stockBadge
+              ? service.stockBadge
+              : undefined,
+          paletteColor:
+            service.paletteColor !== before.paletteColor
+              ? service.paletteColor
+              : undefined,
+          allRussia:
+            service.allRussia !== before.allRussia
+              ? service.allRussia
+              : undefined,
+          regionCodes: placesChanged ? storedPlaces.regionCodes : undefined,
+        },
+        tx,
+      );
       let images: string[] | undefined;
-      if (service.image !== undefined) {
+      if (service.images) {
+        const old = before.images.length
+          ? before.images
+          : before.image
+            ? [before.image]
+            : [];
+        if (
+          service.images.length !== old.length ||
+          new Set(service.images).size !== old.length ||
+          service.images.some((url) => !old.includes(url))
+        )
+          throw new BadRequestException(
+            'Можно только менять порядок существующих фотографий',
+          );
+        images = service.images;
+      }
+      if (service.image !== undefined && service.images === undefined) {
         await tx.$queryRaw`SELECT id FROM "Service" WHERE id = ${serviceId}::uuid FOR UPDATE`;
         const current = await tx.service.findUniqueOrThrow({
           where: { id: serviceId },
@@ -392,9 +459,16 @@ export class ServicesService {
             ]
           : gallery.filter((url) => url !== current.image);
       }
+      if (images && images.length > before.images.length) {
+        const { limits } = await this.plans.access(before.providerId, tx);
+        if (images.length > limits.photos)
+          throw new ForbiddenException(`Тариф позволяет ${limits.photos} фото`);
+      }
       await tx.service.update({
         where: { id: serviceId },
         data: {
+          allRussia: service.allRussia,
+          regionOrder: storedPlaces?.regionCodes,
           categoryId: service.categoryId,
           status: service.status,
           title: service.title,
@@ -447,7 +521,22 @@ export class ServicesService {
       });
     }
 
-    return { cityIds, regions };
+    const cityRows = cityIds.length
+      ? await this.prisma.city.findMany({
+          where: { id: { in: cityIds } },
+          select: { id: true, regionCode: true },
+        })
+      : [];
+    const regionCodes = [
+      ...new Set(
+        places.map((place) =>
+          place.kind === 'region'
+            ? place.regionCode
+            : cityRows.find((c) => c.id === place.cityId)!.regionCode,
+        ),
+      ),
+    ];
+    return { cityIds, regions, regionCodes };
   }
 
   private async replaceServicePlaces(
@@ -519,9 +608,10 @@ export class ServicesService {
           )
         )
           return current;
-        if (images.length >= 10)
+        const { limits } = await this.plans.access(input.providerId, tx);
+        if (images.length >= limits.photos)
           throw new BadRequestException(
-            'Можно загрузить не более 10 фотографий',
+            `Тариф позволяет загрузить не более ${limits.photos} фотографий`,
           );
         // Unique paths prevent a delayed delete from removing a later re-upload.
         const key = `${this.s3.publicPrefix}services/${serviceId}/${randomUUID()}/${hash}${ext}`;

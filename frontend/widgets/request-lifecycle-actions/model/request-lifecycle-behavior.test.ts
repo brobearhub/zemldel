@@ -61,6 +61,9 @@ function makeCustomer(
     awaitingProviderReply: false,
     createdAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
     updatedAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
+    priceProposal: null,
+    canProposePrice: false,
+    canAcceptPrice: false,
     ...overrides,
   };
 }
@@ -111,6 +114,9 @@ function makeProvider(overrides: Partial<RequestProDto> = {}): RequestProDto {
     cadastralNumbers: [],
     createdAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
     updatedAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
+    priceProposal: null,
+    canProposePrice: false,
+    canAcceptPrice: false,
     ...overrides,
   };
 }

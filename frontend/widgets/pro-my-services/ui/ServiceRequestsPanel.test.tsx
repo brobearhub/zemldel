@@ -1,5 +1,4 @@
-import { act } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { RequestProDto, RequestStatus, RequestSubjectType } from "@/entities/request";
 import { legalService, mainService } from "@/tests/fixtures/services";
@@ -86,6 +85,11 @@ function request(overrides: Partial<RequestProDto> = {}): RequestProDto {
     cadastralNumbers: [],
     createdAt: "2026-10-06T10:00:00.000Z",
     updatedAt: "2026-10-06T10:00:00.000Z",
+    currentSubmission: null,
+    deliverySubmissions: [],
+    priceProposal: null,
+    canProposePrice: false,
+    canAcceptPrice: false,
     ...overrides,
   };
 }

@@ -3,7 +3,7 @@ import { replyToRequestCustomer } from "./reply-to-customer";
 
 describe("replyToRequestCustomer", () => {
   it("открывает диалог заявки и отправляет текст", async () => {
-    const fetchMock = vi.fn(async (url: string) => {
+    const fetchMock = vi.fn<typeof fetch>(async (url) => {
       if (String(url) === "/api/chat/ensure") {
         return new Response(JSON.stringify({ conversationId: "c1", messages: [] }), { status: 200 });
       }

@@ -21,7 +21,8 @@ export function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  if (pathname === "/maintenance") {
+  // Payment notifications must still reach the verifier during maintenance.
+  if (pathname === "/maintenance" || pathname === "/api/billing/tbank/notification") {
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
 

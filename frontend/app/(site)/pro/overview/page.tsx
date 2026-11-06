@@ -49,6 +49,7 @@ export default async function ProOverviewPage() {
         <Typography component="h1" variant="h4" sx={{ fontWeight: 700 }}>
           Обзор
         </Typography>
+        <a href="/pro/tools">Подробная статистика по тарифу →</a>
         <ProOverviewDashboard
           provider={activeMembership}
           services={services}

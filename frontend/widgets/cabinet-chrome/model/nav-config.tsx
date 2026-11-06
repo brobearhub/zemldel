@@ -256,6 +256,20 @@ export const PROVIDER_NAV: {
       isActive: ({ pathname }) => pathname.startsWith("/pro/profile"),
     },
     {
+      key: "tools",
+      label: "Инструменты",
+      href: "/pro/tools",
+      icon: <DashboardOutlinedIcon />,
+      isActive: ({ pathname }) => pathname.startsWith("/pro/tools"),
+    },
+    {
+      key: "billing",
+      label: "Тариф и оплата",
+      href: "/pro/billing",
+      icon: <DashboardOutlinedIcon />,
+      isActive: ({ pathname }) => pathname.startsWith("/pro/billing"),
+    },
+    {
       key: "settings",
       label: "Статусы этапов",
       href: "/pro/settings",
@@ -347,6 +361,20 @@ export const PROVIDER_NAV: {
       href: "/pro/profile",
       icon: <PersonOutlineOutlinedIcon />,
       isActive: ({ pathname }) => pathname.startsWith("/pro/profile"),
+    },
+    {
+      key: "tools",
+      label: "Инструменты",
+      href: "/pro/tools",
+      icon: <DashboardOutlinedIcon />,
+      isActive: ({ pathname }) => pathname.startsWith("/pro/tools"),
+    },
+    {
+      key: "billing",
+      label: "Тариф и оплата",
+      href: "/pro/billing",
+      icon: <DashboardOutlinedIcon />,
+      isActive: ({ pathname }) => pathname.startsWith("/pro/billing"),
     },
     {
       key: "settings",

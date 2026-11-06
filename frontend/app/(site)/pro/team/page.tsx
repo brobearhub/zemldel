@@ -30,6 +30,7 @@ export default async function ProTeamPage() {
       </Box>
 
       <ProfessionalWorkspacePanel />
+      <a href="/pro/tools">Задачи, внутренние заметки и история команды →</a>
     </Stack>
   );
 }

@@ -1,3 +1,4 @@
+import { makeAuthSession } from "@/tests/fixtures/auth-session";
 import ServicesAdminListPage from "./page";
 
 const notFoundMock = vi.fn(() => {
@@ -33,12 +34,7 @@ describe("Admin services list page", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedGetServerAuthSession.mockResolvedValue({
-      user: {
-        id: "user-1",
-        systemRole: "PLATFORM_ADMIN",
-      },
-    });
+    mockedGetServerAuthSession.mockResolvedValue(makeAuthSession({ systemRole: "PLATFORM_ADMIN" }));
   });
 
   afterAll(() => {

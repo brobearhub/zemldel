@@ -11,9 +11,17 @@ type Props = {
   color: ServicePaletteColor | "";
   onColorChange: (color: ServicePaletteColor) => void;
   disabled: boolean;
+  colorLocked?: boolean;
 };
 
-export function MobileLabelColor({ badge, onBadgeChange, color, onColorChange, disabled }: Props) {
+export function MobileLabelColor({
+  badge,
+  onBadgeChange,
+  color,
+  onColorChange,
+  disabled,
+  colorLocked = false,
+}: Props) {
   const shown = color || "primary";
 
   return (
@@ -38,7 +46,12 @@ export function MobileLabelColor({ badge, onBadgeChange, color, onColorChange, d
       <Box
         role="group"
         aria-label="Цвет метки"
-        sx={{ display: "flex", justifyContent: "flex-start", gap: 1.5, width: "100%" }}
+        sx={{
+          display: "flex",
+          justifyContent: "flex-start",
+          gap: 1.5,
+          width: "100%",
+        }}
       >
         {LABEL_COLORS.map((item) => (
           <Box
@@ -46,7 +59,7 @@ export function MobileLabelColor({ badge, onBadgeChange, color, onColorChange, d
             component="button"
             type="button"
             aria-label={item}
-            disabled={disabled}
+            disabled={disabled || colorLocked}
             onClick={() => onColorChange(item)}
             sx={{
               width: LABEL_DOT_SIZE,
@@ -56,7 +69,8 @@ export function MobileLabelColor({ badge, onBadgeChange, color, onColorChange, d
               borderRadius: "50%",
               border: "2px solid transparent",
               bgcolor: `${item}.main`,
-              cursor: disabled ? "default" : "pointer",
+              cursor: disabled || colorLocked ? "default" : "pointer",
+              opacity: disabled || colorLocked ? 0.4 : 1,
             }}
           />
         ))}

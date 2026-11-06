@@ -1,3 +1,4 @@
+import { ServicesService } from '../services/services.service';
 import {
   Body,
   Controller,
@@ -45,6 +46,7 @@ export class ServiceCategoriesController {
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
     private readonly internalAuthService: InternalAuthService,
+    private readonly services: ServicesService,
   ) {}
 
   private async requirePlatformAdmin(request: Request) {
@@ -89,33 +91,9 @@ export class ServiceCategoriesController {
     const category = await this.serviceCategoriesService.getById(idOrSlug);
     if (!category) throw new NotFoundException('Category not found');
 
-    return this.prisma.service.findMany({
-      where: { categoryId: category.id, status: 'PUBLISHED' },
-      select: {
-        id: true,
-        title: true,
-        image: true,
-        stockBadge: true,
-        price: true,
-        provider: {
-          select: {
-            id: true,
-            name: true,
-            city: {
-              select: {
-                id: true,
-                name: true,
-                regionCode: true,
-                regionName: true,
-              },
-            },
-          },
-        },
-        rating: true,
-        reviewCount: true,
-      },
-      orderBy: [{ provider: { name: 'asc' } }, { title: 'asc' }],
-    });
+    return (await this.services.getServices()).filter(
+      (service) => service.categoryId === category.id,
+    );
   }
 
   @Get('admin/service-categories')

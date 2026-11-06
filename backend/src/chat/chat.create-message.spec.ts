@@ -4,7 +4,9 @@ import { ChatService } from './chat.service';
 function makeService(prisma: any) {
   const internalAuth = {} as any;
   const gateway = {} as any;
-  return new ChatService(prisma, internalAuth, gateway);
+  return new ChatService(prisma, internalAuth, gateway, {
+    consumeReply: vi.fn().mockResolvedValue(undefined),
+  } as never);
 }
 
 function makeCreatedMessage(overrides: Partial<any> = {}) {
