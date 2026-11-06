@@ -329,6 +329,7 @@ export class ServicesController {
   async deleteProServiceImage(
     @Req() request: Request,
     @Param('id') id: string,
+    @Query('imageUrl') imageUrl?: string,
   ) {
     const context = await this.servicesService.getManagementContext(
       request,
@@ -344,6 +345,7 @@ export class ServicesController {
       actorUserId: context.actorUserId,
       providerId: context.providerId,
       serviceId: id,
+      imageUrl,
     });
   }
 

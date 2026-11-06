@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
-import Link from "@/shared/ui/Link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { Box, Breadcrumbs, Container, Paper, Stack, Typography } from "@mui/material";
+import { Box, Container, Paper, Stack, Typography } from "@mui/material";
 import { BackendApiError, fetchBackendJson } from "@/shared/api/backend/server";
 import { SITE_HEADER_HEIGHT_PX } from "@/shared/config/site-layout";
 import { getServerAuthSession } from "@/core/auth";
 import type { ServiceDto } from "@/entities/service";
 import { getCategoryGuide } from "@/entities/service-category/model/category-guides";
+import { getCategoryHubNavigation } from "@/entities/service-category/model/category-hubs";
+import { CategoryGuideHeader } from "@/widgets/service-categories/ui/CategoryGuideHeader";
+import { CategoryRequestButton } from "@/widgets/service-categories/ui/CategoryRequestButton";
+import { CategoryBreadcrumbs } from "@/widgets/service-categories/ui/CategoryBreadcrumbs";
+import guideStyles from "@/widgets/service-categories/ui/category-guide.module.css";
+import { getCategoryGuideImage } from "@/entities/service-category/model/category-guide-images";
 import { CategoryGuideSection } from "@/widgets/service-categories/ui/CategoryGuideSection";
 import { publicPageMetadata, serializeJsonLd } from "@/shared/lib/seo";
 import { siteOrigin } from "@/shared/lib/site-origin";
@@ -41,11 +46,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const category = await getCategory(id);
   const guide = getCategoryGuide(category.slug);
-  return publicPageMetadata(
+  const metadata = publicPageMetadata(
     `${category.name} — Земледел`,
     guide?.description ?? `Услуги в категории «${category.name}». Выберите предложение или опишите свою задачу исполнителю.`,
     `/service-categories/${category.id}`,
   );
+  const image = getCategoryGuideImage(category.slug);
+  if (!image) return metadata;
+  const images = [{ url: `${siteOrigin()}${image.src}`, width: image.width, height: image.height, alt: image.alt }];
+  return { ...metadata, openGraph: { ...metadata.openGraph, images }, twitter: { ...metadata.twitter, images } };
 }
 
 export default async function ServiceCategoryPage({ params }: Props) {
@@ -75,7 +84,10 @@ export default async function ServiceCategoryPage({ params }: Props) {
   const parent = categories.find((item) => item.id === category.parentId);
 
   const isRoot = category.parentId == null;
-  const templates = categories.filter((c) => c.parentId === category.id);
+  const templates = categories
+    .filter((c) => c.parentId === category.id)
+    .sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity) || a.name.localeCompare(b.name, "ru"));
+  const hubNavigation = getCategoryHubNavigation(category, categories);
   const siblings =
     category.parentId == null
       ? []
@@ -114,6 +126,14 @@ export default async function ServiceCategoryPage({ params }: Props) {
   const allowedCategoryIds = new Set([category.id, ...templates.map((c) => c.id)]);
 
   const scopedServices = services.filter((s) => allowedCategoryIds.has(s.categoryId));
+  const requestFormProps = {
+    isAuthenticated: Boolean(session?.user?.id),
+    categories: isRoot
+      ? templates.map((item) => ({ id: item.id, name: item.name }))
+      : [{ id: category.id, name: category.name }],
+    sectionCategory: isRoot ? { id: category.id, name: category.name } : null,
+    initialCategory: isRoot ? null : { id: category.id, name: category.name },
+  };
 
   return (
     <>
@@ -131,50 +151,38 @@ export default async function ServiceCategoryPage({ params }: Props) {
       />
       <Box
         component="section"
+        className={guideStyles.page}
         sx={{
-          pt: 0,
+          pt: { xs: 2, md: 3 },
           pb: { xs: 4, md: 6 },
           bgcolor: "background.default",
         }}
       >
-        <Container maxWidth="xl">
+        <Container
+          maxWidth={false}
+          sx={{ maxWidth: 1280 }}
+        >
           <Stack spacing={3}>
-            <Breadcrumbs aria-label="Навигация по категориям">
-              <Link
-                href="/"
-              >
-                Главная
-              </Link>
-              {parent ? (
-                <Link
-                  href={`/service-categories/${parent.id}`}
-                >
-                  {parent.name}
-                </Link>
-              ) : null}
-              <Typography>{category.name}</Typography>
-            </Breadcrumbs>
-            <Box>
+            <CategoryBreadcrumbs
+              categoryId={category.id}
+              categories={categories.map(({ id, name, parentId, sortOrder }) => ({ id, name, parentId, sortOrder }))}
+            />
+            {guide ? (
+              <CategoryGuideHeader
+                title={category.name}
+                slug={category.slug}
+                guide={guide}
+                requestAction={<CategoryRequestButton {...requestFormProps} size="small" />}
+              />
+            ) : (
               <Typography
+                id="category-title"
                 component="h1"
                 variant="h4"
-                sx={{ fontWeight: 900 }}
-                color="primary"
               >
                 {category.name}
               </Typography>
-              {guide ? (
-                <Typography
-                  sx={{
-                    mt: 2,
-                    maxWidth: 900,
-                    lineHeight: 1.75,
-                  }}
-                >
-                  {guide.intro}
-                </Typography>
-              ) : null}
-            </Box>
+            )}
 
             {isRoot ? (
               <ServiceCategoriesStickyBar items={templateBarItems} />
@@ -182,21 +190,14 @@ export default async function ServiceCategoryPage({ params }: Props) {
               <ServiceCategoriesStickyBar items={templateSelfBarItems} activeId={category.id} />
             ) : null}
 
-            <Link
-              href="#category-request"
-              sx={{ alignSelf: "flex-start" }}
-            >
-              Обсудить задачу с исполнителем
-            </Link>
-
             <Box
               sx={{
                 display: "grid",
-                gap: { xs: 2, md: 3 },
+                gap: { xs: 4, md: 5 },
                 alignItems: "start",
                 gridTemplateColumns: {
                   xs: "1fr",
-                  md: "minmax(0, 1fr) 420px",
+                  md: "minmax(0, 1fr) 340px",
                 },
               }}
             >
@@ -204,25 +205,42 @@ export default async function ServiceCategoryPage({ params }: Props) {
                 spacing={4}
                 sx={{ minWidth: 0 }}
               >
-                {!scopedServices.length ? (
-                  <Paper
-                    variant="outlined"
-                    sx={{ p: 2.5 }}
-                  >
-                    <Typography sx={{ color: "text.secondary" }}>
-                      В этой категории пока нет опубликованных предложений. Опишите задачу в форме,
-                      чтобы обсудить подходящий состав работ.
-                    </Typography>
-                  </Paper>
-                ) : (
-                  <ServicesByCity items={scopedServices} />
-                )}
                 {guide ? (
                   <CategoryGuideSection
                     guide={guide}
                     childrenCategories={templates}
+                    navigation={hubNavigation}
+                    requestAction={<CategoryRequestButton {...requestFormProps} size="small" />}
                   />
                 ) : null}
+                <Stack
+                  component="section"
+                  id="category-offers"
+                  aria-label="Услуги"
+                  spacing={2}
+                  sx={{
+                    scrollMarginTop: `calc(${SITE_HEADER_HEIGHT_PX.sm}px + var(${SERVICE_CATEGORIES_BAR_HEIGHT_VAR}, 0px) + 24px)`,
+                  }}
+                >
+                  {!scopedServices.length ? (
+                    <>
+                      <Typography component="h2" variant="h5" sx={{ fontWeight: 600 }}>
+                        Услуги
+                      </Typography>
+                      <Paper
+                        variant="outlined"
+                        sx={{ p: 2.5 }}
+                      >
+                        <Typography sx={{ color: "text.secondary" }}>
+                          В этой категории пока нет опубликованных предложений. Опишите задачу в форме,
+                          чтобы обсудить подходящий состав работ.
+                        </Typography>
+                      </Paper>
+                    </>
+                  ) : (
+                    <ServicesByCity items={scopedServices} />
+                  )}
+                </Stack>
               </Stack>
 
               <Box
@@ -236,7 +254,13 @@ export default async function ServiceCategoryPage({ params }: Props) {
                   },
                 }}
               >
-                <Paper variant="outlined" sx={{ p: 3 }}>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: { xs: 2.5, md: 3 },
+                    borderRadius: 1.5,
+                  }}
+                >
                   <Stack spacing={2}>
                     <Typography
                       component="h2"
@@ -246,15 +270,8 @@ export default async function ServiceCategoryPage({ params }: Props) {
                       Опишите задачу
                     </Typography>
                     <PublicUnlinkedRequestForm
+                      {...requestFormProps}
                       variant="bare"
-                      isAuthenticated={Boolean(session?.user?.id)}
-                      categories={
-                        isRoot
-                          ? templates.map((t) => ({ id: t.id, name: t.name }))
-                          : [{ id: category.id, name: category.name }]
-                      }
-                      sectionCategory={isRoot ? { id: category.id, name: category.name } : null}
-                      initialCategory={isRoot ? undefined : { id: category.id, name: category.name }}
                     />
                   </Stack>
                 </Paper>

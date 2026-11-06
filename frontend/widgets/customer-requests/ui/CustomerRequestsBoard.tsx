@@ -1,7 +1,7 @@
 "use client";
 
 import CheckIcon from "@mui/icons-material/Check";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { Box, Button, CircularProgress, Divider, IconButton, Paper, Stack, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
@@ -137,9 +137,32 @@ function BoardCard({
             </Typography>
           )}
         </Box>
-        <Box sx={{ minWidth: 0, flex: 1, display: "flex", flexDirection: "column" }}>
-          <Stack direction="row" sx={{ alignItems: "center" }}>
-            <Box sx={{ minWidth: 0, flex: 1, px: 1.5, py: 1.25 }}>
+        <Box
+          sx={{
+            minWidth: 0,
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <Stack
+            direction="row"
+            sx={{
+              alignItems: "stretch",
+              gap: 1.5,
+              minHeight: 116,
+              px: 1.5,
+              py: 1.25,
+            }}
+          >
+            <Box
+              sx={{
+                minWidth: 0,
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
               <Typography
                 noWrap
                 title={title}
@@ -151,7 +174,12 @@ function BoardCard({
               >
                 {title}
               </Typography>
-              <Box sx={{ mt: 0.5, minWidth: 0 }}>
+              <Box
+                sx={{
+                  minWidth: 0,
+                  mt: 1.5,
+                }}
+              >
                 <RequestPriceBlock
                   totalAmountRubles={item.totalAmountRubles}
                   servicePriceRubles={item.servicePriceRubles}
@@ -166,45 +194,71 @@ function BoardCard({
                 sx={{
                   color: "text.secondary",
                   display: "block",
-                  mt: 0.75,
+                  mt: "auto",
+                  pt: 1.5,
+                  pb: 0.5,
                 }}
               >
                 {meta}
               </Typography>
             </Box>
-            <Box
+            <Stack
               sx={{
                 flexShrink: 0,
-                minWidth: 56,
-                px: 1.25,
-                py: 1.25,
-                display: "flex",
-                flexDirection: "column",
+                minWidth: 32,
                 alignItems: "center",
+                justifyContent: "space-between",
+                gap: 1,
+                pt: 1,
               }}
             >
-              <Typography
+              <Box
                 sx={{
-                  fontWeight: 800,
-                  fontSize: 22,
-                  lineHeight: 1,
-                  color: "text.secondaryLight",
-                  fontFamily: "monospace",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
                 }}
               >
-                {age.days}
-              </Typography>
-              <Typography
-                variant="caption"
-                sx={{
-                  color: "text.secondaryLight",
-                  display: "block",
-                  mt: 0.25,
-                }}
-              >
-                {age.label}
-              </Typography>
-            </Box>
+                <Typography
+                  sx={{
+                    fontWeight: 800,
+                    fontSize: 22,
+                    lineHeight: 1,
+                    color: "text.secondaryLight",
+                    fontFamily: "monospace",
+                  }}
+                >
+                  {age.days}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "text.secondaryLight",
+                    display: "block",
+                    mt: 0.25,
+                  }}
+                >
+                  {age.label}
+                </Typography>
+              </Box>
+              {item.canDeleteByCustomer ? (
+                <IconButton
+                  size="small"
+                  color="error"
+                  aria-label="Удалить заявку"
+                  loading={deleting}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onDelete(item);
+                  }}
+                  sx={{
+                    flexShrink: 0,
+                  }}
+                >
+                  <CloseRoundedIcon fontSize="small" />
+                </IconButton>
+              ) : null}
+            </Stack>
           </Stack>
           {replyLines.length > 0 ? (
             <>
@@ -267,21 +321,6 @@ function BoardCard({
           ) : null}
         </Box>
       </Stack>
-      {item.canDeleteByCustomer ? (
-        <IconButton
-          size="small"
-          color="error"
-          aria-label="Удалить заявку"
-          loading={deleting}
-          onClick={(event) => {
-            event.stopPropagation();
-            onDelete(item);
-          }}
-          sx={{ position: "absolute", top: 4, right: 4 }}
-        >
-          <DeleteOutlineIcon fontSize="small" />
-        </IconButton>
-      ) : null}
     </Paper>
   );
 }

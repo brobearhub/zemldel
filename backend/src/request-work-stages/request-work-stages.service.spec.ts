@@ -2,7 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { RequestWorkStagesService } from './request-work-stages.service';
 
-function makeService(prisma: unknown, auth?: unknown) {
+function makeService(prisma: unknown, auth?: unknown, storage?: unknown) {
   return new RequestWorkStagesService(
     prisma as any,
     (auth ?? {
@@ -11,11 +11,12 @@ function makeService(prisma: unknown, auth?: unknown) {
         providerId: 'p1',
       }),
     }) as any,
-    {
-      privatePrefix: 'private/',
-      privateBucket: 'b',
-      client: { send: vi.fn().mockResolvedValue({}) },
-    } as any,
+    (storage ?? {
+      putObject: vi.fn().mockResolvedValue({}),
+      deleteObject: vi.fn().mockResolvedValue(undefined),
+      getObject: vi.fn(),
+      isSecureKey: (key: string) => key.startsWith('documents/'),
+    }) as any,
   );
 }
 
@@ -28,6 +29,33 @@ const activeRequest = {
 };
 
 describe('RequestWorkStagesService', () => {
+  it('keeps stage references when private file erasure fails', async () => {
+    const prisma = {
+      request: { findFirst: vi.fn().mockResolvedValue(activeRequest) },
+      requestWorkStage: {
+        findFirst: vi
+          .fn()
+          .mockResolvedValueOnce({
+            id: 's1',
+            files: [{ storageRelPath: 'documents/file' }],
+            docSlots: [],
+          })
+          .mockResolvedValueOnce({ id: 's1' }),
+        delete: vi.fn(),
+      },
+    };
+    const service = makeService(prisma, undefined, {
+      deleteObject: vi.fn().mockRejectedValue(new Error('storage unavailable')),
+    });
+    await expect(
+      service.deleteStage({
+        actorUserId: 'u1',
+        requestId: 'r1',
+        stageId: 's1',
+      }),
+    ).rejects.toThrow('storage unavailable');
+    expect(prisma.requestWorkStage.delete).not.toHaveBeenCalled();
+  });
   it('createDraft ok при ACTIVE', async () => {
     const created = {
       id: 's1',

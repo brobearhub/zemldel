@@ -291,9 +291,10 @@ describe.skipIf(!url)('write receipts on real PostgreSQL', () => {
         .mockResolvedValue({ isPlatformAdmin: false, providerId }),
     };
     const s3 = {
-      privatePrefix: 'private/',
-      privateBucket: 'qa',
-      client: { send: vi.fn().mockResolvedValue({}) },
+      putObject: vi.fn().mockResolvedValue({}),
+      deleteObject: vi.fn().mockResolvedValue(undefined),
+      getObject: vi.fn(),
+      isSecureKey: (key: string) => key.startsWith('documents/'),
     };
     const contracts = new ContractFilesService(
       db as never,
@@ -320,7 +321,7 @@ describe.skipIf(!url)('write receipts on real PostgreSQL', () => {
     expect(
       await db.requestContractFile.count({ where: { requestId: request.id } }),
     ).toBe(1);
-    expect(s3.client.send).toHaveBeenCalledTimes(1);
+    expect(s3.putObject).toHaveBeenCalledTimes(1);
     const document = await db.requestDocumentRequest.create({
       data: { requestId: request.id, providerId, title: 'QA upload' },
     });
@@ -345,6 +346,6 @@ describe.skipIf(!url)('write receipts on real PostgreSQL', () => {
         where: { requestId: request.id },
       }),
     ).toBe(1);
-    expect(s3.client.send).toHaveBeenCalledTimes(2);
+    expect(s3.putObject).toHaveBeenCalledTimes(2);
   });
 });

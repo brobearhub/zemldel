@@ -9,7 +9,7 @@ import {
 import type { Request } from 'express';
 import type { Prisma } from '@prisma/client';
 import { DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { InternalAuthService } from '../auth/internal-auth.service';
@@ -36,6 +36,7 @@ const serviceSelect = {
   status: true,
   title: true,
   image: true,
+  images: true,
   stockBadge: true,
   price: true,
   rating: true,
@@ -317,6 +318,7 @@ export class ServicesService {
           title: resolvedTitle,
           price: resolvedPrice,
           image: service.image,
+          images: service.image ? [service.image] : [],
           stockBadge: service.stockBadge,
           description: service.description ?? null,
           paletteColor: service.paletteColor,
@@ -369,6 +371,27 @@ export class ServicesService {
       : null;
 
     const row = await this.prisma.$transaction(async (tx) => {
+      let images: string[] | undefined;
+      if (service.image !== undefined) {
+        await tx.$queryRaw`SELECT id FROM "Service" WHERE id = ${serviceId}::uuid FOR UPDATE`;
+        const current = await tx.service.findUniqueOrThrow({
+          where: { id: serviceId },
+          select: { image: true, images: true },
+        });
+        const gallery = current.images.length
+          ? current.images
+          : current.image
+            ? [current.image]
+            : [];
+        images = service.image
+          ? [
+              service.image,
+              ...gallery.filter(
+                (url) => url !== current.image && url !== service.image,
+              ),
+            ]
+          : gallery.filter((url) => url !== current.image);
+      }
       await tx.service.update({
         where: { id: serviceId },
         data: {
@@ -376,7 +399,8 @@ export class ServicesService {
           status: service.status,
           title: service.title,
           price: service.price,
-          image: service.image,
+          image: images ? (images[0] ?? null) : undefined,
+          images,
           stockBadge: service.stockBadge,
           description: service.description,
           paletteColor: service.paletteColor,
@@ -462,112 +486,131 @@ export class ServicesService {
       input.serviceId,
       input.providerId,
     );
-
     const bucket = this.s3.requirePublicBucket();
     const cdnBase = this.s3.requirePublicCdnBaseUrl();
-    const buf = input.file.buffer as Buffer | undefined;
-    if (!buf || buf.length === 0) {
-      throw new BadRequestException('file is required');
-    }
-
-    const ext = sniffImageExt(buf, input.file.mimetype);
-    if (!ext) {
-      throw new BadRequestException('Unsupported image type');
-    }
-
-    const hash = sha256Buffer(buf);
-    const key = `${this.s3.publicPrefix}services/${serviceId}/${hash}${ext}`;
-    const url = `${cdnBase.replace(/\/+$/, '')}/${key}`;
-
-    // Read old image for cleanup (best-effort).
-    const prev = await this.prisma.service.findUnique({
-      where: { id: serviceId },
-      select: { image: true },
-    });
-
-    try {
-      await this.s3.client.send(
-        new PutObjectCommand({
-          Bucket: bucket,
-          Key: key,
-          Body: buf,
-          ACL: 'public-read',
-          ContentType: input.file.mimetype,
-          CacheControl: 'public, max-age=31536000, immutable',
-        }),
+    const buf = input.file.buffer;
+    if (!buf?.length || buf.length > 10 * 1024 * 1024)
+      throw new BadRequestException(
+        'Изображение должно быть размером до 10 МБ',
       );
-    } catch {
-      throw new BadGatewayException('File storage unavailable');
-    }
-
-    const updated = await this.prisma.service.update({
-      where: { id: serviceId },
-      data: { image: url, updatedByUserId: input.actorUserId },
-      select: serviceSelect,
-    });
-
-    const prevKey =
-      prev?.image && this.s3.publicCdnBaseUrl
-        ? tryExtractKeyFromPublicUrl({
-            url: prev.image,
-            baseUrl: this.s3.publicCdnBaseUrl,
-          })
-        : null;
-
-    // Best-effort cleanup of previous image if it was ours.
-    if (
-      prevKey &&
-      prevKey !== key &&
-      prevKey.startsWith(`${this.s3.publicPrefix}services/${serviceId}/`)
-    ) {
-      await this.s3.client
-        .send(new DeleteObjectCommand({ Bucket: bucket, Key: prevKey }))
-        .catch(() => null);
-    }
-
-    return serviceDbRowToDtoPlain(updated as ServiceDbRow);
+    const ext = sniffImageExt(buf, input.file.mimetype);
+    if (!ext) throw new BadRequestException('Unsupported image type');
+    const hash = sha256Buffer(buf);
+    const row = await this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "Service" WHERE id = ${serviceId}::uuid FOR UPDATE`;
+        const current = await tx.service.findUniqueOrThrow({
+          where: { id: serviceId },
+          select: serviceSelect,
+        });
+        const images = current.images.length
+          ? current.images
+          : current.image
+            ? [current.image]
+            : [];
+        // Retrying the same file does not consume another gallery slot.
+        const prefix = `${cdnBase.replace(/\/+$/, '')}/${this.s3.publicPrefix}services/${serviceId}/`;
+        if (
+          images.some(
+            (url) =>
+              url.startsWith(prefix) &&
+              (url.endsWith(`/${hash}${ext}`) ||
+                url === `${prefix}${hash}${ext}`),
+          )
+        )
+          return current;
+        if (images.length >= 10)
+          throw new BadRequestException(
+            'Можно загрузить не более 10 фотографий',
+          );
+        // Unique paths prevent a delayed delete from removing a later re-upload.
+        const key = `${this.s3.publicPrefix}services/${serviceId}/${randomUUID()}/${hash}${ext}`;
+        const url = `${cdnBase.replace(/\/+$/, '')}/${key}`;
+        try {
+          await this.s3.client.send(
+            new PutObjectCommand({
+              Bucket: bucket,
+              Key: key,
+              Body: buf,
+              ACL: 'public-read',
+              ContentType: input.file.mimetype,
+              CacheControl: 'public, max-age=31536000, immutable',
+            }),
+          );
+        } catch {
+          throw new BadGatewayException('File storage unavailable');
+        }
+        try {
+          return await tx.service.update({
+            where: { id: serviceId },
+            data: {
+              image: images[0] ?? url,
+              images: [...images, url],
+              updatedByUserId: input.actorUserId,
+            },
+            select: serviceSelect,
+          });
+        } catch (error) {
+          await this.s3.client
+            .send(new DeleteObjectCommand({ Bucket: bucket, Key: key }))
+            .catch(() => null);
+          throw error;
+        }
+      },
+      { timeout: 90_000, maxWait: 90_000 },
+    );
+    return serviceDbRowToDtoPlain(row as ServiceDbRow);
   }
 
   async deleteServiceImage(input: {
     actorUserId: string;
     providerId: string;
     serviceId: string;
+    imageUrl?: string;
   }) {
     const serviceId = await this.resolveScopedServiceId(
       input.serviceId,
       input.providerId,
     );
-
     const bucket = this.s3.requirePublicBucket();
-    const prev = await this.prisma.service.findUnique({
-      where: { id: serviceId },
-      select: { image: true },
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Service" WHERE id = ${serviceId}::uuid FOR UPDATE`;
+      const current = await tx.service.findUniqueOrThrow({
+        where: { id: serviceId },
+        select: { image: true, images: true },
+      });
+      const images = current.images.length
+        ? current.images
+        : current.image
+          ? [current.image]
+          : [];
+      const target = input.imageUrl ?? current.image;
+      const removed = target && images.includes(target) ? target : null;
+      const remaining = images.filter((url) => url !== target);
+      const row = await tx.service.update({
+        where: { id: serviceId },
+        data: {
+          image: remaining[0] ?? null,
+          images: remaining,
+          updatedByUserId: input.actorUserId,
+        },
+        select: serviceSelect,
+      });
+      return { row, removed };
     });
-
-    const updated = await this.prisma.service.update({
-      where: { id: serviceId },
-      data: { image: null, updatedByUserId: input.actorUserId },
-      select: serviceSelect,
-    });
-
-    const prevKey =
-      prev?.image && this.s3.publicCdnBaseUrl
+    const key =
+      result.removed && this.s3.publicCdnBaseUrl
         ? tryExtractKeyFromPublicUrl({
-            url: prev.image,
+            url: result.removed,
             baseUrl: this.s3.publicCdnBaseUrl,
           })
         : null;
-
-    if (
-      prevKey &&
-      prevKey.startsWith(`${this.s3.publicPrefix}services/${serviceId}/`)
-    ) {
+    if (key?.startsWith(`${this.s3.publicPrefix}services/${serviceId}/`)) {
       await this.s3.client
-        .send(new DeleteObjectCommand({ Bucket: bucket, Key: prevKey }))
+        .send(new DeleteObjectCommand({ Bucket: bucket, Key: key }))
         .catch(() => null);
     }
-
-    return serviceDbRowToDtoPlain(updated as ServiceDbRow);
+    return serviceDbRowToDtoPlain(result.row as ServiceDbRow);
   }
 
   async deleteService(id: string, scope?: Pick<ServiceScope, 'providerId'>) {

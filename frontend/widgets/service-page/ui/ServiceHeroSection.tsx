@@ -5,7 +5,7 @@ import { Box, Button, Container, Rating, Stack, Typography } from "@mui/material
 import type { ServiceHeroVm } from "@/widgets/service-page/model/service-hero.vm";
 import { formatReviewCount } from "@/entities/review";
 import { formatRubPriceLabel } from "@/shared/lib/money/format-rub-price-label";
-import { CdnFillImage } from "@/shared/ui/cdn-image";
+import { ServiceImageGallery } from "./ServiceImageGallery";
 import { ServicePlaces } from "@/entities/service";
 import { ServiceBackButton } from "./ServiceBackButton";
 
@@ -54,13 +54,10 @@ export function ServiceHeroSection({ vm }: Props) {
                 borderRadius: 1,
               }}
             >
-              {vm.imageUrl ? (
-                <CdnFillImage
-                  src={vm.imageUrl}
-                  alt={vm.title}
-                  sizes="(max-width: 900px) 100vw, 600px"
-                  unoptimized={process.env.NODE_ENV !== "production"}
-                  style={{ objectFit: "cover", objectPosition: "center" }}
+              {vm.imageUrl || vm.images?.length ? (
+                <ServiceImageGallery
+                  images={vm.images?.length ? vm.images : vm.imageUrl ? [vm.imageUrl] : []}
+                  title={vm.title}
                 />
               ) : (
                 <Box

@@ -308,6 +308,7 @@ model CityImportEvent {
 }
 
 model User {
+  passportGrants PassportAccessGrant[]
   messengerConnections MessengerConnection[]
   messengerLinkTokens MessengerLinkToken[]
   writeOperations WriteOperation[]
@@ -329,6 +330,7 @@ model User {
   accounts                  Account[]
   sessions                  Session[]
   passportDocument          PassportDocument?
+  passportPhotos            PassportPhoto[]
   passportAccessAudits      PassportAccessAudit[]    @relation("PassportAccessAuditPassportUser")
   uploadedRequestContractFiles RequestContractFile[] @relation("RequestContractFileUploadedBy")
   decidedRequestContractFiles  RequestContractFile[] @relation("RequestContractFileDecidedBy")
@@ -449,6 +451,7 @@ model PasswordResetToken {
 }
 
 model Provider {
+  passportGrants PassportAccessGrant[]
   id                String                 @id @default(uuid()) @db.Uuid
   name              String
   slug              String                 @unique
@@ -645,6 +648,7 @@ model ServiceCategory {
 }
 
 model Request {
+  passportGrants PassportAccessGrant[]
   id     String        @id @default(uuid()) @db.Uuid
   status RequestStatus @default(NEW)
 
@@ -916,6 +920,7 @@ model Service {
   status          ServiceStatus   @default(DRAFT)
   title           String
   image           String?
+  images          String[]        @default([])
   stockBadge      String?
   price           String
   rating          Float?
@@ -1242,17 +1247,64 @@ model ConversationReadState {
 model PassportDocument {
   id         String   @id @default(uuid()) @db.Uuid
   userId     String   @unique @db.Uuid
-  alg        String
-  keyVersion Int
-  iv         Bytes    @db.ByteA
-  tag        Bytes    @db.ByteA
-  ciphertext Bytes    @db.ByteA
+  alg        String?
+  keyVersion Int?
+  iv         Bytes?   @db.ByteA
+  tag        Bytes?   @db.ByteA
+  ciphertext Bytes?   @db.ByteA
+  storageKey String?  @unique
+  sha256     String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// No user FK: cleanup must survive account deletion and its cascades.
+model PassportObjectCleanup {
+  objectKey String   @id
+  userId    String   @db.Uuid
+  reason    String   @default("DELETE")
+  notBefore DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([notBefore])
+  @@index([userId, reason])
+}
+
+model PassportPhoto {
+  id         String   @id @db.Uuid
+  userId     String   @db.Uuid
+  storageKey String   @unique
+  sha256     String
+  mimeType   String
+  sizeBytes  Int
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+enum PassportAccessKind {
+  FORM
+  PHOTO
+}
+
+model PassportAccessGrant {
+  requestId String @db.Uuid
+  kind PassportAccessKind
+  passportUserId String @db.Uuid
+  providerId String @db.Uuid
+  expiresAt DateTime
+  grantedAt DateTime @default(now())
+  passportUser User @relation(fields: [passportUserId], references: [id], onDelete: Cascade)
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@id([requestId, kind])
+  @@index([passportUserId, expiresAt])
 }
 
 model PassportAccessAudit {

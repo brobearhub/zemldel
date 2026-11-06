@@ -15,6 +15,7 @@ export function mapServiceToHeroVm(service: ServiceDto): ServiceHeroVm {
     title: service.title,
     description,
     imageUrl: service.image ?? null,
+    images: service.images?.length ? service.images : service.image ? [service.image] : [],
     imageBadgeLabel: normalizeText(service.stockBadge),
     places: service.places ?? [],
     rating:

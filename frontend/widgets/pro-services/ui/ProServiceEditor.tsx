@@ -261,7 +261,14 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
   const imagePickerSource = useRef<"icon" | "add" | null>(null);
   const [categories, setCategories] = useState<ServiceCategoryRow[] | null>(null);
   const [autofilledTitle, setAutofilledTitle] = useState<string | null>(null);
-  const [pendingImage, setPendingImage] = useState<{ file: File; previewUrl: string } | null>(null);
+  const [images, setImages] = useState<string[]>(() => initialService?.images?.length
+    ? initialService.images : initialService?.image ? [initialService.image] : []);
+  const [pendingImages, setPendingImages] = useState<Array<{ file: File; previewUrl: string }>>([]);
+  const pendingImage = pendingImages[0] ?? null;
+  const pendingImagesRef = useRef(pendingImages);
+  pendingImagesRef.current = pendingImages;
+  const savedServiceId = useRef(mode === "edit" ? initialService?.id ?? null : null);
+  const imageCount = images.length + pendingImages.length;
 
   useEffect(() => {
     if (placesTouched.current) return;
@@ -305,23 +312,15 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
     setAutofilledTitle(suggestedTitle);
   }, [autofilledTitle, categories, form.categoryId]);
 
-  useEffect(() => {
-    return () => {
-      if (pendingImage) {
-        URL.revokeObjectURL(pendingImage.previewUrl);
-      }
-    };
-  }, [pendingImage]);
-
-  const endpoint = mode === "create" ? "/api/pro/services" : `/api/pro/services/${initialService?.id}`;
-  const method = mode === "create" ? "POST" : "PATCH";
+  useEffect(() => () => {
+    for (const image of pendingImagesRef.current) URL.revokeObjectURL(image.previewUrl);
+  }, []);
 
   const payload = useMemo(() => {
     return {
       categoryId: form.categoryId,
       title: form.title,
       price: formatServicePriceStored(form.price),
-      image: normalizeNullableString(form.image),
       stockBadge: normalizeNullableString(form.stockBadge),
       description: normalizeNullableString(form.description),
       paletteColor: normalizeNullableString(form.stockBadge)
@@ -365,7 +364,7 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
   }, [form.description, form.image, pendingImage, validationIssues]);
 
   const previewItem = useMemo(() => {
-    const previewImage = pendingImage?.previewUrl ?? normalizeNullableString(form.image);
+    const previewImage = normalizeNullableString(form.image) ?? pendingImage?.previewUrl ?? null;
 
     return {
       id: initialService?.id ?? "preview-service",
@@ -413,8 +412,8 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
     try {
       const requestPayload = { ...payload, status: nextStatus };
 
-      const response = await fetch(endpoint, {
-        method,
+      const response = await fetch(savedServiceId.current ? `/api/pro/services/${savedServiceId.current}` : "/api/pro/services", {
+        method: savedServiceId.current ? "PATCH" : "POST",
         headers: {
           "content-type": "application/json",
         },
@@ -431,36 +430,11 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
           : "Не удалось сохранить услугу");
       }
 
-      if (mode === "create" && pendingImage) {
-        const createdId =
-          responseBody &&
-          typeof responseBody === "object" &&
-          "id" in responseBody &&
-          typeof responseBody.id === "string"
-            ? responseBody.id
-            : null;
+      const savedId = savedServiceId.current ?? (responseBody && "id" in responseBody ? responseBody.id : null);
+      if (!savedId) throw new Error("Не удалось определить услугу для загрузки фотографий.");
+      savedServiceId.current = savedId;
+      await uploadPendingImages(savedId, pendingImages);
 
-        if (!createdId) {
-          throw new Error("Услуга сохранена, но не удалось определить ее id для загрузки изображения.");
-        }
-
-        const uploadedImageUrl = await uploadImageForService(createdId, pendingImage.file);
-        if (uploadedImageUrl) {
-          setForm((current) => ({ ...current, image: uploadedImageUrl }));
-        }
-        URL.revokeObjectURL(pendingImage.previewUrl);
-        setPendingImage(null);
-      }
-
-      const savedId =
-        mode === "create"
-          ? responseBody &&
-            typeof responseBody === "object" &&
-            "id" in responseBody &&
-            typeof responseBody.id === "string"
-            ? responseBody.id
-            : null
-          : initialService?.id ?? null;
       const savedStatus = requestPayload.status;
       router.push(
         savedStatus === "PUBLISHED" && savedId
@@ -476,61 +450,53 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
     }
   }
 
-  async function uploadImageForService(serviceId: string, file: File): Promise<string | null> {
-    const allowed = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowed.includes(file.type)) {
-      setError("Поддерживаются только JPG, PNG или WebP.");
-      return null;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setError("Максимальный размер изображения — 10 МБ.");
-      return null;
-    }
+  function applyGallery(payload: { image?: string | null; images?: string[] }) {
+    const gallery = payload.images ?? (payload.image ? [payload.image] : []);
+    setImages(gallery);
+    setForm((current) => ({ ...current, image: gallery[0] ?? "" }));
+  }
 
-    setBusy(true);
-    setError(null);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch(`/api/pro/services/${serviceId}/image`, {
-        method: "POST",
-        body: formData,
-      });
-      const payload = (await res.json().catch(() => null)) as
-        | { image?: string | null; error?: string }
-        | null;
-      if (!res.ok) {
-        throw new Error(payload?.error || "Не удалось загрузить изображение");
-      }
-      return payload && typeof payload === "object" && typeof payload.image === "string"
-        ? payload.image
-        : null;
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось загрузить изображение");
-      return null;
-    } finally {
-      setBusy(false);
+  async function uploadPendingImages(serviceId: string, selected: typeof pendingImages) {
+    for (const image of selected) {
+      const body = new FormData();
+      body.append("file", image.file);
+      const response = await fetch(`/api/pro/services/${serviceId}/image`, { method: "POST", body });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result?.error || "Не удалось загрузить фотографию. Повторите загрузку.");
+      applyGallery(result);
+      setPendingImages((current) => current.filter((item) => item.previewUrl !== image.previewUrl));
+      URL.revokeObjectURL(image.previewUrl);
     }
   }
 
-  async function deleteImage() {
-    if (mode !== "edit" || !initialService?.id) return;
+  async function retryImages(selected = pendingImages) {
+    if (!savedServiceId.current || busy) return;
+    setBusy(true);
+    setError(null);
+    setPendingAction(imagePickerSource.current === "icon" ? "upload:icon" : "upload:add");
+    try {
+      await uploadPendingImages(savedServiceId.current, selected);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Не удалось загрузить фотографии");
+    } finally {
+      setBusy(false);
+      setPendingAction(null);
+    }
+  }
+
+  async function deleteImage(imageUrl: string) {
+    if (!savedServiceId.current || busy) return;
     setBusy(true);
     setPendingAction("deleteImage");
     setError(null);
     try {
-      const res = await fetch(`/api/pro/services/${initialService.id}/image`, {
-        method: "DELETE",
-      });
-      const payload = (await res.json().catch(() => null)) as
-        | { error?: string }
-        | null;
-      if (!res.ok) {
-        throw new Error(payload?.error || "Не удалось удалить изображение");
-      }
-      setForm((current) => ({ ...current, image: "" }));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось удалить изображение");
+      const query = new URLSearchParams({ imageUrl });
+      const response = await fetch(`/api/pro/services/${savedServiceId.current}/image?${query}`, { method: "DELETE" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result?.error || "Не удалось удалить изображение");
+      applyGallery(result);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Не удалось удалить изображение");
     } finally {
       setBusy(false);
       setPendingAction(null);
@@ -542,6 +508,7 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
   }
 
   function openImagePicker(source: "icon" | "add" | null = null) {
+    if (busy || imageCount >= 10) return;
     imagePickerSource.current = source;
     fileInputRef.current?.click();
   }
@@ -551,43 +518,34 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
     setPlaces(next);
   }
 
-  const hasImage = Boolean(pendingImage || form.image.trim());
-  const canRemoveImage = hasImage && (mode === "edit" || Boolean(pendingImage));
+  const hasImage = imageCount > 0;
+  const canRemoveImage = hasImage;
 
-  function onSelectImage(file: File) {
+  function onSelectImages(files: File[]) {
+    if (busy || !files.length) return;
     setError(null);
-
-    if (pendingImage) {
-      URL.revokeObjectURL(pendingImage.previewUrl);
-    }
-
-    if (mode === "edit" && initialService?.id) {
-      const source = imagePickerSource.current;
-      setPendingAction(source ? `upload:${source}` : null);
-      void (async () => {
-        try {
-          const uploadedUrl = await uploadImageForService(initialService.id, file);
-          if (uploadedUrl) {
-            setForm((current) => ({ ...current, image: uploadedUrl }));
-          }
-        } finally {
-          setPendingAction(null);
-        }
-      })();
+    if (files.some((file) => !["image/jpeg", "image/png", "image/webp"].includes(file.type) || !file.size || file.size > 10 * 1024 * 1024)) {
+      setError("Выберите JPG, PNG или WebP размером до 10 МБ каждое.");
       return;
     }
+    const added = files.filter((file) => !pendingImages.some((item) => item.file.name === file.name && item.file.size === file.size && item.file.lastModified === file.lastModified));
+    if (imageCount + added.length > 10) {
+      setError("Можно загрузить не более 10 фотографий.");
+      return;
+    }
+    const selected = [...pendingImages, ...added.map((file) => ({ file, previewUrl: URL.createObjectURL(file) }))];
+    setPendingImages(selected);
+    if (savedServiceId.current) void retryImages(selected);
+  }
 
-    const previewUrl = URL.createObjectURL(file);
-    setPendingImage({ file, previewUrl });
+  function removePendingImage(previewUrl: string) {
+    URL.revokeObjectURL(previewUrl);
+    setPendingImages((current) => current.filter((image) => image.previewUrl !== previewUrl));
   }
 
   function onRemoveImage() {
-    if (pendingImage) {
-      URL.revokeObjectURL(pendingImage.previewUrl);
-      setPendingImage(null);
-      return;
-    }
-    void deleteImage();
+    if (images[0]) void deleteImage(images[0]);
+    else if (pendingImage) removePendingImage(pendingImage.previewUrl);
   }
 
   const priceLabel = formatServicePriceAmount(form.price);
@@ -652,7 +610,7 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
             <IconButton
               aria-label="Загрузить фото"
               loading={pendingAction === "upload:icon"}
-              disabled={busy && pendingAction !== "upload:icon"}
+              disabled={busy || imageCount >= 10}
               onClick={() => openImagePicker("icon")}
             >
               <PhotoCameraOutlinedIcon sx={{ color: "primary.main" }} />
@@ -662,7 +620,7 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
               variant="text"
               color="success"
               loading={pendingAction === "upload:add"}
-              disabled={busy && pendingAction !== "upload:add"}
+              disabled={busy || imageCount >= 10}
               onClick={() => openImagePicker("add")}
               sx={{ color: "success.main" }}
             >
@@ -688,15 +646,99 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
         <input
           ref={fileInputRef}
           type="file"
+          multiple
+          aria-label="Фотографии услуги"
+          disabled={busy || imageCount >= 10}
           hidden
           accept="image/jpeg,image/png,image/webp"
           onChange={(event) => {
-            const file = event.target.files?.[0] ?? null;
+            const files = Array.from(event.target.files ?? []);
             event.currentTarget.value = "";
-            if (file) onSelectImage(file);
+            onSelectImages(files);
           }}
         />
         {error ? <Alert severity="error" sx={{ borderRadius: 0 }}>{error}</Alert> : null}
+
+        <Stack
+          spacing={1.5}
+          sx={{ p: 2 }}
+        >
+          <Typography variant="subtitle1">Фотографии услуги · {imageCount} из 10</Typography>
+          <Typography
+            variant="body2"
+            sx={{ color: "text.secondary" }}
+          >
+            JPG, PNG или WebP, до 10 МБ каждое. Первое фото — обложка карточки.
+          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 1,
+            }}
+          >
+            {[...images.map((url) => ({ url, saved: true })), ...pendingImages.map((image) => ({ url: image.previewUrl, saved: false }))].map((image, index) => (
+              <Box
+                key={image.url}
+                sx={{
+                  position: "relative",
+                  width: 112,
+                }}
+              >
+                <Box
+                  component="img"
+                  src={image.url}
+                  alt={`Фото услуги ${index + 1}`}
+                  sx={{
+                    width: 112,
+                    height: 84,
+                    objectFit: "cover",
+                    borderRadius: 1,
+                    display: "block",
+                  }}
+                />
+                <IconButton
+                  aria-label={`Удалить фото услуги ${index + 1}`}
+                  size="small"
+                  disabled={busy}
+                  onClick={() => image.saved ? void deleteImage(image.url) : removePendingImage(image.url)}
+                  sx={{
+                    position: "absolute",
+                    top: 2,
+                    right: 2,
+                    bgcolor: "background.paper",
+                  }}
+                >
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+                <Typography variant="caption">
+                  {index === 0 ? "Обложка" : `Фото ${index + 1}`}{!image.saved ? " · Не загружено" : ""}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+          <Stack
+            direction="row"
+            spacing={1}
+          >
+            <Button
+              type="button"
+              onClick={() => openImagePicker("add")}
+              disabled={busy || imageCount >= 10}
+            >
+              Добавить фотографии
+            </Button>
+            {savedServiceId.current && pendingImages.length > 0 ? (
+              <Button
+                type="button"
+                onClick={() => void retryImages()}
+                disabled={busy}
+              >
+                Повторить загрузку
+              </Button>
+            ) : null}
+          </Stack>
+        </Stack>
 
         {/* На мобиле колонки распадаются в один поток: display:contents отдаёт детей внешнему flex, порядок задаёт order. */}
         <Box

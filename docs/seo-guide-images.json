@@ -1,0 +1,124 @@
+{
+  "generator": "Built-in image_gen",
+  "date": "2026-11-06",
+  "figma": "https://www.figma.com/design/Do8r5RIQQ7lzW9ou8dJweD",
+  "figmaAiCreditsUsed": false,
+  "format": "WebP, quality 80, original dimensions; Next Image provides responsive variants",
+  "images": [
+    {
+      "slug": "zemleustroystvo-i-kadastr",
+      "path": "frontend/public/images/guides/zemleustroystvo-i-kadastr.webp",
+      "prompt": "Create one landscape 3:2 editorial photograph for a professional Russian land and property advisory guide, topic LAND SURVEYING AND CADASTRE. A precise modern total station on a tripod in the foreground, quiet green rural plots, low fences and a modest timber house in the distance, birch woodland and open sky. Natural morning light, restrained sage green and warm earth palette, premium architectural magazine photography, realistic materials and optics, calm credible composition, no people necessary, no drawn boundary overlays, no letters, no text, no logos or watermarks. This is a conceptual editorial illustration, not a client case. Full bleed image, no border, no collage."
+    },
+    {
+      "slug": "pereraspredelenie-zu",
+      "path": "frontend/public/images/guides/pereraspredelenie-zu.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: Oblique drone view of two adjacent green rural garden plots with a modest timber house, a curved edge of grass and a narrow path between low fences. Focus on the geometry and configuration of neighboring parcels, birch woodland in the background. No boundary overlays."
+    },
+    {
+      "slug": "kadastr-raboty-egrn",
+      "path": "frontend/public/images/guides/kadastr-raboty-egrn.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: A surveyor's workspace by a window: folded architectural floor plan with only nontext linework, a compact laser distance meter, rolled measuring tape and a neutral pencil on an oak table. Beyond the window a small country house in soft focus."
+    },
+    {
+      "slug": "ustanovlenie-granic-zu",
+      "path": "frontend/public/images/guides/ustanovlenie-granic-zu.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: Close foreground red-white surveying stake beside a rural grass plot boundary, a yellow tripod surveying instrument farther back and a straight low wooden fence receding into the distance. Physical measurement work, quiet countryside, credible tools."
+    },
+    {
+      "slug": "ispravlenie-kadastrovoi-oshibki",
+      "path": "frontend/public/images/guides/ispravlenie-kadastrovoi-oshibki.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: Careful comparison of two slightly offset transparent abstract parcel plans on a light oak drafting table, graphite pencil and steel ruler, magnifying glass highlighting a mismatch in the boundary line. No official documents or text, subtle natural shadows."
+    },
+    {
+      "slug": "kommunikacii-i-podklyucheniya",
+      "path": "frontend/public/images/guides/kommunikacii-i-podklyucheniya.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: Quiet small modern country home along an access lane, modest utility pole and neat closed electrical meter cabinet near the fence, landscape and infrastructure visible together, green grass and birches, realistic Russian rural setting, no dramatic pylons."
+    },
+    {
+      "slug": "podklyuchenie-elektrichestva",
+      "path": "frontend/public/images/guides/podklyuchenie-elektrichestva.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: A tidy closed outdoor electrical meter cabinet on a post at the boundary of a rural residential plot, safe insulated service cable connected from an adjacent small utility pole, simple house in soft background. No exposed wires or dangerous work."
+    },
+    {
+      "slug": "zemelnoe-pravo-i-oformlenie",
+      "path": "frontend/public/images/guides/zemelnoe-pravo-i-oformlenie.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: Thoughtful legal workspace for land ownership: simple unbranded folder, abstract parcel diagram, a pen and a small house model on a broad pale wooden table with light from a tall window, garden in background. No seals, no gavel."
+    },
+    {
+      "slug": "oformlenie-dokumentov-na-zemlyu",
+      "path": "frontend/public/images/guides/oformlenie-dokumentov-na-zemlyu.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: Overhead editorial still life of neatly organized blank land document sheets, an abstract unlabelled parcel plan, natural linen folder, pencil and paper clips on oak. Gentle daylight and a leafy shadow; calm systematic preparation, no readable writing."
+    },
+    {
+      "slug": "oformlenie-uchastka-pod-domom",
+      "path": "frontend/public/images/guides/oformlenie-uchastka-pod-domom.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: Oblique aerial photograph of a modest finished timber home clearly situated within its tidy green rectangular garden plot, a simple fence, small vegetable beds, birch trees; emphasize relation of the building footprint to the surrounding land, no drawn overlays."
+    },
+    {
+      "slug": "dachnaya-amnistiya",
+      "path": "frontend/public/images/guides/dachnaya-amnistiya.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: Charming ordinary Russian dacha of weathered wood with a small covered porch, apple tree, flowering garden beds and a neat simple fence, morning light. Well-kept modest home with real material textures, authentic lived-in rural setting, no people."
+    },
+    {
+      "slug": "izmenenie-vri",
+      "path": "frontend/public/images/guides/izmenenie-vri.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: Broad rural landscape at the edge of a settlement: cultivated meadow in foreground, a few modest homes on one side and a small agricultural shed on the other, a shared access road. Show different land uses thoughtfully, no misleading before-after split."
+    },
+    {
+      "slug": "zemelnyi-servitut",
+      "path": "frontend/public/images/guides/zemelnyi-servitut.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: A narrow established gravel access lane leading between two well-kept fenced rural plots to a house in the distance, open gate, green hedges and birches. Clear visual focus on physical access across land, no legal symbols or overlays."
+    },
+    {
+      "slug": "priznanie-prava-sobstvennosti",
+      "path": "frontend/public/images/guides/priznanie-prava-sobstvennosti.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: House keys resting on a plain linen folder beside an abstract land plan on a light wooden desk, a modest home visible through a window behind. Warm natural light, thoughtful restrained legal editorial still life, no stamps or courtroom props."
+    },
+    {
+      "slug": "razresheniya-na-stroitelstvo",
+      "path": "frontend/public/images/guides/razresheniya-na-stroitelstvo.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: Small architectural wooden house model on a rolled unlabelled site drawing, a wood ruler and a pencil on a clean desk, a real undeveloped green plot visible outside. Early planning phase, sophisticated material detail, no misleading permit stamp."
+    },
+    {
+      "slug": "sdelki-i-proverka-nedvizhimosti",
+      "path": "frontend/public/images/guides/sdelki-i-proverka-nedvizhimosti.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: A modest contemporary timber country home viewed from its garden gate, foreground oak bench holding neutral folder and simple house keys, trees and clear access path. Editorial real estate due diligence mood, welcoming but sober."
+    },
+    {
+      "slug": "soprovozhdenie-sdelok",
+      "path": "frontend/public/images/guides/soprovozhdenie-sdelok.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: Close editorial tabletop composition in a bright meeting room: two sets of blank neutral document folders facing each other, one simple keyring, one black pen, small green plant. Suggest a considered property handover, no hands, no fake signatures."
+    },
+    {
+      "slug": "yuridicheskaya-proverka",
+      "path": "frontend/public/images/guides/yuridicheskaya-proverka.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: Magnifying glass and pencil beside a carefully unfolded abstract land parcel plan, neutral bound document stack and bookmark tabs, natural oak desk. Detailed attentive legal review, warm side light, no readable personal data or text."
+    },
+    {
+      "slug": "sudebnye-spory",
+      "path": "frontend/public/images/guides/sudebnye-spory.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: Quiet modern courthouse-style corridor with oak benches and tall windows, closed neutral doors, calm balanced architectural composition, soft daylight and green trees beyond windows. No national emblems, no people, no American gavel."
+    },
+    {
+      "slug": "predstavitelstvo-v-sude",
+      "path": "frontend/public/images/guides/predstavitelstvo-v-sude.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: Restrained legal meeting room: a closed leather document portfolio with orderly paper tabs on oak table, empty chairs in a quiet institutional interior, tall daylight windows. Professional preparation for representation in court, no gavel, no scales, no flags."
+    },
+    {
+      "slug": "iskovye-zayavleniya",
+      "path": "frontend/public/images/guides/iskovye-zayavleniya.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: Close overhead view of an organized writing desk with an unbranded laptop showing a blank page without UI text, a plain paper document, pen and three neatly aligned evidence folders. Editorial writing and preparation, natural light, no readable writing."
+    },
+    {
+      "slug": "drugie-uslugi",
+      "path": "frontend/public/images/guides/drugie-uslugi.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: Wide landscape photograph of a winding gravel lane through green rural plots and birch woodland, a modest house in the middle distance, calm morning light. A thoughtful overview of varied land questions, premium editorial travel photography."
+    },
+    {
+      "slug": "prochee",
+      "path": "frontend/public/images/guides/prochee.webp",
+      "prompt": "Use case: photorealistic-natural. Create a single landscape 3:2 editorial photograph for a professional Russian land and property magazine. Premium architectural photography, natural soft daylight, restrained sage greens, cream and warm wood, precise realistic materials, calm balanced composition. Full bleed, no borders, no collage. No readable text, letters, numbers, signatures, stamps, logos, watermarks, no official insignia; plans can show abstract thin lines only. Conceptual editorial scene, not documentation of a real client project. Subject: A folded abstract site plan and pencil on an outdoor wooden table overlooking a modest rural property with a garden and fence. Open-ended initial consultation and understanding a land task, gentle natural light, no readable writing."
+    }
+  ]
+}

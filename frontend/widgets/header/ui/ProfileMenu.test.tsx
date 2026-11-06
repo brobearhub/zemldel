@@ -11,12 +11,13 @@ import { ProfileMenu } from "./ProfileMenu";
 const navigation = vi.hoisted(() => ({
   pathname: "/service/123",
   push: vi.fn(),
+  search: "q=1",
 }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: navigation.push }),
   usePathname: () => navigation.pathname,
-  useSearchParams: () => new URLSearchParams("q=1"),
+  useSearchParams: () => new URLSearchParams(navigation.search),
 }));
 
 function avatarHasAccentRing(root: ParentNode): boolean {
@@ -68,11 +69,14 @@ describe("ProfileMenu", () => {
       },
     });
     navigation.pathname = "/service/123";
+    navigation.search = "q=1";
   });
 
   function renderWithAuthState(
     state: "unauth" | "customer" | "provider" | "platformAdmin",
     options?: {
+      readonly layout?: "popover" | "inline" | "sheet";
+      readonly onNavigate?: () => void;
       readonly withMembership?: boolean;
       readonly membership?: AuthMembership;
       readonly name?: string | null;
@@ -109,7 +113,10 @@ describe("ProfileMenu", () => {
     render(
       <Provider store={store}>
         <ThemeProvider theme={createAppTheme("light")}>
-          <ProfileMenu />
+          <ProfileMenu
+            layout={options?.layout}
+            onNavigate={options?.onNavigate}
+          />
         </ThemeProvider>
       </Provider>
     );
@@ -160,7 +167,7 @@ describe("ProfileMenu", () => {
 
   it.each(["/forgot-password", "/reset-password", "/signin", "/signup"])(
     "opens sign-in with the cabinet as the return path from %s",
-    async (pathname) => {
+    async (pathname: string) => {
       navigation.pathname = pathname;
       const { user } = renderWithAuthState("unauth");
 
@@ -189,6 +196,55 @@ describe("ProfileMenu", () => {
     expect(screen.queryByText("Админка")).not.toBeInTheDocument();
   });
 
+  it.each([
+    ["Заявки", "requests"],
+    ["Документы", "documents"],
+    ["История", "stories"],
+    ["Мой профиль", "profile"],
+  ])("открывает раздел клиента «%s» и закрывает меню", async (label: string, section: string) => {
+    navigation.pathname = "/profile";
+    navigation.search = `section=${section}`;
+    const onNavigate = vi.fn();
+    const { user } = renderWithAuthState("customer", { onNavigate });
+
+    await user.click(screen.getByRole("button", { name: "Профиль" }));
+
+    expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+      "Заявки",
+      "Документы",
+      "История",
+      "Мой профиль",
+      "Выйти",
+    ]);
+    expect(screen.getAllByRole("menuitem").filter((item) => item.getAttribute("aria-current") === "page"))
+      .toEqual([screen.getByRole("menuitem", { name: label })]);
+
+    await user.click(screen.getByRole("menuitem", { name: label }));
+
+    expect(navigation.push).toHaveBeenCalledWith(`/profile?section=${section}`);
+    expect(onNavigate).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: "Профиль" })).not.toHaveAttribute("aria-expanded");
+  });
+
+  it.each(["inline", "sheet"] as const)(
+    "дублирует разделы клиента в меню %s и открывает личные данные",
+    async (layout: "inline" | "sheet") => {
+      const onNavigate = vi.fn();
+      const { user } = renderWithAuthState("customer", { layout, onNavigate });
+      if (layout === "inline") {
+        await user.click(screen.getByRole("button", { name: "Профиль" }));
+      }
+
+      expect(screen.getByRole("button", { name: "Заявки" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Документы" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "История" })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Мой профиль" }));
+
+      expect(navigation.push).toHaveBeenCalledWith("/profile?section=profile");
+      expect(onNavigate).toHaveBeenCalledOnce();
+    },
+  );
+
   it("shows admin link for PLATFORM_ADMIN and navigates to /admin", async () => {
     const { user } = renderWithAuthState("platformAdmin");
 
@@ -201,16 +257,17 @@ describe("ProfileMenu", () => {
     expect(navigation.push).toHaveBeenCalledWith("/admin");
   });
 
-  it("выделяет «Мой профиль», когда открыт профиль заказчика", async () => {
+  it("выделяет «Заявки» на странице заявки заказчика", async () => {
     navigation.pathname = "/profile/requests/1";
     const { user } = renderWithAuthState("customer", { withMembership: true });
 
     await user.hover(screen.getByLabelText("Профиль"));
 
-    expect(screen.getByRole("menuitem", { name: "Мой профиль" })).toHaveAttribute(
+    expect(screen.getByRole("menuitem", { name: "Заявки" })).toHaveAttribute(
       "aria-current",
       "page",
     );
+    expect(screen.getByRole("menuitem", { name: "Мой профиль" })).not.toHaveAttribute("aria-current");
     expect(screen.queryByRole("menuitem", { name: "Кабинет исполнителя" })).not.toBeInTheDocument();
   });
 
@@ -226,6 +283,9 @@ describe("ProfileMenu", () => {
     expect(within(menu).getByText("ООО Бурый Медведь")).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: /Бурый Медведь/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Мой профиль" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Заявки" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Документы" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "История" })).not.toBeInTheDocument();
     expect(avatarHasAccentRing(cabinetButton)).toBe(true);
 
     await user.click(screen.getByRole("menuitem", { name: /Контактное лицо/ }));

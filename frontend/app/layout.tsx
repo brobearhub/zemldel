@@ -1,9 +1,10 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import type { Metadata } from "next";
 import { AppProviders } from "@/core/providers/AppProviders";
 import { nunitoSans } from "@/app/fonts";
 import { isLlmsTxtPublic } from "@/shared/lib/llms-txt";
 import { siteOrigin } from "@/shared/lib/site-origin";
+import { YandexMetrika } from "@/widgets/analytics/ui/YandexMetrika";
 
 import "./styles/globals.css";
 
@@ -29,6 +30,9 @@ export default function RootLayout({ children }: Props) {
         ) : null}
       </head>
       <body>
+        <Suspense fallback={null}>
+          <YandexMetrika />
+        </Suspense>
         <AppProviders>
           {children}
         </AppProviders>

@@ -1,116 +1,149 @@
-import Link from "@/shared/ui/Link";
-import { Box, Stack, Typography } from "@mui/material";
+import Image from "next/image";
+import Link from "next/link";
+import type { ReactNode } from "react";
+import type { getCategoryHubNavigation } from "@/entities/service-category/model/category-hubs";
 import type { CategoryGuide } from "@/entities/service-category/model/category-guides";
 import { getCategoryGuide } from "@/entities/service-category/model/category-guides";
+import { getCategoryGuideImage } from "@/entities/service-category/model/category-guide-images";
+import styles from "./category-guide.module.css";
 
 type Props = {
   guide: CategoryGuide;
   childrenCategories: Array<{ id: string; name: string; slug: string }>;
+  navigation: ReturnType<typeof getCategoryHubNavigation>;
+  requestAction: ReactNode;
 };
 
-export function CategoryGuideSection({ guide, childrenCategories }: Props) {
+export function CategoryGuideSection({ guide, childrenCategories, navigation, requestAction }: Props) {
+  const navigationLinks = [
+    ...navigation.situations.map(({ category, situation }) => ({
+      href: `/service-categories/${category.id}`,
+      title: situation,
+    })),
+    ...navigation.reading.map(({ category, anchor, title }) => ({
+      href: `/service-categories/${category.id}#${anchor}`,
+      title,
+    })),
+    ...(navigation.parent ? [{
+      href: `/service-categories/${navigation.parent.id}`,
+      title: navigation.parentSituation ?? navigation.parent.name,
+    }] : []),
+  ];
+  const anchors = [
+    ...guide.sections.map((section, index) => ({ id: `guide-section-${index + 1}`, title: section.heading })),
+    { id: "guide-preparation", title: "Что подготовить для обсуждения" },
+    { id: "guide-question", title: guide.question.title },
+    ...(childrenCategories.length ? [{ id: "guide-directions", title: "Услуги этого раздела" }] : []),
+    ...(navigationLinks.length ? [{ id: "guide-situations", title: "Подберите услугу по ситуации" }] : []),
+    { id: "category-offers", title: "Услуги" },
+  ];
   return (
-    <Stack spacing={3}>
-      {childrenCategories.length > 0 ? (
-        <Box
-          component="nav"
-          aria-label="Услуги этого раздела"
-        >
-          <Typography
-            component="h2"
-            variant="h5"
-            sx={{ mb: 2 }}
-          >
-            Услуги этого раздела
-          </Typography>
-          <Stack
-            component="ul"
-            spacing={2}
-            sx={{ pl: 2.5 }}
-          >
-            {childrenCategories.map((category) => (
-              <Box
-                component="li"
-                key={category.id}
-              >
-                <Link
-                  href={`/service-categories/${category.id}`}
-                  sx={{ fontWeight: 700 }}
-                >
-                  {category.name}
-                </Link>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    mt: 0.5,
-                    color: "text.secondary",
-                  }}
-                >
-                  {getCategoryGuide(category.slug)?.description}
-                </Typography>
-              </Box>
-            ))}
-          </Stack>
-        </Box>
-      ) : null}
-      {guide.sections.map((section) => (
-        <Box
-          component="section"
+    <article
+      aria-labelledby="category-title"
+      className={styles.article}
+    >
+      <nav
+        aria-label="Содержание статьи"
+        className={styles.contents}
+      >
+        <ol>
+          {anchors.map((anchor) => (
+            <li key={anchor.id}>
+              <Link href={`#${anchor.id}`}>{anchor.title}</Link>
+            </li>
+          ))}
+        </ol>
+      </nav>
+      {guide.sections.map((section, index) => (
+        <section
+          id={`guide-section-${index + 1}`}
+          className={styles.section}
           key={section.heading}
         >
-          <Typography
-            component="h2"
-            variant="h5"
-            sx={{ mb: 1 }}
-          >
-            {section.heading}
-          </Typography>
-          <Typography sx={{ lineHeight: 1.75 }}>
-            {section.text}
-          </Typography>
-        </Box>
+          <h2 className={styles.heading}>{section.heading}</h2>
+          <p className={styles.body}>{section.text}</p>
+        </section>
       ))}
-      <Box component="section">
-        <Typography
-          component="h2"
-          variant="h5"
-          sx={{ mb: 1 }}
+      <section
+        id="guide-preparation"
+        className={`${styles.section} ${styles.preparation}`}
+      >
+        <h2 className={styles.heading}>Что подготовить для обсуждения</h2>
+        <ul>
+          {guide.preparation.map((item) => <li key={item}>{item}</li>)}
+        </ul>
+      </section>
+      <section
+        id="guide-question"
+        className={`${styles.section} ${styles.question}`}
+      >
+        <h2 className={styles.heading}>{guide.question.title}</h2>
+        <p className={styles.body}>{guide.question.answer}</p>
+      </section>
+      {childrenCategories.length > 0 ? (
+        <nav
+          id="guide-directions"
+          aria-label="Услуги этого раздела"
+          className={styles.related}
         >
-          Что подготовить для обсуждения
-        </Typography>
-        <Box
-          component="ul"
-          sx={{
-            pl: 2.5,
-            m: 0,
-          }}
-        >
-          {guide.preparation.map((item) => (
-            <Typography
-              component="li"
-              key={item}
-              sx={{
-                mb: 1,
-                lineHeight: 1.75,
-              }}
-            >
-              {item}
-            </Typography>
-          ))}
-        </Box>
-      </Box>
-      <Box component="section">
-        <Typography
-          component="h2"
-          variant="h5"
-          sx={{ mb: 1 }}
-        >
-          {guide.question.title}
-        </Typography>
-        <Typography sx={{ lineHeight: 1.75 }}>
-          {guide.question.answer}
-        </Typography>
-      </Box>
-    </Stack>
+          <h2 className={styles.heading}>Услуги этого раздела</h2>
+          <ul className={styles.cards}>
+            {childrenCategories.map((category) => {
+              const image = getCategoryGuideImage(category.slug);
+              return (
+                <li key={category.id}>
+                  <Link
+                    href={`/service-categories/${category.id}`}
+                    className={styles.card}
+                  >
+                    {image ? (
+                      <Image
+                        src={image.src}
+                        alt={image.alt}
+                        width={image.width}
+                        height={image.height}
+                        sizes="(max-width: 599px) calc(100vw - 72px), (max-width: 899px) 40vw, 320px"
+                        className={styles.cardImage}
+                      />
+                    ) : null}
+                    <h3>{category.name}</h3>
+                    <p>{getCategoryGuide(category.slug)?.description}</p>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      ) : null}
+      <div className={`${styles.nextStepsLayout} ${navigationLinks.length > 0 ? styles.hasHubExtras : ""}`}>
+        <section className={styles.nextStep} aria-labelledby="guide-next-step-title">
+          <h2 id="guide-next-step-title" className={styles.compactHeading}>Обсудите свою задачу</h2>
+          <p className={styles.nextStepIntro}>
+            Расскажите об объекте, исходных документах и нужном результате. Если не уверены в выборе услуги,
+            опишите ситуацию своими словами.
+          </p>
+          <div className={styles.actions}>
+            {requestAction}
+            <Link className={styles.offersLink} href="#category-offers">Предложения</Link>
+          </div>
+        </section>
+        {navigationLinks.length > 0 ? (
+          <nav
+            id="guide-situations"
+            className={styles.hubExtras}
+            aria-labelledby="guide-situations-title"
+          >
+            <h2 id="guide-situations-title" className={styles.compactHeading}>Подберите услугу по ситуации</h2>
+            <ul className={styles.situationList}>
+              {navigationLinks.map(({ href, title }) => (
+                <li key={href}>
+                  <Link href={href} className={styles.situationLink}>{title}</Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ) : null}
+      </div>
+    </article>
   );
 }

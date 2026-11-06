@@ -1,6 +1,5 @@
 import { publicPageMetadata } from "@/shared/lib/seo";
 import { HowItWorks } from "@/widgets/how-it-works/ui/HowItWorks";
-import { Achievements } from "@/widgets/achievements/ui/Achievements";
 import { Contacts } from "@/widgets/contacts/ui/Contacts";
 import { Hero } from "@/widgets/hero/ui/Hero";
 import { Box, Container, Stack } from "@mui/material";
@@ -11,12 +10,12 @@ export const dynamic = "force-dynamic";
 
 export default async function AboutPage() {
   const categories = await fetchBackendJson<ServiceCategoryRow[]>("/service-categories");
-  const rootCategories = categories.filter((c) => c.parentId == null);
 
   return (
     <>
       <Hero />
-      <HowItWorks />
+      <HowItWorks audience="customer" />
+      <HowItWorks audience="provider" />
       <Box
         component="section"
         id="services"
@@ -24,12 +23,11 @@ export default async function AboutPage() {
       >
         <Container>
           <Stack spacing={{ xs: 3, md: 4 }}>
-            <ServiceCategoriesSection categories={rootCategories} embedded />
+            <ServiceCategoriesSection categories={categories} embedded />
           </Stack>
         </Container>
       </Box>
       <Contacts />
-      <Achievements />
     </>
   );
 }

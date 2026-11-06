@@ -16,12 +16,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   return NextResponse.json(payload, { status: response.status });
 }
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getServerAuthSession();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const response = await fetchBackendAsUser(`/pro/services/${id}/image`, session.user.id, {
+  const imageUrl = new URL(request.url).searchParams.get("imageUrl");
+  const query = imageUrl ? `?${new URLSearchParams({ imageUrl })}` : "";
+  const response = await fetchBackendAsUser(`/pro/services/${id}/image${query}`, session.user.id, {
     method: "DELETE",
   });
   const payload = await response.json().catch(() => ({ error: "Failed to delete service image" }));
