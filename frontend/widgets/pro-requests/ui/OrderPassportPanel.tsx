@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
+  Box,
   Button,
   Dialog,
   DialogActions,
@@ -30,28 +31,43 @@ export function OrderPassportPanel({ orderId }: { orderId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [passport, setPassport] = useState<PassportDto | null>(null);
 
-  async function load() {
-    setBusy(true);
+  const [photos, setPhotos] = useState<Array<{ id: string }>>([]);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    setPassport(null);
+    setPhotos([]);
     setError(null);
-    try {
-      const res = await fetch(`/api/pro/requests/${orderId}/passport`, { cache: "no-store" });
-      const payload = (await res.json().catch(() => null)) as PassportDto | { error?: string } | null;
-      if (!res.ok) {
-        setError(
-          payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
-            ? payload.error
-            : "Не удалось получить паспорт"
-        );
-        setPassport(null);
-        return;
+    setPhotoError(null);
+    if (!open) return;
+    const controller = new AbortController();
+    setBusy(true);
+    const load = async (kind: "form" | "photo") => {
+      try {
+        const response = await fetch(`/api/pro/requests/${encodeURIComponent(orderId)}/passport${kind === "photo" ? "/photos" : ""}`, { cache: "no-store", signal: controller.signal });
+        const body = await response.json();
+        if (!response.ok) throw new Error(response.status === 403 ? "Клиент не предоставил доступ или срок доступа истёк." : "Данные недоступны. Попробуйте обновить.");
+        if (!controller.signal.aborted) {
+          if (kind === "form") setPassport(body);
+          else setPhotos(body);
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          const message = error instanceof Error ? error.message : "Не удалось загрузить данные";
+          if (kind === "form") setError(message);
+          else setPhotoError(message);
+        }
       }
-      setPassport(payload as PassportDto);
-    } catch {
-      setError("Не удалось получить паспорт");
-      setPassport(null);
-    } finally {
-      setBusy(false);
-    }
+    };
+    void Promise.all([load("form"), load("photo")]).finally(() => { if (!controller.signal.aborted) setBusy(false); });
+    return () => controller.abort();
+  }, [open, orderId, attempt]);
+
+  function close() {
+    setOpen(false);
+    setPassport(null);
+    setPhotos([]);
   }
 
   return (
@@ -60,19 +76,24 @@ export function OrderPassportPanel({ orderId }: { orderId: string }) {
         variant="outlined"
         onClick={() => {
           setOpen(true);
-          void load();
         }}
         loading={busy}
       >
         Паспорт клиента
       </Button>
 
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
+      <Dialog
+        open={open}
+        onClose={close}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogTitle>Паспорт клиента</DialogTitle>
         <DialogContent>
           <Stack spacing={1.5} sx={{ pt: 1 }}>
-            {error ? <Alert severity="error">{error}</Alert> : null}
-            {!error && !passport ? (
+            <Typography variant="subtitle1">Анкета</Typography>
+            {error ? <Alert severity="info">{error}</Alert> : null}
+            {busy && !error && !passport ? (
               <Typography sx={{
                 color: "text.secondary"
               }}>Загрузка...</Typography>
@@ -104,10 +125,32 @@ export function OrderPassportPanel({ orderId }: { orderId: string }) {
                 </Typography>
               </>
             ) : null}
+            <Divider />
+            <Typography variant="subtitle1">Фотографии</Typography>
+            {photoError ? <Alert severity="info">{photoError}</Alert> : null}
+            {!busy && !photoError && photos.length === 0 ? <Typography>Фотографии не сохранены.</Typography> : null}
+            {photos.map((photo, index) => (
+              <Box
+                key={photo.id}
+                component="img"
+                src={`/api/pro/requests/${encodeURIComponent(orderId)}/passport/photos/${encodeURIComponent(photo.id)}?view=${attempt}`}
+                alt={`Фото паспорта ${index + 1}`}
+                onError={() => { setPhotos([]); setPhotoError("Доступ к фотографиям закрыт или хранилище недоступно."); }}
+                sx={{
+                  width: "100%",
+                  maxHeight: 500,
+                  objectFit: "contain",
+                }}
+              />
+            ))}
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpen(false)}>Закрыть</Button>
+          <Button
+            onClick={() => setAttempt((value) => value + 1)}
+            disabled={busy}
+          >Обновить</Button>
+          <Button onClick={close}>Закрыть</Button>
         </DialogActions>
       </Dialog>
     </>

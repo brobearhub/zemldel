@@ -35,7 +35,7 @@ import { CdnAvatar } from "@/shared/ui/cdn-image";
 import { useAppSelector } from "@/core/store/hooks";
 import { resolveAccountKind, type AuthMembership } from "@/core/auth/authorization";
 import { CustomerRequestsSection } from "@/widgets/customer-requests/ui/CustomerRequestsSection";
-import { CustomerPassportSection } from "@/widgets/customer-documents/ui/CustomerPassportSection";
+import { CustomerDocumentsSection } from "@/widgets/customer-documents/ui/CustomerDocumentsSection";
 import { StoriesPage } from "@/views/stories-page";
 import { CabinetNotices } from "@/widgets/cabinet-chrome";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
@@ -919,17 +919,24 @@ function ProfilePageContent() {
 
   return (
     <Container maxWidth="xl" sx={sitePageContainerSx}>
-      <Typography component="h1" variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
-        {selectedSection === "documents"
-          ? "Документы"
-          : selectedSection === "stories"
+      {selectedSection !== "documents" ? (
+        <Typography
+          component="h1"
+          variant="h4"
+          sx={{
+            fontWeight: 700,
+            mb: 2,
+          }}
+        >
+          {selectedSection === "stories"
             ? "История"
             : selectedSection === "profile"
               ? user?.accountKind === "PROVIDER"
                 ? "Контактное лицо"
                 : "Профиль"
               : "Заявки"}
-      </Typography>
+        </Typography>
+      ) : null}
       <CabinetNotices welcome="Аккаунт создан. Здесь будут ваши заявки." />
       {selectedSection === "requests" ? (
         <CustomerRequestsSection
@@ -960,9 +967,7 @@ function ProfilePageContent() {
           }
         />
       ) : (
-        <Paper sx={{ width: "100%", p: { xs: 3, md: 4 } }}>
-          <CustomerPassportSection />
-        </Paper>
+        <CustomerDocumentsSection />
       )}
     </Container>
   );

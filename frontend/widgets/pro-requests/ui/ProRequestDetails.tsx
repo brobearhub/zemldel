@@ -1,4 +1,6 @@
 "use client";
+
+import { OrderPassportPanel } from "./OrderPassportPanel";
 import { RequestUnavailableNotice, isRequestAccessFailure, type RequestAccessFailure } from "@/shared/ui/RequestUnavailableNotice";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -746,6 +748,10 @@ export function ProRequestDetails({ initialRequest, subtitle, onRequestChange, o
           }
         />
       </RequestDetailPanelLayer>
+
+      {req.providerId && !["COMPLETED", "CANCELLED", "CLOSED"].includes(req.status) ? (
+        <OrderPassportPanel orderId={req.id} />
+      ) : null}
 
       {req.fiasInactiveWarning ? (
         <RequestCityInactiveWarning show={req.fiasInactiveWarning} city={req.requestCity} />

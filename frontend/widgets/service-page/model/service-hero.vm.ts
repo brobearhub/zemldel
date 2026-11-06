@@ -4,6 +4,7 @@ export type ServiceHeroVm = {
   title: string;
   description: string | null;
   imageUrl: string | null;
+  images?: string[];
   imageBadgeLabel: string | null;
   places: ReadonlyArray<{
     kind: "city" | "region";

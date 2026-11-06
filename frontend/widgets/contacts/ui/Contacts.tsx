@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Box, SvgIcon, Stack, Typography } from "@mui/material";
 import TelegramIcon from "@mui/icons-material/Telegram";
 
-const PHONE = "+7 922 104 75 86";
+const EMAIL = "direct@zemledel.ru";
 const MAX_ICON_PATH =
   "M2 12C2 6.48 6.48 2 12 2s10 4.48 10 10-4.48 10-10 10S2 17.52 2 12m10 6c3.31 0 6-2.69 6-6s-2.69-6-6-6-6 2.69-6 6 2.69 6 6 6";
 
@@ -34,7 +34,8 @@ function MaxIconWithGradient({ hover }: { hover: boolean }) {
     </SvgIcon>
   );
 }
-const TELEGRAM_URL = "https://t.me/+79221047586";
+const TELEGRAM_URL = "https://t.me/Valeriya_Usova";
+const MAX_URL = "https://max.ru/u/f9LHodD0cOL6gASSd2_juOBU4uJL2ZZ6vsS5g6owYfqeLa7FsfLh_UoboAs";
 
 export const Contacts = () => {
   const [maxIconHover, setMaxIconHover] = useState(false);
@@ -45,7 +46,7 @@ export const Contacts = () => {
       id="contacts"
       sx={{
         position: "relative",
-        minHeight: { xs: 420, sm: 480, md: 560 },
+        minHeight: { xs: 420, sm: 480, md: 720 },
         display: "flex",
         alignItems: "center",
         justifyContent: "flex-end",
@@ -133,7 +134,7 @@ export const Contacts = () => {
         >
           <Typography
             component="a"
-            href={`tel:${PHONE.replace(/\s/g, "")}`}
+            href={`mailto:${EMAIL}`}
             sx={{
               fontWeight: 700,
               fontSize: { xs: 15, sm: 18 },
@@ -143,7 +144,7 @@ export const Contacts = () => {
               "&:hover": { textDecoration: "underline" },
             }}
           >
-            {PHONE}
+            {EMAIL}
           </Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             <Typography
@@ -168,11 +169,16 @@ export const Contacts = () => {
               <TelegramIcon sx={{ fontSize: 28 }} />
             </Typography>
             <Box
+              component="a"
+              href={MAX_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="MAX"
               onMouseEnter={() => setMaxIconHover(true)}
               onMouseLeave={() => setMaxIconHover(false)}
               sx={{
                 display: "inline-flex",
-                cursor: "default",
+                textDecoration: "none",
                 color: "common.white",
                 "&:hover .MuiSvgIcon-root": {
                   transform: "scale(1.15)",

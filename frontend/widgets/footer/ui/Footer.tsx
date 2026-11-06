@@ -17,6 +17,7 @@ import NextLink from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ResponsiveLabel } from "@/shared/ui/ResponsiveLabel";
 import type { ServiceCategoryRow } from "@/widgets/service-categories/ui/ServiceCategoriesSection";
+import { YandexMetrikaInformer } from "@/widgets/analytics/ui/YandexMetrika";
 
 const BRAND_NAME = "ЗЕМЛЕДЕЛ";
 const DEVELOPED_BY = "OOO «Бурый Медведь»";
@@ -279,6 +280,8 @@ export const Footer = () => {
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
+              flexWrap: "wrap",
+              gap: 2,
             }}
           >
             <Typography
@@ -292,6 +295,7 @@ export const Footer = () => {
             >
               © {year} <span style={{ fontWeight: 900 }}>{BRAND_NAME}</span>. Все права защищены.
             </Typography>
+            <YandexMetrikaInformer />
             <Link
               href="https://brobear.ru"
               target="_blank"

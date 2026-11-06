@@ -6,11 +6,6 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  DeleteObjectCommand,
-  GetObjectCommand,
-  PutObjectCommand,
-} from '@aws-sdk/client-s3';
 import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import type { Prisma } from '@prisma/client';
@@ -21,7 +16,7 @@ import {
   isExclusiveForActorProvider,
   isOrderExecutionStatus,
 } from '../requests/dto/request.dto';
-import { S3Service } from '../storage/s3.service';
+import { DocumentStorageService } from '../storage/document-storage.service';
 
 const ALLOWED_EXT = new Set(['.pdf', '.docx']);
 
@@ -97,7 +92,7 @@ export class RequestDocumentRequestsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
-    private readonly s3: S3Service,
+    private readonly documents: DocumentStorageService,
   ) {}
 
   private async requireProviderId(actorUserId: string) {
@@ -307,7 +302,7 @@ export class RequestDocumentRequestsService {
       throw new BadRequestException('Empty file');
     }
 
-    const newKey = `${this.s3.privatePrefix}requests/${request.id}/document-requests/${doc.id}/${randomUUID()}${ext}`;
+    const newKey = `documents/requests/${request.id}/document-requests/${doc.id}/${randomUUID()}${ext}`;
     const originalName = decodePossiblyMisencodedFileName(
       input.file.originalname,
     );
@@ -353,15 +348,11 @@ export class RequestDocumentRequestsService {
               },
             },
             async () => {
-              await this.s3.client.send(
-                new PutObjectCommand({
-                  Bucket: this.s3.privateBucket,
-                  Key: newKey,
-                  Body: input.file.buffer,
-                  ContentType: input.file.mimetype,
-                  CacheControl: 'private, no-store',
-                }),
-              );
+              await this.documents.putObject({
+                Key: newKey,
+                Body: input.file.buffer,
+                ContentType: input.file.mimetype,
+              });
               uploaded = true;
               await tx.requestDocumentRequest.update({
                 where: { id: doc.id },
@@ -384,14 +375,7 @@ export class RequestDocumentRequestsService {
         { maxWait: 10_000, timeout: 60_000 },
       );
       if (!result.replayed && previousKey && previousKey !== newKey) {
-        await this.s3.client
-          .send(
-            new DeleteObjectCommand({
-              Bucket: this.s3.privateBucket,
-              Key: previousKey,
-            }),
-          )
-          .catch(() => null);
+        await this.documents.deleteObject(previousKey).catch(() => null);
       }
       return result.value;
     } catch (error) {
@@ -404,14 +388,7 @@ export class RequestDocumentRequestsService {
           })
           .catch(() => undefined);
         if (current !== undefined && current?.storageRelPath !== newKey) {
-          await this.s3.client
-            .send(
-              new DeleteObjectCommand({
-                Bucket: this.s3.privateBucket,
-                Key: newKey,
-              }),
-            )
-            .catch(() => null);
+          await this.documents.deleteObject(newKey).catch(() => null);
         }
       }
       throw error;
@@ -458,12 +435,7 @@ export class RequestDocumentRequestsService {
         : 'attachment';
 
     try {
-      const obj = await this.s3.client.send(
-        new GetObjectCommand({
-          Bucket: this.s3.privateBucket,
-          Key: doc.storageRelPath,
-        }),
-      );
+      const obj = await this.documents.getObject(doc.storageRelPath);
       const body = obj.Body as unknown;
       if (!body || typeof (body as any).pipe !== 'function') {
         throw new NotFoundException('File not found');
@@ -533,12 +505,7 @@ export class RequestDocumentRequestsService {
         : 'attachment';
 
     try {
-      const obj = await this.s3.client.send(
-        new GetObjectCommand({
-          Bucket: this.s3.privateBucket,
-          Key: doc.storageRelPath,
-        }),
-      );
+      const obj = await this.documents.getObject(doc.storageRelPath);
       const body = obj.Body as unknown;
       if (!body || typeof (body as any).pipe !== 'function') {
         throw new NotFoundException('File not found');
@@ -604,12 +571,7 @@ export class RequestDocumentRequestsService {
     }
 
     try {
-      await this.s3.client.send(
-        new DeleteObjectCommand({
-          Bucket: this.s3.privateBucket,
-          Key: doc.storageRelPath,
-        }),
-      );
+      await this.documents.deleteObject(doc.storageRelPath);
     } catch (_e) {
       const e = _e;
       const isNotFound =

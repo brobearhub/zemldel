@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import { DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { ContractFilesService } from './contract-files.service';
 import { ContractFilesController } from './contract-files.controller';
 
@@ -29,9 +28,10 @@ function fixture() {
       .mockResolvedValue({ isPlatformAdmin: false, providerId: 'p1' }),
   };
   const s3 = {
-    privateBucket: 'private',
-    privatePrefix: 'private/',
-    client: { send: vi.fn().mockResolvedValue({}) },
+    putObject: vi.fn().mockResolvedValue({}),
+    deleteObject: vi.fn().mockResolvedValue(undefined),
+    getObject: vi.fn(),
+    isSecureKey: (key: string) => key.startsWith('documents/'),
   };
   const service = new ContractFilesService(
     prisma as never,
@@ -63,8 +63,10 @@ describe('contract upload with optional signature', () => {
       document,
     });
     expect(result.bundleId).toBeTruthy();
-    expect(s3.client.send).toHaveBeenCalledTimes(1);
-    expect(s3.client.send.mock.calls[0][0]).toBeInstanceOf(PutObjectCommand);
+    expect(s3.putObject).toHaveBeenCalledTimes(1);
+    expect(s3.putObject.mock.calls[0][0]).toMatchObject({
+      Key: expect.stringMatching(/^documents\//),
+    });
     expect(create).toHaveBeenCalledTimes(1);
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -84,7 +86,7 @@ describe('contract upload with optional signature', () => {
       document,
       signature,
     });
-    expect(s3.client.send).toHaveBeenCalledTimes(2);
+    expect(s3.putObject).toHaveBeenCalledTimes(2);
     expect(create).toHaveBeenCalledTimes(2);
     expect(create).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -112,7 +114,7 @@ describe('contract upload with optional signature', () => {
         signature: file,
       }),
     ).rejects.toThrow(message);
-    expect(s3.client.send).not.toHaveBeenCalled();
+    expect(s3.putObject).not.toHaveBeenCalled();
   });
 
   it('rejects an empty document even without a signature', async () => {
@@ -124,7 +126,7 @@ describe('contract upload with optional signature', () => {
         document: { ...document, buffer: Buffer.alloc(0) },
       }),
     ).rejects.toThrow('Empty document');
-    expect(s3.client.send).not.toHaveBeenCalled();
+    expect(s3.putObject).not.toHaveBeenCalled();
   });
 
   it('removes the document from storage when its database write fails', async () => {
@@ -137,13 +139,15 @@ describe('contract upload with optional signature', () => {
         document,
       }),
     ).rejects.toThrow('database unavailable');
-    expect(s3.client.send).toHaveBeenCalledTimes(2);
-    expect(s3.client.send.mock.calls[1][0]).toBeInstanceOf(DeleteObjectCommand);
+    expect(s3.putObject).toHaveBeenCalledTimes(1);
+    expect(s3.deleteObject).toHaveBeenCalledWith(
+      s3.putObject.mock.calls[0][0].Key,
+    );
   });
 
   it('removes the already uploaded document if uploading its signature fails', async () => {
     const { service, s3, create } = fixture();
-    s3.client.send
+    s3.putObject
       .mockResolvedValueOnce({})
       .mockRejectedValueOnce(new Error('upload failed'))
       .mockResolvedValueOnce({});
@@ -156,7 +160,9 @@ describe('contract upload with optional signature', () => {
       }),
     ).rejects.toThrow('upload failed');
     expect(create).not.toHaveBeenCalled();
-    expect(s3.client.send.mock.calls[2][0]).toBeInstanceOf(DeleteObjectCommand);
+    expect(s3.deleteObject).toHaveBeenCalledWith(
+      s3.putObject.mock.calls[0][0].Key,
+    );
   });
 });
 

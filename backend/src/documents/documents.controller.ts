@@ -3,7 +3,9 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Param,
+  ParseUUIDPipe,
   Put,
   Req,
   UnprocessableEntityException,
@@ -45,6 +47,7 @@ export class DocumentsController {
   }
 
   @Get('documents/passport/mine')
+  @Header('Cache-Control', 'private, no-store')
   @ApiOkResponse({ type: PassportDto })
   async getMyPassport(@Req() request: Request) {
     const actorUserId = this.getRequiredActorUserId(request);
@@ -52,8 +55,9 @@ export class DocumentsController {
   }
 
   @Put('documents/passport/mine')
+  @Header('Cache-Control', 'private, no-store')
   @ApiBody({ type: PassportDto })
-  @ApiOkResponse({ type: PassportDto })
+  @ApiOkResponse({ type: OkResponseDto })
   @ApiUnprocessableEntityResponse({
     type: ApiValidationErrorResponseDto,
     description: 'Validation failed',
@@ -76,6 +80,7 @@ export class DocumentsController {
   }
 
   @Delete('documents/passport/mine')
+  @Header('Cache-Control', 'private, no-store')
   @ApiOkResponse({ type: OkResponseDto })
   async deleteMyPassport(@Req() request: Request) {
     const actorUserId = this.getRequiredActorUserId(request);
@@ -87,10 +92,11 @@ export class DocumentsController {
   }
 
   @Get('pro/requests/:id/passport')
+  @Header('Cache-Control', 'private, no-store')
   @ApiOkResponse({ type: PassportDto })
   async getPassportForProvider(
     @Req() request: Request,
-    @Param('id') requestId: string,
+    @Param('id', new ParseUUIDPipe()) requestId: string,
   ) {
     const actorUserId = this.getRequiredActorUserId(request);
     return this.documents.getPassportForProviderByOrder({

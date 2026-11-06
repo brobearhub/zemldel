@@ -5,22 +5,13 @@ import { alpha } from "@mui/material/styles";
 import { achievements } from "@/widgets/achievements/model/achievements";
 import Link from "@/shared/ui/Link";
 
-const borderColorSx = (theme: { palette: { mode: string; common: { white: string; black: string } } }) =>
-  theme.palette.mode === "dark"
-    ? alpha(theme.palette.common.white, 0.2)
-    : alpha(theme.palette.common.black, 0.14);
-
 export const Achievements = () => {
   return (
     <Box
       component="section"
       id="achievements"
       sx={{
-        // py: { xs: 5, md: 7 },
         bgcolor: "background.default",
-        borderTop: "1px solid",
-        borderBottom: "1px solid",
-        borderColor: "divider",
       }}
     >
       <Box
@@ -29,8 +20,6 @@ export const Achievements = () => {
           display: "grid",
           gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))", md: "repeat(5, 1fr)" },
           gridTemplateRows: "auto",
-          border: "1px solid",
-          borderColor: (theme) => borderColorSx(theme),
           bgcolor: (theme) =>
             theme.palette.mode === "dark"
               ? alpha(theme.palette.background.paper, 0.5)
@@ -38,29 +27,6 @@ export const Achievements = () => {
           overflow: "hidden",
         }}
       >
-        {/* Пустые ячейки по бокам (для линий сетки) */}
-        {[1, 2, 3].flatMap((row) =>
-          [1, 5].map((col) => {
-            const isLastCol = col === 5;
-            const isLastRow = row === 3;
-            return (
-              <Box
-                key={`empty-${row}-${col}`}
-                sx={{
-                  display: { xs: "none", md: "block" },
-                  gridColumn: col,
-                  gridRow: row,
-                  borderRight: isLastCol ? "none" : "1px solid",
-                  borderBottom: { xs: "1px solid", md: isLastRow ? "none" : "1px solid" },
-                  borderLeft: "none",
-                  borderTop: "none",
-                  borderColor: (theme) => borderColorSx(theme),
-                }}
-              />
-            );
-          }),
-        )}
-
         {/* Заголовок — три центральные ячейки первого ряда */}
         <Box
           sx={{
@@ -73,9 +39,6 @@ export const Achievements = () => {
             justifyContent: "center",
             px: 2,
             py: { xs: 3, md: 5 },
-            borderRight: "1px solid",
-            borderBottom: "1px solid",
-            borderColor: (theme) => borderColorSx(theme),
           }}
         >
           <Typography
@@ -113,8 +76,6 @@ export const Achievements = () => {
         {achievements.map((item, index) => {
           const col = (index % 3) + 2;
           const row = Math.floor(index / 3) + 2;
-          const isLastCol = col === 4;
-          const isLastRow = row === 3;
           return (
           <Box
             key={item.label}
@@ -127,9 +88,6 @@ export const Achievements = () => {
               justifyContent: "center",
               textAlign: "center",
               p: 2,
-              borderRight: "1px solid",
-              borderBottom: { xs: "1px solid", md: isLastRow ? "none" : "1px solid" },
-              borderColor: (theme) => borderColorSx(theme),
             }}
           >
             <Typography

@@ -1,6 +1,7 @@
 import "@/core/server/reflect-metadata";
 import { Expose, Transform, instanceToPlain, plainToInstance } from "class-transformer";
 import {
+  IsArray,
   IsBoolean,
   IsEnum,
   IsInt,
@@ -146,6 +147,12 @@ export class ServiceDto {
   @ValidateIf((_, v) => v !== null && v !== undefined)
   @IsString()
   image!: string | null;
+
+  @Expose()
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  images?: string[];
 
   @Expose()
   @ValidateIf((_, v) => v !== null && v !== undefined)

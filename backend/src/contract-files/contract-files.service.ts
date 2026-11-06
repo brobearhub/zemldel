@@ -6,11 +6,6 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  GetObjectCommand,
-  PutObjectCommand,
-  DeleteObjectCommand,
-} from '@aws-sdk/client-s3';
 import { createHash, randomUUID } from 'node:crypto';
 import fssync from 'node:fs';
 import path from 'node:path';
@@ -22,7 +17,7 @@ import {
   isExclusiveForActorProvider,
   isOrderExecutionStatus,
 } from '../requests/dto/request.dto';
-import { S3Service } from '../storage/s3.service';
+import { DocumentStorageService } from '../storage/document-storage.service';
 
 const ALLOWED_EXT = new Set(['.pdf', '.docx']);
 const ALLOWED_SIG_EXT = new Set(['.sig', '.sgn', '.p7s']);
@@ -98,7 +93,7 @@ export class ContractFilesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
-    private readonly s3: S3Service,
+    private readonly documents: DocumentStorageService,
   ) {}
 
   private async requireProviderId(actorUserId: string) {
@@ -358,19 +353,15 @@ export class ContractFilesService {
       }
 
       const id = randomUUID();
-      const key = `${this.s3.privatePrefix}requests/${input.requestId}/contract-files/${id}${ext}`;
+      const key = `documents/requests/${input.requestId}/contract-files/${id}${ext}`;
       const originalName = decodePossiblyMisencodedFileName(file.originalname);
       const hash = sha256Buffer(file.buffer);
 
-      await this.s3.client.send(
-        new PutObjectCommand({
-          Bucket: this.s3.privateBucket,
-          Key: key,
-          Body: file.buffer,
-          ContentType: file.mimetype,
-          CacheControl: 'private, no-store',
-        }),
-      );
+      await this.documents.putObject({
+        Key: key,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+      });
 
       try {
         await this.prisma.requestContractFile.create({
@@ -391,14 +382,7 @@ export class ContractFilesService {
           select: { id: true },
         });
       } catch (e) {
-        await this.s3.client
-          .send(
-            new DeleteObjectCommand({
-              Bucket: this.s3.privateBucket,
-              Key: key,
-            }),
-          )
-          .catch(() => null);
+        await this.documents.deleteObject(key).catch(() => null);
         throw e;
       }
 
@@ -440,32 +424,24 @@ export class ContractFilesService {
     const upload = async (transaction?: Prisma.TransactionClient) => {
       const bundleId = randomUUID();
       const documentId = randomUUID();
-      const docKey = `${this.s3.privatePrefix}requests/${input.requestId}/contract-bundles/${bundleId}/${documentId}${docExt}`;
+      const docKey = `documents/requests/${input.requestId}/contract-bundles/${bundleId}/${documentId}${docExt}`;
       const signatureId = signature ? randomUUID() : null;
       const sigKey = signatureId
-        ? `${this.s3.privatePrefix}requests/${input.requestId}/contract-bundles/${bundleId}/${signatureId}${sigExt}`
+        ? `documents/requests/${input.requestId}/contract-bundles/${bundleId}/${signatureId}${sigExt}`
         : null;
       try {
-        await this.s3.client.send(
-          new PutObjectCommand({
-            Bucket: this.s3.privateBucket,
-            Key: docKey,
-            Body: input.document.buffer,
-            ContentType: input.document.mimetype,
-            CacheControl: 'private, no-store',
-          }),
-        );
+        await this.documents.putObject({
+          Key: docKey,
+          Body: input.document.buffer,
+          ContentType: input.document.mimetype,
+        });
         uploadedKeys.push(docKey);
         if (signature && sigKey) {
-          await this.s3.client.send(
-            new PutObjectCommand({
-              Bucket: this.s3.privateBucket,
-              Key: sigKey,
-              Body: signature.buffer,
-              ContentType: signature.mimetype || 'application/octet-stream',
-              CacheControl: 'private, no-store',
-            }),
-          );
+          await this.documents.putObject({
+            Key: sigKey,
+            Body: signature.buffer,
+            ContentType: signature.mimetype || 'application/octet-stream',
+          });
           uploadedKeys.push(sigKey);
         }
 
@@ -515,14 +491,7 @@ export class ContractFilesService {
         else await this.prisma.$transaction(persist);
       } catch (error) {
         await Promise.allSettled(
-          uploadedKeys.map((key) =>
-            this.s3.client.send(
-              new DeleteObjectCommand({
-                Bucket: this.s3.privateBucket,
-                Key: key,
-              }),
-            ),
-          ),
+          uploadedKeys.map((key) => this.documents.deleteObject(key)),
         );
         throw error;
       }
@@ -585,14 +554,7 @@ export class ContractFilesService {
           await Promise.allSettled(
             uploadedKeys
               .filter((key) => !committed.has(key))
-              .map((key) =>
-                this.s3.client.send(
-                  new DeleteObjectCommand({
-                    Bucket: this.s3.privateBucket,
-                    Key: key,
-                  }),
-                ),
-              ),
+              .map((key) => this.documents.deleteObject(key)),
           );
         }
       }
@@ -849,12 +811,7 @@ export class ContractFilesService {
 
     for (const row of rows) {
       try {
-        await this.s3.client.send(
-          new DeleteObjectCommand({
-            Bucket: this.s3.privateBucket,
-            Key: row.storageRelPath,
-          }),
-        );
+        await this.documents.deleteObject(row.storageRelPath);
       } catch (_e) {
         const e = _e;
         const isNotFound =
@@ -981,12 +938,7 @@ export class ContractFilesService {
         : 'attachment';
 
     try {
-      const obj = await this.s3.client.send(
-        new GetObjectCommand({
-          Bucket: this.s3.privateBucket,
-          Key: file.storageRelPath,
-        }),
-      );
+      const obj = await this.documents.getObject(file.storageRelPath);
       const body = obj.Body as unknown;
       if (!body || typeof (body as any).pipe !== 'function') {
         throw new NotFoundException('File not found');
@@ -1006,6 +958,10 @@ export class ContractFilesService {
         throw new BadGatewayException('File storage unavailable');
       }
 
+      // Only historical paths may resolve to a local migration source.
+      if (this.documents.isSecureKey(file.storageRelPath)) {
+        throw new NotFoundException('File not found');
+      }
       // Fallback for legacy local files during migration.
       const base = contractFilesBaseDir();
       const absPath = safeJoin(base, file.storageRelPath);
@@ -1061,12 +1017,7 @@ export class ContractFilesService {
         : 'attachment';
 
     try {
-      const obj = await this.s3.client.send(
-        new GetObjectCommand({
-          Bucket: this.s3.privateBucket,
-          Key: file.storageRelPath,
-        }),
-      );
+      const obj = await this.documents.getObject(file.storageRelPath);
       const body = obj.Body as unknown;
       if (!body || typeof (body as any).pipe !== 'function') {
         throw new NotFoundException('File not found');
@@ -1086,6 +1037,10 @@ export class ContractFilesService {
         throw new BadGatewayException('File storage unavailable');
       }
 
+      // Only historical paths may resolve to a local migration source.
+      if (this.documents.isSecureKey(file.storageRelPath)) {
+        throw new NotFoundException('File not found');
+      }
       // Fallback for legacy local files during migration.
       const base = contractFilesBaseDir();
       const absPath = safeJoin(base, file.storageRelPath);
@@ -1129,12 +1084,7 @@ export class ContractFilesService {
     }
 
     try {
-      await this.s3.client.send(
-        new DeleteObjectCommand({
-          Bucket: this.s3.privateBucket,
-          Key: file.storageRelPath,
-        }),
-      );
+      await this.documents.deleteObject(file.storageRelPath);
     } catch (_e) {
       const e = _e;
       const isNotFound =

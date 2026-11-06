@@ -36,9 +36,10 @@ describe('ContractFilesService', () => {
     };
 
     const s3 = {
-      privateBucket: 'b',
-      privatePrefix: 'private/',
-      client: { send: vi.fn() },
+      putObject: vi.fn(),
+      deleteObject: vi.fn().mockResolvedValue(undefined),
+      getObject: vi.fn(),
+      isSecureKey: (key: string) => key.startsWith('documents/'),
     };
 
     const svc = new ContractFilesService(
@@ -72,9 +73,10 @@ describe('ContractFilesService', () => {
     };
 
     const s3 = {
-      privateBucket: 'b',
-      privatePrefix: 'private/',
-      client: { send: vi.fn() },
+      putObject: vi.fn(),
+      deleteObject: vi.fn().mockResolvedValue(undefined),
+      getObject: vi.fn(),
+      isSecureKey: (key: string) => key.startsWith('documents/'),
     };
 
     const svc = new ContractFilesService(

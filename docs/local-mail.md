@@ -40,7 +40,7 @@ docker compose -p zemldel-mail -f docker-compose.mail.yml stop
 
 ## Отправка через Yandex Cloud Postbox по HTTPS
 
-В окружении, где SMTP-порты закрыты (например, ONREZA), используйте HTTPS сразу:
+В окружении, где SMTP-порты закрыты, используйте HTTPS сразу:
 
 ```dotenv
 MAIL_TRANSPORT="postbox"

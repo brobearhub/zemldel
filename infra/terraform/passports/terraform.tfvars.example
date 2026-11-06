@@ -1,0 +1,8 @@
+cloud_id    = "b1g40l910a4onvsk2ja2"
+folder_id   = "b1gcdvf6jupvtiqplmo6"
+name_prefix = "zemledel-prod-plmo6"
+
+bucket_max_size_bytes     = 10737418240 # 10 GiB
+noncurrent_retention_days = 7
+
+terraform_service_account_id = "aje49bvumdqmi13pe7g8"

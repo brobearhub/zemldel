@@ -236,6 +236,13 @@ export class ServiceDto {
   @IsString()
   image!: string | null;
 
+  @ApiProperty({ type: [String] })
+  @Expose()
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  images?: string[];
+
   @ApiProperty({ nullable: true, example: null })
   @Expose()
   @ValidateIf((_, value) => value !== null && value !== undefined)
@@ -300,6 +307,7 @@ export type ServiceDbRow = {
   title: string;
   publishedAt: Date | null;
   image: string | null;
+  images?: string[];
   stockBadge: string | null;
   price: string;
   rating: number | null;
@@ -356,6 +364,7 @@ export function serviceDbRowToDtoPlain(row: ServiceDbRow): ServiceDto {
     ServiceDto,
     {
       ...row,
+      images: row.images?.length ? row.images : row.image ? [row.image] : [],
       places: placesFromRow(row),
       provider: {
         ...row.provider,

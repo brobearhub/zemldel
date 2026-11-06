@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-# Команда сборки Onreza: схема, миграции, сиды и dist вместе с legal/.
+# Сборка со схемой, миграциями, сидами и dist вместе с legal/.
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
 

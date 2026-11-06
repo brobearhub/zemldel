@@ -1,4 +1,3 @@
-import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { RequestDocumentRequestsService } from './request-document-requests.service';
@@ -37,9 +36,10 @@ describe('RequestDocumentRequestsService', () => {
       prisma as any,
       {} as any,
       {
-        privatePrefix: 'private/',
-        privateBucket: 'b',
-        client: { send: vi.fn().mockResolvedValue({}) },
+        putObject: vi.fn().mockResolvedValue({}),
+        deleteObject: vi.fn().mockResolvedValue(undefined),
+        getObject: vi.fn(),
+        isSecureKey: (key: string) => key.startsWith('documents/'),
       } as any,
     );
 
@@ -74,9 +74,10 @@ describe('RequestDocumentRequestsService', () => {
       prisma as any,
       {} as any,
       {
-        privatePrefix: 'private/',
-        privateBucket: 'b',
-        client: { send: vi.fn() },
+        putObject: vi.fn(),
+        deleteObject: vi.fn().mockResolvedValue(undefined),
+        getObject: vi.fn(),
+        isSecureKey: (key: string) => key.startsWith('documents/'),
       } as any,
     );
 
@@ -110,9 +111,10 @@ describe('RequestDocumentRequestsService', () => {
     };
     prisma.$transaction.mockImplementation((run) => run(prisma));
     const s3 = {
-      privatePrefix: 'private/',
-      privateBucket: 'b',
-      client: { send: vi.fn().mockResolvedValue({}) },
+      putObject: vi.fn().mockResolvedValue({}),
+      deleteObject: vi.fn().mockResolvedValue(undefined),
+      getObject: vi.fn(),
+      isSecureKey: (key: string) => key.startsWith('documents/'),
     };
     const service = new RequestDocumentRequestsService(
       prisma as never,
@@ -132,14 +134,11 @@ describe('RequestDocumentRequestsService', () => {
         } as Express.Multer.File,
       }),
     ).rejects.toThrow('DB failed');
-    const put = s3.client.send.mock.calls.find(
-      ([command]) => command instanceof PutObjectCommand,
-    )?.[0] as PutObjectCommand;
-    const deletion = s3.client.send.mock.calls.find(
-      ([command]) => command instanceof DeleteObjectCommand,
-    )?.[0] as DeleteObjectCommand;
-    expect(put.input.Key).not.toBe(oldKey);
-    expect(deletion.input.Key).toBe(put.input.Key);
+    const put = s3.putObject.mock.calls[0][0];
+    expect(put.Key).not.toBe(oldKey);
+    expect(put.Key).toMatch(/^documents\//);
+    expect(s3.deleteObject).toHaveBeenCalledWith(put.Key);
+    expect(s3.deleteObject).not.toHaveBeenCalledWith(oldKey);
   });
   it('does not upload any object if the provider scope changes before the write lock', async () => {
     const request = {
@@ -162,9 +161,10 @@ describe('RequestDocumentRequestsService', () => {
     };
     prisma.$transaction.mockImplementation((run) => run(prisma));
     const s3 = {
-      privatePrefix: 'private/',
-      privateBucket: 'b',
-      client: { send: vi.fn() },
+      putObject: vi.fn(),
+      deleteObject: vi.fn().mockResolvedValue(undefined),
+      getObject: vi.fn(),
+      isSecureKey: (key: string) => key.startsWith('documents/'),
     };
     const service = new RequestDocumentRequestsService(
       prisma as never,
@@ -184,6 +184,6 @@ describe('RequestDocumentRequestsService', () => {
         } as Express.Multer.File,
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
-    expect(s3.client.send).not.toHaveBeenCalled();
+    expect(s3.putObject).not.toHaveBeenCalled();
   });
 });

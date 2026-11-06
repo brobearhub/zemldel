@@ -251,7 +251,14 @@ export function PublicUnlinkedRequestForm({
         {variant !== "card" && (sectionCategory || categories.length > 0) ? (
           <Stack spacing={0.5}>
             {sectionCategory || categories.length === 1 ? (
-              <Typography variant="body2" sx={{ color: "primary.main", fontWeight: 700, py: 0.5 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.primary",
+                  fontWeight: 700,
+                  py: 0.5,
+                }}
+              >
                 {sectionCategory?.name ?? categories[0]?.name}
               </Typography>
             ) : null}

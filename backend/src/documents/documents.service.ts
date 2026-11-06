@@ -1,23 +1,33 @@
 import {
-  ForbiddenException,
   Injectable,
+  Logger,
+  BadGatewayException,
+  ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import type { PassportDocument, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuthService } from '../auth/auth.service';
-import { ORDER_EXECUTION_STATUSES } from '../requests/dto/request.dto';
+import {
+  PassportAccessService,
+  revokePassportGrants,
+} from './passport-access.service';
 import { DocumentsCryptoService } from './documents-crypto.service';
 import type { PassportDto } from './dto/passport.dto';
-
-const PROVIDER_ALLOWED_STATUSES = ORDER_EXECUTION_STATUSES;
+import { PassportFormStorageService } from './passport-form-storage.service';
+import {
+  PassportStorageCleanupService,
+  lockPassport,
+} from './passport-storage-cleanup.service';
 
 @Injectable()
 export class DocumentsService {
+  private readonly logger = new Logger(DocumentsService.name);
   constructor(
     private readonly prisma: PrismaService,
-    private readonly authService: AuthService,
+    private readonly access: PassportAccessService,
     private readonly crypto: DocumentsCryptoService,
+    private readonly storage: PassportFormStorageService,
+    private readonly cleanup: PassportStorageCleanupService,
   ) {}
 
   private async audit(
@@ -46,25 +56,42 @@ export class DocumentsService {
     });
   }
 
-  async getMyPassport(actorUserId: string): Promise<PassportDto | null> {
-    const row = await this.prisma.passportDocument.findUnique({
-      where: { userId: actorUserId },
-      select: {
-        alg: true,
-        keyVersion: true,
-        iv: true,
-        tag: true,
-        ciphertext: true,
-      },
-    });
-    if (!row) return null;
+  private async readPassport(row: PassportDocument): Promise<PassportDto> {
+    if (row.storageKey) {
+      if (!row.sha256)
+        throw new BadGatewayException('Passport storage metadata unavailable');
+      return this.storage.read(row.storageKey, row.sha256);
+    }
+    // Read-only compatibility for encrypted database rows created before S3.
+    if (
+      row.alg !== 'AES-256-GCM' ||
+      row.keyVersion === null ||
+      !row.iv ||
+      !row.tag ||
+      !row.ciphertext
+    ) {
+      throw new BadGatewayException('Passport storage metadata unavailable');
+    }
     return this.crypto.decryptJson({
-      alg: row.alg as any,
+      alg: row.alg,
       keyVersion: row.keyVersion,
       iv: Buffer.from(row.iv),
       tag: Buffer.from(row.tag),
       ciphertext: Buffer.from(row.ciphertext),
     }) as PassportDto;
+  }
+
+  async getMyPassport(actorUserId: string): Promise<PassportDto | null> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        await lockPassport(tx, actorUserId);
+        const row = await tx.passportDocument.findUnique({
+          where: { userId: actorUserId },
+        });
+        return row ? this.readPassport(row) : null;
+      },
+      { timeout: 90_000, maxWait: 10_000 },
+    );
   }
 
   async upsertMyPassport(input: {
@@ -73,41 +100,61 @@ export class DocumentsService {
     ip?: string | null;
     userAgent?: string | null;
   }) {
-    const encrypted = this.crypto.encryptJson(input.passport);
-    const iv = Uint8Array.from(encrypted.iv);
-    const tag = Uint8Array.from(encrypted.tag);
-    const ciphertext = Uint8Array.from(encrypted.ciphertext);
-
-    await this.prisma.$transaction(async (tx) => {
-      await tx.passportDocument.upsert({
-        where: { userId: input.actorUserId },
-        create: {
-          userId: input.actorUserId,
-          alg: encrypted.alg,
-          keyVersion: encrypted.keyVersion,
-          iv,
-          tag,
-          ciphertext,
-        },
-        update: {
-          alg: encrypted.alg,
-          keyVersion: encrypted.keyVersion,
-          iv,
-          tag,
-          ciphertext,
-        },
-        select: { id: true },
-      });
-
-      await this.audit(tx, {
-        passportUserId: input.actorUserId,
-        action: 'CUSTOMER_WRITE',
-        actorUserId: input.actorUserId,
-        ip: input.ip ?? null,
-        userAgent: input.userAgent ?? null,
-      });
+    const key = this.storage.createKey(input.actorUserId);
+    // Register before PUT. A failed or interrupted write remains discoverable.
+    // The grace period exceeds SDK timeouts and avoids deleting a late PUT.
+    await this.prisma.passportObjectCleanup.create({
+      data: {
+        objectKey: key,
+        userId: input.actorUserId,
+        reason: 'UNCOMMITTED_UPLOAD',
+        notBefore: new Date(Date.now() + 60 * 60 * 1000),
+      },
     });
-
+    const sha256 = await this.storage.put(key, input.passport);
+    await this.prisma.$transaction(
+      async (tx) => {
+        await lockPassport(tx, input.actorUserId);
+        const pending = await tx.passportObjectCleanup.findUnique({
+          where: { objectKey: key },
+        });
+        if (!pending || pending.reason !== 'UNCOMMITTED_UPLOAD') {
+          throw new ConflictException('Passport upload expired; please retry');
+        }
+        const data = {
+          storageKey: key,
+          sha256,
+          alg: null,
+          keyVersion: null,
+          iv: null,
+          tag: null,
+          ciphertext: null,
+        };
+        await tx.passportDocument.upsert({
+          where: { userId: input.actorUserId },
+          create: { userId: input.actorUserId, ...data },
+          update: data,
+          select: { id: true },
+        });
+        // The database trigger queues the previous object in the same transaction.
+        await tx.passportObjectCleanup.delete({ where: { objectKey: key } });
+        await this.audit(tx, {
+          passportUserId: input.actorUserId,
+          action: 'CUSTOMER_WRITE',
+          actorUserId: input.actorUserId,
+          ip: input.ip ?? null,
+          userAgent: input.userAgent ?? null,
+        });
+      },
+      { timeout: 15_000, maxWait: 10_000 },
+    );
+    try {
+      await this.cleanup.flushUser(input.actorUserId);
+    } catch {
+      this.logger.warn(
+        'Passport saved; previous object cleanup queued for retry',
+      );
+    }
     return { ok: true };
   }
 
@@ -116,18 +163,25 @@ export class DocumentsService {
     ip?: string | null;
     userAgent?: string | null;
   }) {
-    await this.prisma.$transaction(async (tx) => {
-      await tx.passportDocument.deleteMany({
-        where: { userId: input.actorUserId },
-      });
-      await this.audit(tx, {
-        passportUserId: input.actorUserId,
-        action: 'CUSTOMER_DELETE',
-        actorUserId: input.actorUserId,
-        ip: input.ip ?? null,
-        userAgent: input.userAgent ?? null,
-      });
-    });
+    await this.prisma.$transaction(
+      async (tx) => {
+        await lockPassport(tx, input.actorUserId);
+        await revokePassportGrants(tx, input.actorUserId, 'FORM');
+        // Trigger retains the object reference for erasure, including crash recovery.
+        await tx.passportDocument.deleteMany({
+          where: { userId: input.actorUserId },
+        });
+        await this.audit(tx, {
+          passportUserId: input.actorUserId,
+          action: 'CUSTOMER_DELETE',
+          actorUserId: input.actorUserId,
+          ip: input.ip ?? null,
+          userAgent: input.userAgent ?? null,
+        });
+      },
+      { timeout: 15_000, maxWait: 10_000 },
+    );
+    await this.cleanup.flushUser(input.actorUserId);
     return { ok: true };
   }
 
@@ -137,64 +191,27 @@ export class DocumentsService {
     ip?: string | null;
     userAgent?: string | null;
   }): Promise<PassportDto> {
-    const ctx = await this.authService.getOrderManagementContext(
+    return this.access.withProviderAccess(
       input.actorUserId,
-      'read',
+      input.requestId,
+      'FORM',
+      async (tx, userId, providerId) => {
+        const passportRow = await tx.passportDocument.findUnique({
+          where: { userId },
+        });
+        if (!passportRow) throw new NotFoundException('Анкета не сохранена');
+        const passport = await this.readPassport(passportRow);
+        await this.audit(tx, {
+          passportUserId: userId,
+          action: 'PROVIDER_FORM_READ',
+          actorUserId: input.actorUserId,
+          actorProviderId: providerId,
+          requestId: input.requestId,
+          ip: input.ip,
+          userAgent: input.userAgent,
+        });
+        return passport;
+      },
     );
-    if (ctx.isPlatformAdmin) {
-      throw new ForbiddenException('Forbidden');
-    }
-    if (!ctx.providerId) {
-      throw new NotFoundException('Active provider is required');
-    }
-
-    const order = await this.prisma.request.findFirst({
-      where: {
-        id: input.requestId,
-        providerId: ctx.providerId,
-        status: { in: [...PROVIDER_ALLOWED_STATUSES] as any },
-      },
-      select: { id: true, customerUserId: true, status: true },
-    });
-    if (!order?.customerUserId) {
-      throw new NotFoundException('Order not found');
-    }
-
-    const passportRow = await this.prisma.passportDocument.findUnique({
-      where: { userId: order.customerUserId },
-      select: {
-        userId: true,
-        alg: true,
-        keyVersion: true,
-        iv: true,
-        tag: true,
-        ciphertext: true,
-      },
-    });
-    if (!passportRow) {
-      throw new NotFoundException('Passport is not provided');
-    }
-
-    const decrypted = this.crypto.decryptJson({
-      alg: passportRow.alg as any,
-      keyVersion: passportRow.keyVersion,
-      iv: Buffer.from(passportRow.iv),
-      tag: Buffer.from(passportRow.tag),
-      ciphertext: Buffer.from(passportRow.ciphertext),
-    }) as PassportDto;
-
-    await this.prisma.$transaction(async (tx) => {
-      await this.audit(tx, {
-        passportUserId: passportRow.userId,
-        action: 'PROVIDER_READ',
-        actorUserId: input.actorUserId,
-        actorProviderId: ctx.providerId,
-        requestId: order.id,
-        ip: input.ip ?? null,
-        userAgent: input.userAgent ?? null,
-      });
-    });
-
-    return decrypted;
   }
 }

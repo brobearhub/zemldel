@@ -5,17 +5,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  DeleteObjectCommand,
-  GetObjectCommand,
-  PutObjectCommand,
-} from '@aws-sdk/client-s3';
 import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import type { RequestStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
-import { S3Service } from '../storage/s3.service';
+import { DocumentStorageService } from '../storage/document-storage.service';
 import { isExclusiveForActorProvider } from '../requests/dto/request.dto';
 import {
   SYSTEM_WORK_STAGE_STATUSES,
@@ -212,7 +207,7 @@ export class RequestWorkStagesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
-    private readonly s3: S3Service,
+    private readonly documents: DocumentStorageService,
   ) {}
 
   private async requireProviderId(actorUserId: string) {
@@ -570,23 +565,14 @@ export class RequestWorkStagesService {
         .filter((key): key is string => Boolean(key)),
     ];
 
+    // Preserve references when storage deletion fails so erasure can be retried.
+    for (const key of storageKeys) {
+      await this.documents.deleteObject(key);
+    }
     await this.prisma.requestWorkStage.delete({
       where: { id: stage.id },
       select: { id: true },
     });
-
-    await Promise.all(
-      storageKeys.map((key) =>
-        this.s3.client
-          .send(
-            new DeleteObjectCommand({
-              Bucket: this.s3.privateBucket,
-              Key: key,
-            }),
-          )
-          .catch(() => null),
-      ),
-    );
 
     return { ok: true as const };
   }
@@ -692,21 +678,17 @@ export class RequestWorkStagesService {
     }
 
     const fileId = randomUUID();
-    const storageRelPath = `${this.s3.privatePrefix}requests/${input.requestId}/work-stages/${stage.id}/${fileId}${ext}`;
+    const storageRelPath = `documents/requests/${input.requestId}/work-stages/${stage.id}/${fileId}${ext}`;
     const originalName = decodePossiblyMisencodedFileName(
       input.file.originalname,
     );
     const hash = sha256Buffer(input.file.buffer);
 
-    await this.s3.client.send(
-      new PutObjectCommand({
-        Bucket: this.s3.privateBucket,
-        Key: storageRelPath,
-        Body: input.file.buffer,
-        ContentType: input.file.mimetype,
-        CacheControl: 'private, no-store',
-      }),
-    );
+    await this.documents.putObject({
+      Key: storageRelPath,
+      Body: input.file.buffer,
+      ContentType: input.file.mimetype,
+    });
 
     try {
       const created = await this.prisma.requestWorkStageFile.create({
@@ -723,14 +705,7 @@ export class RequestWorkStagesService {
       });
       return toFileDto(created);
     } catch (e) {
-      await this.s3.client
-        .send(
-          new DeleteObjectCommand({
-            Bucket: this.s3.privateBucket,
-            Key: storageRelPath,
-          }),
-        )
-        .catch(() => null);
+      await this.documents.deleteObject(storageRelPath).catch(() => null);
       throw e;
     }
   }
@@ -758,18 +733,11 @@ export class RequestWorkStagesService {
     });
     if (!file) throw new NotFoundException('File not found');
 
+    await this.documents.deleteObject(file.storageRelPath);
     await this.prisma.requestWorkStageFile.delete({
       where: { id: file.id },
       select: { id: true },
     });
-    await this.s3.client
-      .send(
-        new DeleteObjectCommand({
-          Bucket: this.s3.privateBucket,
-          Key: file.storageRelPath,
-        }),
-      )
-      .catch(() => null);
     return { ok: true as const };
   }
 
@@ -785,12 +753,7 @@ export class RequestWorkStagesService {
         ? 'inline'
         : 'attachment';
     try {
-      const obj = await this.s3.client.send(
-        new GetObjectCommand({
-          Bucket: this.s3.privateBucket,
-          Key: input.storageRelPath,
-        }),
-      );
+      const obj = await this.documents.getObject(input.storageRelPath);
       const body = obj.Body as unknown;
       if (!body || typeof (body as { pipe?: unknown }).pipe !== 'function') {
         throw new NotFoundException('File not found');
@@ -990,21 +953,17 @@ export class RequestWorkStagesService {
       throw new BadRequestException('Empty file');
     }
 
-    const storageRelPath = `${this.s3.privatePrefix}requests/${request.id}/work-stages/${input.stageId}/slots/${slot.id}${ext}`;
+    const storageRelPath = `documents/requests/${request.id}/work-stages/${input.stageId}/slots/${slot.id}/${randomUUID()}${ext}`;
     const originalName = decodePossiblyMisencodedFileName(
       input.file.originalname,
     );
     const hash = sha256Buffer(input.file.buffer);
 
-    await this.s3.client.send(
-      new PutObjectCommand({
-        Bucket: this.s3.privateBucket,
-        Key: storageRelPath,
-        Body: input.file.buffer,
-        ContentType: input.file.mimetype,
-        CacheControl: 'private, no-store',
-      }),
-    );
+    await this.documents.putObject({
+      Key: storageRelPath,
+      Body: input.file.buffer,
+      ContentType: input.file.mimetype,
+    });
 
     try {
       await this.prisma.requestWorkStageDocSlot.update({
@@ -1022,14 +981,7 @@ export class RequestWorkStagesService {
         select: { id: true },
       });
     } catch (e) {
-      await this.s3.client
-        .send(
-          new DeleteObjectCommand({
-            Bucket: this.s3.privateBucket,
-            Key: storageRelPath,
-          }),
-        )
-        .catch(() => null);
+      await this.documents.deleteObject(storageRelPath).catch(() => null);
       throw e;
     }
 

@@ -23,6 +23,7 @@ import { signOut } from "next-auth/react";
 import { buildSignInHref } from "@/core/auth/session-recovery";
 import { useAppSelector } from "@/core/store/hooks";
 import { CdnAvatar } from "@/shared/ui/cdn-image";
+import { CUSTOMER_NAV } from "@/widgets/cabinet-chrome/model/nav-config";
 import { getActiveMembership, resolveAccountKind } from "@/core/auth/authorization";
 import {
   formatProviderIdentity,
@@ -180,6 +181,10 @@ export const ProfileMenu = ({
   const isProviderAccount = accountKind === "PROVIDER";
   const isPlatformAdmin = user?.systemRole === "PLATFORM_ADMIN";
   const activeSection = resolveProfileMenuSection(pathname);
+  const customerNavContext = {
+    pathname,
+    searchParams: new URLSearchParams(searchParams.toString()),
+  };
   const [storedProviderMode, setStoredProviderMode] = useState<ProviderMenuMode | null>(null);
   /** Why: исполнитель переключается между кабинетом и контактным лицом — у заказчика режима нет. */
   const providerMode = isProviderAccount
@@ -272,10 +277,6 @@ export const ProfileMenu = ({
     setStoredProviderMode(readProviderMenuMode());
   }, [isProviderAccount, activeSection]);
 
-  const handleCustomerProfile = () => {
-    closeAndGo(() => router.push("/profile"));
-  };
-
   const handleContactProfile = () => {
     saveProviderMenuMode("contact");
     closeAndGo(() => router.push(CONTACT_PROFILE_HREF));
@@ -320,12 +321,21 @@ export const ProfileMenu = ({
 
   const inlineActions = isAuthenticated ? (
     <Box sx={actionsListSx}>
-      {showCustomerCabinet ? (
-        <Box component="button" type="button" onClick={handleCustomerProfile} sx={rowSx}>
-          <PersonOutlineRoundedIcon sx={{ fontSize: 22 }} />
-          Мой профиль
-        </Box>
-      ) : null}
+      {showCustomerCabinet
+        ? CUSTOMER_NAV.desktop.map((item) => (
+            <Box
+              key={item.key}
+              component="button"
+              type="button"
+              onClick={() => closeAndGo(() => router.push(item.href))}
+              aria-current={item.isActive(customerNavContext) ? "page" : undefined}
+              sx={rowSx}
+            >
+              {item.icon}
+              {item.key === "profile" ? "Мой профиль" : item.label}
+            </Box>
+          ))
+        : null}
       {showProviderCabinet ? (
         <Box component="button" type="button" onClick={handleProDashboard} sx={rowSx}>
           <WorkOutlineOutlinedIcon sx={{ fontSize: 22 }} />
@@ -529,16 +539,30 @@ export const ProfileMenu = ({
               </Box>
             </Box>
             <Divider />
-            {showCustomerCabinet ? (
-              <SectionMenuItem
-                active={activeSection === "profile"}
-                onClick={handleCustomerProfile}
-                outlineIcon={<PersonOutlineRoundedIcon sx={menuIconSx} />}
-                filledIcon={<PersonRoundedIcon sx={menuIconSx} />}
-              >
-                Мой профиль
-              </SectionMenuItem>
-            ) : null}
+            {showCustomerCabinet
+              ? CUSTOMER_NAV.desktop.map((item) => (
+                  <MenuItem
+                    key={item.key}
+                    onClick={() => closeAndGo(() => router.push(item.href))}
+                    aria-current={item.isActive(customerNavContext) ? "page" : undefined}
+                    sx={menuItemSx(item.isActive(customerNavContext))}
+                  >
+                    <Box
+                      component="span"
+                      sx={{
+                        ...menuIconSx,
+                        display: "inline-flex",
+                        "& .MuiSvgIcon-root": {
+                          fontSize: "inherit",
+                        },
+                      }}
+                    >
+                      {item.icon}
+                    </Box>
+                    {item.key === "profile" ? "Мой профиль" : item.label}
+                  </MenuItem>
+                ))
+              : null}
             {showProviderCabinet ? (
               <SectionMenuItem
                 active={activeSection === "pro"}

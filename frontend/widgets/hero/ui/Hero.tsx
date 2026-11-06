@@ -175,22 +175,28 @@ export const Hero = () => {
             alignItems: "center",
             textAlign: "center"
           }}>
-          <Typography
+          <Box
             component="h1"
             sx={{
-              color: "common.white",
-              fontWeight: 900,
-              lineHeight: 1.1,
-              letterSpacing: "-0.03em",
-              textTransform: "none",
-              fontSize: { xs: "clamp(36px, 12vw, 60px)", sm: 104, md: 140 },
-              textWrap: "balance",
-              mx: "auto",
-              position: "relative",
+              m: 0,
+              width: { xs: "90%", sm: 520, md: 660 },
+              maxWidth: "100%",
+              lineHeight: 0,
             }}
           >
-            Земледел
-          </Typography>
+            <Image
+              src="/zemledel_wordmark_white.svg"
+              alt="Земледел"
+              width={660}
+              height={98.9444}
+              priority
+              style={{
+                display: "block",
+                width: "100%",
+                height: "auto",
+              }}
+            />
+          </Box>
 
           <Box
             aria-hidden
