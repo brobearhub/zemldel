@@ -451,6 +451,12 @@ model PasswordResetToken {
 }
 
 model Provider {
+  replyDebits ReplyDebit[]
+  replyTemplates ReplyTemplate[]
+  teamTasks ProviderTeamTask[]
+  billingNotices BillingNotice[]
+  billingTestAccount BillingTestAccount?
+  billingTestOrders BillingTestOrder[]
   passportGrants PassportAccessGrant[]
   id                String                 @id @default(uuid()) @db.Uuid
   name              String
@@ -511,6 +517,57 @@ model Provider {
   @@index([cityId])
   // Один личный профиль (INDIVIDUAL, SELF_EMPLOYED, SOLE_PROPRIETOR) на ownerUserId —
   // частичный уникальный индекс Provider_one_personal_profile_per_owner в миграции.
+}
+
+// DEMO-terminal ledger only. Never used to authorize production features.
+model BillingTestAccount {
+  providerId String @id @db.Uuid
+  plan String @default("STANDARD")
+  planExpiresAt DateTime?
+  planStartedAt DateTime?
+  graceUntil DateTime?
+  autoRenew Boolean @default(false)
+  nextPlan String?
+  rebillId String?
+  consentVersion Int @default(0)
+  timezone String @default("Europe/Moscow")
+  quotaDate String?
+  quotaTimezone String @default("Europe/Moscow")
+  quotaStartedAt DateTime?
+  quotaResetAt DateTime?
+  dailyUsed Int @default(0)
+  replyCredits Int @default(0)
+  needsReview Boolean @default(false)
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Restrict)
+}
+
+model BillingTestOrder {
+  id String @id @default(uuid()) @db.Uuid
+  providerId String @db.Uuid
+  operationId String @db.Uuid
+  product String
+  amount Int
+  autoRenew Boolean @default(false)
+  consentVersion Int @default(0)
+  rebillId String?
+  basePlan String?
+  baseExpiresAt DateTime?
+  renewalCycle DateTime?
+  renewalAttempt Int?
+  chargeStartedAt DateTime?
+  terminalKey String
+  paymentId String? @unique
+  paymentUrl String?
+  status String @default("INITIALIZING")
+  fulfilledAt DateTime?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Restrict)
+
+  @@unique([providerId, renewalCycle, renewalAttempt])
+  @@unique([providerId, operationId])
+  @@index([providerId, createdAt])
 }
 
 model ProviderLegalProfile {
@@ -915,6 +972,9 @@ model RequestProviderOffer {
 }
 
 model Service {
+  allRussia Boolean @default(false)
+  regionOrder String[] @default([])
+  views ServiceView[]
   id              String          @id @default(uuid()) @db.Uuid
   categoryId      String          @db.Uuid
   status          ServiceStatus   @default(DRAFT)
@@ -1419,4 +1479,57 @@ model WriteOperation {
 
   @@id([actorUserId, scope, key])
   @@index([createdAt])
+}
+
+model ReplyDebit {
+  providerId String @db.Uuid
+  requestId String @db.Uuid
+  source String
+  createdAt DateTime @default(now())
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  @@id([providerId, requestId])
+}
+model ReplyTemplate {
+  id String @id @default(uuid()) @db.Uuid
+  providerId String @db.Uuid
+  authorUserId String @db.Uuid
+  shared Boolean @default(false)
+  title String
+  body String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  @@index([providerId])
+}
+model ProviderTeamTask {
+  id String @id @default(uuid()) @db.Uuid
+  providerId String @db.Uuid
+  requestId String? @db.Uuid
+  title String
+  note String @default("")
+  assigneeUserId String? @db.Uuid
+  dueAt DateTime?
+  done Boolean @default(false)
+  history Json @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  @@index([providerId, updatedAt])
+}
+model ServiceView {
+  serviceId String @db.Uuid
+  visitorDay String
+  createdAt DateTime @default(now())
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  @@id([serviceId, visitorDay])
+  @@index([createdAt])
+}
+model BillingNotice {
+  id String @id @default(uuid()) @db.Uuid
+  providerId String @db.Uuid
+  key String @unique
+  message String
+  createdAt DateTime @default(now())
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  @@index([providerId, createdAt])
 }

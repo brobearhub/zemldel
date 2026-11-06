@@ -33,7 +33,7 @@ type CityFilter = { id: string; regionCode: string };
 function placeMatch(places: readonly ServicePlace[] | null | undefined, city: CityFilter) {
   const list = places ?? [];
   if (list.some((place) => place.kind === "city" && place.cityId === city.id)) return "explicit" as const;
-  if (list.some((place) => place.kind === "region" && place.regionCode === city.regionCode)) return "region" as const;
+  if (list.some((place) => place.kind === "region" && (place.regionCode === city.regionCode || place.regionCode === "RU"))) return "region" as const;
   return null;
 }
 

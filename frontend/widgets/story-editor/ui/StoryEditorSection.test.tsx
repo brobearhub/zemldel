@@ -163,7 +163,7 @@ describe("StoryEditorSection", () => {
 
     render(<StoryEditorSection scope="user" />);
 
-    const card = await screen.findByRole("button", { name: "Продаю участок за 5000 ₽", exact: true });
+    const card = await screen.findByRole("button", { name: "Продаю участок за 5000 ₽" });
     expect(card.querySelector("img")).toHaveAttribute("src", "https://cdn.example/story.jpg");
     expect(screen.queryByRole("button", { name: "Завершена" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Сохранена" })).not.toBeInTheDocument();
@@ -171,7 +171,7 @@ describe("StoryEditorSection", () => {
 
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "Новая" }));
-    expect(screen.queryByRole("button", { name: "Продаю участок за 5000 ₽", exact: true })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Продаю участок за 5000 ₽" })).not.toBeInTheDocument();
     expect(screen.getByText("Загрузить фото")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Новая история" })).toBeInTheDocument();
   });
@@ -283,7 +283,7 @@ describe("StoryEditorSection", () => {
     const mineCard = screen.getByRole("button", { name: "Мои истории 1" });
 
     expect(screen.queryByRole("button", { name: "Сохранена" })).not.toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "В эфире", exact: true })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "В эфире" })).toBeInTheDocument();
     expect(mineCard).toHaveAttribute("aria-pressed", "true");
     expect(savedCard).toHaveAttribute("aria-pressed", "false");
 
@@ -292,13 +292,13 @@ describe("StoryEditorSection", () => {
     expect(mineCard).toHaveAttribute("aria-pressed", "false");
     expect(window.getComputedStyle(savedCard).backgroundColor).toBe("var(--mui-palette-text-primary)");
     expect(paletteValue(savedCard, "--mui-palette-text-primary")).toBe("#325e49");
-    expect(screen.getByRole("button", { name: "Закладка", exact: true })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "В эфире", exact: true })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Закладка" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "В эфире" })).not.toBeInTheDocument();
 
     await user.click(mineCard);
     expect(mineCard).toHaveAttribute("aria-pressed", "true");
     expect(savedCard).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("button", { name: "В эфире", exact: true })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "В эфире" })).toBeInTheDocument();
   });
 
   it("сразу показывает статистику первой истории и переключает выбор", async () => {
@@ -342,8 +342,8 @@ describe("StoryEditorSection", () => {
 
     render(<StoryEditorSection scope="user" />);
 
-    const first = await screen.findByRole("button", { name: "Первая", exact: true });
-    const second = screen.getByRole("button", { name: "Вторая", exact: true });
+    const first = await screen.findByRole("button", { name: "Первая" });
+    const second = screen.getByRole("button", { name: "Вторая" });
     const heading = screen.getByRole("heading", { name: "Статистика" });
     expect(first).toHaveAttribute("aria-current", "true");
     expect(second).not.toHaveAttribute("aria-current");
@@ -359,8 +359,8 @@ describe("StoryEditorSection", () => {
 
     const user = userEvent.setup();
     await user.click(second);
-    expect(screen.getByRole("button", { name: "Вторая", exact: true })).toHaveAttribute("aria-current", "true");
-    expect(screen.getByRole("button", { name: "Первая", exact: true })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("button", { name: "Вторая" })).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("button", { name: "Первая" })).not.toHaveAttribute("aria-current");
     await waitFor(() => {
       expect(fetchMock.mock.calls.some((call) => String(call[0]).includes("/api/stories/story-2/insights"))).toBe(true);
     });

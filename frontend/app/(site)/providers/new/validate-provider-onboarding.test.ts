@@ -28,8 +28,8 @@ describe("validateProviderOnboarding", () => {
       contactFirstName: "",
     });
     expect(hasProviderOnboardingFieldErrors(valid)).toBe(false);
-    expect(valid.inn).toBeUndefined();
-    expect(valid.ogrn).toBeUndefined();
+    expect(valid).not.toHaveProperty("inn");
+    expect(valid).not.toHaveProperty("ogrn");
   });
 
   it("для организации требует наименование и контакт, но не реквизиты", () => {
@@ -43,8 +43,8 @@ describe("validateProviderOnboarding", () => {
       contactFirstName: "Иван",
     });
     expect(errors.legalName).toBeTruthy();
-    expect(errors.inn).toBeUndefined();
-    expect(errors.ogrn).toBeUndefined();
+    expect(errors).not.toHaveProperty("inn");
+    expect(errors).not.toHaveProperty("ogrn");
     expect(errors.contactLastName).toBeTruthy();
     expect(errors.contactFirstName).toBeUndefined();
   });

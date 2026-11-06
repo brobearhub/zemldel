@@ -196,6 +196,9 @@ export class ServiceProviderRefDto {
 }
 
 export class ServiceDto {
+  @Expose()
+  allRussia?: boolean;
+
   @ApiProperty()
   @Expose()
   @IsString()
@@ -289,11 +292,14 @@ export class ServiceDto {
   places!: ServicePlaceDto[];
 
   @ApiProperty({ type: ServiceProviderRefDto })
+  @Type(() => ServiceProviderRefDto)
   @Expose()
   provider!: ServiceProviderRefDto;
 }
 
 export type ServiceDbRow = {
+  allRussia?: boolean;
+  regionOrder?: string[];
   id: string;
   categoryId: string;
   category: {
@@ -342,6 +348,15 @@ export type ServiceDbRow = {
 };
 
 function placesFromRow(row: ServiceDbRow): ServicePlaceDto[] {
+  if (row.allRussia)
+    return [
+      {
+        kind: 'region',
+        name: 'Вся Россия',
+        regionCode: 'RU',
+        regionName: 'Вся Россия',
+      },
+    ];
   return [
     ...row.cities.map((link) => ({
       kind: 'city' as const,
@@ -356,7 +371,12 @@ function placesFromRow(row: ServiceDbRow): ServicePlaceDto[] {
       regionCode: region.regionCode,
       regionName: region.regionName,
     })),
-  ];
+  ].sort((left, right) => {
+    const order = row.regionOrder ?? [];
+    const index = (code: string) =>
+      order.includes(code) ? order.indexOf(code) : order.length;
+    return index(left.regionCode) - index(right.regionCode);
+  });
 }
 
 export function serviceDbRowToDtoPlain(row: ServiceDbRow): ServiceDto {
@@ -384,6 +404,12 @@ export function serviceDbRowToDtoPlain(row: ServiceDbRow): ServiceDto {
 }
 
 export class ServiceCreateDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  @Expose()
+  allRussia?: boolean;
+
   @ApiPropertyOptional({ minLength: 1 })
   @Expose()
   @IsOptional()
@@ -457,6 +483,7 @@ export class ServiceCreateDto {
   @ApiProperty({ type: [ServicePlaceInputDto] })
   @Expose()
   @IsArray()
+  @ValidateIf((object: { allRussia?: boolean }) => !object.allRussia)
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => ServicePlaceInputDto)
@@ -464,6 +491,18 @@ export class ServiceCreateDto {
 }
 
 export class ServicePatchDto {
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Expose()
+  images?: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  @Expose()
+  allRussia?: boolean;
+
   @ApiPropertyOptional({ minLength: 1 })
   @Expose()
   @IsOptional()
@@ -540,6 +579,7 @@ export class ServicePatchDto {
   @Expose()
   @IsOptional()
   @IsArray()
+  @ValidateIf((object: { allRussia?: boolean }) => !object.allRussia)
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => ServicePlaceInputDto)

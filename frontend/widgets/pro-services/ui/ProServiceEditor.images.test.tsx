@@ -9,6 +9,8 @@ const navigation = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn(), back: vi
 vi.mock("next/navigation", () => ({ useRouter: () => navigation }));
 vi.mock("@/core/store/hooks", () => ({ useAppSelector: () => ({ user: null }) }));
 vi.mock("@/features/select-service-places", () => ({ ServiceGeographyField: () => null, ServicePlaceChips: () => null }));
+const billing = { plan: "BUSINESS", limits: { photos: 10, regions: null } };
+const readResponse = (url: unknown) => Response.json(String(url).includes("/api/billing/") ? billing : []);
 const pictures = (count: number) => Array.from({ length: count }, (_, i) => `https://example.com/photo-${i}.png`);
 const files = (count: number) => Array.from({ length: count }, (_, i) => new File([`photo${i}`], `photo-${i}.png`, { type: "image/png" }));
 function mount(images: string[] = [], mode: "create" | "edit" = "edit") {
@@ -33,8 +35,9 @@ describe("service photo gallery", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("accepts ten selected images in a new service and disables additional selection", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => Response.json([])));
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: unknown) => readResponse(url)));
     mount([], "create");
+    await screen.findByText("Фотографии услуги · 0 из 10");
     await userEvent.upload(screen.getByLabelText("Фотографии услуги"), files(10));
     expect(screen.getByText("Фотографии услуги · 10 из 10")).toBeInTheDocument();
     expect(screen.getByLabelText("Фотографии услуги")).toBeDisabled();
@@ -45,10 +48,11 @@ describe("service photo gallery", () => {
   });
 
   it("rejects a batch exceeding ten without losing saved photos", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => Response.json([])));
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: unknown) => readResponse(url)));
     mount(pictures(9));
+    await screen.findByText("Фотографии услуги · 9 из 10");
     await userEvent.upload(screen.getByLabelText("Фотографии услуги"), files(2));
-    expect(screen.getByText("Можно загрузить не более 10 фотографий.")).toBeInTheDocument();
+    expect(screen.getByText("Тариф позволяет загрузить не более 10 фотографий.")).toBeInTheDocument();
     expect(screen.getByText("Фотографии услуги · 9 из 10")).toBeInTheDocument();
     expect(vi.mocked(fetch).mock.calls.filter(([, init]: [unknown, RequestInit?]) => init?.method === "POST")).toHaveLength(0);
   });
@@ -56,14 +60,15 @@ describe("service photo gallery", () => {
   it("keeps successful uploads and retries only the failed file", async () => {
     const images = pictures(8);
     let uploads = 0;
-    vi.stubGlobal("fetch", vi.fn(async (_: unknown, init?: RequestInit) => {
-      if (init?.method !== "POST") return Response.json([]);
+    vi.stubGlobal("fetch", vi.fn(async (url: unknown, init?: RequestInit) => {
+      if (init?.method !== "POST") return readResponse(url);
       uploads++;
       if (uploads === 2) return Response.json({ error: "Временный сбой" }, { status: 502 });
       images.push(`https://example.com/new-${uploads}.png`);
       return Response.json({ image: images[0], images });
     }));
     mount([...images]);
+    await screen.findByText("Фотографии услуги · 8 из 10");
     await userEvent.upload(screen.getByLabelText("Фотографии услуги"), files(2));
     await screen.findByText("Временный сбой");
     await userEvent.click(screen.getByRole("button", { name: "Повторить загрузку" }));
@@ -79,10 +84,11 @@ describe("service photo gallery", () => {
         expect(String(url)).toContain(new URLSearchParams({ imageUrl: images[0] }).toString());
         return Response.json({ image: images[1], images: images.slice(1) });
       }
-      return Response.json([]);
+      return readResponse(url);
     });
     vi.stubGlobal("fetch", fetchMock);
     mount(images);
+    await screen.findByText("Фотографии услуги · 3 из 10");
     await userEvent.click(screen.getByRole("button", { name: "Удалить фото услуги 1" }));
     await screen.findByText("Фотографии услуги · 2 из 10");
     expect(screen.getByAltText("Фото услуги 1")).toHaveAttribute("src", images[1]);
@@ -104,9 +110,10 @@ describe("service photo gallery", () => {
         expect(JSON.parse(String(init.body))).not.toHaveProperty("image");
         return Response.json({ ...mainService, id: "created-service" });
       }
-      return Response.json([]);
+      return readResponse(url);
     }));
     mount([], "create");
+    await screen.findByText("Фотографии услуги · 0 из 10");
     await userEvent.upload(screen.getByLabelText("Фотографии услуги"), files(2));
     await userEvent.click(screen.getAllByRole("button", { name: "Черновик" })[0]);
     await screen.findByText("Временный сбой");

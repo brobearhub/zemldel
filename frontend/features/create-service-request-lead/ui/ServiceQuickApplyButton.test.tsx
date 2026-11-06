@@ -8,7 +8,7 @@ const router = {
 
 const requestDraft = {
   savePendingRequestDraft: vi.fn(),
-  buildRequestAuthHref: vi.fn(() => "/signup?kind=SERVICE"),
+  buildRequestAuthHref: vi.fn<typeof import("@/entities/request").buildRequestAuthHref>(() => "/signup?kind=SERVICE"),
 };
 
 vi.mock("next/navigation", () => ({
@@ -17,7 +17,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/entities/request", () => ({
   savePendingRequestDraft: (...args: unknown[]) => requestDraft.savePendingRequestDraft(...args),
-  buildRequestAuthHref: (...args: unknown[]) => requestDraft.buildRequestAuthHref(...args),
+  buildRequestAuthHref: (...args: Parameters<typeof requestDraft.buildRequestAuthHref>) => requestDraft.buildRequestAuthHref(...args),
 }));
 
 describe("ServiceQuickApplyButton", () => {

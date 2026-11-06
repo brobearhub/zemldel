@@ -50,6 +50,11 @@ function request(overrides: Partial<RequestProDto> & Pick<RequestProDto, "id" | 
     cadastralNumbers: [],
     createdAt: "2026-10-06T08:39:00.000Z",
     updatedAt: "2026-10-06T08:39:00.000Z",
+    currentSubmission: null,
+    deliverySubmissions: [],
+    priceProposal: null,
+    canProposePrice: false,
+    canAcceptPrice: false,
     ...overrides,
   };
 }

@@ -59,6 +59,9 @@ function makeProvider(overrides: Partial<RequestProDto> = {}): RequestProDto {
     cadastralNumbers: [],
     createdAt: "2026-11-01T10:00:00.000Z",
     updatedAt: "2026-11-01T10:00:00.000Z",
+    priceProposal: null,
+    canProposePrice: false,
+    canAcceptPrice: false,
     ...overrides,
   };
 }
@@ -114,6 +117,9 @@ function makeCustomer(
     awaitingProviderReply: false,
     createdAt: "2026-10-01T10:00:00.000Z",
     updatedAt: "2026-11-01T10:00:00.000Z",
+    priceProposal: null,
+    canProposePrice: false,
+    canAcceptPrice: false,
     ...overrides,
   };
 }

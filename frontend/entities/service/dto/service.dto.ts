@@ -117,6 +117,9 @@ export class ServiceProviderRefDto {
 
 export class ServiceDto {
   @Expose()
+  allRussia?: boolean;
+
+  @Expose()
   @IsString()
   id!: string;
 

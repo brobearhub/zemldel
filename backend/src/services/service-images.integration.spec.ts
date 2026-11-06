@@ -88,10 +88,23 @@ describe.skipIf(!process.env.DATABASE_URL)(
           status: 'PUBLISHED',
         },
       });
+      await db.billingTestAccount.upsert({
+        where: { providerId },
+        create: {
+          providerId,
+          plan: 'BUSINESS',
+          planExpiresAt: new Date(Date.now() + 86400000),
+        },
+        update: {
+          plan: 'BUSINESS',
+          planExpiresAt: new Date(Date.now() + 86400000),
+        },
+      });
       send.mockClear();
     });
     afterAll(async () => {
       await db.service.deleteMany({ where: { providerId } });
+      await db.billingTestAccount.deleteMany({ where: { providerId } });
       await db.provider.deleteMany({ where: { id: providerId } });
       await db.serviceCategory.deleteMany({ where: { id: categoryId } });
       await db.user.deleteMany({ where: { id: owner } });
@@ -161,6 +174,128 @@ describe.skipIf(!process.env.DATABASE_URL)(
         (await db.service.findUniqueOrThrow({ where: { id: serviceId } }))
           .images,
       ).toEqual([]);
+    });
+    it('enforces Standard and Lite photo limits and preserves hidden originals', async () => {
+      await db.billingTestAccount.update({
+        where: { providerId },
+        data: { plan: 'STANDARD' },
+      });
+      await upload(1);
+      await expect(upload(2)).rejects.toThrow();
+      await db.billingTestAccount.update({
+        where: { providerId },
+        data: { plan: 'LITE' },
+      });
+      await upload(2);
+      await upload(3);
+      await expect(upload(4)).rejects.toThrow();
+      await db.billingTestAccount.update({
+        where: { providerId },
+        data: { plan: 'STANDARD' },
+      });
+      const publicRow = await service.getServiceById(serviceId);
+      expect(publicRow.images).toHaveLength(1);
+      expect(
+        (await db.service.findUniqueOrThrow({ where: { id: serviceId } }))
+          .images,
+      ).toHaveLength(3);
+      expect(JSON.stringify(publicRow)).not.toContain('billingTestAccount');
+    });
+    it('enforces geography and badge gates, allows reordering hidden regions after downgrade', async () => {
+      const cityIds = [randomUUID(), randomUUID()];
+      const codes = cityIds.map((id) => id.slice(0, 8));
+      try {
+        for (let i = 0; i < 2; i++)
+          await db.city.create({
+            data: {
+              id: cityIds[i],
+              garObjectId: BigInt(
+                '0x' + cityIds[i].replaceAll('-', '').slice(0, 12),
+              ),
+              objectGuid: cityIds[i],
+              name: 'QA city',
+              typeName: 'г',
+              level: 5,
+              regionCode: codes[i],
+              regionName: 'QA region ' + i,
+            },
+          });
+        const places = codes.map((regionCode) => ({
+          kind: 'region' as const,
+          regionCode,
+        }));
+        await service.updateService(
+          serviceId,
+          { places, stockBadge: 'Скидка', paletteColor: 'error' },
+          { providerId },
+        );
+        await db.billingTestAccount.update({
+          where: { providerId },
+          data: { plan: 'STANDARD' },
+        });
+        expect(
+          (await service.getServiceById(serviceId))?.places.map(
+            (p) => p.regionCode,
+          ),
+        ).toEqual([codes[0]]);
+        await service.updateService(
+          serviceId,
+          { places: [...places].reverse() },
+          { providerId },
+        );
+        expect(
+          (await service.getServiceById(serviceId))?.places.map(
+            (p) => p.regionCode,
+          ),
+        ).toEqual([codes[1]]);
+        expect(await db.serviceRegion.count({ where: { serviceId } })).toBe(2);
+        await expect(
+          service.updateService(
+            serviceId,
+            { allRussia: true, places: [] },
+            { providerId },
+          ),
+        ).rejects.toThrow();
+        await expect(
+          service.updateService(
+            serviceId,
+            { stockBadge: 'Новая метка' },
+            { providerId },
+          ),
+        ).rejects.toThrow();
+        await service.updateService(
+          serviceId,
+          { places: places.slice(0, 1) },
+          { providerId },
+        );
+        await expect(
+          service.updateService(serviceId, { places }, { providerId }),
+        ).rejects.toThrow();
+        await db.billingTestAccount.update({
+          where: { providerId },
+          data: { plan: 'BUSINESS' },
+        });
+        await service.updateService(
+          serviceId,
+          { allRussia: true, places: [] },
+          { providerId },
+        );
+        expect(
+          (await service.getServices({ cityId: cityIds[0] })).some(
+            (s) => s.id === serviceId,
+          ),
+        ).toBe(true);
+        await db.billingTestAccount.update({
+          where: { providerId },
+          data: { plan: 'STANDARD' },
+        });
+        expect(await service.getServiceById(serviceId)).toBeNull();
+        expect(
+          (await service.getServiceById(serviceId, { providerId }))?.allRussia,
+        ).toBe(true);
+      } finally {
+        await db.city.deleteMany({ where: { id: { in: cityIds } } });
+      }
     });
   },
 );

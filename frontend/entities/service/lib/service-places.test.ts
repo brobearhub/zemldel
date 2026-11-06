@@ -40,3 +40,8 @@ describe("placeChipLabel", () => {
     );
   });
 });
+
+ it("includes nationwide services in every city", () => {
+  const national = { places: [{ kind: "region" as const, name: "Вся Россия", regionCode: "RU", regionName: "Вся Россия" }] };
+  expect(splitServicesByCity([national], { id: "any", regionCode: "66" })).toEqual({ mine: [national], other: [] });
+});

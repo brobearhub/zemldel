@@ -1,6 +1,15 @@
 "use client";
 
-import { createContext, forwardRef, useContext, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  createContext,
+  forwardRef,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useRouter } from "next/navigation";
 import CloseIcon from "@mui/icons-material/Close";
@@ -8,6 +17,8 @@ import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
 import {
   Alert,
+  Checkbox,
+  FormControlLabel,
   Box,
   Button,
   IconButton,
@@ -20,8 +31,16 @@ import {
   type PaperProps,
 } from "@mui/material";
 import { ServiceCard, toPlaceInput } from "@/entities/service";
-import type { ServiceDto, ServicePaletteColor, ServicePlace, ServiceStatus } from "@/entities/service";
-import { ServiceGeographyField, ServicePlaceChips } from "@/features/select-service-places";
+import type {
+  ServiceDto,
+  ServicePaletteColor,
+  ServicePlace,
+  ServiceStatus,
+} from "@/entities/service";
+import {
+  ServiceGeographyField,
+  ServicePlaceChips,
+} from "@/features/select-service-places";
 import { STOCK_BADGE_MAX_LENGTH } from "../lib/stock-badge-suggestions";
 import { DesktopLabelColor } from "./DesktopLabelColor";
 import { MobileLabelColor } from "./MobileLabelColor";
@@ -61,56 +80,64 @@ function normalizeNullableString(value: string): string | null {
 
 const CategoryMenuCloseContext = createContext<(() => void) | null>(null);
 
-const CategoryMenuPaper = forwardRef<HTMLDivElement, PaperProps>(function CategoryMenuPaper({ children, sx, ...props }, ref) {
-  const closeMenu = useContext(CategoryMenuCloseContext);
+const CategoryMenuPaper = forwardRef<HTMLDivElement, PaperProps>(
+  function CategoryMenuPaper({ children, sx, ...props }, ref) {
+    const closeMenu = useContext(CategoryMenuCloseContext);
 
-  return (
-    <Paper
-      ref={ref}
-      {...props}
-      sx={[{ display: "flex", flexDirection: "column", overflow: "hidden" }, ...(Array.isArray(sx) ? sx : [sx])]}
-    >
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexShrink: 0,
-          width: "100%",
-          boxSizing: "border-box",
-          minHeight: 56,
-          px: 2,
-          bgcolor: "background.paper",
-        }}
+    return (
+      <Paper
+        ref={ref}
+        {...props}
+        sx={[
+          { display: "flex", flexDirection: "column", overflow: "hidden" },
+          ...(Array.isArray(sx) ? sx : [sx]),
+        ]}
       >
-        <Typography component="span" sx={{ fontSize: 16, lineHeight: 1.4, color: "text.primary" }}>
-          Категория
-        </Typography>
-        <IconButton
-          aria-label="Закрыть"
-          onPointerDown={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            closeMenu?.();
-          }}
-          onMouseDown={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            closeMenu?.();
-          }}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            closeMenu?.();
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexShrink: 0,
+            width: "100%",
+            boxSizing: "border-box",
+            minHeight: 56,
+            px: 2,
+            bgcolor: "background.paper",
           }}
         >
-          <CloseIcon />
-        </IconButton>
-      </Box>
-      <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>{children}</Box>
-    </Paper>
-  );
-});
+          <Typography
+            component="span"
+            sx={{ fontSize: 16, lineHeight: 1.4, color: "text.primary" }}
+          >
+            Категория
+          </Typography>
+          <IconButton
+            aria-label="Закрыть"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              closeMenu?.();
+            }}
+            onMouseDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              closeMenu?.();
+            }}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              closeMenu?.();
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </Box>
+        <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>{children}</Box>
+      </Paper>
+    );
+  },
+);
 
 function ServiceEditorActions({
   publishDisabled,
@@ -130,7 +157,11 @@ function ServiceEditorActions({
   onDraft: () => void;
 }) {
   return (
-    <Stack direction={{ xs: "row", md: "column" }} spacing={2} useFlexGap>
+    <Stack
+      direction={{ xs: "row", md: "column" }}
+      spacing={2}
+      useFlexGap
+    >
       <Button
         type="button"
         variant="contained"
@@ -144,7 +175,10 @@ function ServiceEditorActions({
           bgcolor: "text.primary",
           color: "background.default",
           "&:hover": { bgcolor: "text.primary", filter: "brightness(1.08)" },
-          "&.Mui-disabled": { bgcolor: "action.disabledBackground", color: "text.disabled" },
+          "&.Mui-disabled": {
+            bgcolor: "action.disabledBackground",
+            color: "text.disabled",
+          },
         }}
       >
         {needsPhoto ? "Загрузите фото" : "Опубликовать"}
@@ -228,9 +262,15 @@ function buildCategoryTree(categories: ServiceCategoryRow[]) {
   return out;
 }
 
-export function ProServiceEditor({ mode, initialService, initialProviderCity = null }: Props) {
+export function ProServiceEditor({
+  mode,
+  initialService,
+  initialProviderCity = null,
+}: Props) {
   const router = useRouter();
-  const categoryMenuFullscreen = useMediaQuery((theme) => theme.breakpoints.down("md"));
+  const categoryMenuFullscreen = useMediaQuery((theme) =>
+    theme.breakpoints.down("md"),
+  );
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   const suppressCategoryMenuOpen = useRef(false);
 
@@ -243,13 +283,46 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
   }
   const { user } = useAppSelector((state) => state.auth);
   const activeMembership =
-    user?.memberships.find((membership) => membership.providerId === user.activeProviderId) ??
+    user?.memberships.find(
+      (membership) => membership.providerId === user.activeProviderId,
+    ) ??
     user?.memberships[0] ??
     null;
   const providerCity = activeMembership?.providerCity ?? initialProviderCity;
+  const [plan, setPlan] = useState("STANDARD");
+  const [photoLimit, setPhotoLimit] = useState(1);
+  const [regionLimit, setRegionLimit] = useState<number | null>(1);
+  const [allRussia, setAllRussia] = useState(
+    initialService?.allRussia ?? false,
+  );
+  const planProviderId =
+    activeMembership?.providerId ?? initialService?.provider?.id;
+  useEffect(() => {
+    if (!planProviderId) return;
+    let cancelled = false;
+    fetch(`/api/billing/providers/${planProviderId}`, { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const data = (await response.json()) as {
+          plan: string;
+          limits: { photos: number; regions: number | null };
+        };
+        if (!cancelled) {
+          setPlan(data.plan);
+          setPhotoLimit(data.limits.photos);
+          setRegionLimit(data.limits.regions);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [planProviderId]);
   const placesTouched = useRef(mode !== "create");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [form, setForm] = useState<ServiceFormState>(() => createInitialState(initialService));
+  const [form, setForm] = useState<ServiceFormState>(() =>
+    createInitialState(initialService),
+  );
   const [places, setPlaces] = useState<ServicePlace[]>(() => {
     if (mode === "edit") return initialService?.places ?? [];
     return providerCity ? [providerCityPlace(providerCity)] : [];
@@ -257,17 +330,30 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // Why: busy общий для сохранения и работы с фото — спиннер только на нажатой кнопке.
-  const [pendingAction, setPendingAction] = useState<ServiceStatus | "upload:icon" | "upload:add" | "deleteImage" | null>(null);
+  const [pendingAction, setPendingAction] = useState<
+    ServiceStatus | "upload:icon" | "upload:add" | "deleteImage" | null
+  >(null);
   const imagePickerSource = useRef<"icon" | "add" | null>(null);
-  const [categories, setCategories] = useState<ServiceCategoryRow[] | null>(null);
+  const [categories, setCategories] = useState<ServiceCategoryRow[] | null>(
+    null,
+  );
   const [autofilledTitle, setAutofilledTitle] = useState<string | null>(null);
-  const [images, setImages] = useState<string[]>(() => initialService?.images?.length
-    ? initialService.images : initialService?.image ? [initialService.image] : []);
-  const [pendingImages, setPendingImages] = useState<Array<{ file: File; previewUrl: string }>>([]);
+  const [images, setImages] = useState<string[]>(() =>
+    initialService?.images?.length
+      ? initialService.images
+      : initialService?.image
+        ? [initialService.image]
+        : [],
+  );
+  const [pendingImages, setPendingImages] = useState<
+    Array<{ file: File; previewUrl: string }>
+  >([]);
   const pendingImage = pendingImages[0] ?? null;
   const pendingImagesRef = useRef(pendingImages);
   pendingImagesRef.current = pendingImages;
-  const savedServiceId = useRef(mode === "edit" ? initialService?.id ?? null : null);
+  const savedServiceId = useRef(
+    mode === "edit" ? (initialService?.id ?? null) : null,
+  );
   const imageCount = images.length + pendingImages.length;
 
   useEffect(() => {
@@ -293,7 +379,8 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
     if (!categories) return;
     if (!form.categoryId) return;
 
-    const activeCategory = categories.find((c) => c.id === form.categoryId) ?? null;
+    const activeCategory =
+      categories.find((c) => c.id === form.categoryId) ?? null;
     if (!activeCategory) return;
     if (activeCategory.parentId == null) return;
 
@@ -302,7 +389,8 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
     setForm((current) => {
       const currentTitleTrimmed = current.title.trim();
       const canOverwrite =
-        currentTitleTrimmed.length === 0 || (autofilledTitle != null && current.title === autofilledTitle);
+        currentTitleTrimmed.length === 0 ||
+        (autofilledTitle != null && current.title === autofilledTitle);
 
       if (!canOverwrite) return current;
       if (current.title === suggestedTitle) return current;
@@ -312,9 +400,13 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
     setAutofilledTitle(suggestedTitle);
   }, [autofilledTitle, categories, form.categoryId]);
 
-  useEffect(() => () => {
-    for (const image of pendingImagesRef.current) URL.revokeObjectURL(image.previewUrl);
-  }, []);
+  useEffect(
+    () => () => {
+      for (const image of pendingImagesRef.current)
+        URL.revokeObjectURL(image.previewUrl);
+    },
+    [],
+  );
 
   const payload = useMemo(() => {
     return {
@@ -326,9 +418,10 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
       paletteColor: normalizeNullableString(form.stockBadge)
         ? normalizeNullableString(form.paletteColor)
         : null,
-      places: places.map(toPlaceInput),
+      allRussia,
+      places: allRussia ? [] : places.map(toPlaceInput),
     };
-  }, [form, places]);
+  }, [form, places, allRussia]);
 
   const validationIssues = useMemo(() => {
     const issues: string[] = [];
@@ -342,12 +435,12 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
     if (!form.categoryId) {
       issues.push("Выберите категорию.");
     }
-    if (places.length === 0) {
+    if (places.length === 0 && !allRussia) {
       issues.push("Выберите город или область.");
     }
 
     return issues;
-  }, [form, places.length]);
+  }, [form, places.length, allRussia]);
 
   // Why: черновик можно сохранить неполным, а опубликованная карточка без фото и описания выглядит пустой.
   const publishValidationIssues = useMemo(() => {
@@ -364,14 +457,51 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
   }, [form.description, form.image, pendingImage, validationIssues]);
 
   const previewItem = useMemo(() => {
-    const previewImage = normalizeNullableString(form.image) ?? pendingImage?.previewUrl ?? null;
+    const previewImage =
+      normalizeNullableString(form.image) ?? pendingImage?.previewUrl ?? null;
 
+    const allowedRegions = new Set(
+      [...new Set(places.map((place) => place.regionCode))].slice(
+        0,
+        regionLimit ?? undefined,
+      ),
+    );
+    const visiblePlaces: ServicePlace[] =
+      allRussia && plan === "BUSINESS"
+        ? [
+            {
+              kind: "region",
+              name: "Вся Россия",
+              regionName: "Вся Россия",
+              regionCode: "RU",
+            },
+          ]
+        : allRussia && providerCity
+          ? [
+              {
+                kind: "region",
+                name: providerCity.regionName,
+                regionName: providerCity.regionName,
+                regionCode: providerCity.regionCode,
+              },
+            ]
+          : places.filter(
+              (place) =>
+                place.regionCode !== "RU" &&
+                allowedRegions.has(place.regionCode),
+            );
     return {
       id: initialService?.id ?? "preview-service",
       title: form.title.trim() || "Название услуги появится здесь",
       image: previewImage,
-      stockBadge: normalizeNullableString(form.stockBadge),
-      paletteColor: normalizeNullableString(form.stockBadge) ? form.paletteColor || null : null,
+      stockBadge:
+        plan === "STANDARD" ? null : normalizeNullableString(form.stockBadge),
+      paletteColor:
+        plan !== "STANDARD" && normalizeNullableString(form.stockBadge)
+          ? plan === "LITE"
+            ? ("primary" as const)
+            : form.paletteColor || null
+          : null,
       price: formatServicePriceStored(form.price) || "Цена не указана",
       provider: {
         id: activeMembership?.providerId ?? "preview-provider",
@@ -380,9 +510,13 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
       },
       rating: initialService?.rating ?? null,
       reviewCount: initialService?.reviewCount ?? null,
-      places,
+      places: visiblePlaces,
     };
   }, [
+    plan,
+    regionLimit,
+    allRussia,
+    providerCity,
     activeMembership?.providerCity,
     activeMembership?.providerId,
     activeMembership?.providerName,
@@ -399,7 +533,8 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
   ]);
 
   async function submitForm(nextStatus: ServiceStatus) {
-    const issues = nextStatus === "PUBLISHED" ? publishValidationIssues : validationIssues;
+    const issues =
+      nextStatus === "PUBLISHED" ? publishValidationIssues : validationIssues;
     if (issues.length > 0) {
       setError(issues[0]);
       return;
@@ -410,28 +545,46 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
     setError(null);
 
     try {
-      const requestPayload = { ...payload, status: nextStatus };
+      const requestPayload = {
+        ...payload,
+        status: nextStatus,
+        ...(savedServiceId.current ? { images } : {}),
+      };
 
-      const response = await fetch(savedServiceId.current ? `/api/pro/services/${savedServiceId.current}` : "/api/pro/services", {
-        method: savedServiceId.current ? "PATCH" : "POST",
-        headers: {
-          "content-type": "application/json",
+      const response = await fetch(
+        savedServiceId.current
+          ? `/api/pro/services/${savedServiceId.current}`
+          : "/api/pro/services",
+        {
+          method: savedServiceId.current ? "PATCH" : "POST",
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(requestPayload),
         },
-        body: JSON.stringify(requestPayload),
-      });
+      );
       const responseBody = (await response.json().catch(() => null)) as
         | { error?: string }
         | ServiceDto
         | null;
 
       if (!response.ok) {
-        throw new Error(responseBody && typeof responseBody === "object" && "error" in responseBody
-          ? responseBody.error ?? "Не удалось сохранить услугу"
-          : "Не удалось сохранить услугу");
+        throw new Error(
+          responseBody &&
+            typeof responseBody === "object" &&
+            "error" in responseBody
+            ? (responseBody.error ?? "Не удалось сохранить услугу")
+            : "Не удалось сохранить услугу",
+        );
       }
 
-      const savedId = savedServiceId.current ?? (responseBody && "id" in responseBody ? responseBody.id : null);
-      if (!savedId) throw new Error("Не удалось определить услугу для загрузки фотографий.");
+      const savedId =
+        savedServiceId.current ??
+        (responseBody && "id" in responseBody ? responseBody.id : null);
+      if (!savedId)
+        throw new Error(
+          "Не удалось определить услугу для загрузки фотографий.",
+        );
       savedServiceId.current = savedId;
       await uploadPendingImages(savedId, pendingImages);
 
@@ -443,7 +596,11 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
       );
       router.refresh();
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Не удалось сохранить услугу");
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Не удалось сохранить услугу",
+      );
     } finally {
       setBusy(false);
       setPendingAction(null);
@@ -456,15 +613,27 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
     setForm((current) => ({ ...current, image: gallery[0] ?? "" }));
   }
 
-  async function uploadPendingImages(serviceId: string, selected: typeof pendingImages) {
+  async function uploadPendingImages(
+    serviceId: string,
+    selected: typeof pendingImages,
+  ) {
     for (const image of selected) {
       const body = new FormData();
       body.append("file", image.file);
-      const response = await fetch(`/api/pro/services/${serviceId}/image`, { method: "POST", body });
+      const response = await fetch(`/api/pro/services/${serviceId}/image`, {
+        method: "POST",
+        body,
+      });
       const result = await response.json();
-      if (!response.ok) throw new Error(result?.error || "Не удалось загрузить фотографию. Повторите загрузку.");
+      if (!response.ok)
+        throw new Error(
+          result?.error ||
+            "Не удалось загрузить фотографию. Повторите загрузку.",
+        );
       applyGallery(result);
-      setPendingImages((current) => current.filter((item) => item.previewUrl !== image.previewUrl));
+      setPendingImages((current) =>
+        current.filter((item) => item.previewUrl !== image.previewUrl),
+      );
       URL.revokeObjectURL(image.previewUrl);
     }
   }
@@ -473,11 +642,17 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
     if (!savedServiceId.current || busy) return;
     setBusy(true);
     setError(null);
-    setPendingAction(imagePickerSource.current === "icon" ? "upload:icon" : "upload:add");
+    setPendingAction(
+      imagePickerSource.current === "icon" ? "upload:icon" : "upload:add",
+    );
     try {
       await uploadPendingImages(savedServiceId.current, selected);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Не удалось загрузить фотографии");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Не удалось загрузить фотографии",
+      );
     } finally {
       setBusy(false);
       setPendingAction(null);
@@ -491,12 +666,20 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
     setError(null);
     try {
       const query = new URLSearchParams({ imageUrl });
-      const response = await fetch(`/api/pro/services/${savedServiceId.current}/image?${query}`, { method: "DELETE" });
+      const response = await fetch(
+        `/api/pro/services/${savedServiceId.current}/image?${query}`,
+        { method: "DELETE" },
+      );
       const result = await response.json();
-      if (!response.ok) throw new Error(result?.error || "Не удалось удалить изображение");
+      if (!response.ok)
+        throw new Error(result?.error || "Не удалось удалить изображение");
       applyGallery(result);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Не удалось удалить изображение");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Не удалось удалить изображение",
+      );
     } finally {
       setBusy(false);
       setPendingAction(null);
@@ -508,12 +691,25 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
   }
 
   function openImagePicker(source: "icon" | "add" | null = null) {
-    if (busy || imageCount >= 10) return;
+    if (busy || imageCount >= photoLimit) return;
     imagePickerSource.current = source;
     fileInputRef.current?.click();
   }
 
-  function onPlacesChange(next: ServicePlace[]) {
+  function onPlacesChange(input: ServicePlace[]) {
+    const next = input.filter((place) => place.regionCode !== "RU");
+    if (
+      regionLimit !== null &&
+      new Set(next.map((place) => place.regionCode)).size > regionLimit &&
+      new Set(next.map((place) => place.regionCode)).size >=
+        new Set(places.map((place) => place.regionCode)).size
+    ) {
+      setError(
+        `Тариф позволяет выбрать до ${regionLimit} областей. Выберите подходящий тариф или сократите географию.`,
+      );
+      return;
+    }
+    setAllRussia(false);
     placesTouched.current = true;
     setPlaces(next);
   }
@@ -524,23 +720,43 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
   function onSelectImages(files: File[]) {
     if (busy || !files.length) return;
     setError(null);
-    if (files.some((file) => !["image/jpeg", "image/png", "image/webp"].includes(file.type) || !file.size || file.size > 10 * 1024 * 1024)) {
+    if (
+      files.some(
+        (file) =>
+          !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
+          !file.size ||
+          file.size > 10 * 1024 * 1024,
+      )
+    ) {
       setError("Выберите JPG, PNG или WebP размером до 10 МБ каждое.");
       return;
     }
-    const added = files.filter((file) => !pendingImages.some((item) => item.file.name === file.name && item.file.size === file.size && item.file.lastModified === file.lastModified));
-    if (imageCount + added.length > 10) {
-      setError("Можно загрузить не более 10 фотографий.");
+    const added = files.filter(
+      (file) =>
+        !pendingImages.some(
+          (item) =>
+            item.file.name === file.name &&
+            item.file.size === file.size &&
+            item.file.lastModified === file.lastModified,
+        ),
+    );
+    if (imageCount + added.length > photoLimit) {
+      setError(`Тариф позволяет загрузить не более ${photoLimit} фотографий.`);
       return;
     }
-    const selected = [...pendingImages, ...added.map((file) => ({ file, previewUrl: URL.createObjectURL(file) }))];
+    const selected = [
+      ...pendingImages,
+      ...added.map((file) => ({ file, previewUrl: URL.createObjectURL(file) })),
+    ];
     setPendingImages(selected);
     if (savedServiceId.current) void retryImages(selected);
   }
 
   function removePendingImage(previewUrl: string) {
     URL.revokeObjectURL(previewUrl);
-    setPendingImages((current) => current.filter((image) => image.previewUrl !== previewUrl));
+    setPendingImages((current) =>
+      current.filter((image) => image.previewUrl !== previewUrl),
+    );
   }
 
   function onRemoveImage() {
@@ -551,13 +767,25 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
   const priceLabel = formatServicePriceAmount(form.price);
   const draftDisabled = busy || validationIssues.length > 0;
   const publishDisabled = busy || publishValidationIssues.length > 0;
-  const needsPhoto = !busy && publishValidationIssues.length === 1 && !pendingImage && !form.image.trim();
+  const needsPhoto =
+    !busy &&
+    publishValidationIssues.length === 1 &&
+    !pendingImage &&
+    !form.image.trim();
 
   return (
-    <Stack spacing={{ xs: 2, md: 5 }} sx={{ width: "100%", maxWidth: { md: 1040 }, mx: "auto" }}>
+    <Stack
+      spacing={{ xs: 2, md: 5 }}
+      sx={{ width: "100%", maxWidth: { md: 1040 }, mx: "auto" }}
+    >
       <Stack
         direction="row"
-        sx={{ alignItems: "center", width: "100%", maxWidth: { xs: 440, md: "none" }, mx: { xs: "auto", md: 0 } }}
+        sx={{
+          alignItems: "center",
+          width: "100%",
+          maxWidth: { xs: 440, md: "none" },
+          mx: { xs: "auto", md: 0 },
+        }}
       >
         <IconButton
           aria-label="Назад"
@@ -573,9 +801,19 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
           {mode === "create" ? "Новая услуга" : "Редактировать услугу"}
         </Typography>
       </Stack>
-      <Stack spacing={1.5} sx={{ display: { md: "none" }, width: "100%", maxWidth: 440, mx: "auto" }}>
-      <Stack spacing={1.5} sx={{ alignItems: "flex-start" }}>
-          
+      <Stack
+        spacing={1.5}
+        sx={{
+          display: { md: "none" },
+          width: "100%",
+          maxWidth: 440,
+          mx: "auto",
+        }}
+      >
+        <Stack
+          spacing={1.5}
+          sx={{ alignItems: "flex-start" }}
+        >
           <Box
             role="button"
             tabIndex={busy ? -1 : 0}
@@ -591,26 +829,45 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
                 openImagePicker();
               }
             }}
-            sx={{ width: "100%", cursor: busy ? "default" : "pointer", borderRadius: 1 }}
+            sx={{
+              width: "100%",
+              cursor: busy ? "default" : "pointer",
+              borderRadius: 1,
+            }}
           >
-            <ServiceCard item={previewItem} linked={false} />
+            <ServiceCard
+              item={previewItem}
+              linked={false}
+            />
           </Box>
-          <Stack direction="row" sx={{ width: "100%", alignItems: "center", justifyContent: "space-between" }}>
+          <Stack
+            direction="row"
+            sx={{
+              width: "100%",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
             <Button
               type="button"
               variant="text"
               color="error"
               loading={pendingAction === "deleteImage"}
-              disabled={(busy && pendingAction !== "deleteImage") || !canRemoveImage}
+              disabled={
+                (busy && pendingAction !== "deleteImage") || !canRemoveImage
+              }
               onClick={onRemoveImage}
-              sx={{ color: "error.main", "&.Mui-disabled": { color: "text.disabled" } }}
+              sx={{
+                color: "error.main",
+                "&.Mui-disabled": { color: "text.disabled" },
+              }}
             >
               Удалить
             </Button>
             <IconButton
               aria-label="Загрузить фото"
               loading={pendingAction === "upload:icon"}
-              disabled={busy || imageCount >= 10}
+              disabled={busy || imageCount >= photoLimit}
               onClick={() => openImagePicker("icon")}
             >
               <PhotoCameraOutlinedIcon sx={{ color: "primary.main" }} />
@@ -620,7 +877,7 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
               variant="text"
               color="success"
               loading={pendingAction === "upload:add"}
-              disabled={busy || imageCount >= 10}
+              disabled={busy || imageCount >= photoLimit}
               onClick={() => openImagePicker("add")}
               sx={{ color: "success.main" }}
             >
@@ -648,7 +905,7 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
           type="file"
           multiple
           aria-label="Фотографии услуги"
-          disabled={busy || imageCount >= 10}
+          disabled={busy || imageCount >= photoLimit}
           hidden
           accept="image/jpeg,image/png,image/webp"
           onChange={(event) => {
@@ -657,13 +914,22 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
             onSelectImages(files);
           }}
         />
-        {error ? <Alert severity="error" sx={{ borderRadius: 0 }}>{error}</Alert> : null}
+        {error ? (
+          <Alert
+            severity="error"
+            sx={{ borderRadius: 0 }}
+          >
+            {error}
+          </Alert>
+        ) : null}
 
         <Stack
           spacing={1.5}
           sx={{ p: 2 }}
         >
-          <Typography variant="subtitle1">Фотографии услуги · {imageCount} из 10</Typography>
+          <Typography variant="subtitle1">
+            Фотографии услуги · {imageCount} из {photoLimit}
+          </Typography>
           <Typography
             variant="body2"
             sx={{ color: "text.secondary" }}
@@ -677,7 +943,13 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
               gap: 1,
             }}
           >
-            {[...images.map((url) => ({ url, saved: true })), ...pendingImages.map((image) => ({ url: image.previewUrl, saved: false }))].map((image, index) => (
+            {[
+              ...images.map((url) => ({ url, saved: true })),
+              ...pendingImages.map((image) => ({
+                url: image.previewUrl,
+                saved: false,
+              })),
+            ].map((image, index) => (
               <Box
                 key={image.url}
                 sx={{
@@ -701,7 +973,11 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
                   aria-label={`Удалить фото услуги ${index + 1}`}
                   size="small"
                   disabled={busy}
-                  onClick={() => image.saved ? void deleteImage(image.url) : removePendingImage(image.url)}
+                  onClick={() =>
+                    image.saved
+                      ? void deleteImage(image.url)
+                      : removePendingImage(image.url)
+                  }
                   sx={{
                     position: "absolute",
                     top: 2,
@@ -711,8 +987,25 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
                 >
                   <CloseIcon fontSize="small" />
                 </IconButton>
+                {image.saved && index > 0 && (
+                  <Button
+                    size="small"
+                    disabled={busy}
+                    onClick={() => {
+                      setImages((current) => [
+                        image.url,
+                        ...current.filter((url) => url !== image.url),
+                      ]);
+                      setForm((current) => ({ ...current, image: image.url }));
+                    }}
+                  >
+                    Сделать первым
+                  </Button>
+                )}
                 <Typography variant="caption">
-                  {index === 0 ? "Обложка" : `Фото ${index + 1}`}{!image.saved ? " · Не загружено" : ""}
+                  {index >= photoLimit ? "Скрыто тарифом · " : ""}
+                  {index === 0 ? "Обложка" : `Фото ${index + 1}`}
+                  {!image.saved ? " · Не загружено" : ""}
                 </Typography>
               </Box>
             ))}
@@ -724,7 +1017,7 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
             <Button
               type="button"
               onClick={() => openImagePicker("add")}
-              disabled={busy || imageCount >= 10}
+              disabled={busy || imageCount >= photoLimit}
             >
               Добавить фотографии
             </Button>
@@ -767,153 +1060,188 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
                 alignItems: "flex-start",
               }}
             >
-            <Stack
-              spacing={1.5}
-              sx={{
-                display: { xs: "none", md: "flex" },
-                alignItems: "flex-start",
-                width: 320,
-                flexShrink: 0,
-              }}
-            >
-              <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                Превью карточки
-              </Typography>
-              <Box
-                role="button"
-                tabIndex={busy ? -1 : 0}
-                aria-label="Загрузить фото"
-                aria-disabled={busy}
-                onClick={() => {
-                  if (!busy) openImagePicker();
-                }}
-                onKeyDown={(event) => {
-                  if (event.target !== event.currentTarget || busy) return;
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    openImagePicker();
-                  }
-                }}
+              <Stack
+                spacing={1.5}
                 sx={{
-                  width: "100%",
-                  cursor: busy ? "default" : "pointer",
-                  borderRadius: 1,
+                  display: { xs: "none", md: "flex" },
+                  alignItems: "flex-start",
+                  width: 320,
+                  flexShrink: 0,
                 }}
               >
-                <ServiceCard item={previewItem} linked={false} />
-              </Box>
-              {canRemoveImage ? (
-                <Button
-                  type="button"
-                  variant="text"
-                  color="error"
-                  loading={pendingAction === "deleteImage"}
-                  disabled={busy && pendingAction !== "deleteImage"}
-                  onClick={onRemoveImage}
+                <Typography
+                  variant="body2"
+                  sx={{ color: "text.secondary" }}
                 >
-                  Удалить фото
-                </Button>
-              ) : null}
-            </Stack>
-            <Box sx={{ display: { xs: "none", md: "block" }, flex: 1, minWidth: 0, pt: 4 }}>
-              <ServicePlaceChips value={places} onChange={onPlacesChange} disabled={busy} />
-            </Box>
+                  Превью карточки
+                </Typography>
+                <Box
+                  role="button"
+                  tabIndex={busy ? -1 : 0}
+                  aria-label="Загрузить фото"
+                  aria-disabled={busy}
+                  onClick={() => {
+                    if (!busy) openImagePicker();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget || busy) return;
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      openImagePicker();
+                    }
+                  }}
+                  sx={{
+                    width: "100%",
+                    cursor: busy ? "default" : "pointer",
+                    borderRadius: 1,
+                  }}
+                >
+                  <ServiceCard
+                    item={previewItem}
+                    linked={false}
+                  />
+                </Box>
+                {canRemoveImage ? (
+                  <Button
+                    type="button"
+                    variant="text"
+                    color="error"
+                    loading={pendingAction === "deleteImage"}
+                    disabled={busy && pendingAction !== "deleteImage"}
+                    onClick={onRemoveImage}
+                  >
+                    Удалить фото
+                  </Button>
+                ) : null}
+              </Stack>
+              <Box
+                sx={{
+                  display: { xs: "none", md: "block" },
+                  flex: 1,
+                  minWidth: 0,
+                  pt: 4,
+                }}
+              >
+                <ServicePlaceChips
+                  value={places}
+                  onChange={onPlacesChange}
+                  disabled={busy}
+                />
+              </Box>
             </Box>
 
-            <Stack spacing={2} sx={{ order: { xs: 2, md: 0 }, px: { xs: 2, md: 0 }, pt: { xs: 2.5, md: 0 } }}>
+            <Stack
+              spacing={2}
+              sx={{
+                order: { xs: 2, md: 0 },
+                px: { xs: 2, md: 0 },
+                pt: { xs: 2.5, md: 0 },
+              }}
+            >
               <CategoryMenuCloseContext.Provider value={closeCategoryMenu}>
-              <TextField
-                select
-                size="small"
-                label="Категория"
-                value={form.categoryId}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    categoryId: event.target.value,
-                  }))
-                }
-                disabled={busy}
-                required
-                fullWidth
-                slotProps={{
-                  htmlInput: { "aria-label": "Категория" },
-                  select: {
-                    ...(categoryMenuFullscreen
-                      ? {
-                          open: categoryMenuOpen,
-                          onOpen: () => {
-                            if (suppressCategoryMenuOpen.current) return;
-                            setCategoryMenuOpen(true);
-                          },
-                          onClose: () => setCategoryMenuOpen(false),
-                        }
-                      : {}),
-                    MenuProps: categoryMenuFullscreen
-                      ? {
-                          marginThreshold: 0,
-                          slots: { paper: CategoryMenuPaper },
-                          slotProps: {
-                            paper: {
-                              sx: {
-                                position: "fixed",
-                                top: "0 !important",
-                                left: "0 !important",
-                                m: "0 !important",
-                                width: "100vw !important",
-                                maxWidth: "100vw !important",
-                                height: "100dvh !important",
-                                maxHeight: "100dvh !important",
-                                borderRadius: 0,
-                                transform: "none !important",
+                <TextField
+                  select
+                  size="small"
+                  label="Категория"
+                  value={form.categoryId}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      categoryId: event.target.value,
+                    }))
+                  }
+                  disabled={busy}
+                  required
+                  fullWidth
+                  slotProps={{
+                    htmlInput: { "aria-label": "Категория" },
+                    select: {
+                      open: categoryMenuOpen,
+                      onOpen: () => {
+                        if (suppressCategoryMenuOpen.current) return;
+                        setCategoryMenuOpen(true);
+                      },
+                      onClose: () => setCategoryMenuOpen(false),
+                      MenuProps: categoryMenuFullscreen
+                        ? {
+                            marginThreshold: 0,
+                            slots: { paper: CategoryMenuPaper },
+                            slotProps: {
+                              paper: {
+                                sx: {
+                                  position: "fixed",
+                                  top: "0 !important",
+                                  left: "0 !important",
+                                  m: "0 !important",
+                                  width: "100vw !important",
+                                  maxWidth: "100vw !important",
+                                  height: "100dvh !important",
+                                  maxHeight: "100dvh !important",
+                                  borderRadius: 0,
+                                  transform: "none !important",
+                                },
+                              },
+                              list: {
+                                sx: { maxHeight: "none", py: 1 },
                               },
                             },
-                            list: {
-                              sx: { maxHeight: "none", py: 1 },
-                            },
-                          },
-                        }
-                      : undefined,
-                  },
-                }}
-              >
-                <MenuItem value="" sx={categoryMenuFullscreen ? { display: "none" } : undefined}>
-                  Выберите категорию
-                </MenuItem>
-                {buildCategoryTree(categories ?? []).map(({ node, depth }) =>
-                  depth === 0 ? (
-                    <ListSubheader
-                      key={`cat-${node.id}`}
-                      disableSticky
-                      sx={{
-                        fontWeight: 900,
-                        fontSize: 14,
-                        lineHeight: 1.4,
-                        py: 1,
-                        whiteSpace: "normal",
-                        color: "text.primary",
-                        bgcolor: "transparent",
-                      }}
-                    >
-                      {node.name}
-                    </ListSubheader>
-                  ) : (
-                    <MenuItem
-                      key={node.id}
-                      value={node.id}
-                      sx={{ whiteSpace: "normal", height: "auto", alignItems: "flex-start", py: 1 }}
-                    >
-                      {"—".repeat(depth)} {node.name}
-                    </MenuItem>
-                  )
-                )}
-              </TextField>
+                          }
+                        : undefined,
+                    },
+                  }}
+                >
+                  <MenuItem
+                    value=""
+                    sx={
+                      categoryMenuFullscreen ? { display: "none" } : undefined
+                    }
+                  >
+                    Выберите категорию
+                  </MenuItem>
+                  {buildCategoryTree(categories ?? []).map(({ node, depth }) =>
+                    depth === 0 ? (
+                      <ListSubheader
+                        key={`cat-${node.id}`}
+                        disableSticky
+                        sx={{
+                          fontWeight: 900,
+                          fontSize: 14,
+                          lineHeight: 1.4,
+                          py: 1,
+                          whiteSpace: "normal",
+                          color: "text.primary",
+                          bgcolor: "transparent",
+                        }}
+                      >
+                        {node.name}
+                      </ListSubheader>
+                    ) : (
+                      <MenuItem
+                        key={node.id}
+                        value={node.id}
+                        sx={{
+                          whiteSpace: "normal",
+                          height: "auto",
+                          alignItems: "flex-start",
+                          py: 1,
+                        }}
+                      >
+                        {"—".repeat(depth)} {node.name}
+                      </MenuItem>
+                    ),
+                  )}
+                </TextField>
               </CategoryMenuCloseContext.Provider>
               <TextField
                 size="small"
                 label="Название"
                 value={form.title}
-                onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    title: event.target.value,
+                  }))
+                }
                 disabled={busy}
                 required
                 fullWidth
@@ -921,12 +1249,24 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
               />
             </Stack>
 
-            <Stack spacing={2.5} sx={{ order: { xs: 3, md: 0 }, px: { xs: 2, md: 0 }, pb: { xs: 2, md: 0 } }}>
+            <Stack
+              spacing={2.5}
+              sx={{
+                order: { xs: 3, md: 0 },
+                px: { xs: 2, md: 0 },
+                pb: { xs: 2, md: 0 },
+              }}
+            >
               <TextField
                 size="small"
                 label="Описание"
                 value={form.description}
-                onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    description: event.target.value,
+                  }))
+                }
                 disabled={busy}
                 fullWidth
                 multiline
@@ -946,7 +1286,14 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
               height: { md: "100%" },
             }}
           >
-            <Stack spacing={2} sx={{ order: { xs: 4, md: 0 }, px: { xs: 2, md: 0 }, pb: { xs: 2, md: 0 } }}>
+            <Stack
+              spacing={2}
+              sx={{
+                order: { xs: 4, md: 0 },
+                px: { xs: 2, md: 0 },
+                pb: { xs: 2, md: 0 },
+              }}
+            >
               <TextField
                 size="small"
                 label="Цена"
@@ -961,9 +1308,36 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
                 required
                 fullWidth
                 placeholder="15 000"
-                slotProps={{ htmlInput: { inputMode: "numeric", "aria-label": "Цена" } }}
+                slotProps={{
+                  htmlInput: { inputMode: "numeric", "aria-label": "Цена" },
+                }}
               />
-              <Typography sx={{ display: { md: "none" }, fontWeight: 800 }}>География</Typography>
+              <Typography sx={{ display: { md: "none" }, fontWeight: 800 }}>
+                География
+              </Typography>
+              <Typography variant="body2">
+                География:{" "}
+                {regionLimit === null
+                  ? "без ограничений"
+                  : `до ${regionLimit} областей для этой услуги`}
+                . <a href="/pro/billing">Изменить тариф</a>
+              </Typography>
+              <FormControlLabel
+                label="Вся Россия · Бизнес"
+                control={
+                  <Checkbox
+                    checked={allRussia}
+                    disabled={busy || (plan !== "BUSINESS" && !allRussia)}
+                    onChange={(event) => {
+                      setAllRussia(event.target.checked);
+                      if (!event.target.checked)
+                        setPlaces((current) =>
+                          current.filter((place) => place.regionCode !== "RU"),
+                        );
+                    }}
+                  />
+                }
+              />
               <ServiceGeographyField
                 value={places}
                 onChange={onPlacesChange}
@@ -971,23 +1345,89 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
                 size="small"
                 label="Локация"
                 showChips={false}
-                error={places.length === 0}
-                helperText={places.length === 0 ? "Выберите город или область" : "Город или целая область. Можно несколько."}
+                error={places.length === 0 && !allRussia}
+                helperText={
+                  places.length === 0 && !allRussia
+                    ? "Выберите город или область"
+                    : "Город или целая область. Можно несколько."
+                }
               />
               <Box sx={{ display: { md: "none" } }}>
-                <ServicePlaceChips value={places} onChange={onPlacesChange} disabled={busy} hideHeading />
+                <ServicePlaceChips
+                  value={places}
+                  onChange={onPlacesChange}
+                  disabled={busy}
+                  hideHeading
+                />
               </Box>
+              {!allRussia &&
+                regionLimit !== null &&
+                new Set(places.map((place) => place.regionCode)).size >
+                  regionLimit && (
+                  <Stack spacing={1}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                    >
+                      Сохранены все регионы. В публикации — первые {regionLimit}
+                      . Поднимите нужные регионы, затем сохраните услугу.
+                    </Typography>
+                    {[...new Set(places.map((place) => place.regionCode))].map(
+                      (code, index) => (
+                        <Button
+                          key={code}
+                          variant={
+                            index < regionLimit ? "contained" : "outlined"
+                          }
+                          disabled={busy || index === 0}
+                          onClick={() => {
+                            placesTouched.current = true;
+                            setPlaces((current) => [
+                              ...current.filter(
+                                (place) => place.regionCode === code,
+                              ),
+                              ...current.filter(
+                                (place) => place.regionCode !== code,
+                              ),
+                            ]);
+                          }}
+                        >
+                          {
+                            places.find((place) => place.regionCode === code)
+                              ?.regionName
+                          }{" "}
+                          ·{" "}
+                          {index < regionLimit
+                            ? "Публикуется"
+                            : "Поднять в начало"}
+                        </Button>
+                      ),
+                    )}
+                  </Stack>
+                )}
               <Stack spacing={0.75}>
                 <Box sx={{ display: { xs: "none", md: "block" } }}>
                   <StockBadgeField
                     value={form.stockBadge}
-                    disabled={busy}
-                    onChange={(stockBadge) => setForm((current) => ({ ...current, stockBadge }))}
+                    disabled={busy || plan === "STANDARD"}
+                    onChange={(stockBadge) =>
+                      setForm((current) => ({
+                        ...current,
+                        stockBadge,
+                        paletteColor:
+                          plan === "LITE" ? "primary" : current.paletteColor,
+                      }))
+                    }
                     endAdornment={
                       <DesktopLabelColor
-                        value={form.paletteColor}
-                        disabled={busy}
-                        onChange={(color) => setForm((current) => ({ ...current, paletteColor: color }))}
+                        value={plan === "LITE" ? "primary" : form.paletteColor}
+                        disabled={busy || plan !== "BUSINESS"}
+                        onChange={(color) =>
+                          setForm((current) => ({
+                            ...current,
+                            paletteColor: color,
+                          }))
+                        }
                       />
                     }
                   />
@@ -995,14 +1435,34 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
                 <Box sx={{ display: { md: "none" } }}>
                   <MobileLabelColor
                     badge={form.stockBadge}
-                    onBadgeChange={(stockBadge) => setForm((current) => ({ ...current, stockBadge }))}
-                    color={form.paletteColor}
-                    disabled={busy}
-                    onColorChange={(color) => setForm((current) => ({ ...current, paletteColor: color }))}
+                    onBadgeChange={(stockBadge) =>
+                      setForm((current) => ({
+                        ...current,
+                        stockBadge,
+                        paletteColor:
+                          plan === "LITE" ? "primary" : current.paletteColor,
+                      }))
+                    }
+                    color={plan === "LITE" ? "primary" : form.paletteColor}
+                    colorLocked={plan !== "BUSINESS"}
+                    disabled={busy || plan === "STANDARD"}
+                    onColorChange={(color) =>
+                      setForm((current) => ({
+                        ...current,
+                        paletteColor: plan === "LITE" ? "primary" : color,
+                      }))
+                    }
                   />
                 </Box>
-                <Typography variant="caption" sx={{ color: "text.secondary", pl: "10px" }}>
-                  Максимум {STOCK_BADGE_MAX_LENGTH} символа
+                <Typography
+                  variant="caption"
+                  sx={{ color: "text.secondary", pl: "10px" }}
+                >
+                  {plan === "STANDARD"
+                    ? "На Стандарте метка скрыта из публикации."
+                    : plan === "LITE"
+                      ? "На Лайте метка публикуется основным цветом."
+                      : `Максимум ${STOCK_BADGE_MAX_LENGTH} символа`}
                 </Typography>
               </Stack>
             </Stack>
@@ -1013,7 +1473,11 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
                 needsPhoto={needsPhoto}
                 onPickPhoto={() => openImagePicker()}
                 draftDisabled={draftDisabled}
-                pending={pendingAction === "PUBLISHED" || pendingAction === "DRAFT" ? pendingAction : null}
+                pending={
+                  pendingAction === "PUBLISHED" || pendingAction === "DRAFT"
+                    ? pendingAction
+                    : null
+                }
                 onPublish={() => {
                   setForm((current) => ({ ...current, status: "PUBLISHED" }));
                   void submitForm("PUBLISHED");
@@ -1027,14 +1491,29 @@ export function ProServiceEditor({ mode, initialService, initialProviderCity = n
           </Box>
         </Box>
       </Paper>
-      <Stack spacing={2} sx={{ display: { md: "none" }, width: "100%", maxWidth: 440, mx: "auto" }}>
-        <ServiceCard item={previewItem} linked={false} />
+      <Stack
+        spacing={2}
+        sx={{
+          display: { md: "none" },
+          width: "100%",
+          maxWidth: 440,
+          mx: "auto",
+        }}
+      >
+        <ServiceCard
+          item={previewItem}
+          linked={false}
+        />
         <ServiceEditorActions
           publishDisabled={publishDisabled}
           needsPhoto={needsPhoto}
           onPickPhoto={() => openImagePicker()}
           draftDisabled={draftDisabled}
-          pending={pendingAction === "PUBLISHED" || pendingAction === "DRAFT" ? pendingAction : null}
+          pending={
+            pendingAction === "PUBLISHED" || pendingAction === "DRAFT"
+              ? pendingAction
+              : null
+          }
           onPublish={() => {
             setForm((current) => ({ ...current, status: "PUBLISHED" }));
             void submitForm("PUBLISHED");

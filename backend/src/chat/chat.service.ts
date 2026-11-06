@@ -10,6 +10,7 @@ import {
 import type { Request } from 'express';
 import type { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
+import { PlanService } from '../billing/plan.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import { isLockedToOtherProvider } from '../requests/dto/request.dto';
@@ -72,6 +73,7 @@ export class ChatService {
     private readonly internalAuth: InternalAuthService,
     @Inject(forwardRef(() => ChatGateway))
     private readonly gateway: ChatGateway,
+    private readonly plans: PlanService = new PlanService(prisma),
   ) {}
 
   getRequiredActorUserId(request: Request) {
@@ -1218,6 +1220,7 @@ export class ChatService {
 
     try {
       const created = await this.prisma.$transaction(async (tx) => {
+        await this.plans.consumeReply(tx, actorUserId, conversationId);
         const msg = await tx.message.create({
           data: {
             id: randomUUID(),

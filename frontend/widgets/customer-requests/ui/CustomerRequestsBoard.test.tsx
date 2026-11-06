@@ -54,6 +54,11 @@ function request(overrides: Partial<RequestCustomerDto> & Pick<RequestCustomerDt
     providerLastMessage: null,
     customerLastMessage: null,
     awaitingProviderReply: false,
+    currentSubmission: null,
+    deliverySubmissions: [],
+    priceProposal: null,
+    canProposePrice: false,
+    canAcceptPrice: false,
     ...overrides,
   };
 }

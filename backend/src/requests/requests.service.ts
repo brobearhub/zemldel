@@ -1,3 +1,4 @@
+import { effectivePlan } from '../billing/plan-policy';
 import { withWriteOperation } from '../common/idempotency/write-operation';
 import {
   BadRequestException,
@@ -706,9 +707,31 @@ export class RequestsService {
         providerId: true,
         price: true,
         createdByUserId: true,
+        allRussia: true,
+        provider: {
+          select: {
+            cityId: true,
+            billingTestAccount: {
+              select: {
+                plan: true,
+                planExpiresAt: true,
+                graceUntil: true,
+                autoRenew: true,
+              },
+            },
+          },
+        },
+        _count: { select: { cities: true, regions: true } },
       },
     });
-    if (!service) {
+    if (
+      !service ||
+      (service.allRussia &&
+        effectivePlan(service.provider.billingTestAccount) !== 'BUSINESS' &&
+        !service.provider.cityId &&
+        !service._count.cities &&
+        !service._count.regions)
+    ) {
       throw new NotFoundException('Published service not found');
     }
 

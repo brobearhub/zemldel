@@ -1,3 +1,4 @@
+import { ServiceViewTracker } from "@/widgets/billing/ServiceViewTracker";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { ServiceDto } from "@/entities/service";
@@ -79,6 +80,7 @@ export default async function ServicePage({ params }: Props) {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
+      <ServiceViewTracker serviceId={service.id} />
       <ServicePageView service={service} session={session} />
     </>
   );

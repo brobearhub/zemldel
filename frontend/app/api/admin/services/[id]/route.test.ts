@@ -1,5 +1,7 @@
 /** @vitest-environment node */
 
+import { makeAuthSession } from "@/tests/fixtures/auth-session";
+
 import type { NextRequest } from "next/server";
 import { DELETE, PATCH } from "./route";
 
@@ -30,12 +32,7 @@ describe("Admin services API /api/admin/services/[id]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setNodeEnv("test");
-    mockedGetServerAuthSession.mockResolvedValue({
-      user: {
-        id: "user-1",
-        systemRole: "PLATFORM_ADMIN",
-      },
-    });
+    mockedGetServerAuthSession.mockResolvedValue(makeAuthSession({ systemRole: "PLATFORM_ADMIN" }));
   });
 
   afterAll(() => {
@@ -43,12 +40,7 @@ describe("Admin services API /api/admin/services/[id]", () => {
   });
 
   it("returns 403 when user is not PLATFORM_ADMIN for PATCH", async () => {
-    mockedGetServerAuthSession.mockResolvedValue({
-      user: {
-        id: "user-1",
-        systemRole: "CUSTOMER",
-      },
-    });
+    mockedGetServerAuthSession.mockResolvedValue(makeAuthSession({ systemRole: "CUSTOMER" }));
 
     const request = new Request("http://localhost/api/admin/services/1", {
       method: "PATCH",
@@ -160,12 +152,7 @@ describe("Admin services API /api/admin/services/[id]", () => {
   });
 
   it("returns 403 when user is not PLATFORM_ADMIN for DELETE", async () => {
-    mockedGetServerAuthSession.mockResolvedValue({
-      user: {
-        id: "user-1",
-        systemRole: "CUSTOMER",
-      },
-    });
+    mockedGetServerAuthSession.mockResolvedValue(makeAuthSession({ systemRole: "CUSTOMER" }));
 
     const response = (await DELETE({} as NextRequest, { params: Promise.resolve({ id: "1" }) }))!;
     const json = await response.json();
