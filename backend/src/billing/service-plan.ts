@@ -1,6 +1,6 @@
 import type { BillingTestAccount } from '@prisma/client';
 import type { ServiceDbRow } from '../services/dto/service.dto';
-import { effectivePlan, PLAN_LIMITS } from './plan-policy';
+import { entitlementPlan, PLAN_LIMITS } from './plan-policy';
 
 export function publicServiceForPlan<
   T extends ServiceDbRow & { allRussia?: boolean; regionOrder?: string[] },
@@ -12,7 +12,7 @@ export function publicServiceForPlan<
       })
     | null,
 ): T | null {
-  const plan = effectivePlan(account);
+  const plan = entitlementPlan(account);
   const limits = PLAN_LIMITS[plan];
   let cities = row.cities,
     regions = row.regions;

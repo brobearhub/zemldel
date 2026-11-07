@@ -6,9 +6,10 @@ import {
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-  effectivePlan,
+  entitlementPlan,
   localDay,
   nextMidnight,
+  planEnforcementEnabled,
   PLAN_LIMITS,
 } from './plan-policy';
 
@@ -20,7 +21,7 @@ export class PlanService {
     const account = await tx.billingTestAccount.findUnique({
       where: { providerId },
     });
-    const plan = effectivePlan(account);
+    const plan = entitlementPlan(account);
     return { plan, limits: PLAN_LIMITS[plan], account };
   }
 
@@ -52,11 +53,13 @@ export class PlanService {
     actorUserId: string,
     conversationId: string,
   ) {
+    if (!planEnforcementEnabled()) return;
     const conv = await tx.conversation.findUnique({
       where: { id: conversationId },
       select: {
         providerId: true,
         requestId: true,
+        customerUserId: true,
         request: {
           select: { serviceId: true, categoryId: true, customerUserId: true },
         },
@@ -68,6 +71,7 @@ export class PlanService {
       !conv.request ||
       conv.request.serviceId ||
       conv.request.categoryId ||
+      conv.customerUserId === actorUserId ||
       conv.request.customerUserId === actorUserId
     )
       return;
@@ -81,6 +85,21 @@ export class PlanService {
       providerId_requestId: { providerId, requestId: conv.requestId },
     };
     if (await tx.replyDebit.findUnique({ where: key })) return;
+    // Replies sent while enforcement was paused are free when it resumes.
+    const previousReply = await tx.message.findFirst({
+      where: {
+        conversation: { requestId: conv.requestId, providerId },
+        kind: 'USER',
+        senderUserId: { not: conv.customerUserId },
+      },
+      select: { id: true },
+    });
+    if (previousReply) {
+      await tx.replyDebit.create({
+        data: { providerId, requestId: conv.requestId, source: 'LEGACY' },
+      });
+      return;
+    }
     const now = new Date();
     let account = await tx.billingTestAccount.upsert({
       where: { providerId },
@@ -99,7 +118,7 @@ export class PlanService {
         },
       });
     }
-    const limit = PLAN_LIMITS[effectivePlan(account)].replies;
+    const limit = PLAN_LIMITS[entitlementPlan(account)].replies;
     let source = 'UNLIMITED';
     if (limit === null)
       await tx.billingTestAccount.update({

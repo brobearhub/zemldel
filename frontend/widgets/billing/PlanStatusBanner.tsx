@@ -30,7 +30,11 @@ export function PlanStatusBanner() {
       window.removeEventListener("focus", refresh);
     };
   }, [providerId]);
-  if (!billing?.graceUntil || new Date(billing.graceUntil) <= new Date())
+  if (
+    !billing?.enforcementEnabled ||
+    !billing.graceUntil ||
+    new Date(billing.graceUntil) <= new Date()
+  )
     return null;
   return (
     <Alert

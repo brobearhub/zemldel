@@ -42,6 +42,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
         file: file(n),
       });
     beforeAll(async () => {
+      vi.stubEnv('PLAN_ENFORCEMENT_ENABLED', '1');
       db = new PrismaService();
       await db.user.create({
         data: { id: owner, email: `gallery-${owner}@example.com` },
@@ -109,6 +110,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       await db.serviceCategory.deleteMany({ where: { id: categoryId } });
       await db.user.deleteMany({ where: { id: owner } });
       await db.$disconnect();
+      vi.unstubAllEnvs();
     });
     it('allows ten simultaneous uploads, rejects the eleventh, and retries without duplicates', async () => {
       const results = await Promise.allSettled(
@@ -295,6 +297,41 @@ describe.skipIf(!process.env.DATABASE_URL)(
         ).toBe(true);
       } finally {
         await db.city.deleteMany({ where: { id: { in: cityIds } } });
+      }
+    });
+    it('publishes all Standard content while enforcement is paused', async () => {
+      vi.stubEnv('PLAN_ENFORCEMENT_ENABLED', '0');
+      try {
+        await db.billingTestAccount.update({
+          where: { providerId },
+          data: { plan: 'STANDARD' },
+        });
+        await upload(1);
+        await upload(2);
+        await upload(3);
+        await service.updateService(
+          serviceId,
+          {
+            stockBadge: 'Скидка',
+            paletteColor: 'error',
+            allRussia: true,
+            places: [],
+          },
+          { providerId },
+        );
+        const publicRow = await service.getServiceById(serviceId);
+        expect(publicRow).toMatchObject({
+          allRussia: true,
+          stockBadge: 'Скидка',
+          paletteColor: 'error',
+        });
+        expect(publicRow?.images).toHaveLength(3);
+        expect(
+          (await db.service.findUniqueOrThrow({ where: { id: serviceId } }))
+            .allRussia,
+        ).toBe(true);
+      } finally {
+        vi.stubEnv('PLAN_ENFORCEMENT_ENABLED', '1');
       }
     });
   },

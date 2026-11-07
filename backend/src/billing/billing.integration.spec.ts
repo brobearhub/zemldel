@@ -34,6 +34,7 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
 
   beforeAll(() => {
     vi.stubEnv('DATABASE_URL', url);
+    vi.stubEnv('PLAN_ENFORCEMENT_ENABLED', '1');
     vi.stubEnv('TBANK_TEST_ENABLED', '1');
     vi.stubEnv('TBANK_TERMINAL_KEY', 'qaDEMO');
     vi.stubEnv('TBANK_PASSWORD', 'test-secret');
@@ -644,5 +645,45 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
     await expect(
       service.checkout(userId, providerId, 'LITE', randomUUID()),
     ).resolves.toMatchObject({ status: 'NEW' });
+  });
+
+  it('keeps Standard on the account while allowing tools during the pause', async () => {
+    vi.stubEnv('PLAN_ENFORCEMENT_ENABLED', '0');
+    try {
+      const plans = new PlanService(prisma);
+      const workspace = new WorkspaceService(prisma, plans);
+      const template = {
+        id: randomUUID(),
+        title: 'Общий ответ',
+        body: 'Здравствуйте',
+        shared: true,
+      };
+      await workspace.template(userId, providerId, template);
+      await workspace.task(userId, providerId, {
+        id: randomUUID(),
+        title: 'Ответить клиенту',
+        note: 'Согласовать срок',
+        assigneeUserId: userId,
+        done: false,
+      });
+      const overview = await service.overview(userId, providerId);
+      const tools = await workspace.read(userId, providerId);
+      expect(overview.plan).toBe('STANDARD');
+      expect(overview.entitlementPlan).toBe('BUSINESS');
+      expect(overview.enforcementEnabled).toBe(false);
+      expect(tools.templates).toHaveLength(1);
+      expect(tools.tasks).toHaveLength(1);
+      expect(tools.stats.byService).toBeDefined();
+      expect(tools.stats.team).toBeDefined();
+      vi.stubEnv('PLAN_ENFORCEMENT_ENABLED', '1');
+      await expect(
+        workspace.template(userId, providerId, template),
+      ).rejects.toThrow();
+      expect((await service.overview(userId, providerId)).plan).toBe(
+        'STANDARD',
+      );
+    } finally {
+      vi.stubEnv('PLAN_ENFORCEMENT_ENABLED', '1');
+    }
   });
 });

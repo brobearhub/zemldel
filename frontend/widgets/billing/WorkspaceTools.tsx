@@ -135,12 +135,6 @@ export function WorkspaceTools({ providerId }: { providerId: string }) {
     <div className={s.root}>
       <div className={s.row}>
         <h1>Инструменты профиля</h1>
-        <Link
-          className={s.secondary}
-          href="/pro/billing"
-        >
-          Тариф и оплата
-        </Link>
       </div>
       <div
         className={s.actions}
@@ -355,7 +349,7 @@ export function WorkspaceTools({ providerId }: { providerId: string }) {
                     slotProps={{ htmlInput: { maxLength: 5000 } }}
                   />
                   <FormControlLabel
-                    label="Общий шаблон команды · Бизнес"
+                    label="Общий шаблон команды"
                     control={
                       <Checkbox
                         checked={template.shared}

@@ -1,6 +1,10 @@
 import type { BillingTestAccount } from '@prisma/client';
 
 export type Plan = 'STANDARD' | 'LITE' | 'BUSINESS';
+// Keep the tariff rules available while their enforcement is paused.
+export function planEnforcementEnabled() {
+  return process.env.PLAN_ENFORCEMENT_ENABLED === '1';
+}
 export const PLAN_LIMITS = {
   STANDARD: {
     photos: 1,
@@ -55,6 +59,13 @@ export function effectivePlan(
   )
     return account.plan as Plan;
   return 'STANDARD';
+}
+
+export function entitlementPlan(
+  account: Parameters<typeof effectivePlan>[0],
+  now = new Date(),
+): Plan {
+  return planEnforcementEnabled() ? effectivePlan(account, now) : 'BUSINESS';
 }
 
 export function localDay(now: Date, timezone: string) {

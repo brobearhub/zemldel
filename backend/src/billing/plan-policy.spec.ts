@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import {
   effectivePlan,
+  entitlementPlan,
   localDay,
   nextMidnight,
   upgradeAmount,
@@ -10,6 +11,34 @@ import { publicServiceForPlan } from './service-plan';
 import type { ServiceDbRow } from '../services/dto/service.dto';
 
 describe('plan policy', () => {
+  beforeEach(() => vi.stubEnv('PLAN_ENFORCEMENT_ENABLED', '1'));
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('pauses entitlements for Standard and restores them with one switch', () => {
+    const standard = { plan: 'STANDARD', planExpiresAt: null };
+    const row = {
+      image: 'one',
+      images: ['one', 'two'],
+      stockBadge: 'Скидка',
+      paletteColor: 'error',
+      allRussia: true,
+      cities: [],
+      regions: [],
+      provider: { city: null },
+    } as unknown as ServiceDbRow & { allRussia: boolean };
+    vi.stubEnv('PLAN_ENFORCEMENT_ENABLED', '0');
+    expect(effectivePlan(standard)).toBe('STANDARD');
+    expect(entitlementPlan(standard)).toBe('BUSINESS');
+    expect(publicServiceForPlan(row, standard)).toMatchObject({
+      allRussia: true,
+      images: ['one', 'two'],
+      stockBadge: 'Скидка',
+      paletteColor: 'error',
+    });
+    vi.stubEnv('PLAN_ENFORCEMENT_ENABLED', '1');
+    expect(entitlementPlan(standard)).toBe('STANDARD');
+    expect(publicServiceForPlan(row, standard)).toBeNull();
+  });
   it('defaults existing profiles to Standard and observes exact expiration and grace', () => {
     const now = new Date('2026-11-01T00:00:00Z');
     expect(effectivePlan(null, now)).toBe('STANDARD');
