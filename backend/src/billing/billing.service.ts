@@ -1,5 +1,7 @@
 import {
   effectivePlan,
+  entitlementPlan,
+  planEnforcementEnabled,
   nextMidnight,
   PLAN_LIMITS,
   upgradeAmount,
@@ -96,7 +98,9 @@ export class BillingService {
       enabled,
       canPay: member.role === 'OWNER',
       plan: effectivePlan(account),
-      limits: PLAN_LIMITS[effectivePlan(account)],
+      entitlementPlan: entitlementPlan(account),
+      enforcementEnabled: planEnforcementEnabled(),
+      limits: PLAN_LIMITS[entitlementPlan(account)],
       autoRenew: account?.autoRenew ?? false,
       canAutoRenew: Boolean(account?.rebillId),
       nextPlan: account?.nextPlan ?? null,

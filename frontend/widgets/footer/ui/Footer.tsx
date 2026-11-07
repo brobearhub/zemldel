@@ -193,18 +193,6 @@ export const Footer = () => {
               </Typography>
               <Link
                 component={NextLink}
-                href="/pricing"
-                sx={{
-                  color: "inherit",
-                  minHeight: 44,
-                  display: "inline-flex",
-                  alignItems: "center",
-                }}
-              >
-                Тарифы для исполнителей
-              </Link>
-              <Link
-                component={NextLink}
                 href="/about"
                 sx={{
                   fontSize: 14,

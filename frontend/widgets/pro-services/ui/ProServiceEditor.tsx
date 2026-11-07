@@ -289,9 +289,9 @@ export function ProServiceEditor({
     user?.memberships[0] ??
     null;
   const providerCity = activeMembership?.providerCity ?? initialProviderCity;
-  const [plan, setPlan] = useState("STANDARD");
-  const [photoLimit, setPhotoLimit] = useState(1);
-  const [regionLimit, setRegionLimit] = useState<number | null>(1);
+  const [plan, setPlan] = useState("BUSINESS");
+  const [photoLimit, setPhotoLimit] = useState(10);
+  const [regionLimit, setRegionLimit] = useState<number | null>(null);
   const [allRussia, setAllRussia] = useState(
     initialService?.allRussia ?? false,
   );
@@ -304,11 +304,11 @@ export function ProServiceEditor({
       .then(async (response) => {
         if (!response.ok) return;
         const data = (await response.json()) as {
-          plan: string;
+          entitlementPlan: string;
           limits: { photos: number; regions: number | null };
         };
         if (!cancelled) {
-          setPlan(data.plan);
+          setPlan(data.entitlementPlan);
           setPhotoLimit(data.limits.photos);
           setRegionLimit(data.limits.regions);
         }
@@ -1320,10 +1320,10 @@ export function ProServiceEditor({
                 {regionLimit === null
                   ? "без ограничений"
                   : `до ${regionLimit} областей для этой услуги`}
-                . <a href="/pro/billing">Изменить тариф</a>
+                .
               </Typography>
               <FormControlLabel
-                label="Вся Россия · Бизнес"
+                label="Вся Россия"
                 control={
                   <Checkbox
                     checked={allRussia}

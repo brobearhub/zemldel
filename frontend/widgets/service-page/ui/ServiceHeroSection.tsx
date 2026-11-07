@@ -149,6 +149,8 @@ export function ServiceHeroSection({ vm }: Props) {
                         color: "text.secondary",
                         fontSize: { xs: 14, md: 16 },
                         lineHeight: { xs: 1.43, md: 1.5 },
+                        whiteSpace: "pre-wrap",
+                        overflowWrap: "anywhere",
                       }}
                     >
                       {vm.description}

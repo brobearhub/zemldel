@@ -1,4 +1,4 @@
-import { effectivePlan } from '../billing/plan-policy';
+import { entitlementPlan } from '../billing/plan-policy';
 import { withWriteOperation } from '../common/idempotency/write-operation';
 import {
   BadRequestException,
@@ -727,7 +727,7 @@ export class RequestsService {
     if (
       !service ||
       (service.allRussia &&
-        effectivePlan(service.provider.billingTestAccount) !== 'BUSINESS' &&
+        entitlementPlan(service.provider.billingTestAccount) !== 'BUSINESS' &&
         !service.provider.cityId &&
         !service._count.cities &&
         !service._count.regions)

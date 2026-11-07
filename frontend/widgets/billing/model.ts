@@ -79,6 +79,8 @@ export type BillingOrder = {
   paymentUrl: string | null;
 };
 export type BillingOverview = {
+  entitlementPlan: string;
+  enforcementEnabled: boolean;
   limits: {
     photos: number;
     regions: number | null;

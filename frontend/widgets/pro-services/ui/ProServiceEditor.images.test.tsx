@@ -9,7 +9,11 @@ const navigation = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn(), back: vi
 vi.mock("next/navigation", () => ({ useRouter: () => navigation }));
 vi.mock("@/core/store/hooks", () => ({ useAppSelector: () => ({ user: null }) }));
 vi.mock("@/features/select-service-places", () => ({ ServiceGeographyField: () => null, ServicePlaceChips: () => null }));
-const billing = { plan: "BUSINESS", limits: { photos: 10, regions: null } };
+const billing = {
+  plan: "STANDARD",
+  entitlementPlan: "BUSINESS",
+  limits: { photos: 10, regions: null },
+};
 const readResponse = (url: unknown) => Response.json(String(url).includes("/api/billing/") ? billing : []);
 const pictures = (count: number) => Array.from({ length: count }, (_, i) => `https://example.com/photo-${i}.png`);
 const files = (count: number) => Array.from({ length: count }, (_, i) => new File([`photo${i}`], `photo-${i}.png`, { type: "image/png" }));

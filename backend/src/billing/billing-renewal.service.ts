@@ -14,6 +14,7 @@ import {
   CLOSED_STATUSES,
   type BillingProduct,
 } from './billing-catalog';
+import { planEnforcementEnabled } from './plan-policy';
 
 @Injectable()
 export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
@@ -28,6 +29,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit() {
     if (
+      !planEnforcementEnabled() ||
       process.env.TBANK_TEST_ENABLED !== '1' ||
       process.env.TBANK_RENEWALS_ENABLED !== '1'
     )
@@ -43,6 +45,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
   }
 
   async tick() {
+    if (!planEnforcementEnabled()) return;
     if (this.running) return;
     this.running = true;
     try {
