@@ -31,7 +31,13 @@ type CrumbMenuProps = {
   isCurrent?: boolean;
 };
 
-function CrumbMenu({ label, href, items, currentId, isCurrent }: CrumbMenuProps) {
+function CrumbMenu({
+  label,
+  href,
+  items,
+  currentId,
+  isCurrent,
+}: CrumbMenuProps) {
   const id = useId();
   const anchorRef = useRef<HTMLButtonElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -43,9 +49,12 @@ function CrumbMenu({ label, href, items, currentId, isCurrent }: CrumbMenuProps)
     closeTimer.current = null;
   };
 
-  useEffect(() => () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    },
+    [],
+  );
 
   const close = (restoreFocus = false) => {
     cancelClose();
@@ -54,7 +63,8 @@ function CrumbMenu({ label, href, items, currentId, isCurrent }: CrumbMenuProps)
   };
 
   const openOnHover = () => {
-    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches)
+      return;
     cancelClose();
     setFocusMenu(false);
     setOpen(true);
@@ -74,10 +84,7 @@ function CrumbMenu({ label, href, items, currentId, isCurrent }: CrumbMenuProps)
 
   return (
     <ClickAwayListener onClickAway={() => close()}>
-      <Box
-        component="span"
-        sx={{ display: "inline-flex" }}
-      >
+      <Box component="span" sx={{ display: "inline-flex" }}>
         <ButtonBase
           ref={anchorRef}
           id={`${id}-trigger`}
@@ -161,8 +168,8 @@ function CrumbMenu({ label, href, items, currentId, isCurrent }: CrumbMenuProps)
                   borderRadius: 0.75,
                   px: 1.5,
                   py: 1,
-                  fontSize: 15,
-                  lineHeight: 1.45,
+                  fontSize: "1rem",
+                  lineHeight: 1.5,
                 },
               }}
             >
@@ -195,23 +202,28 @@ function CrumbMenu({ label, href, items, currentId, isCurrent }: CrumbMenuProps)
   );
 }
 
-export function CategoryBreadcrumbs({ categoryId, categories }: {
+export function CategoryBreadcrumbs({
+  categoryId,
+  categories,
+}: {
   categoryId: string;
   categories: Category[];
 }) {
   const category = categories.find((item) => item.id === categoryId);
   if (!category) return null;
   const parent = categories.find((item) => item.id === category.parentId);
-  const childrenOf = (parentId: string | null) => categories
-    .filter((item) => item.parentId === parentId)
-    .sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity) || a.name.localeCompare(b.name, "ru"));
+  const childrenOf = (parentId: string | null) =>
+    categories
+      .filter((item) => item.parentId === parentId)
+      .sort(
+        (a, b) =>
+          (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity) ||
+          a.name.localeCompare(b.name, "ru"),
+      );
   const children = childrenOf(category.id);
 
   return (
-    <Breadcrumbs
-      aria-label="Навигация по категориям"
-      sx={{ fontSize: 15 }}
-    >
+    <Breadcrumbs aria-label="Навигация по категориям" sx={{ fontSize: "1rem" }}>
       <CrumbMenu
         label="Главная"
         href="/"

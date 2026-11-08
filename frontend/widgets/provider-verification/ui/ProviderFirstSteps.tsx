@@ -1,7 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Button, Paper, Stack, Step, StepButton, StepLabel, Stepper, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Paper,
+  Stack,
+  Step,
+  StepButton,
+  StepLabel,
+  Stepper,
+  Typography,
+} from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { visuallyHidden } from "@mui/utils";
 import Link from "@/shared/ui/Link";
@@ -11,7 +21,9 @@ type Props = Pick<FirstSteps, "progressLabel" | "steps">;
 
 export function ProviderFirstSteps({ progressLabel, steps }: Props) {
   const firstOpen = steps.findIndex((step) => !step.done);
-  const [selected, setSelected] = useState(firstOpen === -1 ? steps.length - 1 : firstOpen);
+  const [selected, setSelected] = useState(
+    firstOpen === -1 ? steps.length - 1 : firstOpen,
+  );
   const step = steps[selected];
 
   return (
@@ -22,7 +34,12 @@ export function ProviderFirstSteps({ progressLabel, steps }: Props) {
       sx={{ p: { xs: 2, sm: 3 }, maxWidth: 800 }}
     >
       <Stack spacing={3}>
-        <Typography id="first-steps-title" component="h2" variant="h6" sx={{ fontWeight: 800 }}>
+        <Typography
+          id="first-steps-title"
+          component="h2"
+          variant="h6"
+          sx={{ fontWeight: 700 }}
+        >
           Первые шаги
           <Box component="span" sx={visuallyHidden}>
             , выполнено {progressLabel} обязательных
@@ -47,7 +64,10 @@ export function ProviderFirstSteps({ progressLabel, steps }: Props) {
                 aria-current={index === selected ? "step" : undefined}
                 optional={
                   item.optional ? (
-                    <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "text.secondary" }}
+                    >
                       по желанию
                     </Typography>
                   ) : undefined
@@ -74,11 +94,21 @@ export function ProviderFirstSteps({ progressLabel, steps }: Props) {
             }}
           >
             <Stack spacing={0.75} sx={{ minWidth: 0 }}>
-              <Typography component="h3" sx={{ fontSize: 18, fontWeight: 800, lineHeight: 1.35 }}>
+              <Typography
+                component="h3"
+                variant="h3"
+                sx={{ fontSize: "1.125rem", fontWeight: 700, lineHeight: 1.5 }}
+              >
                 {step.title}
               </Typography>
               {step.note ? (
-                <Typography variant="body2" sx={{ color: step.error ? "error.main" : "text.secondary", maxWidth: "60ch" }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: step.error ? "error.main" : "text.secondary",
+                    maxWidth: "60ch",
+                  }}
+                >
                   {step.note}
                 </Typography>
               ) : null}
@@ -91,7 +121,9 @@ export function ProviderFirstSteps({ progressLabel, steps }: Props) {
                 sx={{
                   flex: "0 0 auto",
                   minHeight: 44,
-                  ...(step.current || step.error ? {} : { color: "text.primary", borderColor: "primary.dark" }),
+                  ...(step.current || step.error
+                    ? {}
+                    : { color: "text.primary", borderColor: "primary.dark" }),
                 }}
               >
                 {step.actionLabel}

@@ -4,8 +4,22 @@ import { useMemo, useState } from "react";
 import Groups2OutlinedIcon from "@mui/icons-material/Groups2Outlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
-import { Box, Button, Chip, Paper, Stack, TextField, Typography } from "@mui/material";
-import { formatRequestDate, getRequestStatusLabel, isOpenRequestStatus, type RequestCustomerDto, type RequestStatus } from "@/entities/request";
+import {
+  Box,
+  Button,
+  Chip,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
+import {
+  formatRequestDate,
+  getRequestStatusLabel,
+  isOpenRequestStatus,
+  type RequestCustomerDto,
+  type RequestStatus,
+} from "@/entities/request";
 
 type Props = {
   initialOrders: RequestCustomerDto[];
@@ -60,9 +74,13 @@ function summarizeClients(orders: RequestCustomerDto[]) {
 
     if (existing) {
       existing.ordersCount += 1;
-      existing.statuses[order.status] = (existing.statuses[order.status] ?? 0) + 1;
+      existing.statuses[order.status] =
+        (existing.statuses[order.status] ?? 0) + 1;
 
-      if (new Date(order.createdAt).getTime() > new Date(existing.lastOrderAt).getTime()) {
+      if (
+        new Date(order.createdAt).getTime() >
+        new Date(existing.lastOrderAt).getTime()
+      ) {
         existing.lastOrderAt = order.createdAt;
       }
 
@@ -75,7 +93,11 @@ function summarizeClients(orders: RequestCustomerDto[]) {
       }
 
       const title = order.serviceTitle ?? "";
-      if (title && !existing.recentServiceTitles.includes(title) && existing.recentServiceTitles.length < 3) {
+      if (
+        title &&
+        !existing.recentServiceTitles.includes(title) &&
+        existing.recentServiceTitles.length < 3
+      ) {
         existing.recentServiceTitles.push(title);
       }
 
@@ -95,14 +117,20 @@ function summarizeClients(orders: RequestCustomerDto[]) {
   }
 
   return [...clients.values()].sort((left, right) => {
-    return new Date(right.lastOrderAt).getTime() - new Date(left.lastOrderAt).getTime();
+    return (
+      new Date(right.lastOrderAt).getTime() -
+      new Date(left.lastOrderAt).getTime()
+    );
   });
 }
 
 export function ProClientsBoard({ initialOrders }: Props) {
   const [search, setSearch] = useState("");
 
-  const clients = useMemo(() => summarizeClients(initialOrders), [initialOrders]);
+  const clients = useMemo(
+    () => summarizeClients(initialOrders),
+    [initialOrders],
+  );
   const stats = useMemo(() => {
     return clients.reduce(
       (acc, client) => {
@@ -117,7 +145,7 @@ export function ProClientsBoard({ initialOrders }: Props) {
         totalClients: 0,
         totalOrders: 0,
         repeatClients: 0,
-      }
+      },
     );
   }, [clients]);
 
@@ -129,9 +157,15 @@ export function ProClientsBoard({ initialOrders }: Props) {
     }
 
     return clients.filter((client) => {
-      return [client.customerName, client.customerEmail, ...client.recentServiceTitles]
+      return [
+        client.customerName,
+        client.customerEmail,
+        ...client.recentServiceTitles,
+      ]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(normalizedSearch));
+        .some((value) =>
+          String(value).toLowerCase().includes(normalizedSearch),
+        );
     });
   }, [clients, search]);
 
@@ -139,11 +173,16 @@ export function ProClientsBoard({ initialOrders }: Props) {
     return (
       <Paper variant="outlined" sx={{ p: 3 }}>
         <Stack spacing={1.5} sx={{ alignItems: "flex-start" }}>
-          <Typography sx={{ fontWeight: 800 }}>Пока нет клиентов</Typography>
+          <Typography sx={{ fontWeight: 700 }}>Пока нет клиентов</Typography>
           <Typography sx={{ color: "text.secondary" }}>
             Они появятся здесь, когда по вашей услуге оформят первый заказ.
           </Typography>
-          <Button component="a" href="/pro/services/list" variant="contained" sx={{ minHeight: 44 }}>
+          <Button
+            component="a"
+            href="/pro/services"
+            variant="contained"
+            sx={{ minHeight: 44 }}
+          >
             К услугам
           </Button>
         </Stack>
@@ -165,17 +204,22 @@ export function ProClientsBoard({ initialOrders }: Props) {
         })}
       >
         <Stack spacing={2}>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{
-            alignItems: { md: "center" }
-          }}>
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={1.5}
+            sx={{
+              alignItems: { md: "center" },
+            }}
+          >
             <Stack
               direction="row"
               spacing={1.25}
               sx={{
                 alignItems: "center",
                 flex: 1,
-                minWidth: 0
-              }}>
+                minWidth: 0,
+              }}
+            >
               <Box
                 sx={{
                   width: 42,
@@ -191,49 +235,77 @@ export function ProClientsBoard({ initialOrders }: Props) {
                 <Groups2OutlinedIcon fontSize="small" />
               </Box>
               <Box>
-                <Typography variant="h6" sx={{
-                  fontWeight: 800
-                }}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontWeight: 700,
+                  }}
+                >
                   База клиентов по заказам
                 </Typography>
-                <Typography sx={{
-                  color: "text.secondary"
-                }}>
-                  Здесь собраны все заказчики, которые уже оформили хотя бы один заказ у активного исполнителя.
+                <Typography
+                  sx={{
+                    color: "text.secondary",
+                  }}
+                >
+                  Здесь собраны все заказчики, которые уже оформили хотя бы один
+                  заказ у активного исполнителя.
                 </Typography>
               </Box>
             </Stack>
-            <Chip label={`${stats.totalClients} клиентов`} color="primary" variant="filled" />
+            <Chip
+              label={`${stats.totalClients} клиентов`}
+              color="primary"
+              variant="filled"
+            />
           </Stack>
 
           <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
             <Paper variant="outlined" sx={{ p: 1.5, flex: 1, minWidth: 0 }}>
-              <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.06em" }}>
+              <Typography
+                variant="overline"
+                sx={{ color: "text.secondary", letterSpacing: "0.06em" }}
+              >
                 Всего клиентов
               </Typography>
-              <Typography variant="h5" sx={{
-                fontWeight: 800
-              }}>
+              <Typography
+                variant="h5"
+                sx={{
+                  fontWeight: 700,
+                }}
+              >
                 {stats.totalClients}
               </Typography>
             </Paper>
             <Paper variant="outlined" sx={{ p: 1.5, flex: 1, minWidth: 0 }}>
-              <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.06em" }}>
+              <Typography
+                variant="overline"
+                sx={{ color: "text.secondary", letterSpacing: "0.06em" }}
+              >
                 Всего заказов
               </Typography>
-              <Typography variant="h5" sx={{
-                fontWeight: 800
-              }}>
+              <Typography
+                variant="h5"
+                sx={{
+                  fontWeight: 700,
+                }}
+              >
                 {stats.totalOrders}
               </Typography>
             </Paper>
             <Paper variant="outlined" sx={{ p: 1.5, flex: 1, minWidth: 0 }}>
-              <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.06em" }}>
+              <Typography
+                variant="overline"
+                sx={{ color: "text.secondary", letterSpacing: "0.06em" }}
+              >
                 Повторные клиенты
               </Typography>
-              <Typography variant="h5" sx={{
-                fontWeight: 800
-              }}>
+              <Typography
+                variant="h5"
+                sx={{
+                  fontWeight: 700,
+                }}
+              >
                 {stats.repeatClients}
               </Typography>
             </Paper>
@@ -250,9 +322,14 @@ export function ProClientsBoard({ initialOrders }: Props) {
 
       <Stack spacing={2}>
         {filteredClients.map((client) => {
-          const openCount = Object.entries(client.statuses).reduce((sum, [status, count]) => {
-            return isOpenRequestStatus(status as RequestStatus) ? sum + (count ?? 0) : sum;
-          }, 0);
+          const openCount = Object.entries(client.statuses).reduce(
+            (sum, [status, count]) => {
+              return isOpenRequestStatus(status as RequestStatus)
+                ? sum + (count ?? 0)
+                : sum;
+            },
+            0,
+          );
           const completedCount = client.statuses.COMPLETED ?? 0;
           const cancelledCount = client.statuses.CANCELLED ?? 0;
 
@@ -271,28 +348,44 @@ export function ProClientsBoard({ initialOrders }: Props) {
                 spacing={2}
                 sx={{
                   justifyContent: "space-between",
-                  alignItems: { md: "flex-start" }
-                }}>
+                  alignItems: { md: "flex-start" },
+                }}
+              >
                 <Stack spacing={1.25} sx={{ minWidth: 0, flex: 1 }}>
                   <Box>
-                    <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.08em" }}>
+                    <Typography
+                      variant="overline"
+                      sx={{ color: "text.secondary", letterSpacing: "0.08em" }}
+                    >
                       Клиент
                     </Typography>
-                    <Typography variant="h6" sx={{
-                      fontWeight: 700
-                    }}>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: 700,
+                      }}
+                    >
                       {getClientLabel(client)}
                     </Typography>
                   </Box>
 
-                  <Stack direction="row" spacing={1} useFlexGap sx={{
-                    flexWrap: "wrap"
-                  }}>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    useFlexGap
+                    sx={{
+                      flexWrap: "wrap",
+                    }}
+                  >
                     <Chip
                       size="small"
                       variant="outlined"
                       icon={<PersonOutlineOutlinedIcon />}
-                      label={client.customerName || client.customerEmail || "Контакт не заполнен"}
+                      label={
+                        client.customerName ||
+                        client.customerEmail ||
+                        "Контакт не заполнен"
+                      }
                     />
                     <Chip
                       size="small"
@@ -303,24 +396,47 @@ export function ProClientsBoard({ initialOrders }: Props) {
                     />
                   </Stack>
 
-                  <Stack direction="row" spacing={1} useFlexGap sx={{
-                    flexWrap: "wrap"
-                  }}>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    useFlexGap
+                    sx={{
+                      flexWrap: "wrap",
+                    }}
+                  >
                     {openCount > 0 ? (
-                      <Chip size="small" color="info" variant="filled" label={`В работе: ${openCount}`} />
+                      <Chip
+                        size="small"
+                        color="info"
+                        variant="filled"
+                        label={`В работе: ${openCount}`}
+                      />
                     ) : null}
                     {completedCount > 0 ? (
-                      <Chip size="small" color="success" variant="filled" label={`Завершенных: ${completedCount}`} />
+                      <Chip
+                        size="small"
+                        color="success"
+                        variant="filled"
+                        label={`Завершенных: ${completedCount}`}
+                      />
                     ) : null}
                     {cancelledCount > 0 ? (
-                      <Chip size="small" color="default" variant="outlined" label={`Отмененных: ${cancelledCount}`} />
+                      <Chip
+                        size="small"
+                        color="default"
+                        variant="outlined"
+                        label={`Отмененных: ${cancelledCount}`}
+                      />
                     ) : null}
                   </Stack>
 
                   {client.recentServiceTitles.length > 0 ? (
-                    <Typography variant="body2" sx={{
-                      color: "text.secondary"
-                    }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "text.secondary",
+                      }}
+                    >
                       Услуги: {client.recentServiceTitles.join(", ")}
                     </Typography>
                   ) : null}
@@ -335,27 +451,43 @@ export function ProClientsBoard({ initialOrders }: Props) {
                     flexShrink: 0,
                   }}
                 >
-                  <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.08em" }}>
+                  <Typography
+                    variant="overline"
+                    sx={{ color: "text.secondary", letterSpacing: "0.08em" }}
+                  >
                     История клиента
                   </Typography>
-                  <Typography variant="body2" sx={{
-                    color: "text.secondary"
-                  }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "text.secondary",
+                    }}
+                  >
                     Последний заказ: {formatRequestDate(client.lastOrderAt)}
                   </Typography>
-                  <Typography variant="body2" sx={{
-                    color: "text.secondary"
-                  }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "text.secondary",
+                    }}
+                  >
                     Статусы:{" "}
                     {Object.entries(client.statuses)
                       .filter(([, count]) => (count ?? 0) > 0)
-                      .map(([status, count]) => `${getRequestStatusLabel(status as RequestStatus)} ${count}`)
+                      .map(
+                        ([status, count]) =>
+                          `${getRequestStatusLabel(status as RequestStatus)} ${count}`,
+                      )
                       .join(", ")}
                   </Typography>
-                  <Typography variant="body2" sx={{
-                    color: "text.secondary"
-                  }}>
-                    Раздел агрегирует клиентов только из заказов активного исполнителя, без отдельной CRM-сущности.
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "text.secondary",
+                    }}
+                  >
+                    Раздел агрегирует клиентов только из заказов активного
+                    исполнителя, без отдельной CRM-сущности.
                   </Typography>
                 </Box>
               </Stack>
@@ -365,10 +497,13 @@ export function ProClientsBoard({ initialOrders }: Props) {
 
         {clients.length > 0 && filteredClients.length === 0 ? (
           <Paper variant="outlined" sx={{ p: 3 }}>
-            <Typography sx={{
-              color: "text.secondary"
-            }}>
-              По текущему запросу клиенты не найдены. Попробуйте изменить строку поиска.
+            <Typography
+              sx={{
+                color: "text.secondary",
+              }}
+            >
+              По текущему запросу клиенты не найдены. Попробуйте изменить строку
+              поиска.
             </Typography>
           </Paper>
         ) : null}

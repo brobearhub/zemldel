@@ -27,7 +27,7 @@ export type ProfileNavSection = "profile" | "orders" | "requests" | "documents";
 
 /** Описание пункта — компактнее title, чтобы в узком сайдбаре меньше переносилось. */
 const NAV_SECONDARY_TYPOGRAPHY_PROPS = {
-  sx: { mt: 0.25, fontSize: 11, lineHeight: 1.25 },
+  sx: { mt: 0.25, fontSize: "1rem", lineHeight: 1.5 },
 } as const;
 
 /** Активный пункт: без фона, акцент warning на иконке и title (бордер — отдельный индикатор). */
@@ -114,7 +114,9 @@ export function ProfileSidebarNav({
     }
 
     const updateIndicator = () => {
-      const active = list.querySelector<HTMLElement>('[data-nav-active="true"]');
+      const active = list.querySelector<HTMLElement>(
+        '[data-nav-active="true"]',
+      );
       if (!active) {
         setIndicator(null);
         return;
@@ -160,14 +162,29 @@ export function ProfileSidebarNav({
         }}
       >
         {collapsed ? null : (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.25, minWidth: 0 }}>
-            <Typography variant="overline" sx={{ fontWeight: 800, letterSpacing: "0.08em" }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.25,
+              minWidth: 0,
+            }}
+          >
+            <Typography
+              variant="overline"
+              sx={{ fontWeight: 700, letterSpacing: "0.08em" }}
+            >
               Профиль
             </Typography>
-            <Tooltip title={showDescriptions ? "Скрыть описания" : "Показать описания"} placement="right">
+            <Tooltip
+              title={showDescriptions ? "Скрыть описания" : "Показать описания"}
+              placement="right"
+            >
               <IconButton
                 size="small"
-                aria-label={showDescriptions ? "Скрыть описания" : "Показать описания"}
+                aria-label={
+                  showDescriptions ? "Скрыть описания" : "Показать описания"
+                }
                 aria-pressed={showDescriptions}
                 onClick={() => setShowDescriptions((value) => !value)}
                 sx={{ color: "text.disabled" }}
@@ -185,7 +202,11 @@ export function ProfileSidebarNav({
               onClick={onToggleCollapsed}
               disabled={!onToggleCollapsed}
             >
-              {collapsed ? <ChevronRightRoundedIcon fontSize="small" /> : <ChevronLeftRoundedIcon fontSize="small" />}
+              {collapsed ? (
+                <ChevronRightRoundedIcon fontSize="small" />
+              ) : (
+                <ChevronLeftRoundedIcon fontSize="small" />
+              )}
             </IconButton>
           </span>
         </Tooltip>
@@ -245,7 +266,12 @@ export function ProfileSidebarNav({
                 ...SELECTED_NAV_SX,
               }}
             >
-              <ListItemIcon sx={{ minWidth: collapsed ? "unset" : 36, justifyContent: "center" }}>
+              <ListItemIcon
+                sx={{
+                  minWidth: collapsed ? "unset" : 36,
+                  justifyContent: "center",
+                }}
+              >
                 {icon}
               </ListItemIcon>
               {collapsed ? null : (
@@ -254,8 +280,9 @@ export function ProfileSidebarNav({
                   secondary={showDescriptions ? item.description : undefined}
                   slotProps={{
                     primary: { sx: { fontWeight: isSelected ? 700 : 600 } },
-                    secondary: NAV_SECONDARY_TYPOGRAPHY_PROPS
-                  }} />
+                    secondary: NAV_SECONDARY_TYPOGRAPHY_PROPS,
+                  }}
+                />
               )}
             </ListItemButton>
           );

@@ -29,10 +29,16 @@ export default async function ProLayout({ children }: Props) {
     user.systemRole !== "PLATFORM_ADMIN" &&
     resolveAccountKind(user) === "PROVIDER" &&
     !getActiveMembership(user) &&
-    (pathname === "/pro" || pathname.startsWith("/pro/"))
+    (pathname.startsWith("/pro/"))
   ) {
     redirect("/providers/new");
   }
 
-  return <ProCabinetLayout>{children}</ProCabinetLayout>;
+  const providerName = getActiveMembership(user ?? null)?.providerName;
+
+  return (
+    <ProCabinetLayout providerName={providerName ?? "Кабинет исполнителя"}>
+      {children}
+    </ProCabinetLayout>
+  );
 }

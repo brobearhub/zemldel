@@ -24,10 +24,22 @@ function avatarInitials(name: string | null | undefined): string {
 }
 
 /** Why: чужая реплика — только текст, своя — аватар слева. Пустое место строки остаётся кликабельным. */
-export function ReplyPreviewLines({ lines, ownAuthor, ownAvatar = null }: Props) {
+export function ReplyPreviewLines({
+  lines,
+  ownAuthor,
+  ownAvatar = null,
+}: Props) {
   const avatarName = ownAvatar?.name?.trim() || "Вы";
   return (
-    <Stack sx={{ gap: "6px", width: "fit-content", maxWidth: "100%", minWidth: 0, pointerEvents: "none" }}>
+    <Stack
+      sx={{
+        gap: "6px",
+        width: "fit-content",
+        maxWidth: "100%",
+        minWidth: 0,
+        pointerEvents: "none",
+      }}
+    >
       {lines.map((line) => {
         const own = line.author === ownAuthor;
         const text = line.body;
@@ -35,19 +47,25 @@ export function ReplyPreviewLines({ lines, ownAuthor, ownAvatar = null }: Props)
           <Stack
             key={line.author}
             direction="row"
-            sx={{ alignItems: "center", gap: 1, maxWidth: "100%", minWidth: 0, pointerEvents: "auto" }}
+            sx={{
+              alignItems: "center",
+              gap: 1,
+              maxWidth: "100%",
+              minWidth: 0,
+              pointerEvents: "auto",
+            }}
           >
             {own ? (
               <CdnAvatar
                 src={ownAvatar?.src || undefined}
                 alt={avatarName}
                 sx={{
-                  width: 18,
-                  height: 18,
+                  width: 32,
+                  height: 32,
                   flexShrink: 0,
                   bgcolor: "primary.main",
                   color: "primary.contrastText",
-                  fontSize: 9,
+                  fontSize: "1rem",
                   fontWeight: 700,
                 }}
               >
@@ -55,12 +73,11 @@ export function ReplyPreviewLines({ lines, ownAuthor, ownAvatar = null }: Props)
               </CdnAvatar>
             ) : null}
             <Typography
-              noWrap
               title={text}
               sx={{
                 minWidth: 0,
-                fontSize: 14,
-                lineHeight: 1.35,
+                fontSize: "1rem",
+                lineHeight: 1.5,
                 color: own ? "text.secondary" : "text.primary",
               }}
             >

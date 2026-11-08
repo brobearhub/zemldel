@@ -2,6 +2,10 @@ import type {} from "@mui/material/styles";
 import type { AppMedia } from "./breakpoints";
 
 declare module "@mui/material/styles" {
+  interface CssThemeVariables {
+    enabled: true;
+  }
+
   interface BreakpointOverrides {
     xs: true;
     sm: true;
@@ -41,6 +45,10 @@ declare module "@mui/material/styles" {
     media: AppMedia;
 
     custom: {
+      preserveAuthAppearance?: boolean;
+      textColors?: {
+        footer: string;
+      };
       gradients: {
         /** Sage → cream atmospheric gradient */
         sunset: string;
@@ -70,4 +78,3 @@ declare module "@mui/material/styles" {
     custom?: Theme["custom"];
   }
 }
-

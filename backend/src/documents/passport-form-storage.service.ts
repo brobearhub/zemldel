@@ -43,8 +43,12 @@ export class PassportFormStorageService {
           Body: body,
           ContentType: 'application/json',
           CacheControl: 'private, no-store',
-          ServerSideEncryption: 'aws:kms',
-          SSEKMSKeyId: kmsKeyId,
+          ...(kmsKeyId
+            ? {
+                ServerSideEncryption: 'aws:kms' as const,
+                SSEKMSKeyId: kmsKeyId,
+              }
+            : {}),
         }),
       );
       return digest(body);

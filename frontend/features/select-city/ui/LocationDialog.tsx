@@ -29,9 +29,20 @@ type Props = {
   onReset: () => void;
 };
 
-export function LocationDialog({ open, title, value, busy, error, onClose, onSelect, onReset }: Props) {
+export function LocationDialog({
+  open,
+  title,
+  value,
+  busy,
+  error,
+  onClose,
+  onSelect,
+  onReset,
+}: Props) {
   const theme = useTheme();
-  const fullScreen = useMediaQuery(theme.breakpoints.down("sm"), { noSsr: true });
+  const fullScreen = useMediaQuery(theme.breakpoints.down("sm"), {
+    noSsr: true,
+  });
   const [resetClicked, setResetClicked] = useState(false);
   const resetPending = Boolean(busy) && resetClicked;
 
@@ -57,11 +68,34 @@ export function LocationDialog({ open, title, value, busy, error, onClose, onSel
         },
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0, pl: 6, pr: 1, pt: 1, pb: 0.5 }}>
-        <DialogTitle sx={{ flex: 1, p: 0, textAlign: "center", color: "text.primary", fontWeight: 800 }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          flexShrink: 0,
+          pl: 6,
+          pr: 1,
+          pt: 1,
+          pb: 0.5,
+        }}
+      >
+        <DialogTitle
+          sx={{
+            flex: 1,
+            p: 0,
+            textAlign: "center",
+            color: "text.primary",
+            fontWeight: 700,
+          }}
+        >
           {title}
         </DialogTitle>
-        <IconButton aria-label="Закрыть" onClick={onClose} disabled={busy} sx={{ color: "text.primary" }}>
+        <IconButton
+          aria-label="Закрыть"
+          onClick={onClose}
+          disabled={busy}
+          sx={{ color: "text.primary" }}
+        >
           <CloseRoundedIcon />
         </IconButton>
       </Box>
@@ -82,9 +116,24 @@ export function LocationDialog({ open, title, value, busy, error, onClose, onSel
             {error}
           </Alert>
         ) : null}
-        <LocationPicker value={value} disabled={busy} fill={fullScreen} onSelect={onSelect} />
+        <LocationPicker
+          value={value}
+          disabled={busy}
+          fill={fullScreen}
+          onSelect={onSelect}
+        />
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2, pt: 2, flexShrink: 0, bgcolor: "background.default", borderTop: "1px dashed", borderColor: "grey.300" }}>
+      <DialogActions
+        sx={{
+          px: 3,
+          pb: 2,
+          pt: 2,
+          flexShrink: 0,
+          bgcolor: "background.default",
+          borderTop: "1px dashed",
+          borderColor: "grey.300",
+        }}
+      >
         <Box sx={{ flex: 1, display: "flex", justifyContent: "center" }}>
           {busy && !resetPending ? <CircularProgress size={22} /> : null}
         </Box>
@@ -95,7 +144,11 @@ export function LocationDialog({ open, title, value, busy, error, onClose, onSel
           }}
           loading={resetPending}
           disabled={busy || !value}
-          sx={{ color: "warning.light", fontWeight: 800, textTransform: "none" }}
+          sx={{
+            color: "warning.light",
+            fontWeight: 700,
+            textTransform: "none",
+          }}
         >
           Сбросить
         </Button>

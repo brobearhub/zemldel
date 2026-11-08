@@ -1,7 +1,10 @@
 "use client";
 
 import { Stack, Typography } from "@mui/material";
-import { formatRubles, resolveRequestPriceView } from "@/entities/request/lib/request-finance";
+import {
+  formatRubles,
+  resolveRequestPriceView,
+} from "@/entities/request/lib/request-finance";
 import type { RequestPriceProposalDto } from "@/entities/request/dto/request.dto";
 import Link from "@/shared/ui/Link";
 
@@ -21,11 +24,17 @@ export function RequestPriceBlock({
   serviceId,
   statedOnly = false,
 }: Props) {
-  const view = resolveRequestPriceView({ totalAmountRubles, servicePriceRubles, priceProposal });
+  const view = resolveRequestPriceView({
+    totalAmountRubles,
+    servicePriceRubles,
+    priceProposal,
+  });
   if (statedOnly) {
     return (
       <Typography variant="body2" sx={{ color: "text.secondary" }}>
-        {view.statedAmount == null ? "Цена не согласована" : `Цена: ${formatRubles(view.statedAmount)}`}
+        {view.statedAmount == null
+          ? "Цена не согласована"
+          : `Цена: ${formatRubles(view.statedAmount)}`}
       </Typography>
     );
   }
@@ -38,26 +47,35 @@ export function RequestPriceBlock({
         useFlexGap
         sx={{ alignItems: "baseline", flexWrap: "wrap", minWidth: 0 }}
       >
-        <Typography variant="body2" sx={{ color: "text.secondary", overflowWrap: "anywhere" }}>
+        <Typography
+          variant="body2"
+          sx={{ color: "text.secondary", overflowWrap: "anywhere" }}
+        >
           {view.headline}
         </Typography>
         {serviceId ? (
           <Link
             href={`/services/${serviceId}`}
             onClick={(event) => event.stopPropagation()}
-            sx={{ fontWeight: 700, fontSize: 14 }}
+            sx={{ fontWeight: 700, fontSize: "1rem" }}
           >
             Услуга
           </Link>
         ) : null}
       </Stack>
       {view.changedNote ? (
-        <Typography variant="body2" sx={{ color: "text.secondary", overflowWrap: "anywhere" }}>
+        <Typography
+          variant="body2"
+          sx={{ color: "text.secondary", overflowWrap: "anywhere" }}
+        >
           {view.changedNote}
         </Typography>
       ) : null}
       {view.servicePriceLabel ? (
-        <Typography variant="body2" sx={{ color: "text.secondary", overflowWrap: "anywhere" }}>
+        <Typography
+          variant="body2"
+          sx={{ color: "text.secondary", overflowWrap: "anywhere" }}
+        >
           {view.servicePriceLabel}
         </Typography>
       ) : null}

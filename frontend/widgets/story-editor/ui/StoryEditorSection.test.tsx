@@ -58,18 +58,24 @@ describe("StoryEditorSection", () => {
       expired: false,
     };
     let published = false;
-    const fetchMock = vi.spyOn(global, "fetch").mockImplementation((input, init) => {
-      const url = String(input);
-      if (init?.method === "POST") {
-        published = true;
-        return json(created);
-      }
-      if (url.includes("/insights")) return json(emptyInsights);
-      if (url.includes("/saved") || url.includes("/audience")) {
-        return json(url.includes("/audience") ? { followers: [], unfollows: [] } : { items: [] });
-      }
-      return json({ items: published ? [created] : [] });
-    });
+    const fetchMock = vi
+      .spyOn(global, "fetch")
+      .mockImplementation((input, init) => {
+        const url = String(input);
+        if (init?.method === "POST") {
+          published = true;
+          return json(created);
+        }
+        if (url.includes("/insights")) return json(emptyInsights);
+        if (url.includes("/saved") || url.includes("/audience")) {
+          return json(
+            url.includes("/audience")
+              ? { followers: [], unfollows: [] }
+              : { items: [] },
+          );
+        }
+        return json({ items: published ? [created] : [] });
+      });
 
     render(<StoryEditorSection scope="user" />);
     const user = userEvent.setup();
@@ -79,7 +85,13 @@ describe("StoryEditorSection", () => {
     await user.click(screen.getByRole("button", { name: "Опубликовать" }));
 
     await screen.findByText("Ищу инженера");
-    const createCall = fetchMock.mock.calls.find((call) => call[1] && typeof call[1] === "object" && "method" in call[1] && call[1].method === "POST");
+    const createCall = fetchMock.mock.calls.find(
+      (call) =>
+        call[1] &&
+        typeof call[1] === "object" &&
+        "method" in call[1] &&
+        call[1].method === "POST",
+    );
     expect(createCall?.[0]).toBe("/api/stories");
     const body = createCall?.[1]?.body;
     expect(body).toBeInstanceOf(FormData);
@@ -105,15 +117,21 @@ describe("StoryEditorSection", () => {
       expiresAt: "2026-10-07T10:00:00.000Z",
       expired: false,
     };
-    const fetchMock = vi.spyOn(global, "fetch").mockImplementation((input, init) => {
-      const url = String(input);
-      if (init?.method === "POST") return json(created);
-      if (url.includes("/insights")) return json(emptyInsights);
-      if (url.includes("/saved") || url.includes("/audience")) {
-        return json(url.includes("/audience") ? { followers: [], unfollows: [] } : { items: [] });
-      }
-      return json({ items: [] });
-    });
+    const fetchMock = vi
+      .spyOn(global, "fetch")
+      .mockImplementation((input, init) => {
+        const url = String(input);
+        if (init?.method === "POST") return json(created);
+        if (url.includes("/insights")) return json(emptyInsights);
+        if (url.includes("/saved") || url.includes("/audience")) {
+          return json(
+            url.includes("/audience")
+              ? { followers: [], unfollows: [] }
+              : { items: [] },
+          );
+        }
+        return json({ items: [] });
+      });
 
     render(<StoryEditorSection scope="user" />);
     const user = userEvent.setup();
@@ -123,13 +141,19 @@ describe("StoryEditorSection", () => {
     await user.paste(pasted);
 
     expect(field).toHaveValue(kept);
-    expect(screen.getByText(`${STORY_TEXT_MAX_LENGTH} / ${STORY_TEXT_MAX_LENGTH}`)).toBeInTheDocument();
+    expect(
+      screen.getByText(`${STORY_TEXT_MAX_LENGTH} / ${STORY_TEXT_MAX_LENGTH}`),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Опубликовать" }));
 
     await waitFor(() => {
       const createCall = fetchMock.mock.calls.find(
-        (call) => call[1] && typeof call[1] === "object" && "method" in call[1] && call[1].method === "POST",
+        (call) =>
+          call[1] &&
+          typeof call[1] === "object" &&
+          "method" in call[1] &&
+          call[1].method === "POST",
       );
       expect(createCall).toBeTruthy();
       const body = createCall?.[1]?.body;
@@ -157,23 +181,37 @@ describe("StoryEditorSection", () => {
       const url = String(input);
       if (url.includes("/insights")) return json(emptyInsights);
       if (url.includes("/saved")) return json({ items: [] });
-      if (url.includes("/audience")) return json({ followers: [], unfollows: [] });
+      if (url.includes("/audience"))
+        return json({ followers: [], unfollows: [] });
       return json({ items: [created] });
     });
 
     render(<StoryEditorSection scope="user" />);
 
-    const card = await screen.findByRole("button", { name: "Продаю участок за 5000 ₽" });
-    expect(card.querySelector("img")).toHaveAttribute("src", "https://cdn.example/story.jpg");
-    expect(screen.queryByRole("button", { name: "Завершена" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Сохранена" })).not.toBeInTheDocument();
+    const card = await screen.findByRole("button", {
+      name: "Продаю участок за 5000 ₽",
+    });
+    expect(card.querySelector("img")).toHaveAttribute(
+      "src",
+      "https://cdn.example/story.jpg",
+    );
+    expect(
+      screen.queryByRole("button", { name: "Завершена" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Сохранена" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Текст")).not.toBeInTheDocument();
 
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "Новая" }));
-    expect(screen.queryByRole("button", { name: "Продаю участок за 5000 ₽" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Продаю участок за 5000 ₽" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("Загрузить фото")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Новая история" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Новая история" }),
+    ).toBeInTheDocument();
   });
 
   it("крестик отменяет создание и сбрасывает черновик", async () => {
@@ -181,7 +219,8 @@ describe("StoryEditorSection", () => {
       const url = String(input);
       if (url.includes("/insights")) return json(emptyInsights);
       if (url.includes("/saved")) return json({ items: [] });
-      if (url.includes("/audience")) return json({ followers: [], unfollows: [] });
+      if (url.includes("/audience"))
+        return json({ followers: [], unfollows: [] });
       return json({ items: [] });
     });
 
@@ -193,11 +232,16 @@ describe("StoryEditorSection", () => {
     await user.click(screen.getByRole("button", { name: "Отменить" }));
 
     expect(screen.queryByLabelText("Текст")).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Новая история" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Новая история" }),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Новая" }));
     expect(screen.getByLabelText("Текст")).toHaveValue("");
-    expect(screen.getByRole("button", { name: "1 д" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "1 д" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   it("показывает счётчики показа и аудитории", async () => {
@@ -221,7 +265,13 @@ describe("StoryEditorSection", () => {
       if (url.includes("/saved")) return json({ items: [] });
       if (url.includes("/audience")) {
         return json({
-          followers: [{ userId: "u1", name: "Pavel Usov", at: "2026-10-07T10:00:00.000Z" }],
+          followers: [
+            {
+              userId: "u1",
+              name: "Pavel Usov",
+              at: "2026-10-07T10:00:00.000Z",
+            },
+          ],
           unfollows: [],
           replyCount: 4,
         });
@@ -234,14 +284,28 @@ describe("StoryEditorSection", () => {
     await screen.findByText("Pavel Usov");
     const liveCard = screen.getByRole("button", { name: "Мои истории 1" });
     const createTile = screen.getByRole("button", { name: "Новая" });
-    const insightsHeading = await screen.findByRole("heading", { name: "Статистика" });
-    expect(createTile.compareDocumentPosition(liveCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(liveCard.compareDocumentPosition(insightsHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const insightsHeading = await screen.findByRole("heading", {
+      name: "Статистика",
+    });
+    expect(
+      createTile.compareDocumentPosition(liveCard) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      liveCard.compareDocumentPosition(insightsHeading) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(liveCard).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("group", { name: "Подписались 1" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Отписались 0" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("group", { name: "Подписались 1" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("group", { name: "Отписались 0" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Ответы 4" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Сохраненные истории 0" })).toHaveAttribute("aria-pressed", "false");
+    expect(
+      screen.getByRole("button", { name: "Сохраненные истории 0" }),
+    ).toHaveAttribute("aria-pressed", "false");
   });
 
   it("открывает сохраненные истории с карточки и подсвечивает её", async () => {
@@ -269,7 +333,8 @@ describe("StoryEditorSection", () => {
       const url = String(input);
       if (url.includes("/insights")) return json(emptyInsights);
       if (url.includes("/saved")) return json({ items: [savedStory] });
-      if (url.includes("/audience")) return json({ followers: [], unfollows: [], replyCount: 0 });
+      if (url.includes("/audience"))
+        return json({ followers: [], unfollows: [], replyCount: 0 });
       return json({ items: [liveStory] });
     });
 
@@ -279,21 +344,35 @@ describe("StoryEditorSection", () => {
       </ThemeProvider>,
     );
     const user = userEvent.setup();
-    const savedCard = await screen.findByRole("button", { name: "Сохраненные истории 1" });
+    const savedCard = await screen.findByRole("button", {
+      name: "Сохраненные истории 1",
+    });
     const mineCard = screen.getByRole("button", { name: "Мои истории 1" });
 
-    expect(screen.queryByRole("button", { name: "Сохранена" })).not.toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "В эфире" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Сохранена" }),
+    ).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "В эфире" }),
+    ).toBeInTheDocument();
     expect(mineCard).toHaveAttribute("aria-pressed", "true");
     expect(savedCard).toHaveAttribute("aria-pressed", "false");
 
     await user.click(savedCard);
     expect(savedCard).toHaveAttribute("aria-pressed", "true");
     expect(mineCard).toHaveAttribute("aria-pressed", "false");
-    expect(window.getComputedStyle(savedCard).backgroundColor).toBe("var(--mui-palette-text-primary)");
-    expect(paletteValue(savedCard, "--mui-palette-text-primary")).toBe("#325e49");
-    expect(screen.getByRole("button", { name: "Закладка" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "В эфире" })).not.toBeInTheDocument();
+    expect(window.getComputedStyle(savedCard).backgroundColor).toBe(
+      "var(--mui-palette-text-primary)",
+    );
+    expect(paletteValue(savedCard, "--mui-palette-text-primary")).toBe(
+      "#325e49",
+    );
+    expect(
+      screen.getByRole("button", { name: "Закладка" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "В эфире" }),
+    ).not.toBeInTheDocument();
 
     await user.click(mineCard);
     expect(mineCard).toHaveAttribute("aria-pressed", "true");
@@ -336,7 +415,8 @@ describe("StoryEditorSection", () => {
       const url = String(input);
       if (url.includes("/insights")) return json(emptyInsights);
       if (url.includes("/saved")) return json({ items: [] });
-      if (url.includes("/audience")) return json({ followers: [], unfollows: [] });
+      if (url.includes("/audience"))
+        return json({ followers: [], unfollows: [] });
       return json({ items: stories });
     });
 
@@ -348,28 +428,50 @@ describe("StoryEditorSection", () => {
     expect(first).toHaveAttribute("aria-current", "true");
     expect(second).not.toHaveAttribute("aria-current");
     expect(first.parentElement).toHaveStyle({ opacity: "1", filter: "none" });
-    expect(second.parentElement).toHaveStyle({ opacity: "0.5", filter: "saturate(0.7)" });
-    expect(heading.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(second.parentElement).toHaveStyle({
+      opacity: "1",
+      filter: "saturate(0.7)",
+    });
+    expect(
+      heading.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
 
     await waitFor(() => {
-      expect(fetchMock.mock.calls.some((call) => String(call[0]).includes("/api/stories/story-1/insights"))).toBe(true);
+      expect(
+        fetchMock.mock.calls.some((call) =>
+          String(call[0]).includes("/api/stories/story-1/insights"),
+        ),
+      ).toBe(true);
     });
     const views = await screen.findByText("просмотров");
-    expect(first.compareDocumentPosition(views) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      first.compareDocumentPosition(views) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
 
     const user = userEvent.setup();
     await user.click(second);
-    expect(screen.getByRole("button", { name: "Вторая" })).toHaveAttribute("aria-current", "true");
-    expect(screen.getByRole("button", { name: "Первая" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("button", { name: "Вторая" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Первая" })).not.toHaveAttribute(
+      "aria-current",
+    );
     await waitFor(() => {
-      expect(fetchMock.mock.calls.some((call) => String(call[0]).includes("/api/stories/story-2/insights"))).toBe(true);
+      expect(
+        fetchMock.mock.calls.some((call) =>
+          String(call[0]).includes("/api/stories/story-2/insights"),
+        ),
+      ).toBe(true);
     });
   });
 
   it("показывает превью выбранного фото", async () => {
     URL.createObjectURL = vi.fn(() => "blob:preview");
     URL.revokeObjectURL = vi.fn();
-    vi.spyOn(global, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ items: [] })));
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ items: [] })),
+    );
 
     render(<StoryEditorSection scope="user" authorName="Анна" />);
     const user = userEvent.setup();

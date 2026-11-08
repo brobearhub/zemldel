@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { Box, Button, IconButton, TextField, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import { clampStoryText, STORY_DURATION_OPTIONS, STORY_TEXT_MAX_LENGTH, type StoryDurationDays } from "@/entities/story";
+import {
+  clampStoryText,
+  STORY_DURATION_OPTIONS,
+  STORY_TEXT_MAX_LENGTH,
+  type StoryDurationDays,
+} from "@/entities/story";
 import { STORY_TILE_HEIGHT } from "./MyStoriesGallery";
 
 type Props = {
@@ -17,7 +22,15 @@ type Props = {
   onCancel: () => void;
 };
 
-export function NewStoryComposer({ text, durationDays, busy, onText, onDuration, onPublish, onCancel }: Props) {
+export function NewStoryComposer({
+  text,
+  durationDays,
+  busy,
+  onText,
+  onDuration,
+  onPublish,
+  onCancel,
+}: Props) {
   const [publishClicked, setPublishClicked] = useState(false);
 
   useEffect(() => {
@@ -37,7 +50,14 @@ export function NewStoryComposer({ text, durationDays, busy, onText, onDuration,
         gap: 1.5,
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1,
+        }}
+      >
         <Typography variant="h5" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
           Новая история
         </Typography>
@@ -57,7 +77,12 @@ export function NewStoryComposer({ text, durationDays, busy, onText, onDuration,
         multiline
         fullWidth
         placeholder="Текст истории"
-        slotProps={{ htmlInput: { "aria-label": "Текст", "aria-describedby": "story-text-count" } }}
+        slotProps={{
+          htmlInput: {
+            "aria-label": "Текст",
+            "aria-describedby": "story-text-count",
+          },
+        }}
         sx={{
           flex: 1,
           minHeight: 0,
@@ -100,7 +125,9 @@ export function NewStoryComposer({ text, durationDays, busy, onText, onDuration,
                 border: 0,
                 borderRadius: 999,
                 py: 1,
-                bgcolor: selected ? (theme) => alpha(theme.palette.primary.main, 0.28) : "transparent",
+                bgcolor: selected
+                  ? (theme) => alpha(theme.palette.primary.main, 0.28)
+                  : "transparent",
                 color: "text.primary",
                 font: "inherit",
                 fontWeight: 700,
@@ -127,7 +154,7 @@ export function NewStoryComposer({ text, durationDays, busy, onText, onDuration,
           px: 2.5,
           py: 0.75,
           fontWeight: 700,
-          fontSize: 15,
+          fontSize: "1rem",
           textTransform: "none",
           boxShadow: "none",
           "&:hover": { boxShadow: "none" },

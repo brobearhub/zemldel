@@ -51,8 +51,9 @@ export function ColorModeToggle({ showLabel = false }: ColorModeToggleProps) {
             color: "common.gray",
             display: { xs: "none", md: "block" },
             fontWeight: 600,
-            fontSize: 12
-          }}>
+            fontSize: "1rem",
+          }}
+        >
           {label}
         </Typography>
       ) : null}

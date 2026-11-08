@@ -2,7 +2,16 @@
 
 import CheckIcon from "@mui/icons-material/Check";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
-import { Box, Button, CircularProgress, Divider, IconButton, Paper, Stack, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  CircularProgress,
+  Divider,
+  IconButton,
+  Paper,
+  Stack,
+  Typography,
+} from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
   formatRequestDate,
@@ -34,8 +43,12 @@ type Props = {
 };
 
 function cardToneBg(tone: CustomerRequestCardTone) {
-  return (theme: { palette: { primary: { main: string }; action: { hover: string } } }) =>
-    tone === "sage" ? alpha(theme.palette.primary.main, 0.18) : theme.palette.action.hover;
+  return (theme: {
+    palette: { primary: { main: string }; action: { hover: string } };
+  }) =>
+    tone === "sage"
+      ? alpha(theme.palette.primary.main, 0.18)
+      : theme.palette.action.hover;
 }
 
 function BoardCard({
@@ -54,7 +67,8 @@ function BoardCard({
   onReply: (item: RequestCustomerDto) => void;
 }) {
   const viewer = useAppSelector((state) => state.auth.user);
-  const { title, letter, photo, metaName, providerReply, customerReply } = getCustomerRequestCardContent(item);
+  const { title, letter, photo, metaName, providerReply, customerReply } =
+    getCustomerRequestCardContent(item);
   const replyLines = visibleReplyPreview({
     lines: orderReplyPreview({
       customerMessage: customerReply,
@@ -105,9 +119,9 @@ function BoardCard({
         <Box
           sx={{
             width: 72,
+            display: { xs: "none", sm: "grid" },
             flexShrink: 0,
             bgcolor: cardToneBg(tone),
-            display: "grid",
             placeItems: "center",
             overflow: "hidden",
           }}
@@ -128,7 +142,7 @@ function BoardCard({
               aria-hidden
               sx={{
                 color: "text.secondary",
-                fontSize: 28,
+                fontSize: "1.75rem",
                 fontWeight: 500,
                 lineHeight: 1,
               }}
@@ -164,12 +178,11 @@ function BoardCard({
               }}
             >
               <Typography
-                noWrap
                 title={title}
                 sx={{
                   fontWeight: 600,
-                  fontSize: 14,
-                  lineHeight: 1.35,
+                  fontSize: "1.125rem",
+                  lineHeight: 26 / 18,
                 }}
               >
                 {title}
@@ -189,7 +202,6 @@ function BoardCard({
               </Box>
               <Typography
                 variant="caption"
-                noWrap
                 title={meta}
                 sx={{
                   color: "text.secondary",
@@ -221,8 +233,8 @@ function BoardCard({
               >
                 <Typography
                   sx={{
-                    fontWeight: 800,
-                    fontSize: 22,
+                    fontWeight: 700,
+                    fontSize: "1.375rem",
                     lineHeight: 1,
                     color: "text.secondaryLight",
                     fontFamily: "monospace",
@@ -262,7 +274,9 @@ function BoardCard({
           </Stack>
           {replyLines.length > 0 ? (
             <>
-              <Divider sx={{ borderBottomStyle: "dashed", borderColor: "divider" }} />
+              <Divider
+                sx={{ borderBottomStyle: "dashed", borderColor: "divider" }}
+              />
               <Stack
                 direction="row"
                 sx={{
@@ -278,12 +292,18 @@ function BoardCard({
                 <ReplyPreviewLines
                   lines={replyLines}
                   ownAuthor="customer"
-                  ownAvatar={{ src: viewer?.image ?? null, name: viewer?.name ?? null }}
+                  ownAvatar={{
+                    src: viewer?.image ?? null,
+                    name: viewer?.name ?? null,
+                  }}
                 />
                 {sending ? (
                   <CircularProgress size={18} aria-label="Отправка" />
                 ) : item.awaitingProviderReply || !providerReply ? (
-                  <Stack direction="row" sx={{ alignItems: "center", gap: 0.5, flexShrink: 0 }}>
+                  <Stack
+                    direction="row"
+                    sx={{ alignItems: "center", gap: 0.5, flexShrink: 0 }}
+                  >
                     {item.awaitingProviderReply ? (
                       <CheckIcon
                         titleAccess="Ответ отправлен"
@@ -291,7 +311,14 @@ function BoardCard({
                         sx={{ fontSize: 18, color: "primary.main" }}
                       />
                     ) : null}
-                    <Typography variant="caption" sx={{ px: 0.5, color: "text.secondary", whiteSpace: "nowrap" }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        px: 0.5,
+                        color: "text.secondary",
+                        whiteSpace: "normal",
+                      }}
+                    >
                       Ждем ответ
                     </Typography>
                   </Stack>
@@ -305,7 +332,7 @@ function BoardCard({
                     }}
                     sx={{
                       flexShrink: 0,
-                      whiteSpace: "nowrap",
+                      whiteSpace: "normal",
                       backgroundColor: "grey.100",
                       "&:hover": {
                         backgroundColor: "primary.main",
@@ -341,19 +368,26 @@ function BoardColumn({
   onReply: (item: RequestCustomerDto) => void;
 }) {
   return (
-    <Stack spacing={1} sx={{ flex: "1 1 0", minWidth: 200, width: 0 }}>
+    <Stack
+      spacing={1}
+      sx={{
+        flex: { xs: "none", md: "1 0 320px" },
+        minWidth: { xs: 0, md: 320 },
+        width: { xs: "100%", md: 320 },
+      }}
+    >
       <Box
         sx={{
           width: 1,
           textAlign: "center",
           bgcolor: "primary.main",
-          color: "white",
+          color: "primary.contrastText",
           py: 1,
           px: 1,
           borderRadius: 0,
           fontWeight: 600,
-          fontSize: 14,
-          lineHeight: 1,
+          fontSize: "1rem",
+          lineHeight: 1.5,
         }}
       >
         {column.label} · {column.items.length}
@@ -375,13 +409,21 @@ function BoardColumn({
   );
 }
 
-export function CustomerRequestsBoard({ items, deletingId, sendingId = null, onOpen, onDelete, onReply }: Props) {
+export function CustomerRequestsBoard({
+  items,
+  deletingId,
+  sendingId = null,
+  onOpen,
+  onDelete,
+  onReply,
+}: Props) {
   const columns = groupCustomerRequestsByStatus(items);
 
   return (
     <Box
       sx={{
         display: "flex",
+        flexDirection: { xs: "column", md: "row" },
         alignItems: "stretch",
         gap: 2,
         width: "100%",
@@ -396,7 +438,12 @@ export function CustomerRequestsBoard({ items, deletingId, sendingId = null, onO
                 key={`${column.status}-divider`}
                 orientation="vertical"
                 flexItem
-                sx={{ borderRightWidth: 1, borderColor: brown[200], borderStyle:'dashed' }}
+                sx={{
+                  display: { xs: "none", md: "block" },
+                  borderRightWidth: 1,
+                  borderColor: brown[200],
+                  borderStyle: "dashed",
+                }}
               />,
             ]
           : []),

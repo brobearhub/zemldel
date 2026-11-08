@@ -20,10 +20,11 @@ export function ServiceCardList({ title, subtitle, items, columns }: Props) {
       <Stack spacing={0.75}>
         <Typography
           component="h2"
+          variant="h2"
           sx={{
-            fontWeight: 900,
+            fontWeight: 700,
             letterSpacing: "-0.02em",
-            fontSize: { xs: 24, sm: 26, md: 28 },
+            fontSize: { xs: "1.5rem", sm: "1.625rem", md: "1.75rem" },
             lineHeight: 1.15,
           }}
           // color="primary"
@@ -31,7 +32,9 @@ export function ServiceCardList({ title, subtitle, items, columns }: Props) {
           {title}
         </Typography>
         {subtitle && (
-          <Typography sx={{ color: "text.secondary", maxWidth: 860, lineHeight: 1.7 }}>
+          <Typography
+            sx={{ color: "text.secondary", maxWidth: 860, lineHeight: 1.7 }}
+          >
             {subtitle}
           </Typography>
         )}
@@ -43,7 +46,10 @@ export function ServiceCardList({ title, subtitle, items, columns }: Props) {
           gap: { xs: 2, md: 3 },
           gridTemplateColumns: {
             xs: "1fr",
-            sm: columns === 3 ? "repeat(2, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))",
+            sm:
+              columns === 3
+                ? "repeat(2, minmax(0, 1fr))"
+                : "repeat(2, minmax(0, 1fr))",
             md: `repeat(${columns}, minmax(0, 1fr))`,
           },
           alignItems: "stretch",

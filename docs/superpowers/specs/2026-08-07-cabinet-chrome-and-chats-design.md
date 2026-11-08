@@ -12,12 +12,12 @@
 - desktop: горизонтальный верхний bar (вместо глобального header/sidebars);
 - mobile: сверху компактный sticky header, снизу фиксированный tab bar.
 
-Дополнительно: в mobile tab bar добавить «Чат» → новая зона `/chats*` с inbox и детальной страницей.
+Дополнительно: в mobile tab bar добавить «Чат» → раздел `/pro/chats*` кабинета исполнителя с inbox и детальной страницей.
 
 ## Термины
 
 - **cabinet-zone**: страницы `/profile*` и `/pro*` (личный и профессиональный кабинеты).
-- **chats-zone**: страницы `/chats*` — inbox + чат по заявке.
+- **chats-zone**: страницы `/pro/chats*` внутри профессионального кабинета — inbox + чат по заявке.
 - **cabinet chrome**: набор верхнего и/или нижнего навигационного UI, который заменяет глобальный `Header` в кабинетных зонах.
 
 ## UX требования (зафиксировано)
@@ -58,12 +58,12 @@
 
 Маршруты:
 - Client «Заявки/Документы/Профиль»: `/profile?section=requests|documents|profile`
-- Pro: `/pro`, `/pro/workday`, `/pro/overview`, `/pro/team`, `/pro/clients`, `/pro/reminders`, `/pro/services/list`
-- Чат: `/chats`, `/chats/{requestId}`
+- Pro: `/pro/requests/feed`, `/pro/workday`, `/pro/overview`, `/pro/team/add-manager`, `/pro/clients`, `/pro/reminders`, `/pro/services`
+- Чат: `/pro/chats`, `/pro/chats/{requestId}`
 
 ## Чат: новые страницы
 
-### `/chats` (inbox)
+### `/pro/chats` (inbox)
 
 Список строк:
 - **title заявки**;
@@ -72,10 +72,10 @@
 - (опционально) unread badge по заявке.
 
 Доступ и данные:
-- список скоупится контекстом: **client** (как customer) или **pro** (как активный provider);
-- контекст для `/chats*` определяется последней посещённой cabinet-zone (`/profile*` или `/pro*`), сохраняется на клиенте.
+- список открывается в контексте активного provider;
+- страницы `/pro/chats*` используют общий layout профессионального кабинета и явный контекст исполнителя.
 
-### `/chats/{requestId}`
+### `/pro/chats/{requestId}`
 
 Отображение чата по заявке, переиспользуем существующий `ServiceRequestChatPanel`.
 
@@ -106,5 +106,5 @@ BFF:
 
 `app/(site)/layout.tsx` получает `SiteChrome`-обёртку, которая:
 - на public routes оставляет `Header` + `Footer`;
-- на cabinet/chats routes заменяет их на `CabinetChrome` и правильные spacers.
+- на cabinet/pro/chats routes заменяет их на `CabinetChrome` и правильные spacers.
 

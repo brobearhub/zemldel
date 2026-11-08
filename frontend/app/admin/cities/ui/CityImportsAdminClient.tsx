@@ -44,7 +44,9 @@ function eventTypeLabel(type: CityImportEventDto["eventType"]): string {
 
 export function CityImportsAdminClient(props: CityImportsAdminClientProps) {
   const [runs] = useState(props.initialRuns);
-  const [selectedRunId, setSelectedRunId] = useState<string | null>(runs[0]?.id ?? null);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(
+    runs[0]?.id ?? null,
+  );
   const [events, setEvents] = useState<CityImportEventDto[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,10 +61,16 @@ export function CityImportsAdminClient(props: CityImportsAdminClientProps) {
     setLoadingEvents(true);
     setError(null);
     try {
-      const response = await fetch(`/api/admin/city-import-runs/${encodeURIComponent(runId)}/events`);
-      const payload = (await response.json()) as CityImportEventDto[] | { error?: string };
+      const response = await fetch(
+        `/api/admin/city-import-runs/${encodeURIComponent(runId)}/events`,
+      );
+      const payload = (await response.json()) as
+        | CityImportEventDto[]
+        | { error?: string };
       if (!response.ok) {
-        throw new Error("error" in payload ? payload.error : "Не удалось загрузить события");
+        throw new Error(
+          "error" in payload ? payload.error : "Не удалось загрузить события",
+        );
       }
       setEvents(Array.isArray(payload) ? payload : []);
     } catch (e) {
@@ -100,10 +108,14 @@ export function CityImportsAdminClient(props: CityImportsAdminClientProps) {
             {runs.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7}>
-                  <Typography variant="body2" sx={{
-                    color: "text.secondary"
-                  }}>
-                    Импортов пока нет. Запустите `npm run cities:update` локально.
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "text.secondary",
+                    }}
+                  >
+                    Импортов пока нет. Запустите `npm run cities:update`
+                    локально.
                   </Typography>
                 </TableCell>
               </TableRow>
@@ -120,15 +132,19 @@ export function CityImportsAdminClient(props: CityImportsAdminClientProps) {
                   >
                     <TableCell>
                       <Stack spacing={0.25}>
-                        <Typography variant="body2" sx={{ fontWeight: selected ? 800 : 600 }}>
+                        <Typography
+                          variant="body2"
+                          sx={{ fontWeight: selected ? 800 : 600 }}
+                        >
                           {formatDate(run.startedAt)}
                         </Typography>
                         <Typography
                           variant="caption"
                           sx={{
                             color: "text.secondary",
-                            wordBreak: "break-all"
-                          }}>
+                            wordBreak: "break-all",
+                          }}
+                        >
                           {run.sourceLabel ?? run.id}
                         </Typography>
                       </Stack>
@@ -156,18 +172,23 @@ export function CityImportsAdminClient(props: CityImportsAdminClientProps) {
               useFlexGap
               sx={{
                 alignItems: "center",
-                flexWrap: "wrap"
-              }}>
-              <Typography sx={{ fontWeight: 900 }}>События импорта</Typography>
+                flexWrap: "wrap",
+              }}
+            >
+              <Typography sx={{ fontWeight: 700 }}>События импорта</Typography>
               <Chip size="small" label={`run ${selectedRun.id.slice(0, 8)}…`} />
               {loadingEvents ? <CircularProgress size={16} /> : null}
             </Stack>
 
             {events.length === 0 && !loadingEvents ? (
-              <Typography variant="body2" sx={{
-                color: "text.secondary"
-              }}>
-                Нет детализированных событий для этого запуска (или они не записывались).
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.secondary",
+                }}
+              >
+                Нет детализированных событий для этого запуска (или они не
+                записывались).
               </Typography>
             ) : (
               <Box sx={{ maxHeight: 420, overflow: "auto" }}>

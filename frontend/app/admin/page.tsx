@@ -11,7 +11,7 @@ export default function AdminIndexPage() {
       <Container sx={{ py: { xs: 4, md: 6 } }}>
         <Stack spacing={3}>
           <Stack spacing={0.5}>
-            <Typography variant="h4" sx={{ fontWeight: 900 }}>
+            <Typography component="h1" variant="h1" sx={{ fontWeight: 700 }}>
               Администрирование платформы
             </Typography>
             <Typography variant="body2" sx={{ color: "text.secondary" }}>
@@ -22,12 +22,18 @@ export default function AdminIndexPage() {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" },
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, minmax(0, 1fr))",
+              },
               gap: 2,
               alignItems: "stretch",
             }}
           >
-            <Link href="/admin/provider-verifications" style={{ textDecoration: "none" }}>
+            <Link
+              href="/admin/provider-verifications"
+              style={{ textDecoration: "none" }}
+            >
               <Paper
                 variant="outlined"
                 sx={{
@@ -41,7 +47,9 @@ export default function AdminIndexPage() {
               >
                 <VerifiedUserOutlinedIcon color="primary" />
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontWeight: 900 }}>Проверки исполнителей</Typography>
+                  <Typography sx={{ fontWeight: 700 }}>
+                    Проверки исполнителей
+                  </Typography>
                   <Typography variant="body2" sx={{ color: "text.secondary" }}>
                     Очередь заявок на реквизиты
                   </Typography>
@@ -63,7 +71,7 @@ export default function AdminIndexPage() {
               >
                 <BuildIcon color="primary" />
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontWeight: 900 }}>Услуги</Typography>
+                  <Typography sx={{ fontWeight: 700 }}>Услуги</Typography>
                   <Typography variant="body2" sx={{ color: "text.secondary" }}>
                     Создание, редактирование и список
                   </Typography>
@@ -71,7 +79,10 @@ export default function AdminIndexPage() {
               </Paper>
             </Link>
 
-            <Link href="/admin/service-categories/list" style={{ textDecoration: "none" }}>
+            <Link
+              href="/admin/service-categories/list"
+              style={{ textDecoration: "none" }}
+            >
               <Paper
                 variant="outlined"
                 sx={{
@@ -85,7 +96,7 @@ export default function AdminIndexPage() {
               >
                 <FolderOutlinedIcon color="primary" />
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontWeight: 900 }}>Категории</Typography>
+                  <Typography sx={{ fontWeight: 700 }}>Категории</Typography>
                   <Typography variant="body2" sx={{ color: "text.secondary" }}>
                     Дерево категорий услуг
                   </Typography>
@@ -93,7 +104,10 @@ export default function AdminIndexPage() {
               </Paper>
             </Link>
 
-            <Link href="/admin/cities/imports" style={{ textDecoration: "none" }}>
+            <Link
+              href="/admin/cities/imports"
+              style={{ textDecoration: "none" }}
+            >
               <Paper
                 variant="outlined"
                 sx={{
@@ -107,7 +121,9 @@ export default function AdminIndexPage() {
               >
                 <LocationCityIcon color="primary" />
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontWeight: 900 }}>Локации (City)</Typography>
+                  <Typography sx={{ fontWeight: 700 }}>
+                    Локации (City)
+                  </Typography>
                   <Typography variant="body2" sx={{ color: "text.secondary" }}>
                     История импортов из ГАР
                   </Typography>
@@ -120,4 +136,3 @@ export default function AdminIndexPage() {
     </main>
   );
 }
-

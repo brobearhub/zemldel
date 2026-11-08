@@ -23,7 +23,7 @@ output "database_credentials" {
 output "backend_storage_environment" {
   sensitive = true
   value = {
-    S3_ENDPOINT         = "https://${twc_s3_bucket.media["public"].hostname}"
+    S3_ENDPOINT         = "https://${trimprefix(twc_s3_bucket.media["public"].hostname, "https://")}"
     S3_REGION           = "ru-1"
     S3_KEY              = twc_s3_user.backend.access_key
     S3_SECRET           = twc_s3_user.backend.secret_key

@@ -4,7 +4,20 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import ShareOutlinedIcon from "@mui/icons-material/ShareOutlined";
-import { Alert, Box, Button, Chip, Dialog, DialogContent, DialogTitle, Paper, Skeleton, Stack, TextField, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  Paper,
+  Skeleton,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { useConfirm } from "@/shared/ui/confirm";
 
 type PassportDto = {
@@ -30,7 +43,10 @@ const EMPTY: PassportDto = {
 };
 
 function errorMessage(payload: unknown, fallback: string) {
-  return payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+  return payload &&
+    typeof payload === "object" &&
+    "error" in payload &&
+    typeof payload.error === "string"
     ? payload.error
     : fallback;
 }
@@ -74,8 +90,14 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
           signal: controller.signal,
         });
         const payload: unknown = await response.json();
-        if (!response.ok) throw new Error(errorMessage(payload, "Не удалось загрузить анкету"));
-        if (payload !== null && (typeof payload !== "object" || !("series" in payload) || !("number" in payload))) {
+        if (!response.ok)
+          throw new Error(errorMessage(payload, "Не удалось загрузить анкету"));
+        if (
+          payload !== null &&
+          (typeof payload !== "object" ||
+            !("series" in payload) ||
+            !("number" in payload))
+        ) {
           throw new Error("Не удалось загрузить анкету");
         }
         if (controller.signal.aborted) return;
@@ -85,7 +107,11 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
       } catch (error) {
         if (controller.signal.aborted) return;
         setLoadError(true);
-        setError(error instanceof Error ? error.message : "Не удалось загрузить анкету");
+        setError(
+          error instanceof Error
+            ? error.message
+            : "Не удалось загрузить анкету",
+        );
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
@@ -132,14 +158,17 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
         body: JSON.stringify(next),
       });
       const payload: unknown = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(errorMessage(payload, "Не удалось сохранить анкету"));
+      if (!response.ok)
+        throw new Error(errorMessage(payload, "Не удалось сохранить анкету"));
       setSaved(next);
       setValue(next);
       setEditing(false);
       setShowDetails(false);
       setNotice("Анкета сохранена");
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Не удалось сохранить анкету");
+      setError(
+        error instanceof Error ? error.message : "Не удалось сохранить анкету",
+      );
     } finally {
       setPending(null);
     }
@@ -147,38 +176,49 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
 
   async function handleDelete() {
     if (!saved || busy) return;
-    if (!await confirm({
-      title: "Удалить паспортные данные?",
-      description: "Сохранённая анкета будет удалена. При необходимости её можно заполнить заново.",
-      confirmText: "Удалить",
-      confirmColor: "error",
-    })) return;
+    if (
+      !(await confirm({
+        title: "Удалить паспортные данные?",
+        description:
+          "Сохранённая анкета будет удалена. При необходимости её можно заполнить заново.",
+        confirmText: "Удалить",
+        confirmColor: "error",
+      }))
+    )
+      return;
     setPending("delete");
     setError(null);
     setNotice(null);
     try {
-      const response = await fetch("/api/documents/passport", { method: "DELETE" });
+      const response = await fetch("/api/documents/passport", {
+        method: "DELETE",
+      });
       const payload: unknown = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(errorMessage(payload, "Не удалось удалить анкету"));
+      if (!response.ok)
+        throw new Error(errorMessage(payload, "Не удалось удалить анкету"));
       setSaved(null);
       setValue(EMPTY);
       setEditing(false);
       setShowDetails(false);
       setNotice("Анкета удалена");
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Не удалось удалить анкету");
+      setError(
+        error instanceof Error ? error.message : "Не удалось удалить анкету",
+      );
     } finally {
       setPending(null);
     }
   }
 
-  const summary = saved ? [
-    ["Дата рождения", formatDate(saved.birthDate)],
-    ["Кем выдан", saved.issuedBy || "Не указано"],
-    ["Дата выдачи", formatDate(saved.issuedAt)],
-    ["Код подразделения", saved.departmentCode || "Не указан"],
-    ["Регистрация", saved.registrationAddress || "Не указана"],
-  ] : [];
+  const summary = saved
+    ? [
+        ["Дата рождения", formatDate(saved.birthDate)],
+        ["Кем выдан", saved.issuedBy || "Не указано"],
+        ["Дата выдачи", formatDate(saved.issuedAt)],
+        ["Код подразделения", saved.departmentCode || "Не указан"],
+        ["Регистрация", saved.registrationAddress || "Не указана"],
+      ]
+    : [];
 
   return (
     <Paper
@@ -221,15 +261,9 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
         {error && !editing ? <Alert severity="error">{error}</Alert> : null}
         {notice ? <Alert severity="success">{notice}</Alert> : null}
         {loading ? (
-          <Stack
-            spacing={1}
-            aria-label="Загрузка паспортных данных"
-          >
+          <Stack spacing={1} aria-label="Загрузка паспортных данных">
             <Skeleton height={28} />
-            <Skeleton
-              width="65%"
-              height={28}
-            />
+            <Skeleton width="65%" height={28} />
           </Stack>
         ) : loadError ? (
           <Button
@@ -259,7 +293,9 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
                     color: "text.secondary",
                   }}
                 >
-                  {showDetails ? `${saved.series} ${saved.number}` : `Паспорт •••• ••••${saved.number.slice(-2)}`}
+                  {showDetails
+                    ? `${saved.series} ${saved.number}`
+                    : `Паспорт •••• ••••${saved.number.slice(-2)}`}
                 </Typography>
                 {showDetails ? (
                   <Box
@@ -271,7 +307,7 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
                       rowGap: 1,
                       m: 0,
                       mt: 2,
-                      fontSize: 14,
+                      fontSize: "1rem",
                       overflowWrap: "anywhere",
                     }}
                   >
@@ -364,8 +400,8 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
               color: "text.secondary",
             }}
           >
-            Исполнитель получит доступ только с вашего разрешения по выбранной заявке.
-            Доступ к анкете и фотографиям настраивается отдельно.
+            Исполнитель получит доступ только с вашего разрешения по выбранной
+            заявке. Доступ к анкете и фотографиям настраивается отдельно.
           </Typography>
         ) : null}
       </Stack>
@@ -377,7 +413,9 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
         aria-labelledby="passport-editor-title"
       >
         <DialogTitle id="passport-editor-title">
-          {saved ? "Редактировать паспортные данные" : "Заполнить паспортные данные"}
+          {saved
+            ? "Редактировать паспортные данные"
+            : "Заполнить паспортные данные"}
         </DialogTitle>
         <DialogContent>
           <Stack
@@ -393,13 +431,11 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
               }}
             >
               Данные сохраняются в зашифрованном виде. Соответствие хранения
-              требованиям Федерального закона № 152-ФЗ «О персональных данных» пока не подтверждено.
+              требованиям Федерального закона № 152-ФЗ «О персональных данных»
+              пока не подтверждено.
             </Typography>
             {error ? <Alert severity="error">{error}</Alert> : null}
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={1.5}
-            >
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
               <TextField
                 label="Серия"
                 value={value.series ?? ""}
@@ -441,10 +477,7 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
               disabled={busy}
               fullWidth
             />
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={1.5}
-            >
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
               <TextField
                 label="Дата рождения"
                 type="date"
@@ -512,10 +545,7 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
               >
                 Сохранить анкету
               </Button>
-              <Button
-                disabled={busy}
-                onClick={closeEditor}
-              >
+              <Button disabled={busy} onClick={closeEditor}>
                 Отмена
               </Button>
             </Stack>

@@ -23,7 +23,10 @@ import {
 import { ChatReadOnlyNotice } from "./ChatReadOnlyNotice";
 import { useVisibleRefresh } from "@/shared/lib/use-visible-refresh";
 import { CHAT_ARCHIVED_REASON_CODE } from "@/widgets/chat/model/chat-access";
-import { useChatOutbox, type OutboundRow } from "@/widgets/chat/model/use-chat-outbox";
+import {
+  useChatOutbox,
+  type OutboundRow,
+} from "@/widgets/chat/model/use-chat-outbox";
 import { useChatDraft } from "@/widgets/chat/model/use-chat-draft";
 
 class ChatPostError extends Error {
@@ -35,12 +38,19 @@ class ChatPostError extends Error {
   }
 }
 
-
-function mergeServerMessages(prev: ChatMessageDto[], incoming: ChatMessageDto): ChatMessageDto[] {
+function mergeServerMessages(
+  prev: ChatMessageDto[],
+  incoming: ChatMessageDto,
+): ChatMessageDto[] {
   if (prev.some((m) => m.id === incoming.id)) {
     return prev;
   }
-  return [...prev].concat(incoming).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  return [...prev]
+    .concat(incoming)
+    .sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
 }
 
 type Props = {
@@ -71,14 +81,29 @@ export function ServiceRequestChatPanel({
   const { data: session } = useSession();
   const currentUserId = session?.user?.id ?? "";
 
-  const { socket, socketConnected, setOpenConversationId, joinConversationRoom, clearUnreadForRequest } =
-    useChatSocket();
+  const {
+    socket,
+    socketConnected,
+    setOpenConversationId,
+    joinConversationRoom,
+    clearUnreadForRequest,
+  } = useChatSocket();
 
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [serverMessages, setServerMessages] = useState<ChatMessageDto[]>([]);
-  const [outbound, setOutbound] = useChatOutbox(currentUserId, serviceRequestId, forcedConversationId ?? "default");
-  const [draft, setDraft] = useChatDraft(currentUserId, serviceRequestId, forcedConversationId ?? "default");
-  const [pendingReply, setPendingReply] = useState<ChatReplyTarget | null>(null);
+  const [outbound, setOutbound] = useChatOutbox(
+    currentUserId,
+    serviceRequestId,
+    forcedConversationId ?? "default",
+  );
+  const [draft, setDraft] = useChatDraft(
+    currentUserId,
+    serviceRequestId,
+    forcedConversationId ?? "default",
+  );
+  const [pendingReply, setPendingReply] = useState<ChatReplyTarget | null>(
+    null,
+  );
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
@@ -96,7 +121,9 @@ export function ServiceRequestChatPanel({
   const prevPeerOnlineRef = useRef(false);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [headerFlash, setHeaderFlash] = useState(false);
-  const [indicatorTone, setIndicatorTone] = useState<"secondary" | "info" | "primary">("secondary");
+  const [indicatorTone, setIndicatorTone] = useState<
+    "secondary" | "info" | "primary"
+  >("secondary");
   const indicatorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const serverMessagesRef = useRef<ChatMessageDto[]>([]);
@@ -105,9 +132,13 @@ export function ServiceRequestChatPanel({
   }, [serverMessages]);
 
   useEffect(() => {
-    const delivered = new Set(serverMessages.map(message => message.clientMessageId));
-    if (outbound.some(row => delivered.has(row.clientMessageId))) {
-      setOutbound(previous => previous.filter(row => !delivered.has(row.clientMessageId)));
+    const delivered = new Set(
+      serverMessages.map((message) => message.clientMessageId),
+    );
+    if (outbound.some((row) => delivered.has(row.clientMessageId))) {
+      setOutbound((previous) =>
+        previous.filter((row) => !delivered.has(row.clientMessageId)),
+      );
     }
   }, [serverMessages, outbound, setOutbound]);
 
@@ -140,48 +171,67 @@ export function ServiceRequestChatPanel({
     return [...serverRows, ...tail];
   }, [serverMessages, outbound]);
 
-  const loadMessages = useCallback(async (convId: string, mode: "initial" | "tail", signal?: AbortSignal) => {
-    const last = serverMessagesRef.current[serverMessagesRef.current.length - 1];
-    const search =
-      mode === "tail" && last
-        ? new URLSearchParams({ after: last.id, limit: "50" })
-        : new URLSearchParams({ limit: "50" });
-    let cursor = mode === "tail" ? last?.id : undefined;
-    const all: ChatMessageDto[] = [];
-    for (;;) {
-      if (cursor) search.set("after", cursor);
-      const response = await fetch(`/api/chat/conversations/${convId}/messages?${search.toString()}`, {
-        cache: "no-store",
-        signal,
-      });
-      const payload = (await response.json().catch(() => null)) as ChatMessageDto[] | { error?: string } | null;
-      if (!response.ok) {
-        const message =
-          payload && typeof payload === "object" && !Array.isArray(payload) && payload.error
-            ? payload.error
-            : "Не удалось загрузить сообщения";
-        throw new Error(message);
-      }
-      const page = (payload ?? []) as ChatMessageDto[];
-      if (signal?.aborted) return;
-      all.push(...page);
-      const next = page[page.length - 1]?.id;
-      if (mode !== "tail" || !cursor || page.length < 50 || next === cursor) break;
-      cursor = next;
-    }
-    const list = all;
-    if (mode === "initial") {
-      setServerMessages([...list].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
-    } else {
-      setServerMessages((prev) => {
-        let next = [...prev];
-        for (const item of list) {
-          next = mergeServerMessages(next, item);
+  const loadMessages = useCallback(
+    async (convId: string, mode: "initial" | "tail", signal?: AbortSignal) => {
+      const last =
+        serverMessagesRef.current[serverMessagesRef.current.length - 1];
+      const search =
+        mode === "tail" && last
+          ? new URLSearchParams({ after: last.id, limit: "50" })
+          : new URLSearchParams({ limit: "50" });
+      let cursor = mode === "tail" ? last?.id : undefined;
+      const all: ChatMessageDto[] = [];
+      for (;;) {
+        if (cursor) search.set("after", cursor);
+        const response = await fetch(
+          `/api/chat/conversations/${convId}/messages?${search.toString()}`,
+          {
+            cache: "no-store",
+            signal,
+          },
+        );
+        const payload = (await response.json().catch(() => null)) as
+          | ChatMessageDto[]
+          | { error?: string }
+          | null;
+        if (!response.ok) {
+          const message =
+            payload &&
+            typeof payload === "object" &&
+            !Array.isArray(payload) &&
+            payload.error
+              ? payload.error
+              : "Не удалось загрузить сообщения";
+          throw new Error(message);
         }
-        return next;
-      });
-    }
-  }, []);
+        const page = (payload ?? []) as ChatMessageDto[];
+        if (signal?.aborted) return;
+        all.push(...page);
+        const next = page[page.length - 1]?.id;
+        if (mode !== "tail" || !cursor || page.length < 50 || next === cursor)
+          break;
+        cursor = next;
+      }
+      const list = all;
+      if (mode === "initial") {
+        setServerMessages(
+          [...list].sort(
+            (a, b) =>
+              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+          ),
+        );
+      } else {
+        setServerMessages((prev) => {
+          let next = [...prev];
+          for (const item of list) {
+            next = mergeServerMessages(next, item);
+          }
+          return next;
+        });
+      }
+    },
+    [],
+  );
 
   const markRead = useCallback(
     async (convId: string) => {
@@ -208,14 +258,17 @@ export function ServiceRequestChatPanel({
     (async () => {
       try {
         async function loadAccess(convId: string) {
-          const response = await fetch(`/api/chat/conversations/${convId}/access`, { cache: "no-store" }).catch(
-            () => null,
-          );
+          const response = await fetch(
+            `/api/chat/conversations/${convId}/access`,
+            { cache: "no-store" },
+          ).catch(() => null);
           if (!response?.ok) {
             if (!cancelled) setAccess(resolveChatAccess(null));
             return;
           }
-          const payload = (await response.json().catch(() => null)) as ChatConversationAccessDto | null;
+          const payload = (await response
+            .json()
+            .catch(() => null)) as ChatConversationAccessDto | null;
           if (!cancelled) setAccess(resolveChatAccess(payload));
         }
 
@@ -224,7 +277,11 @@ export function ServiceRequestChatPanel({
           setConversationId(forcedConversationId);
           setOpenConversationId(forcedConversationId);
           await loadAccess(forcedConversationId);
-          await loadMessages(forcedConversationId, "initial", controller.signal);
+          await loadMessages(
+            forcedConversationId,
+            "initial",
+            controller.signal,
+          );
           if (cancelled) return;
           await markRead(forcedConversationId);
           return;
@@ -235,12 +292,18 @@ export function ServiceRequestChatPanel({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ serviceRequestId }),
         });
-        const ensurePayload = (await ensureResponse.json().catch(() => null)) as
-          ChatEnsureResponse | { error?: string; message?: string } | null;
+        const ensurePayload = (await ensureResponse
+          .json()
+          .catch(() => null)) as
+          | ChatEnsureResponse
+          | { error?: string; message?: string }
+          | null;
 
         if (!ensureResponse.ok) {
           const message =
-            ensurePayload && typeof ensurePayload === "object" && "error" in ensurePayload
+            ensurePayload &&
+            typeof ensurePayload === "object" &&
+            "error" in ensurePayload
               ? String(ensurePayload.error ?? "Чат недоступен")
               : "Чат недоступен";
           throw new Error(message);
@@ -258,7 +321,9 @@ export function ServiceRequestChatPanel({
         await markRead(convId);
       } catch (e) {
         if (!cancelled) {
-          setBootError(e instanceof Error ? e.message : "Не удалось открыть чат");
+          setBootError(
+            e instanceof Error ? e.message : "Не удалось открыть чат",
+          );
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -287,8 +352,13 @@ export function ServiceRequestChatPanel({
     paused: !conversationId || loading,
     onRefresh: async (signal) => {
       try {
-        const response = await fetch(`/api/chat/conversations/${conversationId}/access`, { cache: "no-store", signal });
-        const payload = response.ok ? ((await response.json()) as ChatConversationAccessDto) : null;
+        const response = await fetch(
+          `/api/chat/conversations/${conversationId}/access`,
+          { cache: "no-store", signal },
+        );
+        const payload = response.ok
+          ? ((await response.json()) as ChatConversationAccessDto)
+          : null;
         if (!signal.aborted) setAccess(resolveChatAccess(payload));
       } catch {
         if (!signal.aborted) setAccess(resolveChatAccess(null));
@@ -356,7 +426,9 @@ export function ServiceRequestChatPanel({
         return;
       }
       setServerMessages((prev) => mergeServerMessages(prev, msg));
-      setOutbound((prev) => prev.filter((o) => o.clientMessageId !== msg.clientMessageId));
+      setOutbound((prev) =>
+        prev.filter((o) => o.clientMessageId !== msg.clientMessageId),
+      );
     };
     socket?.on("message.created", handler);
     return () => {
@@ -370,7 +442,11 @@ export function ServiceRequestChatPanel({
     }
     const handler = (payload: ChatPresenceUpdatedPayload) => {
       if (payload.conversationId !== conversationId) return;
-      setPeerOnline(viewerSide === "customer" ? payload.providerOnline : payload.customerOnline);
+      setPeerOnline(
+        viewerSide === "customer"
+          ? payload.providerOnline
+          : payload.customerOnline,
+      );
     };
     socket?.on("presence.updated", handler);
     return () => {
@@ -425,26 +501,37 @@ export function ServiceRequestChatPanel({
   }, []);
 
   const postOutbound = useCallback(
-    async (body: string, replyToMessageId: string | undefined, clientMessageId: string) => {
+    async (
+      body: string,
+      replyToMessageId: string | undefined,
+      clientMessageId: string,
+    ) => {
       if (!conversationId) return;
-      const response = await fetch(`/api/chat/conversations/${conversationId}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          body,
-          clientMessageId,
-          replyToMessageId: replyToMessageId ?? undefined,
-        }),
-      });
+      const response = await fetch(
+        `/api/chat/conversations/${conversationId}/messages`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            body,
+            clientMessageId,
+            replyToMessageId: replyToMessageId ?? undefined,
+          }),
+        },
+      );
       const payload = (await response.json().catch(() => null)) as
-        ChatPostMessageResponse | { code?: string; error?: string; message?: string } | null;
+        | ChatPostMessageResponse
+        | { code?: string; error?: string; message?: string }
+        | null;
       if (!response.ok) {
         const error = resolveChatError(payload);
         throw new ChatPostError(error.message, error.retryable);
       }
       const data = payload as ChatPostMessageResponse;
       setServerMessages((prev) => mergeServerMessages(prev, data.message));
-      setOutbound((prev) => prev.filter((o) => o.clientMessageId !== clientMessageId));
+      setOutbound((prev) =>
+        prev.filter((o) => o.clientMessageId !== clientMessageId),
+      );
     },
     [conversationId],
   );
@@ -510,16 +597,29 @@ export function ServiceRequestChatPanel({
     } finally {
       setSending(false);
     }
-  }, [access.canWrite, applyPostFailure, conversationId, draft, pendingReply, postOutbound, sending, setDraft, setOutbound]);
+  }, [
+    access.canWrite,
+    applyPostFailure,
+    conversationId,
+    draft,
+    pendingReply,
+    postOutbound,
+    sending,
+    setDraft,
+    setOutbound,
+  ]);
 
   const handleRetry = useCallback(
     async (clientMessageId: string) => {
       if (!access.canWrite || sending) return;
-      const row = outbound.find((o) => o.clientMessageId === clientMessageId && o.type === "failed");
+      const row = outbound.find(
+        (o) => o.clientMessageId === clientMessageId && o.type === "failed",
+      );
       if (!row || row.type !== "failed" || !row.retryable) return;
       setOutbound((prev) =>
         prev.map((o) => {
-          if (o.clientMessageId !== clientMessageId || o.type !== "failed") return o;
+          if (o.clientMessageId !== clientMessageId || o.type !== "failed")
+            return o;
           return {
             type: "pending" as const,
             clientMessageId: o.clientMessageId,
@@ -536,7 +636,8 @@ export function ServiceRequestChatPanel({
         const failure = applyPostFailure(e);
         setOutbound((prev) =>
           prev.map((o) => {
-            if (o.clientMessageId !== clientMessageId || o.type !== "pending") return o;
+            if (o.clientMessageId !== clientMessageId || o.type !== "pending")
+              return o;
             return {
               type: "failed" as const,
               clientMessageId: o.clientMessageId,
@@ -552,13 +653,23 @@ export function ServiceRequestChatPanel({
         setSending(false);
       }
     },
-    [applyPostFailure, outbound, postOutbound, access.canWrite, sending, setOutbound],
+    [
+      applyPostFailure,
+      outbound,
+      postOutbound,
+      access.canWrite,
+      sending,
+      setOutbound,
+    ],
   );
 
   const handleReplyToMessage = useCallback(
     (message: ChatMessageDto) => {
       if (!access.canWrite) return;
-      const snippet = message.body.length > 160 ? `${message.body.slice(0, 160)}…` : message.body;
+      const snippet =
+        message.body.length > 160
+          ? `${message.body.slice(0, 160)}…`
+          : message.body;
       setPendingReply({
         messageId: message.id,
         senderLabel: message.senderName ?? "Участник",
@@ -643,7 +754,7 @@ export function ServiceRequestChatPanel({
           <Typography
             variant="h6"
             sx={{
-              fontWeight: 800,
+              fontWeight: 700,
             }}
           >
             {title}
@@ -671,7 +782,9 @@ export function ServiceRequestChatPanel({
           }}
         >
           <ChatReadOnlyNotice
-            message={access.message ?? "Этот диалог доступен только для просмотра."}
+            message={
+              access.message ?? "Этот диалог доступен только для просмотра."
+            }
             reasonCode={access.reasonCode}
             onOpenSelectedConversation={onOpenSelectedConversation}
           />
@@ -719,7 +832,8 @@ export function ServiceRequestChatPanel({
               color: "text.secondary",
             }}
           >
-            Соединение с чатом потеряно. Переписка обновится после восстановления связи.
+            Соединение с чатом потеряно. Переписка обновится после
+            восстановления связи.
           </Typography>
         </Stack>
       ) : null}

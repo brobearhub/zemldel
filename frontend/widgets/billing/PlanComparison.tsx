@@ -52,7 +52,7 @@ export function PlanComparison() {
                   <p className={s.muted}>{plan.description}</p>
                   <Link
                     className={`${s.button} ${s.wide}`}
-                    href={`/pro/billing${plan.price ? `?product=${plan.id}` : ""}`}
+                    href={`/pro/settings/tariff${plan.price ? `?product=${plan.id}` : ""}`}
                   >
                     {plan.price ? "Попробовать оплату" : "Начать бесплатно"}
                   </Link>

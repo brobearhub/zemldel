@@ -6,6 +6,6 @@ type Props = {
 
 export default async function ProContractInstancePage({ params }: Props) {
   void params;
-  redirect("/pro");
+  redirect("/pro/requests/feed");
 }
 

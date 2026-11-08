@@ -6,7 +6,8 @@ import { ServiceCard, type ServiceCardItem } from "@/entities/service";
 import { useHeaderCity } from "@/features/select-city";
 import { ServiceSectionHeader } from "@/widgets/services/ui/ServiceSectionHeader";
 
-const SERVICES_FETCH_USER_MESSAGE = "Не удалось загрузить список услуг. Попробуйте позже.";
+const SERVICES_FETCH_USER_MESSAGE =
+  "Не удалось загрузить список услуг. Попробуйте позже.";
 
 function ServiceGrid({
   items,
@@ -23,7 +24,8 @@ function ServiceGrid({
         display: "grid",
         gap: 2.5,
         gridTemplateColumns: {
-          xs: "repeat(2, minmax(0, 1fr))",
+          xs: "minmax(0, 1fr)",
+          sm: "repeat(2, minmax(0, 1fr))",
           tablet: "repeat(1, minmax(0, 1fr))",
           md: "repeat(2, minmax(0, 1fr))",
           lg: "repeat(3, minmax(0, 1fr))",
@@ -47,8 +49,11 @@ async function fetchServices(path: string): Promise<ServiceCardItem[]> {
     // Не показываем пользователю backend/BFF сообщения (они могут быть техническими и на англ.).
     // Детали оставляем только в консоли для диагностики.
     if (process.env.NODE_ENV !== "production") {
-       
-      console.error("[HomeServicesByCity] Failed to fetch services", { path, status: res.status, payload });
+      console.error("[HomeServicesByCity] Failed to fetch services", {
+        path,
+        status: res.status,
+        payload,
+      });
     }
     throw new Error(SERVICES_FETCH_USER_MESSAGE);
   }
@@ -56,13 +61,21 @@ async function fetchServices(path: string): Promise<ServiceCardItem[]> {
   return Array.isArray(payload) ? (payload as ServiceCardItem[]) : [];
 }
 
-export function HomeServicesByCity({ initialItems }: { initialItems?: ServiceCardItem[] }) {
+export function HomeServicesByCity({
+  initialItems,
+}: {
+  initialItems?: ServiceCardItem[];
+}) {
   const selectedCity = useHeaderCity();
   const cityId = selectedCity?.id ?? null;
   const cityName = selectedCity?.name ?? null;
 
-  const [myCityItems, setMyCityItems] = useState<ServiceCardItem[] | null>(initialItems ?? null);
-  const [otherCityItems, setOtherCityItems] = useState<ServiceCardItem[] | null>(initialItems ? [] : null);
+  const [myCityItems, setMyCityItems] = useState<ServiceCardItem[] | null>(
+    initialItems ?? null,
+  );
+  const [otherCityItems, setOtherCityItems] = useState<
+    ServiceCardItem[] | null
+  >(initialItems ? [] : null);
   const [error, setError] = useState<string | null>(null);
   const hasRequested = useRef(false);
 
@@ -85,7 +98,9 @@ export function HomeServicesByCity({ initialItems }: { initialItems?: ServiceCar
 
         const [mine, other] = await Promise.all([
           fetchServices(`/api/services?cityId=${encodeURIComponent(cityId)}`),
-          fetchServices(`/api/services?excludeCityId=${encodeURIComponent(cityId)}`),
+          fetchServices(
+            `/api/services?excludeCityId=${encodeURIComponent(cityId)}`,
+          ),
         ]);
         if (!alive) return;
 
@@ -94,7 +109,6 @@ export function HomeServicesByCity({ initialItems }: { initialItems?: ServiceCar
       } catch (e) {
         if (!alive) return;
         if (process.env.NODE_ENV !== "production") {
-           
           console.error("[HomeServicesByCity] Failed to load services", e);
         }
         setError(SERVICES_FETCH_USER_MESSAGE);
@@ -113,8 +127,11 @@ export function HomeServicesByCity({ initialItems }: { initialItems?: ServiceCar
   const showMy = (myCityItems ?? []).length > 0;
   const catalogEmpty = loaded && !error && !showMy && !showOther;
 
-  const myItemsSorted = useMemo(() => (myCityItems ?? []), [myCityItems]);
-  const otherItemsSorted = useMemo(() => (otherCityItems ?? []), [otherCityItems]);
+  const myItemsSorted = useMemo(() => myCityItems ?? [], [myCityItems]);
+  const otherItemsSorted = useMemo(
+    () => otherCityItems ?? [],
+    [otherCityItems],
+  );
 
   if (error) {
     return (

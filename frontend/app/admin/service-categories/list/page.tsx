@@ -1,6 +1,9 @@
 import { Container, Stack, Typography } from "@mui/material";
 import { notFound } from "next/navigation";
-import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
+import {
+  BackendApiError,
+  fetchBackendJsonAsUser,
+} from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
 import { ServiceCategoriesAdminClient } from "../ui/ServiceCategoriesAdminClient";
 
@@ -20,10 +23,13 @@ export default async function AdminServiceCategoriesListPage() {
   try {
     categories = await fetchBackendJsonAsUser<ServiceCategoryRow[]>(
       "/admin/service-categories",
-      session.user.id
+      session.user.id,
     );
   } catch (error) {
-    if (error instanceof BackendApiError && (error.status === 401 || error.status === 403)) {
+    if (
+      error instanceof BackendApiError &&
+      (error.status === 401 || error.status === 403)
+    ) {
       notFound();
     }
     throw error;
@@ -33,7 +39,7 @@ export default async function AdminServiceCategoriesListPage() {
     <main>
       <Container sx={{ py: { xs: 4, md: 6 } }}>
         <Stack spacing={3}>
-          <Typography variant="h4" sx={{ fontWeight: 900 }}>
+          <Typography component="h1" variant="h1" sx={{ fontWeight: 700 }}>
             Категории услуг
           </Typography>
           <ServiceCategoriesAdminClient initialCategories={categories} />
@@ -42,4 +48,3 @@ export default async function AdminServiceCategoriesListPage() {
     </main>
   );
 }
-

@@ -38,6 +38,14 @@ beforeEach(() => {
   vi.mocked(fetchChatInbox).mockResolvedValue(rows);
 });
 describe("chat context", () => {
+  it("uses the provider role and routes in the provider cabinet", async () => {
+    context.query = "conversation=a";
+    render(<ChatRequestPage requestId="request1" cabinetRole="provider" />);
+    await screen.findByTestId("thread");
+    expect(fetchChatInbox).toHaveBeenCalledWith("provider");
+    expect(screen.getByRole("link", { name: "К чатам" })).toHaveAttribute("href", "/pro/chats");
+    expect(screen.getByRole("link", { name: "К заявке" })).toHaveAttribute("href", "/pro/requests/request1");
+  });
   it("keeps an explicit choice when there are several providers", async () => {
     render(<ChatRequestPage requestId="request1" />);
     expect(
@@ -47,6 +55,10 @@ describe("chat context", () => {
     fireEvent.mouseDown(screen.getByRole("combobox", { name: "Собеседник" }));
     fireEvent.click(await screen.findByRole("option", { name: "Компания b" }));
     expect(screen.getByTestId("thread")).toHaveTextContent("b Компания b");
+    expect(screen.getByRole("link", { name: "К чатам" })).toHaveAttribute(
+      "href",
+      "/pro/chats",
+    );
     expect(screen.getByRole("link", { name: "К заявке" })).toHaveAttribute(
       "href",
       "/profile/requests/request1",

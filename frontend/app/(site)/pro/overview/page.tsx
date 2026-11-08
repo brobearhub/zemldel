@@ -2,17 +2,28 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Stack, Typography } from "@mui/material";
 import { getActiveMembership } from "@/core/auth/authorization";
-import type { RequestCustomerDto, RequestReminderDto } from "@/entities/request";
+import type {
+  RequestCustomerDto,
+  RequestReminderDto,
+} from "@/entities/request";
 import type { ServiceDto } from "@/entities/service";
-import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
+import {
+  BackendApiError,
+  fetchBackendJsonAsUser,
+} from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
 import { signInRedirect } from "@/core/auth/sign-in-redirect";
-import { ProOverviewDashboard, type ProRequestStats } from "@/widgets/pro-dashboard/ui/ProOverviewDashboard";
+import {
+  ProOverviewDashboard,
+  type ProRequestStats,
+} from "@/widgets/pro-dashboard/ui/ProOverviewDashboard";
 import { ProfessionalWorkspacePanel } from "@/widgets/pro-dashboard/ui/ProfessionalWorkspacePanel";
 
 export const metadata: Metadata = { title: "Обзор — Земледел" };
 
-const sortByRecent = <T extends { updatedAt: string; createdAt?: string }>(items: T[]) =>
+const sortByRecent = <T extends { updatedAt: string; createdAt?: string }>(
+  items: T[],
+) =>
   [...items].sort((left, right) => {
     const leftValue = new Date(left.updatedAt ?? left.createdAt).getTime();
     const rightValue = new Date(right.updatedAt ?? right.createdAt).getTime();
@@ -39,17 +50,26 @@ export default async function ProOverviewPage() {
   try {
     const [services, orders, requestStats, todayReminders] = await Promise.all([
       fetchBackendJsonAsUser<ServiceDto[]>("/pro/services", session.user.id),
-      fetchBackendJsonAsUser<RequestCustomerDto[]>("/pro/requests", session.user.id),
-      fetchBackendJsonAsUser<ProRequestStats>("/pro/requests/stats", session.user.id),
-      fetchBackendJsonAsUser<RequestReminderDto[]>("/pro/reminders/today", session.user.id),
+      fetchBackendJsonAsUser<RequestCustomerDto[]>(
+        "/pro/requests",
+        session.user.id,
+      ),
+      fetchBackendJsonAsUser<ProRequestStats>(
+        "/pro/requests/stats",
+        session.user.id,
+      ),
+      fetchBackendJsonAsUser<RequestReminderDto[]>(
+        "/pro/reminders/today",
+        session.user.id,
+      ),
     ]);
 
     return (
       <Stack spacing={3}>
-        <Typography component="h1" variant="h4" sx={{ fontWeight: 700 }}>
+        <Typography component="h1" variant="h1" sx={{ fontWeight: 700 }}>
           Обзор
         </Typography>
-        <a href="/pro/tools">Подробная статистика по тарифу →</a>
+        <a href="/pro/settings/promotion">Подробная статистика по тарифу →</a>
         <ProOverviewDashboard
           provider={activeMembership}
           services={services}
@@ -60,7 +80,10 @@ export default async function ProOverviewPage() {
       </Stack>
     );
   } catch (error) {
-    if (error instanceof BackendApiError && (error.status === 401 || error.status === 403)) {
+    if (
+      error instanceof BackendApiError &&
+      (error.status === 401 || error.status === 403)
+    ) {
       notFound();
     }
 

@@ -4,10 +4,59 @@ import { useCallback, useState } from "react";
 import Link from "@/shared/ui/Link";
 import { Box, Button, Stack, Typography } from "@mui/material";
 import type { ServiceDto } from "@/entities/service";
+import { CdnImage } from "@/shared/ui/cdn-image";
 import { serviceRequestRowTitle } from "../lib/format-service-request";
 import { ServiceRequestsPanel } from "./ServiceRequestsPanel";
 
 type Summary = { count: number; needsReply: number };
+
+function ServicePhoto({ service }: { service: ServiceDto }) {
+  const [failedImages, setFailedImages] = useState<string[]>([]);
+  const images = [...new Set([...(service.images ?? []), service.image ?? ""])]
+    .map((image) => image.trim())
+    .filter(Boolean);
+  const image = images.find((src) => !failedImages.includes(src));
+
+  return (
+    <Box
+      sx={{
+        width: "100%",
+        height: 178,
+        overflow: "hidden",
+        borderRadius: 1,
+        bgcolor: "action.hover",
+      }}
+    >
+      {image ? (
+        <CdnImage
+          src={image}
+          alt={`Фото услуги «${service.title}»`}
+          onError={() => setFailedImages((current) => [...current, image])}
+          sx={{
+            display: "block",
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+          }}
+        />
+      ) : (
+        <Box
+          sx={{
+            display: "flex",
+            width: "100%",
+            height: "100%",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "text.secondary",
+          }}
+        >
+          {images.length > 0 ? "Фото недоступно" : "Нет фото"}
+        </Box>
+      )}
+    </Box>
+  );
+}
+
 export function ProMyServicesSection({ services }: { services: ServiceDto[] }) {
   const [summaries, setSummaries] = useState<Record<string, Summary>>({});
   const [showEmpty, setShowEmpty] = useState(false);
@@ -54,8 +103,8 @@ export function ProMyServicesSection({ services }: { services: ServiceDto[] }) {
   return (
     <Stack spacing={2}>
       <Typography variant="body2" color="text.secondary">
-        Сначала — заявки, ожидающие вашего ответа. Завершённые работы доступны в
-        списке заявок.
+        Сначала — заявки, ожидающие вашего ответа. Завершённые работы доступны на
+        доске заявок.
       </Typography>
       {visible.map((service) => (
         <Box
@@ -75,18 +124,31 @@ export function ProMyServicesSection({ services }: { services: ServiceDto[] }) {
           >
             {service.title}
           </Typography>
-          <ServiceRequestsPanel
-            serviceId={service.id}
-            showCustomerAvatar
-            onSummary={onSummary}
-            expanded={expandedServiceId === service.id}
-            onExpandedChange={(open) =>
-              setExpandedServiceId(open ? service.id : null)
-            }
-            titleFor={(request) =>
-              serviceRequestRowTitle(request.customerName, service.title)
-            }
-          />
+          <Box
+            sx={{
+              display: "grid",
+              gap: 2,
+              alignItems: "start",
+              gridTemplateColumns: {
+                xs: "minmax(0, 1fr)",
+                md: "280px minmax(0, 1fr)",
+              },
+            }}
+          >
+            <ServicePhoto service={service} />
+            <ServiceRequestsPanel
+              serviceId={service.id}
+              showCustomerAvatar
+              onSummary={onSummary}
+              expanded={expandedServiceId === service.id}
+              onExpandedChange={(open) =>
+                setExpandedServiceId(open ? service.id : null)
+              }
+              titleFor={(request) =>
+                serviceRequestRowTitle(request.customerName, service.title)
+              }
+            />
+          </Box>
         </Box>
       ))}
       {emptyCount > 0 ? (

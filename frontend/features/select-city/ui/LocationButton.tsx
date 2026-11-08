@@ -45,12 +45,23 @@ export function LocationButton({
 }: Props) {
   const onLight = tone === "light";
   const textColor = error ? "error.dark" : onLight ? "inherit" : "common.gray";
-  const pinColor = error ? "error.dark" : onLight && iconColor === "gray" ? "inherit" : ICON_COLOR[iconColor];
+  const pinColor = error
+    ? "error.dark"
+    : onLight && iconColor === "gray"
+      ? "inherit"
+      : ICON_COLOR[iconColor];
   const idleColor = onLight ? "inherit" : "common.gray";
   const hoverColor = onLight ? "common.white" : "primary.main";
 
   return (
-    <Box sx={{ display: "inline-flex", alignItems: "center", maxWidth: "100%", minWidth: 0 }}>
+    <Box
+      sx={{
+        display: "inline-flex",
+        alignItems: "center",
+        maxWidth: "100%",
+        minWidth: 0,
+      }}
+    >
       <Box
         component="button"
         type="button"
@@ -78,7 +89,11 @@ export function LocationButton({
           ...(error ? { color: "error.dark", px: 1 } : {}),
           textAlign: "left",
           color: textColor,
-          "&:focus-visible": { outline: "2px solid", outlineColor: "text.primary", outlineOffset: 2 },
+          "&:focus-visible": {
+            outline: "2px solid",
+            outlineColor: "text.primary",
+            outlineOffset: 2,
+          },
           "&:hover": {
             color: disabled ? textColor : hoverColor,
           },
@@ -90,13 +105,14 @@ export function LocationButton({
           variant="body2"
           sx={{
             color: "inherit",
-            display: labelDisplay === "fromMd" ? { xs: "none", md: "block" } : "block",
+            display:
+              labelDisplay === "fromMd" ? { xs: "none", md: "block" } : "block",
             fontWeight: 600,
-            fontSize: 14,
+            fontSize: "1rem",
             maxWidth: labelDisplay === "fromMd" ? 160 : 280,
             overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
+            textOverflow: "clip",
+            whiteSpace: "normal",
           }}
         >
           {label}
@@ -122,7 +138,11 @@ export function LocationButton({
             bgcolor: "transparent",
             color: idleColor,
             cursor: disabled ? "default" : "pointer",
-            "&:focus-visible": { outline: "2px solid", outlineColor: "text.primary", outlineOffset: 2 },
+            "&:focus-visible": {
+              outline: "2px solid",
+              outlineColor: "text.primary",
+              outlineOffset: 2,
+            },
             "&:hover": { color: disabled ? idleColor : hoverColor },
             "&:disabled": { opacity: 0.6 },
           }}

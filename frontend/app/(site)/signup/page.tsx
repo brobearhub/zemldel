@@ -216,7 +216,7 @@ function SignUpPageContent() {
           })
         : session.user.accountKind === "PROVIDER"
         ? hasProviderMembership
-          ? "/pro"
+          ? "/pro/requests/feed"
           : "/providers/new"
         : "/profile",
     );

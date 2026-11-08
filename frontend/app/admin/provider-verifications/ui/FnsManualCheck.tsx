@@ -49,8 +49,13 @@ function formatMark(iso: string) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
   const day = new Intl.DateTimeFormat("ru-RU", { day: "numeric" }).format(date);
-  const month = new Intl.DateTimeFormat("ru-RU", { month: "short" }).format(date).replace(/\./g, "");
-  const time = new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" })
+  const month = new Intl.DateTimeFormat("ru-RU", { month: "short" })
+    .format(date)
+    .replace(/\./g, "");
+  const time = new Intl.DateTimeFormat("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
+  })
     .format(date)
     .replace(/[\u202f\u00a0]/g, "");
   return `${day} ${month}, ${time}`;
@@ -96,12 +101,21 @@ function RequisitePill({
         bgcolor: "#fff",
       }}
     >
-      <Typography component="span" sx={{ color: CARD.label, fontSize: 15, lineHeight: 1.2 }}>
+      <Typography
+        component="span"
+        sx={{ color: CARD.label, fontSize: "1rem", lineHeight: 1.5 }}
+      >
         {label}
       </Typography>
       <Typography
         component="span"
-        sx={{ color: CARD.value, fontWeight: 800, fontSize: 16, lineHeight: 1.2, letterSpacing: "0.01em" }}
+        sx={{
+          color: CARD.value,
+          fontWeight: 700,
+          fontSize: "1rem",
+          lineHeight: 1.5,
+          letterSpacing: "0.01em",
+        }}
       >
         {value ?? "—"}
       </Typography>
@@ -114,8 +128,8 @@ function RequisitePill({
             p: 0,
             color: CARD.primary,
             fontWeight: 600,
-            fontSize: 15,
-            lineHeight: 1.2,
+            fontSize: "1rem",
+            lineHeight: 1.5,
             "&:hover": { bgcolor: "transparent", color: CARD.primaryHover },
           }}
         >
@@ -174,9 +188,12 @@ export function FnsManualCheck({
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch(`/api/admin/provider-verifications/${requestId}/fns-manual`, {
-        method: "POST",
-      });
+      const response = await fetch(
+        `/api/admin/provider-verifications/${requestId}/fns-manual`,
+        {
+          method: "POST",
+        },
+      );
       if (!response.ok) {
         setError("Не удалось записать отметку");
         return;
@@ -196,7 +213,16 @@ export function FnsManualCheck({
         boxShadow: "0 10px 28px rgba(40, 40, 30, 0.06)",
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.75, px: 2.5, py: 2, bgcolor: tone.banner }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1.75,
+          px: 2.5,
+          py: 2,
+          bgcolor: tone.banner,
+        }}
+      >
         <Box
           aria-hidden
           sx={{
@@ -209,18 +235,32 @@ export function FnsManualCheck({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontWeight: 800,
-            fontSize: 22,
+            fontWeight: 700,
+            fontSize: "1.375rem",
             lineHeight: 1,
           }}
         >
           {positive ? <CheckRoundedIcon sx={{ fontSize: 22 }} /> : "!"}
         </Box>
         <Box sx={{ minWidth: 0 }}>
-          <Typography sx={{ color: tone.title, fontWeight: 800, fontSize: 17, lineHeight: 1.3 }}>
+          <Typography
+            sx={{
+              color: tone.title,
+              fontWeight: 700,
+              fontSize: "1.0625rem",
+              lineHeight: 1.5,
+            }}
+          >
             {title}
           </Typography>
-          <Typography sx={{ color: tone.body, fontSize: 14.5, lineHeight: 1.35, mt: 0.25 }}>
+          <Typography
+            sx={{
+              color: tone.body,
+              fontSize: "1rem",
+              lineHeight: 1.5,
+              mt: 0.25,
+            }}
+          >
             {positive ? (
               <>
                 {fnsSource ? `Источник: ${fnsSource}` : "Сверка выполнена"}
@@ -238,8 +278,16 @@ export function FnsManualCheck({
         </Box>
       </Box>
 
-      <Stack spacing={1.25} sx={{ alignItems: "flex-start", px: 2.5, pt: 2.25, pb: 2.25 }}>
-        <RequisitePill label="ИНН" value={inn} copied={copied === "ИНН"} onCopy={() => void copy("ИНН", inn ?? "")} />
+      <Stack
+        spacing={1.25}
+        sx={{ alignItems: "flex-start", px: 2.5, pt: 2.25, pb: 2.25 }}
+      >
+        <RequisitePill
+          label="ИНН"
+          value={inn}
+          copied={copied === "ИНН"}
+          onCopy={() => void copy("ИНН", inn ?? "")}
+        />
         {registrationLabel ? (
           <RequisitePill
             label={registrationLabel}
@@ -249,7 +297,12 @@ export function FnsManualCheck({
           />
         ) : null}
 
-        <Stack direction="row" spacing={1.25} useFlexGap sx={{ flexWrap: "wrap", pt: 0.75, maxWidth: "100%" }}>
+        <Stack
+          direction="row"
+          spacing={1.25}
+          useFlexGap
+          sx={{ flexWrap: "wrap", pt: 0.75, maxWidth: "100%" }}
+        >
           <Button
             variant="text"
             disableElevation
@@ -273,11 +326,15 @@ export function FnsManualCheck({
         </Stack>
 
         {error ? (
-          <Typography sx={{ color: CARD.error, fontSize: 14 }}>{error}</Typography>
+          <Typography sx={{ color: CARD.error, fontSize: "1rem" }}>
+            {error}
+          </Typography>
         ) : null}
 
         {manualCheckedAt ? (
-          <Typography sx={{ color: CARD.footer, fontSize: 14, lineHeight: 1.4 }}>
+          <Typography
+            sx={{ color: CARD.footer, fontSize: "1rem", lineHeight: 1.5 }}
+          >
             Последняя отметка — <MarkStamp iso={manualCheckedAt} />
           </Typography>
         ) : null}

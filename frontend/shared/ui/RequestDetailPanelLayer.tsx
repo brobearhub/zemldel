@@ -15,7 +15,14 @@ export type RequestDetailPanelLayerProps = {
 };
 
 /** Why: панель только внутри блока «Заявка». Grid в одной ячейке — карточка растёт, если панель выше содержимого. */
-export function RequestDetailPanelLayer({ open, title, icon, onClose, children, panel }: RequestDetailPanelLayerProps) {
+export function RequestDetailPanelLayer({
+  open,
+  title,
+  icon,
+  onClose,
+  children,
+  panel,
+}: RequestDetailPanelLayerProps) {
   useEffect(() => {
     if (!open) return;
     function onKeyDown(event: KeyboardEvent) {
@@ -27,7 +34,14 @@ export function RequestDetailPanelLayer({ open, title, icon, onClose, children, 
 
   return (
     <Box sx={{ display: "grid", borderRadius: 1, minWidth: 0, width: "100%" }}>
-      <Box sx={{ gridArea: "1 / 1", minWidth: 0, visibility: open ? "hidden" : "visible" }} aria-hidden={open}>
+      <Box
+        sx={{
+          gridArea: "1 / 1",
+          minWidth: 0,
+          visibility: open ? "hidden" : "visible",
+        }}
+        aria-hidden={open}
+      >
         {children}
       </Box>
       {open ? (
@@ -58,19 +72,28 @@ export function RequestDetailPanelLayer({ open, title, icon, onClose, children, 
               sx={{
                 alignItems: "flex-start",
                 justifyContent: "space-between",
-                flexShrink: 0
-              }}>
+                flexShrink: 0,
+              }}
+            >
               <Stack
                 direction="row"
                 spacing={1}
                 sx={{
                   alignItems: "center",
-                  minWidth: 0
-                }}>
-                {icon ? <Box sx={{ display: "flex", alignItems: "center" }}>{icon}</Box> : null}
-                <Typography variant="h5" sx={{
-                  fontWeight: 800
-                }}>
+                  minWidth: 0,
+                }}
+              >
+                {icon ? (
+                  <Box sx={{ display: "flex", alignItems: "center" }}>
+                    {icon}
+                  </Box>
+                ) : null}
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontWeight: 700,
+                  }}
+                >
                   {title}
                 </Typography>
               </Stack>
@@ -79,11 +102,19 @@ export function RequestDetailPanelLayer({ open, title, icon, onClose, children, 
               </IconButton>
             </Stack>
 
-            <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>{panel}</Box>
+            <Box
+              sx={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                minWidth: 0,
+              }}
+            >
+              {panel}
+            </Box>
           </Stack>
         </Paper>
       ) : null}
     </Box>
   );
 }
-

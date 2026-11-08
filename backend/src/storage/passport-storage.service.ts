@@ -8,7 +8,10 @@ export function readPassportStorageConfig(env: NodeJS.ProcessEnv) {
     if (!value) throw new Error(`Missing env ${name}`);
     return value;
   };
-  const endpoint = required('PASSPORT_S3_ENDPOINT');
+  // Testing contains synthetic documents only. Keep the production KMS path strict.
+  const publicTesting = env.NODE_ENV === 'testing';
+  const endpointName = publicTesting ? 'S3_ENDPOINT' : 'PASSPORT_S3_ENDPOINT';
+  const endpoint = required(endpointName);
   const url = new URL(endpoint);
   if (
     url.protocol !== 'https:' ||
@@ -18,16 +21,20 @@ export function readPassportStorageConfig(env: NodeJS.ProcessEnv) {
     url.hash ||
     url.pathname !== '/'
   ) {
-    throw new Error('PASSPORT_S3_ENDPOINT must be an HTTPS origin');
+    throw new Error(`${endpointName} must be an HTTPS origin`);
   }
   return {
     endpoint,
-    region: required('PASSPORT_S3_REGION'),
-    bucket: required('PASSPORT_S3_BUCKET'),
-    kmsKeyId: required('PASSPORT_S3_KMS_KEY_ID'),
+    region: required(publicTesting ? 'S3_REGION' : 'PASSPORT_S3_REGION'),
+    bucket: required(publicTesting ? 'S3_PUBLIC_BUCKET' : 'PASSPORT_S3_BUCKET'),
+    kmsKeyId: publicTesting ? null : required('PASSPORT_S3_KMS_KEY_ID'),
     credentials: {
-      accessKeyId: required('PASSPORT_S3_ACCESS_KEY_ID'),
-      secretAccessKey: required('PASSPORT_S3_SECRET_ACCESS_KEY'),
+      accessKeyId: required(
+        publicTesting ? 'S3_KEY' : 'PASSPORT_S3_ACCESS_KEY_ID',
+      ),
+      secretAccessKey: required(
+        publicTesting ? 'S3_SECRET' : 'PASSPORT_S3_SECRET_ACCESS_KEY',
+      ),
     },
   };
 }
@@ -37,7 +44,7 @@ export class PassportStorageService implements OnModuleDestroy {
   private connection?: {
     client: S3Client;
     bucket: string;
-    kmsKeyId: string;
+    kmsKeyId: string | null;
   };
 
   // Lazy initialization keeps existing deployments running until passport storage

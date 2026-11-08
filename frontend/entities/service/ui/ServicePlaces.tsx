@@ -8,15 +8,17 @@ const PREVIEW_COUNT = 3;
 
 type Props = {
   places: readonly ServicePlace[];
+  compact?: boolean;
 };
 
-export function ServicePlaces({ places }: Props) {
+export function ServicePlaces({ places, compact = false }: Props) {
   const [expanded, setExpanded] = useState(false);
   const labels = places.map(placeChipLabel).filter((label) => label.length > 0);
   if (!labels.length) return null;
 
   const hidden = Math.max(0, labels.length - PREVIEW_COUNT);
-  const visible = expanded || hidden === 0 ? labels : labels.slice(0, PREVIEW_COUNT);
+  const visible =
+    expanded || hidden === 0 ? labels : labels.slice(0, PREVIEW_COUNT);
 
   return (
     <Box sx={{ minWidth: 0, maxWidth: "100%" }}>
@@ -24,7 +26,7 @@ export function ServicePlaces({ places }: Props) {
         component="p"
         sx={{
           m: 0,
-          fontSize: 12,
+          fontSize: compact ? 12 : "1rem",
           fontWeight: 600,
           color: "text.secondary",
           overflowWrap: "anywhere",
@@ -48,7 +50,7 @@ export function ServicePlaces({ places }: Props) {
             minWidth: 0,
             minHeight: 32,
             color: "text.secondary",
-            fontSize: 12,
+            fontSize: compact ? 12 : "1rem",
             fontWeight: 600,
           }}
         >

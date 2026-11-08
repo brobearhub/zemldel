@@ -14,6 +14,7 @@ async function main() {
   const storage = new PassportStorageService();
   try {
     const { client, bucket: Bucket, kmsKeyId } = storage.getConnection();
+    assert(kmsKeyId, 'KMS storage check requires a secure environment');
     const Key = `passports/_sdk-smoke/${randomUUID()}/probe.json`;
     const versions = async () => {
       const result = await client.send(

@@ -24,7 +24,10 @@ import { buildSignInHref } from "@/core/auth/session-recovery";
 import { useAppSelector } from "@/core/store/hooks";
 import { CdnAvatar } from "@/shared/ui/cdn-image";
 import { CUSTOMER_NAV } from "@/widgets/cabinet-chrome/model/nav-config";
-import { getActiveMembership, resolveAccountKind } from "@/core/auth/authorization";
+import {
+  getActiveMembership,
+  resolveAccountKind,
+} from "@/core/auth/authorization";
 import {
   formatProviderIdentity,
   formatSurnameInitials,
@@ -65,7 +68,10 @@ type ProfileMenuProps = {
   readonly onPress?: () => void;
 };
 
-function buildReturnTo(pathname: string, searchParams: { toString(): string }): string {
+function buildReturnTo(
+  pathname: string,
+  searchParams: { toString(): string },
+): string {
   const qs = searchParams.toString();
   return qs ? `${pathname}?${qs}` : pathname;
 }
@@ -121,18 +127,26 @@ function SectionMenuItem({
 /** Название пункта с подписью мелким шрифтом сверху: «Организация» / «ООО Бурый Медведь». */
 function IdentityLabel({ identity }: { readonly identity: ProviderIdentity }) {
   return (
-    <Box component="span" sx={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+    <Box
+      component="span"
+      sx={{ display: "flex", flexDirection: "column", minWidth: 0 }}
+    >
       {identity.kindLabel ? (
         <Box
           component="span"
-          sx={{ fontSize: 11, fontWeight: 400, lineHeight: 1.2, color: "text.secondary" }}
+          sx={{
+            fontSize: "1rem",
+            fontWeight: 400,
+            lineHeight: 1.5,
+            color: "text.secondary",
+          }}
         >
           {identity.kindLabel}
         </Box>
       ) : null}
       <Box
         component="span"
-        sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+        sx={{ overflow: "hidden", textOverflow: "clip", whiteSpace: "normal" }}
       >
         {identity.title}
       </Box>
@@ -156,7 +170,7 @@ const drawerRowSx = {
   textDecoration: "none",
   color: "common.gray",
   fontWeight: 600,
-  fontSize: 12,
+  fontSize: "1rem",
   "&:hover": {
     color: "info.main",
     "& .MuiSvgIcon-root": { color: "info.main" },
@@ -185,13 +199,16 @@ export const ProfileMenu = ({
     pathname,
     searchParams: new URLSearchParams(searchParams.toString()),
   };
-  const [storedProviderMode, setStoredProviderMode] = useState<ProviderMenuMode | null>(null);
+  const [storedProviderMode, setStoredProviderMode] =
+    useState<ProviderMenuMode | null>(null);
   /** Why: исполнитель переключается между кабинетом и контактным лицом — у заказчика режима нет. */
   const providerMode = isProviderAccount
     ? resolveProviderMenuMode(activeSection, storedProviderMode)
     : null;
   const activeMembership = isProviderAccount ? getActiveMembership(user) : null;
-  const providerIdentity = activeMembership ? formatProviderIdentity(activeMembership) : null;
+  const providerIdentity = activeMembership
+    ? formatProviderIdentity(activeMembership)
+    : null;
   /**
    * Why: у аккаунта с исполнителем человек — контактное лицо: подпись и «Фамилия И. О.», как в документах.
    * У заказчика остаётся «Имя Ф.».
@@ -205,19 +222,30 @@ export const ProfileMenu = ({
       user?.email ||
       "Пользователь",
     initials:
-      (user?.person ? getInitials(`${user.person.firstName} ${user.person.lastName}`) : getInitials(user?.name)) ||
+      (user?.person
+        ? getInitials(`${user.person.firstName} ${user.person.lastName}`)
+        : getInitials(user?.name)) ||
       user?.email?.charAt(0)?.toUpperCase() ||
       "U",
   };
-  const isProviderIdentity = providerMode === "provider" && providerIdentity !== null;
-  const currentIdentity = isProviderIdentity ? providerIdentity : contactIdentity;
+  const isProviderIdentity =
+    providerMode === "provider" && providerIdentity !== null;
+  const currentIdentity = isProviderIdentity
+    ? providerIdentity
+    : contactIdentity;
   const showCustomerCabinet = !isProviderAccount;
   /** Why: пункт ведёт в другой раздел — на странице самого раздела он лишний, на публичных страницах нужны оба. */
   const showContactProfile = isProviderAccount && activeSection !== "profile";
-  const showProviderCabinet = isProviderAccount ? activeSection !== "pro" : isPlatformAdmin;
-  const showProRing = providerMode ? isProviderIdentity : activeSection === "pro";
+  const showProviderCabinet = isProviderAccount
+    ? activeSection !== "pro"
+    : isPlatformAdmin;
+  const showProRing = providerMode
+    ? isProviderIdentity
+    : activeSection === "pro";
   /** Why: в кабинете аватар принадлежит исполнителю, а не фото контактного лица. */
-  const avatarSrc = (isProviderIdentity ? activeMembership?.providerImage : user?.image) || undefined;
+  const avatarSrc =
+    (isProviderIdentity ? activeMembership?.providerImage : user?.image) ||
+    undefined;
   const initials = currentIdentity.initials;
   const [inlineOpen, setInlineOpen] = useState(false);
   const isInline = layout === "inline";
@@ -232,7 +260,9 @@ export const ProfileMenu = ({
         ? "Кабинет исполнителя"
         : "Профиль";
   const avatarTooltip = isProviderAccount
-    ? [currentIdentity.kindLabel, currentIdentity.title].filter(Boolean).join(" · ")
+    ? [currentIdentity.kindLabel, currentIdentity.title]
+        .filter(Boolean)
+        .join(" · ")
     : activeSection === "pro"
       ? "Кабинет исполнителя"
       : "";
@@ -294,7 +324,9 @@ export const ProfileMenu = ({
   };
 
   const handleSignInPro = () => {
-    closeAndGo(() => router.push(`/signin?returnTo=${encodeURIComponent("/pro")}`));
+    closeAndGo(() =>
+      router.push(`/signin?returnTo=${encodeURIComponent("/pro/requests/feed")}`),
+    );
   };
 
   const handleSignUp = () => {
@@ -303,7 +335,7 @@ export const ProfileMenu = ({
 
   const handleProDashboard = () => {
     if (isProviderAccount) saveProviderMenuMode("provider");
-    closeAndGo(() => router.push("/pro"));
+    closeAndGo(() => router.push("/pro/requests/feed"));
   };
 
   const handleAdmin = () => {
@@ -328,7 +360,9 @@ export const ProfileMenu = ({
               component="button"
               type="button"
               onClick={() => closeAndGo(() => router.push(item.href))}
-              aria-current={item.isActive(customerNavContext) ? "page" : undefined}
+              aria-current={
+                item.isActive(customerNavContext) ? "page" : undefined
+              }
               sx={rowSx}
             >
               {item.icon}
@@ -337,13 +371,23 @@ export const ProfileMenu = ({
           ))
         : null}
       {showProviderCabinet ? (
-        <Box component="button" type="button" onClick={handleProDashboard} sx={rowSx}>
+        <Box
+          component="button"
+          type="button"
+          onClick={handleProDashboard}
+          sx={rowSx}
+        >
           <WorkOutlineOutlinedIcon sx={{ fontSize: 22 }} />
           {providerCabinetLabel}
         </Box>
       ) : null}
       {showContactProfile ? (
-        <Box component="button" type="button" onClick={handleContactProfile} sx={rowSx}>
+        <Box
+          component="button"
+          type="button"
+          onClick={handleContactProfile}
+          sx={rowSx}
+        >
           <PersonOutlineRoundedIcon sx={{ fontSize: 22 }} />
           {contactProfileLabel}
         </Box>
@@ -354,7 +398,12 @@ export const ProfileMenu = ({
           Админка
         </Box>
       ) : null}
-      <Box component="button" type="button" onClick={handleSignOut} sx={{ ...rowSx, color: "error.main" }}>
+      <Box
+        component="button"
+        type="button"
+        onClick={handleSignOut}
+        sx={{ ...rowSx, color: "error.main" }}
+      >
         <LogoutIcon sx={{ fontSize: 22 }} />
         Выйти
       </Box>
@@ -365,7 +414,12 @@ export const ProfileMenu = ({
         <LoginIcon sx={{ fontSize: 22 }} />
         Клиент
       </Box>
-      <Box component="button" type="button" onClick={handleSignInPro} sx={rowSx}>
+      <Box
+        component="button"
+        type="button"
+        onClick={handleSignInPro}
+        sx={rowSx}
+      >
         <WorkOutlineOutlinedIcon sx={{ fontSize: 22 }} />
         Исполнитель
       </Box>
@@ -422,37 +476,39 @@ export const ProfileMenu = ({
         {isAuthenticated ? (
           <Tooltip title={avatarTooltip}>
             <CdnAvatar
-            src={avatarSrc}
-            sx={{
-              width: { xs: 28, sm: 32 },
-              height: { xs: 28, sm: 32 },
-              bgcolor: "primary.main",
-              color: "primary.contrastText",
-              fontSize: { xs: 12, sm: 13 },
-              fontWeight: 600,
-              ...(showProRing ? proAvatarRingSx : null),
-            }}
-          >
-            {initials}
-          </CdnAvatar>
+              src={avatarSrc}
+              sx={{
+                width: { xs: 28, sm: 32 },
+                height: { xs: 28, sm: 32 },
+                bgcolor: "primary.main",
+                color: "primary.contrastText",
+                fontSize: { xs: "1rem", sm: "1rem" },
+                fontWeight: 600,
+                ...(showProRing ? proAvatarRingSx : null),
+              }}
+            >
+              {initials}
+            </CdnAvatar>
           </Tooltip>
         ) : (
-          <PersonOutlineRoundedIcon sx={{ fontSize: { xs: 22, sm: 24 }, color: "info.main" }} />
+          <PersonOutlineRoundedIcon
+            sx={{ fontSize: { xs: 22, sm: 24 }, color: "info.main" }}
+          />
         )}
         {showLabel ? (
           <Typography
             className="nav-label"
             variant="body2"
-            noWrap
             sx={{
               color: "common.gray",
               display: forceLabel ? "block" : { xs: "none", md: "block" },
               maxWidth: forceLabel ? "100%" : 180,
               fontWeight: 600,
-              fontSize: 12,
+              fontSize: "1rem",
               opacity: 1,
-              "&:hover": { color: "info.main" }
-            }}>
+              "&:hover": { color: "info.main" },
+            }}
+          >
             {triggerLabel}
           </Typography>
         ) : null}
@@ -461,168 +517,192 @@ export const ProfileMenu = ({
       {isInline && inlineOpen ? inlineActions : null}
 
       {!isInline && !onPress ? (
-      <Menu
-        id="profile-menu"
-        anchorEl={anchorEl}
-        open={open}
-        onClose={handleClose}
-        disableScrollLock
-        disableAutoFocusItem
-        anchorOrigin={{
-          vertical: "bottom",
-          horizontal: "center",
-        }}
-        transformOrigin={{
-          vertical: "top",
-          horizontal: "center",
-        }}
-        slotProps={{
-          paper: {
-            sx: {
-              mt: 1,
-              minWidth: 220,
-              maxWidth: 320,
-              borderRadius: 1,
-              boxShadow: 3,
+        <Menu
+          id="profile-menu"
+          anchorEl={anchorEl}
+          open={open}
+          onClose={handleClose}
+          disableScrollLock
+          disableAutoFocusItem
+          anchorOrigin={{
+            vertical: "bottom",
+            horizontal: "center",
+          }}
+          transformOrigin={{
+            vertical: "top",
+            horizontal: "center",
+          }}
+          slotProps={{
+            paper: {
+              sx: {
+                mt: 1,
+                minWidth: 220,
+                maxWidth: 320,
+                borderRadius: 1,
+                boxShadow: 3,
+              },
             },
-          },
 
-          list: {
-            onMouseLeave: handleClose,
-            "aria-labelledby": "profile-button",
-          }
-        }}>
-        {isAuthenticated ? (
-          <Box>
-            <Box sx={{ px: 2, py: 1.5 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
-                <CdnAvatar
-                  src={avatarSrc}
+            list: {
+              onMouseLeave: handleClose,
+              "aria-labelledby": "profile-button",
+            },
+          }}
+        >
+          {isAuthenticated ? (
+            <Box>
+              <Box sx={{ px: 2, py: 1.5 }}>
+                <Box
                   sx={{
-                    width: 40,
-                    height: 40,
-                    bgcolor: "primary.main",
-                    fontSize: 16,
-                    fontWeight: 600,
-                    ...(showProRing ? proAvatarRingSx : null),
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    mb: 1,
                   }}
                 >
-                  {initials}
-                </CdnAvatar>
-                <Box sx={{ minWidth: 0 }}>
-                  {currentIdentity.kindLabel ? (
-                    <Typography
-                      variant="caption"
-                      noWrap
-                      sx={{ color: "text.secondary", display: "block", lineHeight: 1.2 }}
-                    >
-                      {currentIdentity.kindLabel}
-                    </Typography>
-                  ) : null}
-                  <Typography variant="subtitle2" noWrap sx={{
-                    fontWeight: 600
-                  }}>
-                    {currentIdentity.title}
-                  </Typography>
-                  {user?.email && user.email !== currentIdentity.title ? (
-                    <Typography
-                      variant="caption"
-                      noWrap
-                      sx={{
-                        color: "text.secondary",
-                        display: "block"
-                      }}>
-                      {user.email}
-                    </Typography>
-                  ) : null}
-                </Box>
-              </Box>
-            </Box>
-            <Divider />
-            {showCustomerCabinet
-              ? CUSTOMER_NAV.desktop.map((item) => (
-                  <MenuItem
-                    key={item.key}
-                    onClick={() => closeAndGo(() => router.push(item.href))}
-                    aria-current={item.isActive(customerNavContext) ? "page" : undefined}
-                    sx={menuItemSx(item.isActive(customerNavContext))}
+                  <CdnAvatar
+                    src={avatarSrc}
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      bgcolor: "primary.main",
+                      fontSize: "1rem",
+                      fontWeight: 600,
+                      ...(showProRing ? proAvatarRingSx : null),
+                    }}
                   >
-                    <Box
-                      component="span"
+                    {initials}
+                  </CdnAvatar>
+                  <Box sx={{ minWidth: 0 }}>
+                    {currentIdentity.kindLabel ? (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: "text.secondary",
+                          display: "block",
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        {currentIdentity.kindLabel}
+                      </Typography>
+                    ) : null}
+                    <Typography
+                      variant="subtitle2"
                       sx={{
-                        ...menuIconSx,
-                        display: "inline-flex",
-                        "& .MuiSvgIcon-root": {
-                          fontSize: "inherit",
-                        },
+                        fontWeight: 600,
                       }}
                     >
-                      {item.icon}
-                    </Box>
-                    {item.key === "profile" ? "Мой профиль" : item.label}
-                  </MenuItem>
-                ))
-              : null}
-            {showProviderCabinet ? (
-              <SectionMenuItem
-                active={activeSection === "pro"}
-                onClick={handleProDashboard}
-                outlineIcon={<WorkOutlineOutlinedIcon sx={menuIconSx} />}
-                filledIcon={<WorkIcon sx={menuIconSx} />}
+                      {currentIdentity.title}
+                    </Typography>
+                    {user?.email && user.email !== currentIdentity.title ? (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: "text.secondary",
+                          display: "block",
+                        }}
+                      >
+                        {user.email}
+                      </Typography>
+                    ) : null}
+                  </Box>
+                </Box>
+              </Box>
+              <Divider />
+              {showCustomerCabinet
+                ? CUSTOMER_NAV.desktop.map((item) => (
+                    <MenuItem
+                      key={item.key}
+                      onClick={() => closeAndGo(() => router.push(item.href))}
+                      aria-current={
+                        item.isActive(customerNavContext) ? "page" : undefined
+                      }
+                      sx={menuItemSx(item.isActive(customerNavContext))}
+                    >
+                      <Box
+                        component="span"
+                        sx={{
+                          ...menuIconSx,
+                          display: "inline-flex",
+                          "& .MuiSvgIcon-root": {
+                            fontSize: "inherit",
+                          },
+                        }}
+                      >
+                        {item.icon}
+                      </Box>
+                      {item.key === "profile" ? "Мой профиль" : item.label}
+                    </MenuItem>
+                  ))
+                : null}
+              {showProviderCabinet ? (
+                <SectionMenuItem
+                  active={activeSection === "pro"}
+                  onClick={handleProDashboard}
+                  outlineIcon={<WorkOutlineOutlinedIcon sx={menuIconSx} />}
+                  filledIcon={<WorkIcon sx={menuIconSx} />}
+                >
+                  {providerCabinetLabel}
+                </SectionMenuItem>
+              ) : null}
+              {showContactProfile ? (
+                <SectionMenuItem
+                  active={false}
+                  onClick={handleContactProfile}
+                  outlineIcon={<PersonOutlineRoundedIcon sx={menuIconSx} />}
+                  filledIcon={<PersonRoundedIcon sx={menuIconSx} />}
+                >
+                  {contactProfileLabel}
+                </SectionMenuItem>
+              ) : null}
+              {isPlatformAdmin ? (
+                <SectionMenuItem
+                  active={activeSection === "admin"}
+                  onClick={handleAdmin}
+                  outlineIcon={
+                    <AdminPanelSettingsOutlinedIcon sx={menuIconSx} />
+                  }
+                  filledIcon={<AdminPanelSettingsIcon sx={menuIconSx} />}
+                >
+                  Админка
+                </SectionMenuItem>
+              ) : null}
+              <MenuItem
+                onClick={handleSignOut}
+                sx={{ ...menuItemSx(false), color: "error.main" }}
               >
-                {providerCabinetLabel}
-              </SectionMenuItem>
-            ) : null}
-            {showContactProfile ? (
-              <SectionMenuItem
-                active={false}
-                onClick={handleContactProfile}
-                outlineIcon={<PersonOutlineRoundedIcon sx={menuIconSx} />}
-                filledIcon={<PersonRoundedIcon sx={menuIconSx} />}
-              >
-                {contactProfileLabel}
-              </SectionMenuItem>
-            ) : null}
-            {isPlatformAdmin ? (
-              <SectionMenuItem
-                active={activeSection === "admin"}
-                onClick={handleAdmin}
-                outlineIcon={<AdminPanelSettingsOutlinedIcon sx={menuIconSx} />}
-                filledIcon={<AdminPanelSettingsIcon sx={menuIconSx} />}
-              >
-                Админка
-              </SectionMenuItem>
-            ) : null}
-            <MenuItem onClick={handleSignOut} sx={{ ...menuItemSx(false), color: "error.main" }}>
-              <LogoutIcon sx={menuIconSx} />
-              Выйти
-            </MenuItem>
-          </Box>
-        ) : (
-          <Box>
-            <Box sx={{ px: 2, py: 1.5 }}>
-              <Typography variant="subtitle2" sx={{
-                fontWeight: 600
-              }}>
-                Войти
-              </Typography>
+                <LogoutIcon sx={menuIconSx} />
+                Выйти
+              </MenuItem>
             </Box>
-            <Divider />
-            <MenuItem onClick={handleSignIn} sx={menuItemSx(false)}>
-              <LoginIcon sx={menuIconSx} />
-              Клиент
-            </MenuItem>
-            <MenuItem onClick={handleSignInPro} sx={menuItemSx(false)}>
-              <WorkOutlineOutlinedIcon sx={menuIconSx} />
-              Исполнитель
-            </MenuItem>
-            <MenuItem onClick={handleSignUp} sx={menuItemSx(false)}>
-              <PersonAddIcon sx={menuIconSx} />
-              Регистрация
-            </MenuItem>
-          </Box>
-        )}
-      </Menu>
+          ) : (
+            <Box>
+              <Box sx={{ px: 2, py: 1.5 }}>
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    fontWeight: 600,
+                  }}
+                >
+                  Войти
+                </Typography>
+              </Box>
+              <Divider />
+              <MenuItem onClick={handleSignIn} sx={menuItemSx(false)}>
+                <LoginIcon sx={menuIconSx} />
+                Клиент
+              </MenuItem>
+              <MenuItem onClick={handleSignInPro} sx={menuItemSx(false)}>
+                <WorkOutlineOutlinedIcon sx={menuIconSx} />
+                Исполнитель
+              </MenuItem>
+              <MenuItem onClick={handleSignUp} sx={menuItemSx(false)}>
+                <PersonAddIcon sx={menuIconSx} />
+                Регистрация
+              </MenuItem>
+            </Box>
+          )}
+        </Menu>
       ) : null}
     </Box>
   );

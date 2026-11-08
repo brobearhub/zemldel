@@ -32,7 +32,11 @@ export function CadastralNumberMapLink({ value, sx }: Props) {
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          sx={{ color: "inherit", fontSize: 13, textDecoration: "underline" }}
+          sx={{
+            color: "inherit",
+            fontSize: "1rem",
+            textDecoration: "underline",
+          }}
         >
           перейти на сайт
         </Link>

@@ -1,12 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  Box,
-  Button,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Box, Button, Stack, Typography } from "@mui/material";
 import { SITE_HEADER_HEIGHT_PX } from "@/shared/config/site-layout";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import { RainGlassPaper } from "@/shared/ui/RainGlassPaper";
@@ -38,11 +33,11 @@ export default function WelcomePage() {
         sx={{
           width: "100%",
           maxWidth: 440,
-          p: 4,
+          p: { xs: 2, sm: 4 },
         }}
       >
         <Stack spacing={3} sx={{ alignItems: "center" }}>
-          <LogoIcon size={88} tone="light" priority />
+          <LogoIcon size={88} tone="auto" priority />
 
           <Typography variant="h4" align="center" sx={{ fontWeight: 700 }}>
             Поздравляем!

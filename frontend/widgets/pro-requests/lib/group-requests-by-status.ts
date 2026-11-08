@@ -1,6 +1,6 @@
 import { getRequestStatusLabel, type RequestProDto, type RequestStatus } from "@/entities/request";
 
-/** Порядок колонок ленты — полный жизненный цикл заявки. */
+/** Порядок колонок доски — полный жизненный цикл заявки. */
 export const PRO_REQUEST_BOARD_STATUSES = [
   "NEW",
   "DISCUSSING",
@@ -22,9 +22,6 @@ export const DEFAULT_ENABLED_PRO_REQUEST_STATUSES: readonly RequestStatus[] = [
   "NEW",
   "DISCUSSING",
   "ACTIVE",
-  "ACCEPTANCE_PENDING",
-  "ACCEPTED",
-  "COMPLETED",
 ];
 
 export function toggleProRequestStatus(enabled: readonly RequestStatus[], status: RequestStatus): RequestStatus[] {

@@ -49,7 +49,7 @@ export function RequestLifecycleActions(props: RequestLifecycleActionsProps) {
             <Typography
               variant="body2"
               sx={{
-                fontWeight: 800,
+                fontWeight: 700,
               }}
             >
               {vm.lockedAlert.title}

@@ -71,7 +71,8 @@ type Props = {
 };
 
 export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
-  const [categories, setCategories] = useState<ServiceCategoryRow[]>(initialCategories);
+  const [categories, setCategories] =
+    useState<ServiceCategoryRow[]>(initialCategories);
   const [busy, setBusy] = useState(false);
   // Why: busy общий для создания, сохранения и удаления — спиннер только на нажатой кнопке.
   const [pendingAction, setPendingAction] = useState<string | null>(null);
@@ -96,7 +97,10 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
   const [editSortOrderDraft, setEditSortOrderDraft] = useState<string>("");
 
   const flatTree = useMemo(() => buildTree(categories), [categories]);
-  const categoriesById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+  const categoriesById = useMemo(
+    () => new Map(categories.map((c) => [c.id, c])),
+    [categories],
+  );
 
   async function refresh() {
     const res = await fetch("/api/admin/service-categories");
@@ -121,7 +125,9 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
         }),
       });
       if (!res.ok) {
-        const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+        const payload = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         throw new Error(payload?.error || "Failed to create category");
       }
       setCreateForm({ name: "", slug: "", parentId: "", sortOrder: "" });
@@ -158,7 +164,9 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
         }),
       });
       if (!res.ok) {
-        const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+        const payload = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         throw new Error(payload?.error || "Failed to patch category");
       }
       setEditOpen(false);
@@ -184,9 +192,13 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
     setBusy(true);
     setPendingAction(`delete:${row.id}`);
     try {
-      const res = await fetch(`/api/admin/service-categories/${row.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/service-categories/${row.id}`, {
+        method: "DELETE",
+      });
       if (!res.ok) {
-        const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+        const payload = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         throw new Error(payload?.error || "Failed to delete category");
       }
       await refresh();
@@ -203,21 +215,31 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
       {error ? <Alert severity="error">{error}</Alert> : null}
 
       <Box>
-        <Typography sx={{ fontWeight: 900, mb: 1.5 }}>Создать категорию</Typography>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{
-          alignItems: "flex-start"
-        }}>
+        <Typography sx={{ fontWeight: 700, mb: 1.5 }}>
+          Создать категорию
+        </Typography>
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={2}
+          sx={{
+            alignItems: "flex-start",
+          }}
+        >
           <TextField
             label="name"
             value={createForm.name}
-            onChange={(e) => setCreateForm((s) => ({ ...s, name: e.target.value }))}
+            onChange={(e) =>
+              setCreateForm((s) => ({ ...s, name: e.target.value }))
+            }
             size="small"
             fullWidth
           />
           <TextField
             label="slug"
             value={createForm.slug}
-            onChange={(e) => setCreateForm((s) => ({ ...s, slug: e.target.value }))}
+            onChange={(e) =>
+              setCreateForm((s) => ({ ...s, slug: e.target.value }))
+            }
             size="small"
             sx={{ minWidth: 180 }}
           />
@@ -225,7 +247,9 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
             select
             label="parent (optional)"
             value={createForm.parentId}
-            onChange={(e) => setCreateForm((s) => ({ ...s, parentId: e.target.value }))}
+            onChange={(e) =>
+              setCreateForm((s) => ({ ...s, parentId: e.target.value }))
+            }
             size="small"
             sx={{ minWidth: 260 }}
           >
@@ -239,7 +263,9 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
           <TextField
             label="sortOrder (optional)"
             value={createForm.sortOrder}
-            onChange={(e) => setCreateForm((s) => ({ ...s, sortOrder: e.target.value }))}
+            onChange={(e) =>
+              setCreateForm((s) => ({ ...s, sortOrder: e.target.value }))
+            }
             size="small"
             sx={{ minWidth: 160 }}
           />
@@ -248,7 +274,7 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
             onClick={onCreate}
             loading={pendingAction === "create"}
             disabled={busy && pendingAction !== "create"}
-            sx={{ whiteSpace: "nowrap", fontWeight: 800 }}
+            sx={{ whiteSpace: "normal", fontWeight: 700 }}
           >
             Создать
           </Button>
@@ -256,10 +282,14 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
       </Box>
 
       <Box>
-        <Typography sx={{ fontWeight: 900, mb: 1.5 }}>Дерево категорий</Typography>
+        <Typography sx={{ fontWeight: 700, mb: 1.5 }}>
+          Дерево категорий
+        </Typography>
         <Stack spacing={1}>
           {flatTree.map(({ node, depth }) => {
-            const parent = node.parentId ? categoriesById.get(node.parentId) : null;
+            const parent = node.parentId
+              ? categoriesById.get(node.parentId)
+              : null;
             return (
               <Stack
                 key={node.id}
@@ -270,20 +300,28 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
                   p: 1.5,
                   border: "1px solid",
                   borderColor: "divider",
-                  borderRadius: 1
-                }}>
+                  borderRadius: 1,
+                }}
+              >
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography sx={{ fontWeight: 800 }}>
+                  <Typography sx={{ fontWeight: 700 }}>
                     {"—".repeat(depth)} {node.name}
                   </Typography>
                   <Typography variant="body2" sx={{ color: "text.secondary" }}>
                     slug: {node.slug}
                     {parent ? ` · parent: ${parent.slug}` : ""}
-                    {node.sortOrder !== null ? ` · sort: ${node.sortOrder}` : ""}
+                    {node.sortOrder !== null
+                      ? ` · sort: ${node.sortOrder}`
+                      : ""}
                   </Typography>
                 </Box>
                 <Stack direction="row" spacing={1}>
-                  <Button size="small" variant="outlined" onClick={() => openEdit(node)} disabled={busy}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => openEdit(node)}
+                    disabled={busy}
+                  >
                     Редактировать
                   </Button>
                   <Button
@@ -303,22 +341,36 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
         </Stack>
       </Box>
 
-      <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="md" fullWidth>
+      <Dialog
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
         <DialogTitle>Редактировать категорию</DialogTitle>
         <DialogContent>
           {editDraft ? (
             <Stack spacing={2} sx={{ pt: 1 }}>
-              <TextField label="id" value={editDraft.id} size="small" disabled />
+              <TextField
+                label="id"
+                value={editDraft.id}
+                size="small"
+                disabled
+              />
               <TextField
                 label="name"
                 value={editDraft.name}
-                onChange={(e) => setEditDraft((s) => (s ? { ...s, name: e.target.value } : s))}
+                onChange={(e) =>
+                  setEditDraft((s) => (s ? { ...s, name: e.target.value } : s))
+                }
                 size="small"
               />
               <TextField
                 label="slug"
                 value={editDraft.slug}
-                onChange={(e) => setEditDraft((s) => (s ? { ...s, slug: e.target.value } : s))}
+                onChange={(e) =>
+                  setEditDraft((s) => (s ? { ...s, slug: e.target.value } : s))
+                }
                 size="small"
               />
               <TextField
@@ -350,7 +402,11 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
           <Button onClick={() => setEditOpen(false)} disabled={busy}>
             Отмена
           </Button>
-          <Button variant="contained" onClick={onSaveEdit} loading={pendingAction === "save"}>
+          <Button
+            variant="contained"
+            onClick={onSaveEdit}
+            loading={pendingAction === "save"}
+          >
             Сохранить
           </Button>
         </DialogActions>
@@ -358,4 +414,3 @@ export function ServiceCategoriesAdminClient({ initialCategories }: Props) {
     </Stack>
   );
 }
-

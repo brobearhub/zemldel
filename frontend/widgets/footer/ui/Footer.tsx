@@ -24,7 +24,9 @@ const DEVELOPED_BY = "OOO «Бурый Медведь»";
 
 export const Footer = () => {
   const year = new Date().getFullYear();
-  const [categories, setCategories] = useState<ServiceCategoryRow[] | null>(null);
+  const [categories, setCategories] = useState<ServiceCategoryRow[] | null>(
+    null,
+  );
 
   useEffect(() => {
     fetch("/api/service-categories")
@@ -38,7 +40,9 @@ export const Footer = () => {
 
   const theme = useTheme();
   const isLight = theme.palette.mode === "light";
-  const logoSrc = isLight ? "/zemledel_logo_dark.svg" : "/zemledel_logo_light.svg";
+  const logoSrc = isLight
+    ? "/zemledel_logo_dark.svg"
+    : "/zemledel_logo_light.svg";
   const rootCategories = useMemo(() => {
     const roots = (categories ?? []).filter((c) => c.parentId == null);
     return [...roots]
@@ -67,19 +71,15 @@ export const Footer = () => {
     <Box
       component="footer"
       sx={{
-        bgcolor: (theme) => theme.custom.bgColors.secondary,
-        color: (theme) =>
-          theme.palette.mode === "light"
-            ? theme.palette.text.primary
-            : theme.palette.common.white,
+        bgcolor: "var(--mui-custom-bgColors-secondary)",
+        color: "var(--mui-custom-textColors-footer)",
+        "& a:hover": { color: "inherit" },
         pt: { xs: 6, md: 8 },
         pb: 3,
       }}
     >
       <Container>
         <Stack spacing={{ xs: 4, md: 5 }}>
-          
-
           <Box
             sx={{
               display: "grid",
@@ -93,6 +93,9 @@ export const Footer = () => {
             }}
           >
             <Box
+              component={NextLink}
+              href="/"
+              aria-label="На главную"
               sx={{
                 display: "flex",
                 justifyContent: { xs: "center", sm: "flex-start" },
@@ -108,12 +111,19 @@ export const Footer = () => {
               />
             </Box>
             <Stack spacing={1}>
-              <Typography variant="overline" sx={{ opacity: 0.8, fontWeight: 700 }}>
+              <Typography
+                variant="overline"
+                sx={{
+                  fontSize: "1.125rem",
+                  lineHeight: 26 / 18,
+                  fontWeight: 700,
+                }}
+              >
                 Категории
               </Typography>
               {!categories ? (
                 <Box sx={{ py: 1 }}>
-                  <CircularProgress size={18} sx={{ color: "primary.light" }} />
+                  <CircularProgress size={18} sx={{ color: "inherit" }} />
                 </Box>
               ) : (
                 <List dense disablePadding sx={{ listStyle: "none" }}>
@@ -123,16 +133,22 @@ export const Footer = () => {
                         component={NextLink}
                         href={`/service-categories/${item.id}`}
                         sx={{
-                          fontSize: 14,
+                          fontSize: "1rem",
                           minHeight: 44,
                           display: "inline-flex",
                           alignItems: "center",
                           color: "inherit",
                           textDecoration: "none",
-                          "&:hover": { textDecoration: "underline", opacity: 0.85 },
+                          "&:hover": {
+                            textDecoration: "underline",
+                            opacity: 1,
+                          },
                         }}
                       >
-                        <ResponsiveLabel text={item.name} compactText={item.shortName} />
+                        <ResponsiveLabel
+                          text={item.name}
+                          compactText={item.shortName}
+                        />
                       </Link>
                     </ListItem>
                   ))}
@@ -140,15 +156,25 @@ export const Footer = () => {
               )}
             </Stack>
 
-            <Stack spacing={1} sx={{
-              alignItems: "flex-start"
-            }}>
-              <Typography variant="overline" sx={{ opacity: 0.8, fontWeight: 700 }}>
+            <Stack
+              spacing={1}
+              sx={{
+                alignItems: "flex-start",
+              }}
+            >
+              <Typography
+                variant="overline"
+                sx={{
+                  fontSize: "1.125rem",
+                  lineHeight: 26 / 18,
+                  fontWeight: 700,
+                }}
+              >
                 Шаблоны услуг
               </Typography>
               {!categories ? (
                 <Box sx={{ py: 1 }}>
-                  <CircularProgress size={18} sx={{ color: "primary.light" }} />
+                  <CircularProgress size={18} sx={{ color: "inherit" }} />
                 </Box>
               ) : (
                 <List
@@ -168,16 +194,22 @@ export const Footer = () => {
                         component={NextLink}
                         href={`/service-categories/${item.id}`}
                         sx={{
-                          fontSize: 14,
+                          fontSize: "1rem",
                           minHeight: 44,
                           display: "inline-flex",
                           alignItems: "center",
                           color: "inherit",
                           textDecoration: "none",
-                          "&:hover": { textDecoration: "underline", opacity: 0.85 },
+                          "&:hover": {
+                            textDecoration: "underline",
+                            opacity: 1,
+                          },
                         }}
                       >
-                        <ResponsiveLabel text={item.name} compactText={item.shortName} />
+                        <ResponsiveLabel
+                          text={item.name}
+                          compactText={item.shortName}
+                        />
                       </Link>
                     </ListItem>
                   ))}
@@ -185,23 +217,33 @@ export const Footer = () => {
               )}
             </Stack>
 
-            <Stack spacing={1} sx={{
-              alignItems: "flex-start"
-            }}>
-              <Typography variant="overline" sx={{ opacity: 0.8, fontWeight: 700 }}>
+            <Stack
+              spacing={1}
+              sx={{
+                alignItems: "flex-start",
+              }}
+            >
+              <Typography
+                variant="overline"
+                sx={{
+                  fontSize: "1.125rem",
+                  lineHeight: 26 / 18,
+                  fontWeight: 700,
+                }}
+              >
                 О проекте и документы
               </Typography>
               <Link
                 component={NextLink}
                 href="/about"
                 sx={{
-                  fontSize: 14,
+                  fontSize: "1rem",
                   minHeight: 44,
                   display: "inline-flex",
                   alignItems: "center",
                   color: "inherit",
                   textDecoration: "none",
-                  "&:hover": { textDecoration: "underline", opacity: 0.85 },
+                  "&:hover": { textDecoration: "underline", opacity: 1 },
                 }}
               >
                 О проекте и контакты
@@ -210,13 +252,13 @@ export const Footer = () => {
                 component={NextLink}
                 href="/terms"
                 sx={{
-                  fontSize: 14,
+                  fontSize: "1rem",
                   minHeight: 44,
                   display: "inline-flex",
                   alignItems: "center",
                   color: "inherit",
                   textDecoration: "none",
-                  "&:hover": { textDecoration: "underline", opacity: 0.85 },
+                  "&:hover": { textDecoration: "underline", opacity: 1 },
                 }}
               >
                 Пользовательское соглашение
@@ -225,13 +267,13 @@ export const Footer = () => {
                 component={NextLink}
                 href="/privacy"
                 sx={{
-                  fontSize: 14,
+                  fontSize: "1rem",
                   minHeight: 44,
                   display: "inline-flex",
                   alignItems: "center",
                   color: "inherit",
                   textDecoration: "none",
-                  "&:hover": { textDecoration: "underline", opacity: 0.85 },
+                  "&:hover": { textDecoration: "underline", opacity: 1 },
                 }}
               >
                 Политика обработки ПДн
@@ -240,13 +282,13 @@ export const Footer = () => {
                 component={NextLink}
                 href="/consent"
                 sx={{
-                  fontSize: 14,
+                  fontSize: "1rem",
                   minHeight: 44,
                   display: "inline-flex",
                   alignItems: "center",
                   color: "inherit",
                   textDecoration: "none",
-                  "&:hover": { textDecoration: "underline", opacity: 0.85 },
+                  "&:hover": { textDecoration: "underline", opacity: 1 },
                 }}
               >
                 Согласие на обработку ПДн
@@ -255,13 +297,13 @@ export const Footer = () => {
                 component={NextLink}
                 href="/offer"
                 sx={{
-                  fontSize: 14,
+                  fontSize: "1rem",
                   minHeight: 44,
                   display: "inline-flex",
                   alignItems: "center",
                   color: "inherit",
                   textDecoration: "none",
-                  "&:hover": { textDecoration: "underline", opacity: 0.85 },
+                  "&:hover": { textDecoration: "underline", opacity: 1 },
                 }}
               >
                 Оферта (платные услуги)
@@ -286,14 +328,15 @@ export const Footer = () => {
           >
             <Typography
               sx={{
-                fontSize: 14,
+                fontSize: "1rem",
                 color: (theme) =>
                   theme.palette.mode === "light"
                     ? "rgba(0,0,0,0.72)"
                     : "rgba(255,255,255,0.78)",
               }}
             >
-              © {year} <span style={{ fontWeight: 900 }}>{BRAND_NAME}</span>. Все права защищены.
+              © {year} <span style={{ fontWeight: 700 }}>{BRAND_NAME}</span>.
+              Все права защищены.
             </Typography>
             <YandexMetrikaInformer />
             <Link
@@ -304,15 +347,17 @@ export const Footer = () => {
                 minHeight: 44,
                 display: "inline-flex",
                 alignItems: "center",
-                fontSize: 14,
+                fontSize: "1rem",
                 color: (theme) =>
                   theme.palette.mode === "light"
                     ? "rgba(0,0,0,0.72)"
                     : "rgba(255,255,255,0.78)",
                 textDecoration: "underline",
-                "&:hover": { textDecoration: "none", color: "info.main" },
+                "&:hover": { textDecoration: "underline", color: "inherit" },
               }}
-            >Проектирование и разработка: {DEVELOPED_BY}</Link>
+            >
+              Проектирование и разработка: {DEVELOPED_BY}
+            </Link>
           </Box>
         </Stack>
       </Container>

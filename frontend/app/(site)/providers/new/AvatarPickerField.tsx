@@ -1,14 +1,26 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
-import { Avatar, Box, Button, FormHelperText, Stack, Typography } from "@mui/material";
+import {
+  Avatar,
+  Box,
+  Button,
+  FormHelperText,
+  Stack,
+  Typography,
+} from "@mui/material";
 import AddAPhotoOutlinedIcon from "@mui/icons-material/AddAPhotoOutlined";
 
 export const AVATAR_ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
-export function validateAvatarFile(file: File, maxMegabytes: number): string | null {
-  if (!AVATAR_ALLOWED_TYPES.includes(file.type)) return "Поддерживаются только JPG, PNG или WebP.";
-  if (file.size > maxMegabytes * 1024 * 1024) return `Максимальный размер изображения — ${maxMegabytes} МБ.`;
+export function validateAvatarFile(
+  file: File,
+  maxMegabytes: number,
+): string | null {
+  if (!AVATAR_ALLOWED_TYPES.includes(file.type))
+    return "Поддерживаются только JPG, PNG или WebP.";
+  if (file.size > maxMegabytes * 1024 * 1024)
+    return `Максимальный размер изображения — ${maxMegabytes} МБ.`;
   return null;
 }
 
@@ -40,7 +52,12 @@ export function AvatarPickerField(props: {
         <Avatar
           src={previewUrl ?? undefined}
           alt={props.file ? props.label : undefined}
-          sx={{ width: 64, height: 64, bgcolor: "action.hover", color: "text.secondary" }}
+          sx={{
+            width: 64,
+            height: 64,
+            bgcolor: "action.hover",
+            color: "text.secondary",
+          }}
         >
           <AddAPhotoOutlinedIcon />
         </Avatar>
@@ -48,7 +65,12 @@ export function AvatarPickerField(props: {
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
             {props.label}
           </Typography>
-          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            useFlexGap
+            sx={{ flexWrap: "wrap" }}
+          >
             <Button
               variant="outlined"
               size="small"
@@ -56,7 +78,7 @@ export function AvatarPickerField(props: {
               disabled={props.disabled}
               aria-label={`${props.label}: ${props.file ? "заменить" : "загрузить фото"}`}
               aria-describedby={helperId}
-              sx={{ whiteSpace: "nowrap" }}
+              sx={{ whiteSpace: "normal" }}
             >
               {props.file ? "Заменить" : "Загрузить фото"}
               <input
@@ -97,7 +119,8 @@ export function AvatarPickerField(props: {
         role={error ? "alert" : undefined}
         sx={{ mx: 1.75 }}
       >
-        {error ?? `Необязательно · JPG, PNG или WebP до ${props.maxMegabytes} МБ`}
+        {error ??
+          `Необязательно · JPG, PNG или WebP до ${props.maxMegabytes} МБ`}
       </FormHelperText>
     </Stack>
   );

@@ -27,7 +27,6 @@ export class WorkspaceService {
       this.prisma.providerTeamTask.findMany({
         where: { providerId },
         orderBy: { updatedAt: 'desc' },
-        take: 200,
       }),
       this.prisma.providerMember.findMany({
         where: { providerId, status: 'ACTIVE' },
@@ -54,6 +53,8 @@ export class WorkspaceService {
           id: true,
           createdAt: true,
           message: true,
+          customerName: true,
+          customerUser: { select: { name: true } },
           service: { select: { title: true } },
           status: true,
           serviceId: true,
@@ -115,6 +116,7 @@ export class WorkspaceService {
         title:
           r.service?.title ?? r.message?.slice(0, 80) ?? 'Свободная заявка',
         status: r.status,
+        customerName: r.customerName ?? r.customerUser?.name ?? null,
       })),
       stats,
     };

@@ -35,7 +35,9 @@ type Props = {
 
 async function getCategory(id: string) {
   try {
-    return await fetchBackendJson<ServiceCategoryRow>(`/service-categories/${encodeURIComponent(id)}`);
+    return await fetchBackendJson<ServiceCategoryRow>(
+      `/service-categories/${encodeURIComponent(id)}`,
+    );
   } catch (error) {
     if (error instanceof BackendApiError && error.status === 404) notFound();
     throw error;
@@ -48,13 +50,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const guide = getCategoryGuide(category.slug);
   const metadata = publicPageMetadata(
     `${category.name} — Земледел`,
-    guide?.description ?? `Услуги в категории «${category.name}». Выберите предложение или опишите свою задачу исполнителю.`,
+    guide?.description ??
+      `Услуги в категории «${category.name}». Выберите предложение или опишите свою задачу исполнителю.`,
     `/service-categories/${category.id}`,
   );
   const image = getCategoryGuideImage(category.slug);
   if (!image) return metadata;
-  const images = [{ url: `${siteOrigin()}${image.src}`, width: image.width, height: image.height, alt: image.alt }];
-  return { ...metadata, openGraph: { ...metadata.openGraph, images }, twitter: { ...metadata.twitter, images } };
+  const images = [
+    {
+      url: `${siteOrigin()}${image.src}`,
+      width: image.width,
+      height: image.height,
+      alt: image.alt,
+    },
+  ];
+  return {
+    ...metadata,
+    openGraph: { ...metadata.openGraph, images },
+    twitter: { ...metadata.twitter, images },
+  };
 }
 
 export default async function ServiceCategoryPage({ params }: Props) {
@@ -79,14 +93,19 @@ export default async function ServiceCategoryPage({ params }: Props) {
   }
 
   // The API accepts both IDs and slugs. Keep one public URL for the same category.
-  if (id !== category.id) permanentRedirect(`/service-categories/${category.id}`);
+  if (id !== category.id)
+    permanentRedirect(`/service-categories/${category.id}`);
   const guide = getCategoryGuide(category.slug);
   const parent = categories.find((item) => item.id === category.parentId);
 
   const isRoot = category.parentId == null;
   const templates = categories
     .filter((c) => c.parentId === category.id)
-    .sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity) || a.name.localeCompare(b.name, "ru"));
+    .sort(
+      (a, b) =>
+        (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity) ||
+        a.name.localeCompare(b.name, "ru"),
+    );
   const hubNavigation = getCategoryHubNavigation(category, categories);
   const siblings =
     category.parentId == null
@@ -113,7 +132,9 @@ export default async function ServiceCategoryPage({ params }: Props) {
         {
           id: "__back__",
           name: "←",
-          href: category.parentId ? `/service-categories/${category.parentId}` : "/",
+          href: category.parentId
+            ? `/service-categories/${category.parentId}`
+            : "/",
         },
         ...siblings.map((s) => ({
           id: s.id,
@@ -123,9 +144,14 @@ export default async function ServiceCategoryPage({ params }: Props) {
         })),
       ]
     : [];
-  const allowedCategoryIds = new Set([category.id, ...templates.map((c) => c.id)]);
+  const allowedCategoryIds = new Set([
+    category.id,
+    ...templates.map((c) => c.id),
+  ]);
 
-  const scopedServices = services.filter((s) => allowedCategoryIds.has(s.categoryId));
+  const scopedServices = services.filter((s) =>
+    allowedCategoryIds.has(s.categoryId),
+  );
   const requestFormProps = {
     isAuthenticated: Boolean(session?.user?.id),
     categories: isRoot
@@ -139,15 +165,31 @@ export default async function ServiceCategoryPage({ params }: Props) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: serializeJsonLd({
-          "@context": "https://schema.org",
-          "@type": "BreadcrumbList",
-          itemListElement: [
-            { name: "Главная", item: siteOrigin() },
-            ...(parent ? [{ name: parent.name, item: `${siteOrigin()}/service-categories/${parent.id}` }] : []),
-            { name: category.name, item: `${siteOrigin()}/service-categories/${category.id}` },
-          ].map((item, index) => ({ "@type": "ListItem", position: index + 1, ...item })),
-        }) }}
+        dangerouslySetInnerHTML={{
+          __html: serializeJsonLd({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { name: "Главная", item: siteOrigin() },
+              ...(parent
+                ? [
+                    {
+                      name: parent.name,
+                      item: `${siteOrigin()}/service-categories/${parent.id}`,
+                    },
+                  ]
+                : []),
+              {
+                name: category.name,
+                item: `${siteOrigin()}/service-categories/${category.id}`,
+              },
+            ].map((item, index) => ({
+              "@type": "ListItem",
+              position: index + 1,
+              ...item,
+            })),
+          }),
+        }}
       />
       <Box
         component="section"
@@ -158,28 +200,30 @@ export default async function ServiceCategoryPage({ params }: Props) {
           bgcolor: "background.default",
         }}
       >
-        <Container
-          maxWidth={false}
-          sx={{ maxWidth: 1280 }}
-        >
+        <Container maxWidth={false} sx={{ maxWidth: 1280 }}>
           <Stack spacing={3}>
             <CategoryBreadcrumbs
               categoryId={category.id}
-              categories={categories.map(({ id, name, parentId, sortOrder }) => ({ id, name, parentId, sortOrder }))}
+              categories={categories.map(
+                ({ id, name, parentId, sortOrder }) => ({
+                  id,
+                  name,
+                  parentId,
+                  sortOrder,
+                }),
+              )}
             />
             {guide ? (
               <CategoryGuideHeader
                 title={category.name}
                 slug={category.slug}
                 guide={guide}
-                requestAction={<CategoryRequestButton {...requestFormProps} size="small" />}
+                requestAction={
+                  <CategoryRequestButton {...requestFormProps} size="small" />
+                }
               />
             ) : (
-              <Typography
-                id="category-title"
-                component="h1"
-                variant="h4"
-              >
+              <Typography id="category-title" component="h1" variant="h1">
                 {category.name}
               </Typography>
             )}
@@ -187,7 +231,10 @@ export default async function ServiceCategoryPage({ params }: Props) {
             {isRoot ? (
               <ServiceCategoriesStickyBar items={templateBarItems} />
             ) : category.parentId ? (
-              <ServiceCategoriesStickyBar items={templateSelfBarItems} activeId={category.id} />
+              <ServiceCategoriesStickyBar
+                items={templateSelfBarItems}
+                activeId={category.id}
+              />
             ) : null}
 
             <Box
@@ -201,16 +248,18 @@ export default async function ServiceCategoryPage({ params }: Props) {
                 },
               }}
             >
-              <Stack
-                spacing={4}
-                sx={{ minWidth: 0 }}
-              >
+              <Stack spacing={4} sx={{ minWidth: 0 }}>
                 {guide ? (
                   <CategoryGuideSection
                     guide={guide}
                     childrenCategories={templates}
                     navigation={hubNavigation}
-                    requestAction={<CategoryRequestButton {...requestFormProps} size="small" />}
+                    requestAction={
+                      <CategoryRequestButton
+                        {...requestFormProps}
+                        size="small"
+                      />
+                    }
                   />
                 ) : null}
                 <Stack
@@ -224,16 +273,18 @@ export default async function ServiceCategoryPage({ params }: Props) {
                 >
                   {!scopedServices.length ? (
                     <>
-                      <Typography component="h2" variant="h5" sx={{ fontWeight: 600 }}>
+                      <Typography
+                        component="h2"
+                        variant="h5"
+                        sx={{ fontWeight: 600 }}
+                      >
                         Услуги
                       </Typography>
-                      <Paper
-                        variant="outlined"
-                        sx={{ p: 2.5 }}
-                      >
+                      <Paper variant="outlined" sx={{ p: 2.5 }}>
                         <Typography sx={{ color: "text.secondary" }}>
-                          В этой категории пока нет опубликованных предложений. Опишите задачу в форме,
-                          чтобы обсудить подходящий состав работ.
+                          В этой категории пока нет опубликованных предложений.
+                          Опишите задачу в форме, чтобы обсудить подходящий
+                          состав работ.
                         </Typography>
                       </Paper>
                     </>
@@ -258,14 +309,15 @@ export default async function ServiceCategoryPage({ params }: Props) {
                   variant="outlined"
                   sx={{
                     p: { xs: 2.5, md: 3 },
+                    backgroundImage: "none",
                     borderRadius: 1.5,
                   }}
                 >
                   <Stack spacing={2}>
                     <Typography
                       component="h2"
-                      variant="h6"
-                      sx={{ fontWeight: 900 }}
+                      variant="h3"
+                      sx={{ fontWeight: 700 }}
                     >
                       Опишите задачу
                     </Typography>
@@ -283,4 +335,3 @@ export default async function ServiceCategoryPage({ params }: Props) {
     </>
   );
 }
-

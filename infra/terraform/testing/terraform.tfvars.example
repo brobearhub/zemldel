@@ -1,9 +1,3 @@
-# Independent testing state and resources. No CDN, DNS zone or AppPlatform.
-
-# Minimum available preset compatible with PostgreSQL 18 in Moscow; no replicas.
-db_cpu           = 1
-db_ram_mb        = 2048
-db_disk_mb       = 20480
-db_public_access = true
-
-s3_preset_id = 5127 # hot 1 GB promo per bucket, no automatic tariff upgrade
+# Independent testing storage. The database remains on ONREZA.
+# The public bucket holds only test media and synthetic documents.
+s3_public_preset_id = 5135 # Standard 1 GB, 1 RUB/month

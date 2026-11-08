@@ -1,38 +1,15 @@
-"use client";
+import { Box, Stack, Typography } from "@mui/material";
+import { ProSettingsMenu } from "@/widgets/pro-dashboard/ui/ProSettingsMenu";
 
-import { Container, Stack, Typography } from "@mui/material";
-import { MessengerSettings } from "@/widgets/messenger-settings/ui/MessengerSettings";
-import { WorkStageStatusesSettings } from "@/widgets/request-work-progress/ui/WorkStageStatusesSettings";
+export const metadata = { title: "Настройки — Земледел" };
 
 export default function ProSettingsPage() {
   return (
-    <Container
-      maxWidth="md"
-      sx={{ py: 3 }}
-    >
-      <Stack spacing={2}>
-        <Typography
-          component="h1"
-          variant="h5"
-          sx={{ fontWeight: 900 }}
-        >
-          Настройки
-        </Typography>
-        <MessengerSettings />
-        <Typography
-          component="h2"
-          variant="h6"
-          sx={{ fontWeight: 700 }}
-        >
-          Статусы этапов
-        </Typography>
-        <Typography variant="body2" sx={{
-          color: "text.secondary"
-        }}>
-          Управление статусами этапов выполнения работ.
-        </Typography>
-        <WorkStageStatusesSettings />
-      </Stack>
-    </Container>
+    <Stack spacing={3}>
+      <Typography component="h1" variant="h1">Настройки</Typography>
+      <Box sx={{ maxWidth: 400 }}>
+        <ProSettingsMenu />
+      </Box>
+    </Stack>
   );
 }

@@ -94,7 +94,7 @@ export function ProviderVerificationForm({ providerId, view }: Props) {
         setError(parsed.message);
         return;
       }
-      router.push("/pro/profile");
+      router.push("/pro/settings/profile");
       router.refresh();
     } catch {
       setError("Не удалось отправить заявку");

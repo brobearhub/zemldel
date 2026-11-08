@@ -2,7 +2,14 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Alert, Button, Paper, Stack, TextField, Typography } from "@mui/material";
+import {
+  Alert,
+  Button,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import {
   ContractRichEditor,
   normalizeContractEditorContent,
@@ -30,12 +37,16 @@ export function ProContractTemplateEditor({ mode, initial }: Props) {
   const [notice, setNotice] = useState<string | null>(null);
 
   const [title, setTitle] = useState<string>(initial?.title ?? "");
-  const [content, setContent] = useState<ContractEditorContent>(() => normalizeContractEditorContent(initial?.content));
+  const [content, setContent] = useState<ContractEditorContent>(() =>
+    normalizeContractEditorContent(initial?.content),
+  );
   const [blocks, setBlocks] = useState<ContractBlockOption[]>([]);
 
   useEffect(() => {
     fetch("/api/pro/contracts/blocks")
-      .then((res) => (res.ok ? (res.json() as Promise<ContractBlockOption[]>) : []))
+      .then((res) =>
+        res.ok ? (res.json() as Promise<ContractBlockOption[]>) : [],
+      )
       .then((rows) => setBlocks(rows))
       .catch(() => setBlocks([]));
   }, []);
@@ -47,21 +58,30 @@ export function ProContractTemplateEditor({ mode, initial }: Props) {
     setNotice(null);
     try {
       const url =
-        mode === "edit" && initial?.id ? `/api/pro/contracts/templates/${initial.id}` : "/api/pro/contracts/templates";
+        mode === "edit" && initial?.id
+          ? `/api/pro/contracts/templates/${initial.id}`
+          : "/api/pro/contracts/templates";
       const method = mode === "edit" ? "PUT" : "POST";
       const res = await fetch(url, {
         method,
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ title, content }),
       });
-      const payload = (await res.json().catch(() => null)) as { id?: string; error?: string } | null;
+      const payload = (await res.json().catch(() => null)) as {
+        id?: string;
+        error?: string;
+      } | null;
       if (!res.ok) {
         setError(payload?.error ?? "Не удалось сохранить шаблон");
         return;
       }
       setNotice("Сохранено");
       const id = mode === "edit" ? initial?.id : payload?.id;
-      router.push(id ? `/pro/documents/contracts/templates/${id}/edit` : "/pro/documents/contracts");
+      router.push(
+        id
+          ? `/pro/documents/contracts/templates/${id}/edit`
+          : "/pro/documents/contracts",
+      );
       router.refresh();
     } catch {
       setError("Не удалось сохранить шаблон");
@@ -77,27 +97,45 @@ export function ProContractTemplateEditor({ mode, initial }: Props) {
 
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Stack spacing={2}>
-          <Typography variant="h5" sx={{
-            fontWeight: 800
-          }}>
+          <Typography
+            variant="h5"
+            sx={{
+              fontWeight: 700,
+            }}
+          >
             {mode === "edit" ? "Редактор шаблона" : "Новый шаблон"}
           </Typography>
 
-          <TextField label="Название" value={title} onChange={(e) => setTitle(e.target.value)} disabled={busy} fullWidth required />
+          <TextField
+            label="Название"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            disabled={busy}
+            fullWidth
+            required
+          />
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
             <Button type="submit" variant="contained" loading={busy}>
               Сохранить
             </Button>
-            <Button variant="outlined" disabled={busy} onClick={() => router.push("/pro/documents/contracts")}>
+            <Button
+              variant="outlined"
+              disabled={busy}
+              onClick={() => router.push("/pro/documents/contracts")}
+            >
               Назад
             </Button>
           </Stack>
         </Stack>
       </Paper>
 
-      <ContractRichEditor value={content} blocks={blocks} editable={!busy} onChange={setContent} />
+      <ContractRichEditor
+        value={content}
+        blocks={blocks}
+        editable={!busy}
+        onChange={setContent}
+      />
     </Stack>
   );
 }
-

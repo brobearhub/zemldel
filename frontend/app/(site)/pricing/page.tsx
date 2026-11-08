@@ -39,7 +39,7 @@ export default function PricingPage() {
               дневной лимит.
             </p>
           </div>
-          <Link className={s.secondary} href="/pro/billing?product=REPLIES_10">
+          <Link className={s.secondary} href="/pro/settings/tariff?product=REPLIES_10">
             Попробовать пакет
           </Link>
         </div>

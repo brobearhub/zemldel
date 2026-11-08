@@ -12,7 +12,7 @@ export default async function ServicesAdminCreatePage() {
       <Container sx={{ py: { xs: 4, md: 6 } }}>
         <Stack spacing={3}>
           <Stack spacing={0.5}>
-            <Typography variant="h4" sx={{ fontWeight: 900 }}>
+            <Typography component="h1" variant="h1" sx={{ fontWeight: 700 }}>
               Создать услугу
             </Typography>
           </Stack>
@@ -23,4 +23,3 @@ export default async function ServicesAdminCreatePage() {
     </main>
   );
 }
-

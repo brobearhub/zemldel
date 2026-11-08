@@ -38,14 +38,18 @@ import {
 import { DocumentsSectionShell } from "@/shared/ui/DocumentsSectionShell";
 import { useConfirm } from "@/shared/ui/confirm";
 import { hasClientStageActions } from "../lib/client-stage-actions";
-import { hasStageAttachments, hasStageExpandableContent } from "../lib/has-stage-attachments";
+import {
+  hasStageAttachments,
+  hasStageExpandableContent,
+} from "../lib/has-stage-attachments";
 import type { RequestWorkProgressProps } from "../model/types";
 
 const ACCEPT =
   ".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp";
 
 export function RequestWorkProgress(props: RequestWorkProgressProps) {
-  const canMutate = props.mode === "provider" && props.requestStatus === "ACTIVE";
+  const canMutate =
+    props.mode === "provider" && props.requestStatus === "ACTIVE";
   const visible =
     props.requestStatus === "ACTIVE" ||
     props.requestStatus === "ACCEPTANCE_PENDING" ||
@@ -56,7 +60,9 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [statusKey, setStatusKey] = useState(props.statusOptions[0]?.key ?? "AWAITING_RESPONSE");
+  const [statusKey, setStatusKey] = useState(
+    props.statusOptions[0]?.key ?? "AWAITING_RESPONSE",
+  );
   const [createOpen, setCreateOpen] = useState(false);
   const [slotTitles, setSlotTitles] = useState<Record<string, string>>({});
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -72,7 +78,10 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
 
   const isBusy = Boolean(props.busy) || localBusy;
 
-  async function withBusy(fn: () => Promise<void>, actionKey: string | null = null) {
+  async function withBusy(
+    fn: () => Promise<void>,
+    actionKey: string | null = null,
+  ) {
     setLocalBusy(true);
     setPendingKey(actionKey);
     try {
@@ -89,9 +98,12 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
   return (
     <DocumentsSectionShell
       headerLeft={
-        <Typography variant="h6" sx={{
-          fontWeight: 800
-        }}>
+        <Typography
+          variant="h6"
+          sx={{
+            fontWeight: 700,
+          }}
+        >
           Прогресс
         </Typography>
       }
@@ -124,7 +136,10 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
       }
       collapsible
       defaultExpanded
-      collapseAriaLabel={{ expanded: "Свернуть этапы", collapsed: "Развернуть этапы" }}
+      collapseAriaLabel={{
+        expanded: "Свернуть этапы",
+        collapsed: "Развернуть этапы",
+      }}
     >
       <Stack spacing={0.5}>
         {createOpen && canMutate ? (
@@ -256,9 +271,12 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
         ) : null}
 
         {props.stages.length === 0 ? (
-          <Typography variant="body2" sx={{
-            color: "text.secondary"
-          }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+            }}
+          >
             {canMutate
               ? "Этапов пока нет. Добавьте первый этап выполнения работ."
               : props.requestStatus === "ACTIVE"
@@ -280,7 +298,9 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
               statusOptions={props.statusOptions}
               requestId={props.requestId}
               slotTitle={slotTitles[stage.id] ?? ""}
-              onSlotTitleChange={(value) => setSlotTitles((prev) => ({ ...prev, [stage.id]: value }))}
+              onSlotTitleChange={(value) =>
+                setSlotTitles((prev) => ({ ...prev, [stage.id]: value }))
+              }
               fileInputRef={(el) => {
                 fileInputRefs.current[stage.id] = el;
               }}
@@ -288,11 +308,15 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
                 slotInputRefs.current[stage.id] = el;
               }}
               onPickFile={() => fileInputRefs.current[stage.id]?.click()}
-              onPickSlotFile={(slotId) => slotInputRefs.current[`${stage.id}:${slotId}`]?.click()}
+              onPickSlotFile={(slotId) =>
+                slotInputRefs.current[`${stage.id}:${slotId}`]?.click()
+              }
               slotFileInputRef={(slotId, el) => {
                 slotInputRefs.current[`${stage.id}:${slotId}`] = el;
               }}
-              onAction={(fn, key) => void withBusy(fn, key ? `${stage.id}:${key}` : null)}
+              onAction={(fn, key) =>
+                void withBusy(fn, key ? `${stage.id}:${key}` : null)
+              }
             />
           ))
         )}
@@ -379,7 +403,14 @@ function StageCard(props: {
                 }
               : undefined
           }
-          sx={{ cursor: canExpand ? "pointer" : "default", outline: "none" }}
+          sx={{
+            cursor: canExpand ? "pointer" : "default",
+            "&:focus-visible": {
+              outline: "2px solid",
+              outlineColor: "text.primary",
+              outlineOffset: 3,
+            },
+          }}
         >
           <Stack
             direction="row"
@@ -387,8 +418,9 @@ function StageCard(props: {
             useFlexGap
             sx={{
               alignItems: "center",
-              justifyContent: "space-between"
-            }}>
+              justifyContent: "space-between",
+            }}
+          >
             <Stack
               direction="row"
               spacing={1}
@@ -397,23 +429,27 @@ function StageCard(props: {
                 alignItems: "center",
                 flexWrap: "wrap",
                 minWidth: 0,
-                flex: 1
-              }}>
+                flex: 1,
+              }}
+            >
               <Typography
-                noWrap
                 sx={{
                   fontWeight: 600,
-                  maxWidth: { xs: "100%", sm: 280 }
-                }}>
+                  maxWidth: { xs: "100%", sm: 280 },
+                }}
+              >
                 {stageLabel}
               </Typography>
-              {isDraft ? <Chip size="small" label="Черновик" color="warning" /> : null}
+              {isDraft ? (
+                <Chip size="small" label="Черновик" color="warning" />
+              ) : null}
               <Typography
                 variant="caption"
                 sx={{
                   color: "text.secondary",
-                  whiteSpace: "nowrap"
-                }}>
+                  whiteSpace: "normal",
+                }}
+              >
                 {stageDate}
               </Typography>
             </Stack>
@@ -422,8 +458,9 @@ function StageCard(props: {
               spacing={0.25}
               sx={{
                 alignItems: "center",
-                flexShrink: 0
-              }}>
+                flexShrink: 0,
+              }}
+            >
               {hasClientStageActions(stage) ? (
                 <DescriptionOutlinedIcon
                   fontSize="small"
@@ -457,7 +494,11 @@ function StageCard(props: {
                     setExpanded((value) => !value);
                   }}
                 >
-                  {isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+                  {isExpanded ? (
+                    <ExpandLessIcon fontSize="small" />
+                  ) : (
+                    <ExpandMoreIcon fontSize="small" />
+                  )}
                 </IconButton>
               ) : null}
               <Typography
@@ -465,8 +506,9 @@ function StageCard(props: {
                 color="primary"
                 sx={{
                   fontWeight: 700,
-                  whiteSpace: "nowrap"
-                }}>
+                  whiteSpace: "normal",
+                }}
+              >
                 {stage.statusLabel}
               </Typography>
             </Stack>
@@ -481,8 +523,9 @@ function StageCard(props: {
                 variant="body2"
                 sx={{
                   color: "text.secondary",
-                  whiteSpace: "pre-wrap"
-                }}>
+                  whiteSpace: "pre-wrap",
+                }}
+              >
                 {stage.description}
               </Typography>
             ) : null}
@@ -501,7 +544,11 @@ function StageCard(props: {
                   value={stage.statusKey}
                   onChange={(e) =>
                     props.onAction(async () => {
-                      await updateProWorkStageStatus(props.requestId, stage.id, String(e.target.value));
+                      await updateProWorkStageStatus(
+                        props.requestId,
+                        stage.id,
+                        String(e.target.value),
+                      );
                     })
                   }
                 >
@@ -510,8 +557,12 @@ function StageCard(props: {
                       {opt.label}
                     </MenuItem>
                   ))}
-                  {!props.statusOptions.some((o) => o.key === stage.statusKey) ? (
-                    <MenuItem value={stage.statusKey}>{stage.statusLabel}</MenuItem>
+                  {!props.statusOptions.some(
+                    (o) => o.key === stage.statusKey,
+                  ) ? (
+                    <MenuItem value={stage.statusKey}>
+                      {stage.statusLabel}
+                    </MenuItem>
                   ) : null}
                 </Select>
               </FormControl>
@@ -535,9 +586,14 @@ function StageCard(props: {
                   onChange={(e) => setEditDescription(e.target.value)}
                   disabled={props.isBusy}
                 />
-                <Stack direction="row" spacing={1} useFlexGap sx={{
-                  flexWrap: "wrap"
-                }}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  useFlexGap
+                  sx={{
+                    flexWrap: "wrap",
+                  }}
+                >
                   <Button
                     size="small"
                     variant="outlined"
@@ -590,23 +646,34 @@ function StageCard(props: {
                   <>
                     <Divider />
 
-                    <Typography variant="subtitle2" sx={{
-                      fontWeight: 700
-                    }}>
+                    <Typography
+                      variant="subtitle2"
+                      sx={{
+                        fontWeight: 700,
+                      }}
+                    >
                       Файлы исполнителя
                     </Typography>
                     {stage.files.length === 0 ? (
-                      <Typography variant="body2" sx={{
-                        color: "text.secondary"
-                      }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: "text.secondary",
+                        }}
+                      >
                         Нет файлов
                       </Typography>
                     ) : (
                       <Stack spacing={0.5}>
                         {stage.files.map((file) => (
-                          <Stack key={file.id} direction="row" spacing={1} sx={{
-                            alignItems: "center"
-                          }}>
+                          <Stack
+                            key={file.id}
+                            direction="row"
+                            spacing={1}
+                            sx={{
+                              alignItems: "center",
+                            }}
+                          >
                             <Link
                               href={
                                 isProvider
@@ -625,7 +692,11 @@ function StageCard(props: {
                                 disabled={props.isBusy}
                                 onClick={() =>
                                   props.onAction(async () => {
-                                    await deleteProWorkStageFile(props.requestId, stage.id, file.id);
+                                    await deleteProWorkStageFile(
+                                      props.requestId,
+                                      stage.id,
+                                      file.id,
+                                    );
                                   }, `file-delete:${file.id}`)
                                 }
                               >
@@ -648,11 +719,21 @@ function StageCard(props: {
                             e.target.value = "";
                             if (!file) return;
                             props.onAction(async () => {
-                              await uploadProWorkStageFile(props.requestId, stage.id, file);
+                              await uploadProWorkStageFile(
+                                props.requestId,
+                                stage.id,
+                                file,
+                              );
                             }, "file-upload");
                           }}
                         />
-                        <Button size="small" variant="text" loading={isPending("file-upload")} disabled={props.isBusy} onClick={props.onPickFile}>
+                        <Button
+                          size="small"
+                          variant="text"
+                          loading={isPending("file-upload")}
+                          disabled={props.isBusy}
+                          onClick={props.onPickFile}
+                        >
                           Прикрепить файл
                         </Button>
                       </>
@@ -664,15 +745,21 @@ function StageCard(props: {
                   <>
                     <Divider />
 
-                    <Typography variant="subtitle2" sx={{
-                      fontWeight: 700
-                    }}>
+                    <Typography
+                      variant="subtitle2"
+                      sx={{
+                        fontWeight: 700,
+                      }}
+                    >
                       Документы от клиента
                     </Typography>
                     {stage.docSlots.length === 0 ? (
-                      <Typography variant="body2" sx={{
-                        color: "text.secondary"
-                      }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: "text.secondary",
+                        }}
+                      >
                         Запросов нет
                       </Typography>
                     ) : (
@@ -685,8 +772,9 @@ function StageCard(props: {
                               useFlexGap
                               sx={{
                                 alignItems: "center",
-                                justifyContent: "space-between"
-                              }}>
+                                justifyContent: "space-between",
+                              }}
+                            >
                               <Stack
                                 direction="row"
                                 spacing={1}
@@ -694,23 +782,38 @@ function StageCard(props: {
                                 sx={{
                                   alignItems: "center",
                                   flexWrap: "wrap",
-                                  minWidth: 0
-                                }}>
-                                <Typography variant="body2" sx={{
-                                  fontWeight: 600
-                                }}>
+                                  minWidth: 0,
+                                }}
+                              >
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    fontWeight: 600,
+                                  }}
+                                >
                                   {slot.title}
                                 </Typography>
                                 <Chip
                                   size="small"
-                                  label={slot.status === "UPLOADED" ? "Загружено" : "Ожидает"}
-                                  color={slot.status === "UPLOADED" ? "success" : "error"}
+                                  label={
+                                    slot.status === "UPLOADED"
+                                      ? "Загружено"
+                                      : "Ожидает"
+                                  }
+                                  color={
+                                    slot.status === "UPLOADED"
+                                      ? "success"
+                                      : "error"
+                                  }
                                 />
                               </Stack>
-                              {props.mode === "customer" && slot.status === "REQUESTED" ? (
+                              {props.mode === "customer" &&
+                              slot.status === "REQUESTED" ? (
                                 <>
                                   <input
-                                    ref={(el) => props.slotFileInputRef(slot.id, el)}
+                                    ref={(el) =>
+                                      props.slotFileInputRef(slot.id, el)
+                                    }
                                     type="file"
                                     accept={ACCEPT}
                                     hidden
@@ -731,16 +834,25 @@ function StageCard(props: {
                                   <Button
                                     size="small"
                                     variant="contained"
-                                    loading={isPending(`slot-upload:${slot.id}`)}
-                                    disabled={props.isBusy || props.requestStatus !== "ACTIVE"}
-                                    onClick={() => props.onPickSlotFile(slot.id)}
+                                    loading={isPending(
+                                      `slot-upload:${slot.id}`,
+                                    )}
+                                    disabled={
+                                      props.isBusy ||
+                                      props.requestStatus !== "ACTIVE"
+                                    }
+                                    onClick={() =>
+                                      props.onPickSlotFile(slot.id)
+                                    }
                                     sx={{ flexShrink: 0 }}
                                   >
                                     Загрузить файл
                                   </Button>
                                 </>
                               ) : null}
-                              {isProvider && props.canMutate && slot.status === "REQUESTED" ? (
+                              {isProvider &&
+                              props.canMutate &&
+                              slot.status === "REQUESTED" ? (
                                 <Button
                                   size="small"
                                   color="error"
@@ -748,7 +860,11 @@ function StageCard(props: {
                                   disabled={props.isBusy}
                                   onClick={() =>
                                     props.onAction(async () => {
-                                      await deleteProWorkStageDocSlot(props.requestId, stage.id, slot.id);
+                                      await deleteProWorkStageDocSlot(
+                                        props.requestId,
+                                        stage.id,
+                                        slot.id,
+                                      );
                                     }, `slot-cancel:${slot.id}`)
                                   }
                                   sx={{ flexShrink: 0 }}
@@ -783,8 +899,9 @@ function StageCard(props: {
                     useFlexGap
                     sx={{
                       alignItems: "center",
-                      flexWrap: "wrap"
-                    }}>
+                      flexWrap: "wrap",
+                    }}
+                  >
                     <TextField
                       size="small"
                       label="Запросить документ"
@@ -796,10 +913,16 @@ function StageCard(props: {
                       size="small"
                       variant="outlined"
                       loading={isPending("slot-request")}
-                      disabled={props.isBusy || props.slotTitle.trim().length < 3}
+                      disabled={
+                        props.isBusy || props.slotTitle.trim().length < 3
+                      }
                       onClick={() =>
                         props.onAction(async () => {
-                          await createProWorkStageDocSlot(props.requestId, stage.id, props.slotTitle.trim());
+                          await createProWorkStageDocSlot(
+                            props.requestId,
+                            stage.id,
+                            props.slotTitle.trim(),
+                          );
                           props.onSlotTitleChange("");
                         }, "slot-request")
                       }

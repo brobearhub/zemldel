@@ -11,7 +11,10 @@ import { ServiceRequestRow } from "./ServiceRequestRow";
 
 type Props = {
   serviceId: string | null;
-  onSummary?: (id: string, summary: { count: number; needsReply: number }) => void;
+  onSummary?: (
+    id: string,
+    summary: { count: number; needsReply: number },
+  ) => void;
   serviceTitle?: string;
   titleFor?: (request: RequestProDto) => string;
   emptyLabel?: string;
@@ -23,7 +26,11 @@ type Props = {
 const PREVIEW_COUNT = 3;
 const PREVIEW_FADE_PX = 72;
 
-function rowTitle(request: RequestProDto, serviceTitle: string | undefined, titleFor?: (request: RequestProDto) => string) {
+function rowTitle(
+  request: RequestProDto,
+  serviceTitle: string | undefined,
+  titleFor?: (request: RequestProDto) => string,
+) {
   if (titleFor) return titleFor(request);
   const title = serviceTitle?.trim() ?? "";
   return title.length > 0 ? title : "Заявка";
@@ -39,7 +46,8 @@ export function ServiceRequestsPanel({
   expanded: expandedProp = false,
   onExpandedChange,
 }: Props) {
-  const { requests, error, isLoading, markAwaitingCustomerReply } = useRequestList(serviceId);
+  const { requests, error, isLoading, markAwaitingCustomerReply } =
+    useRequestList(serviceId);
   const [replyItem, setReplyItem] = useState<RequestProDto | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [ownExpanded, setOwnExpanded] = useState(false);
@@ -49,11 +57,19 @@ export function ServiceRequestsPanel({
     if (onExpandedChange) onExpandedChange(next);
     else setOwnExpanded(next);
   }
-  const needsReply = requests?.filter(request => !request.awaitingCustomerReply).length ?? 0;
+  const needsReply =
+    requests?.filter((request) => !request.awaitingCustomerReply).length ?? 0;
   useEffect(() => {
-    if (serviceId && requests !== null) onSummary?.(serviceId, { count: requests.length, needsReply });
+    if (serviceId && requests !== null)
+      onSummary?.(serviceId, { count: requests.length, needsReply });
   }, [serviceId, requests, needsReply, onSummary]);
-  const ordered = requests ? [...requests].sort((a, b) => Number(a.awaitingCustomerReply) - Number(b.awaitingCustomerReply) || Number(b.status === "NEW") - Number(a.status === "NEW")) : null;
+  const ordered = requests
+    ? [...requests].sort(
+        (a, b) =>
+          Number(a.awaitingCustomerReply) - Number(b.awaitingCustomerReply) ||
+          Number(b.status === "NEW") - Number(a.status === "NEW"),
+      )
+    : null;
   const canFold = (requests?.length ?? 0) > PREVIEW_COUNT;
   const previewRequests = canFold ? ordered?.slice(0, PREVIEW_COUNT) : ordered;
   const restRequests = canFold ? (ordered?.slice(PREVIEW_COUNT) ?? []) : [];
@@ -66,13 +82,32 @@ export function ServiceRequestsPanel({
         overflow: "hidden",
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, px: 2.5, py: 1 }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1,
+          px: 2.5,
+          py: 1,
+        }}
+      >
         <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
-          <Typography component="h2" sx={{ fontWeight: 800, fontSize: 18, color: "text.primary" }}>
+          <Typography
+            component="h2"
+            sx={{
+              fontWeight: 800,
+              fontSize: 18,
+              color: "text.primary",
+            }}
+          >
             Заявки
           </Typography>
           {requests !== null ? (
-            <Typography component="span" sx={{ fontWeight: 700, fontSize: 14, color: "text.primary" }}>
+            <Typography
+              component="span"
+              sx={{ fontWeight: 700, fontSize: 14, color: "text.primary" }}
+            >
               {requests.length}
             </Typography>
           ) : null}
@@ -91,71 +126,80 @@ export function ServiceRequestsPanel({
       </Box>
 
       {isLoading ? (
-        <Typography sx={{ px: 2.5, pb: 2.5, color: "text.secondary" }}>Загрузка…</Typography>
+        <Typography sx={{ px: 2.5, pb: 2.5, color: "text.secondary" }}>
+          Загрузка…
+        </Typography>
       ) : error ? (
-        <Typography sx={{ px: 2.5, pb: 2.5, color: "text.secondary" }}>{error}</Typography>
+        <Typography sx={{ px: 2.5, pb: 2.5, color: "text.secondary" }}>
+          {error}
+        </Typography>
       ) : requests && requests.length === 0 ? (
-        <Typography sx={{ px: 2.5, pb: 2.5, color: "text.secondary" }}>{emptyLabel}</Typography>
+        <Typography sx={{ px: 2.5, pb: 2.5, color: "text.secondary" }}>
+          {emptyLabel}
+        </Typography>
       ) : (
         <>
-        <Box sx={{ position: "relative" }}>
-          {previewRequests?.map((request) => (
-            <ServiceRequestRow
-              key={request.id}
-              request={request}
-              title={rowTitle(request, serviceTitle, titleFor)}
-              showCustomerAvatar={showCustomerAvatar}
-              sending={sendingId === request.id}
-              onReply={setReplyItem}
-            />
-          ))}
-          {canFold ? (
-            <Box
-              component="button"
-              type="button"
-              aria-expanded={expanded}
-              aria-label="Показать остальные заявки"
-              tabIndex={expanded ? -1 : 0}
-              onClick={() => changeExpanded(true)}
-              sx={{
-                position: "absolute",
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: PREVIEW_FADE_PX,
-                border: 0,
-                p: 0,
-                cursor: "pointer",
-                opacity: expanded ? 0 : 1,
-                pointerEvents: expanded ? "none" : "auto",
-                transition: "opacity 320ms ease",
-                background: "linear-gradient(to bottom, transparent, var(--mui-palette-background-paper))",
-              }}
-            />
+          <Box sx={{ position: "relative" }}>
+            {previewRequests?.map((request) => (
+              <ServiceRequestRow
+                key={request.id}
+                request={request}
+                title={rowTitle(request, serviceTitle, titleFor)}
+                showCustomerAvatar={showCustomerAvatar}
+                sending={sendingId === request.id}
+                onReply={setReplyItem}
+              />
+            ))}
+            {canFold ? (
+              <Box
+                component="button"
+                type="button"
+                aria-expanded={expanded}
+                aria-label="Показать остальные заявки"
+                tabIndex={expanded ? -1 : 0}
+                onClick={() => changeExpanded(true)}
+                sx={{
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: PREVIEW_FADE_PX,
+                  border: 0,
+                  p: 0,
+                  cursor: "pointer",
+                  opacity: expanded ? 0 : 1,
+                  pointerEvents: expanded ? "none" : "auto",
+                  transition: "opacity 320ms ease",
+                  background:
+                    "linear-gradient(to bottom, transparent, var(--mui-palette-background-paper))",
+                }}
+              />
+            ) : null}
+          </Box>
+          {restRequests.length > 0 ? (
+            <Collapse in={expanded} timeout="auto">
+              <Box>
+                {restRequests.map((request) => (
+                  <ServiceRequestRow
+                    key={request.id}
+                    request={request}
+                    title={rowTitle(request, serviceTitle, titleFor)}
+                    showCustomerAvatar={showCustomerAvatar}
+                    sending={sendingId === request.id}
+                    onReply={setReplyItem}
+                  />
+                ))}
+              </Box>
+            </Collapse>
           ) : null}
-        </Box>
-        {restRequests.length > 0 ? (
-          <Collapse in={expanded} timeout="auto">
-            <Box>
-              {restRequests.map((request) => (
-                <ServiceRequestRow
-                  key={request.id}
-                  request={request}
-                  title={rowTitle(request, serviceTitle, titleFor)}
-                  showCustomerAvatar={showCustomerAvatar}
-                  sending={sendingId === request.id}
-                  onReply={setReplyItem}
-                />
-              ))}
-            </Box>
-          </Collapse>
-        ) : null}
         </>
       )}
       <ProviderRequestReplyDialog
         item={replyItem}
         onClose={() => setReplyItem(null)}
-        onSendingChange={(sending) => setSendingId(sending && replyItem ? replyItem.id : null)}
+        onSendingChange={(sending) =>
+          setSendingId(sending && replyItem ? replyItem.id : null)
+        }
         onSent={(sent, body) => markAwaitingCustomerReply(sent.id, body)}
       />
     </Paper>

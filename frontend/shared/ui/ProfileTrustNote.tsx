@@ -7,7 +7,8 @@ type Props = {
   onDark?: boolean;
 };
 
-const HINT = "Исполнитель ещё не подтвердил реквизиты. Это не оценка качества работ.";
+const HINT =
+  "Исполнитель ещё не подтвердил реквизиты. Это не оценка качества работ.";
 
 export function ProfileTrustNote({ verified, onDark = false }: Props) {
   const color = onDark ? "common.white" : "text.primary";
@@ -15,17 +16,31 @@ export function ProfileTrustNote({ verified, onDark = false }: Props) {
     return (
       <Stack direction="row" spacing={0.75} sx={{ alignItems: "center" }}>
         <VerifiedBadgeIcon size={18} />
-        <Typography sx={{ color, fontWeight: 700 }}>Реквизиты проверены</Typography>
+        <Typography sx={{ color, fontWeight: 700 }}>
+          Реквизиты проверены
+        </Typography>
       </Stack>
     );
   }
   return (
-    <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", flexWrap: "wrap" }}>
-      <Typography sx={{ color, fontWeight: 700 }}>Профиль не проверен</Typography>
+    <Stack
+      direction="row"
+      spacing={1}
+      useFlexGap
+      sx={{ alignItems: "center", flexWrap: "wrap" }}
+    >
+      <Typography sx={{ color, fontWeight: 700 }}>
+        Профиль не проверен
+      </Typography>
       <Tooltip title={HINT}>
         <Typography
           component="span"
-          sx={{ color, textDecoration: "underline", cursor: "help", fontSize: 14 }}
+          sx={{
+            color,
+            textDecoration: "underline",
+            cursor: "help",
+            fontSize: "1rem",
+          }}
         >
           Что это значит
         </Typography>

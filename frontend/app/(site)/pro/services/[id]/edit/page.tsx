@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import type { ServiceDto } from "@/entities/service";
-import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
+import type { ServiceCategory, ServiceDto } from "@/entities/service";
+import { BackendApiError, fetchBackendJson, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
 import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import { ProServiceEditor } from "@/widgets/pro-services/ui/ProServiceEditor";
@@ -28,5 +28,13 @@ export default async function ProServicesEditPage({ params }: Props) {
     throw error;
   }
 
-  return <ProServiceEditor mode="edit" initialService={service} />;
+  const categories = await fetchBackendJson<ServiceCategory[]>("/service-categories");
+
+  return (
+    <ProServiceEditor
+      mode="edit"
+      initialService={service}
+      categories={categories}
+    />
+  );
 }

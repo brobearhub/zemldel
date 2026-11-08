@@ -5,7 +5,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { DocumentStorageService } from './document-storage.service';
 
-function fixture() {
+function fixture(kmsKeyId: string | null = 'kms') {
   const send = vi.fn().mockResolvedValue({});
   const legacySend = vi.fn().mockResolvedValue({});
   const service = new DocumentStorageService(
@@ -13,7 +13,7 @@ function fixture() {
       getConnection: () => ({
         client: { send },
         bucket: 'secure',
-        kmsKeyId: 'kms',
+        kmsKeyId,
       }),
     } as never,
     { client: { send: legacySend }, privateBucket: 'legacy' } as never,
@@ -22,6 +22,19 @@ function fixture() {
 }
 
 describe('private document storage', () => {
+  it('omits KMS headers for synthetic testing documents', async () => {
+    const { service, send } = fixture(null);
+    await service.putObject({
+      Key: 'documents/synthetic',
+      Body: Buffer.from('synthetic'),
+      ContentType: 'text/plain',
+    });
+    expect(send.mock.calls[0][0].input).not.toHaveProperty(
+      'ServerSideEncryption',
+    );
+    expect(send.mock.calls[0][0].input).not.toHaveProperty('SSEKMSKeyId');
+  });
+
   it.each([
     'application/pdf',
     'image/jpeg',

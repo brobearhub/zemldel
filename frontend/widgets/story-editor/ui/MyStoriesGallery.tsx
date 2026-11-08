@@ -5,7 +5,11 @@ import AddIcon from "@mui/icons-material/Add";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { Box, IconButton, Menu, MenuItem, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import { formatStoryRemaining, StoryFrame, type StoryDto } from "@/entities/story";
+import {
+  formatStoryRemaining,
+  StoryFrame,
+  type StoryDto,
+} from "@/entities/story";
 
 const TILE_W = 200;
 export const STORY_TILE_HEIGHT = 340;
@@ -74,19 +78,39 @@ export function MyStoriesGallery({
         onFile={onFile}
       />
       {!composing && metrics ? (
-        <Box sx={{ flex: "1 1 480px", minWidth: { xs: "100%", sm: 320 }, height: { xs: "auto", sm: TILE_H } }}>
+        <Box
+          sx={{
+            flex: "1 1 480px",
+            minWidth: { xs: "100%", sm: 320 },
+            height: { xs: "auto", sm: TILE_H },
+          }}
+        >
           {metrics}
         </Box>
       ) : null}
       {!composing && completed.length > 0 ? (
-        <StatusTile label="Завершена" active={lane === "completed"} onClick={() => onLane("completed")} />
+        <StatusTile
+          label="Завершена"
+          active={lane === "completed"}
+          onClick={() => onLane("completed")}
+        />
       ) : null}
     </Box>
   );
 }
 
-export function StoryTileRow({ stories, selectedId, busy, onSelect, onOpen, onRemove }: StoryTileRowProps) {
-  const [menu, setMenu] = useState<{ story: StoryDto; anchor: HTMLElement } | null>(null);
+export function StoryTileRow({
+  stories,
+  selectedId,
+  busy,
+  onSelect,
+  onOpen,
+  onRemove,
+}: StoryTileRowProps) {
+  const [menu, setMenu] = useState<{
+    story: StoryDto;
+    anchor: HTMLElement;
+  } | null>(null);
 
   return (
     <Box
@@ -109,7 +133,11 @@ export function StoryTileRow({ stories, selectedId, busy, onSelect, onOpen, onRe
           onMenu={(anchor) => setMenu({ story, anchor })}
         />
       ))}
-      <Menu anchorEl={menu?.anchor ?? null} open={Boolean(menu)} onClose={() => setMenu(null)}>
+      <Menu
+        anchorEl={menu?.anchor ?? null}
+        open={Boolean(menu)}
+        onClose={() => setMenu(null)}
+      >
         <MenuItem
           onClick={() => {
             const storyId = menu?.story.id;
@@ -176,11 +204,16 @@ function NewStoryTile({
           justifyContent: "center",
           gap: 1.5,
           font: "inherit",
-          "&:hover": { bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12) },
+          "&:hover": {
+            bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12),
+          },
         }}
       >
         <AddIcon sx={{ fontSize: 40 }} />
-        <Typography component="span" sx={{ fontWeight: 700, fontSize: 18 }}>
+        <Typography
+          component="span"
+          sx={{ fontWeight: 700, fontSize: "1.125rem" }}
+        >
           Новая
         </Typography>
       </Box>
@@ -210,7 +243,11 @@ function NewStoryTile({
       }}
     >
       {previewUrl ? (
-        <StoryFrame imageUrl={previewUrl} imageAlt="Превью фото" sx={{ width: "100%", height: "100%" }}>
+        <StoryFrame
+          imageUrl={previewUrl}
+          imageAlt="Превью фото"
+          sx={{ width: "100%", height: "100%" }}
+        >
           <Box
             sx={{
               position: "absolute",
@@ -224,7 +261,14 @@ function NewStoryTile({
             }}
           >
             {previewAuthor ? (
-              <Typography sx={{ fontWeight: 700, fontSize: 14, lineHeight: 1.3, color: "common.white" }}>
+              <Typography
+                sx={{
+                  fontWeight: 700,
+                  fontSize: "1rem",
+                  lineHeight: 1.5,
+                  color: "common.white",
+                }}
+              >
                 {previewAuthor}
               </Typography>
             ) : null}
@@ -237,8 +281,8 @@ function NewStoryTile({
                   WebkitBoxOrient: "vertical",
                   overflow: "hidden",
                   fontWeight: 600,
-                  fontSize: 13,
-                  lineHeight: 1.3,
+                  fontSize: "1rem",
+                  lineHeight: 1.5,
                   color: "common.white",
                   whiteSpace: "pre-wrap",
                 }}
@@ -251,7 +295,15 @@ function NewStoryTile({
       ) : (
         <>
           <AddIcon sx={{ fontSize: 40 }} />
-          <Typography component="span" sx={{ fontWeight: 700, fontSize: 18, textAlign: "center", px: 2 }}>
+          <Typography
+            component="span"
+            sx={{
+              fontWeight: 700,
+              fontSize: "1.125rem",
+              textAlign: "center",
+              px: 2,
+            }}
+          >
             Загрузить фото
           </Typography>
         </>
@@ -269,7 +321,15 @@ function NewStoryTile({
   );
 }
 
-function StatusTile({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function StatusTile({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
   return (
     <Box
       component="button"
@@ -282,8 +342,12 @@ function StatusTile({ label, active, onClick }: { label: string; active: boolean
         flex: "0 0 auto",
         border: 0,
         borderRadius: "20px",
-        boxShadow: active ? (theme) => `inset 0 0 0 2px ${alpha(theme.palette.text.primary, 0.35)}` : "none",
-        bgcolor: (theme) => alpha(theme.palette.common.black, active ? 0.1 : 0.055),
+        boxShadow: active
+          ? (theme) =>
+              `inset 0 0 0 2px ${alpha(theme.palette.text.primary, 0.35)}`
+          : "none",
+        bgcolor: (theme) =>
+          alpha(theme.palette.common.black, active ? 0.1 : 0.055),
         color: "text.secondary",
         cursor: "pointer",
         display: "flex",
@@ -291,8 +355,10 @@ function StatusTile({ label, active, onClick }: { label: string; active: boolean
         justifyContent: "center",
         pb: 2.5,
         font: "inherit",
-        fontSize: 16,
-        "&:hover": { bgcolor: (theme) => alpha(theme.palette.common.black, 0.09) },
+        fontSize: "1rem",
+        "&:hover": {
+          bgcolor: (theme) => alpha(theme.palette.common.black, 0.09),
+        },
       }}
     >
       {label}
@@ -313,7 +379,9 @@ function OwnStoryTile({
   onSelect: () => void;
   onMenu?: (anchor: HTMLElement) => void;
 }) {
-  const badge = isLiveStory(story) ? formatStoryRemaining(story.expiresAt) : null;
+  const badge = isLiveStory(story)
+    ? formatStoryRemaining(story.expiresAt)
+    : null;
 
   return (
     <Box
@@ -323,7 +391,7 @@ function OwnStoryTile({
         width: TILE_W,
         height: TILE_H,
         flex: "0 0 auto",
-        opacity: selected ? 1 : 0.5,
+        opacity: 1,
         filter: selected ? "none" : "saturate(0.7)",
       }}
     >
@@ -347,7 +415,10 @@ function OwnStoryTile({
           textAlign: "left",
         }}
       >
-        <StoryFrame imageUrl={story.imageUrl} sx={{ width: "100%", height: "100%" }}>
+        <StoryFrame
+          imageUrl={story.imageUrl}
+          sx={{ width: "100%", height: "100%" }}
+        >
           {badge ? (
             <Box
               sx={{
@@ -358,11 +429,12 @@ function OwnStoryTile({
                 px: 1,
                 py: 0.25,
                 borderRadius: 999,
-                bgcolor: (theme) => alpha(theme.palette.background.default, 0.92),
+                bgcolor: (theme) =>
+                  alpha(theme.palette.background.default, 0.92),
                 color: "text.primary",
-                fontSize: 13,
+                fontSize: "1rem",
                 fontWeight: 600,
-                lineHeight: 1.4,
+                lineHeight: 1.5,
               }}
             >
               {badge}
@@ -377,7 +449,9 @@ function OwnStoryTile({
               px: 1.75,
               pt: 4,
               pb: 1.75,
-              background: story.imageUrl ? "linear-gradient(transparent, rgba(0,0,0,0.72))" : "transparent",
+              background: story.imageUrl
+                ? "linear-gradient(transparent, rgba(0,0,0,0.72))"
+                : "transparent",
             }}
           >
             <Typography
@@ -388,8 +462,8 @@ function OwnStoryTile({
                 WebkitBoxOrient: "vertical",
                 overflow: "hidden",
                 fontWeight: 700,
-                fontSize: 15,
-                lineHeight: 1.3,
+                fontSize: "1rem",
+                lineHeight: 1.5,
                 color: "common.white",
                 whiteSpace: "pre-wrap",
               }}

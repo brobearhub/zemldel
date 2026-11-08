@@ -63,7 +63,9 @@ function noticeFromQuery(value: string | null) {
   return null;
 }
 
-function publishedServiceIdFromQuery(params: { get: (name: string) => string | null }) {
+function publishedServiceIdFromQuery(params: {
+  get: (name: string) => string | null;
+}) {
   return params.get("notice") === "published" ? params.get("serviceId") : null;
 }
 
@@ -77,24 +79,31 @@ export function ProServicesListClient({ initialServices }: Props) {
   const [services, setServices] = useState(() => sortServices(initialServices));
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(() =>
-    publishedServiceIdFromQuery(searchParams) ? null : noticeFromQuery(searchParams.get("notice")),
+    publishedServiceIdFromQuery(searchParams)
+      ? null
+      : noticeFromQuery(searchParams.get("notice")),
   );
-  const [publishedServiceId, setPublishedServiceId] = useState<string | null>(() =>
-    publishedServiceIdFromQuery(searchParams),
+  const [publishedServiceId, setPublishedServiceId] = useState<string | null>(
+    () => publishedServiceIdFromQuery(searchParams),
   );
   const [linkCopied, setLinkCopied] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [busyAction, setBusyAction] = useState<"status" | "delete" | null>(null);
+  const [busyAction, setBusyAction] = useState<"status" | "delete" | null>(
+    null,
+  );
   const [filter, setFilter] = useState<StatusFilter>("ALL");
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
 
   const activeMembership =
-    user?.memberships.find((membership) => membership.providerId === user.activeProviderId) ??
+    user?.memberships.find(
+      (membership) => membership.providerId === user.activeProviderId,
+    ) ??
     user?.memberships[0] ??
     null;
 
-  const canArchiveOrDelete = user?.systemRole === "PLATFORM_ADMIN" || activeMembership?.role === "OWNER";
+  const canArchiveOrDelete =
+    user?.systemRole === "PLATFORM_ADMIN" || activeMembership?.role === "OWNER";
   const hasAnyServices = services.length > 0;
 
   useEffect(() => {
@@ -122,12 +131,21 @@ export function ProServicesListClient({ initialServices }: Props) {
         if (serviceAttention(service)) acc.ATTENTION += 1;
         return acc;
       },
-      { ALL: 0, ATTENTION: 0, DRAFT: 0, PUBLISHED: 0, ARCHIVED: 0 } satisfies Record<StatusFilter, number>
+      {
+        ALL: 0,
+        ATTENTION: 0,
+        DRAFT: 0,
+        PUBLISHED: 0,
+        ARCHIVED: 0,
+      } satisfies Record<StatusFilter, number>,
     );
   }, [services]);
 
   const publishedService = publishedServiceId
-    ? services.find((service) => service.id === publishedServiceId && service.status === "PUBLISHED") ?? null
+    ? (services.find(
+        (service) =>
+          service.id === publishedServiceId && service.status === "PUBLISHED",
+      ) ?? null)
     : null;
 
   function dismissPublishedBanner() {
@@ -138,18 +156,26 @@ export function ProServicesListClient({ initialServices }: Props) {
 
   function copyServiceLink(id: string, onCopied: () => void) {
     const url = `${window.location.origin}/services/${id}`;
-    void navigator.clipboard.writeText(url).then(onCopied, () => setError("Не удалось скопировать ссылку"));
+    void navigator.clipboard
+      .writeText(url)
+      .then(onCopied, () => setError("Не удалось скопировать ссылку"));
   }
 
   async function refresh() {
     const response = await fetch("/api/pro/services");
-    const payload = (await response.json().catch(() => null)) as ServiceDto[] | { error?: string } | null;
+    const payload = (await response.json().catch(() => null)) as
+      | ServiceDto[]
+      | { error?: string }
+      | null;
 
     if (!response.ok) {
       throw new Error(
-        payload && typeof payload === "object" && !Array.isArray(payload) && payload.error
+        payload &&
+          typeof payload === "object" &&
+          !Array.isArray(payload) &&
+          payload.error
           ? payload.error
-          : "Не удалось обновить список услуг"
+          : "Не удалось обновить список услуг",
       );
     }
 
@@ -167,18 +193,25 @@ export function ProServicesListClient({ initialServices }: Props) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ status }),
       });
-      const payload = (await response.json().catch(() => null)) as { error?: string } | ServiceDto | null;
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | ServiceDto
+        | null;
 
       if (!response.ok) {
         throw new Error(
           payload && typeof payload === "object" && "error" in payload
-            ? payload.error ?? "Не удалось обновить статус услуги"
-            : "Не удалось обновить статус услуги"
+            ? (payload.error ?? "Не удалось обновить статус услуги")
+            : "Не удалось обновить статус услуги",
         );
       }
 
       setServices((current) =>
-        sortServices(current.map((service) => (service.id === id ? (payload as ServiceDto) : service)))
+        sortServices(
+          current.map((service) =>
+            service.id === id ? (payload as ServiceDto) : service,
+          ),
+        ),
       );
       if (status === "PUBLISHED") {
         setPublishedServiceId(id);
@@ -186,10 +219,18 @@ export function ProServicesListClient({ initialServices }: Props) {
         setNotice(null);
       } else {
         setPublishedServiceId(null);
-        setNotice(status === "ARCHIVED" ? "Услуга отправлена в архив." : "Услуга переведена в черновик.");
+        setNotice(
+          status === "ARCHIVED"
+            ? "Услуга отправлена в архив."
+            : "Услуга переведена в черновик.",
+        );
       }
     } catch (statusError) {
-      setError(statusError instanceof Error ? statusError.message : "Не удалось обновить статус услуги");
+      setError(
+        statusError instanceof Error
+          ? statusError.message
+          : "Не удалось обновить статус услуги",
+      );
     } finally {
       setBusyId(null);
       setBusyAction(null);
@@ -213,36 +254,47 @@ export function ProServicesListClient({ initialServices }: Props) {
       const response = await fetch(`/api/pro/services/${service.id}`, {
         method: "DELETE",
       });
-      const payload = (await response.json().catch(() => null)) as { error?: string } | { ok?: true } | null;
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | { ok?: true }
+        | null;
 
       if (!response.ok) {
         throw new Error(
           payload && typeof payload === "object" && "error" in payload
-            ? payload.error ?? "Не удалось удалить услугу"
-            : "Не удалось удалить услугу"
+            ? (payload.error ?? "Не удалось удалить услугу")
+            : "Не удалось удалить услугу",
         );
       }
 
-      setServices((current) => current.filter((item) => item.id !== service.id));
+      setServices((current) =>
+        current.filter((item) => item.id !== service.id),
+      );
       setPublishedServiceId((id) => (id === service.id ? null : id));
       // Карточка с меню исчезла — возвращаем фокус на заголовок, а не в <body>.
       headingRef.current?.focus();
       setNotice(`Услуга "${service.title}" удалена.`);
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "Не удалось удалить услугу");
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Не удалось удалить услугу",
+      );
     } finally {
       setBusyId(null);
       setBusyAction(null);
     }
   }
 
-
   const renderCreateTile = (placement: "mobile" | "desktop") => (
     <Box
       component={Link}
       href="/pro/services/create"
       sx={{
-        display: placement === "mobile" ? { xs: "flex", sm: "none" } : { xs: "none", sm: "flex" },
+        display:
+          placement === "mobile"
+            ? { xs: "flex", sm: "none" }
+            : { xs: "none", sm: "flex" },
         flexDirection: { xs: "row", sm: "column" },
         alignItems: "center",
         justifyContent: { xs: "flex-start", sm: "center" },
@@ -277,8 +329,15 @@ export function ProServicesListClient({ initialServices }: Props) {
         <AddRoundedIcon />
       </Box>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-        <Typography sx={{ fontSize: { xs: 16, sm: 18 }, fontWeight: 800 }}>Новая услуга</Typography>
-        <Typography variant="body2" sx={{ color: "text.secondary", maxWidth: 220 }}>
+        <Typography
+          sx={{ fontSize: { xs: 16, sm: 18 }, fontWeight: 800 }}
+        >
+          Новая услуга
+        </Typography>
+        <Typography
+          variant="body2"
+          sx={{ color: "text.secondary", fontSize: 14, maxWidth: 220 }}
+        >
           Можно сохранить черновиком и опубликовать позже
         </Typography>
       </Box>
@@ -299,17 +358,28 @@ export function ProServicesListClient({ initialServices }: Props) {
             p: { xs: 2.25, md: 3.5 },
             pr: { xs: 6, md: 7 },
             borderRadius: 2.5,
-            bgcolor: (theme) => (theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.text.primary),
+            bgcolor: (theme) =>
+              theme.palette.mode === "dark"
+                ? theme.palette.grey[900]
+                : theme.palette.text.primary,
             color: "common.white",
           }}
         >
-          <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 0.75 }}>
+          <Box
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: 0.75,
+            }}
+          >
             <Typography
               sx={{
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 1,
-                fontSize: { xs: 12, md: 13 },
+                fontSize: { xs: "1rem", md: "1rem" },
                 fontWeight: 700,
                 letterSpacing: "0.06em",
                 textTransform: "uppercase",
@@ -318,24 +388,39 @@ export function ProServicesListClient({ initialServices }: Props) {
               <CheckRoundedIcon sx={{ fontSize: 18 }} />
               Опубликовано
             </Typography>
-            <Typography component="p" sx={{ fontSize: { xs: 20, md: 26 }, fontWeight: 800, lineHeight: 1.2 }}>
+            <Typography
+              component="p"
+              sx={{
+                fontSize: { xs: "1.25rem", md: "1.625rem" },
+                fontWeight: 700,
+                lineHeight: 1.2,
+              }}
+            >
               «{publishedService.title}» теперь в каталоге
             </Typography>
-            <Typography sx={{ fontSize: { xs: 14, md: 15 } }}>
-              Поделитесь ссылкой с клиентами — заявки будут приходить в раздел «Заявки».
+            <Typography sx={{ fontSize: { xs: "1rem", md: "1rem" } }}>
+              Поделитесь ссылкой с клиентами — заявки будут приходить в раздел
+              «Заявки».
             </Typography>
           </Box>
           <Stack direction="row" spacing={1.25} sx={{ flexShrink: 0 }}>
             <Button
               variant="contained"
-              startIcon={linkCopied ? <CheckRoundedIcon /> : <LinkRoundedIcon />}
-              onClick={() => copyServiceLink(publishedService.id, () => setLinkCopied(true))}
+              startIcon={
+                linkCopied ? <CheckRoundedIcon /> : <LinkRoundedIcon />
+              }
+              onClick={() =>
+                copyServiceLink(publishedService.id, () => setLinkCopied(true))
+              }
               sx={{
                 flex: { xs: 1, md: "none" },
                 minHeight: 48,
                 bgcolor: "common.white",
-                color: (theme) => (theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.text.primary),
-                fontWeight: 800,
+                color: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? theme.palette.grey[900]
+                    : theme.palette.text.primary,
+                fontWeight: 700,
                 "&:hover": { bgcolor: "grey.100" },
               }}
             >
@@ -343,7 +428,7 @@ export function ProServicesListClient({ initialServices }: Props) {
             </Button>
             <Button
               component={Link}
-              href="/pro/profile"
+              href="/pro/settings/profile"
               variant="outlined"
               color="inherit"
               sx={{ minHeight: 48, borderColor: "currentColor" }}
@@ -362,22 +447,54 @@ export function ProServicesListClient({ initialServices }: Props) {
       ) : null}
 
       <Stack spacing={1.5}>
-        <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
-          <Box sx={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", columnGap: 1.5 }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 2,
+          }}
+        >
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "baseline",
+              flexWrap: "wrap",
+              columnGap: 1.5,
+            }}
+          >
             <Typography
               component="h1"
               ref={headingRef}
               tabIndex={-1}
-              sx={{ fontSize: { xs: 26, md: 34 }, fontWeight: 800, outline: "none" }}
+              sx={{
+                fontSize: { xs: 26, md: 34 },
+                fontWeight: 800,
+                outline: "none",
+              }}
             >
               Мои услуги
             </Typography>
-            <Typography sx={{ color: "text.secondary", fontSize: { xs: 14, md: 15 } }}>
+            <Typography
+              sx={{
+                color: "text.secondary",
+                fontSize: { xs: 14, md: 15 },
+              }}
+            >
               {stats.PUBLISHED} в каталоге
             </Typography>
           </Box>
 
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0, maxWidth: "100%" }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              minWidth: 0,
+              maxWidth: "100%",
+            }}
+          >
             <Box
               role="group"
               aria-label="Фильтр услуг"
@@ -396,7 +513,13 @@ export function ProServicesListClient({ initialServices }: Props) {
                 if (searchOpen) setSearch("");
                 setSearchOpen((open) => !open);
               }}
-              sx={{ width: 44, height: 44, border: 1, borderColor: "divider", bgcolor: "background.paper" }}
+              sx={{
+                width: 44,
+                height: 44,
+                border: 1,
+                borderColor: "divider",
+                bgcolor: "background.paper",
+              }}
             >
               {searchOpen ? <CloseRoundedIcon /> : <SearchRoundedIcon />}
             </IconButton>
@@ -448,17 +571,26 @@ export function ProServicesListClient({ initialServices }: Props) {
         <Paper variant="outlined" sx={{ p: 3 }}>
           <Stack spacing={2}>
             <Box>
-              <Typography component="h2" gutterBottom sx={{ fontWeight: 800 }}>
+              <Typography
+                component="h2"
+                variant="h2"
+                gutterBottom
+                sx={{ fontWeight: 700 }}
+              >
                 У вас пока нет услуг
               </Typography>
               <Typography sx={{ color: "text.secondary" }}>
-                Начните с черновика, а потом опубликуйте готовую карточку. После публикации услуга
-                станет основой для будущих заявок.
+                Начните с черновика, а потом опубликуйте готовую карточку. После
+                публикации услуга станет основой для будущих заявок.
               </Typography>
             </Box>
 
             <Box>
-              <Button component={Link} href="/pro/services/create" variant="contained">
+              <Button
+                component={Link}
+                href="/pro/services/create"
+                variant="contained"
+              >
                 Создать первую услугу
               </Button>
             </Box>
@@ -468,12 +600,17 @@ export function ProServicesListClient({ initialServices }: Props) {
         <Paper variant="outlined" sx={{ p: 3 }}>
           <Stack spacing={2}>
             <Box>
-              <Typography component="h2" gutterBottom sx={{ fontWeight: 700 }}>
+              <Typography
+                component="h2"
+                variant="h2"
+                gutterBottom
+                sx={{ fontWeight: 700 }}
+              >
                 Услуг по текущему фильтру нет
               </Typography>
               <Typography sx={{ color: "text.secondary" }}>
-                Попробуйте изменить статусный фильтр или строку поиска, чтобы вернуться к полному
-                рабочему списку.
+                Попробуйте изменить статусный фильтр или строку поиска, чтобы
+                вернуться к полному рабочему списку.
               </Typography>
             </Box>
 
@@ -487,7 +624,11 @@ export function ProServicesListClient({ initialServices }: Props) {
               >
                 Сбросить фильтры
               </Button>
-              <Button component={Link} href="/pro/services/create" variant="contained">
+              <Button
+                component={Link}
+                href="/pro/services/create"
+                variant="contained"
+              >
                 Создать услугу
               </Button>
             </Stack>
@@ -497,7 +638,10 @@ export function ProServicesListClient({ initialServices }: Props) {
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(auto-fill, minmax(250px, 1fr))" },
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              sm: "repeat(auto-fit, minmax(250px, 280px))",
+            },
             gap: { xs: 2, md: 2.5 },
           }}
         >
@@ -512,7 +656,11 @@ export function ProServicesListClient({ initialServices }: Props) {
               deleting={busyId === service.id && busyAction === "delete"}
               onStatusChange={(status) => void patchStatus(service.id, status)}
               onDelete={() => void deleteService(service)}
-              onCopyLink={() => copyServiceLink(service.id, () => setNotice("Ссылка на услугу скопирована."))}
+              onCopyLink={() =>
+                copyServiceLink(service.id, () =>
+                  setNotice("Ссылка на услугу скопирована."),
+                )
+              }
             />
           ))}
           {renderCreateTile("desktop")}
@@ -521,7 +669,13 @@ export function ProServicesListClient({ initialServices }: Props) {
     </Stack>
   );
 
-  function renderFilterChip({ value, label }: { value: StatusFilter; label: string }) {
+  function renderFilterChip({
+    value,
+    label,
+  }: {
+    value: StatusFilter;
+    label: string;
+  }) {
     const selected = filter === value;
     const count = stats[value];
     if (value === "ATTENTION" && count === 0 && !selected) return null;
@@ -541,17 +695,30 @@ export function ProServicesListClient({ initialServices }: Props) {
           height: 40,
           borderRadius: 999,
           px: 0.5,
+          fontSize: 13,
           fontWeight: selected || attention ? 700 : 600,
+          "& .MuiChip-label": {
+            whiteSpace: "nowrap",
+            paddingTop: 0,
+            paddingBottom: 0,
+          },
           ...(selected
             ? {
                 bgcolor: "text.primary",
                 color: "background.paper",
                 "&:hover, &.Mui-focusVisible": { bgcolor: "text.primary" },
-                "&.Mui-focusVisible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 },
+                "&.Mui-focusVisible": {
+                  outline: "2px solid",
+                  outlineColor: "primary.main",
+                  outlineOffset: 2,
+                },
               }
             : attention
               ? {
-                  color: (theme) => (theme.palette.mode === "dark" ? theme.palette.warning.main : theme.palette.warning.dark),
+                  color: (theme) =>
+                    theme.palette.mode === "dark"
+                      ? theme.palette.warning.main
+                      : theme.palette.warning.dark,
                   borderColor: "warning.main",
                 }
               : null),

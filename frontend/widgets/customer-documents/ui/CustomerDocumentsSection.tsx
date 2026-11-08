@@ -33,9 +33,11 @@ export function CustomerDocumentsSection() {
         if (!response.ok || !Array.isArray(payload)) {
           throw new Error("Не удалось загрузить заявки");
         }
-        if (!controller.signal.aborted) setRequests(payload as RequestCustomerDto[]);
+        if (!controller.signal.aborted)
+          setRequests(payload as RequestCustomerDto[]);
       } catch {
-        if (!controller.signal.aborted) setError("Не удалось загрузить заявки. Попробуйте ещё раз.");
+        if (!controller.signal.aborted)
+          setError("Не удалось загрузить заявки. Попробуйте ещё раз.");
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
@@ -54,9 +56,9 @@ export function CustomerDocumentsSection() {
           <Box>
             <Typography
               component="h1"
-              variant="h4"
+              variant="h1"
               sx={{
-                fontWeight: 800,
+                fontWeight: 700,
                 mb: 1,
               }}
             >
@@ -73,7 +75,10 @@ export function CustomerDocumentsSection() {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" },
+              gridTemplateColumns: {
+                xs: "minmax(0, 1fr)",
+                md: "repeat(2, minmax(0, 1fr))",
+              },
               alignItems: "start",
               gap: 2,
             }}

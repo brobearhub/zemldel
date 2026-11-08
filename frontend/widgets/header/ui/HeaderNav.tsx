@@ -11,7 +11,11 @@ import { useAppSelector } from "@/core/store/hooks";
 import { ProfileMenu } from "./ProfileMenu";
 
 const NAV_ITEMS = [
-  { label: "Заявки", icon: AssignmentTurnedInOutlinedIcon, href: "/profile?section=requests" },
+  {
+    label: "Заявки",
+    icon: AssignmentTurnedInOutlinedIcon,
+    href: "/profile?section=requests",
+  },
   // { label: "Избранное", icon: FavoriteBorderRoundedIcon, href: "#favorites" },
   // { label: "Корзина", icon: ShoppingCartOutlinedIcon, href: "#cart" },
 ] as const;
@@ -41,8 +45,13 @@ const navItemSx = (showLabels: boolean) =>
     },
   }) as const;
 
-export const HeaderNav = ({ showLabels = false, onNavigate }: HeaderNavProps) => {
-  const isAuthenticated = useAppSelector((state) => state.auth.status === "authenticated");
+export const HeaderNav = ({
+  showLabels = false,
+  onNavigate,
+}: HeaderNavProps) => {
+  const isAuthenticated = useAppSelector(
+    (state) => state.auth.status === "authenticated",
+  );
   /** Why: регистрация — сосед пунктов drawer, а не вложенный пункт «Войти». */
   const showSignUp = showLabels && !isAuthenticated;
 
@@ -65,7 +74,13 @@ export const HeaderNav = ({ showLabels = false, onNavigate }: HeaderNavProps) =>
           onClick={onNavigate}
           sx={navItemSx(showLabels)}
         >
-          <Icon sx={{ fontSize: { xs: 22, sm: 24 }, color: "common.gray", "&:hover": { color: "info.main" } }} />
+          <Icon
+            sx={{
+              fontSize: { xs: 22, sm: 24 },
+              color: "common.gray",
+              "&:hover": { color: "info.main" },
+            }}
+          />
           <Typography
             className="nav-label"
             variant="body2"
@@ -73,7 +88,7 @@ export const HeaderNav = ({ showLabels = false, onNavigate }: HeaderNavProps) =>
               color: "common.gray",
               display: showLabels ? "block" : { xs: "none", md: "block" },
               fontWeight: 600,
-              fontSize: 12,
+              fontSize: "1rem",
               opacity: 1,
               "&:hover": { color: "info.main" },
             }}
@@ -98,14 +113,16 @@ export const HeaderNav = ({ showLabels = false, onNavigate }: HeaderNavProps) =>
           onClick={onNavigate}
           sx={navItemSx(true)}
         >
-          <PersonAddIcon sx={{ fontSize: { xs: 22, sm: 24 }, color: "common.gray" }} />
+          <PersonAddIcon
+            sx={{ fontSize: { xs: 22, sm: 24 }, color: "common.gray" }}
+          />
           <Typography
             className="nav-label"
             variant="body2"
             sx={{
               color: "common.gray",
               fontWeight: 600,
-              fontSize: 12,
+              fontSize: "1rem",
             }}
           >
             Регистрация

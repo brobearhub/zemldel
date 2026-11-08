@@ -412,7 +412,7 @@ export function BillingDashboard({
               </div>
             )}
             <p>
-              <Link href="/pro/tools">
+              <Link href="/pro/settings/promotion">
                 Статистика, шаблоны и задачи команды →
               </Link>
             </p>

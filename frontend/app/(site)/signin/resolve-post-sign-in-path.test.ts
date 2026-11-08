@@ -28,7 +28,7 @@ describe("resolvePostSignInPath", () => {
         hasProviderMembership,
         returnTo: "/reset-password?token=expired",
       }),
-    ).toBe(hasProviderMembership ? "/pro" : "/providers/new");
+    ).toBe(hasProviderMembership ? "/pro/requests/feed" : "/providers/new");
   });
 
   it("ведёт исполнителя без кабинета создавать профиль", () => {
@@ -48,7 +48,7 @@ describe("resolvePostSignInPath", () => {
         hasProviderMembership: true,
         returnTo: "/profile",
       }),
-    ).toBe("/pro");
+    ).toBe("/pro/requests/feed");
   });
 
   it("не пускает клиента в кабинет исполнителя", () => {
@@ -56,7 +56,7 @@ describe("resolvePostSignInPath", () => {
       resolvePostSignInPath({
         accountKind: "CUSTOMER",
         hasProviderMembership: false,
-        returnTo: "/pro",
+        returnTo: "/pro/requests/feed",
       }),
     ).toBe("/profile");
   });
@@ -74,7 +74,7 @@ describe("resolvePostSignInPath", () => {
     expect(resolvePostSignInPath({accountKind: "PROVIDER", hasProviderMembership: true, returnTo: "/pro/requests/qa?tab=chat"})).toBe("/pro/requests/qa?tab=chat");
   });
   it.each(["https://other.test/pro", "//other.test/pro", "/profile/requests/private"])("does not return a provider to an unsafe or customer path: %s", returnTo => {
-    expect(resolvePostSignInPath({accountKind: "PROVIDER", hasProviderMembership: true, returnTo})).toBe("/pro");
+    expect(resolvePostSignInPath({accountKind: "PROVIDER", hasProviderMembership: true, returnTo})).toBe("/pro/requests/feed");
   });
 
 });

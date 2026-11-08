@@ -15,7 +15,10 @@ import {
 } from "@mui/material";
 import { DocumentsSectionShell } from "@/shared/ui/DocumentsSectionShell";
 import { useConfirm } from "@/shared/ui/confirm";
-import type { RequestRemarksBehavior, RequestRemarksViewModel } from "../model/request-remarks-behavior";
+import type {
+  RequestRemarksBehavior,
+  RequestRemarksViewModel,
+} from "../model/request-remarks-behavior";
 
 export type RequestRemarksProps = {
   behavior: RequestRemarksBehavior;
@@ -33,7 +36,8 @@ export function RequestRemarks(props: RequestRemarksProps) {
   if (!vm) return null;
 
   const isBusy = Boolean(props.busy) || remarksBusy;
-  const completePeerLabel = vm.viewerSide === "CUSTOMER" ? "исполнитель" : "заказчик";
+  const completePeerLabel =
+    vm.viewerSide === "CUSTOMER" ? "исполнитель" : "заказчик";
 
   async function runAction(actionId: string, payload?: unknown) {
     await props.behavior.run({ id: actionId, payload });
@@ -42,15 +46,23 @@ export function RequestRemarks(props: RequestRemarksProps) {
   return (
     <DocumentsSectionShell
       headerLeft={
-        <Typography variant="h6" sx={{
-          fontWeight: 800
-        }}>
+        <Typography
+          variant="h6"
+          sx={{
+            fontWeight: 700,
+          }}
+        >
           Замечания
         </Typography>
       }
       headerRight={
         vm.canAdd ? (
-          <Button size="small" variant="outlined" disabled={isBusy} onClick={() => setAddOpen((v) => !v)}>
+          <Button
+            size="small"
+            variant="outlined"
+            disabled={isBusy}
+            onClick={() => setAddOpen((v) => !v)}
+          >
             {addOpen ? "Скрыть" : "Добавить"}
           </Button>
         ) : null
@@ -58,7 +70,10 @@ export function RequestRemarks(props: RequestRemarksProps) {
       collapsible={vm.collapsible}
       defaultExpanded={vm.defaultExpanded}
       expandedResetKey={vm.expandedResetKey}
-      collapseAriaLabel={{ expanded: "Свернуть замечания", collapsed: "Развернуть замечания" }}
+      collapseAriaLabel={{
+        expanded: "Свернуть замечания",
+        collapsed: "Развернуть замечания",
+      }}
     >
       <Stack spacing={1.5}>
         {addOpen && vm.canAdd ? (
@@ -77,8 +92,9 @@ export function RequestRemarks(props: RequestRemarksProps) {
               useFlexGap
               sx={{
                 flexWrap: "wrap",
-                alignSelf: "flex-start"
-              }}>
+                alignSelf: "flex-start",
+              }}
+            >
               <Button
                 variant="contained"
                 loading={submitPending}
@@ -87,7 +103,9 @@ export function RequestRemarks(props: RequestRemarksProps) {
                   setRemarksBusy(true);
                   setSubmitPending(true);
                   try {
-                    await runAction(vm.submitActionId, { text: newRemarkText.trim() });
+                    await runAction(vm.submitActionId, {
+                      text: newRemarkText.trim(),
+                    });
                     setNewRemarkText("");
                     setAddOpen(false);
                   } finally {
@@ -98,7 +116,11 @@ export function RequestRemarks(props: RequestRemarksProps) {
               >
                 Отправить
               </Button>
-              <Button variant="text" disabled={isBusy} onClick={() => setAddOpen(false)}>
+              <Button
+                variant="text"
+                disabled={isBusy}
+                onClick={() => setAddOpen(false)}
+              >
                 Отмена
               </Button>
             </Stack>
@@ -108,16 +130,20 @@ export function RequestRemarks(props: RequestRemarksProps) {
         <Divider />
 
         {vm.items.length === 0 ? (
-          <Typography variant="body2" sx={{
-            color: "text.secondary"
-          }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+            }}
+          >
             Пока нет замечаний.
           </Typography>
         ) : (
           <List dense disablePadding>
             {vm.items.map((item) => {
               const checked = item.status === "DONE";
-              const canToggle = item.canComplete && item.status === "OPEN" && !isBusy;
+              const canToggle =
+                item.canComplete && item.status === "OPEN" && !isBusy;
               return (
                 <ListItem key={item.id} disableGutters disablePadding>
                   <ListItemButton
@@ -133,7 +159,9 @@ export function RequestRemarks(props: RequestRemarksProps) {
                       if (!ok) return;
                       setRemarksBusy(true);
                       try {
-                        await runAction("remarkComplete", { remarkId: item.id });
+                        await runAction("remarkComplete", {
+                          remarkId: item.id,
+                        });
                       } finally {
                         setRemarksBusy(false);
                       }
@@ -151,7 +179,10 @@ export function RequestRemarks(props: RequestRemarksProps) {
                       disabled={!canToggle}
                       sx={{
                         "&.Mui-checked": { color: "success.main" },
-                        "&.Mui-disabled.Mui-checked": { color: "success.main", opacity: 1 },
+                        "&.Mui-disabled.Mui-checked": {
+                          color: "success.main",
+                          opacity: 1,
+                        },
                       }}
                     />
                     <ListItemText
@@ -173,7 +204,10 @@ export function RequestRemarks(props: RequestRemarksProps) {
                       }
                       secondary={item.meta}
                       slotProps={{
-                        secondary: { variant: "caption", color: "text.secondary" }
+                        secondary: {
+                          variant: "caption",
+                          color: "text.secondary",
+                        },
                       }}
                     />
                   </ListItemButton>

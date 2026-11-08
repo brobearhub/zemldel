@@ -178,13 +178,13 @@ describe("ProfileMenu", () => {
     },
   );
 
-  it("navigates to /signin with returnTo=/pro on pro sign-in", async () => {
+  it("navigates to /signin with returnTo=/pro/requests/feed on pro sign-in", async () => {
     const { user } = renderWithAuthState("unauth");
 
     await user.hover(screen.getByLabelText("Профиль"));
     await user.click(screen.getByText("Исполнитель"));
 
-    expect(navigation.push).toHaveBeenCalledWith("/signin?returnTo=%2Fpro");
+    expect(navigation.push).toHaveBeenCalledWith("/signin?returnTo=%2Fpro%2Frequests%2Ffeed");
   });
 
   it("does not show admin link for CUSTOMER", async () => {
@@ -308,7 +308,7 @@ describe("ProfileMenu", () => {
     const cabinetItem = screen.getByRole("menuitem", { name: /ООО Бурый Медведь/ });
     expect(within(cabinetItem).getByText("Организация")).toBeInTheDocument();
     await user.click(cabinetItem);
-    expect(navigation.push).toHaveBeenCalledWith("/pro");
+    expect(navigation.push).toHaveBeenCalledWith("/pro/requests/feed");
   });
 
   it("на публичной странице даёт и кабинет, и контактное лицо", async () => {
@@ -319,7 +319,7 @@ describe("ProfileMenu", () => {
 
     expect(screen.getByRole("menuitem", { name: /Контактное лицо/ })).toBeInTheDocument();
     await user.click(screen.getByRole("menuitem", { name: /ООО Бурый Медведь/ }));
-    expect(navigation.push).toHaveBeenCalledWith("/pro");
+    expect(navigation.push).toHaveBeenCalledWith("/pro/requests/feed");
   });
 
   it("вне кабинета помнит, что исполнитель переключился на контактное лицо", async () => {
@@ -334,7 +334,7 @@ describe("ProfileMenu", () => {
   });
 
   it("самозанятого называет «Фамилия И. О.» с подписью «Самозанятый»", async () => {
-    navigation.pathname = "/pro";
+    navigation.pathname = "/pro/requests/feed";
     const { user } = renderWithAuthState("provider", {
       membership: {
         ...membership,

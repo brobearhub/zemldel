@@ -33,6 +33,7 @@ import {
 import { ServiceCard, toPlaceInput } from "@/entities/service";
 import type {
   ServiceDto,
+  ServiceCategory,
   ServicePaletteColor,
   ServicePlace,
   ServiceStatus,
@@ -56,6 +57,7 @@ import { useAppSelector } from "@/core/store/hooks";
 type Props = {
   mode: "create" | "edit";
   initialService?: ServiceDto;
+  categories: ServiceCategory[];
   /** Город исполнителя с сервера: клиентская сессия после онбординга ещё без него. */
   initialProviderCity?: AuthCity | null;
 };
@@ -108,7 +110,7 @@ const CategoryMenuPaper = forwardRef<HTMLDivElement, PaperProps>(
         >
           <Typography
             component="span"
-            sx={{ fontSize: 16, lineHeight: 1.4, color: "text.primary" }}
+            sx={{ fontSize: "1rem", lineHeight: 1.5, color: "text.primary" }}
           >
             Категория
           </Typography>
@@ -157,11 +159,7 @@ function ServiceEditorActions({
   onDraft: () => void;
 }) {
   return (
-    <Stack
-      direction={{ xs: "row", md: "column" }}
-      spacing={2}
-      useFlexGap
-    >
+    <Stack direction={{ xs: "row", md: "column" }} spacing={2} useFlexGap>
       <Button
         type="button"
         variant="contained"
@@ -226,16 +224,8 @@ function createInitialState(service?: ServiceDto): ServiceFormState {
   };
 }
 
-type ServiceCategoryRow = {
-  id: string;
-  name: string;
-  slug: string;
-  parentId: string | null;
-  sortOrder: number | null;
-};
-
-function buildCategoryTree(categories: ServiceCategoryRow[]) {
-  const byParent = new Map<string | null, ServiceCategoryRow[]>();
+function buildCategoryTree(categories: ServiceCategory[]) {
+  const byParent = new Map<string | null, ServiceCategory[]>();
   for (const c of categories) {
     const key = c.parentId ?? null;
     const arr = byParent.get(key) ?? [];
@@ -250,7 +240,7 @@ function buildCategoryTree(categories: ServiceCategoryRow[]) {
       return a.name.localeCompare(b.name);
     });
   }
-  const out: Array<{ node: ServiceCategoryRow; depth: number }> = [];
+  const out: Array<{ node: ServiceCategory; depth: number }> = [];
   const walk = (parentId: string | null, depth: number) => {
     const children = byParent.get(parentId) ?? [];
     for (const child of children) {
@@ -265,6 +255,7 @@ function buildCategoryTree(categories: ServiceCategoryRow[]) {
 export function ProServiceEditor({
   mode,
   initialService,
+  categories,
   initialProviderCity = null,
 }: Props) {
   const router = useRouter();
@@ -334,9 +325,6 @@ export function ProServiceEditor({
     ServiceStatus | "upload:icon" | "upload:add" | "deleteImage" | null
   >(null);
   const imagePickerSource = useRef<"icon" | "add" | null>(null);
-  const [categories, setCategories] = useState<ServiceCategoryRow[] | null>(
-    null,
-  );
   const [autofilledTitle, setAutofilledTitle] = useState<string | null>(null);
   const [images, setImages] = useState<string[]>(() =>
     initialService?.images?.length
@@ -362,21 +350,6 @@ export function ProServiceEditor({
   }, [providerCity]);
 
   useEffect(() => {
-    fetch("/api/service-categories")
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch categories");
-        return res.json() as Promise<ServiceCategoryRow[]>;
-      })
-      .then((data) => {
-        setCategories(data);
-      })
-      .catch(() => {
-        setCategories([]);
-      });
-  }, []);
-
-  useEffect(() => {
-    if (!categories) return;
     if (!form.categoryId) return;
 
     const activeCategory =
@@ -591,8 +564,8 @@ export function ProServiceEditor({
       const savedStatus = requestPayload.status;
       router.push(
         savedStatus === "PUBLISHED" && savedId
-          ? `/pro/services/list?notice=published&serviceId=${savedId}`
-          : `/pro/services/list?notice=${mode === "create" ? "created" : "updated"}`,
+          ? `/pro/services?notice=published&serviceId=${savedId}`
+          : `/pro/services?notice=${mode === "create" ? "created" : "updated"}`,
       );
       router.refresh();
     } catch (submitError) {
@@ -790,12 +763,13 @@ export function ProServiceEditor({
         <IconButton
           aria-label="Назад"
           disabled={busy}
-          onClick={() => router.push("/pro/services/list")}
+          onClick={() => router.push("/pro/services")}
         >
           <ArrowBackIosNewIcon sx={{ fontSize: 18 }} />
         </IconButton>
         <Typography
           component="h1"
+          variant="h1"
           sx={{ flex: 1, textAlign: "center", fontWeight: 700, pr: 5 }}
         >
           {mode === "create" ? "Новая услуга" : "Редактировать услугу"}
@@ -810,10 +784,7 @@ export function ProServiceEditor({
           mx: "auto",
         }}
       >
-        <Stack
-          spacing={1.5}
-          sx={{ alignItems: "flex-start" }}
-        >
+        <Stack spacing={1.5} sx={{ alignItems: "flex-start" }}>
           <Box
             role="button"
             tabIndex={busy ? -1 : 0}
@@ -835,10 +806,7 @@ export function ProServiceEditor({
               borderRadius: 1,
             }}
           >
-            <ServiceCard
-              item={previewItem}
-              linked={false}
-            />
+            <ServiceCard item={previewItem} linked={false} />
           </Box>
           <Stack
             direction="row"
@@ -915,25 +883,16 @@ export function ProServiceEditor({
           }}
         />
         {error ? (
-          <Alert
-            severity="error"
-            sx={{ borderRadius: 0 }}
-          >
+          <Alert severity="error" sx={{ borderRadius: 0 }}>
             {error}
           </Alert>
         ) : null}
 
-        <Stack
-          spacing={1.5}
-          sx={{ p: 2 }}
-        >
+        <Stack spacing={1.5} sx={{ p: 2 }}>
           <Typography variant="subtitle1">
             Фотографии услуги · {imageCount} из {photoLimit}
           </Typography>
-          <Typography
-            variant="body2"
-            sx={{ color: "text.secondary" }}
-          >
+          <Typography variant="body2" sx={{ color: "text.secondary" }}>
             JPG, PNG или WebP, до 10 МБ каждое. Первое фото — обложка карточки.
           </Typography>
           <Box
@@ -1010,10 +969,7 @@ export function ProServiceEditor({
               </Box>
             ))}
           </Box>
-          <Stack
-            direction="row"
-            spacing={1}
-          >
+          <Stack direction="row" spacing={1}>
             <Button
               type="button"
               onClick={() => openImagePicker("add")}
@@ -1069,10 +1025,7 @@ export function ProServiceEditor({
                   flexShrink: 0,
                 }}
               >
-                <Typography
-                  variant="body2"
-                  sx={{ color: "text.secondary" }}
-                >
+                <Typography variant="body2" sx={{ color: "text.secondary" }}>
                   Превью карточки
                 </Typography>
                 <Box
@@ -1096,10 +1049,7 @@ export function ProServiceEditor({
                     borderRadius: 1,
                   }}
                 >
-                  <ServiceCard
-                    item={previewItem}
-                    linked={false}
-                  />
+                  <ServiceCard item={previewItem} linked={false} />
                 </Box>
                 {canRemoveImage ? (
                   <Button
@@ -1198,15 +1148,15 @@ export function ProServiceEditor({
                   >
                     Выберите категорию
                   </MenuItem>
-                  {buildCategoryTree(categories ?? []).map(({ node, depth }) =>
+                  {buildCategoryTree(categories).map(({ node, depth }) =>
                     depth === 0 ? (
                       <ListSubheader
                         key={`cat-${node.id}`}
                         disableSticky
                         sx={{
-                          fontWeight: 900,
-                          fontSize: 14,
-                          lineHeight: 1.4,
+                          fontWeight: 700,
+                          fontSize: "1rem",
+                          lineHeight: 1.5,
                           py: 1,
                           whiteSpace: "normal",
                           color: "text.primary",
@@ -1312,7 +1262,7 @@ export function ProServiceEditor({
                   htmlInput: { inputMode: "numeric", "aria-label": "Цена" },
                 }}
               />
-              <Typography sx={{ display: { md: "none" }, fontWeight: 800 }}>
+              <Typography sx={{ display: { md: "none" }, fontWeight: 700 }}>
                 География
               </Typography>
               <Typography variant="body2">
@@ -1365,10 +1315,7 @@ export function ProServiceEditor({
                 new Set(places.map((place) => place.regionCode)).size >
                   regionLimit && (
                   <Stack spacing={1}>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                    >
+                    <Typography variant="body2" color="text.secondary">
                       Сохранены все регионы. В публикации — первые {regionLimit}
                       . Поднимите нужные регионы, затем сохраните услугу.
                     </Typography>
@@ -1500,10 +1447,7 @@ export function ProServiceEditor({
           mx: "auto",
         }}
       >
-        <ServiceCard
-          item={previewItem}
-          linked={false}
-        />
+        <ServiceCard item={previewItem} linked={false} />
         <ServiceEditorActions
           publishDisabled={publishDisabled}
           needsPhoto={needsPhoto}

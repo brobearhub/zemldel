@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import { PassportPhotoStorageService } from './passport-photo-storage.service';
 
@@ -14,6 +15,27 @@ const file = (buffer: Buffer, mimetype = 'image/png') =>
   }) as Express.Multer.File;
 
 describe('passport photograph validation', () => {
+  it('omits KMS headers for synthetic testing data', async () => {
+    const send = vi.fn().mockResolvedValue({});
+    const storage = new PassportPhotoStorageService({
+      getConnection: () => ({
+        client: { send },
+        bucket: 'test',
+        kmsKeyId: null,
+      }),
+    } as never);
+    await storage.put(`passports/${randomUUID()}/photos/${randomUUID()}.png`, {
+      body: Buffer.from('synthetic'),
+      sha256: '0'.repeat(64),
+      mimeType: 'image/png',
+      ext: 'png',
+    });
+    expect(send.mock.calls[0][0].input).not.toHaveProperty(
+      'ServerSideEncryption',
+    );
+    expect(send.mock.calls[0][0].input).not.toHaveProperty('SSEKMSKeyId');
+  });
+
   it('decodes an actual PNG and does not retain an original filename', async () => {
     const input = await sharp({
       create: { width: 20, height: 10, channels: 3, background: '#778899' },

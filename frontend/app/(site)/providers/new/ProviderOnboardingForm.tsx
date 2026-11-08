@@ -50,7 +50,9 @@ export function ProviderOnboardingForm() {
   const [city, setCity] = useState<CitySuggestItemDto | null>(null);
   const [providerAvatar, setProviderAvatar] = useState<File | null>(null);
   const [contactAvatar, setContactAvatar] = useState<File | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<ProviderOnboardingFieldErrors>({});
+  const [fieldErrors, setFieldErrors] = useState<ProviderOnboardingFieldErrors>(
+    {},
+  );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [offerAcknowledged, setOfferAcknowledged] = useState(false);
@@ -63,17 +65,22 @@ export function ProviderOnboardingForm() {
     let cancelled = false;
     async function loadOfferVersion() {
       try {
-        const res = await fetch("/api/legal-docs/offer/current", { cache: "no-store" });
-        const payload = (await res.json().catch(() => null)) as
-          | { version?: string; error?: string }
-          | null;
+        const res = await fetch("/api/legal-docs/offer/current", {
+          cache: "no-store",
+        });
+        const payload = (await res.json().catch(() => null)) as {
+          version?: string;
+          error?: string;
+        } | null;
         if (!res.ok || !payload?.version) {
           throw new Error(payload?.error ?? "Не удалось загрузить оферту");
         }
         if (!cancelled) setOfferVersion(payload.version);
       } catch (e) {
         if (!cancelled) {
-          setOfferLoadError(e instanceof Error ? e.message : "Не удалось загрузить оферту");
+          setOfferLoadError(
+            e instanceof Error ? e.message : "Не удалось загрузить оферту",
+          );
         }
       }
     }
@@ -103,14 +110,18 @@ export function ProviderOnboardingForm() {
     }
   }
 
-  async function uploadAvatars(providerId: string | null): Promise<string | null> {
+  async function uploadAvatars(
+    providerId: string | null,
+  ): Promise<string | null> {
     const [providerOk, contactOk] = await Promise.all([
       providerAvatar
         ? providerId
           ? uploadAvatar(`/api/providers/${providerId}/image`, providerAvatar)
           : Promise.resolve(false)
         : Promise.resolve(true),
-      isCompany && contactAvatar ? uploadAvatar("/api/users/me/image", contactAvatar) : Promise.resolve(true),
+      isCompany && contactAvatar
+        ? uploadAvatar("/api/users/me/image", contactAvatar)
+        : Promise.resolve(true),
     ]);
     if (!providerOk && !contactOk) return "avatars-failed";
     if (!providerOk) return "provider-avatar-failed";
@@ -162,29 +173,36 @@ export function ProviderOnboardingForm() {
                 contact: {
                   lastName: contactLastName.trim(),
                   firstName: contactFirstName.trim(),
-                  ...(contactMiddleName.trim() ? { middleName: contactMiddleName.trim() } : {}),
+                  ...(contactMiddleName.trim()
+                    ? { middleName: contactMiddleName.trim() }
+                    : {}),
                 },
               }
             : {}),
         }),
       });
 
-      const payload = (await response.json().catch(() => null)) as
-        | {
-            provider?: { id?: string };
-            error?: string;
-            message?: string | string[];
-            fieldErrors?: ProviderOnboardingFieldErrors;
-          }
-        | null;
+      const payload = (await response.json().catch(() => null)) as {
+        provider?: { id?: string };
+        error?: string;
+        message?: string | string[];
+        fieldErrors?: ProviderOnboardingFieldErrors;
+      } | null;
 
       if (!response.ok) {
-        if (payload?.fieldErrors && Object.keys(payload.fieldErrors).length > 0) {
+        if (
+          payload?.fieldErrors &&
+          Object.keys(payload.fieldErrors).length > 0
+        ) {
           setFieldErrors(payload.fieldErrors);
           return;
         }
-        const message = Array.isArray(payload?.message) ? payload.message.join(", ") : payload?.message;
-        setError(payload?.error ?? message ?? "Не удалось создать профиль исполнителя");
+        const message = Array.isArray(payload?.message)
+          ? payload.message.join(", ")
+          : payload?.message;
+        setError(
+          payload?.error ?? message ?? "Не удалось создать профиль исполнителя",
+        );
         return;
       }
 
@@ -195,7 +213,11 @@ export function ProviderOnboardingForm() {
       // Why: jwt клиента ещё без профиля, поэтому город исполнителя не попадает в форму услуги.
       await updateSession().catch(() => undefined);
       navigated = true;
-      router.push(avatarNotice ? `/pro?welcome=1&notice=${avatarNotice}` : "/pro?welcome=1");
+      router.push(
+        avatarNotice
+          ? `/pro/requests/feed?welcome=1&notice=${avatarNotice}`
+          : "/pro/requests/feed?welcome=1",
+      );
       router.refresh();
     } catch {
       setError("Не удалось создать профиль исполнителя");
@@ -211,19 +233,32 @@ export function ProviderOnboardingForm() {
         <Paper sx={{ p: { xs: 2, sm: 4 } }}>
           <Stack spacing={3}>
             <Stack spacing={1}>
-              <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
+              <Typography variant="h1" component="h1" sx={{ fontWeight: 700 }}>
                 Создайте профиль
               </Typography>
               <Typography sx={{ color: "text.secondary" }}>
-                Реквизиты можно добавить позже. Подтверждённые профили мы показываем выше и отмечаем значком.
+                Реквизиты можно добавить позже. Подтверждённые профили мы
+                показываем выше и отмечаем значком.
               </Typography>
             </Stack>
 
             <CabinetNotices welcome="Аккаунт исполнителя создан. Осталось заполнить профиль." />
 
-            {error ? <Alert severity="error" role="alert">{error}</Alert> : null}
-            {offerLoadError ? <Alert severity="error" role="alert">{offerLoadError}</Alert> : null}
-            {fieldErrors.type ? <Alert severity="error" role="alert">{fieldErrors.type}</Alert> : null}
+            {error ? (
+              <Alert severity="error" role="alert">
+                {error}
+              </Alert>
+            ) : null}
+            {offerLoadError ? (
+              <Alert severity="error" role="alert">
+                {offerLoadError}
+              </Alert>
+            ) : null}
+            {fieldErrors.type ? (
+              <Alert severity="error" role="alert">
+                {fieldErrors.type}
+              </Alert>
+            ) : null}
 
             <Box component="form" onSubmit={onSubmit}>
               <Stack spacing={2.5}>
@@ -315,7 +350,9 @@ export function ProviderOnboardingForm() {
 
                     {isCompany ? (
                       <Stack spacing={2}>
-                        <Typography sx={{ fontWeight: 700 }}>Контактное лицо</Typography>
+                        <Typography sx={{ fontWeight: 700 }}>
+                          Контактное лицо
+                        </Typography>
                         <PersonNameFields
                           lastName={contactLastName}
                           firstName={contactFirstName}
@@ -362,23 +399,33 @@ export function ProviderOnboardingForm() {
                   control={
                     <Checkbox
                       checked={offerAcknowledged}
-                      onChange={(event) => setOfferAcknowledged(event.target.checked)}
+                      onChange={(event) =>
+                        setOfferAcknowledged(event.target.checked)
+                      }
                       disabled={loading || !offerVersion}
                     />
                   }
                   label={
-                    <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                    <Typography
+                      variant="body2"
+                      sx={{ color: "text.secondary" }}
+                    >
                       Ознакомлен(а) с{" "}
                       <Link
                         href="/offer"
                         target="_blank"
                         rel="noopener noreferrer"
-                        sx={{ color: "inherit", fontWeight: 700, textDecoration: "underline" }}
+                        sx={{
+                          color: "inherit",
+                          fontWeight: 700,
+                          textDecoration: "underline",
+                        }}
                       >
                         офертой
                       </Link>
-                      {offerVersion ? ` (версия ${offerVersion})` : ""}. Галочка подтверждает,
-                      что текст оферты прочитан. Подключение и оплата услуг выполняются отдельно.
+                      {offerVersion ? ` (версия ${offerVersion})` : ""}. Галочка
+                      подтверждает, что текст оферты прочитан. Подключение и
+                      оплата услуг выполняются отдельно.
                     </Typography>
                   }
                   sx={{ alignItems: "flex-start", m: 0 }}

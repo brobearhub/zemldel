@@ -21,10 +21,16 @@ async function main() {
           data,
         );
         assert.equal(result.ContentType, type);
-        assert.equal(result.ServerSideEncryption, 'aws:kms');
-        assert.equal(result.SSEKMSKeyId, connection.getConnection().kmsKeyId);
+        const kmsKeyId = connection.getConnection().kmsKeyId;
+        assert.equal(
+          result.ServerSideEncryption,
+          kmsKeyId ? 'aws:kms' : undefined,
+        );
+        assert.equal(result.SSEKMSKeyId, kmsKeyId ?? undefined);
         assert.equal(result.CacheControl, 'private, no-store');
-        console.log(`PASS: private encrypted ${type} write/read`);
+        console.log(
+          `PASS: ${kmsKeyId ? 'private encrypted' : 'synthetic public testing'} ${type} write/read`,
+        );
       } finally {
         await storage.deleteObject(key);
       }

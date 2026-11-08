@@ -7,15 +7,18 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { CabinetNavItem as NavItem } from "@/widgets/cabinet-chrome/model/nav-config";
 import { CabinetNavItem } from "@/widgets/cabinet-chrome/ui/CabinetNavItem";
-import { ColorModeToggle } from "@/core/theme/ColorModeToggle";
 import { HeaderCity } from "@/widgets/header/ui/HeaderCity";
 import { HeaderLogo } from "@/widgets/header/ui/HeaderLogo";
 import { ProfileMenu } from "@/widgets/header/ui/ProfileMenu";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
+import { ProviderHeaderStatus } from "@/widgets/cabinet-chrome/ui/ProviderHeaderStatus";
 
 type Props = {
   items: readonly NavItem[];
   showProviderCity?: boolean;
+  showSiteCity?: boolean;
+  showProviderStatus?: boolean;
+  alignWithWorkspace?: boolean;
 };
 
 function NavScroller({ children }: { children: ReactNode }) {
@@ -47,9 +50,20 @@ function NavScroller({ children }: { children: ReactNode }) {
   }
 
   return (
-    <Box sx={{ minWidth: 0, display: "flex", alignItems: "center", overflow: "hidden" }}>
+    <Box
+      sx={{
+        minWidth: 0,
+        display: "flex",
+        alignItems: "center",
+        overflow: "hidden",
+      }}
+    >
       {edges.left ? (
-        <IconButton aria-label="Пункты меню слева" onClick={() => scrollBy(-1)} size="small">
+        <IconButton
+          aria-label="Пункты меню слева"
+          onClick={() => scrollBy(-1)}
+          size="small"
+        >
           <ChevronLeftIcon />
         </IconButton>
       ) : null}
@@ -70,7 +84,11 @@ function NavScroller({ children }: { children: ReactNode }) {
         {children}
       </Box>
       {edges.right ? (
-        <IconButton aria-label="Пункты меню справа" onClick={() => scrollBy(1)} size="small">
+        <IconButton
+          aria-label="Пункты меню справа"
+          onClick={() => scrollBy(1)}
+          size="small"
+        >
           <ChevronRightIcon />
         </IconButton>
       ) : null}
@@ -78,20 +96,48 @@ function NavScroller({ children }: { children: ReactNode }) {
   );
 }
 
-export function CabinetDesktopBar({ items, showProviderCity = false }: Props) {
+export function CabinetDesktopBar({
+  items,
+  showProviderCity = false,
+  showSiteCity = false,
+  showProviderStatus = false,
+  alignWithWorkspace = false,
+}: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { unreadByRequestId } = useChatSocket();
 
-  const unreadTotal = useMemo(() => Object.values(unreadByRequestId).reduce((acc, v) => acc + v, 0), [unreadByRequestId]);
-  const ctx = useMemo(() => ({ pathname, searchParams: new URLSearchParams(searchParams?.toString() ?? "") }), [pathname, searchParams]);
+  const unreadTotal = useMemo(
+    () => Object.values(unreadByRequestId).reduce((acc, v) => acc + v, 0),
+    [unreadByRequestId],
+  );
+  const ctx = useMemo(
+    () => ({
+      pathname,
+      searchParams: new URLSearchParams(searchParams?.toString() ?? ""),
+    }),
+    [pathname, searchParams],
+  );
 
   return (
-    <AppBar position="fixed" elevation={0}>
+    <AppBar
+      position="fixed"
+      elevation={0}
+      sx={{
+        left: alignWithWorkspace ? "var(--pro-sidebar-width, 240px)" : 0,
+        width: alignWithWorkspace
+          ? "calc(100% - var(--pro-sidebar-width, 240px))"
+          : "100%",
+        ...(alignWithWorkspace && {
+          borderBottomColor: (theme) =>
+            theme.palette.mode === "light" ? "#dcded6" : theme.palette.divider,
+        }),
+      }}
+    >
       <Toolbar
         disableGutters
         sx={{
-          px: { xs: 1.5, sm: 2 },
+          px: alignWithWorkspace ? 4 : { xs: 1.5, sm: 2 },
           py: 0.5,
           height: { xs: 60, sm: 70 },
           display: "grid",
@@ -102,8 +148,27 @@ export function CabinetDesktopBar({ items, showProviderCity = false }: Props) {
           columnGap: { md: 1, lg: 2 },
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, position: "relative", zIndex: 1 }}>
-          <HeaderLogo />
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            minWidth: 0,
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          {alignWithWorkspace ? (
+            <Box
+              sx={{
+                display: "var(--pro-header-logo-display, flex)",
+              }}
+            >
+              <HeaderLogo compact />
+            </Box>
+          ) : (
+            <HeaderLogo />
+          )}
+          {showSiteCity ? <HeaderCity showLabel /> : null}
           {showProviderCity ? <HeaderCity showLabel scope="provider" /> : null}
         </Box>
 
@@ -115,19 +180,29 @@ export function CabinetDesktopBar({ items, showProviderCity = false }: Props) {
                 label={item.label}
                 icon={item.icon}
                 selected={item.isActive(ctx)}
-                badge={item.badgeKind === "chatUnreadTotal" ? unreadTotal : undefined}
+                badge={
+                  item.badgeKind === "chatUnreadTotal" ? unreadTotal : undefined
+                }
                 size="desktop"
               />
             </Box>
           ))}
         </NavScroller>
 
-        <Box sx={{ display: "flex", alignItems: "center", justifySelf: "end", gap: 0.5, position: "relative", zIndex: 1 }}>
-          <ColorModeToggle />
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifySelf: "end",
+            gap: 0.5,
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          {showProviderStatus ? <ProviderHeaderStatus /> : null}
           <ProfileMenu />
         </Box>
       </Toolbar>
     </AppBar>
   );
 }
-

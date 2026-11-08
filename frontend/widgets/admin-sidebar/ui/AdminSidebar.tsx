@@ -29,8 +29,16 @@ const SERVICES_GROUP = {
   label: "Услуги",
   icon: <BuildIcon />,
   items: [
-    { href: "/admin/services/create", label: "Создать", icon: <AddCircleOutlineIcon /> },
-    { href: "/admin/services/list", label: "Список", icon: <FormatListBulletedIcon /> },
+    {
+      href: "/admin/services/create",
+      label: "Создать",
+      icon: <AddCircleOutlineIcon />,
+    },
+    {
+      href: "/admin/services/list",
+      label: "Список",
+      icon: <FormatListBulletedIcon />,
+    },
   ],
 } as const;
 
@@ -39,8 +47,16 @@ const CITIES_GROUP = {
   label: "Локации",
   icon: <LocationCityIcon />,
   items: [
-    { href: "/admin/cities/imports", label: "Импорты ГАР", icon: <FormatListBulletedIcon /> },
-    { href: "/admin/cities/capitals", label: "Столицы", icon: <LocationCityIcon /> },
+    {
+      href: "/admin/cities/imports",
+      label: "Импорты ГАР",
+      icon: <FormatListBulletedIcon />,
+    },
+    {
+      href: "/admin/cities/capitals",
+      label: "Столицы",
+      icon: <LocationCityIcon />,
+    },
   ],
 } as const;
 
@@ -48,9 +64,14 @@ const CATEGORIES_GROUP = {
   hrefPrefix: "/admin/service-categories",
   label: "Категории",
   icon: <FolderOutlinedIcon />,
-  items: [{ href: "/admin/service-categories/list", label: "Дерево", icon: <FormatListBulletedIcon /> }],
+  items: [
+    {
+      href: "/admin/service-categories/list",
+      label: "Дерево",
+      icon: <FormatListBulletedIcon />,
+    },
+  ],
 } as const;
-
 
 type Props = {
   pendingVerifications?: number;
@@ -59,17 +80,22 @@ type Props = {
 export function AdminSidebar({ pendingVerifications = 0 }: Props) {
   const pathname = usePathname();
   const isServicesRoute = useMemo(
-    () => pathname === SERVICES_GROUP.hrefPrefix || pathname.startsWith(`${SERVICES_GROUP.hrefPrefix}/`),
-    [pathname]
+    () =>
+      pathname === SERVICES_GROUP.hrefPrefix ||
+      pathname.startsWith(`${SERVICES_GROUP.hrefPrefix}/`),
+    [pathname],
   );
   const isCategoriesRoute = useMemo(
     () =>
-      pathname === CATEGORIES_GROUP.hrefPrefix || pathname.startsWith(`${CATEGORIES_GROUP.hrefPrefix}/`),
-    [pathname]
+      pathname === CATEGORIES_GROUP.hrefPrefix ||
+      pathname.startsWith(`${CATEGORIES_GROUP.hrefPrefix}/`),
+    [pathname],
   );
   const isCitiesRoute = useMemo(
-    () => pathname === CITIES_GROUP.hrefPrefix || pathname.startsWith(`${CITIES_GROUP.hrefPrefix}/`),
-    [pathname]
+    () =>
+      pathname === CITIES_GROUP.hrefPrefix ||
+      pathname.startsWith(`${CITIES_GROUP.hrefPrefix}/`),
+    [pathname],
   );
 
   const [servicesOpen, setServicesOpen] = useState<boolean>(false);
@@ -87,7 +113,10 @@ export function AdminSidebar({ pendingVerifications = 0 }: Props) {
       }}
     >
       <Box sx={{ px: 2, py: 1.5 }}>
-        <Typography variant="overline" sx={{ fontWeight: 800, letterSpacing: "0.08em" }}>
+        <Typography
+          variant="overline"
+          sx={{ fontWeight: 700, letterSpacing: "0.08em" }}
+        >
           Admin
         </Typography>
       </Box>
@@ -117,7 +146,13 @@ export function AdminSidebar({ pendingVerifications = 0 }: Props) {
             }
             slotProps={{
               primary: {
-                sx: { fontWeight: pathname.startsWith("/admin/provider-verifications") ? 800 : 700 },
+                sx: {
+                  fontWeight: pathname.startsWith(
+                    "/admin/provider-verifications",
+                  )
+                    ? 800
+                    : 700,
+                },
               },
             }}
           />
@@ -135,11 +170,13 @@ export function AdminSidebar({ pendingVerifications = 0 }: Props) {
             },
           }}
         >
-          <ListItemIcon sx={{ minWidth: 36 }}>{CATEGORIES_GROUP.icon}</ListItemIcon>
+          <ListItemIcon sx={{ minWidth: 36 }}>
+            {CATEGORIES_GROUP.icon}
+          </ListItemIcon>
           <ListItemText
             primary={CATEGORIES_GROUP.label}
             slotProps={{
-              primary: { sx: { fontWeight: isCategoriesRoute ? 800 : 700 } }
+              primary: { sx: { fontWeight: isCategoriesRoute ? 800 : 700 } },
             }}
           />
           <IconButton
@@ -151,7 +188,11 @@ export function AdminSidebar({ pendingVerifications = 0 }: Props) {
               setCategoriesOpen((v) => !v);
             }}
           >
-            {categoriesOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+            {categoriesOpen ? (
+              <ExpandLessIcon fontSize="small" />
+            ) : (
+              <ExpandMoreIcon fontSize="small" />
+            )}
           </IconButton>
         </ListItemButton>
 
@@ -179,7 +220,7 @@ export function AdminSidebar({ pendingVerifications = 0 }: Props) {
                   <ListItemText
                     primary={item.label}
                     slotProps={{
-                      primary: { sx: { fontWeight: selected ? 800 : 600 } }
+                      primary: { sx: { fontWeight: selected ? 800 : 600 } },
                     }}
                   />
                 </ListItemButton>
@@ -205,7 +246,7 @@ export function AdminSidebar({ pendingVerifications = 0 }: Props) {
           <ListItemText
             primary={CITIES_GROUP.label}
             slotProps={{
-              primary: { sx: { fontWeight: isCitiesRoute ? 800 : 700 } }
+              primary: { sx: { fontWeight: isCitiesRoute ? 800 : 700 } },
             }}
           />
           <IconButton
@@ -217,7 +258,11 @@ export function AdminSidebar({ pendingVerifications = 0 }: Props) {
               setCitiesOpen((v) => !v);
             }}
           >
-            {citiesOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+            {citiesOpen ? (
+              <ExpandLessIcon fontSize="small" />
+            ) : (
+              <ExpandMoreIcon fontSize="small" />
+            )}
           </IconButton>
         </ListItemButton>
 
@@ -245,7 +290,7 @@ export function AdminSidebar({ pendingVerifications = 0 }: Props) {
                   <ListItemText
                     primary={item.label}
                     slotProps={{
-                      primary: { sx: { fontWeight: selected ? 800 : 600 } }
+                      primary: { sx: { fontWeight: selected ? 800 : 600 } },
                     }}
                   />
                 </ListItemButton>
@@ -267,11 +312,13 @@ export function AdminSidebar({ pendingVerifications = 0 }: Props) {
             },
           }}
         >
-          <ListItemIcon sx={{ minWidth: 36 }}>{SERVICES_GROUP.icon}</ListItemIcon>
+          <ListItemIcon sx={{ minWidth: 36 }}>
+            {SERVICES_GROUP.icon}
+          </ListItemIcon>
           <ListItemText
             primary={SERVICES_GROUP.label}
             slotProps={{
-              primary: { sx: { fontWeight: isServicesRoute ? 800 : 700 } }
+              primary: { sx: { fontWeight: isServicesRoute ? 800 : 700 } },
             }}
           />
           <IconButton
@@ -283,7 +330,11 @@ export function AdminSidebar({ pendingVerifications = 0 }: Props) {
               setServicesOpen((v) => !v);
             }}
           >
-            {servicesOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+            {servicesOpen ? (
+              <ExpandLessIcon fontSize="small" />
+            ) : (
+              <ExpandMoreIcon fontSize="small" />
+            )}
           </IconButton>
         </ListItemButton>
 
@@ -311,7 +362,7 @@ export function AdminSidebar({ pendingVerifications = 0 }: Props) {
                   <ListItemText
                     primary={item.label}
                     slotProps={{
-                      primary: { sx: { fontWeight: selected ? 800 : 600 } }
+                      primary: { sx: { fontWeight: selected ? 800 : 600 } },
                     }}
                   />
                 </ListItemButton>
@@ -323,4 +374,3 @@ export function AdminSidebar({ pendingVerifications = 0 }: Props) {
     </Paper>
   );
 }
-

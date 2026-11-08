@@ -19,12 +19,14 @@ export function CadastralNumberInput({
   value,
   onChange,
   disabled = false,
-  size = "small",
 }: Props) {
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   function updatePart(index: number, raw: string) {
-    const nextPart = digitsOnly(raw).slice(0, CADASTRAL_PART_MAX_LENGTHS[index]);
+    const nextPart = digitsOnly(raw).slice(
+      0,
+      CADASTRAL_PART_MAX_LENGTHS[index],
+    );
     const next = [...value] as CadastralNumberParts;
     next[index] = nextPart;
     onChange(next);
@@ -42,19 +44,31 @@ export function CadastralNumberInput({
 
   function handleKeyDown(index: number) {
     return (event: KeyboardEvent) => {
-      if (event.key !== "Backspace" || value[index].length > 0 || index === 0) return;
+      if (event.key !== "Backspace" || value[index].length > 0 || index === 0)
+        return;
       inputRefs.current[index - 1]?.focus();
     };
   }
 
   return (
-    <Stack direction="row" spacing={0.75} useFlexGap sx={{
-      alignItems: "center"
-    }}>
+    <Stack
+      direction="row"
+      spacing={0.75}
+      useFlexGap
+      sx={{
+        alignItems: "center",
+        flexWrap: "wrap",
+      }}
+    >
       {value.map((part, index) => (
-        <Stack key={index} direction="row" spacing={0.75} sx={{
-          alignItems: "center"
-        }}>
+        <Stack
+          key={index}
+          direction="row"
+          spacing={0.75}
+          sx={{
+            alignItems: "center",
+          }}
+        >
           <Box
             component="input"
             ref={(element: HTMLInputElement | null) => {
@@ -65,12 +79,16 @@ export function CadastralNumberInput({
             onKeyDown={handleKeyDown(index)}
             disabled={disabled}
             inputMode="numeric"
-            placeholder={index === 3 ? "0000" : "0".repeat(CADASTRAL_PART_MAX_LENGTHS[index])}
+            placeholder={
+              index === 3
+                ? "0000"
+                : "0".repeat(CADASTRAL_PART_MAX_LENGTHS[index])
+            }
             maxLength={CADASTRAL_PART_MAX_LENGTHS[index]}
             aria-label={`Кадастровый номер, часть ${index + 1}`}
             sx={{
-              width: index === 2 ? 96 : index === 3 ? "auto" : 56,
-              minWidth: index === 3 ? 56 : undefined,
+              width: index === 2 ? "9ch" : index === 3 ? "auto" : "4ch",
+              minWidth: index === 3 ? "4ch" : undefined,
               ...(index === 3
                 ? {
                     width: `calc(${Math.max(4, part.length || 0) + 1}ch)`,
@@ -78,17 +96,22 @@ export function CadastralNumberInput({
                     boxSizing: "content-box",
                   }
                 : null),
-              height: size === "medium" ? 40 : 32,
+              minHeight: 52,
               border: 1,
               borderColor: "divider",
               borderRadius: 1,
               px: 1,
               font: "inherit",
-              fontSize: size === "medium" ? 16 : 14,
+              fontSize: "1.125rem",
               outline: "none",
               bgcolor: "background.paper",
               "&:focus": {
                 borderColor: "primary.main",
+              },
+              "&:focus-visible": {
+                outline: "2px solid",
+                outlineColor: "text.primary",
+                outlineOffset: 2,
               },
             }}
           />
@@ -96,8 +119,9 @@ export function CadastralNumberInput({
             <Typography
               sx={{
                 color: "text.secondary",
-                fontWeight: 700
-              }}>
+                fontWeight: 700,
+              }}
+            >
               :
             </Typography>
           ) : null}

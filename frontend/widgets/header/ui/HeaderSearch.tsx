@@ -16,8 +16,7 @@ export const HeaderSearch = () => (
         alignItems: "center",
         borderRadius: 1,
         bgcolor: "common.white",
-        border: (theme) =>
-          `3px solid ${theme.palette.primary.light}`,
+        border: (theme) => `3px solid ${theme.palette.primary.light}`,
         px: 1.5,
         py: 0.75,
         "&:focus-within": {
@@ -34,9 +33,9 @@ export const HeaderSearch = () => (
         fullWidth
         slotProps={{ input: { "aria-label": "Поиск услуг" } }}
         sx={{
-          fontSize: { xs: "0.9375rem", sm: "1rem" },
+          fontSize: { xs: "1rem", sm: "1rem" },
           "& .MuiInputBase-input::placeholder": {
-            opacity: 0.8,
+            opacity: 1,
             color: "text.secondary",
           },
         }}

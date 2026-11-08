@@ -1,10 +1,10 @@
 "use client";
 
 import { AppBar, Box, Toolbar } from "@mui/material";
-import { ColorModeToggle } from "@/core/theme/ColorModeToggle";
 import { HeaderCity } from "@/widgets/header/ui/HeaderCity";
 import { HeaderLogo } from "@/widgets/header/ui/HeaderLogo";
 import { ProfileMenu } from "@/widgets/header/ui/ProfileMenu";
+import { ProviderNotificationsButton } from "./ProviderHeaderStatus";
 
 type Props = {
   showProviderCity?: boolean;
@@ -35,7 +35,7 @@ export function CabinetMobileHeader({ showProviderCity = false }: Props) {
           ) : null}
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
-          <ColorModeToggle />
+          {showProviderCity ? <ProviderNotificationsButton /> : null}
           <ProfileMenu />
         </Box>
       </Toolbar>

@@ -103,12 +103,12 @@ describe("DEFAULT_ENABLED_PRO_REQUEST_STATUSES", () => {
       "NEW",
       "DISCUSSING",
       "ACTIVE",
-      "ACCEPTANCE_PENDING",
-      "ACCEPTED",
-      "COMPLETED",
     ]);
     expect(PRO_REQUEST_BOARD_STATUSES.filter((status) => !DEFAULT_ENABLED_PRO_REQUEST_STATUSES.includes(status))).toEqual([
       "TERMS_AGREED",
+      "ACCEPTANCE_PENDING",
+      "ACCEPTED",
+      "COMPLETED",
       "CANCELLED",
       "CLOSED",
     ]);

@@ -1,6 +1,9 @@
 "use client";
 
-import { RequestUnavailableNotice, type RequestAccessFailure } from "@/shared/ui/RequestUnavailableNotice";
+import {
+  RequestUnavailableNotice,
+  type RequestAccessFailure,
+} from "@/shared/ui/RequestUnavailableNotice";
 import { useState } from "react";
 import { Typography } from "@mui/material";
 import type { RequestProDto } from "@/entities/request";
@@ -16,10 +19,19 @@ export function ProRequestWorkspace({
   subtitle: string;
 }) {
   const [request, setRequest] = useState(initialRequest);
-  const [unavailable, setUnavailable] = useState<RequestAccessFailure | null>(null);
-  if (unavailable) return <RequestUnavailableNotice status={unavailable} returnHref="/pro/requests" />;
+  const [unavailable, setUnavailable] = useState<RequestAccessFailure | null>(
+    null,
+  );
+  if (unavailable)
+    return (
+      <RequestUnavailableNotice
+        status={unavailable}
+        returnHref="/pro/requests/board"
+      />
+    );
   return (
     <ChatBodyWithSidePanelLayout
+      rightWidth={378}
       middle={
         <ProRequestDetails
           initialRequest={initialRequest}

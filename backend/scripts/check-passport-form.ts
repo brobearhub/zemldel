@@ -100,8 +100,8 @@ async function main() {
       new GetObjectCommand({ Bucket: bucket, Key: first.storageKey }),
     );
     assert.equal(object.ContentType, 'application/json');
-    assert.equal(object.ServerSideEncryption, 'aws:kms');
-    assert.equal(object.SSEKMSKeyId, kmsKeyId);
+    assert.equal(object.ServerSideEncryption, kmsKeyId ? 'aws:kms' : undefined);
+    assert.equal(object.SSEKMSKeyId, kmsKeyId ?? undefined);
     assert.deepEqual(
       JSON.parse(await object.Body!.transformToString()),
       passport,

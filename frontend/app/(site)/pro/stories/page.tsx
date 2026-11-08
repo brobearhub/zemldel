@@ -27,7 +27,7 @@ export default async function ProStoriesPage() {
 
   return (
     <Stack spacing={3}>
-      <Typography component="h1" variant="h4" sx={{ fontWeight: 700 }}>
+      <Typography component="h1" variant="h1" sx={{ fontWeight: 700 }}>
         История
       </Typography>
       <StoriesPage

@@ -18,9 +18,18 @@ type Props = {
   linked?: boolean;
   /** Тег заголовка: в списках, где карточки — разделы страницы, передают "h2". */
   titleComponent?: "p" | "h2" | "h3";
+  compact?: boolean;
 };
 
-function ServiceCardImage({ item, imageHeight }: { item: ServiceCardItem; imageHeight: number }) {
+function ServiceCardImage({
+  item,
+  imageHeight,
+  compact,
+}: {
+  item: ServiceCardItem;
+  imageHeight: number;
+  compact: boolean;
+}) {
   return (
     <Box
       sx={{
@@ -29,7 +38,8 @@ function ServiceCardImage({ item, imageHeight }: { item: ServiceCardItem; imageH
         height: imageHeight,
         flexShrink: 0,
         overflow: "hidden",
-        bgcolor: (theme) => theme.custom?.gradients?.glass ?? theme.palette.action.hover,
+        bgcolor: (theme) =>
+          theme.custom?.gradients?.glass ?? theme.palette.action.hover,
       }}
     >
       {item.image ? (
@@ -54,7 +64,7 @@ function ServiceCardImage({ item, imageHeight }: { item: ServiceCardItem; imageH
             justifyContent: "center",
             // Полосы светлые в обеих темах, поэтому и подпись фиксированно тёмная.
             color: "grey.700",
-            fontSize: 14,
+            fontSize: compact ? 14 : "1rem",
             fontWeight: 600,
             // На макете полосы идут «\», здесь наоборот — «/».
             backgroundImage:
@@ -66,7 +76,11 @@ function ServiceCardImage({ item, imageHeight }: { item: ServiceCardItem; imageH
       )}
 
       {item.stockBadge ? (
-        <ServiceCardBadge label={item.stockBadge} color={item.paletteColor ?? null} />
+        <ServiceCardBadge
+          label={item.stockBadge}
+          color={item.paletteColor ?? null}
+          compact={compact}
+        />
       ) : null}
     </Box>
   );
@@ -75,9 +89,11 @@ function ServiceCardImage({ item, imageHeight }: { item: ServiceCardItem; imageH
 function ServiceCardBadge({
   label,
   color,
+  compact,
 }: {
   label: string;
   color: ServicePaletteColor | null;
+  compact: boolean;
 }) {
   return (
     <Box
@@ -85,20 +101,23 @@ function ServiceCardBadge({
         position: "absolute",
         right: 0,
         top: 12,
-        height: 28,
+        minHeight: compact ? 28 : 36,
+        maxWidth: "calc(100% - 16px)",
+        py: compact ? 0 : 0.75,
         pl: 1.5,
         pr: 1.25,
         borderRadius: "8px 0 0 8px",
         display: "flex",
         alignItems: "center",
+        justifyContent: "flex-end",
+        textAlign: "right",
         bgcolor: color ? `${color}.main` : "rgba(0,0,0,0.72)",
         color: color ? `${color}.contrastText` : "common.white",
         backdropFilter: color ? "none" : "blur(6px)",
-        fontSize: 13,
+        fontSize: compact ? 13 : "1rem",
         fontWeight: 600,
-        lineHeight: 1,
-        textBoxTrim: "trim-both",
-        textBoxEdge: "cap alphabetic",
+        lineHeight: compact ? 1 : 1.5,
+        overflowWrap: "anywhere",
       }}
     >
       {label}
@@ -106,17 +125,25 @@ function ServiceCardBadge({
   );
 }
 
-function ServiceCardRating({ rating }: { rating: number }) {
+function ServiceCardRating({
+  rating,
+  compact,
+}: {
+  rating: number;
+  compact: boolean;
+}) {
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
+    <Box
+      sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}
+    >
       <StarRoundedIcon sx={{ fontSize: 16, color: "info.main" }} />
       <Typography
         component="span"
         sx={{
-          fontSize: 12,
+          fontSize: compact ? 12 : "1rem",
           lineHeight: 1.66,
           letterSpacing: "0.4px",
-          color: brown[300],
+          color: compact ? brown[300] : "text.secondary",
         }}
       >
         {rating.toFixed(1)}
@@ -125,15 +152,22 @@ function ServiceCardRating({ rating }: { rating: number }) {
   );
 }
 
-function ServiceCardPrice({ price }: { price: string }) {
+function ServiceCardPrice({
+  price,
+  compact,
+}: {
+  price: string;
+  compact: boolean;
+}) {
   return (
     <Typography
       sx={{
-        fontWeight: 800,
-        fontSize: 18,
-        lineHeight: 1.334,
-        color: brown[600],
-        whiteSpace: "nowrap",
+        fontWeight: compact ? 800 : 700,
+        fontSize: compact ? 18 : "1.375rem",
+        lineHeight: compact ? 1.334 : 30 / 22,
+        color: compact ? brown[600] : "text.primary",
+        whiteSpace: compact ? "nowrap" : "normal",
+        overflowWrap: compact ? "normal" : "anywhere",
       }}
     >
       {formatRubPriceLabel(price)}
@@ -141,20 +175,29 @@ function ServiceCardPrice({ price }: { price: string }) {
   );
 }
 
-function ServiceCardTitle({ title, component = "p" }: { title: string; component?: "p" | "h2" | "h3" }) {
+function ServiceCardTitle({
+  title,
+  component = "p",
+  compact,
+}: {
+  title: string;
+  component?: "p" | "h2" | "h3";
+  compact: boolean;
+}) {
   return (
     <Typography
       component={component}
       sx={{
         m: 0,
-        fontWeight: "inherit",
-        fontSize: 16,
-        lineHeight: 1.5,
+        fontWeight: compact ? "inherit" : 600,
+        fontSize: compact ? 16 : "1.125rem",
+        lineHeight: compact ? 1.5 : 26 / 18,
         letterSpacing: "0.15px",
-        display: "-webkit-box",
-        WebkitLineClamp: 2,
-        WebkitBoxOrient: "vertical",
-        overflow: "hidden",
+        display: compact ? "-webkit-box" : "block",
+        WebkitLineClamp: compact ? 2 : undefined,
+        WebkitBoxOrient: compact ? "vertical" : undefined,
+        overflow: compact ? "hidden" : undefined,
+        overflowWrap: compact ? "normal" : "anywhere",
       }}
     >
       {title}
@@ -162,7 +205,13 @@ function ServiceCardTitle({ title, component = "p" }: { title: string; component
   );
 }
 
-export function ServiceCard({ item, variant = "myCity", linked = true, titleComponent }: Props) {
+export function ServiceCard({
+  item,
+  variant = "myCity",
+  linked = true,
+  titleComponent,
+  compact = false,
+}: Props) {
   const imageHeight = variant === "myCity" ? 178 : 210;
   const places = item.places ?? [];
 
@@ -202,68 +251,97 @@ export function ServiceCard({ item, variant = "myCity", linked = true, titleComp
           textDecoration: "none",
         }}
       >
-      <ServiceCardImage item={item} imageHeight={imageHeight} />
+        <ServiceCardImage
+          item={item}
+          imageHeight={imageHeight}
+          compact={compact}
+        />
 
-      {variant === "myCity" ? (
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 1.25,
-            flex: 1,
-            px: 1.5,
-            pt: 1.75,
-            pb: 2.25,
-          }}
-        >
+        {variant === "myCity" ? (
           <Box
             sx={{
               display: "flex",
-              alignItems: "center",
+              flexDirection: "column",
+              gap: 1.25,
+              flex: 1,
+              px: 1.5,
+              pt: 1.75,
+              pb: 2.25,
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: compact ? "nowrap" : "wrap",
+                gap: 1,
+                minHeight: 30,
+              }}
+            >
+              <ServiceCardPrice
+                price={item.price}
+                compact={compact}
+              />
+              {item.rating != null ? (
+                <ServiceCardRating
+                  rating={item.rating}
+                  compact={compact}
+                />
+              ) : null}
+            </Box>
+            <ServiceCardTitle
+              title={item.title}
+              component={titleComponent}
+              compact={compact}
+            />
+          </Box>
+        ) : (
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
               justifyContent: "space-between",
-              gap: 1,
-              minHeight: 30,
+              flex: 1,
+              minHeight: 143,
+              px: 1.5,
+              py: 1,
             }}
           >
-            <ServiceCardPrice price={item.price} />
-            {item.rating != null ? <ServiceCardRating rating={item.rating} /> : null}
-          </Box>
-          <ServiceCardTitle title={item.title} component={titleComponent} />
-        </Box>
-      ) : (
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            flex: 1,
-            minHeight: 143,
-            px: 1.5,
-            py: 1,
-          }}
-        >
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-            <ServiceCardPrice price={item.price} />
-            <ServiceCardTitle title={item.title} component={titleComponent} />
-          </Box>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+              <ServiceCardPrice
+                price={item.price}
+                compact={compact}
+              />
+              <ServiceCardTitle
+                title={item.title}
+                component={titleComponent}
+                compact={compact}
+              />
+            </Box>
 
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "flex-end",
-              gap: 1,
-              minHeight: 30,
-            }}
-          >
-            {item.rating != null ? <ServiceCardRating rating={item.rating} /> : null}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "flex-end",
+                gap: 1,
+                minHeight: 30,
+              }}
+            >
+              {item.rating != null ? (
+                <ServiceCardRating
+                  rating={item.rating}
+                  compact={compact}
+                />
+              ) : null}
+            </Box>
           </Box>
-        </Box>
-      )}
+        )}
       </Box>
       {places.length ? (
         <Box sx={{ px: 1.5, pb: 1.5, minWidth: 0 }}>
-          <ServicePlaces places={places} />
+          <ServicePlaces places={places} compact={compact} />
         </Box>
       ) : null}
     </Paper>

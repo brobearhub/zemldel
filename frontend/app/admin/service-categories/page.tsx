@@ -8,7 +8,7 @@ export default function AdminServiceCategoriesPage() {
       <Container sx={{ py: { xs: 4, md: 6 } }}>
         <Stack spacing={3}>
           <Stack spacing={0.5}>
-            <Typography variant="h4" sx={{ fontWeight: 900 }}>
+            <Typography component="h1" variant="h1" sx={{ fontWeight: 700 }}>
               Категории услуг
             </Typography>
             <Typography variant="body2" sx={{ color: "text.secondary" }}>
@@ -19,12 +19,18 @@ export default function AdminServiceCategoriesPage() {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" },
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, minmax(0, 1fr))",
+              },
               gap: 2,
               alignItems: "stretch",
             }}
           >
-            <Link href="/admin/service-categories/list" style={{ textDecoration: "none" }}>
+            <Link
+              href="/admin/service-categories/list"
+              style={{ textDecoration: "none" }}
+            >
               <Paper
                 variant="outlined"
                 sx={{
@@ -38,7 +44,7 @@ export default function AdminServiceCategoriesPage() {
               >
                 <FormatListBulletedIcon color="primary" />
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontWeight: 900 }}>Дерево</Typography>
+                  <Typography sx={{ fontWeight: 700 }}>Дерево</Typography>
                   <Typography variant="body2" sx={{ color: "text.secondary" }}>
                     Просмотр и редактирование
                   </Typography>
@@ -51,4 +57,3 @@ export default function AdminServiceCategoriesPage() {
     </main>
   );
 }
-

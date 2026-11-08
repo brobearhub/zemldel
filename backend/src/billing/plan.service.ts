@@ -44,7 +44,7 @@ export class PlanService {
       throw new ForbiddenException({
         code: 'PLAN_REQUIRED',
         message: 'Эта возможность недоступна на текущем тарифе',
-        billingUrl: '/pro/billing',
+        billingUrl: '/pro/settings/tariff',
       });
   }
 
@@ -144,7 +144,7 @@ export class PlanService {
           message:
             'Дневной лимит откликов исчерпан. Купите пакет или дождитесь обновления лимита.',
           resetAt: account.quotaResetAt,
-          billingUrl: '/pro/billing',
+          billingUrl: '/pro/settings/tariff',
         });
     }
     await tx.replyDebit.create({

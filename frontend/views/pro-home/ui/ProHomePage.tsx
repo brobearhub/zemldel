@@ -2,10 +2,16 @@ import { Box, Stack, Typography } from "@mui/material";
 import type { RequestReminderDto } from "@/entities/request";
 import type { ServiceDto } from "@/entities/service";
 import { HomeStoriesStrip } from "@/widgets/home-stories";
-import { FreeRequestsSection, ProMyServicesSection } from "@/widgets/pro-my-services";
+import {
+  FreeRequestsSection,
+  ProMyServicesSection,
+} from "@/widgets/pro-my-services";
 import { RemindersListView } from "@/widgets/pro-requests/ui/RemindersListView";
 import { CabinetNotices } from "@/widgets/cabinet-chrome";
-import { ProviderFirstSteps, type FirstSteps } from "@/widgets/provider-verification";
+import {
+  ProviderFirstSteps,
+  type FirstSteps,
+} from "@/widgets/provider-verification";
 import { ProHomeSectionSwitch } from "./ProHomeSectionSwitch";
 
 type Props = {
@@ -25,8 +31,8 @@ export function ProHomePage({ services, reminders, firstSteps }: Props) {
   return (
     <Box>
       <Stack spacing={3}>
-        <Typography component="h1" variant="h4" sx={{ fontWeight: 800 }}>
-          Рабочий день
+        <Typography component="h1" variant="h1" sx={{ fontWeight: 700 }}>
+          Лента заявок
         </Typography>
         <CabinetNotices welcome="Аккаунт исполнителя создан. Добавьте первую услугу, чтобы заказчики нашли вас." />
         <HomeStoriesStrip scope="provider" />
@@ -36,7 +42,10 @@ export function ProHomePage({ services, reminders, firstSteps }: Props) {
           reminders={
             <Stack spacing={3}>
               {firstStepsBlock}
-              <RemindersListView initialReminders={reminders} showTitle={false} />
+              <RemindersListView
+                initialReminders={reminders}
+                showTitle={false}
+              />
             </Stack>
           }
         />

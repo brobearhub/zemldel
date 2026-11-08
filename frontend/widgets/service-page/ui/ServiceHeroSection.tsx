@@ -1,7 +1,14 @@
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import LocationOnRoundedIcon from "@mui/icons-material/LocationOnRounded";
 import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
-import { Box, Button, Container, Rating, Stack, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Container,
+  Rating,
+  Stack,
+  Typography,
+} from "@mui/material";
 import type { ServiceHeroVm } from "@/widgets/service-page/model/service-hero.vm";
 import { formatReviewCount } from "@/entities/review";
 import { formatRubPriceLabel } from "@/shared/lib/money/format-rub-price-label";
@@ -56,7 +63,13 @@ export function ServiceHeroSection({ vm }: Props) {
             >
               {vm.imageUrl || vm.images?.length ? (
                 <ServiceImageGallery
-                  images={vm.images?.length ? vm.images : vm.imageUrl ? [vm.imageUrl] : []}
+                  images={
+                    vm.images?.length
+                      ? vm.images
+                      : vm.imageUrl
+                        ? [vm.imageUrl]
+                        : []
+                  }
                   title={vm.title}
                 />
               ) : (
@@ -87,10 +100,12 @@ export function ServiceHeroSection({ vm }: Props) {
                     px: { xs: "12px", md: "16px" },
                     py: { xs: "8px", md: "12px" },
                     borderRadius: "999px",
-                    bgcolor: "rgba(255,255,255,0.95)",
+                    bgcolor: "background.paper",
                   }}
                 >
-                  <VerifiedUserRoundedIcon sx={{ fontSize: { xs: 16, md: 20 }, color: "text.primary" }} />
+                  <VerifiedUserRoundedIcon
+                    sx={{ fontSize: { xs: 16, md: 20 }, color: "text.primary" }}
+                  />
                   <Typography variant="caption" sx={{ letterSpacing: "0.4px" }}>
                     {vm.imageBadgeLabel}
                   </Typography>
@@ -98,9 +113,25 @@ export function ServiceHeroSection({ vm }: Props) {
               ) : null}
             </Box>
 
-            <Box sx={{ minWidth: 0, flex: { md: "1 1 0" }, display: "flex", flexDirection: "column", width: "100%" }}>
+            <Box
+              sx={{
+                minWidth: 0,
+                flex: { md: "1 1 0" },
+                display: "flex",
+                flexDirection: "column",
+                width: "100%",
+              }}
+            >
               <Stack spacing={{ xs: "14px", md: "20px" }} sx={{ minWidth: 0 }}>
-                <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: "flex-start", justifyContent: "space-between", gap: 1 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: { xs: "column", sm: "row" },
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    gap: 1,
+                  }}
+                >
                   <Box
                     sx={{
                       display: "inline-flex",
@@ -108,10 +139,13 @@ export function ServiceHeroSection({ vm }: Props) {
                       px: { xs: "12px", md: "14px" },
                       py: { xs: "5px", md: "7px" },
                       borderRadius: "999px",
-                      bgcolor: "#e4ece4",
+                      bgcolor: "background.paper",
                     }}
                   >
-                    <Typography variant="caption" sx={{ color: "primary.dark", letterSpacing: "0.4px" }}>
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "text.primary", letterSpacing: "0.4px" }}
+                    >
                       {vm.categoryLabel}
                     </Typography>
                   </Box>
@@ -120,18 +154,25 @@ export function ServiceHeroSection({ vm }: Props) {
                     <Stack
                       direction="row"
                       spacing={{ xs: "5px", md: "7px" }}
-                      sx={{ alignItems: "flex-start", minWidth: 0, maxWidth: "100%" }}
+                      sx={{
+                        alignItems: "flex-start",
+                        minWidth: 0,
+                        maxWidth: "100%",
+                      }}
                     >
-                      <LocationOnRoundedIcon sx={{ fontSize: { xs: 18, md: 22 }, color: "text.primary", mt: "2px" }} />
+                      <LocationOnRoundedIcon
+                        sx={{
+                          fontSize: { xs: 18, md: 22 },
+                          color: "text.primary",
+                          mt: "2px",
+                        }}
+                      />
                       <ServicePlaces places={vm.places} />
                     </Stack>
                   ) : null}
                 </Box>
 
-                <Typography
-                  variant="h4"
-                  component="h1"
-                >
+                <Typography variant="h1" component="h1">
                   {vm.title}
                 </Typography>
 
@@ -147,8 +188,8 @@ export function ServiceHeroSection({ vm }: Props) {
                     <Typography
                       sx={{
                         color: "text.secondary",
-                        fontSize: { xs: 14, md: 16 },
-                        lineHeight: { xs: 1.43, md: 1.5 },
+                        fontSize: "1.125rem",
+                        lineHeight: 30 / 18,
                         whiteSpace: "pre-wrap",
                         overflowWrap: "anywhere",
                       }}
@@ -159,7 +200,11 @@ export function ServiceHeroSection({ vm }: Props) {
                 ) : null}
 
                 {vm.rating ? (
-                  <Stack direction="row" spacing={{ xs: "6px", md: "9px" }} sx={{ alignItems: "center" }}>
+                  <Stack
+                    direction="row"
+                    spacing={{ xs: "6px", md: "9px" }}
+                    sx={{ alignItems: "center" }}
+                  >
                     <Rating
                       value={vm.rating.value}
                       readOnly
@@ -169,9 +214,14 @@ export function ServiceHeroSection({ vm }: Props) {
                         "& .MuiRating-iconFilled": { color: "#ffb400" },
                       }}
                     />
-                    <Typography variant="body2">{vm.rating.value.toFixed(1)}</Typography>
+                    <Typography variant="body2">
+                      {vm.rating.value.toFixed(1)}
+                    </Typography>
                     {vm.rating.reviewCount != null ? (
-                      <Typography variant="caption" sx={{ color: "text.secondary", letterSpacing: "0.4px" }}>
+                      <Typography
+                        variant="caption"
+                        sx={{ color: "text.secondary", letterSpacing: "0.4px" }}
+                      >
                         {formatReviewCount(vm.rating.reviewCount)}
                       </Typography>
                     ) : null}
@@ -179,10 +229,23 @@ export function ServiceHeroSection({ vm }: Props) {
                 ) : null}
 
                 {vm.benefits.length ? (
-                  <Stack spacing={{ xs: "8px", md: "9px" }} sx={{ py: { md: "25px" }, maxWidth: { md: 322 } }}>
+                  <Stack
+                    spacing={{ xs: "8px", md: "9px" }}
+                    sx={{ py: { md: "25px" }, maxWidth: { md: 322 } }}
+                  >
                     {vm.benefits.map((b) => (
-                      <Stack key={b} direction="row" spacing={{ xs: "8px", md: "10px" }} sx={{ alignItems: "center" }}>
-                        <CheckCircleRoundedIcon sx={{ fontSize: { xs: 18, md: 20 }, color: "success.main" }} />
+                      <Stack
+                        key={b}
+                        direction="row"
+                        spacing={{ xs: "8px", md: "10px" }}
+                        sx={{ alignItems: "center" }}
+                      >
+                        <CheckCircleRoundedIcon
+                          sx={{
+                            fontSize: { xs: 18, md: 20 },
+                            color: "success.main",
+                          }}
+                        />
                         <Typography variant="body2">{b}</Typography>
                       </Stack>
                     ))}
@@ -200,14 +263,27 @@ export function ServiceHeroSection({ vm }: Props) {
                   flexDirection: { xs: "column", lg: "row" },
                 }}
               >
-                <Stack spacing={"2px"} sx={{ whiteSpace: "nowrap", alignSelf: { xs: "flex-start", sm: "center", md: "flex-start" } }}>
-                  <Typography variant="caption" sx={{ color: "text.secondary", letterSpacing: "0.4px" }}>
+                <Stack
+                  spacing={"2px"}
+                  sx={{
+                    whiteSpace: "normal",
+                    alignSelf: {
+                      xs: "flex-start",
+                      sm: "center",
+                      md: "flex-start",
+                    },
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "text.secondary", letterSpacing: "0.4px" }}
+                  >
                     Стоимость услуги
                   </Typography>
                   <Typography
-                    variant="h4" 
+                    variant="h4"
                     // color="textSecondary"
-                    sx={{ color: "#745448" }}
+                    sx={{ color: "text.primary" }}
                   >
                     {formatRubPriceLabel(vm.priceLabel)}
                   </Typography>
@@ -228,7 +304,7 @@ export function ServiceHeroSection({ vm }: Props) {
                     minWidth: { xs: "100%", sm: "auto" },
                     boxShadow:
                       "0px 1px 5px rgba(0,0,0,0.12), 0px 2px 2px rgba(0,0,0,0.14), 0px 3px 1px -2px rgba(0,0,0,0.2)",
-                    "&:hover": { bgcolor: "primary.dark" },
+                    "&:hover": { bgcolor: "text.primary" },
                   }}
                 >
                   {vm.ctaText}
@@ -241,4 +317,3 @@ export function ServiceHeroSection({ vm }: Props) {
     </Box>
   );
 }
-

@@ -3,7 +3,16 @@
 import { useState, type ReactNode } from "react";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
-import { Avatar, Box, Button, IconButton, Paper, Stack, TextField, Typography } from "@mui/material";
+import {
+  Avatar,
+  Box,
+  Button,
+  IconButton,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import type { StoryReplyMessageDto } from "@/entities/story";
 import { formatInsightAge } from "../lib/story-insights";
@@ -35,7 +44,9 @@ export function StoryReplyChat({
 }: Props) {
   const [draft, setDraft] = useState("");
   const now = new Date();
-  const storyWhen = storyPublishedAt ? formatInsightAge(storyPublishedAt, now) : null;
+  const storyWhen = storyPublishedAt
+    ? formatInsightAge(storyPublishedAt, now)
+    : null;
 
   function send() {
     const text = draft.trim();
@@ -69,7 +80,7 @@ export function StoryReplyChat({
             height: 36,
             bgcolor: (theme) => alpha(theme.palette.primary.main, 0.16),
             color: "primary.dark",
-            fontSize: 14,
+            fontSize: "1rem",
             fontWeight: 700,
           }}
         >
@@ -83,15 +94,24 @@ export function StoryReplyChat({
         </Box>
       </Stack>
 
-      <Stack spacing={1.5} sx={{ flex: 1, minHeight: 0, overflow: "auto", py: 2 }}>
+      <Stack
+        spacing={1.5}
+        sx={{ flex: 1, minHeight: 0, overflow: "auto", py: 2 }}
+      >
         <Bubble align="end" tone="own" when={storyWhen}>
           <Stack direction="row" spacing={0.75} sx={{ alignItems: "center" }}>
             <PhotoCameraOutlinedIcon sx={{ fontSize: 16 }} />
-            <Typography sx={{ fontWeight: 700, fontSize: 14 }}>История · {storyText}</Typography>
+            <Typography sx={{ fontWeight: 700, fontSize: "1rem" }}>
+              История · {storyText}
+            </Typography>
           </Stack>
         </Bubble>
-        <Bubble align="start" tone="other" when={formatInsightAge(replyAt, now)}>
-          <Typography sx={{ fontSize: 14 }}>{replyText}</Typography>
+        <Bubble
+          align="start"
+          tone="other"
+          when={formatInsightAge(replyAt, now)}
+        >
+          <Typography sx={{ fontSize: "1rem" }}>{replyText}</Typography>
         </Bubble>
         {messages.map((message) => (
           <Bubble
@@ -100,7 +120,7 @@ export function StoryReplyChat({
             tone={message.mine ? "own" : "other"}
             when={formatInsightAge(message.createdAt, now)}
           >
-            <Typography sx={{ fontSize: 14 }}>{message.text}</Typography>
+            <Typography sx={{ fontSize: "1rem" }}>{message.text}</Typography>
           </Bubble>
         ))}
       </Stack>
@@ -119,7 +139,12 @@ export function StoryReplyChat({
             }
           }}
         />
-        <Button variant="contained" loading={sending} disabled={!draft.trim()} onClick={send}>
+        <Button
+          variant="contained"
+          loading={sending}
+          disabled={!draft.trim()}
+          onClick={send}
+        >
           Отправить
         </Button>
       </Stack>
@@ -140,14 +165,19 @@ function Bubble({
 }) {
   const own = tone === "own";
   return (
-    <Stack spacing={0.5} sx={{ alignItems: align === "end" ? "flex-end" : "flex-start" }}>
+    <Stack
+      spacing={0.5}
+      sx={{ alignItems: align === "end" ? "flex-end" : "flex-start" }}
+    >
       <Box
         sx={{
           maxWidth: "80%",
           px: 1.5,
           py: 1,
           borderRadius: own ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-          bgcolor: own ? "primary.main" : (theme) => alpha(theme.palette.primary.main, 0.12),
+          bgcolor: own
+            ? "primary.main"
+            : (theme) => alpha(theme.palette.primary.main, 0.12),
           color: own ? "common.white" : "text.primary",
         }}
       >

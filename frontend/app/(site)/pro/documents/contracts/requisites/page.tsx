@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default async function ProContractRequisitesPage() {
-  redirect("/pro");
+  redirect("/pro/requests/feed");
 }

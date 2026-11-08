@@ -45,7 +45,11 @@ export function StoriesRail({ items, onOpen }: Props) {
               cursor: "pointer",
               p: 0,
               outline: "none",
-              "&:focus, &:focus-visible": { outline: "none" },
+              "&:focus-visible": {
+                outline: "2px solid",
+                outlineColor: "text.primary",
+                outlineOffset: 3,
+              },
             }}
           >
             <Box
@@ -67,17 +71,22 @@ export function StoriesRail({ items, onOpen }: Props) {
                   color: "text.primary",
                   border: 2,
                   borderColor: "background.default",
-                  fontSize: 22,
+                  fontSize: "1.375rem",
                   fontWeight: 700,
                 }}
               >
-                {cover.kind === "initials" ? storyAuthorInitials(story.authorName) : null}
+                {cover.kind === "initials"
+                  ? storyAuthorInitials(story.authorName)
+                  : null}
               </CdnAvatar>
             </Box>
             <Typography
               variant="caption"
-              noWrap
-              sx={{ width: "100%", textAlign: "center", color: "text.secondary" }}
+              sx={{
+                width: "100%",
+                textAlign: "center",
+                color: "text.secondary",
+              }}
             >
               {story.authorName}
             </Typography>

@@ -2,28 +2,47 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Alert, Badge, Box, Button, Container, List, ListItemButton, ListItemText, Paper, Skeleton, Stack, Typography } from "@mui/material";
+import {
+  Alert,
+  Badge,
+  Box,
+  Button,
+  Container,
+  List,
+  ListItemButton,
+  ListItemText,
+  Paper,
+  Skeleton,
+  Stack,
+  Typography,
+} from "@mui/material";
 import { getRequestStatusLabel, type RequestStatus } from "@/entities/request";
 import { sitePageContainerSx } from "@/shared/config/site-layout";
 import type { ChatInboxItemDto } from "@/entities/chat/dto/chat.dto";
 import { fetchChatInbox } from "@/entities/chat/api/chat-inbox";
 import { getLastCabinetRole } from "@/widgets/cabinet-chrome/lib/cabinet-role-storage";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
+import type { CabinetRole } from "@/widgets/cabinet-chrome/model/nav-config";
 
 function formatTime(iso: string | null) {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
-export function ChatsInboxPage() {
+export function ChatsInboxPage({ cabinetRole }: { cabinetRole?: CabinetRole }) {
   const { unreadByRequestId } = useChatSocket();
   const [items, setItems] = useState<ChatInboxItemDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [attempt, setAttempt] = useState(0);
-  const role = useMemo(() => getLastCabinetRole(), []);
+  const role = useMemo(() => cabinetRole ?? getLastCabinetRole(), [cabinetRole]);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,7 +54,8 @@ export function ChatsInboxPage() {
         const list = await fetchChatInbox(role);
         if (!cancelled) setItems(list);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Не удалось загрузить чат");
+        if (!cancelled)
+          setError(e instanceof Error ? e.message : "Не удалось загрузить чат");
       }
     })();
 
@@ -46,21 +66,42 @@ export function ChatsInboxPage() {
 
   return (
     <main>
-      <Container maxWidth="xl" sx={sitePageContainerSx}>
+      <Container
+        maxWidth={role === "provider" ? false : "xl"}
+        disableGutters={role === "provider"}
+        sx={sitePageContainerSx}
+      >
         <Paper sx={{ width: "100%", p: { xs: 2.5, md: 4 } }}>
           <Stack spacing={2}>
             <Box>
-              <Typography component="h1" variant="h5" sx={{ fontWeight: 700 }}>
+              <Typography component="h1" variant="h1" sx={{ fontWeight: 700 }}>
                 Чаты
               </Typography>
-              <Typography variant="body2" sx={{
-                color: "text.secondary"
-              }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.secondary",
+                }}
+              >
                 Список заявок с последними сообщениями
               </Typography>
             </Box>
 
-            {error ? <Alert severity="error" action={<Button color="inherit" onClick={() => setAttempt(n => n + 1)}>Повторить</Button>}>{error}</Alert> : null}
+            {error ? (
+              <Alert
+                severity="error"
+                action={
+                  <Button
+                    color="inherit"
+                    onClick={() => setAttempt((n) => n + 1)}
+                  >
+                    Повторить
+                  </Button>
+                }
+              >
+                {error}
+              </Alert>
+            ) : null}
 
             {!items && !error ? (
               <Stack spacing={1}>
@@ -79,25 +120,56 @@ export function ChatsInboxPage() {
                     <ListItemButton
                       key={row.conversationId ?? row.serviceRequestId}
                       component={Link}
-                      href={`/chats/${row.serviceRequestId}${row.conversationId ? `?conversation=${encodeURIComponent(row.conversationId)}` : ""}`}
-                      sx={{ borderRadius: 1, mb: 0.5, alignItems: "stretch", flexDirection: "column" }}
+                      href={`/pro/chats/${row.serviceRequestId}${row.conversationId ? `?conversation=${encodeURIComponent(row.conversationId)}` : ""}`}
+                      sx={{
+                        borderRadius: 1,
+                        mb: 0.5,
+                        alignItems: "stretch",
+                        flexDirection: "column",
+                      }}
                     >
-                      <Typography variant="caption" color="text.secondary">{row.peerName ?? "Переписка"} · № {row.serviceRequestId.slice(0, 8)}{row.requestStatus ? ` · ${(row.contractPhase ? "Договор" : getRequestStatusLabel(row.requestStatus as RequestStatus))}` : ""}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {row.peerName ?? "Переписка"} · №{" "}
+                        {row.serviceRequestId.slice(0, 8)}
+                        {row.requestStatus
+                          ? ` · ${row.contractPhase ? "Договор" : getRequestStatusLabel(row.requestStatus as RequestStatus)}`
+                          : ""}
+                      </Typography>
                       <ListItemText
                         primary={
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
-                            <Typography variant="body1" sx={{ fontWeight: 600, overflowWrap: "anywhere" }}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
+                              minWidth: 0,
+                            }}
+                          >
+                            <Typography
+                              variant="body1"
+                              sx={{ fontWeight: 600, overflowWrap: "anywhere" }}
+                            >
                               {row.title}
                             </Typography>
-                            <Badge color="error" badgeContent={unread} max={99} invisible={unread === 0} />
+                            <Badge
+                              color="error"
+                              badgeContent={unread}
+                              max={99}
+                              invisible={unread === 0}
+                            />
                           </Box>
                         }
                         secondary={secondary}
                         slotProps={{
-                          secondary: { sx: { display: "block" }, noWrap: true }
+                          secondary: {
+                            sx: { display: "block" },
+                            noWrap: false,
+                          },
                         }}
                       />
-                      <Typography variant="caption" color="text.secondary">{formatTime(row.lastMessageAt)}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {formatTime(row.lastMessageAt)}
+                      </Typography>
                     </ListItemButton>
                   );
                 })}
@@ -109,4 +181,3 @@ export function ChatsInboxPage() {
     </main>
   );
 }
-

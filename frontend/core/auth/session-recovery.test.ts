@@ -12,7 +12,7 @@ const noPause = async () => {};
 
 describe("isSafeReturnToPath", () => {
   it("принимает внутренний путь", () => {
-    expect(isSafeReturnToPath("/pro")).toBe(true);
+    expect(isSafeReturnToPath("/pro/requests/feed")).toBe(true);
     expect(isSafeReturnToPath("/pro/requests/1?tab=new")).toBe(true);
   });
 
@@ -62,18 +62,18 @@ describe("isSessionRecoveryUrl", () => {
     expect(isSessionRecoveryUrl("/api/auth/session")).toBe(false);
     expect(isSessionRecoveryUrl("/api/auth/signin")).toBe(false);
     expect(isSessionRecoveryUrl("https://other.test/api/x", "http://localhost:4000")).toBe(false);
-    expect(isSessionRecoveryUrl("/pro")).toBe(false);
+    expect(isSessionRecoveryUrl("/pro/requests/feed")).toBe(false);
   });
 });
 
 describe("nextRecoveryStep", () => {
   it("повторяет, пока попытки не кончились", () => {
-    expect(nextRecoveryStep(0, "/pro")).toBe("refresh");
-    expect(nextRecoveryStep(SESSION_RECOVERY_ATTEMPTS - 1, "/pro")).toBe("refresh");
+    expect(nextRecoveryStep(0, "/pro/requests/feed")).toBe("refresh");
+    expect(nextRecoveryStep(SESSION_RECOVERY_ATTEMPTS - 1, "/pro/requests/feed")).toBe("refresh");
   });
 
   it("после лимита уводит на вход", () => {
-    expect(nextRecoveryStep(SESSION_RECOVERY_ATTEMPTS, "/pro")).toBe("redirect");
+    expect(nextRecoveryStep(SESSION_RECOVERY_ATTEMPTS, "/pro/requests/feed")).toBe("redirect");
   });
 
   it("со страниц входа и регистрации не уводит повторно", () => {
@@ -103,8 +103,8 @@ describe("createSessionRecoveryFetch", () => {
         sessions += 1;
         return null;
       },
-      pathname: () => "/pro",
-      returnTo: () => "/pro?tab=1",
+      pathname: () => "/pro/requests/feed",
+      returnTo: () => "/pro/requests/feed?tab=1",
       origin: () => "http://localhost:4000",
       redirect: (href) => {
         redirects.push(href);
@@ -117,7 +117,7 @@ describe("createSessionRecoveryFetch", () => {
     expect(response.status).toBe(401);
     expect(calls).toBe(1 + SESSION_RECOVERY_ATTEMPTS);
     expect(sessions).toBe(SESSION_RECOVERY_ATTEMPTS);
-    expect(redirects).toEqual([`/signin?returnTo=${encodeURIComponent("/pro?tab=1")}&reauth=1`]);
+    expect(redirects).toEqual([`/signin?returnTo=${encodeURIComponent("/pro/requests/feed?tab=1")}&reauth=1`]);
   });
 
   it("после успешного повтора отдаёт ответ и начинает счётчик заново", async () => {
@@ -131,8 +131,8 @@ describe("createSessionRecoveryFetch", () => {
         return new Response("ok", { status: 200 });
       },
       getSession: async () => ({ user: { id: "user-1" } }),
-      pathname: () => "/pro",
-      returnTo: () => "/pro",
+      pathname: () => "/pro/requests/feed",
+      returnTo: () => "/pro/requests/feed",
       origin: () => "http://localhost:4000",
       redirect: () => {
         throw new Error("redirect");
@@ -185,8 +185,8 @@ describe("createSessionRecoveryFetch", () => {
         if (sessions === 1) await gate;
         return null;
       },
-      pathname: () => "/pro",
-      returnTo: () => "/pro",
+      pathname: () => "/pro/requests/feed",
+      returnTo: () => "/pro/requests/feed",
       origin: () => "http://localhost:4000",
       redirect: () => {},
       pause: noPause,

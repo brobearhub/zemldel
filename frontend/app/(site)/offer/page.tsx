@@ -31,15 +31,22 @@ export default async function PublicOfferPage() {
       <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 } }}>
         <Stack spacing={2}>
           <Stack spacing={0.5}>
-            <Typography variant="h4" component="h1" sx={{
-              fontWeight: 800
-            }}>
+            <Typography
+              variant="h1"
+              component="h1"
+              sx={{
+                fontWeight: 700,
+              }}
+            >
               {title}
             </Typography>
             {version ? (
-              <Typography variant="body2" sx={{
-                color: "text.secondary"
-              }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.secondary",
+                }}
+              >
                 Версия: {version}
               </Typography>
             ) : null}

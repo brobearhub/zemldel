@@ -11,7 +11,10 @@ import {
   formatReplyPreview,
   type RequestCustomerDto,
 } from "@/entities/request";
-import { PendingRequestAuthRequiredError, resumePendingRequest } from "@/entities/request/api/resume-pending-request";
+import {
+  PendingRequestAuthRequiredError,
+  resumePendingRequest,
+} from "@/entities/request/api/resume-pending-request";
 import { deleteCustomerRequest } from "@/entities/request/api/customer-requests";
 import { useConfirm } from "@/shared/ui/confirm";
 import { CustomerRequestReplyDialog } from "./CustomerRequestReplyDialog";
@@ -22,7 +25,10 @@ type Props = {
   onAutoResumeFinished?: () => void;
 };
 
-export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResumeFinished }: Props) {
+export function CustomerRequestsSection({
+  autoResumeEnabled = false,
+  onAutoResumeFinished,
+}: Props) {
   const router = useRouter();
   const confirm = useConfirm();
   const [items, setItems] = useState<RequestCustomerDto[]>([]);
@@ -42,12 +48,18 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
     setLoading(true);
     try {
       const res = await fetch("/api/requests", { cache: "no-store", signal });
-      const payload = (await res.json().catch(() => null)) as RequestCustomerDto[] | { error?: string } | null;
+      const payload = (await res.json().catch(() => null)) as
+        | RequestCustomerDto[]
+        | { error?: string }
+        | null;
       if (!res.ok) {
         throw new Error(
-          payload && typeof payload === "object" && !Array.isArray(payload) && payload.error
+          payload &&
+            typeof payload === "object" &&
+            !Array.isArray(payload) &&
+            payload.error
             ? payload.error
-            : "Не удалось загрузить заявки"
+            : "Не удалось загрузить заявки",
         );
       }
       setItems(payload as RequestCustomerDto[]);
@@ -73,28 +85,39 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
     const draft = readPendingRequestDraft();
     setHasResumeDraft(Boolean(draft));
     if (!draft) {
-      setResumeError("Черновик заявки не найден в этой вкладке. Создайте новую заявку.");
+      setResumeError(
+        "Черновик заявки не найден в этой вкладке. Создайте новую заявку.",
+      );
       onAutoResumeFinished?.();
       return;
     }
     setResuming(true);
     setResumeError(null);
-    void resumePendingRequest(draft).then((created) => {
-      if (cancelled) return;
-      clearPendingRequestDraft(draft.draftId);
-      router.replace(`/profile/requests/${created.id}?created=1`);
-      router.refresh();
-    }).catch((error: unknown) => {
-      if (cancelled) return;
-      if (error instanceof PendingRequestAuthRequiredError) {
-        router.push(buildRequestAuthHref("signin", draft, true));
-        return;
-      }
-      setResumeError(error instanceof Error ? error.message : "Не удалось отправить заявку. Черновик сохранён.");
-    }).finally(() => {
-      if (!cancelled) setResuming(false);
-    });
-    return () => { cancelled = true; };
+    void resumePendingRequest(draft)
+      .then((created) => {
+        if (cancelled) return;
+        clearPendingRequestDraft(draft.draftId);
+        router.replace(`/profile/requests/${created.id}?created=1`);
+        router.refresh();
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        if (error instanceof PendingRequestAuthRequiredError) {
+          router.push(buildRequestAuthHref("signin", draft, true));
+          return;
+        }
+        setResumeError(
+          error instanceof Error
+            ? error.message
+            : "Не удалось отправить заявку. Черновик сохранён.",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setResuming(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [autoResumeEnabled, onAutoResumeFinished, router, resumeAttempt]);
 
   async function refresh() {
@@ -114,7 +137,8 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
   async function deleteRequest(item: RequestCustomerDto) {
     const confirmed = await confirm({
       title: "Удалить заявку?",
-      description: "Заявка будет удалена безвозвратно. Это можно сделать только пока ни один исполнитель не ответил.",
+      description:
+        "Заявка будет удалена безвозвратно. Это можно сделать только пока ни один исполнитель не ответил.",
       confirmText: "Удалить",
       confirmColor: "error",
     });
@@ -147,34 +171,70 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
           onClick={() => void refresh()}
           loading={refreshing}
           disabled={loading}
-          sx={{ whiteSpace: "nowrap", minHeight: 44, color: "text.primary", borderColor: "text.primary" }}
+          sx={{
+            whiteSpace: "normal",
+            minHeight: 44,
+            color: "text.primary",
+            borderColor: "text.primary",
+          }}
         >
           Обновить
         </Button>
       </Stack>
 
-      {resuming ? <Alert severity="info" role="status">Отправляем сохранённую заявку…</Alert> : null}
+      {resuming ? (
+        <Alert severity="info" role="status">
+          Отправляем сохранённую заявку…
+        </Alert>
+      ) : null}
       {resumeError ? (
-        <Alert severity="warning" action={hasResumeDraft
-          ? <Button color="inherit" disabled={resuming} onClick={() => setResumeAttempt((value) => value + 1)}>Повторить отправку</Button>
-          : <Button component={Link} href="/" color="inherit">Создать заявку</Button>
-        }>{resumeError}</Alert>
+        <Alert
+          severity="warning"
+          action={
+            hasResumeDraft ? (
+              <Button
+                color="inherit"
+                disabled={resuming}
+                onClick={() => setResumeAttempt((value) => value + 1)}
+              >
+                Повторить отправку
+              </Button>
+            ) : (
+              <Button component={Link} href="/" color="inherit">
+                Создать заявку
+              </Button>
+            )
+          }
+        >
+          {resumeError}
+        </Alert>
       ) : null}
       {error ? <Alert severity="error">{error}</Alert> : null}
 
       {items.length === 0 && !loading ? (
         <Paper variant="outlined" sx={{ p: 3 }}>
-          <Typography gutterBottom sx={{
-            fontWeight: 800
-          }}>
+          <Typography
+            gutterBottom
+            sx={{
+              fontWeight: 700,
+            }}
+          >
             Пока нет заявок
           </Typography>
-          <Typography sx={{
-            color: "text.secondary"
-          }}>
-            Вы можете создать заявку на главной странице, и она появится в ленте исполнителей.
+          <Typography
+            sx={{
+              color: "text.secondary",
+            }}
+          >
+            Вы можете создать заявку на главной странице, и она появится в ленте
+            исполнителей.
           </Typography>
-          <Button component={Link} href="/" sx={{ mt: 2, minHeight: 44 }} variant="contained">
+          <Button
+            component={Link}
+            href="/"
+            sx={{ mt: 2, minHeight: 44 }}
+            variant="contained"
+          >
             На главную
           </Button>
         </Paper>
@@ -191,7 +251,9 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
       <CustomerRequestReplyDialog
         item={replyItem}
         onClose={() => setReplyItem(null)}
-        onSendingChange={(sending) => setSendingId(sending && replyItem ? replyItem.id : null)}
+        onSendingChange={(sending) =>
+          setSendingId(sending && replyItem ? replyItem.id : null)
+        }
         onSent={(sent, body) => {
           const customerLastMessage = formatReplyPreview(body);
           setItems((current) =>
@@ -200,7 +262,8 @@ export function CustomerRequestsSection({ autoResumeEnabled = false, onAutoResum
                 ? {
                     ...row,
                     awaitingProviderReply: true,
-                    customerLastMessage: customerLastMessage ?? row.customerLastMessage,
+                    customerLastMessage:
+                      customerLastMessage ?? row.customerLastMessage,
                   }
                 : row,
             ),

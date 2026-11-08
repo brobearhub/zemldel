@@ -15,7 +15,10 @@ import {
   Typography,
 } from "@mui/material";
 import { CadastralNumberMapLink } from "@/entities/request/ui/CadastralNumberMapLink";
-import { SITE_CONTENT_GAP_PX, SITE_HEADER_HEIGHT_PX } from "@/shared/config/site-layout";
+import {
+  SITE_CONTENT_GAP_PX,
+  SITE_HEADER_HEIGHT_PX,
+} from "@/shared/config/site-layout";
 import { CadastralNumberInput } from "@/shared/ui/CadastralNumberInput";
 import {
   createEmptyCadastralParts,
@@ -34,9 +37,13 @@ type Props = {
 
 export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
   const viewModel = useMemo(() => behavior.getViewModel(), [behavior]);
-  const [draftParts, setDraftParts] = useState<CadastralNumberParts>(createEmptyCadastralParts());
+  const [draftParts, setDraftParts] = useState<CadastralNumberParts>(
+    createEmptyCadastralParts(),
+  );
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editParts, setEditParts] = useState<CadastralNumberParts>(createEmptyCadastralParts());
+  const [editParts, setEditParts] = useState<CadastralNumberParts>(
+    createEmptyCadastralParts(),
+  );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
@@ -49,7 +56,10 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
     setCopiedOpen(false);
   }
 
-  async function run(action: Parameters<RequestCadastralBehavior["run"]>[0], actionKey: string) {
+  async function run(
+    action: Parameters<RequestCadastralBehavior["run"]>[0],
+    actionKey: string,
+  ) {
     setSubmitting(true);
     setPendingKey(actionKey);
     setError(null);
@@ -62,7 +72,11 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
         setEditingIndex(null);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось сохранить кадастровый номер");
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Не удалось сохранить кадастровый номер",
+      );
     } finally {
       setSubmitting(false);
       setPendingKey(null);
@@ -102,9 +116,12 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
       {error ? <Alert severity="error">{error}</Alert> : null}
 
       {viewModel.items.length === 0 ? (
-        <Typography variant="body2" sx={{
-          color: "text.secondary"
-        }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: "text.secondary",
+          }}
+        >
           Кадастровые номера пока не добавлены.
         </Typography>
       ) : (
@@ -113,30 +130,55 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
             <Stack key={`${item.index}-${item.value}`} spacing={1}>
               {editingIndex === item.index ? (
                 <Stack spacing={1}>
-                  <CadastralNumberInput value={editParts} onChange={setEditParts} disabled={isBusy} />
+                  <CadastralNumberInput
+                    value={editParts}
+                    onChange={setEditParts}
+                    disabled={isBusy}
+                  />
                   <Stack direction="row" spacing={1}>
                     <Button
                       size="small"
                       variant="contained"
                       loading={pendingKey === `edit:${item.index}`}
                       disabled={isBusy || !canSubmitCadastralParts(editParts)}
-                      onClick={() => void run({ id: "edit", payload: { index: item.index, parts: editParts } }, `edit:${item.index}`)}
+                      onClick={() =>
+                        void run(
+                          {
+                            id: "edit",
+                            payload: { index: item.index, parts: editParts },
+                          },
+                          `edit:${item.index}`,
+                        )
+                      }
                     >
                       Сохранить
                     </Button>
-                    <Button size="small" variant="text" disabled={isBusy} onClick={() => setEditingIndex(null)}>
+                    <Button
+                      size="small"
+                      variant="text"
+                      disabled={isBusy}
+                      onClick={() => setEditingIndex(null)}
+                    >
                       Отмена
                     </Button>
                   </Stack>
                 </Stack>
               ) : (
-                <Stack direction="row" spacing={1} sx={{
-                  alignItems: "center"
-                }}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{
+                    alignItems: "center",
+                  }}
+                >
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <CadastralNumberMapLink
                       value={item.value}
-                      sx={{ fontFamily: "monospace", fontSize: "0.875rem", lineHeight: 1.43 }}
+                      sx={{
+                        fontFamily: "monospace",
+                        fontSize: "1rem",
+                        lineHeight: 1.5,
+                      }}
                     />
                   </Box>
                   {viewModel.canMutate ? (
@@ -167,8 +209,12 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
                         loading={pendingKey === `delete:${item.index}`}
                         disabled={isBusy}
                         onClick={() => {
-                          if (!window.confirm("Удалить кадастровый номер?")) return;
-                          void run({ id: "delete", payload: { index: item.index } }, `delete:${item.index}`);
+                          if (!window.confirm("Удалить кадастровый номер?"))
+                            return;
+                          void run(
+                            { id: "delete", payload: { index: item.index } },
+                            `delete:${item.index}`,
+                          );
                         }}
                       >
                         <DeleteOutlineIcon fontSize="small" />
@@ -184,18 +230,27 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
 
       {viewModel.canMutate ? (
         <Stack spacing={1.25}>
-          <Typography variant="body2" sx={{
-            fontWeight: 700
-          }}>
+          <Typography
+            variant="body2"
+            sx={{
+              fontWeight: 700,
+            }}
+          >
             Добавить номер
           </Typography>
-          <CadastralNumberInput value={draftParts} onChange={setDraftParts} disabled={isBusy} />
+          <CadastralNumberInput
+            value={draftParts}
+            onChange={setDraftParts}
+            disabled={isBusy}
+          />
           <Button
             variant="contained"
             size="small"
             loading={pendingKey === "add"}
             disabled={isBusy || !canSubmitCadastralParts(draftParts)}
-            onClick={() => void run({ id: "add", payload: { parts: draftParts } }, "add")}
+            onClick={() =>
+              void run({ id: "add", payload: { parts: draftParts } }, "add")
+            }
             sx={{ alignSelf: "flex-start", textTransform: "none" }}
           >
             Добавить
@@ -215,7 +270,12 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
           },
         }}
       >
-        <Alert onClose={handleCopiedClose} severity="success" variant="filled" sx={{ width: "100%" }}>
+        <Alert
+          onClose={handleCopiedClose}
+          severity="success"
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
           Скопировано
         </Alert>
       </Snackbar>

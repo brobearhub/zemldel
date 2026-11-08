@@ -17,9 +17,18 @@ type Props = {
   reminders: ReactNode;
 };
 
-export function ProHomeSectionSwitch({ services, freeRequests, reminders }: Props) {
+export function ProHomeSectionSwitch({
+  services,
+  freeRequests,
+  reminders,
+}: Props) {
   const [section, setSection] = useState<SectionId>("services");
-  const content = section === "services" ? services : section === "free" ? freeRequests : reminders;
+  const content =
+    section === "services"
+      ? services
+      : section === "free"
+        ? freeRequests
+        : reminders;
 
   return (
     <Stack spacing={2.5}>
@@ -38,7 +47,12 @@ export function ProHomeSectionSwitch({ services, freeRequests, reminders }: Prop
             label={item.label}
             id={`pro-home-tab-${item.id}`}
             aria-controls={`pro-home-panel-${item.id}`}
-            sx={{ minHeight: 44, textTransform: "none", fontSize: 16, fontWeight: 700 }}
+            sx={{
+              minHeight: 44,
+              textTransform: "none",
+              fontSize: "1rem",
+              fontWeight: 700,
+            }}
           />
         ))}
       </Tabs>

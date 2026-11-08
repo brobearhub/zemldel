@@ -19,9 +19,21 @@ import {
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import type { RequestDocumentRequestDto, RequestProDto } from "@/entities/request";
-import { ContractFilesList, isOrderExecutionStatus, RequestDocumentsList, shouldCollapseDocumentsByDefault } from "@/entities/request";
-import type { ProContractBundleItem, ProContractBundleStatus, ProMiscFileItem } from "@/entities/request/api/pro-contract-bundles";
+import type {
+  RequestDocumentRequestDto,
+  RequestProDto,
+} from "@/entities/request";
+import {
+  ContractFilesList,
+  isOrderExecutionStatus,
+  RequestDocumentsList,
+  shouldCollapseDocumentsByDefault,
+} from "@/entities/request";
+import type {
+  ProContractBundleItem,
+  ProContractBundleStatus,
+  ProMiscFileItem,
+} from "@/entities/request/api/pro-contract-bundles";
 import Link from "@/shared/ui/Link";
 import { DocumentsSectionHeader } from "@/features/documents-security-info";
 import { DocumentsNeutralAlert } from "@/shared/ui/DocumentsNeutralAlert";
@@ -51,13 +63,18 @@ export type ProRequestDocumentsSectionProps = {
 
   onCreateDocRequest: (title: string) => Promise<void> | void;
   onCancelDocRequest: (docRequestId: string) => Promise<void> | void;
-  onUploadContractBundle: (input: { document: File; signature?: File | null }) => Promise<void> | void;
+  onUploadContractBundle: (input: {
+    document: File;
+    signature?: File | null;
+  }) => Promise<void> | void;
   onDeleteContractBundle: (bundleId: string) => Promise<void> | void;
   onUploadMiscFiles: (files: File[]) => Promise<void> | void;
   onDeleteMiscFile: (fileId: string) => Promise<void> | void;
 };
 
-export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProps) {
+export function ProRequestDocumentsSection(
+  props: ProRequestDocumentsSectionProps,
+) {
   const [docDialogOpen, setDocDialogOpen] = useState(false);
   const [docTitle, setDocTitle] = useState("");
 
@@ -88,12 +105,20 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
     () => props.contractBundles.some((b) => b.status === "APPROVED"),
     [props.contractBundles],
   );
-  const hasPendingRequestedDocs = useMemo(() => props.docRequests.some((d) => d.status === "REQUESTED"), [props.docRequests]);
-  const hasUploadedDocs = useMemo(() => props.docRequests.some((d) => d.status === "UPLOADED"), [props.docRequests]);
+  const hasPendingRequestedDocs = useMemo(
+    () => props.docRequests.some((d) => d.status === "REQUESTED"),
+    [props.docRequests],
+  );
+  const hasUploadedDocs = useMemo(
+    () => props.docRequests.some((d) => d.status === "UPLOADED"),
+    [props.docRequests],
+  );
 
   if (!props.open) return null;
 
-  const collapseByDefault = shouldCollapseDocumentsByDefault(props.requestStatus);
+  const collapseByDefault = shouldCollapseDocumentsByDefault(
+    props.requestStatus,
+  );
 
   const headerRight =
     props.contractBundles.length > 0 || props.docRequests.length > 0 ? (
@@ -123,7 +148,9 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
         expandedResetKey={`${props.requestId}:${props.requestStatus}`}
       >
         {props.docRequests.length === 0 ? (
-          <DocumentsNeutralAlert>Нет запрошенных документов от клиента.</DocumentsNeutralAlert>
+          <DocumentsNeutralAlert>
+            Нет запрошенных документов от клиента.
+          </DocumentsNeutralAlert>
         ) : null}
 
         {props.docRequests.length > 0 ? (
@@ -133,7 +160,10 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
               title="Документы клиента"
               items={props.docRequests}
               renderActions={(d) => {
-                const hasFile = d.status === "UPLOADED" && Boolean(d.originalName) && Boolean(d.mimeType);
+                const hasFile =
+                  d.status === "UPLOADED" &&
+                  Boolean(d.originalName) &&
+                  Boolean(d.mimeType);
                 const canCancel = d.status === "REQUESTED";
 
                 if (!hasFile && !canCancel) return null;
@@ -141,12 +171,27 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
                 return (
                   <>
                     {hasFile ? (
-                      <Button component={Link} href={`/api/pro/document-requests/${d.id}/download`} variant="text" disabled={props.isBusy}>
+                      <Button
+                        component={Link}
+                        href={`/api/pro/document-requests/${d.id}/download`}
+                        variant="text"
+                        disabled={props.isBusy}
+                      >
                         Скачать
                       </Button>
                     ) : null}
                     {canCancel ? (
-                      <Button color="error" variant="text" loading={pendingAction === `cancel-doc:${d.id}`} disabled={props.isBusy} onClick={() => void runPending(`cancel-doc:${d.id}`, () => props.onCancelDocRequest(d.id))}>
+                      <Button
+                        color="error"
+                        variant="text"
+                        loading={pendingAction === `cancel-doc:${d.id}`}
+                        disabled={props.isBusy}
+                        onClick={() =>
+                          void runPending(`cancel-doc:${d.id}`, () =>
+                            props.onCancelDocRequest(d.id),
+                          )
+                        }
+                      >
                         Отмена
                       </Button>
                     ) : null}
@@ -157,33 +202,47 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
           </Stack>
         ) : null}
 
-        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", mb: 2 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            mb: 2,
+          }}
+        >
           <Button
             color="warning"
             variant="text"
             startIcon={<AddIcon />}
             disabled={props.isBusy}
             onClick={() => setDocDialogOpen(true)}
-            sx={{ alignSelf: "flex-start", fontWeight: 900 }}
+            sx={{ alignSelf: "flex-start", fontWeight: 700 }}
           >
             Запросить документ у клиента
           </Button>
         </Box>
 
         {props.contractBundles.length === 0 ? (
-          <DocumentsNeutralAlert>Договор ещё не прикреплён к заявке.</DocumentsNeutralAlert>
+          <DocumentsNeutralAlert>
+            Договор ещё не прикреплён к заявке.
+          </DocumentsNeutralAlert>
         ) : null}
         {hasRevisionRequested ? (
-          <Alert severity="warning">Клиент запросил доработку по одному или нескольким файлам.</Alert>
+          <Alert severity="warning">
+            Клиент запросил доработку по одному или нескольким файлам.
+          </Alert>
         ) : hasPendingContractFiles ? (
           <DocumentsNeutralAlert>
-            Файлы у клиента. Он может скачать и одобрить договор или отправить на доработку.
+            Файлы у клиента. Он может скачать и одобрить договор или отправить
+            на доработку.
           </DocumentsNeutralAlert>
         ) : hasApproved ? (
           <Alert severity="success">Есть одобренные файлы договора.</Alert>
         ) : null}
 
-        {!props.docRequestsLoaded || !props.contractBundlesLoaded || !props.miscLoaded ? (
+        {!props.docRequestsLoaded ||
+        !props.contractBundlesLoaded ||
+        !props.miscLoaded ? (
           <DocumentsNeutralAlert
             icon={<CircularProgress size={16} />}
             sx={{
@@ -200,22 +259,30 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
             variant="outlined"
             sx={(theme) => ({
               p: 1.5,
-              bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.03)" : "action.hover",
+              bgcolor:
+                theme.palette.mode === "dark"
+                  ? "rgba(255,255,255,0.03)"
+                  : "action.hover",
               borderColor: "divider",
             })}
           >
             <Stack spacing={1}>
-              <Typography sx={{
-                fontWeight: 800
-              }}>Идёт загрузка файлов</Typography>
+              <Typography
+                sx={{
+                  fontWeight: 700,
+                }}
+              >
+                Идёт загрузка файлов
+              </Typography>
               <LinearProgress />
               {props.uploadNames.length > 0 ? (
                 <Typography
                   variant="body2"
                   sx={{
                     color: "text.secondary",
-                    wordBreak: "break-word"
-                  }}>
+                    wordBreak: "break-word",
+                  }}
+                >
                   {props.uploadNames.join(", ")}
                 </Typography>
               ) : null}
@@ -238,15 +305,27 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
               revisionLabel="Комментарий клиента"
               getStatusLabel={contractFileStatusLabel}
               renderActions={(item) => {
-                const bundle = props.contractBundles.find((b) => b.bundleId === item.id);
+                const bundle = props.contractBundles.find(
+                  (b) => b.bundleId === item.id,
+                );
                 if (!bundle) return null;
                 return (
                   <>
-                    <Button component={Link} href={`/api/pro/contract-files/${bundle.document.id}/download`} variant="text" disabled={props.isBusy}>
+                    <Button
+                      component={Link}
+                      href={`/api/pro/contract-files/${bundle.document.id}/download`}
+                      variant="text"
+                      disabled={props.isBusy}
+                    >
                       Скачать договор
                     </Button>
                     {bundle.signature ? (
-                      <Button component={Link} href={`/api/pro/contract-files/${bundle.signature.id}/download`} variant="text" disabled={props.isBusy}>
+                      <Button
+                        component={Link}
+                        href={`/api/pro/contract-files/${bundle.signature.id}/download`}
+                        variant="text"
+                        disabled={props.isBusy}
+                      >
                         Скачать подпись
                       </Button>
                     ) : (
@@ -254,13 +333,27 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
                         variant="body2"
                         sx={{
                           color: "text.secondary",
-                          px: 1
-                        }}>
+                          px: 1,
+                        }}
+                      >
                         Файл подписи не приложен.
                       </Typography>
                     )}
                     {!isOrderExecutionStatus(props.requestStatus) ? (
-                      <Button color="error" variant="text" loading={pendingAction === `delete-bundle:${bundle.bundleId}`} disabled={props.isBusy} onClick={() => void runPending(`delete-bundle:${bundle.bundleId}`, () => props.onDeleteContractBundle(bundle.bundleId))}>
+                      <Button
+                        color="error"
+                        variant="text"
+                        loading={
+                          pendingAction === `delete-bundle:${bundle.bundleId}`
+                        }
+                        disabled={props.isBusy}
+                        onClick={() =>
+                          void runPending(
+                            `delete-bundle:${bundle.bundleId}`,
+                            () => props.onDeleteContractBundle(bundle.bundleId),
+                          )
+                        }
+                      >
                         Удалить пакет
                       </Button>
                     ) : null}
@@ -277,8 +370,9 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
           useFlexGap
           sx={{
             flexWrap: "wrap",
-            justifyContent: "center"
-          }}>
+            justifyContent: "center",
+          }}
+        >
           <Button
             variant="text"
             color="warning"
@@ -310,11 +404,26 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
               getStatusLabel={() => "Вложение"}
               renderActions={(file) => (
                 <>
-                  <Button component={Link} href={`/api/pro/contract-files/${file.id}/download`} variant="text" disabled={props.isBusy}>
+                  <Button
+                    component={Link}
+                    href={`/api/pro/contract-files/${file.id}/download`}
+                    variant="text"
+                    disabled={props.isBusy}
+                  >
                     Скачать
                   </Button>
                   {!isOrderExecutionStatus(props.requestStatus) ? (
-                    <Button color="error" variant="text" loading={pendingAction === `delete-misc:${file.id}`} disabled={props.isBusy} onClick={() => void runPending(`delete-misc:${file.id}`, () => props.onDeleteMiscFile(file.id))}>
+                    <Button
+                      color="error"
+                      variant="text"
+                      loading={pendingAction === `delete-misc:${file.id}`}
+                      disabled={props.isBusy}
+                      onClick={() =>
+                        void runPending(`delete-misc:${file.id}`, () =>
+                          props.onDeleteMiscFile(file.id),
+                        )
+                      }
+                    >
                       Удалить
                     </Button>
                   ) : null}
@@ -332,8 +441,9 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
           useFlexGap
           sx={{
             flexWrap: "wrap",
-            justifyContent: "center"
-          }}>
+            justifyContent: "center",
+          }}
+        >
           <Button
             component="label"
             variant="text"
@@ -351,7 +461,9 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
               onChange={(e) => {
                 const next = Array.from(e.currentTarget.files ?? []);
                 e.currentTarget.value = "";
-                void runPending("upload-misc", () => props.onUploadMiscFiles(next));
+                void runPending("upload-misc", () =>
+                  props.onUploadMiscFiles(next),
+                );
               }}
             />
           </Button>
@@ -369,9 +481,13 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
         <DialogTitle>Запросить документ у клиента</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={1.5}>
-            <Typography sx={{
-              color: "text.secondary"
-            }}>Например: «Паспорт (скан)», «Доверенность», «Реквизиты».</Typography>
+            <Typography
+              sx={{
+                color: "text.secondary",
+              }}
+            >
+              Например: «Паспорт (скан)», «Доверенность», «Реквизиты».
+            </Typography>
             <TextField
               label="Название документа"
               value={docTitle}
@@ -383,7 +499,10 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button disabled={props.isBusy} onClick={() => setDocDialogOpen(false)}>
+          <Button
+            disabled={props.isBusy}
+            onClick={() => setDocDialogOpen(false)}
+          >
             Отмена
           </Button>
           <Button
@@ -393,7 +512,9 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
             onClick={async () => {
               const title = docTitle.trim();
               if (title.length < 3) return;
-              await runPending("create-doc", () => props.onCreateDocRequest(title));
+              await runPending("create-doc", () =>
+                props.onCreateDocRequest(title),
+              );
               setDocDialogOpen(false);
               setDocTitle("");
             }}
@@ -414,18 +535,30 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
         <DialogTitle>Загрузить договор</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2}>
-            <Typography sx={{
-              color: "text.secondary"
-            }}>
-              Загрузите договор в PDF или DOCX. Готовый файл подписи можно приложить при наличии.
+            <Typography
+              sx={{
+                color: "text.secondary",
+              }}
+            >
+              Загрузите договор в PDF или DOCX. Готовый файл подписи можно
+              приложить при наличии.
             </Typography>
             {bundleError ? <Alert severity="error">{bundleError}</Alert> : null}
 
             <Stack spacing={1}>
-              <Typography sx={{
-                fontWeight: 800
-              }}>Договор · обязательно</Typography>
-              <Button component="label" variant="outlined" disabled={props.isBusy} sx={{ alignSelf: "flex-start" }}>
+              <Typography
+                sx={{
+                  fontWeight: 700,
+                }}
+              >
+                Договор · обязательно
+              </Typography>
+              <Button
+                component="label"
+                variant="outlined"
+                disabled={props.isBusy}
+                sx={{ alignSelf: "flex-start" }}
+              >
                 {bundleDocument ? bundleDocument.name : "Выбрать файл"}
                 <input
                   hidden
@@ -443,11 +576,22 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
             </Stack>
 
             <Stack spacing={1}>
-              <Typography sx={{
-                fontWeight: 800
-              }}>Файл подписи · необязательно</Typography>
-              <Button component="label" variant="outlined" disabled={props.isBusy} sx={{ alignSelf: "flex-start" }}>
-                {bundleSignature ? bundleSignature.name : "Прикрепить файл подписи"}
+              <Typography
+                sx={{
+                  fontWeight: 700,
+                }}
+              >
+                Файл подписи · необязательно
+              </Typography>
+              <Button
+                component="label"
+                variant="outlined"
+                disabled={props.isBusy}
+                sx={{ alignSelf: "flex-start" }}
+              >
+                {bundleSignature
+                  ? bundleSignature.name
+                  : "Прикрепить файл подписи"}
                 <input
                   hidden
                   type="file"
@@ -461,10 +605,16 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
                 />
               </Button>
               <Typography variant="caption" color="text.secondary">
-                Уже созданная подпись в формате .sig, .sgn или .p7s. Прикрепление файла не подписывает договор на сайте.
+                Уже созданная подпись в формате .sig, .sgn или .p7s.
+                Прикрепление файла не подписывает договор на сайте.
               </Typography>
               {bundleSignature ? (
-                <Button size="small" disabled={props.isBusy} onClick={() => setBundleSignature(null)} sx={{ alignSelf: "flex-start" }}>
+                <Button
+                  size="small"
+                  disabled={props.isBusy}
+                  onClick={() => setBundleSignature(null)}
+                  sx={{ alignSelf: "flex-start" }}
+                >
                   Убрать файл подписи
                 </Button>
               ) : null}
@@ -472,7 +622,10 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button disabled={props.isBusy} onClick={() => setBundleDialogOpen(false)}>
+          <Button
+            disabled={props.isBusy}
+            onClick={() => setBundleDialogOpen(false)}
+          >
             Отмена
           </Button>
           <Button
@@ -483,12 +636,21 @@ export function ProRequestDocumentsSection(props: ProRequestDocumentsSectionProp
               if (!bundleDocument) return;
               setBundleError(null);
               try {
-                await runPending("upload-bundle", () => props.onUploadContractBundle({ document: bundleDocument, signature: bundleSignature }));
+                await runPending("upload-bundle", () =>
+                  props.onUploadContractBundle({
+                    document: bundleDocument,
+                    signature: bundleSignature,
+                  }),
+                );
                 setBundleDialogOpen(false);
                 setBundleDocument(null);
                 setBundleSignature(null);
               } catch (error) {
-                setBundleError(error instanceof Error ? error.message : "Не удалось загрузить договор. Повторите попытку.");
+                setBundleError(
+                  error instanceof Error
+                    ? error.message
+                    : "Не удалось загрузить договор. Повторите попытку.",
+                );
               }
             }}
           >
