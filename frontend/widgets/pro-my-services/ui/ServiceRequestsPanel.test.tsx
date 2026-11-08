@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { RequestProDto, RequestStatus, RequestSubjectType } from "@/entities/request";
 import { legalService, mainService } from "@/tests/fixtures/services";
@@ -396,6 +396,43 @@ describe("ProMyServicesSection", () => {
     readRequestListCache.mockReset();
     writeRequestListCache.mockReset();
     readRequestListCache.mockReturnValue(null);
+  });
+
+  it("shows only the first service photo", async () => {
+    fetchRequestList.mockResolvedValue({ items: [request()] });
+
+    render(
+      <ProMyServicesSection
+        services={[
+          {
+            ...mainService,
+            image: "/images/legacy.jpg",
+            images: ["/images/first.jpg", "/images/second.jpg"],
+          },
+        ]}
+      />,
+    );
+
+    const photo = await screen.findByRole("img", {
+      name: "Фото услуги «Межевание участка»",
+    });
+    expect(photo).toHaveAttribute("src", "/images/first.jpg");
+    expect(screen.getAllByRole("img")).toHaveLength(1);
+
+    fireEvent.error(photo);
+    const secondPhoto = screen.getByRole("img", {
+      name: "Фото услуги «Межевание участка»",
+    });
+    expect(secondPhoto).toHaveAttribute("src", "/images/second.jpg");
+
+    fireEvent.error(secondPhoto);
+    const legacyPhoto = screen.getByRole("img", {
+      name: "Фото услуги «Межевание участка»",
+    });
+    expect(legacyPhoto).toHaveAttribute("src", "/images/legacy.jpg");
+
+    fireEvent.error(legacyPhoto);
+    expect(screen.getByText("Фото недоступно")).toBeVisible();
   });
 
   it("puts actionable services first and hides empty services until expanded", async () => {

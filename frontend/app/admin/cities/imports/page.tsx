@@ -1,7 +1,10 @@
 import { Container, Stack, Typography } from "@mui/material";
 import { notFound } from "next/navigation";
 import type { CityImportRunDto } from "@/entities/city";
-import { BackendApiError, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
+import {
+  BackendApiError,
+  fetchBackendJsonAsUser,
+} from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
 import { CityImportsAdminClient } from "../ui/CityImportsAdminClient";
 
@@ -12,9 +15,15 @@ export default async function CityImportsAdminPage() {
   let runs: CityImportRunDto[];
 
   try {
-    runs = await fetchBackendJsonAsUser<CityImportRunDto[]>("/admin/city-import-runs", session.user.id);
+    runs = await fetchBackendJsonAsUser<CityImportRunDto[]>(
+      "/admin/city-import-runs",
+      session.user.id,
+    );
   } catch (error) {
-    if (error instanceof BackendApiError && (error.status === 401 || error.status === 403)) {
+    if (
+      error instanceof BackendApiError &&
+      (error.status === 401 || error.status === 403)
+    ) {
       notFound();
     }
     throw error;
@@ -25,11 +34,12 @@ export default async function CityImportsAdminPage() {
       <Container sx={{ py: { xs: 4, md: 6 } }}>
         <Stack spacing={3}>
           <Stack spacing={0.5}>
-            <Typography variant="h4" sx={{ fontWeight: 900 }}>
+            <Typography component="h1" variant="h1" sx={{ fontWeight: 700 }}>
               Импорты City (ГАР)
             </Typography>
             <Typography variant="body2" sx={{ color: "text.secondary" }}>
-              История reconcile-запусков: добавления, обновления, деактивации и реактивации локаций.
+              История reconcile-запусков: добавления, обновления, деактивации и
+              реактивации локаций.
             </Typography>
           </Stack>
 

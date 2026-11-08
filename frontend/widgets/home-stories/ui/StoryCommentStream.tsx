@@ -6,7 +6,14 @@ import FavoriteBorderRoundedIcon from "@mui/icons-material/FavoriteBorderRounded
 import FavoriteRoundedIcon from "@mui/icons-material/FavoriteRounded";
 import ReplyRoundedIcon from "@mui/icons-material/ReplyRounded";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
-import { Box, Button, IconButton, Stack, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  IconButton,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import type { StoryCommentDto } from "@/entities/story";
 import { pluralRu } from "@/shared/lib/plural-ru";
 import { commentWasEdited } from "../lib/story-comments";
@@ -68,7 +75,9 @@ export function StoryCommentStream({
 }: Props) {
   const listRef = useRef<HTMLDivElement | null>(null);
   const wasPosting = useRef(false);
-  const [composer, setComposer] = useState<"comment" | "reply" | null>(startWithComment ? "comment" : null);
+  const [composer, setComposer] = useState<"comment" | "reply" | null>(
+    startWithComment ? "comment" : null,
+  );
   const busy = posting || status === "loading";
   // Why: posting общий для отправки, сохранения и удаления — спиннер только на нажатой кнопке.
   const [pendingAction, setPendingAction] = useState<string | null>(null);
@@ -94,7 +103,12 @@ export function StoryCommentStream({
       <Box
         ref={listRef}
         data-story-comments
-        sx={{ flex: 1, minHeight: 0, overflowY: "auto", overscrollBehavior: "contain" }}
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: "auto",
+          overscrollBehavior: "contain",
+        }}
       >
         {status === "loading" && items.length === 0 ? (
           <Typography variant="body2">Загрузка комментариев</Typography>
@@ -108,20 +122,30 @@ export function StoryCommentStream({
           <Typography variant="body2">Пока нет комментариев</Typography>
         ) : null}
         {truncated ? (
-          <Typography variant="caption" sx={{ display: "block", mb: 0.5, opacity: 0.8 }}>
+          <Typography
+            variant="caption"
+            sx={{ display: "block", mb: 0.5, opacity: 1 }}
+          >
             Показаны последние 100
           </Typography>
         ) : null}
         <Stack spacing={1}>
           {items.map((comment) => {
-            const edited = commentWasEdited(comment.createdAt, comment.updatedAt);
+            const edited = commentWasEdited(
+              comment.createdAt,
+              comment.updatedAt,
+            );
             const editing = editingId === comment.id;
             return (
               <Box key={comment.id}>
                 <Typography variant="body2" sx={{ fontWeight: 700 }}>
                   {comment.authorName}
                   {edited ? (
-                    <Typography component="span" variant="caption" sx={{ ml: 0.75, fontWeight: 400, opacity: 0.75 }}>
+                    <Typography
+                      component="span"
+                      variant="caption"
+                      sx={{ ml: 0.75, fontWeight: 400, opacity: 1 }}
+                    >
                       изменено
                     </Typography>
                   ) : null}
@@ -135,11 +159,18 @@ export function StoryCommentStream({
                     sx={{ mt: 0.5 }}
                   />
                 ) : (
-                  <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+                  <Typography
+                    variant="body2"
+                    sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
+                  >
                     {comment.text}
                   </Typography>
                 )}
-                <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                <Stack
+                  direction="row"
+                  spacing={0.5}
+                  sx={{ alignItems: "center" }}
+                >
                   {signedIn && !comment.mine ? (
                     <IconButton
                       size="small"
@@ -148,19 +179,36 @@ export function StoryCommentStream({
                       onClick={() => onLike(comment)}
                       sx={{ color: "primary.main" }}
                     >
-                      {comment.liked ? <FavoriteRoundedIcon fontSize="small" /> : <FavoriteBorderRoundedIcon fontSize="small" />}
+                      {comment.liked ? (
+                        <FavoriteRoundedIcon fontSize="small" />
+                      ) : (
+                        <FavoriteBorderRoundedIcon fontSize="small" />
+                      )}
                     </IconButton>
                   ) : null}
                   <Typography variant="caption">
-                    {comment.likeCount} {pluralRu(comment.likeCount, ["отметка", "отметки", "отметок"])}
+                    {comment.likeCount}{" "}
+                    {pluralRu(comment.likeCount, [
+                      "отметка",
+                      "отметки",
+                      "отметок",
+                    ])}
                   </Typography>
                   {comment.mine && !editing ? (
-                    <Button size="small" color="inherit" onClick={() => onStartEdit(comment)}>
+                    <Button
+                      size="small"
+                      color="inherit"
+                      onClick={() => onStartEdit(comment)}
+                    >
                       Изменить
                     </Button>
                   ) : null}
                   {(comment.mine || canModerate) && !editing ? (
-                    <Button size="small" color="inherit" onClick={() => onAskDelete(comment.id)}>
+                    <Button
+                      size="small"
+                      color="inherit"
+                      onClick={() => onAskDelete(comment.id)}
+                    >
                       Удалить
                     </Button>
                   ) : null}
@@ -169,8 +217,13 @@ export function StoryCommentStream({
                       <Button
                         size="small"
                         color="inherit"
-                        loading={posting && pendingAction === `save:${comment.id}`}
-                        disabled={!editText.trim() || (posting && pendingAction !== `save:${comment.id}`)}
+                        loading={
+                          posting && pendingAction === `save:${comment.id}`
+                        }
+                        disabled={
+                          !editText.trim() ||
+                          (posting && pendingAction !== `save:${comment.id}`)
+                        }
                         onClick={() => {
                           setPendingAction(`save:${comment.id}`);
                           onSaveEdit(comment.id);
@@ -178,20 +231,35 @@ export function StoryCommentStream({
                       >
                         Сохранить
                       </Button>
-                      <Button size="small" color="inherit" disabled={posting} onClick={onCancelEdit}>
+                      <Button
+                        size="small"
+                        color="inherit"
+                        disabled={posting}
+                        onClick={onCancelEdit}
+                      >
                         Отмена
                       </Button>
                     </>
                   ) : null}
                 </Stack>
                 {pendingDeleteId === comment.id ? (
-                  <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                    <Typography variant="caption">Удалить комментарий?</Typography>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{ alignItems: "center" }}
+                  >
+                    <Typography variant="caption">
+                      Удалить комментарий?
+                    </Typography>
                     <Button
                       size="small"
                       color="inherit"
-                      loading={posting && pendingAction === `delete:${comment.id}`}
-                      disabled={posting && pendingAction !== `delete:${comment.id}`}
+                      loading={
+                        posting && pendingAction === `delete:${comment.id}`
+                      }
+                      disabled={
+                        posting && pendingAction !== `delete:${comment.id}`
+                      }
                       onClick={() => {
                         setPendingAction(`delete:${comment.id}`);
                         onConfirmDelete(comment.id);
@@ -199,7 +267,12 @@ export function StoryCommentStream({
                     >
                       Да
                     </Button>
-                    <Button size="small" color="inherit" disabled={posting} onClick={onCancelDelete}>
+                    <Button
+                      size="small"
+                      color="inherit"
+                      disabled={posting}
+                      onClick={onCancelDelete}
+                    >
                       Нет
                     </Button>
                   </Stack>
@@ -213,7 +286,13 @@ export function StoryCommentStream({
         <Stack spacing={0.75} sx={{ flexShrink: 0 }}>
           {composer === null ? (
             <Stack direction="row" spacing={1}>
-              <Button variant="contained" size="small" disabled={posting} onClick={() => setComposer("comment")} sx={{ flex: 1 }}>
+              <Button
+                variant="contained"
+                size="small"
+                disabled={posting}
+                onClick={() => setComposer("comment")}
+                sx={{ flex: 1 }}
+              >
                 Комментировать
               </Button>
               {canReply ? (
@@ -242,7 +321,11 @@ export function StoryCommentStream({
               }}
               sx={{ alignItems: "center" }}
             >
-              <IconButton aria-label="Отменить" onClick={() => setComposer(null)} sx={{ color: "common.white" }}>
+              <IconButton
+                aria-label="Отменить"
+                onClick={() => setComposer(null)}
+                sx={{ color: "common.white" }}
+              >
                 <CloseRoundedIcon />
               </IconButton>
               <TextField
@@ -254,7 +337,12 @@ export function StoryCommentStream({
                 value={draft}
                 onChange={(event) => onDraftChange(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
+                  if (
+                    event.key !== "Enter" ||
+                    event.shiftKey ||
+                    event.nativeEvent.isComposing
+                  )
+                    return;
                   event.preventDefault();
                   setPendingAction("send");
                   if (composer === "reply") onReply();
@@ -267,12 +355,19 @@ export function StoryCommentStream({
                     bgcolor: "rgba(255,255,255,0.12)",
                     color: "common.white",
                     borderRadius: 1,
-                    "&.Mui-focused": { bgcolor: "common.white", color: "text.primary" },
+                    "&.Mui-focused": {
+                      bgcolor: "common.white",
+                      color: "text.primary",
+                    },
                   },
                 }}
               />
               <IconButton
-                aria-label={composer === "reply" ? "Отправить ответ" : "Отправить комментарий"}
+                aria-label={
+                  composer === "reply"
+                    ? "Отправить ответ"
+                    : "Отправить комментарий"
+                }
                 loading={sendLoading}
                 disabled={(busy && !sendLoading) || !draft.trim()}
                 onClick={() => {
@@ -285,12 +380,16 @@ export function StoryCommentStream({
                   "&&.Mui-disabled": { color: "action.disabledBackground" },
                 }}
               >
-                {composer === "reply" ? <ReplyRoundedIcon /> : <SendRoundedIcon />}
+                {composer === "reply" ? (
+                  <ReplyRoundedIcon />
+                ) : (
+                  <SendRoundedIcon />
+                )}
               </IconButton>
             </Stack>
           )}
           {replyNote ? (
-            <Typography variant="caption" sx={{ opacity: 0.85 }}>
+            <Typography variant="caption" sx={{ opacity: 1 }}>
               {replyNote}
             </Typography>
           ) : null}

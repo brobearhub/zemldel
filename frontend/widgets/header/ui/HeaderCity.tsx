@@ -8,7 +8,7 @@ import { LocationButton, useCitySelect, useHeaderCity, useSelectedCity } from "@
 type HeaderCityProps = {
   /** В меню-гамбургере название города видно и на узком экране. */
   readonly showLabel?: boolean;
-  /** Кабинет исполнителя, в том числе на /chats, где путь сам по себе не /pro. */
+  /** Город активного профиля исполнителя. */
   readonly scope?: "provider";
 };
 
@@ -17,7 +17,7 @@ export function HeaderCity({ showLabel = false, scope }: HeaderCityProps) {
   const { status, user } = useAppSelector((s) => s.auth);
   const { openCitySelect } = useCitySelect();
 
-  const inPro = scope === "provider" || pathname === "/pro" || pathname.startsWith("/pro/");
+  const inPro = scope === "provider" || pathname.startsWith("/pro/");
   const activeMembership = user ? getActiveMembership(user) : null;
 
   const customerSelected = useHeaderCity();

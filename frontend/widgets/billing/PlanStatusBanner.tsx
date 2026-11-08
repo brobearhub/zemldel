@@ -43,7 +43,7 @@ export function PlanStatusBanner() {
     >
       Не удалось продлить тариф. Возможности доступны до{" "}
       {new Date(billing.graceUntil).toLocaleString("ru-RU")}.{" "}
-      <Link href="/pro/billing">Проверить оплату</Link>
+      <Link href="/pro/settings/tariff">Проверить оплату</Link>
     </Alert>
   );
 }

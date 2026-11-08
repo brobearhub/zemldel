@@ -3,10 +3,20 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Alert, Box, Button, Stack, Typography } from "@mui/material";
-import type { RequestCustomerDto, RequestDocumentRequestDto } from "@/entities/request";
-import { isOrderExecutionStatus, RequestDocumentsList, shouldCollapseDocumentsByDefault } from "@/entities/request";
+import type {
+  RequestCustomerDto,
+  RequestDocumentRequestDto,
+} from "@/entities/request";
+import {
+  isOrderExecutionStatus,
+  RequestDocumentsList,
+  shouldCollapseDocumentsByDefault,
+} from "@/entities/request";
 import { DocumentsSectionHeader } from "@/features/documents-security-info";
-import { CustomerRequestContractFilesClient, type CustomerContractBundleListItem } from "@/features/request-contract-files/ui/CustomerRequestContractFilesClient";
+import {
+  CustomerRequestContractFilesClient,
+  type CustomerContractBundleListItem,
+} from "@/features/request-contract-files/ui/CustomerRequestContractFilesClient";
 import { DocumentsNeutralAlert } from "@/shared/ui/DocumentsNeutralAlert";
 import { DocumentsSectionShell } from "@/shared/ui/DocumentsSectionShell";
 
@@ -26,7 +36,10 @@ type Props = {
   canAcceptContract: boolean;
 
   onDeleteRequestedDocument: (docRequestId: string) => Promise<void> | void;
-  onUploadRequestedDocument: (docRequestId: string, file: File) => Promise<void> | void;
+  onUploadRequestedDocument: (
+    docRequestId: string,
+    file: File,
+  ) => Promise<void> | void;
   onOpenOfferDialog: () => void;
   onContractDecisionBusyChange?: (busy: boolean) => void;
   onContractBundlesChange: (next: CustomerContractBundleListItem[]) => void;
@@ -40,32 +53,51 @@ function CustomerDocumentsBanners(props: {
   hasRevisionRequested: boolean;
   hasPending: boolean;
 }) {
-  const { request, hasContractBundles, docRequests, allRequestedDocumentsUploaded, hasRevisionRequested, hasPending } =
-    props;
+  const {
+    request,
+    hasContractBundles,
+    docRequests,
+    allRequestedDocumentsUploaded,
+    hasRevisionRequested,
+    hasPending,
+  } = props;
 
-  if (isOrderExecutionStatus(request.status) || ["CLOSED", "CANCELLED"].includes(request.status)) return null;
+  if (
+    isOrderExecutionStatus(request.status) ||
+    ["CLOSED", "CANCELLED"].includes(request.status)
+  )
+    return null;
 
   return (
     <>
       {Boolean(request.lockedAt) && !hasContractBundles ? (
-        <Typography variant="body2" sx={{
-          color: "text.secondary"
-        }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: "text.secondary",
+          }}
+        >
           Договор готовит компания.
         </Typography>
       ) : null}
 
       {docRequests.length > 0 && !allRequestedDocumentsUploaded ? (
-        <DocumentsNeutralAlert>Исполнитель запросил документы. Загрузите их.</DocumentsNeutralAlert>
+        <DocumentsNeutralAlert>
+          Исполнитель запросил документы. Загрузите их.
+        </DocumentsNeutralAlert>
       ) : null}
 
       {hasRevisionRequested ? (
-        <Alert severity="warning">Вы отправили договор на доработку. Ожидаем обновлённый файл от компании.</Alert>
+        <Alert severity="warning">
+          Вы отправили договор на доработку. Ожидаем обновлённый файл от
+          компании.
+        </Alert>
       ) : null}
 
       {hasPending ? (
         <DocumentsNeutralAlert>
-          Компания прикрепила договор. Скачайте его, проверьте и одобрите или отправьте на доработку.
+          Компания прикрепила договор. Скачайте его, проверьте и одобрите или
+          отправьте на доработку.
         </DocumentsNeutralAlert>
       ) : null}
     </>
@@ -79,10 +111,24 @@ function CustomerRequestedDocumentsBlock(props: {
   busy: boolean;
   docUploadBusy: boolean;
   onDeleteRequestedDocument: (docRequestId: string) => Promise<void> | void;
-  onUploadRequestedDocument: (docRequestId: string, file: File) => Promise<void> | void;
+  onUploadRequestedDocument: (
+    docRequestId: string,
+    file: File,
+  ) => Promise<void> | void;
 }) {
-  const { requestId, requestStatus, items, busy, docUploadBusy, onDeleteRequestedDocument, onUploadRequestedDocument } = props;
-  const [pendingDoc, setPendingDoc] = useState<{ id: string; action: "upload" | "delete" } | null>(null);
+  const {
+    requestId,
+    requestStatus,
+    items,
+    busy,
+    docUploadBusy,
+    onDeleteRequestedDocument,
+    onUploadRequestedDocument,
+  } = props;
+  const [pendingDoc, setPendingDoc] = useState<{
+    id: string;
+    action: "upload" | "delete";
+  } | null>(null);
 
   if (items.length === 0) return null;
 
@@ -93,7 +139,10 @@ function CustomerRequestedDocumentsBlock(props: {
         title="Мои документы"
         items={items}
         renderActions={(d) => {
-          const hasFile = d.status === "UPLOADED" && Boolean(d.originalName) && Boolean(d.mimeType);
+          const hasFile =
+            d.status === "UPLOADED" &&
+            Boolean(d.originalName) &&
+            Boolean(d.mimeType);
           const canUploadHere = d.status === "REQUESTED";
 
           if (!hasFile && !canUploadHere) return null;
@@ -114,7 +163,11 @@ function CustomerRequestedDocumentsBlock(props: {
                     <Button
                       color="error"
                       variant="text"
-                      loading={docUploadBusy && pendingDoc?.id === d.id && pendingDoc.action === "delete"}
+                      loading={
+                        docUploadBusy &&
+                        pendingDoc?.id === d.id &&
+                        pendingDoc.action === "delete"
+                      }
                       disabled={busy || docUploadBusy}
                       onClick={() => {
                         setPendingDoc({ id: d.id, action: "delete" });
@@ -131,9 +184,13 @@ function CustomerRequestedDocumentsBlock(props: {
                 <Button
                   component="label"
                   variant="contained"
-                  loading={docUploadBusy && pendingDoc?.id === d.id && pendingDoc.action === "upload"}
+                  loading={
+                    docUploadBusy &&
+                    pendingDoc?.id === d.id &&
+                    pendingDoc.action === "upload"
+                  }
                   disabled={busy || docUploadBusy}
-                  sx={{ whiteSpace: "nowrap" }}
+                  sx={{ whiteSpace: "normal" }}
                 >
                   Загрузить
                   <input
@@ -158,14 +215,21 @@ function CustomerRequestedDocumentsBlock(props: {
   );
 }
 
-function CustomerAcceptContractActions(props: { canAcceptContract: boolean; busy: boolean; docUploadBusy: boolean; onOpenOfferDialog: () => void }) {
+function CustomerAcceptContractActions(props: {
+  canAcceptContract: boolean;
+  busy: boolean;
+  docUploadBusy: boolean;
+  onOpenOfferDialog: () => void;
+}) {
   const { canAcceptContract, busy, docUploadBusy, onOpenOfferDialog } = props;
 
   return (
     <>
       {canAcceptContract ? (
         <>
-          <Alert severity="success">Все документы одобрены. Теперь можно перейти к заключению договора.</Alert>
+          <Alert severity="success">
+            Все документы одобрены. Теперь можно перейти к заключению договора.
+          </Alert>
           <Stack
             direction="row"
             spacing={1}
@@ -173,9 +237,15 @@ function CustomerAcceptContractActions(props: { canAcceptContract: boolean; busy
             sx={{
               flexWrap: "wrap",
               alignSelf: "flex-start",
-              pt: 2
-            }}>
-            <Button variant="contained" color="success" disabled={busy || docUploadBusy} onClick={() => onOpenOfferDialog()}>
+              pt: 2,
+            }}
+          >
+            <Button
+              variant="contained"
+              color="success"
+              disabled={busy || docUploadBusy}
+              onClick={() => onOpenOfferDialog()}
+            >
               Заключить договор
             </Button>
           </Stack>
@@ -188,12 +258,16 @@ function CustomerAcceptContractActions(props: { canAcceptContract: boolean; busy
 export function CustomerRequestDocumentsSection(props: Props) {
   if (!props.open) return null;
 
-  const collapseByDefault = shouldCollapseDocumentsByDefault(props.request.status);
+  const collapseByDefault = shouldCollapseDocumentsByDefault(
+    props.request.status,
+  );
 
   return (
     <DocumentsSectionShell
       id="documents"
-      headerLeft={<DocumentsSectionHeader titleVariant="body1" titleWeight={800} />}
+      headerLeft={
+        <DocumentsSectionHeader titleVariant="body1" titleWeight={800} />
+      }
       headerRight={null}
       spacing={1}
       collapsible={collapseByDefault}
@@ -210,13 +284,12 @@ export function CustomerRequestDocumentsSection(props: Props) {
       />
 
       <Box id="contract-review" tabIndex={-1} sx={{ scrollMarginTop: "96px" }}>
-      <CustomerRequestContractFilesClient
-        requestId={props.request.id}
-        bundles={props.contractBundles}
-        onBundlesChange={props.onContractBundlesChange}
-        onBusyChange={props.onContractDecisionBusyChange}
-      />
-
+        <CustomerRequestContractFilesClient
+          requestId={props.request.id}
+          bundles={props.contractBundles}
+          onBundlesChange={props.onContractBundlesChange}
+          onBusyChange={props.onContractDecisionBusyChange}
+        />
       </Box>
 
       <CustomerRequestedDocumentsBlock
@@ -238,4 +311,3 @@ export function CustomerRequestDocumentsSection(props: Props) {
     </DocumentsSectionShell>
   );
 }
-

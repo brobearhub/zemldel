@@ -56,24 +56,27 @@ export function RequestDetailHeaderCard({
             justifyContent: "space-between",
             minWidth: 0,
             width: "100%",
-            pb: { md: 2 }
-          }}>
+            pb: { md: 2 },
+          }}
+        >
           <Stack spacing={0.5} sx={{ minWidth: 0, flex: "1 1 auto" }}>
             <Typography
               variant="h4"
               sx={{
-                fontWeight: 800,
+                fontWeight: 700,
                 color: "text.primary",
-                overflowWrap: "anywhere"
-              }}>
+                overflowWrap: "anywhere",
+              }}
+            >
               {title}
             </Typography>
             <Typography
               variant="body2"
               sx={{
                 color: "text.secondary",
-                display: "none"
-              }}>
+                display: "none",
+              }}
+            >
               {subtitle}
             </Typography>
           </Stack>
@@ -84,11 +87,13 @@ export function RequestDetailHeaderCard({
               flexShrink: 0,
               alignSelf: "flex-start",
               mt: 0.25,
-              bgcolor: alpha(theme.palette.common.black, 0.08),
+              bgcolor: "background.paper",
               color: "text.secondary",
               fontWeight: 600,
-              border: "none",
-              height: 28,
+              border: "1px solid",
+              borderColor: "divider",
+              height: "auto",
+              minHeight: 36,
               "& .MuiChip-label": { px: 1.25 },
             })}
           />
@@ -129,8 +134,9 @@ export function RequestDetailHeaderCard({
                     fontWeight: 700,
                     color: "text.primary",
                     whiteSpace: "pre-wrap",
-                    lineHeight: 1.5
-                  }}>
+                    lineHeight: 1.5,
+                  }}
+                >
                   {body}
                 </Typography>
               </Paper>
@@ -146,11 +152,16 @@ export function RequestDetailHeaderCard({
               alignItems: { xs: "stretch", sm: "center" },
               justifyContent: "space-between",
               width: "100%",
-              pt: { xs: 2, sm: 1 }
-            }}>
+              pt: { xs: 2, sm: 1 },
+            }}
+          >
             <Box sx={{ minWidth: 0, flex: "1 1 auto" }}>{afterBody}</Box>
             {footerEnd ? (
-              <Box sx={{ flexShrink: 0, display: "flex", alignItems: "center" }}>{footerEnd}</Box>
+              <Box
+                sx={{ flexShrink: 0, display: "flex", alignItems: "center" }}
+              >
+                {footerEnd}
+              </Box>
             ) : null}
           </Stack>
         ) : null}

@@ -1,7 +1,14 @@
 "use client";
 
 import { Suspense, useState, type FormEvent } from "react";
-import { Alert, Box, Button, Stack, TextField, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authCardShellSx } from "@/app/(site)/auth-card-shell";
 import Link from "@/shared/ui/Link";
@@ -32,12 +39,15 @@ function ResetPasswordForm() {
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormError(null);
-    const nextPasswordError = password.length < 6 ? "Пароль должен быть не короче 6 символов" : null;
-    const nextConfirmError = password !== confirm ? "Пароли не совпадают" : null;
+    const nextPasswordError =
+      password.length < 6 ? "Пароль должен быть не короче 6 символов" : null;
+    const nextConfirmError =
+      password !== confirm ? "Пароли не совпадают" : null;
     setPasswordError(nextPasswordError);
     setConfirmError(nextConfirmError);
     if (nextPasswordError || nextConfirmError || token.length < 20) {
-      if (token.length < 20) setFormError("Ссылка недействительна или устарела. Запросите новую.");
+      if (token.length < 20)
+        setFormError("Ссылка недействительна или устарела. Запросите новую.");
       return;
     }
 
@@ -48,12 +58,15 @@ function ResetPasswordForm() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ token, password }),
       });
-      const payload = (await response.json().catch(() => null)) as
-        | { error?: string; fieldErrors?: { password?: string } }
-        | null;
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+        fieldErrors?: { password?: string };
+      } | null;
       if (!response.ok) {
         setPasswordError(payload?.fieldErrors?.password ?? null);
-        setFormError(payload?.error ?? "Не удалось обновить пароль. Попробуйте ещё раз.");
+        setFormError(
+          payload?.error ?? "Не удалось обновить пароль. Попробуйте ещё раз.",
+        );
         return;
       }
       router.push("/signin?notice=password-reset");
@@ -66,11 +79,13 @@ function ResetPasswordForm() {
 
   return (
     <Box sx={authCardShellSx}>
-      <RainGlassPaper sx={{ width: "100%", maxWidth: 420, p: 4 }}>
+      <RainGlassPaper
+        sx={{ width: "100%", maxWidth: 480, p: { xs: 2, sm: 4 } }}
+      >
         <Stack spacing={2.5}>
           <Stack spacing={1} sx={{ alignItems: "center" }}>
-            <LogoFull size={80} layout="right" tone="light" priority />
-            <Typography component="h1" variant="h5" sx={{ fontWeight: 700 }}>
+            <LogoFull size={64} layout="right" tone="auto" priority />
+            <Typography component="h1" variant="h1" sx={{ fontWeight: 700 }}>
               Новый пароль
             </Typography>
           </Stack>
@@ -96,7 +111,9 @@ function ResetPasswordForm() {
                     endAdornment: (
                       <PasswordVisibilityButton
                         visible={passwordVisible}
-                        onToggle={() => setPasswordVisible((current) => !current)}
+                        onToggle={() =>
+                          setPasswordVisible((current) => !current)
+                        }
                       />
                     ),
                   },
@@ -117,12 +134,28 @@ function ResetPasswordForm() {
                 error={Boolean(confirmError)}
                 helperText={confirmError ?? " "}
               />
-              <Button type="submit" variant="contained" size="large" fullWidth loading={loading} sx={{ minHeight: 44 }}>
+              <Button
+                type="submit"
+                variant="contained"
+                size="large"
+                fullWidth
+                loading={loading}
+                sx={{ minHeight: 44 }}
+              >
                 Сохранить пароль
               </Button>
             </Stack>
           </Box>
-          <Link href="/forgot-password" sx={{ color: "inherit", fontWeight: 600, minHeight: 44, display: "inline-flex", alignItems: "center" }}>
+          <Link
+            href="/forgot-password"
+            sx={{
+              color: "inherit",
+              fontWeight: 600,
+              minHeight: 44,
+              display: "inline-flex",
+              alignItems: "center",
+            }}
+          >
             Запросить новую ссылку
           </Link>
         </Stack>

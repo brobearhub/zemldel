@@ -242,7 +242,7 @@ export class BillingService {
     const config = billingConfig();
     const selected = BILLING_PRODUCTS[order.product as BillingProduct];
     const providerId = order.providerId;
-    const returnUrl = `${config.siteUrl}/pro/billing?order=${order.id}`;
+    const returnUrl = `${config.siteUrl}/pro/settings/tariff?order=${order.id}`;
     // Persist first, then exactly one Init. A lost response is recovered by CheckOrder.
     const result = await this.bank.call('Init', {
       Amount: order.amount,

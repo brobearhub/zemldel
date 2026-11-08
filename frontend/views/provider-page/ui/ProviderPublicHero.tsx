@@ -2,7 +2,11 @@ import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import { Box, Rating, Stack, Typography } from "@mui/material";
 import type { PublicProviderProfileDto } from "@/entities/provider";
 import { formatReviewCount } from "@/entities/review";
-import { providerHeroCaption, providerHeroGreeting, providerHeroIntro } from "../lib/provider-hero-copy";
+import {
+  providerHeroCaption,
+  providerHeroGreeting,
+  providerHeroIntro,
+} from "../lib/provider-hero-copy";
 import { displayCityName } from "@/shared/lib/format-city-label";
 import { CdnFillImage } from "@/shared/ui/cdn-image";
 import { ProfileTrustNote } from "@/shared/ui/ProfileTrustNote";
@@ -14,9 +18,13 @@ type Props = {
 export function ProviderPublicHero({ provider }: Props) {
   const greeting = providerHeroGreeting(provider.name, provider.type);
   const caption = providerHeroCaption(provider.name);
-  const cityName = provider.city?.name ? displayCityName(provider.city.name) : "";
+  const cityName = provider.city?.name
+    ? displayCityName(provider.city.name)
+    : "";
   const intro = providerHeroIntro(provider.about, provider.subtitle);
-  const stats = provider.stats.filter((stat) => stat.value.trim() && stat.label.trim()).slice(0, 3);
+  const stats = provider.stats
+    .filter((stat) => stat.value.trim() && stat.label.trim())
+    .slice(0, 3);
 
   return (
     <Box
@@ -36,7 +44,7 @@ export function ProviderPublicHero({ provider }: Props) {
           flexDirection: "column",
           alignItems: "flex-start",
           gap: { xs: 0.5, md: 1 },
-          width: { xs: 230, sm: 270, md: 300 },          
+          width: { xs: 230, sm: 270, md: 300 },
           transform: "rotate(3deg)",
         }}
       >
@@ -46,8 +54,8 @@ export function ProviderPublicHero({ provider }: Props) {
               px: 1,
               textAlign: "center",
               fontWeight: 600,
-              fontSize: { xs: 10, md: 14 },
-              lineHeight: 1,
+              fontSize: { xs: "1rem", md: "1rem" },
+              lineHeight: 1.5,
             }}
           >
             {cityName}
@@ -64,73 +72,82 @@ export function ProviderPublicHero({ provider }: Props) {
             borderRadius: "10px 10px 10px 10px",
           }}
         >
-        <Box
-          sx={{
-            position: "relative",
-            aspectRatio: "3 / 4",
-            overflow: "hidden",
-            bgcolor: "action.hover",
-            borderRadius: "10px 10px 10px 10px",
-            transform: "rotate(-5deg) translate(-30px, -7px)",
-          }}
-        >
-          {provider.image ? (
-            <CdnFillImage
-              src={provider.image}
-              alt={provider.name}
-              sizes="(max-width: 600px) 230px, (max-width: 900px) 270px, 300px"
-              unoptimized={process.env.NODE_ENV !== "production"}
-              style={{ objectFit: "cover", objectPosition: "center top" }}
-            />
-          ) : (
-            <Box
-              sx={{
-                position: "absolute",
-                inset: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "primary.dark",
-                bgcolor: "background.default",
-              }}
-            >
-              <PersonRoundedIcon sx={{ fontSize: { xs: 72, md: 96 }, opacity: 0.45 }} />
-            </Box>
-          )}
-        </Box>
-        <Typography
-          sx={{
-            pt: { xs: 1.5, md: 2 },
-            px: 1,
-            textAlign: "center",
-            fontWeight: 700,
-            fontSize: { xs: 20, md: 26 },
-            lineHeight: 1.2,
-          }}
-        >
-          {caption}
-        </Typography>
-        {provider.subtitle?.trim() ? (
-          <Typography variant="body2" sx={{ textAlign: "center", pb: 3, pt: 1 }}>
-            {provider.subtitle.trim()}
+          <Box
+            sx={{
+              position: "relative",
+              aspectRatio: "3 / 4",
+              overflow: "hidden",
+              bgcolor: "action.hover",
+              borderRadius: "10px 10px 10px 10px",
+              transform: "rotate(-5deg) translate(-30px, -7px)",
+            }}
+          >
+            {provider.image ? (
+              <CdnFillImage
+                src={provider.image}
+                alt={provider.name}
+                sizes="(max-width: 600px) 230px, (max-width: 900px) 270px, 300px"
+                unoptimized={process.env.NODE_ENV !== "production"}
+                style={{ objectFit: "cover", objectPosition: "center top" }}
+              />
+            ) : (
+              <Box
+                sx={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "primary.dark",
+                  bgcolor: "background.default",
+                }}
+              >
+                <PersonRoundedIcon
+                  sx={{ fontSize: { xs: 72, md: 96 }, opacity: 0.45 }}
+                />
+              </Box>
+            )}
+          </Box>
+          <Typography
+            sx={{
+              pt: { xs: 1.5, md: 2 },
+              px: 1,
+              textAlign: "center",
+              fontWeight: 700,
+              fontSize: { xs: "1.25rem", md: "1.625rem" },
+              lineHeight: 1.2,
+            }}
+          >
+            {caption}
           </Typography>
-        ) : null}
+          {provider.subtitle?.trim() ? (
+            <Typography
+              variant="body2"
+              sx={{ textAlign: "center", pb: 3, pt: 1 }}
+            >
+              {provider.subtitle.trim()}
+            </Typography>
+          ) : null}
         </Box>
       </Box>
 
       <Stack
         spacing={{ xs: 2, md: 3 }}
-        sx={{ order: { xs: 1, md: 1 }, flex: "1 1 auto", minWidth: 0, width: { xs: "100%", md: "auto" } }}
+        sx={{
+          order: { xs: 1, md: 1 },
+          flex: "1 1 auto",
+          minWidth: 0,
+          width: { xs: "100%", md: "auto" },
+        }}
       >
         <Typography
           component="h1"
+          variant="h1"
           sx={{
             m: 0,
-            fontWeight: 800,
-            fontSize: { xs: 34, md: 48 },
-            lineHeight: 1.12,
+            fontWeight: 700,
             letterSpacing: "-0.02em",
-            color: "common.black",
+            color: "text.primary",
           }}
         >
           {greeting}
@@ -143,7 +160,7 @@ export function ProviderPublicHero({ provider }: Props) {
             sx={{
               maxWidth: 560,
               fontWeight: 500,
-              fontSize: { xs: 18, md: 22 },
+              fontSize: { xs: "1.125rem", md: "1.375rem" },
               lineHeight: 1.45,
             }}
           >
@@ -162,7 +179,7 @@ export function ProviderPublicHero({ provider }: Props) {
               width: "fit-content",
               maxWidth: "100%",
               transform: "rotate(-2deg)",
-              pt: 4
+              pt: 4,
             }}
           >
             {stats.map((stat, index: number) => (
@@ -175,7 +192,7 @@ export function ProviderPublicHero({ provider }: Props) {
                   bgcolor: "background.default",
                   color: "text.primary",
                   fontWeight: 700,
-                  fontSize: { xs: 16, md: 20 },
+                  fontSize: { xs: "1rem", md: "1.25rem" },
                   lineHeight: 1.35,
                   ml: 3 - index,
                 }}
@@ -188,10 +205,20 @@ export function ProviderPublicHero({ provider }: Props) {
         ) : null}
 
         {provider.rating != null ? (
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center", pt: 4 }}>
-            <Rating value={provider.rating} precision={0.1} readOnly size="small" />
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ alignItems: "center", pt: 4 }}
+          >
+            <Rating
+              value={provider.rating}
+              precision={0.1}
+              readOnly
+              size="small"
+            />
             <Typography variant="body2">
-              {provider.rating.toFixed(1)} · {formatReviewCount(provider.reviewCount)}
+              {provider.rating.toFixed(1)} ·{" "}
+              {formatReviewCount(provider.reviewCount)}
             </Typography>
           </Stack>
         ) : null}

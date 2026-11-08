@@ -21,11 +21,16 @@ type Props = {
 };
 
 function compareCategories(a: ServiceCategoryRow, b: ServiceCategoryRow) {
-  return (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name, "ru");
+  return (
+    (a.sortOrder ?? 0) - (b.sortOrder ?? 0) ||
+    a.name.localeCompare(b.name, "ru")
+  );
 }
 
 export function ServiceCategoriesSection({ categories, embedded }: Props) {
-  const rootCategories = categories.filter((category) => category.parentId == null).sort(compareCategories);
+  const rootCategories = categories
+    .filter((category) => category.parentId == null)
+    .sort(compareCategories);
   if (!rootCategories.length) return null;
 
   const content = (
@@ -99,9 +104,10 @@ export function ServiceCategoriesSection({ categories, embedded }: Props) {
               >
                 <Typography
                   component="h3"
+                  variant="h3"
                   id={`service-category-${category.id}`}
                   sx={{
-                    fontSize: { xs: 21, md: 22 },
+                    fontSize: { xs: "1.3125rem", md: "1.375rem" },
                     lineHeight: 1.4,
                     fontWeight: 600,
                   }}
@@ -113,7 +119,10 @@ export function ServiceCategoriesSection({ categories, embedded }: Props) {
                       color: "text.primary",
                       textDecoration: "none",
                       "&:hover": { textDecoration: "underline" },
-                      "&:focus-visible": { outline: "2px solid currentColor", outlineOffset: 4 },
+                      "&:focus-visible": {
+                        outline: "2px solid currentColor",
+                        outlineOffset: 4,
+                      },
                     }}
                   >
                     {category.name}
@@ -146,12 +155,15 @@ export function ServiceCategoriesSection({ categories, embedded }: Props) {
                             minHeight: 44,
                             py: 1.25,
                             color: "text.primary",
-                            fontSize: 15,
+                            fontSize: "1rem",
                             lineHeight: 1.5,
                             overflowWrap: "anywhere",
                             textDecoration: "none",
                             "&:hover": { textDecoration: "underline" },
-                            "&:focus-visible": { outline: "2px solid currentColor", outlineOffset: 2 },
+                            "&:focus-visible": {
+                              outline: "2px solid currentColor",
+                              outlineOffset: 2,
+                            },
                           }}
                         >
                           {child.name}
@@ -172,11 +184,14 @@ export function ServiceCategoriesSection({ categories, embedded }: Props) {
                     gap: 1,
                     minHeight: 44,
                     color: "text.primary",
-                    fontSize: 14,
+                    fontSize: "1rem",
                     fontWeight: 600,
                     textDecoration: "none",
                     "&:hover": { textDecoration: "underline" },
-                    "&:focus-visible": { outline: "2px solid currentColor", outlineOffset: 4 },
+                    "&:focus-visible": {
+                      outline: "2px solid currentColor",
+                      outlineOffset: 4,
+                    },
                   }}
                 >
                   Подробнее

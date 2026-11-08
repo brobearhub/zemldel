@@ -90,8 +90,12 @@ export class PassportPhotoStorageService {
           Body: photo.body,
           ContentType: photo.mimeType,
           CacheControl: 'private, no-store',
-          ServerSideEncryption: 'aws:kms',
-          SSEKMSKeyId: kmsKeyId,
+          ...(kmsKeyId
+            ? {
+                ServerSideEncryption: 'aws:kms' as const,
+                SSEKMSKeyId: kmsKeyId,
+              }
+            : {}),
         }),
       );
     } catch {

@@ -80,8 +80,8 @@ async function main() {
     const object = await client.send(
       new GetObjectCommand({ Bucket: bucket, Key: row.storageKey }),
     );
-    assert.equal(object.ServerSideEncryption, 'aws:kms');
-    assert.equal(object.SSEKMSKeyId, kmsKeyId);
+    assert.equal(object.ServerSideEncryption, kmsKeyId ? 'aws:kms' : undefined);
+    assert.equal(object.SSEKMSKeyId, kmsKeyId ?? undefined);
     await object.Body!.transformToByteArray();
     assert.equal(
       (await fetch(`${base}/${id}`, { headers: auth(users[1]) })).status,

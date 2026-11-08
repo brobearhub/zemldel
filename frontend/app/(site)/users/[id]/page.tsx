@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getServerAuthSession } from "@/core/auth";
-import { BackendApiError, fetchBackendJson, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
+import {
+  BackendApiError,
+  fetchBackendJson,
+  fetchBackendJsonAsUser,
+} from "@/shared/api/backend/server";
 import { Container, Rating, Stack, Typography } from "@mui/material";
 import { CdnAvatar } from "@/shared/ui/cdn-image";
 import { displayCityName } from "@/shared/lib/format-city-label";
@@ -11,8 +15,20 @@ type PublicUser = {
   name: string;
   image: string | null;
   cityName: string | null;
-  reviewsWritten: Array<{ id: string; rating: number; text: string | null; createdAt: string; providerName: string | null }>;
-  reviewsReceived: Array<{ id: string; rating: number; text: string | null; createdAt: string; providerName: string | null }>;
+  reviewsWritten: Array<{
+    id: string;
+    rating: number;
+    text: string | null;
+    createdAt: string;
+    providerName: string | null;
+  }>;
+  reviewsReceived: Array<{
+    id: string;
+    rating: number;
+    text: string | null;
+    createdAt: string;
+    providerName: string | null;
+  }>;
 };
 
 export const metadata: Metadata = {
@@ -20,7 +36,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: true },
 };
 
-export default async function PublicUserPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PublicUserPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const session = await getServerAuthSession();
   let profile: PublicUser;
@@ -39,21 +59,29 @@ export default async function PublicUserPage({ params }: { params: Promise<{ id:
       {profile ? (
         <Stack spacing={3}>
           <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-            <CdnAvatar src={profile.image ?? undefined} sx={{ width: 96, height: 96 }} />
+            <CdnAvatar
+              src={profile.image ?? undefined}
+              sx={{ width: 96, height: 96 }}
+            />
             <Stack>
-              <Typography
-                variant="h4"
-                component="h1"
-              >
+              <Typography variant="h1" component="h1">
                 {profile.name}
               </Typography>
               {profile.cityName ? (
-                <Typography color="text.secondary">{displayCityName(profile.cityName)}</Typography>
+                <Typography color="text.secondary">
+                  {displayCityName(profile.cityName)}
+                </Typography>
               ) : null}
             </Stack>
           </Stack>
-          <ReviewList title="Отзывы пользователя" items={profile.reviewsWritten} />
-          <ReviewList title="Отзывы о пользователе" items={profile.reviewsReceived} />
+          <ReviewList
+            title="Отзывы пользователя"
+            items={profile.reviewsWritten}
+          />
+          <ReviewList
+            title="Отзывы о пользователе"
+            items={profile.reviewsReceived}
+          />
         </Stack>
       ) : null}
     </Container>
@@ -70,12 +98,18 @@ function ReviewList({
   return (
     <Stack spacing={1}>
       <Typography variant="h6">{title}</Typography>
-      {items.length === 0 ? <Typography color="text.secondary">Пока нет отзывов.</Typography> : null}
+      {items.length === 0 ? (
+        <Typography color="text.secondary">Пока нет отзывов.</Typography>
+      ) : null}
       {items.map((review) => (
         <Stack key={review.id} spacing={0.5}>
           <Rating value={review.rating} readOnly size="small" />
-          {review.providerName ? <Typography variant="body2">{review.providerName}</Typography> : null}
-          {review.text ? <Typography variant="body1">{review.text}</Typography> : null}
+          {review.providerName ? (
+            <Typography variant="body2">{review.providerName}</Typography>
+          ) : null}
+          {review.text ? (
+            <Typography variant="body1">{review.text}</Typography>
+          ) : null}
         </Stack>
       ))}
     </Stack>

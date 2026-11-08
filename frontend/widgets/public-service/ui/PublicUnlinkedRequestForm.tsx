@@ -55,8 +55,13 @@ export function PublicUnlinkedRequestForm({
   const router = useRouter();
   const selectedCity = useSelectedCity("customer");
   const { data: session } = useSession();
-  const actor = isAuthenticated ? session?.user?.id ?? null : "guest";
-  const { form, setForm, cityOverride, setCityOverride, clearDraft } = useRequestFormDraft(actor, sectionCategory?.id ?? initialCategory?.id ?? "FREEFORM", initialCategory);
+  const actor = isAuthenticated ? (session?.user?.id ?? null) : "guest";
+  const { form, setForm, cityOverride, setCityOverride, clearDraft } =
+    useRequestFormDraft(
+      actor,
+      sectionCategory?.id ?? initialCategory?.id ?? "FREEFORM",
+      initialCategory,
+    );
   const city = cityOverride === undefined ? selectedCity : cityOverride;
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -65,28 +70,46 @@ export function PublicUnlinkedRequestForm({
   useEffect(() => {
     if (!actor || restored.current) return;
     restored.current = true;
-    if (isAuthenticated && new URLSearchParams(window.location.search).get("requestDraft") !== "1") return;
+    if (
+      isAuthenticated &&
+      new URLSearchParams(window.location.search).get("requestDraft") !== "1"
+    )
+      return;
     const saved = readPendingRequestDraft();
     if (!saved || saved.kind === "SERVICE" || saved.createdRequestId) return;
-    const savedCategory = saved.kind === "CATEGORY"
-      ? categories.find((item) => item.id === saved.categoryId) ??
-        (sectionCategory?.id === saved.categoryId ? sectionCategory : null)
-      : null;
+    const savedCategory =
+      saved.kind === "CATEGORY"
+        ? (categories.find((item) => item.id === saved.categoryId) ??
+          (sectionCategory?.id === saved.categoryId ? sectionCategory : null))
+        : null;
     if (saved.kind === "CATEGORY" && !savedCategory) return;
     setForm({
       message: saved.message ?? "",
-      cadastralNumbers: saved.cadastralNumbers.length ? saved.cadastralNumbers.map(cadastralPartsFromInput) : [createEmptyCadastralParts()],
+      cadastralNumbers: saved.cadastralNumbers.length
+        ? saved.cadastralNumbers.map(cadastralPartsFromInput)
+        : [createEmptyCadastralParts()],
       category: savedCategory,
     });
     if (saved.requestCity) setCityOverride(saved.requestCity);
-  }, [actor, categories, isAuthenticated, sectionCategory, setForm, setCityOverride]);
+  }, [
+    actor,
+    categories,
+    isAuthenticated,
+    sectionCategory,
+    setForm,
+    setCityOverride,
+  ]);
 
-  const subcategory = categories.find((option) => option.id === form.category?.id) ?? null;
+  const subcategory =
+    categories.find((option) => option.id === form.category?.id) ?? null;
   const category = subcategory ?? sectionCategory;
 
   const { validationError, isBlocked } = useMemo(() => {
     if (!city) {
-      return { validationError: "Выберите населённый пункт, где нужны работы.", isBlocked: true };
+      return {
+        validationError: "Выберите населённый пункт, где нужны работы.",
+        isBlocked: true,
+      };
     }
 
     const msg = form.message.trim();
@@ -131,7 +154,9 @@ export function PublicUnlinkedRequestForm({
       const cadastralNumbers = cadastral.numbers;
 
       const draft = {
-        ...(category ? { kind: "CATEGORY" as const, categoryId: category.id } : { kind: "FREEFORM" as const }),
+        ...(category
+          ? { kind: "CATEGORY" as const, categoryId: category.id }
+          : { kind: "FREEFORM" as const }),
         message,
         requestCityId,
         requestCity: city,
@@ -140,17 +165,25 @@ export function PublicUnlinkedRequestForm({
       };
 
       if (isAuthenticated) {
-        const res = await fetchIdempotentWrite(category ? `/api/service-categories/${category.id}/requests` : "/api/requests", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ message, requestCityId, cadastralNumbers }),
-        });
+        const res = await fetchIdempotentWrite(
+          category
+            ? `/api/service-categories/${category.id}/requests`
+            : "/api/requests",
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ message, requestCityId, cadastralNumbers }),
+          },
+        );
         if (res.status === 401) {
           savePendingRequestDraft(draft);
           router.push(buildRequestAuthHref("signin", draft, true));
           return;
         }
-        const payload = (await res.json().catch(() => null)) as { id?: string; error?: string } | null;
+        const payload = (await res.json().catch(() => null)) as {
+          id?: string;
+          error?: string;
+        } | null;
         if (!res.ok || !payload?.id) {
           throw new Error(payload?.error ?? "Не удалось создать заявку");
         }
@@ -172,9 +205,17 @@ export function PublicUnlinkedRequestForm({
   const content = (
     <Stack
       spacing={variant === "card" ? 4 : 2.5}
-      sx={variant === "card" ? { flex: 1, justifyContent: "space-between" } : undefined}
+      sx={
+        variant === "card"
+          ? { flex: 1, justifyContent: "space-between" }
+          : undefined
+      }
     >
-      <Stack spacing={variant === "card" ? 4 : 2} component="form" onSubmit={handleSubmit}>
+      <Stack
+        spacing={variant === "card" ? 4 : 2}
+        component="form"
+        onSubmit={handleSubmit}
+      >
         {variant === "card" ? (
           <Stack spacing={1.5}>
             <Stack
@@ -185,9 +226,9 @@ export function PublicUnlinkedRequestForm({
               <RequestFormLogo compact />
               <Typography
                 sx={{
-                  fontWeight: 500,
-                  fontSize: 20,
-                  lineHeight: 1.6,
+                  fontWeight: 700,
+                  fontSize: { xs: "1.375rem", md: "1.5rem" },
+                  lineHeight: 1.4,
                   letterSpacing: "0.15px",
                   textAlign: "center",
                 }}
@@ -195,8 +236,12 @@ export function PublicUnlinkedRequestForm({
                 Нужна помощь?
               </Typography>
             </Stack>
-            <Typography variant="body2" sx={{ color: "text.secondary", textAlign: "center" }}>
-              Заявку увидят несколько подходящих исполнителей. Сравните ответы в чатах и выберите одного.
+            <Typography
+              variant="body2"
+              sx={{ color: "text.secondary", textAlign: "center" }}
+            >
+              Заявку увидят несколько подходящих исполнителей. Сравните ответы в
+              чатах и выберите одного.
             </Typography>
           </Stack>
         ) : (
@@ -207,31 +252,46 @@ export function PublicUnlinkedRequestForm({
                 : "Чтобы создать заявку, нужно зарегистрироваться или войти. После этого система продолжит оформление автоматически."}
             </Typography>
             <Typography variant="body2" sx={{ color: "text.secondary" }}>
-              Заявку увидят несколько подходящих исполнителей. Сравните ответы в чатах и выберите одного.
+              Заявку увидят несколько подходящих исполнителей. Сравните ответы в
+              чатах и выберите одного.
             </Typography>
           </Stack>
         )}
 
-        {validationError && city && !error ? <Alert severity="warning">{validationError}</Alert> : null}
+        {validationError && city && !error ? (
+          <Alert severity="warning">{validationError}</Alert>
+        ) : null}
         {error ? <Alert severity="warning">{error}</Alert> : null}
 
         <Stack spacing={2}>
           <TextField
             label="Что нужно сделать?"
             value={form.message}
-            onChange={(event) => setForm((prev) => ({ ...prev, message: event.target.value }))}
+            onChange={(event) =>
+              setForm((prev) => ({ ...prev, message: event.target.value }))
+            }
             disabled={busy || !actor}
             fullWidth
             multiline
             minRows={3}
             required
+            sx={{
+              "& .MuiInputBase-multiline": {
+                minHeight: 144,
+                alignItems: "flex-start",
+              },
+            }}
           />
 
           <Stack spacing={2}>
             <LocationField
               label="Где нужны работы?"
               caption="Где нужны работы? *"
-              helperText={!city ? "Выберите населённый пункт, чтобы продолжить." : undefined}
+              helperText={
+                !city
+                  ? "Выберите населённый пункт, чтобы продолжить."
+                  : undefined
+              }
               value={city}
               onChange={(next) => {
                 setCityOverride(next);
@@ -242,7 +302,9 @@ export function PublicUnlinkedRequestForm({
 
             <CadastralNumberChipsField
               value={form.cadastralNumbers}
-              onChange={(cadastralNumbers) => setForm((prev) => ({ ...prev, cadastralNumbers }))}
+              onChange={(cadastralNumbers) =>
+                setForm((prev) => ({ ...prev, cadastralNumbers }))
+              }
               disabled={busy || !actor}
             />
           </Stack>
@@ -266,7 +328,8 @@ export function PublicUnlinkedRequestForm({
               <RadioGroup
                 value={subcategory?.id ?? ""}
                 onChange={(_, id) => {
-                  const next = categories.find((option) => option.id === id) ?? null;
+                  const next =
+                    categories.find((option) => option.id === id) ?? null;
                   setForm((prev) => ({ ...prev, category: next }));
                 }}
               >
@@ -285,7 +348,10 @@ export function PublicUnlinkedRequestForm({
                       />
                     }
                     label={
-                      <Typography variant="body2" sx={{ pt: 0.25, color: "text.secondary" }}>
+                      <Typography
+                        variant="body2"
+                        sx={{ pt: 0.25, color: "text.secondary" }}
+                      >
                         {option.name}
                       </Typography>
                     }
@@ -309,9 +375,9 @@ export function PublicUnlinkedRequestForm({
           loading={busy}
           disabled={isBlocked || !actor}
           sx={{
-            fontWeight: 500,
-            fontSize: 13,
-            lineHeight: "22px",
+            fontWeight: 700,
+            fontSize: "1rem",
+            lineHeight: 1.5,
             letterSpacing: "0.46px",
             textTransform: "none",
             py: 1,
@@ -324,8 +390,26 @@ export function PublicUnlinkedRequestForm({
         >
           {isAuthenticated ? "Создать заявку" : "Продолжить"}
         </Button>
-        {form.message || cityOverride || form.category || form.cadastralNumbers.some(p => p.some(Boolean)) ? (
-          <Stack spacing={0.5}><Typography variant="caption" sx={{ color: "text.secondary", textAlign: "center" }}>Черновик сохраняется в этой вкладке на 24 часа.</Typography><Button type="button" onClick={clearDraft} disabled={busy || !actor} sx={{ alignSelf: "center" }}>Очистить черновик</Button></Stack>
+        {form.message ||
+        cityOverride ||
+        form.category ||
+        form.cadastralNumbers.some((p) => p.some(Boolean)) ? (
+          <Stack spacing={0.5}>
+            <Typography
+              variant="caption"
+              sx={{ color: "text.secondary", textAlign: "center" }}
+            >
+              Черновик сохраняется в этой вкладке на 24 часа.
+            </Typography>
+            <Button
+              type="button"
+              onClick={clearDraft}
+              disabled={busy || !actor}
+              sx={{ alignSelf: "center" }}
+            >
+              Очистить черновик
+            </Button>
+          </Stack>
         ) : null}
       </Stack>
     </Stack>

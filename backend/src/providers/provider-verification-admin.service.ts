@@ -291,7 +291,7 @@ export class ProviderVerificationAdminService {
       : 'Заявку на проверку отклонили';
     const text = decision.approved
       ? 'Администратор подтвердил реквизиты. В кабинете у профиля стоит значок «Реквизиты проверены».'
-      : `Заявку отклонили: ${reason}\nИсправить и отправить снова: ${origin}/pro/profile/verification`;
+      : `Заявку отклонили: ${reason}\nИсправить и отправить снова: ${origin}/pro/settings/profile/verification`;
     try {
       await this.mail.send({ to: decision.ownerEmail, subject, text });
     } catch (error) {

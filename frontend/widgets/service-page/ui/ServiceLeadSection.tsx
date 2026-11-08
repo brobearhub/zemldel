@@ -1,5 +1,8 @@
 import { Box, Container, Paper, Stack, Typography } from "@mui/material";
-import { ServiceAskQuestionButton, ServiceLeadCaptureForm } from "@/features/create-service-request-lead";
+import {
+  ServiceAskQuestionButton,
+  ServiceLeadCaptureForm,
+} from "@/features/create-service-request-lead";
 
 type Props = {
   serviceId: string;
@@ -8,7 +11,12 @@ type Props = {
   initialCustomerEmail: string | null;
 };
 
-export function ServiceLeadSection({ serviceId, serviceTitle, isAuthenticated, initialCustomerEmail }: Props) {
+export function ServiceLeadSection({
+  serviceId,
+  serviceTitle,
+  isAuthenticated,
+  initialCustomerEmail,
+}: Props) {
   return (
     <Box
       component="section"
@@ -24,12 +32,18 @@ export function ServiceLeadSection({ serviceId, serviceTitle, isAuthenticated, i
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "minmax(0, 806px) 590px" },
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              md: "minmax(0, 1fr) minmax(0, 1fr)",
+            },
             gap: { xs: 3, md: "24px" },
             alignItems: { md: "start" },
           }}
         >
-          <Stack spacing={{ xs: 2, md: 3 }} sx={{ color: "common.white", pt: { md: 2 } }}>
+          <Stack
+            spacing={{ xs: 2, md: 3 }}
+            sx={{ color: "common.white", pt: { md: 2 } }}
+          >
             <Typography
               component="h2"
               variant="h4"
@@ -37,7 +51,14 @@ export function ServiceLeadSection({ serviceId, serviceTitle, isAuthenticated, i
             >
               {serviceTitle}
             </Typography>
-            <Typography sx={{ color: "#e8efea", maxWidth: 820, fontSize: { xs: 14, md: 16 }, lineHeight: { xs: 1.43, md: 1.5 } }}>
+            <Typography
+              sx={{
+                color: "#e8efea",
+                maxWidth: 820,
+                fontSize: { xs: "1rem", md: "1rem" },
+                lineHeight: { xs: 1.43, md: 1.5 },
+              }}
+            >
               {isAuthenticated
                 ? "Заявка появится в вашем профиле, а чат с исполнителем откроется сразу после отправки."
                 : "Укажите электронную почту, чтобы отправить заявку исполнителю."}
@@ -54,10 +75,7 @@ export function ServiceLeadSection({ serviceId, serviceTitle, isAuthenticated, i
           >
             <Stack spacing={2.25}>
               <Stack spacing={0.5}>
-                <Typography
-                  component="h3"
-                  variant="h5"
-                >
+                <Typography component="h3" variant="h5">
                   Оставить заявку
                 </Typography>
                 <Typography variant="body2" sx={{ color: "text.secondary" }}>
@@ -68,9 +86,16 @@ export function ServiceLeadSection({ serviceId, serviceTitle, isAuthenticated, i
               </Stack>
 
               {isAuthenticated ? (
-                <ServiceAskQuestionButton serviceId={serviceId} serviceTitle={serviceTitle} />
+                <ServiceAskQuestionButton
+                  serviceId={serviceId}
+                  serviceTitle={serviceTitle}
+                />
               ) : (
-                <ServiceLeadCaptureForm serviceId={serviceId} serviceTitle={serviceTitle} initialCustomerEmail={initialCustomerEmail} />
+                <ServiceLeadCaptureForm
+                  serviceId={serviceId}
+                  serviceTitle={serviceTitle}
+                  initialCustomerEmail={initialCustomerEmail}
+                />
               )}
             </Stack>
           </Paper>
@@ -79,4 +104,3 @@ export function ServiceLeadSection({ serviceId, serviceTitle, isAuthenticated, i
     </Box>
   );
 }
-

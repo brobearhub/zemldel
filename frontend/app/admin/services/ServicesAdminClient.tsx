@@ -15,7 +15,11 @@ import {
 } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { toPlaceInput, type ServiceDto, type ServicePlace } from "@/entities/service";
+import {
+  toPlaceInput,
+  type ServiceDto,
+  type ServicePlace,
+} from "@/entities/service";
 import { ServiceGeographyField } from "@/features/select-service-places";
 import { useConfirm } from "@/shared/ui/confirm";
 
@@ -42,15 +46,26 @@ function normalizeNullableString(v: string): string | null {
 function normalizePaletteColor(v: string): ServiceDto["paletteColor"] {
   const s = normalizeNullableString(v);
   if (!s) return null;
-  const allowed = ["primary", "secondary", "info", "success", "warning", "error"] as const;
-  return (allowed as readonly string[]).includes(s) ? (s as ServiceDto["paletteColor"]) : null;
+  const allowed = [
+    "primary",
+    "secondary",
+    "info",
+    "success",
+    "warning",
+    "error",
+  ] as const;
+  return (allowed as readonly string[]).includes(s)
+    ? (s as ServiceDto["paletteColor"])
+    : null;
 }
 
 export function ServicesAdminClient({ mode, initialServices }: Props) {
   const router = useRouter();
   const confirm = useConfirm();
   const [services, setServices] = useState<ServiceRow[]>(initialServices ?? []);
-  const [categories, setCategories] = useState<ServiceCategoryRow[] | null>(null);
+  const [categories, setCategories] = useState<ServiceCategoryRow[] | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // Why: busy общий для создания, сохранения и удаления — спиннер только на нажатой кнопке.
@@ -127,9 +142,9 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
         }),
       });
       if (!res.ok) {
-        const payload = (await res.json().catch(() => null)) as
-          | { error?: string }
-          | null;
+        const payload = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         throw new Error(payload?.error || "Failed to create service");
       }
       setCreateForm((s) => ({ ...s, title: "", price: "" }));
@@ -177,9 +192,9 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
         }),
       });
       if (!res.ok) {
-        const payload = (await res.json().catch(() => null)) as
-          | { error?: string }
-          | null;
+        const payload = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         throw new Error(payload?.error || "Failed to update service");
       }
       setEditOpen(false);
@@ -205,7 +220,9 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
     setBusy(true);
     setPendingAction(`delete:${service.id}`);
     try {
-      const res = await fetch(`/api/admin/services/${service.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/services/${service.id}`, {
+        method: "DELETE",
+      });
       if (!res.ok) throw new Error("Failed to delete service");
       await refresh();
     } catch (e) {
@@ -221,133 +238,39 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
       {error ? <Alert severity="error">{error}</Alert> : null}
 
       {mode === "create" ? (
-      <Box>
-        <Stack spacing={2}>
-        <ServiceGeographyField
-          value={createPlaces}
-          onChange={setCreatePlaces}
-          disabled={busy}
-          error={createPlaces.length === 0}
-          helperText={createPlaces.length === 0 ? "Выберите город или область" : undefined}
-        />
-        <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{
-          alignItems: "flex-start"
-        }}>
-          <TextField
-            select
-            id="create-service-category"
-            label="category"
-            value={createForm.categoryId}
-            onChange={(e) =>
-              setCreateForm((s) => ({
-                ...s,
-                categoryId: e.target.value,
-              }))
-            }
-            size="small"
-            sx={{ minWidth: 160 }}
-          >
-            {(categories ?? []).map((c) => (
-              <MenuItem key={c.id} value={c.id}>
-                {c.name} ({c.slug})
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            label="title"
-            value={createForm.title}
-            onChange={(e) => setCreateForm((s) => ({ ...s, title: e.target.value }))}
-            size="small"
-            fullWidth
-          />
-          <TextField
-            label="price"
-            value={createForm.price}
-            onChange={(e) => setCreateForm((s) => ({ ...s, price: e.target.value }))}
-            size="small"
-            sx={{ minWidth: 160 }}
-          />
-          <Button
-            variant="contained"
-            onClick={onCreate}
-            loading={pendingAction === "create"}
-            disabled={busy && pendingAction !== "create"}
-            sx={{ whiteSpace: "nowrap", fontWeight: 800 }}
-          >
-            Создать
-          </Button>
-        </Stack>
-        </Stack>
-      </Box>
-      ) : null}
-
-      {mode === "list" ? (
-      <Box>
-        <Stack spacing={2}>
-          <Box>
-            <Typography sx={{ fontWeight: 800, mb: 1 }}>Всего услуг: {ordered.length}</Typography>
-            <Stack spacing={1}>
-              {ordered.map((s) => (
-                <Stack
-                  key={s.id}
-                  direction={{ xs: "column", sm: "row" }}
-                  spacing={1.5}
-                  sx={{
-                    alignItems: { xs: "flex-start", sm: "center" },
-                    p: 1.5,
-                    border: "1px solid",
-                    borderColor: "divider",
-                    borderRadius: 1,
-                  }}
-                >
-                  <Stack spacing={0.25} sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography sx={{ fontWeight: 800 }} noWrap>
-                      {s.title}
-                    </Typography>
-                    <Typography sx={{ color: "text.secondary", fontSize: 12 }} noWrap>
-                      {s.category?.name ?? "Категория не указана"}
-                    </Typography>
-                  </Stack>
-                  <Typography sx={{ fontWeight: 700, minWidth: 120 }}>{s.price}</Typography>
-                  <Stack direction="row" spacing={1}>
-                    <Button size="small" variant="outlined" onClick={() => openEdit(s)} disabled={busy}>
-                      Редактировать
-                    </Button>
-                    <Button
-                      size="small"
-                      color="error"
-                      variant="outlined"
-                      onClick={() => onDelete({ id: s.id, title: s.title })}
-                      loading={pendingAction === `delete:${s.id}`}
-                      disabled={busy && pendingAction !== `delete:${s.id}`}
-                    >
-                      Удалить
-                    </Button>
-                  </Stack>
-                </Stack>
-              ))}
-            </Stack>
-          </Box>
-        </Stack>
-      </Box>
-      ) : null}
-
-      {mode === "list" ? (
-      <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Редактировать услугу</DialogTitle>
-        <DialogContent>
-          {editDraft ? (
-            <Stack spacing={2} sx={{ pt: 1 }}>
-              <TextField label="id" value={editDraft.id} size="small" disabled />
+        <Box>
+          <Stack spacing={2}>
+            <ServiceGeographyField
+              value={createPlaces}
+              onChange={setCreatePlaces}
+              disabled={busy}
+              error={createPlaces.length === 0}
+              helperText={
+                createPlaces.length === 0
+                  ? "Выберите город или область"
+                  : undefined
+              }
+            />
+            <Stack
+              direction={{ xs: "column", md: "row" }}
+              spacing={2}
+              sx={{
+                alignItems: "flex-start",
+              }}
+            >
               <TextField
                 select
-                id="edit-service-category"
+                id="create-service-category"
                 label="category"
-                value={editDraft.categoryId}
+                value={createForm.categoryId}
                 onChange={(e) =>
-                  setEditDraft((s) => (s ? { ...s, categoryId: e.target.value } : s))
+                  setCreateForm((s) => ({
+                    ...s,
+                    categoryId: e.target.value,
+                  }))
                 }
                 size="small"
+                sx={{ minWidth: 160 }}
               >
                 {(categories ?? []).map((c) => (
                   <MenuItem key={c.id} value={c.id}>
@@ -357,89 +280,260 @@ export function ServicesAdminClient({ mode, initialServices }: Props) {
               </TextField>
               <TextField
                 label="title"
-                value={editDraft.title}
-                onChange={(e) => setEditDraft((s) => (s ? { ...s, title: e.target.value } : s))}
+                value={createForm.title}
+                onChange={(e) =>
+                  setCreateForm((s) => ({ ...s, title: e.target.value }))
+                }
                 size="small"
                 fullWidth
               />
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+              <TextField
+                label="price"
+                value={createForm.price}
+                onChange={(e) =>
+                  setCreateForm((s) => ({ ...s, price: e.target.value }))
+                }
+                size="small"
+                sx={{ minWidth: 160 }}
+              />
+              <Button
+                variant="contained"
+                onClick={onCreate}
+                loading={pendingAction === "create"}
+                disabled={busy && pendingAction !== "create"}
+                sx={{ whiteSpace: "normal", fontWeight: 700 }}
+              >
+                Создать
+              </Button>
+            </Stack>
+          </Stack>
+        </Box>
+      ) : null}
+
+      {mode === "list" ? (
+        <Box>
+          <Stack spacing={2}>
+            <Box>
+              <Typography sx={{ fontWeight: 700, mb: 1 }}>
+                Всего услуг: {ordered.length}
+              </Typography>
+              <Stack spacing={1}>
+                {ordered.map((s) => (
+                  <Stack
+                    key={s.id}
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={1.5}
+                    sx={{
+                      alignItems: { xs: "flex-start", sm: "center" },
+                      p: 1.5,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      borderRadius: 1,
+                    }}
+                  >
+                    <Stack spacing={0.25} sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography sx={{ fontWeight: 700 }}>
+                        {s.title}
+                      </Typography>
+                      <Typography
+                        sx={{ color: "text.secondary", fontSize: "1rem" }}
+                      >
+                        {s.category?.name ?? "Категория не указана"}
+                      </Typography>
+                    </Stack>
+                    <Typography sx={{ fontWeight: 700, minWidth: 120 }}>
+                      {s.price}
+                    </Typography>
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => openEdit(s)}
+                        disabled={busy}
+                      >
+                        Редактировать
+                      </Button>
+                      <Button
+                        size="small"
+                        color="error"
+                        variant="outlined"
+                        onClick={() => onDelete({ id: s.id, title: s.title })}
+                        loading={pendingAction === `delete:${s.id}`}
+                        disabled={busy && pendingAction !== `delete:${s.id}`}
+                      >
+                        Удалить
+                      </Button>
+                    </Stack>
+                  </Stack>
+                ))}
+              </Stack>
+            </Box>
+          </Stack>
+        </Box>
+      ) : null}
+
+      {mode === "list" ? (
+        <Dialog
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>Редактировать услугу</DialogTitle>
+          <DialogContent>
+            {editDraft ? (
+              <Stack spacing={2} sx={{ pt: 1 }}>
                 <TextField
-                  label="price"
-                  value={editDraft.price}
-                  onChange={(e) => setEditDraft((s) => (s ? { ...s, price: e.target.value } : s))}
+                  label="id"
+                  value={editDraft.id}
+                  size="small"
+                  disabled
+                />
+                <TextField
+                  select
+                  id="edit-service-category"
+                  label="category"
+                  value={editDraft.categoryId}
+                  onChange={(e) =>
+                    setEditDraft((s) =>
+                      s ? { ...s, categoryId: e.target.value } : s,
+                    )
+                  }
+                  size="small"
+                >
+                  {(categories ?? []).map((c) => (
+                    <MenuItem key={c.id} value={c.id}>
+                      {c.name} ({c.slug})
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  label="title"
+                  value={editDraft.title}
+                  onChange={(e) =>
+                    setEditDraft((s) =>
+                      s ? { ...s, title: e.target.value } : s,
+                    )
+                  }
+                  size="small"
+                  fullWidth
+                />
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                  <TextField
+                    label="price"
+                    value={editDraft.price}
+                    onChange={(e) =>
+                      setEditDraft((s) =>
+                        s ? { ...s, price: e.target.value } : s,
+                      )
+                    }
+                    size="small"
+                    fullWidth
+                  />
+                </Stack>
+
+                <TextField
+                  label="image (null = empty)"
+                  value={editDraft.image ?? ""}
+                  onChange={(e) =>
+                    setEditDraft((s) =>
+                      s
+                        ? {
+                            ...s,
+                            image: normalizeNullableString(e.target.value),
+                          }
+                        : s,
+                    )
+                  }
+                  size="small"
+                  fullWidth
+                />
+                <TextField
+                  label="stockBadge (null = empty)"
+                  value={editDraft.stockBadge ?? ""}
+                  onChange={(e) =>
+                    setEditDraft((s) =>
+                      s
+                        ? {
+                            ...s,
+                            stockBadge: normalizeNullableString(e.target.value),
+                          }
+                        : s,
+                    )
+                  }
+                  size="small"
+                  fullWidth
+                />
+                <TextField
+                  label="description (null = empty)"
+                  value={editDraft.description ?? ""}
+                  onChange={(e) =>
+                    setEditDraft((s) =>
+                      s
+                        ? {
+                            ...s,
+                            description: normalizeNullableString(
+                              e.target.value,
+                            ),
+                          }
+                        : s,
+                    )
+                  }
+                  size="small"
+                  fullWidth
+                  multiline
+                  minRows={3}
+                />
+
+                <ServiceGeographyField
+                  value={editDraft.places ?? []}
+                  onChange={(places) =>
+                    setEditDraft((current) =>
+                      current ? { ...current, places } : current,
+                    )
+                  }
+                  disabled={busy}
+                  error={(editDraft.places ?? []).length === 0}
+                  helperText={
+                    (editDraft.places ?? []).length === 0
+                      ? "Выберите город или область"
+                      : undefined
+                  }
+                />
+
+                <TextField
+                  label="paletteColor (null = empty)"
+                  value={editDraft.paletteColor ?? ""}
+                  onChange={(e) =>
+                    setEditDraft((s) =>
+                      s
+                        ? {
+                            ...s,
+                            paletteColor: normalizePaletteColor(e.target.value),
+                          }
+                        : s,
+                    )
+                  }
                   size="small"
                   fullWidth
                 />
               </Stack>
-
-              <TextField
-                label="image (null = empty)"
-                value={editDraft.image ?? ""}
-                onChange={(e) =>
-                  setEditDraft((s) => (s ? { ...s, image: normalizeNullableString(e.target.value) } : s))
-                }
-                size="small"
-                fullWidth
-              />
-              <TextField
-                label="stockBadge (null = empty)"
-                value={editDraft.stockBadge ?? ""}
-                onChange={(e) =>
-                  setEditDraft((s) =>
-                    s ? { ...s, stockBadge: normalizeNullableString(e.target.value) } : s
-                  )
-                }
-                size="small"
-                fullWidth
-              />
-              <TextField
-                label="description (null = empty)"
-                value={editDraft.description ?? ""}
-                onChange={(e) =>
-                  setEditDraft((s) =>
-                    s ? { ...s, description: normalizeNullableString(e.target.value) } : s
-                  )
-                }
-                size="small"
-                fullWidth
-                multiline
-                minRows={3}
-              />
-
-              <ServiceGeographyField
-                value={editDraft.places ?? []}
-                onChange={(places) => setEditDraft((current) => (current ? { ...current, places } : current))}
-                disabled={busy}
-                error={(editDraft.places ?? []).length === 0}
-                helperText={(editDraft.places ?? []).length === 0 ? "Выберите город или область" : undefined}
-              />
-
-              <TextField
-                label="paletteColor (null = empty)"
-                value={editDraft.paletteColor ?? ""}
-                onChange={(e) =>
-                  setEditDraft((s) =>
-                    s ? { ...s, paletteColor: normalizePaletteColor(e.target.value) } : s
-                  )
-                }
-                size="small"
-                fullWidth
-              />
-
-            </Stack>
-          ) : null}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditOpen(false)} disabled={busy}>
-            Отмена
-          </Button>
-          <Button variant="contained" onClick={onSaveEdit} loading={pendingAction === "save"}>
-            Сохранить
-          </Button>
-        </DialogActions>
-      </Dialog>
+            ) : null}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setEditOpen(false)} disabled={busy}>
+              Отмена
+            </Button>
+            <Button
+              variant="contained"
+              onClick={onSaveEdit}
+              loading={pendingAction === "save"}
+            >
+              Сохранить
+            </Button>
+          </DialogActions>
+        </Dialog>
       ) : null}
     </Stack>
   );
 }
-

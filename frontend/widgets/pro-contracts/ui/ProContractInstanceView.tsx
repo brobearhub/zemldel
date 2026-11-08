@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Chip, Paper, Stack, TextField, Typography } from "@mui/material";
+import {
+  Alert,
+  Button,
+  Chip,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { ChatBodyWithSidePanelLayout } from "@/widgets/chat/ui/ChatBodyWithSidePanelLayout";
 import {
   ContractRichEditor,
@@ -19,8 +27,18 @@ export type ProContractInstanceDetail = {
   requestId: string | null;
   customerUserId: string | null;
   pdfHash: string | null;
-  signatures: Array<{ signerRole: "CUSTOMER" | "PROVIDER"; method: string; signedAt: string; docHash: string }>;
-  feedback: Array<{ id: string; authorRole: "CUSTOMER" | "PROVIDER"; body: string; createdAt: string }>;
+  signatures: Array<{
+    signerRole: "CUSTOMER" | "PROVIDER";
+    method: string;
+    signedAt: string;
+    docHash: string;
+  }>;
+  feedback: Array<{
+    id: string;
+    authorRole: "CUSTOMER" | "PROVIDER";
+    body: string;
+    createdAt: string;
+  }>;
   commentThreads?: ContractCommentThreadDto[];
   updatedAt: string;
   createdAt: string;
@@ -31,7 +49,12 @@ type ContractCommentThreadDto = {
   anchor: unknown;
   quote: string | null;
   status: "OPEN" | "RESOLVED";
-  comments: Array<{ id: string; authorRole: "CUSTOMER" | "PROVIDER"; body: string; createdAt: string }>;
+  comments: Array<{
+    id: string;
+    authorRole: "CUSTOMER" | "PROVIDER";
+    body: string;
+    createdAt: string;
+  }>;
   createdAt: string;
 };
 
@@ -42,25 +65,40 @@ function statusLabel(status: ProContractInstanceDetail["status"]) {
   return "Черновик";
 }
 
-export function ProContractInstanceView({ initial, rightWidth }: { initial: ProContractInstanceDetail; rightWidth?: number }) {
+export function ProContractInstanceView({
+  initial,
+  rightWidth,
+}: {
+  initial: ProContractInstanceDetail;
+  rightWidth?: number;
+}) {
   const [busy, setBusy] = useState(false);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const [title, setTitle] = useState(initial.title);
-  const [content, setContent] = useState<ContractEditorContent>(() => normalizeContractEditorContent(initial.content));
+  const [content, setContent] = useState<ContractEditorContent>(() =>
+    normalizeContractEditorContent(initial.content),
+  );
   const [blocks, setBlocks] = useState<ContractBlockOption[]>([]);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
 
-  const signedRoles = useMemo(() => new Set(initial.signatures.map((s) => s.signerRole)), [initial.signatures]);
+  const signedRoles = useMemo(
+    () => new Set(initial.signatures.map((s) => s.signerRole)),
+    [initial.signatures],
+  );
   const canEdit = initial.status !== "SIGNED" && initial.status !== "CANCELLED";
   const canSend = initial.status === "DRAFT";
-  const openThreads = (initial.commentThreads ?? []).filter((thread) => thread.status === "OPEN");
+  const openThreads = (initial.commentThreads ?? []).filter(
+    (thread) => thread.status === "OPEN",
+  );
 
   useEffect(() => {
     fetch("/api/pro/contracts/blocks")
-      .then((res) => (res.ok ? (res.json() as Promise<ContractBlockOption[]>) : []))
+      .then((res) =>
+        res.ok ? (res.json() as Promise<ContractBlockOption[]>) : [],
+      )
       .then((rows) => setBlocks(rows))
       .catch(() => setBlocks([]));
   }, []);
@@ -86,12 +124,24 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ title, content }),
       });
-      const payload = (await res.json().catch(() => null)) as { error?: string } | { ok?: boolean } | null;
+      const payload = (await res.json().catch(() => null)) as
+        | { error?: string }
+        | { ok?: boolean }
+        | null;
       if (!res.ok) {
-        setError(payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string" ? payload.error : "Не удалось сохранить");
+        setError(
+          payload &&
+            typeof payload === "object" &&
+            "error" in payload &&
+            typeof payload.error === "string"
+            ? payload.error
+            : "Не удалось сохранить",
+        );
         return;
       }
-      setNotice("Сохранено. Обновите страницу, чтобы увидеть обновлённый статус и замечания.");
+      setNotice(
+        "Сохранено. Обновите страницу, чтобы увидеть обновлённый статус и замечания.",
+      );
     } catch {
       setError("Не удалось сохранить");
     } finally {
@@ -106,10 +156,23 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`/api/pro/contracts/instances/${initial.id}/send`, { method: "POST" });
-      const payload = (await res.json().catch(() => null)) as { error?: string } | { ok?: boolean } | null;
+      const res = await fetch(
+        `/api/pro/contracts/instances/${initial.id}/send`,
+        { method: "POST" },
+      );
+      const payload = (await res.json().catch(() => null)) as
+        | { error?: string }
+        | { ok?: boolean }
+        | null;
       if (!res.ok) {
-        setError(payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string" ? payload.error : "Не удалось отправить");
+        setError(
+          payload &&
+            typeof payload === "object" &&
+            "error" in payload &&
+            typeof payload.error === "string"
+            ? payload.error
+            : "Не удалось отправить",
+        );
         return;
       }
       setNotice("Отправлено клиенту. Обновите страницу, чтобы увидеть статус.");
@@ -129,16 +192,23 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`/api/pro/contracts/instances/${initial.id}/comments/${threadId}/replies`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ body }),
-      });
+      const res = await fetch(
+        `/api/pro/contracts/instances/${initial.id}/comments/${threadId}/replies`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ body }),
+        },
+      );
       if (!res.ok) throw new Error("Не удалось отправить ответ");
       setReplyDrafts((drafts) => ({ ...drafts, [threadId]: "" }));
-      setNotice("Ответ добавлен. Обновите страницу, чтобы увидеть комментарий.");
+      setNotice(
+        "Ответ добавлен. Обновите страницу, чтобы увидеть комментарий.",
+      );
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Не удалось отправить ответ");
+      setError(
+        error instanceof Error ? error.message : "Не удалось отправить ответ",
+      );
     } finally {
       setBusy(false);
       setPendingAction(null);
@@ -151,11 +221,18 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`/api/pro/contracts/instances/${initial.id}/comments/${threadId}/resolve`, { method: "POST" });
+      const res = await fetch(
+        `/api/pro/contracts/instances/${initial.id}/comments/${threadId}/resolve`,
+        { method: "POST" },
+      );
       if (!res.ok) throw new Error("Не удалось закрыть комментарий");
       setNotice("Комментарий закрыт. Обновите страницу, чтобы увидеть статус.");
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Не удалось закрыть комментарий");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Не удалось закрыть комментарий",
+      );
     } finally {
       setBusy(false);
       setPendingAction(null);
@@ -172,9 +249,12 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
 
           <Paper variant="outlined" sx={{ p: 2.5 }}>
             <Stack spacing={1}>
-              <Typography variant="h5" sx={{
-                fontWeight: 800
-              }}>
+              <Typography
+                variant="h5"
+                sx={{
+                  fontWeight: 700,
+                }}
+              >
                 {initial.title}
               </Typography>
               <Stack
@@ -182,8 +262,9 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
                 spacing={1}
                 sx={{
                   alignItems: "center",
-                  flexWrap: "wrap"
-                }}>
+                  flexWrap: "wrap",
+                }}
+              >
                 <Chip label={statusLabel(initial.status)} />
                 {signedRoles.has("CUSTOMER") ? (
                   <Chip color="success" label="Клиент принял" />
@@ -191,13 +272,28 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
                   <Chip color="warning" label="Клиент ещё не принял" />
                 )}
               </Stack>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1} useFlexGap sx={{
-                flexWrap: "wrap"
-              }}>
-                <Button variant="contained" loading={pendingAction === "send"} disabled={busy || !canSend} onClick={() => void sendToCustomer()}>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1}
+                useFlexGap
+                sx={{
+                  flexWrap: "wrap",
+                }}
+              >
+                <Button
+                  variant="contained"
+                  loading={pendingAction === "send"}
+                  disabled={busy || !canSend}
+                  onClick={() => void sendToCustomer()}
+                >
                   Отправить клиенту
                 </Button>
-                <Button variant="outlined" loading={pendingAction === "save"} disabled={busy || !canEdit} onClick={() => void saveDraft()}>
+                <Button
+                  variant="outlined"
+                  loading={pendingAction === "save"}
+                  disabled={busy || !canEdit}
+                  onClick={() => void saveDraft()}
+                >
                   Сохранить черновик
                 </Button>
               </Stack>
@@ -206,9 +302,13 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
 
           <Paper variant="outlined" sx={{ p: 2.5 }}>
             <Stack spacing={1.5}>
-              <Typography sx={{
-                fontWeight: 800
-              }}>Редактор договора</Typography>
+              <Typography
+                sx={{
+                  fontWeight: 700,
+                }}
+              >
+                Редактор договора
+              </Typography>
               <TextField
                 label="Название"
                 value={title}
@@ -230,14 +330,25 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
       right={
         <Paper
           variant="outlined"
-          sx={{ p: 2.5, overflow: "auto", height: { xs: "auto", lg: "100%" }, minHeight: 0 }}
+          sx={{
+            p: 2.5,
+            overflow: "auto",
+            height: { xs: "auto", lg: "100%" },
+            minHeight: 0,
+          }}
         >
           <Stack spacing={1.5}>
-            <Typography sx={{
-              fontWeight: 800
-            }}>Комментарии</Typography>
+            <Typography
+              sx={{
+                fontWeight: 700,
+              }}
+            >
+              Комментарии
+            </Typography>
             {openThreads.length > 0 ? (
-              <Alert severity="warning">Перед принятием договора закройте открытые комментарии.</Alert>
+              <Alert severity="warning">
+                Перед принятием договора закройте открытые комментарии.
+              </Alert>
             ) : null}
 
             {initial.commentThreads?.length ? (
@@ -250,44 +361,67 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
                         spacing={1}
                         sx={{
                           alignItems: "center",
-                          flexWrap: "wrap"
-                        }}>
+                          flexWrap: "wrap",
+                        }}
+                      >
                         <Chip
                           size="small"
-                          color={thread.status === "OPEN" ? "warning" : "success"}
+                          color={
+                            thread.status === "OPEN" ? "warning" : "success"
+                          }
                           label={thread.status === "OPEN" ? "Открыт" : "Закрыт"}
                         />
                         {thread.quote ? (
-                          <Typography variant="body2" sx={{
-                            color: "text.secondary"
-                          }}>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              color: "text.secondary",
+                            }}
+                          >
                             &quot;{thread.quote}&quot;
                           </Typography>
                         ) : null}
                       </Stack>
                       {thread.comments.map((comment) => (
-                        <Typography key={comment.id} variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
-                          <strong>{comment.authorRole === "CUSTOMER" ? "Клиент" : "Провайдер"}</strong> ·{" "}
-                          {formatDateTime(comment.createdAt)}
+                        <Typography
+                          key={comment.id}
+                          variant="body2"
+                          sx={{ whiteSpace: "pre-wrap" }}
+                        >
+                          <strong>
+                            {comment.authorRole === "CUSTOMER"
+                              ? "Клиент"
+                              : "Провайдер"}
+                          </strong>{" "}
+                          · {formatDateTime(comment.createdAt)}
                           {"\n"}
                           {comment.body}
                         </Typography>
                       ))}
                       {thread.status === "OPEN" ? (
-                        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                        <Stack
+                          direction={{ xs: "column", sm: "row" }}
+                          spacing={1}
+                        >
                           <TextField
                             size="small"
                             label="Ответ"
                             value={replyDrafts[thread.id] ?? ""}
                             onChange={(event) =>
-                              setReplyDrafts((drafts) => ({ ...drafts, [thread.id]: event.target.value }))
+                              setReplyDrafts((drafts) => ({
+                                ...drafts,
+                                [thread.id]: event.target.value,
+                              }))
                             }
                             fullWidth
                           />
                           <Button
                             variant="outlined"
                             loading={pendingAction === `reply:${thread.id}`}
-                            disabled={busy || (replyDrafts[thread.id] ?? "").trim().length < 3}
+                            disabled={
+                              busy ||
+                              (replyDrafts[thread.id] ?? "").trim().length < 3
+                            }
                             onClick={() => void reply(thread.id)}
                           >
                             Ответить
@@ -310,17 +444,21 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
               <Stack spacing={1}>
                 {initial.feedback.map((f) => (
                   <Paper key={f.id} variant="outlined" sx={{ p: 1.5 }}>
-                    <Typography variant="body2" sx={{
-                      fontWeight: 700
-                    }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 700,
+                      }}
+                    >
                       {f.authorRole === "CUSTOMER" ? "Клиент" : "Провайдер"} ·{" "}
                       <Typography
                         component="span"
                         variant="body2"
                         sx={{
                           color: "text.secondary",
-                          fontWeight: 500
-                        }}>
+                          fontWeight: 500,
+                        }}
+                      >
                         {formatDateTime(f.createdAt)}
                       </Typography>
                     </Typography>
@@ -331,9 +469,13 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
                 ))}
               </Stack>
             ) : (
-              <Typography sx={{
-                color: "text.secondary"
-              }}>Комментариев пока нет.</Typography>
+              <Typography
+                sx={{
+                  color: "text.secondary",
+                }}
+              >
+                Комментариев пока нет.
+              </Typography>
             )}
           </Stack>
         </Paper>
@@ -341,4 +483,3 @@ export function ProContractInstanceView({ initial, rightWidth }: { initial: ProC
     />
   );
 }
-

@@ -6,7 +6,16 @@ import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import QueueIcon from "@mui/icons-material/Queue";
-import { Alert, Box, Button, Divider, IconButton, Stack, TextField, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  Divider,
+  IconButton,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import {
   formatRubles,
   parseRublesInput,
@@ -60,8 +69,8 @@ const PAYMENT_ACTION_SLOT_SX = {
 } as const;
 
 const PAYMENT_AMOUNT_TOTAL_TYPO_SX = {
-  fontWeight: 900,
-  fontSize: 22,
+  fontWeight: 700,
+  fontSize: "1.375rem",
 } as const;
 
 function PaymentAmountCell({
@@ -76,8 +85,27 @@ function PaymentAmountCell({
   sx?: object;
 }) {
   return (
-    <Box sx={{ display: { xs: "flex", sm: "contents" }, gridColumn: "1 / -1", alignItems: "center", gap: 1, minWidth: 0 }}>
-      <Typography sx={{ ...PAYMENT_AMOUNT_SX, ...typographySx, ...sx, textAlign: { xs: "left", sm: "right" }, flex: 1, overflowWrap: "anywhere" }}>{children}</Typography>
+    <Box
+      sx={{
+        display: { xs: "flex", sm: "contents" },
+        gridColumn: "1 / -1",
+        alignItems: "center",
+        gap: 1,
+        minWidth: 0,
+      }}
+    >
+      <Typography
+        sx={{
+          ...PAYMENT_AMOUNT_SX,
+          ...typographySx,
+          ...sx,
+          textAlign: { xs: "left", sm: "right" },
+          flex: 1,
+          overflowWrap: "anywhere",
+        }}
+      >
+        {children}
+      </Typography>
       <Box sx={PAYMENT_ACTION_SLOT_SX}>{action}</Box>
     </Box>
   );
@@ -101,20 +129,63 @@ function PaymentListRow({
   authorCaption?: string | null;
 }) {
   return (
-    <Box sx={{ gridColumn: "1 / -1", py: 1.5, borderBottom: 1, borderColor: "divider", minWidth: 0 }}>
-      <Typography variant="body2" sx={{ fontWeight: 600, overflowWrap: "anywhere" }}>{comment}</Typography>
-      <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", mt: 0.75 }}>
-        <Typography sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{formatRubles(amountRubles)}</Typography>
-        <Typography variant="body2" color={paid ? "success.main" : "text.secondary"}>
+    <Box
+      sx={{
+        gridColumn: "1 / -1",
+        py: 1.5,
+        borderBottom: 1,
+        borderColor: "divider",
+        minWidth: 0,
+      }}
+    >
+      <Typography
+        variant="body2"
+        sx={{ fontWeight: 600, overflowWrap: "anywhere" }}
+      >
+        {comment}
+      </Typography>
+      <Stack
+        direction="row"
+        spacing={1}
+        useFlexGap
+        sx={{
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          mt: 0.75,
+        }}
+      >
+        <Typography
+          sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}
+        >
+          {formatRubles(amountRubles)}
+        </Typography>
+        <Typography
+          variant="body2"
+          color={paid ? "success.main" : "text.secondary"}
+        >
           {paid ? "Оплачено" : "Не оплачено"}
         </Typography>
         {!paid && onMarkPaid ? (
-          <Button aria-label="Отметить как оплачено" size="small" variant="outlined" color="inherit"
-            loading={Boolean(markPaidLoading)} disabled={Boolean(markPaidDisabled)} onClick={onMarkPaid}
-            sx={{ minHeight: 44 }}>Отметить оплату</Button>
+          <Button
+            aria-label="Отметить как оплачено"
+            size="small"
+            variant="outlined"
+            color="inherit"
+            loading={Boolean(markPaidLoading)}
+            disabled={Boolean(markPaidDisabled)}
+            onClick={onMarkPaid}
+            sx={{ minHeight: 44 }}
+          >
+            Отметить оплату
+          </Button>
         ) : null}
       </Stack>
-      {authorCaption ? <Typography variant="caption" color="text.secondary">{authorCaption}</Typography> : null}
+      {authorCaption ? (
+        <Typography variant="caption" color="text.secondary">
+          {authorCaption}
+        </Typography>
+      ) : null}
     </Box>
   );
 }
@@ -201,8 +272,10 @@ export function RequestPayments(props: RequestPaymentsProps) {
   });
   const [totalInput, setTotalInput] = useState(() => {
     if (props.totalAmountRubles != null) return String(props.totalAmountRubles);
-    if (props.priceProposal != null) return String(props.priceProposal.amountRubles);
-    if (props.servicePriceRubles != null) return String(props.servicePriceRubles);
+    if (props.priceProposal != null)
+      return String(props.priceProposal.amountRubles);
+    if (props.servicePriceRubles != null)
+      return String(props.servicePriceRubles);
     return "";
   });
   const [totalEditOpen, setTotalEditOpen] = useState(false);
@@ -228,7 +301,8 @@ export function RequestPayments(props: RequestPaymentsProps) {
   const total = props.totalAmountRubles;
   const totalIsSet = total != null;
   const canEditTotal = permissions.canProposePrice;
-  const isEditingTotal = canEditTotal && (props.priceProposal == null || totalEditOpen);
+  const isEditingTotal =
+    canEditTotal && (props.priceProposal == null || totalEditOpen);
   const canAddContractPayments = permissions.canAddPayment;
   const canAddOtherPayments = permissions.canAddPayment;
   const canMarkPaid = permissions.canMarkPaid;
@@ -238,7 +312,8 @@ export function RequestPayments(props: RequestPaymentsProps) {
     .sort((a, b) => {
       if (a.paidAt == null && b.paidAt != null) return -1;
       if (a.paidAt != null && b.paidAt == null) return 1;
-      if (a.paidAt != null && b.paidAt != null) return new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime();
+      if (a.paidAt != null && b.paidAt != null)
+        return new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime();
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   const otherPayments = payments
@@ -247,12 +322,20 @@ export function RequestPayments(props: RequestPaymentsProps) {
     .sort((a, b) => {
       if (a.paidAt == null && b.paidAt != null) return -1;
       if (a.paidAt != null && b.paidAt == null) return 1;
-      if (a.paidAt != null && b.paidAt != null) return new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime();
+      if (a.paidAt != null && b.paidAt != null)
+        return new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime();
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
-  const otherPaidAmountRubles = otherPayments.reduce((sum, p) => (p.paidAt ? sum + p.amountRubles : sum), 0);
-  const canSubmitContract = parseRublesInput(contractAmountInput) != null && contractComment.trim().length > 0;
-  const canSubmitOther = parseRublesInput(otherAmountInput) != null && otherComment.trim().length > 0;
+  const otherPaidAmountRubles = otherPayments.reduce(
+    (sum, p) => (p.paidAt ? sum + p.amountRubles : sum),
+    0,
+  );
+  const canSubmitContract =
+    parseRublesInput(contractAmountInput) != null &&
+    contractComment.trim().length > 0;
+  const canSubmitOther =
+    parseRublesInput(otherAmountInput) != null &&
+    otherComment.trim().length > 0;
 
   function formatRublesForInput(rubles: number): string {
     return String(rubles);
@@ -312,7 +395,11 @@ export function RequestPayments(props: RequestPaymentsProps) {
     }
   }
 
-  async function addPayment(input: { type: RequestPaymentType; amountInput: string; comment: string }) {
+  async function addPayment(input: {
+    type: RequestPaymentType;
+    amountInput: string;
+    comment: string;
+  }) {
     const rubles = parseRublesInput(input.amountInput);
     const trimmed = input.comment.trim();
     if (rubles == null) {
@@ -327,7 +414,11 @@ export function RequestPayments(props: RequestPaymentsProps) {
     setPendingAction(`add:${input.type}`);
     setError(null);
     try {
-      const payload = { amountRubles: rubles, comment: trimmed, type: input.type };
+      const payload = {
+        amountRubles: rubles,
+        comment: trimmed,
+        type: input.type,
+      };
       if (props.mode === "provider") {
         await addProRequestPayment(props.requestId, payload);
       } else {
@@ -348,7 +439,9 @@ export function RequestPayments(props: RequestPaymentsProps) {
       }
       await props.onChanged?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось добавить поступление");
+      setError(
+        e instanceof Error ? e.message : "Не удалось добавить поступление",
+      );
     } finally {
       setSaving(false);
       setPendingAction(null);
@@ -359,7 +452,8 @@ export function RequestPayments(props: RequestPaymentsProps) {
     if (!canMarkPaid || isBusy) return;
     const ok = await confirm({
       title: "Отметить как оплаченное?",
-      description: "Стороны фиксируют, что эта сумма оплачена напрямую. Отметку нельзя снять.",
+      description:
+        "Стороны фиксируют, что эта сумма оплачена напрямую. Отметку нельзя снять.",
       confirmText: "Оплачено",
       confirmColor: "success",
     });
@@ -380,7 +474,11 @@ export function RequestPayments(props: RequestPaymentsProps) {
       }
       await props.onChanged?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось отметить платёж как оплаченный");
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Не удалось отметить платёж как оплаченный",
+      );
     } finally {
       setSaving(false);
       setPendingAction(null);
@@ -388,7 +486,10 @@ export function RequestPayments(props: RequestPaymentsProps) {
   }
 
   return (
-    <Stack spacing={1.5} sx={{ flex: 1, minHeight: "100%", minWidth: 0, maxWidth: "100%" }}>
+    <Stack
+      spacing={1.5}
+      sx={{ flex: 1, minHeight: "100%", minWidth: 0, maxWidth: "100%" }}
+    >
       <Typography variant="body2" sx={{ color: "text.secondary" }}>
         {props.status === "COMPLETED"
           ? "Работы завершены. Здесь можно зафиксировать поступившие оплаты."
@@ -399,7 +500,9 @@ export function RequestPayments(props: RequestPaymentsProps) {
               : "Согласованная цена работ и история оплат по заявке."}
       </Typography>
       <Typography variant="body2" sx={{ color: "text.secondary" }}>
-        Оплата идёт напрямую между вами и {props.mode === "provider" ? "клиентом" : "исполнителем"}. Здесь вы фиксируете договорённости и отметки.
+        Оплата идёт напрямую между вами и{" "}
+        {props.mode === "provider" ? "клиентом" : "исполнителем"}. Здесь вы
+        фиксируете договорённости и отметки.
       </Typography>
       {error ? <Alert severity="error">{error}</Alert> : null}
 
@@ -408,21 +511,26 @@ export function RequestPayments(props: RequestPaymentsProps) {
         spacing={2}
         sx={{
           alignItems: "stretch",
-          flex: 1
-        }}>
-        <Stack spacing={1.25} sx={{ flex: "1 1 0", minWidth: 0, height: { md: "100%" } }}>
+          flex: 1,
+        }}
+      >
+        <Stack
+          spacing={1.25}
+          sx={{ flex: "1 1 0", minWidth: 0, height: { md: "100%" } }}
+        >
           <Box sx={PAYMENT_SECTION_GRID_SX}>
             <Typography
               sx={{
-                fontWeight: 900,
+                fontWeight: 700,
                 gridColumn: 1,
-                minWidth: 0
-              }}>
+                minWidth: 0,
+              }}
+            >
               Цена работ
             </Typography>
             <PaymentAmountCell
               typographySx={PAYMENT_AMOUNT_TOTAL_TYPO_SX}
-                action={
+              action={
                 canEditTotal && !isEditingTotal ? (
                   <Button
                     aria-label="Редактировать цену"
@@ -431,7 +539,10 @@ export function RequestPayments(props: RequestPaymentsProps) {
                     onClick={() => {
                       setTotalInput(
                         formatRublesForInput(
-                          props.priceProposal?.amountRubles ?? props.totalAmountRubles ?? props.servicePriceRubles ?? 0,
+                          props.priceProposal?.amountRubles ??
+                            props.totalAmountRubles ??
+                            props.servicePriceRubles ??
+                            0,
                         ),
                       );
                       setTotalEditOpen(true);
@@ -439,7 +550,11 @@ export function RequestPayments(props: RequestPaymentsProps) {
                     startIcon={<EditOutlinedIcon fontSize="small" />}
                     sx={{ minWidth: 0, px: 0.5, color: "text.secondary" }}
                   >
-                    <Typography component="span" variant="caption" sx={{ display: { xs: "inline", sm: "none" } }}>
+                    <Typography
+                      component="span"
+                      variant="caption"
+                      sx={{ display: { xs: "inline", sm: "none" } }}
+                    >
                       Изменить
                     </Typography>
                   </Button>
@@ -460,7 +575,11 @@ export function RequestPayments(props: RequestPaymentsProps) {
                   comment={payment.comment}
                   amountRubles={payment.amountRubles}
                   paid={Boolean(payment.paidAt)}
-                  onMarkPaid={!payment.paidAt && canMarkPaid ? () => void markPaid(payment.id) : undefined}
+                  onMarkPaid={
+                    !payment.paidAt && canMarkPaid
+                      ? () => void markPaid(payment.id)
+                      : undefined
+                  }
                   markPaidDisabled={isBusy}
                   markPaidLoading={pendingAction === `paid:${payment.id}`}
                 />
@@ -470,14 +589,18 @@ export function RequestPayments(props: RequestPaymentsProps) {
                 variant="body2"
                 sx={{
                   color: "text.secondary",
-                  gridColumn: "1 / -1"
-                }}>
+                  gridColumn: "1 / -1",
+                }}
+              >
                 Оплат пока нет
               </Typography>
             )}
 
             {priceView.changedNote ? (
-              <Typography variant="body2" sx={{ color: "text.secondary", gridColumn: "1 / -1" }}>
+              <Typography
+                variant="body2"
+                sx={{ color: "text.secondary", gridColumn: "1 / -1" }}
+              >
                 {priceView.servicePriceLabel}. {priceView.changedNote}
               </Typography>
             ) : null}
@@ -487,11 +610,15 @@ export function RequestPayments(props: RequestPaymentsProps) {
                 fontWeight: 700,
                 gridColumn: 1,
                 minWidth: 0,
-                pt: 0.5
-              }}>
+                pt: 0.5,
+              }}
+            >
               К оплате:
             </Typography>
-            <PaymentAmountCell sx={{ pt: 0.5 }} typographySx={PAYMENT_AMOUNT_TOTAL_TYPO_SX}>
+            <PaymentAmountCell
+              sx={{ pt: 0.5 }}
+              typographySx={PAYMENT_AMOUNT_TOTAL_TYPO_SX}
+            >
               {remaining == null ? "—" : formatRubles(remaining)}
             </PaymentAmountCell>
           </Box>
@@ -499,9 +626,13 @@ export function RequestPayments(props: RequestPaymentsProps) {
           {canEditTotal || canAddContractPayments ? (
             <Stack spacing={1.25} sx={{ flexShrink: 0, pt: 1 }}>
               {isEditingTotal ? (
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{
-                  alignItems: { sm: "flex-end" }
-                }}>
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
+                  sx={{
+                    alignItems: { sm: "flex-end" },
+                  }}
+                >
                   <TextField
                     variant="standard"
                     label="Полная цена, ₽"
@@ -521,7 +652,13 @@ export function RequestPayments(props: RequestPaymentsProps) {
                   >
                     <CheckIcon />
                   </IconButton>
-                  <Typography variant="caption" sx={{ display: { xs: "inline", sm: "none" }, color: "text.secondary" }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      display: { xs: "inline", sm: "none" },
+                      color: "text.secondary",
+                    }}
+                  >
                     Предложить
                   </Typography>
                   {totalIsSet ? (
@@ -550,20 +687,31 @@ export function RequestPayments(props: RequestPaymentsProps) {
 
               {priceView.servicePriceLabel &&
               ((totalIsSet && total !== props.servicePriceRubles) ||
-                (isEditingTotal && parseRublesInput(totalInput) != null && parseRublesInput(totalInput) !== props.servicePriceRubles)) ? (
+                (isEditingTotal &&
+                  parseRublesInput(totalInput) != null &&
+                  parseRublesInput(totalInput) !==
+                    props.servicePriceRubles)) ? (
                 <Typography variant="body2" sx={{ color: "text.secondary" }}>
                   {priceView.servicePriceLabel}
                 </Typography>
               ) : null}
 
               {canAddContractPayments && !isEditingTotal && !contractAddOpen ? (
-                <AddPaymentTrigger disabled={isBusy} label="Добавить оплату" onClick={() => setContractAddOpen(true)} />
+                <AddPaymentTrigger
+                  disabled={isBusy}
+                  label="Добавить оплату"
+                  onClick={() => setContractAddOpen(true)}
+                />
               ) : null}
 
               {canAddContractPayments && !isEditingTotal && contractAddOpen ? (
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{
-                  alignItems: { sm: "flex-end" }
-                }}>
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
+                  sx={{
+                    alignItems: { sm: "flex-end" },
+                  }}
+                >
                   <TextField
                     variant="standard"
                     label="Сумма, ₽"
@@ -589,11 +737,23 @@ export function RequestPayments(props: RequestPaymentsProps) {
                     color="primary"
                     loading={pendingAction === "add:CONTRACT"}
                     disabled={isBusy || !canSubmitContract}
-                    onClick={() => void addPayment({ type: "CONTRACT", amountInput: contractAmountInput, comment: contractComment })}
+                    onClick={() =>
+                      void addPayment({
+                        type: "CONTRACT",
+                        amountInput: contractAmountInput,
+                        comment: contractComment,
+                      })
+                    }
                   >
                     <QueueIcon />
                   </IconButton>
-                  <Typography variant="caption" sx={{ display: { xs: "inline", sm: "none" }, color: "text.secondary" }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      display: { xs: "inline", sm: "none" },
+                      color: "text.secondary",
+                    }}
+                  >
                     Добавить
                   </Typography>
                   <IconButton
@@ -614,22 +774,43 @@ export function RequestPayments(props: RequestPaymentsProps) {
         </Stack>
 
         <Divider flexItem sx={{ display: { xs: "block", md: "none" } }} />
-        <Divider flexItem orientation="vertical" sx={{ display: { xs: "none", md: "block" } }} />
+        <Divider
+          flexItem
+          orientation="vertical"
+          sx={{ display: { xs: "none", md: "block" } }}
+        />
 
-        <Stack spacing={1.25} sx={{ flex: "1 1 0", minWidth: 0, height: { md: "100%" } }}>
+        <Stack
+          spacing={1.25}
+          sx={{ flex: "1 1 0", minWidth: 0, height: { md: "100%" } }}
+        >
           <Box sx={PAYMENT_SECTION_GRID_SX}>
             <Typography
               sx={{
-                fontWeight: 900,
+                fontWeight: 700,
                 gridColumn: 1,
-                minWidth: 0
-              }}>
+                minWidth: 0,
+              }}
+            >
               Дополнительные расходы
             </Typography>
             <PaymentAmountCell>{null}</PaymentAmountCell>
             {otherPayments.length > 0 ? (
-              <Typography variant="body2" sx={{ color: "text.secondary", gridColumn: "1 / -1", overflowWrap: "anywhere" }}>
-                Оплачено {formatRubles(otherPaidAmountRubles)} из {formatRubles(otherPayments.reduce((sum, item) => sum + item.amountRubles, 0))}
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.secondary",
+                  gridColumn: "1 / -1",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                Оплачено {formatRubles(otherPaidAmountRubles)} из{" "}
+                {formatRubles(
+                  otherPayments.reduce(
+                    (sum, item) => sum + item.amountRubles,
+                    0,
+                  ),
+                )}
               </Typography>
             ) : null}
 
@@ -640,7 +821,11 @@ export function RequestPayments(props: RequestPaymentsProps) {
                   comment={payment.comment}
                   amountRubles={payment.amountRubles}
                   paid={Boolean(payment.paidAt)}
-                  onMarkPaid={!payment.paidAt && canMarkPaid ? () => void markPaid(payment.id) : undefined}
+                  onMarkPaid={
+                    !payment.paidAt && canMarkPaid
+                      ? () => void markPaid(payment.id)
+                      : undefined
+                  }
                   markPaidDisabled={isBusy}
                   markPaidLoading={pendingAction === `paid:${payment.id}`}
                   authorCaption={expenseAuthorCaption(payment)}
@@ -651,8 +836,9 @@ export function RequestPayments(props: RequestPaymentsProps) {
                 variant="body2"
                 sx={{
                   color: "text.secondary",
-                  gridColumn: "1 / -1"
-                }}>
+                  gridColumn: "1 / -1",
+                }}
+              >
                 Дополнительных расходов пока нет
               </Typography>
             )}
@@ -660,7 +846,11 @@ export function RequestPayments(props: RequestPaymentsProps) {
 
           {canAddOtherPayments && !otherAddOpen ? (
             <Box sx={{ flexShrink: 0, pt: 1 }}>
-              <AddPaymentTrigger disabled={isBusy} label="Добавить расход" onClick={() => setOtherAddOpen(true)} />
+              <AddPaymentTrigger
+                disabled={isBusy}
+                label="Добавить расход"
+                onClick={() => setOtherAddOpen(true)}
+              />
             </Box>
           ) : null}
 
@@ -671,8 +861,9 @@ export function RequestPayments(props: RequestPaymentsProps) {
               sx={{
                 alignItems: { sm: "flex-end" },
                 flexShrink: 0,
-                pt: 1
-              }}>
+                pt: 1,
+              }}
+            >
               <TextField
                 variant="standard"
                 label="Сумма, ₽"
@@ -698,18 +889,30 @@ export function RequestPayments(props: RequestPaymentsProps) {
                 color="primary"
                 loading={pendingAction === "add:OTHER"}
                 disabled={isBusy || !canSubmitOther}
-                onClick={() => void addPayment({ type: "OTHER", amountInput: otherAmountInput, comment: otherComment })}
+                onClick={() =>
+                  void addPayment({
+                    type: "OTHER",
+                    amountInput: otherAmountInput,
+                    comment: otherComment,
+                  })
+                }
               >
-                    <QueueIcon />
-                  </IconButton>
-                  <Typography variant="caption" sx={{ display: { xs: "inline", sm: "none" }, color: "text.secondary" }}>
-                    Добавить
-                  </Typography>
-                  <IconButton
-                    aria-label="Отмена"
-                    disabled={isBusy}
-                    onClick={() => {
-                      setOtherAddOpen(false);
+                <QueueIcon />
+              </IconButton>
+              <Typography
+                variant="caption"
+                sx={{
+                  display: { xs: "inline", sm: "none" },
+                  color: "text.secondary",
+                }}
+              >
+                Добавить
+              </Typography>
+              <IconButton
+                aria-label="Отмена"
+                disabled={isBusy}
+                onClick={() => {
+                  setOtherAddOpen(false);
                   setOtherAmountInput("");
                   setOtherComment("");
                 }}

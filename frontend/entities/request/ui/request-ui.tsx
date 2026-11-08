@@ -61,7 +61,7 @@ export function StatusProgressStepper({
         overflowX: isVertical ? "visible" : "auto",
         overflowY: "hidden",
         WebkitOverflowScrolling: isVertical ? undefined : "touch",
-        ...(muted ? { opacity: 0.72 } : null),
+        ...(muted ? { opacity: 1 } : null),
       }}
     >
       <Stepper
@@ -108,17 +108,22 @@ export function RequestOverviewPanel({
       })}
     >
       <Stack spacing={2}>
-        <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{
-          alignItems: { md: "center" }
-        }}>
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={1.5}
+          sx={{
+            alignItems: { md: "center" },
+          }}
+        >
           <Stack
             direction="row"
             spacing={1.25}
             sx={{
               alignItems: "center",
               flex: 1,
-              minWidth: 0
-            }}>
+              minWidth: 0,
+            }}
+          >
             <Box
               sx={{
                 width: 42,
@@ -134,37 +139,58 @@ export function RequestOverviewPanel({
               <ReceiptLongOutlinedIcon fontSize="small" />
             </Box>
             <Box>
-              <Typography variant="h6" sx={{
-                fontWeight: 800
-              }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 700,
+                }}
+              >
                 {heading}
               </Typography>
-              <Typography sx={{
-                color: "text.secondary"
-              }}>{description}</Typography>
+              <Typography
+                sx={{
+                  color: "text.secondary",
+                }}
+              >
+                {description}
+              </Typography>
             </Box>
           </Stack>
           <Chip label={summaryChipLabel} color="primary" variant="filled" />
         </Stack>
 
         <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
-          {([
-            ["ALL", "Всего"],
-            ["ACTIVE", "Активные"],
-            ["COMPLETED", "Завершённые"],
-            ["CANCELLED", "Отменённые"],
-          ] as const).map(([status, label]) => (
+          {(
+            [
+              ["ALL", "Всего"],
+              ["ACTIVE", "Активные"],
+              ["COMPLETED", "Завершённые"],
+              ["CANCELLED", "Отменённые"],
+            ] as const
+          ).map(([status, label]) => (
             <Paper
               key={status}
               variant="outlined"
-              sx={{ p: 1.5, flex: 1, minWidth: 0, borderColor: selectedFilter === status ? "primary.main" : "divider" }}
+              sx={{
+                p: 1.5,
+                flex: 1,
+                minWidth: 0,
+                borderColor:
+                  selectedFilter === status ? "primary.main" : "divider",
+              }}
             >
-              <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.06em" }}>
+              <Typography
+                variant="overline"
+                sx={{ color: "text.secondary", letterSpacing: "0.06em" }}
+              >
                 {label}
               </Typography>
-              <Typography variant="h5" sx={{
-                fontWeight: 800
-              }}>
+              <Typography
+                variant="h5"
+                sx={{
+                  fontWeight: 700,
+                }}
+              >
                 {stats[status] ?? 0}
               </Typography>
             </Paper>
@@ -199,9 +225,14 @@ export function RequestSearchAndFilters({
         fullWidth
       />
 
-      <Stack direction="row" spacing={1} useFlexGap sx={{
-        flexWrap: "wrap"
-      }}>
+      <Stack
+        direction="row"
+        spacing={1}
+        useFlexGap
+        sx={{
+          flexWrap: "wrap",
+        }}
+      >
         {(
           [
             "ALL",
@@ -261,11 +292,15 @@ export function RequestCard({
         spacing={2}
         sx={{
           justifyContent: "space-between",
-          alignItems: { md: "flex-start" }
-        }}>
+          alignItems: { md: "flex-start" },
+        }}
+      >
         <Stack spacing={1.25} sx={{ minWidth: 0, flex: 1 }}>
           <Box>
-            <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.08em" }}>
+            <Typography
+              variant="overline"
+              sx={{ color: "text.secondary", letterSpacing: "0.08em" }}
+            >
               Заявка
             </Typography>
             <Stack
@@ -274,25 +309,38 @@ export function RequestCard({
               useFlexGap
               sx={{
                 alignItems: "center",
-                flexWrap: "wrap"
-              }}>
-              <Typography variant="h6" sx={{
-                fontWeight: 700
-              }}>
+                flexWrap: "wrap",
+              }}
+            >
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 700,
+                }}
+              >
                 {request.serviceTitle ?? "Заявка"}
               </Typography>
               <Chip
                 size="small"
                 label={getRequestDisplayStatusLabel(request)}
                 color={getRequestStatusColor(request.status)}
-                variant={request.status === "CANCELLED" || request.status === "CLOSED" ? "outlined" : "filled"}
+                variant={
+                  request.status === "CANCELLED" || request.status === "CLOSED"
+                    ? "outlined"
+                    : "filled"
+                }
               />
             </Stack>
           </Box>
 
-          <Stack direction="row" spacing={1} useFlexGap sx={{
-            flexWrap: "wrap"
-          }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            useFlexGap
+            sx={{
+              flexWrap: "wrap",
+            }}
+          >
             {partyChip}
           </Stack>
 
@@ -315,22 +363,36 @@ export function RequestCard({
               width: { xs: "100%", md: 360 },
               flexShrink: 0,
             },
-            ...(Array.isArray(infoPanelSx) ? infoPanelSx : infoPanelSx ? [infoPanelSx] : []),
+            ...(Array.isArray(infoPanelSx)
+              ? infoPanelSx
+              : infoPanelSx
+                ? [infoPanelSx]
+                : []),
           ]}
         >
-          <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.08em" }}>
+          <Typography
+            variant="overline"
+            sx={{ color: "text.secondary", letterSpacing: "0.08em" }}
+          >
             Сведения по заявке
           </Typography>
           {infoRows.map((row) => (
-            <Typography key={row.label} variant="body2" sx={{
-              color: "text.secondary"
-            }}>
+            <Typography
+              key={row.label}
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+              }}
+            >
               {row.label}: {row.value}
             </Typography>
           ))}
-          <Typography variant="body2" sx={{
-            color: "text.secondary"
-          }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+            }}
+          >
             {infoNote}
           </Typography>
         </Box>

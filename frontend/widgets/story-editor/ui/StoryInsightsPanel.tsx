@@ -73,7 +73,10 @@ function InsightsFigures({
   const [rangeFrom, setRangeFrom] = useState("");
   const [rangeTo, setRangeTo] = useState("");
   const tiles = buildInsightTiles(insights, new Date());
-  const hourly = buildHourlyChart(insights.hourly, range, new Date(), { from: rangeFrom, to: rangeTo });
+  const hourly = buildHourlyChart(insights.hourly, range, new Date(), {
+    from: rangeFrom,
+    to: rangeTo,
+  });
   const maxBar = Math.max(...hourly.bars.map((bar) => bar.count), 1);
   const selectedTileId = openId ?? tiles[0]?.id ?? null;
   const openTile = tiles.find((tile) => tile.id === selectedTileId) ?? null;
@@ -85,15 +88,24 @@ function InsightsFigures({
     onCloseReply?.();
   }
 
-  const activeReply = openTile?.id === "replies" ? insights.replies.find((reply) => reply.id === activeReplyId) ?? null : null;
+  const activeReply =
+    openTile?.id === "replies"
+      ? (insights.replies.find((reply) => reply.id === activeReplyId) ?? null)
+      : null;
 
   return (
     <Stack spacing={2}>
-      <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, bgcolor: "common.white" }}>
+      <Paper
+        variant="outlined"
+        sx={{ p: 2.5, borderRadius: 3, bgcolor: "common.white" }}
+      >
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "minmax(240px, 300px) minmax(0, 1fr)" },
+            gridTemplateColumns: {
+              xs: "1fr",
+              md: "minmax(240px, 300px) minmax(0, 1fr)",
+            },
             gap: { xs: 3, md: 4 },
             alignItems: "start",
           }}
@@ -115,12 +127,21 @@ function InsightsFigures({
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: openTile ? { xs: "1fr", md: "minmax(240px, 340px) minmax(0, 1fr)" } : "1fr",
+          gridTemplateColumns: openTile
+            ? { xs: "1fr", md: "minmax(240px, 340px) minmax(0, 1fr)" }
+            : "1fr",
           gap: 1.5,
           alignItems: "stretch",
         }}
       >
-        <Paper variant="outlined" sx={{ p: 1, borderRadius: 3, bgcolor: (theme) => alpha(theme.palette.common.white, 0.72) }}>
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 1,
+            borderRadius: 3,
+            bgcolor: (theme) => alpha(theme.palette.common.white, 0.72),
+          }}
+        >
           {tiles.map((tile) => {
             const open = tile.id === selectedTileId;
             return (
@@ -147,8 +168,14 @@ function InsightsFigures({
                   bgcolor: open ? "common.white" : "transparent",
                 }}
               >
-                <Typography sx={{ fontWeight: open ? 700 : 500 }}>{tile.label}</Typography>
-                <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", color: "primary.dark" }}>
+                <Typography sx={{ fontWeight: open ? 700 : 500 }}>
+                  {tile.label}
+                </Typography>
+                <Stack
+                  direction="row"
+                  spacing={0.5}
+                  sx={{ alignItems: "center", color: "primary.dark" }}
+                >
                   <Typography sx={{ fontWeight: 700 }}>{tile.count}</Typography>
                   <ChevronRightIcon fontSize="small" />
                 </Stack>
@@ -161,7 +188,10 @@ function InsightsFigures({
           <Box sx={rightPaneSx}>
             <StoryReplyChat
               name={activeReply.name}
-              initial={activeReply.name.trim().charAt(0).toLocaleUpperCase("ru-RU") || "?"}
+              initial={
+                activeReply.name.trim().charAt(0).toLocaleUpperCase("ru-RU") ||
+                "?"
+              }
               replyText={activeReply.text}
               replyAt={activeReply.createdAt}
               storyText={storyText}
@@ -178,11 +208,21 @@ function InsightsFigures({
         ) : null}
 
         {openTile && !activeReply ? (
-          <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, bgcolor: "common.white", ...rightPaneSx }}>
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 2.5,
+              borderRadius: 3,
+              bgcolor: "common.white",
+              ...rightPaneSx,
+            }}
+          >
             <Typography sx={{ fontWeight: 700, color: "primary.dark", mb: 1 }}>
               {openTile.label} · {openTile.count}
             </Typography>
-            <Stack divider={<Box sx={{ borderBottom: 1, borderColor: "divider" }} />}>
+            <Stack
+              divider={<Box sx={{ borderBottom: 1, borderColor: "divider" }} />}
+            >
               {openTile.rows.map((row) => {
                 const replyRow = openTile.id === "replies";
                 return (
@@ -216,23 +256,32 @@ function InsightsFigures({
                       sx={{
                         width: 36,
                         height: 36,
-                        bgcolor: (theme) => alpha(theme.palette.primary.main, 0.16),
+                        bgcolor: (theme) =>
+                          alpha(theme.palette.primary.main, 0.16),
                         color: "primary.dark",
-                        fontSize: 14,
+                        fontSize: "1rem",
                         fontWeight: 700,
                       }}
                     >
                       {row.initial}
                     </Avatar>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography sx={{ fontWeight: 700 }}>{row.name}</Typography>
+                      <Typography sx={{ fontWeight: 700 }}>
+                        {row.name}
+                      </Typography>
                       {row.detail ? (
-                        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                        <Typography
+                          variant="body2"
+                          sx={{ color: "text.secondary" }}
+                        >
                           {row.detail}
                         </Typography>
                       ) : null}
                     </Box>
-                    <Typography variant="body2" sx={{ color: "text.secondary", flexShrink: 0 }}>
+                    <Typography
+                      variant="body2"
+                      sx={{ color: "text.secondary", flexShrink: 0 }}
+                    >
                       {row.when}
                     </Typography>
                   </Stack>
@@ -258,8 +307,13 @@ const SLICE_COLOR: Record<ViewMixSliceId, "success" | "primary" | "soft"> = {
 function ViewsMix({ mix, periodLabel }: { mix: ViewMix; periodLabel: string }) {
   return (
     <Stack spacing={2}>
-      <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "baseline", gap: 1 }}>
-        <Typography sx={{ fontWeight: 700, color: "primary.dark" }}>Просмотры</Typography>
+      <Stack
+        direction="row"
+        sx={{ justifyContent: "space-between", alignItems: "baseline", gap: 1 }}
+      >
+        <Typography sx={{ fontWeight: 700, color: "primary.dark" }}>
+          Просмотры
+        </Typography>
         <Typography variant="body2" sx={{ color: "text.secondary" }}>
           {periodLabel}
         </Typography>
@@ -282,10 +336,16 @@ function ViewsMix({ mix, periodLabel }: { mix: ViewMix; periodLabel: string }) {
             <Typography variant="body2" sx={{ flex: 1, minWidth: 0 }}>
               {slice.label}
             </Typography>
-            <Typography variant="body2" sx={{ width: 44, textAlign: "right", color: "text.secondary" }}>
+            <Typography
+              variant="body2"
+              sx={{ width: 44, textAlign: "right", color: "text.secondary" }}
+            >
               {slice.percent}%
             </Typography>
-            <Typography variant="body2" sx={{ width: 28, textAlign: "right", fontWeight: 700 }}>
+            <Typography
+              variant="body2"
+              sx={{ width: 28, textAlign: "right", fontWeight: 700 }}
+            >
               {slice.count}
             </Typography>
           </Stack>
@@ -326,13 +386,20 @@ function ViewDonut({ mix }: { mix: ViewMix }) {
   const visible = mix.slices.filter((slice) => slice.count > 0);
   const gap = visible.length > 1 ? 4 : 0;
   const arcs = buildDonutArcs(visible, mix.total, circumference, gap);
-  const summary = mix.slices.map((slice) => `${slice.label} ${slice.count}`).join(", ");
+  const summary = mix.slices
+    .map((slice) => `${slice.label} ${slice.count}`)
+    .join(", ");
 
   return (
     <Box
       role="img"
       aria-label={`${mix.total} ${viewsWord(mix.total)}. ${summary}`}
-      sx={{ position: "relative", width: DONUT_SIZE, height: DONUT_SIZE, mx: "auto" }}
+      sx={{
+        position: "relative",
+        width: DONUT_SIZE,
+        height: DONUT_SIZE,
+        mx: "auto",
+      }}
     >
       <Box
         component="svg"
@@ -371,7 +438,14 @@ function ViewDonut({ mix }: { mix: ViewMix }) {
           pointerEvents: "none",
         }}
       >
-        <Typography sx={{ fontSize: 40, fontWeight: 700, lineHeight: 1, color: "text.primary" }}>
+        <Typography
+          sx={{
+            fontSize: "2.5rem",
+            fontWeight: 700,
+            lineHeight: 1,
+            color: "text.primary",
+          }}
+        >
           {mix.total}
         </Typography>
         <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.25 }}>
@@ -392,7 +466,12 @@ function MixDot({ kind }: { kind: ViewMixSliceId }) {
         borderRadius: "50%",
         flexShrink: 0,
         boxSizing: "border-box",
-        bgcolor: tone === "success" ? "success.main" : tone === "primary" ? "primary.main" : "transparent",
+        bgcolor:
+          tone === "success"
+            ? "success.main"
+            : tone === "primary"
+              ? "primary.main"
+              : "transparent",
         border: tone === "soft" ? "1.5px solid" : 0,
         borderColor: (theme) => alpha(theme.palette.primary.main, 0.7),
       }}
@@ -424,14 +503,24 @@ function HourlyViews({
       <Stack
         direction={{ xs: "column", sm: "row" }}
         spacing={1}
-        sx={{ justifyContent: "space-between", alignItems: { sm: "center" }, mb: 1.5 }}
+        sx={{
+          justifyContent: "space-between",
+          alignItems: { sm: "center" },
+          mb: 1.5,
+        }}
       >
-        <Typography sx={{ fontWeight: 700, color: "primary.dark" }}>Просмотры по часам</Typography>
+        <Typography sx={{ fontWeight: 700, color: "primary.dark" }}>
+          Просмотры по часам
+        </Typography>
         <Typography variant="body2" sx={{ color: "text.secondary" }}>
           {hourly.caption}
         </Typography>
       </Stack>
-      <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", mb: range === "custom" ? 1.5 : 2 }}>
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{ flexWrap: "wrap", mb: range === "custom" ? 1.5 : 2 }}
+      >
         {HOURLY_RANGES.map((item) => {
           const selected = item.id === range;
           return (
@@ -448,8 +537,10 @@ function HourlyViews({
                 py: 0.75,
                 cursor: "pointer",
                 font: "inherit",
-                fontSize: 14,
-                bgcolor: selected ? "primary.main" : (theme) => alpha(theme.palette.primary.main, 0.12),
+                fontSize: "1rem",
+                bgcolor: selected
+                  ? "primary.main"
+                  : (theme) => alpha(theme.palette.primary.main, 0.12),
                 color: selected ? "common.white" : "primary.dark",
               }}
             >
@@ -459,7 +550,11 @@ function HourlyViews({
         })}
       </Stack>
       {range === "custom" ? (
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mb: 2 }}>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1.5}
+          sx={{ mb: 2 }}
+        >
           <AppDateField label="С" value={rangeFrom} onChange={onRangeFrom} />
           <AppDateField label="По" value={rangeTo} onChange={onRangeTo} />
         </Stack>
@@ -475,9 +570,25 @@ function HourlyViews({
             borderColor: "divider",
           }}
         />
-        <Box sx={{ display: "flex", alignItems: "flex-end", height: CHART_HEIGHT, gap: "2px" }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "flex-end",
+            height: CHART_HEIGHT,
+            gap: "2px",
+          }}
+        >
           {hourly.bars.map((bar) => (
-            <Box key={bar.hour} sx={{ flex: 1, minWidth: 0, height: "100%", display: "flex", alignItems: "flex-end" }}>
+            <Box
+              key={bar.hour}
+              sx={{
+                flex: 1,
+                minWidth: 0,
+                height: "100%",
+                display: "flex",
+                alignItems: "flex-end",
+              }}
+            >
               {bar.count > 0 ? (
                 <Box
                   title={`${String(bar.hour).padStart(2, "0")}:00 · ${bar.count}`}
@@ -486,7 +597,9 @@ function HourlyViews({
                     mx: "auto",
                     height: `${Math.max(4, (bar.count / maxBar) * CHART_HEIGHT)}px`,
                     borderRadius: "3px 3px 0 0",
-                    bgcolor: bar.peak ? "primary.main" : (theme) => alpha(theme.palette.primary.main, 0.35),
+                    bgcolor: bar.peak
+                      ? "primary.main"
+                      : (theme) => alpha(theme.palette.primary.main, 0.35),
                   }}
                 />
               ) : null}
@@ -498,9 +611,16 @@ function HourlyViews({
             <Typography
               key={bar.hour}
               variant="caption"
-              sx={{ flex: 1, textAlign: "center", color: "text.secondary", minWidth: 0 }}
+              sx={{
+                flex: 1,
+                textAlign: "center",
+                color: "text.secondary",
+                minWidth: 0,
+              }}
             >
-              {AXIS_HOURS.has(bar.hour) ? String(bar.hour).padStart(2, "0") : ""}
+              {AXIS_HOURS.has(bar.hour)
+                ? String(bar.hour).padStart(2, "0")
+                : ""}
             </Typography>
           ))}
         </Box>

@@ -4,7 +4,7 @@
 
 Эта инструкция рассчитана на первый запуск Terraform. Начните с testing. Когда он будет настроен, prod можно создать отдельно по разделу ниже.
 
-Terraform создаёт сеть, PostgreSQL и S3-хранилища. Для prod он также настраивает резервное копирование, DNS и CDN. Приложения backend и frontend в AppPlatform вы создаёте вручную.
+Testing Terraform создаёт только S3-хранилища: база остаётся на ONREZA. Prod Terraform управляет своей сетью, PostgreSQL, S3, резервным копированием, DNS и CDN. Приложения backend и frontend в AppPlatform создаются отдельно.
 
 ## Где вводить команды
 
@@ -81,150 +81,30 @@ umask 077
 
 ## Создать testing
 
-Testing — минимальное окружение:
+База testing остаётся на ONREZA. Этот Terraform root создаёт только **один публичный бакет Standard 1 ГБ и отдельного S3-пользователя**. На 2026-11-08 тариф бакета — 1 ₽/месяц плюс возможный исходящий трафик. Автоувеличение выключено. Второй бакет Premium 1 ГБ создать не удалось: Timeweb ответил `Storage class hot is sold out`.
 
-- PostgreSQL 18: **1 CPU, 2 ГБ RAM, 20 ГБ**, один узел, без реплик и бэкапов.
-- Своя сеть `zemledel-testing` с адресами `192.168.20.0/24`.
-- Два отдельных S3-бакета: public и private, по 1 ГБ на промотарифе.
-- Изображения доступны напрямую из public S3; CDN и DNS-зона не создаются.
-
-### 1. Создать файл настроек testing
+В публичный бакет можно загружать фотографии и **только искусственные документы testing**. При `NODE_ENV=testing` backend направляет документы и паспорта туда же без KMS. Прямой URL объекта открыт любому, кто его узнает. Для всех прочих значений `NODE_ENV` остаются обязательными отдельное защищённое хранилище `PASSPORT_S3_*` и KMS.
 
 ```sh
 cp -n infra/terraform/testing/terraform.tfvars.example infra/terraform/testing/terraform.tfvars
-```
-
-Команда копирует готовый пример в рабочий файл. Если `terraform.tfvars` уже существует, `-n` сохраняет его без перезаписи.
-
-В дереве файлов Cursor откройте:
-
-```text
-infra/terraform/testing/terraform.tfvars
-```
-
-В нём уже указаны минимальные параметры. Для первого запуска их можно оставить. Terraform будет читать этот файл автоматически.
-
-### 2. Подготовить Terraform для testing
-
-```sh
 terraform -chdir=infra/terraform/testing init
-```
-
-Команда скачивает компоненты для общения с Timeweb. Дождитесь сообщения `Terraform has been successfully initialized!`.
-
-**Платные ресурсы на этом шаге не создаются.**
-
-### 3. Проверить настройки
-
-```sh
 terraform -chdir=infra/terraform/testing validate
-```
-
-Ожидаемый результат: `Success! The configuration is valid.`
-
-### 4. Посмотреть, что будет создано
-
-```sh
 terraform -chdir=infra/terraform/testing plan
-```
-
-Команда покажет список будущих ресурсов и прочитает актуальный тариф БД из Timeweb. Она ещё ничего не создаёт.
-
-При первом запуске с текущей конфигурацией ожидается:
-
-```text
-Plan: 8 to add, 0 to change, 0 to destroy.
-```
-
-Это означает: создать 8 объектов, изменить 0, удалить 0. Среди имён должны быть `zemledel-testing-tf`, `zemledel_db_testing` и `zemledel-testing-public` / `private`.
-
-В `database_tariff` указана цена БД. Это не цена всего окружения: S3, трафик и приложения AppPlatform считаются отдельно. Доступность промотарифа S3 подтверждается при создании.
-
-### 5. Создать ресурсы testing
-
-Когда проверили план, выполните:
-
-```sh
 terraform -chdir=infra/terraform/testing apply
 ```
 
-Terraform снова покажет план и спросит подтверждение. Для создания введите:
-
-```text
-yes
-```
-
-**После подтверждения начнётся создание платных ресурсов.** Дождитесь сообщения `Apply complete!`.
-
-Если команда завершилась ошибкой, сохраните её текст. Часть ресурсов уже могла создаться: не удаляйте файлы Terraform и не начинайте заново из другой папки.
-
-### 6. Получить параметры testing
-
-Посмотреть ID сети, ID кластера и адреса БД:
+При первом запуске план должен содержать только бакет и S3-пользователя. State сохраняется отдельно и содержит секреты. При ошибке не удаляйте state: часть ресурсов уже могла создаться.
 
 ```sh
-terraform -chdir=infra/terraform/testing output vpc_id
-terraform -chdir=infra/terraform/testing output database_cluster_id
-terraform -chdir=infra/terraform/testing output database_domains
-```
-
-Посмотреть выбранный тариф БД:
-
-```sh
-terraform -chdir=infra/terraform/testing output database_tariff
-```
-
-Получить имя БД, пользователя и пароль:
-
-```sh
-terraform -chdir=infra/terraform/testing output -json database_credentials
-```
-
-Получить переменные S3 для backend:
-
-```sh
+# Содержит S3_KEY и S3_SECRET — не публикуйте вывод.
 terraform -chdir=infra/terraform/testing output -json backend_storage_environment
-```
-
-Две последние команды показывают секреты. Не публикуйте их вывод.
-
-Получить публичные переменные S3 для frontend:
-
-```sh
+# Публичные значения, задать до сборки frontend.
 terraform -chdir=infra/terraform/testing output -json frontend_storage_environment
 ```
 
-### 7. Подключить приложения testing
+Для backend оставьте `DATABASE_URL` testing-базы ONREZA и проверьте сетевое подключение и миграции. На 2026-11-08 ключи S3 из Terraform state отвечают `SignatureDoesNotMatch` (HTTP 403); сначала добейтесь успешного пробного обращения к бакету. Затем подставьте S3-переменные и `NODE_ENV` из `backend_storage_environment` и перезапустите backend. `CDN_PUBLIC_BASE_URL` указывает прямо на HTTPS-адрес бакета; CDN не требуется. Для frontend установите `NEXT_PUBLIC_S3_*` из `frontend_storage_environment` и пересоберите его. `NEXTAUTH_URL`, `BACKEND_API_URL`, `FRONTEND_URL`, `INTERNAL_API_SECRET`, `SOCKET_JWT_SECRET` и `NEXTAUTH_SECRET` должны соответствовать именно testing-приложениям.
 
-Создайте отдельные backend и frontend в AppPlatform. Используйте их технические HTTPS-домены. При создании backend выберите сеть **`zemledel-testing`** в Москве.
-
-Для backend:
-
-- Путь проекта: `/backend`.
-- Команда сборки: `npm run tw:build`.
-- Команда запуска: `npm run tw:start`.
-- Путь проверки состояния: `/` (HTTP 200 после старта backend).
-- Порт приложения в панели должен совпадать с `PORT` backend (по умолчанию `3003`).
-- `DATABASE_URL`: подключение к **новой testing-БД**, с паролем из `database_credentials`. Hostname, порт и параметры TLS/CA возьмите в панели подключения этой БД.
-- Переменные S3: из `backend_storage_environment`.
-- `FRONTEND_URL`: технический HTTPS-адрес testing-frontend.
-- Секреты приложения и `SMTP_*`: задаются отдельно в AppPlatform.
-
-В testing переменная `CDN_PUBLIC_BASE_URL` из вывода Terraform содержит прямой адрес S3-бакета. Скопируйте её тоже: она нужна backend для формирования ссылок на изображения, даже когда CDN нет.
-
-Для frontend:
-
-- `NEXTAUTH_URL`: технический HTTPS-адрес testing-frontend.
-- `BACKEND_API_URL` и `NEXT_PUBLIC_CHAT_SOCKET_URL`: технический HTTPS-адрес testing-backend.
-- `NEXT_PUBLIC_S3_*`: из `frontend_storage_environment`, задать **до сборки**.
-- `INTERNAL_API_SECRET` и `SOCKET_JWT_SECRET`: те же значения, что у testing-backend.
-- `NEXTAUTH_SECRET`: отдельный секрет frontend.
-
-Terraform создаёт пустую БД. `tw:build` устанавливает зависимости, генерирует Prisma Client и собирает backend без обращения к БД. `DATABASE_URL` нужен для чтения Prisma config, но на этапе сборки база может быть недоступна. `tw:start` проверяет и применяет только новые миграции, затем запускает `dist/src/main.js`. При ошибке миграции приложение не стартует. Уже применённые миграции повторно не выполняются.
-
-Сиды и города загружаются отдельно, не при каждом старте: [инструкция по базе](database.md), [инструкция по городам](cities.md). Старый `npm run deploy` обращается к базе во время сборки; для изолированного сборочного окружения используйте `tw:build`.
-
-До завершения миграций HTTP-сервер не слушает порт. Если платформа завершает контейнер по тайм-ауту старта, нужно увеличить допустимое время запуска/начальную задержку проверки через доступные настройки или поддержку. Один лишь путь `/` не увеличивает этот тайм-аут. Проверка `/` подтверждает работу HTTP-сервера, но не состояние внешних сервисов. В логах маркер `[tw:start] Migrations complete; starting backend` отделяет миграции от запуска Node. Его повторение после успешного старта означает новый запуск контейнера; причину следует искать в событиях платформы и последующих ошибках приложения.
+Подробнее: [testing S3](../infra/terraform/testing/README.md), [миграции и данные БД](database.md).
 
 ## Создать prod
 
@@ -399,13 +279,13 @@ Terraform отправит запрос в Timeweb, дождётся выпус�
 
 Для обоих окружений проверьте подключение приложения к нужной БД, вход, сброс пароля, чат, загрузку и отображение картинки, скачивание приватного документа с авторизацией. Приватный S3-бакет должен оставаться недоступным анонимно.
 
-Для prod дополнительно проверьте две готовые реплики, расписание бэкапов и HTTPS CDN. Для testing бэкапы и CDN не создаются.
+Для prod дополнительно проверьте две готовые реплики, расписание бэкапов и HTTPS CDN. Для testing этот Terraform root не создаёт БД и CDN.
 
 Старую prod-БД удаляйте после переноса данных и проверки нового приложения. Terraform не переносит данные БД или файлы S3 автоматически. При переносе зашифрованных документов сохраняйте соответствующий им `DOCUMENTS_MASTER_KEY_BASE64`.
 
 ## Как потом менять настройки
 
-Откройте `terraform.tfvars` нужного окружения в Cursor и внесите изменения. Размеры БД выбирают готовый тариф Timeweb: если такого сочетания CPU/RAM/диска нет в каталоге, план завершится ошибкой.
+Откройте `terraform.tfvars` нужного окружения в Cursor и внесите изменения. Для prod размеры БД выбирают готовый тариф Timeweb: если такого сочетания CPU/RAM/диска нет в каталоге, план завершится ошибкой.
 
 Для изменения testing:
 
@@ -421,7 +301,7 @@ terraform -chdir=infra/terraform plan
 terraform -chdir=infra/terraform apply
 ```
 
-После создания, если настройки не менялись, ожидается сообщение `No changes.`. Числа `8 to add` и `16 to add` выше относятся к первому созданию. При частичном создании план показывает только оставшиеся ресурсы.
+После создания, если настройки не менялись, ожидается сообщение `No changes.`. Числа ресурсов в первом плане относятся только к первому созданию. При частичном создании план показывает только оставшиеся ресурсы.
 
 Если план показывает неожиданное удаление (`destroy`) или замену (`-/+`), остановитесь и проверьте изменения. Не снимайте `prevent_destroy` автоматически: это защита от случайного удаления важных ресурсов.
 
@@ -436,7 +316,7 @@ Testing: infra/terraform/testing/terraform.tfstate
 Prod:    infra/terraform/terraform.tfstate
 ```
 
-Они содержат пароли и ключи. Храните защищённую резервную копию этих файлов, даже если для testing отключён бэкап самой БД. Не добавляйте state, рабочие `terraform.tfvars` и выгрузки секретов в Git. Примеры `terraform.tfvars.example` и файлы `.terraform.lock.hcl` сохраняются в Git.
+Они содержат пароли и ключи. Храните защищённую резервную копию этих файлов; они содержат секреты S3. Не добавляйте state, рабочие `terraform.tfvars` и выгрузки секретов в Git. Примеры `terraform.tfvars.example` и файлы `.terraform.lock.hcl` сохраняются в Git.
 
 Не копируйте state между prod/testing и не подставляйте в testing настройки prod. Не используйте `init -migrate-state` для переключения окружения. Отдельные S3-ключи Timeweb service account имеют доступ к хранилищам аккаунта: разные имена бакетов сами по себе не изолируют права.
 

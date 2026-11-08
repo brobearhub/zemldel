@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   Alert,
@@ -56,17 +64,22 @@ function providerTypeLabel(type: AuthMembership["providerType"]) {
   }
 }
 
-function providerRoleLabel(role: AuthMembership["role"] | ProviderMemberRecord["role"]) {
+function providerRoleLabel(
+  role: AuthMembership["role"] | ProviderMemberRecord["role"],
+) {
   return role === "OWNER" ? "владелец" : "менеджер";
 }
 
 export function ProfessionalWorkspacePanel() {
   const router = useRouter();
   const { user } = useAppSelector((state) => state.auth);
-  const [providerMembers, setProviderMembers] = useState<ProviderMembersResponse | null>(null);
+  const [providerMembers, setProviderMembers] =
+    useState<ProviderMembersResponse | null>(null);
   const [membersLoading, setMembersLoading] = useState(false);
   const [membersError, setMembersError] = useState<string | null>(null);
-  const [switchingProviderId, setSwitchingProviderId] = useState<string | null>(null);
+  const [switchingProviderId, setSwitchingProviderId] = useState<string | null>(
+    null,
+  );
   const [managerEmail, setManagerEmail] = useState("");
   const [managerError, setManagerError] = useState<string | null>(null);
   const [managerSuccess, setManagerSuccess] = useState<string | null>(null);
@@ -80,13 +93,18 @@ export function ProfessionalWorkspacePanel() {
   const [slugSaving, setSlugSaving] = useState(false);
   const slugCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const memberships = useMemo(() => user?.memberships ?? [], [user?.memberships]);
+  const memberships = useMemo(
+    () => user?.memberships ?? [],
+    [user?.memberships],
+  );
   const activeMembership = useMemo(
     () =>
-      memberships.find((membership) => membership.providerId === user?.activeProviderId) ??
+      memberships.find(
+        (membership) => membership.providerId === user?.activeProviderId,
+      ) ??
       memberships[0] ??
       null,
-    [memberships, user?.activeProviderId]
+    [memberships, user?.activeProviderId],
   );
   const isActiveOwner = activeMembership?.role === "OWNER";
 
@@ -104,9 +122,12 @@ export function ProfessionalWorkspacePanel() {
       setMembersError(null);
 
       try {
-        const response = await fetch(`/api/providers/${activeMembership.providerId}/members`, {
-          cache: "no-store",
-        });
+        const response = await fetch(
+          `/api/providers/${activeMembership.providerId}/members`,
+          {
+            cache: "no-store",
+          },
+        );
         const payload = (await response.json().catch(() => null)) as
           | (ProviderMembersResponse & { error?: never })
           | { error?: string }
@@ -114,9 +135,12 @@ export function ProfessionalWorkspacePanel() {
 
         if (!response.ok) {
           throw new Error(
-            payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+            payload &&
+              typeof payload === "object" &&
+              "error" in payload &&
+              typeof payload.error === "string"
               ? payload.error
-              : "Не удалось загрузить участников provider"
+              : "Не удалось загрузить участников provider",
           );
         }
 
@@ -125,7 +149,11 @@ export function ProfessionalWorkspacePanel() {
         }
       } catch (error) {
         if (!cancelled) {
-          setMembersError(error instanceof Error ? error.message : "Не удалось загрузить участников provider");
+          setMembersError(
+            error instanceof Error
+              ? error.message
+              : "Не удалось загрузить участников provider",
+          );
           setProviderMembers(null);
         }
       } finally {
@@ -150,7 +178,9 @@ export function ProfessionalWorkspacePanel() {
       const response = await fetch(`/api/providers/${providerId}/activate`, {
         method: "POST",
       });
-      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
 
       if (!response.ok) {
         throw new Error(payload?.error ?? "Не удалось переключить provider");
@@ -158,7 +188,11 @@ export function ProfessionalWorkspacePanel() {
 
       router.refresh();
     } catch (error) {
-      setMembersError(error instanceof Error ? error.message : "Не удалось переключить provider");
+      setMembersError(
+        error instanceof Error
+          ? error.message
+          : "Не удалось переключить provider",
+      );
     } finally {
       setSwitchingProviderId(null);
     }
@@ -172,7 +206,9 @@ export function ProfessionalWorkspacePanel() {
     }
     setSlugChecking(true);
     try {
-      const res = await fetch(`/api/providers/slug-check?slug=${encodeURIComponent(value)}`);
+      const res = await fetch(
+        `/api/providers/slug-check?slug=${encodeURIComponent(value)}`,
+      );
       const data = (await res.json()) as { available?: boolean };
       setSlugAvailable(data.available ?? false);
     } catch {
@@ -216,12 +252,17 @@ export function ProfessionalWorkspacePanel() {
     setSlugError(null);
 
     try {
-      const res = await fetch(`/api/providers/${activeMembership.providerId}/slug`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ slug: slugValue }),
-      });
-      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      const res = await fetch(
+        `/api/providers/${activeMembership.providerId}/slug`,
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ slug: slugValue }),
+        },
+      );
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
 
       if (!res.ok) {
         setSlugError(data?.error ?? "Не удалось обновить slug");
@@ -232,7 +273,10 @@ export function ProfessionalWorkspacePanel() {
       setSlugValue("");
       setSlugAvailable(null);
       // Reload provider members to get fresh slug
-      const membersRes = await fetch(`/api/providers/${activeMembership.providerId}/members`, { cache: "no-store" });
+      const membersRes = await fetch(
+        `/api/providers/${activeMembership.providerId}/members`,
+        { cache: "no-store" },
+      );
       const membersData = (await membersRes.json()) as ProviderMembersResponse;
       setProviderMembers(membersData);
       router.refresh();
@@ -253,33 +297,50 @@ export function ProfessionalWorkspacePanel() {
     setManagerSuccess(null);
 
     try {
-      const response = await fetch(`/api/providers/${activeMembership.providerId}/members`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
+      const response = await fetch(
+        `/api/providers/${activeMembership.providerId}/members`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ email: managerEmail }),
         },
-        body: JSON.stringify({ email: managerEmail }),
-      });
-      const payload = (await response.json().catch(() => null)) as { error?: string } | ProviderMemberRecord | null;
+      );
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | ProviderMemberRecord
+        | null;
 
       if (!response.ok) {
         throw new Error(
-          payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+          payload &&
+            typeof payload === "object" &&
+            "error" in payload &&
+            typeof payload.error === "string"
             ? payload.error
-            : "Не удалось добавить менеджера"
+            : "Не удалось добавить менеджера",
         );
       }
 
       setManagerEmail("");
       setManagerSuccess("Менеджер добавлен в профиль исполнителя");
 
-      const membersResponse = await fetch(`/api/providers/${activeMembership.providerId}/members`, {
-        cache: "no-store",
-      });
-      const membersPayload = (await membersResponse.json()) as ProviderMembersResponse;
+      const membersResponse = await fetch(
+        `/api/providers/${activeMembership.providerId}/members`,
+        {
+          cache: "no-store",
+        },
+      );
+      const membersPayload =
+        (await membersResponse.json()) as ProviderMembersResponse;
       setProviderMembers(membersPayload);
     } catch (error) {
-      setManagerError(error instanceof Error ? error.message : "Не удалось добавить менеджера");
+      setManagerError(
+        error instanceof Error
+          ? error.message
+          : "Не удалось добавить менеджера",
+      );
     } finally {
       setManagerLoading(false);
     }
@@ -293,29 +354,46 @@ export function ProfessionalWorkspacePanel() {
         <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.25 }}>
           <BusinessCenterOutlinedIcon color="action" />
           <Box>
-            <Typography variant="subtitle1" sx={{
-              fontWeight: 800
-            }}>
+            <Typography
+              variant="subtitle1"
+              sx={{
+                fontWeight: 700,
+              }}
+            >
               Активный профиль исполнителя
             </Typography>
-            <Typography sx={{
-              fontWeight: 600
-            }}>{providerMembers?.name ?? activeMembership.providerName}</Typography>
-            <Typography variant="body2" sx={{
-              color: "text.secondary"
-            }}>
+            <Typography
+              sx={{
+                fontWeight: 600,
+              }}
+            >
+              {providerMembers?.name ?? activeMembership.providerName}
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+              }}
+            >
               Тип: {providerTypeLabel(activeMembership.providerType)}
             </Typography>
-            <Typography variant="body2" sx={{
-              color: "text.secondary"
-            }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+              }}
+            >
               Роль: {providerRoleLabel(activeMembership.role)}
             </Typography>
             {providerMembers?.slug ? (
               <Box sx={{ mt: 0.5 }}>
                 {slugEditing ? (
                   <Stack spacing={1} sx={{ mt: 1 }}>
-                    {slugError ? <Alert severity="error" sx={{ py: 0 }}>{slugError}</Alert> : null}
+                    {slugError ? (
+                      <Alert severity="error" sx={{ py: 0 }}>
+                        {slugError}
+                      </Alert>
+                    ) : null}
                     <TextField
                       label="Адрес профиля"
                       value={slugValue}
@@ -326,27 +404,35 @@ export function ProfessionalWorkspacePanel() {
                       helperText={
                         slugChecking
                           ? "Проверяем..."
-                          : slugValue && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slugValue)
-                          ? "Только латинские буквы, цифры и дефис"
-                          : slugAvailable === true
-                          ? `URL: /providers/${slugValue}`
-                          : slugAvailable === false
-                          ? "Этот slug уже занят"
-                          : slugValue
-                          ? `URL: /providers/${slugValue}`
-                          : ""
+                          : slugValue &&
+                              !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slugValue)
+                            ? "Только латинские буквы, цифры и дефис"
+                            : slugAvailable === true
+                              ? `URL: /providers/${slugValue}`
+                              : slugAvailable === false
+                                ? "Этот slug уже занят"
+                                : slugValue
+                                  ? `URL: /providers/${slugValue}`
+                                  : ""
                       }
                       slotProps={{
                         input: {
-                          endAdornment: slugValue && !slugChecking ? (
-                            <InputAdornment position="end">
-                              {slugAvailable === true ? (
-                                <CheckCircleOutlineIcon color="success" fontSize="small" />
-                              ) : slugAvailable === false ? (
-                                <HighlightOffIcon color="error" fontSize="small" />
-                              ) : null}
-                            </InputAdornment>
-                          ) : undefined,
+                          endAdornment:
+                            slugValue && !slugChecking ? (
+                              <InputAdornment position="end">
+                                {slugAvailable === true ? (
+                                  <CheckCircleOutlineIcon
+                                    color="success"
+                                    fontSize="small"
+                                  />
+                                ) : slugAvailable === false ? (
+                                  <HighlightOffIcon
+                                    color="error"
+                                    fontSize="small"
+                                  />
+                                ) : null}
+                              </InputAdornment>
+                            ) : undefined,
                         },
                       }}
                     />
@@ -360,7 +446,12 @@ export function ProfessionalWorkspacePanel() {
                       >
                         Сохранить
                       </Button>
-                      <Button variant="outlined" size="small" disabled={slugSaving} onClick={handleSlugEditCancel}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        disabled={slugSaving}
+                        onClick={handleSlugEditCancel}
+                      >
                         Отмена
                       </Button>
                     </Stack>
@@ -371,11 +462,15 @@ export function ProfessionalWorkspacePanel() {
                     spacing={0.5}
                     sx={{
                       alignItems: "center",
-                      mt: 0.25
-                    }}>
-                    <Typography variant="body2" sx={{
-                      color: "text.secondary"
-                    }}>
+                      mt: 0.25,
+                    }}
+                  >
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "text.secondary",
+                      }}
+                    >
                       Адрес профиля: <b>{providerMembers.slug}</b>
                     </Typography>
                     {isActiveOwner ? (
@@ -383,7 +478,7 @@ export function ProfessionalWorkspacePanel() {
                         size="small"
                         startIcon={<EditOutlinedIcon fontSize="small" />}
                         onClick={handleSlugEditStart}
-                        sx={{ minWidth: 0, p: 0.25, fontSize: "0.75rem" }}
+                        sx={{ minWidth: 0, p: 0.25, fontSize: "1rem" }}
                       >
                         Изменить
                       </Button>
@@ -399,38 +494,61 @@ export function ProfessionalWorkspacePanel() {
           <>
             <Divider />
             <Stack spacing={1.25}>
-              <Typography variant="subtitle2" sx={{
-                fontWeight: 800
-              }}>
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  fontWeight: 700,
+                }}
+              >
                 Мои профили исполнителя
               </Typography>
               {memberships.map((membership) => {
-                const isActive = membership.providerId === activeMembership.providerId;
+                const isActive =
+                  membership.providerId === activeMembership.providerId;
                 return (
-                  <Paper key={membership.providerId} variant="outlined" sx={{ p: 1.5 }}>
+                  <Paper
+                    key={membership.providerId}
+                    variant="outlined"
+                    sx={{ p: 1.5 }}
+                  >
                     <Stack
                       direction={{ xs: "column", sm: "row" }}
                       spacing={1.5}
                       sx={{
                         justifyContent: "space-between",
-                        alignItems: { xs: "flex-start", sm: "center" }
-                      }}>
+                        alignItems: { xs: "flex-start", sm: "center" },
+                      }}
+                    >
                       <Box>
-                        <Typography sx={{
-                          fontWeight: 600
-                        }}>{membership.providerName}</Typography>
-                        <Typography variant="body2" sx={{
-                          color: "text.secondary"
-                        }}>
-                          {providerTypeLabel(membership.providerType)} · {providerRoleLabel(membership.role)}
+                        <Typography
+                          sx={{
+                            fontWeight: 600,
+                          }}
+                        >
+                          {membership.providerName}
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            color: "text.secondary",
+                          }}
+                        >
+                          {providerTypeLabel(membership.providerType)} ·{" "}
+                          {providerRoleLabel(membership.role)}
                         </Typography>
                       </Box>
                       <Button
                         variant={isActive ? "contained" : "outlined"}
                         size="small"
                         loading={switchingProviderId === membership.providerId}
-                        disabled={isActive || (switchingProviderId !== null && switchingProviderId !== membership.providerId)}
-                        onClick={() => handleActivateProvider(membership.providerId)}
+                        disabled={
+                          isActive ||
+                          (switchingProviderId !== null &&
+                            switchingProviderId !== membership.providerId)
+                        }
+                        onClick={() =>
+                          handleActivateProvider(membership.providerId)
+                        }
                       >
                         {isActive ? "Активный" : "Сделать активным"}
                       </Button>
@@ -447,9 +565,12 @@ export function ProfessionalWorkspacePanel() {
         <Stack spacing={1.25}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <PeopleOutlineOutlinedIcon fontSize="small" color="action" />
-            <Typography variant="subtitle2" sx={{
-              fontWeight: 800
-            }}>
+            <Typography
+              variant="subtitle2"
+              sx={{
+                fontWeight: 700,
+              }}
+            >
               Команда профиля исполнителя
             </Typography>
           </Box>
@@ -457,9 +578,12 @@ export function ProfessionalWorkspacePanel() {
           {membersError ? <Alert severity="error">{membersError}</Alert> : null}
 
           {membersLoading ? (
-            <Typography variant="body2" sx={{
-              color: "text.secondary"
-            }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+              }}
+            >
               Загрузка участников...
             </Typography>
           ) : providerMembers?.members?.length ? (
@@ -467,17 +591,27 @@ export function ProfessionalWorkspacePanel() {
               {providerMembers.members.map((member) => (
                 <Paper key={member.id} variant="outlined" sx={{ p: 1.5 }}>
                   <Stack spacing={0.5}>
-                    <Typography sx={{
-                      fontWeight: 600
-                    }}>{member.user.name || member.user.email}</Typography>
-                    <Typography variant="body2" sx={{
-                      color: "text.secondary"
-                    }}>
+                    <Typography
+                      sx={{
+                        fontWeight: 600,
+                      }}
+                    >
+                      {member.user.name || member.user.email}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "text.secondary",
+                      }}
+                    >
                       {member.user.email}
                     </Typography>
-                    <Typography variant="body2" sx={{
-                      color: "text.secondary"
-                    }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "text.secondary",
+                      }}
+                    >
                       {providerRoleLabel(member.role)}
                     </Typography>
                   </Stack>
@@ -485,9 +619,12 @@ export function ProfessionalWorkspacePanel() {
               ))}
             </Stack>
           ) : (
-            <Typography variant="body2" sx={{
-              color: "text.secondary"
-            }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+              }}
+            >
               В этом профиле исполнителя пока нет участников.
             </Typography>
           )}
@@ -495,22 +632,36 @@ export function ProfessionalWorkspacePanel() {
           {isActiveOwner ? (
             <Paper variant="outlined" sx={{ p: 1.5 }}>
               <Stack component="form" spacing={1.5} onSubmit={handleAddManager}>
-                <Typography sx={{
-                  fontWeight: 700
-                }}>Добавить менеджера</Typography>
-                {managerError ? <Alert severity="error">{managerError}</Alert> : null}
-                {managerSuccess ? <Alert severity="success">{managerSuccess}</Alert> : null}
+                <Typography
+                  sx={{
+                    fontWeight: 700,
+                  }}
+                >
+                  Добавить менеджера
+                </Typography>
+                {managerError ? (
+                  <Alert severity="error">{managerError}</Alert>
+                ) : null}
+                {managerSuccess ? (
+                  <Alert severity="success">{managerSuccess}</Alert>
+                ) : null}
                 <TextField
                   label="Email пользователя"
                   type="email"
                   value={managerEmail}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) => setManagerEmail(event.target.value)}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                    setManagerEmail(event.target.value)
+                  }
                   disabled={managerLoading}
                   required
                   fullWidth
                   size="small"
                 />
-                <Button type="submit" variant="contained" loading={managerLoading}>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  loading={managerLoading}
+                >
                   Добавить менеджера
                 </Button>
               </Stack>

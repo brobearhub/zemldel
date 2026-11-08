@@ -21,7 +21,7 @@ export default async function NewProviderPage() {
   }
 
   if (session.user.memberships.length > 0) {
-    redirect("/pro?notice=profile-ready");
+    redirect("/pro/requests/feed?notice=profile-ready");
   }
 
   return <ProviderOnboardingForm />;

@@ -4,7 +4,11 @@ import { Box, Button, Container, Stack, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import type { ServiceCardItem } from "@/entities/service";
 
-import { SITE_CONTENT_GAP_PX, SITE_HEADER_SPACER_PX, SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
+import {
+  SITE_CONTENT_GAP_PX,
+  SITE_HEADER_SPACER_PX,
+  SITE_STICKY_TOP_PX,
+} from "@/shared/config/site-layout";
 import { HomeStoriesStrip } from "@/widgets/home-stories";
 import { HomeIntroBanner } from "@/widgets/public-service/ui/HomeIntroBanner";
 import { HomeMobileHelpButton } from "@/widgets/public-service/ui/HomeMobileHelpButton";
@@ -45,13 +49,18 @@ const visuallyHiddenSx = {
   border: 0,
 } as const;
 
-export function HomeStickyRequestLayout({ isAuthenticated, categories, initialServices }: Props) {
+export function HomeStickyRequestLayout({
+  isAuthenticated,
+  categories,
+  initialServices,
+}: Props) {
   const catsBarRef = useRef<HTMLDivElement | null>(null);
   const [catsBarHeightPx, setCatsBarHeightPx] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("requestDraft") === "1") setHelpOpen(true);
+    if (new URLSearchParams(window.location.search).get("requestDraft") === "1")
+      setHelpOpen(true);
   }, []);
 
   const rootCategories = [...categories]
@@ -95,10 +104,7 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories, initialSe
       }}
     >
       {isAuthenticated ? (
-        <Typography
-          component="h1"
-          sx={visuallyHiddenSx}
-        >
+        <Typography component="h1" variant="h1" sx={visuallyHiddenSx}>
           Земельные и кадастровые услуги
         </Typography>
       ) : null}
@@ -130,8 +136,14 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories, initialSe
               position: "absolute",
               left: 0,
               right: 0,
-              top: { xs: `-${SITE_CONTENT_GAP_PX.xs}px`, sm: `-${SITE_CONTENT_GAP_PX.sm}px` },
-              height: { xs: `${SITE_CONTENT_GAP_PX.xs}px`, sm: `${SITE_CONTENT_GAP_PX.sm}px` },
+              top: {
+                xs: `-${SITE_CONTENT_GAP_PX.xs}px`,
+                sm: `-${SITE_CONTENT_GAP_PX.sm}px`,
+              },
+              height: {
+                xs: `${SITE_CONTENT_GAP_PX.xs}px`,
+                sm: `${SITE_CONTENT_GAP_PX.sm}px`,
+              },
               bgcolor: "background.default",
               pointerEvents: "none",
             },
@@ -140,6 +152,13 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories, initialSe
           <ServiceCategoriesBar items={barItems} />
         </Box>
 
+        <HomeMobileHelpButton
+          isAuthenticated={isAuthenticated}
+          categories={rootCategories}
+          open={helpOpen}
+          onOpenChange={setHelpOpen}
+        />
+
         <Box
           sx={(theme) => ({
             display: "grid",
@@ -147,7 +166,7 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories, initialSe
             alignItems: "start",
             gridTemplateColumns: {
               xs: "1fr",
-              tablet: `minmax(0, 1fr) ${HOME_FORM_WIDTH_PX}px`,
+              md: `minmax(0, 1fr) ${HOME_FORM_WIDTH_PX}px`,
             },
             [theme.media.phoneLandscape]: {
               gridTemplateColumns: "1fr",
@@ -157,7 +176,7 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories, initialSe
           <Box
             sx={(theme) => ({
               minWidth: 0,
-              order: { xs: 2, tablet: 0 },
+              order: { xs: 2, md: 0 },
               [theme.media.phoneLandscape]: { order: 2 },
             })}
           >
@@ -165,11 +184,16 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories, initialSe
               {isAuthenticated ? (
                 <Box
                   sx={(theme) => ({
-                    display: { xs: "block", tablet: "none" },
+                    display: { xs: "block", md: "none" },
                     [theme.media.phoneLandscape]: { display: "block" },
                   })}
                 >
-                  <Button variant="contained" size="small" fullWidth onClick={() => setHelpOpen(true)}>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    fullWidth
+                    onClick={() => setHelpOpen(true)}
+                  >
                     Создать заявку
                   </Button>
                 </Box>
@@ -191,15 +215,15 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories, initialSe
 
           <Box
             sx={(theme) => ({
-              display: { xs: "none", tablet: "block" },
-              order: { tablet: 1 },
+              display: { xs: "none", md: "block" },
+              order: { md: 1 },
               alignSelf: "start",
-              position: { tablet: "sticky" },
+              position: { md: "sticky" },
               top: {
-                tablet: `calc(${SITE_STICKY_TOP_PX}px + var(--home-cats-bar-h, 0px))`,
+                md: `calc(${SITE_STICKY_TOP_PX}px + var(--home-cats-bar-h, 0px))`,
               },
-              mt: { tablet: `${HOME_SECTION_HEADER_HEIGHT_PX}px` },
-              width: { tablet: HOME_FORM_WIDTH_PX },
+              mt: { md: `${HOME_SECTION_HEADER_HEIGHT_PX}px` },
+              width: { md: HOME_FORM_WIDTH_PX },
               [theme.media.phoneLandscape]: {
                 display: "none",
               },
@@ -213,12 +237,6 @@ export function HomeStickyRequestLayout({ isAuthenticated, categories, initialSe
           </Box>
         </Box>
       </Container>
-      <HomeMobileHelpButton
-        isAuthenticated={isAuthenticated}
-        categories={rootCategories}
-        open={helpOpen}
-        onOpenChange={setHelpOpen}
-      />
     </Box>
   );
 }

@@ -98,8 +98,11 @@ export function ServiceCategoriesBar({ items, activeId = null }: Props) {
             sx={{
               display: "inline-flex",
               alignItems: "center",
+              minHeight: 44,
+              maxWidth: "100%",
+              lineHeight: 1.5,
               textDecoration: "none",
-              fontSize: 12,
+              fontSize: "1rem",
               letterSpacing: "0.4px",
               fontWeight: 600,
               color: isActive ? "accent.main" : "text.primary",
@@ -115,4 +118,3 @@ export function ServiceCategoriesBar({ items, activeId = null }: Props) {
     </Box>
   );
 }
-

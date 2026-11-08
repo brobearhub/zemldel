@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import ReplyOutlinedIcon from "@mui/icons-material/ReplyOutlined";
 import CloseIcon from "@mui/icons-material/Close";
@@ -83,18 +83,20 @@ function ReplyPreviewBlock({
         variant="caption"
         sx={{
           fontWeight: 700,
-          display: "block"
-        }}>
+          display: "block",
+        }}
+      >
         {senderLabel}
       </Typography>
       <Typography
         variant="caption"
         sx={{
           color: isOnColor ? "inherit" : "text.secondary",
-          opacity: isOnColor ? 0.78 : 1,
+          opacity: 1,
           whiteSpace: "pre-wrap",
-          wordBreak: "break-word"
-        }}>
+          wordBreak: "break-word",
+        }}
+      >
         {snippet}
       </Typography>
     </Box>
@@ -128,12 +130,14 @@ function MessageBubble({
         sx={(theme) => {
           const isDark = theme.palette.mode === "dark";
           const bg = mine
-            ? alpha(theme.palette.primary.main, isDark ? 0.22 : 0.10)
-            : theme.palette.primary.light;
+            ? alpha(theme.palette.primary.main, isDark ? 0.22 : 0.1)
+            : theme.palette.primary.main;
           const borderColor = mine
             ? alpha(theme.palette.primary.main, isDark ? 0.28 : 0.18)
             : alpha(theme.palette.primary.main, isDark ? 0.22 : 0.16);
-          const textColor = mine ? theme.palette.text.primary : theme.palette.primary.contrastText
+          const textColor = mine
+            ? theme.palette.text.primary
+            : theme.palette.primary.contrastText;
 
           return {
             px: 1.5,
@@ -156,7 +160,10 @@ function MessageBubble({
             tone={mine ? "default" : "onColor"}
           />
         ) : null}
-        <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+        <Typography
+          variant="body2"
+          sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+        >
           {message.body}
         </Typography>
         <Stack
@@ -165,14 +172,23 @@ function MessageBubble({
           sx={{
             justifyContent: "space-between",
             alignItems: "center",
-            mt: 0.75
-          }}>
-          <Typography variant="caption" sx={{ opacity: 0.85 }}>
+            mt: 0.75,
+          }}
+        >
+          <Typography variant="caption">
             {message.senderName ?? "Без имени"} ·{" "}
-            {new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" }).format(new Date(message.createdAt))}
+            {new Intl.DateTimeFormat("ru-RU", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }).format(new Date(message.createdAt))}
           </Typography>
           {!readOnly ? (
-            <IconButton size="small" onClick={onReply} aria-label="Ответить" sx={{ color: "inherit" }}>
+            <IconButton
+              size="small"
+              onClick={onReply}
+              aria-label="Ответить"
+              sx={{ color: "inherit" }}
+            >
               <ReplyOutlinedIcon fontSize="inherit" />
             </IconButton>
           ) : null}
@@ -225,15 +241,19 @@ export function Chat({
             sx={{
               alignItems: "center",
               justifyContent: "center",
-              py: 6
-            }}>
+              py: 6,
+            }}
+          >
             <CircularProgress size={28} />
           </Stack>
         ) : null}
         {!loading && rows.length === 0 ? (
-          <Typography variant="body2" sx={{
-            color: "text.secondary"
-          }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+            }}
+          >
             Сообщений пока нет. Напишите первое.
           </Typography>
         ) : null}
@@ -243,7 +263,12 @@ export function Chat({
               <Typography
                 key={row.message.id}
                 variant="body2"
-                sx={{ color: "text.secondary", textAlign: "center", px: 1, overflowWrap: "anywhere" }}
+                sx={{
+                  color: "text.secondary",
+                  textAlign: "center",
+                  px: 1,
+                  overflowWrap: "anywhere",
+                }}
               >
                 {row.message.body}
               </Typography>
@@ -257,9 +282,7 @@ export function Chat({
                 message={row.message}
                 mine={mine}
                 readOnly={readOnly}
-                onReply={() =>
-                  onReplyToMessage(row.message)
-                }
+                onReply={() => onReplyToMessage(row.message)}
               />
             );
           }
@@ -284,20 +307,30 @@ export function Chat({
                     borderTopRightRadius: 14,
                     borderBottomLeftRadius: 14,
                     borderBottomRightRadius: 6,
-                    bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.12 : 0.06),
-                    borderColor: alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.22 : 0.16),
+                    bgcolor: alpha(
+                      theme.palette.primary.main,
+                      theme.palette.mode === "dark" ? 0.12 : 0.06,
+                    ),
+                    borderColor: alpha(
+                      theme.palette.primary.main,
+                      theme.palette.mode === "dark" ? 0.22 : 0.16,
+                    ),
                   })}
                 >
                   {row.replyToPreview ? (
-                    <ReplyPreviewBlock senderLabel={row.replyToPreview.senderLabel} snippet={row.replyToPreview.snippet} />
+                    <ReplyPreviewBlock
+                      senderLabel={row.replyToPreview.senderLabel}
+                      snippet={row.replyToPreview.snippet}
+                    />
                   ) : null}
                   <Typography
                     variant="body2"
                     sx={{
                       color: "text.secondary",
                       whiteSpace: "pre-wrap",
-                      wordBreak: "break-word"
-                    }}>
+                      wordBreak: "break-word",
+                    }}
+                  >
                     {row.body}
                   </Typography>
                   <Stack
@@ -305,12 +338,16 @@ export function Chat({
                     spacing={1}
                     sx={{
                       alignItems: "center",
-                      mt: 1
-                    }}>
+                      mt: 1,
+                    }}
+                  >
                     <CircularProgress size={16} />
-                    <Typography variant="caption" sx={{
-                      color: "text.secondary"
-                    }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: "text.secondary",
+                      }}
+                    >
                       Отправка…
                     </Typography>
                   </Stack>
@@ -333,8 +370,14 @@ export function Chat({
                 sx={(theme) => ({
                   px: 1.5,
                   py: 1,
-                  borderColor: alpha(theme.palette.error.main, theme.palette.mode === "dark" ? 0.45 : 0.35),
-                  bgcolor: alpha(theme.palette.error.main, theme.palette.mode === "dark" ? 0.12 : 0.06),
+                  borderColor: alpha(
+                    theme.palette.error.main,
+                    theme.palette.mode === "dark" ? 0.45 : 0.35,
+                  ),
+                  bgcolor: alpha(
+                    theme.palette.error.main,
+                    theme.palette.mode === "dark" ? 0.12 : 0.06,
+                  ),
                   borderTopLeftRadius: 14,
                   borderTopRightRadius: 14,
                   borderBottomLeftRadius: 14,
@@ -342,9 +385,15 @@ export function Chat({
                 })}
               >
                 {row.replyToPreview ? (
-                  <ReplyPreviewBlock senderLabel={row.replyToPreview.senderLabel} snippet={row.replyToPreview.snippet} />
+                  <ReplyPreviewBlock
+                    senderLabel={row.replyToPreview.senderLabel}
+                    snippet={row.replyToPreview.snippet}
+                  />
                 ) : null}
-                <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                <Typography
+                  variant="body2"
+                  sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+                >
                   {row.body}
                 </Typography>
                 <Stack
@@ -354,14 +403,20 @@ export function Chat({
                   sx={{
                     alignItems: "center",
                     flexWrap: "wrap",
-                    mt: 1
-                  }}>
+                    mt: 1,
+                  }}
+                >
                   <ErrorOutlineIcon color="error" fontSize="small" />
                   <Typography variant="caption" color="error">
                     {row.error ?? "Не удалось отправить"}
                   </Typography>
                   {row.retryable !== false ? (
-                    <Button size="small" variant="outlined" color="inherit" onClick={() => onRetry(row.clientMessageId)}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="inherit"
+                      onClick={() => onRetry(row.clientMessageId)}
+                    >
                       Повторить
                     </Button>
                   ) : null}
@@ -381,7 +436,13 @@ export function Chat({
         })}
       >
         {pendingReply ? (
-          <Box sx={{ px: { xs: 1.5, sm: 2 }, pt: { xs: 0.75, sm: 1 }, pb: { xs: 0.75, sm: 1 } }}>
+          <Box
+            sx={{
+              px: { xs: 1.5, sm: 2 },
+              pt: { xs: 0.75, sm: 1 },
+              pb: { xs: 0.75, sm: 1 },
+            }}
+          >
             <Paper
               variant="outlined"
               sx={{
@@ -396,17 +457,24 @@ export function Chat({
                 spacing={1}
                 sx={{
                   alignItems: "flex-start",
-                  justifyContent: "space-between"
-                }}>
+                  justifyContent: "space-between",
+                }}
+              >
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="caption" sx={{
-                    color: "text.secondary"
-                  }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: "text.secondary",
+                    }}
+                  >
                     Ответ на
                   </Typography>
-                  <Typography variant="body2" noWrap sx={{
-                    fontWeight: 800
-                  }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 700,
+                    }}
+                  >
                     {pendingReply.senderLabel}
                   </Typography>
                   <Typography
@@ -414,12 +482,17 @@ export function Chat({
                     sx={{
                       color: "text.secondary",
                       display: "block",
-                      wordBreak: "break-word"
-                    }}>
+                      wordBreak: "break-word",
+                    }}
+                  >
                     {pendingReply.bodySnippet}
                   </Typography>
                 </Box>
-                <IconButton size="small" aria-label="Отменить ответ" onClick={() => onPendingReplyChange(null)}>
+                <IconButton
+                  size="small"
+                  aria-label="Отменить ответ"
+                  onClick={() => onPendingReplyChange(null)}
+                >
                   <CloseIcon fontSize="small" />
                 </IconButton>
               </Stack>
@@ -433,8 +506,9 @@ export function Chat({
           sx={{
             alignItems: "center",
             px: { xs: 1.5, sm: 2 },
-            py: { xs: 1.25, sm: 1.5 }
-          }}>
+            py: { xs: 1.25, sm: 1.5 },
+          }}
+        >
           <TextField
             value={draft}
             onChange={(e) => onDraftChange(e.target.value)}
@@ -454,15 +528,15 @@ export function Chat({
             sx={(theme) => ({
               "& .MuiOutlinedInput-root": {
                 borderRadius: 1,
-                bgcolor: "#FFFFFF",
+                bgcolor: "background.paper",
                 color: theme.palette.text.primary,
                 "& fieldset": {
-                  borderColor: alpha(theme.palette.primary.main, 0.20),
+                  borderColor: theme.palette.divider,
                   borderWidth: "1.5px",
                   transition: "border-color 160ms ease",
                 },
                 "&:hover fieldset": {
-                  borderColor: alpha(theme.palette.primary.main, 0.36),
+                  borderColor: theme.palette.text.primary,
                 },
                 "&.Mui-focused fieldset": {
                   borderColor: theme.palette.primary.main,
@@ -484,7 +558,7 @@ export function Chat({
               },
               "& .MuiOutlinedInput-input::placeholder": {
                 opacity: 1,
-                color: alpha(theme.palette.primary.main, 0.38),
+                color: theme.palette.text.secondary,
               },
             })}
           />
@@ -499,7 +573,7 @@ export function Chat({
               flexShrink: 0,
               borderRadius: 1,
               bgcolor: theme.palette.primary.main,
-              color: "#FFFFFF",
+              color: theme.palette.primary.contrastText,
               boxShadow: `0 10px 22px ${alpha(theme.palette.primary.main, 0.26)}`,
               "&:hover": {
                 bgcolor: theme.palette.primary.dark,
@@ -510,7 +584,9 @@ export function Chat({
               },
             })}
           >
-            <SendRoundedIcon sx={{ fontSize: 22, transform: "translateX(1px) rotate(-18deg)" }} />
+            <SendRoundedIcon
+              sx={{ fontSize: 22, transform: "translateX(1px) rotate(-18deg)" }}
+            />
           </IconButton>
         </Stack>
       </Box>

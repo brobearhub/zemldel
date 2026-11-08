@@ -39,11 +39,17 @@ export function Markdown({ markdown, skipFirstH1 }: Props) {
   return (
     <Box
       sx={{
-        "& h1": { typography: "h4", fontWeight: 800, mt: 2.5, mb: 1 },
-        "& h2": { typography: "h5", fontWeight: 800, mt: 2.25, mb: 1 },
-        "& h3": { typography: "h6", fontWeight: 800, mt: 2, mb: 0.75 },
-        "& h4": { typography: "subtitle1", fontWeight: 800, mt: 2, mb: 0.75 },
-        "& p": { typography: "body1", color: "text.primary", mb: 1.25 },
+        minWidth: 0,
+        "& h1": { typography: "h1", mt: 4, mb: 2 },
+        "& h2": { typography: "h2", mt: 4, mb: 2 },
+        "& h3": { typography: "h3", mt: 3, mb: 2 },
+        "& h4": { typography: "subtitle1", fontWeight: 700, mt: 2, mb: 0.75 },
+        "& p": {
+          typography: "body1",
+          color: "text.primary",
+          mb: 2.5,
+          maxWidth: "65ch",
+        },
         "& ul, & ol": { pl: 3, mb: 1.25 },
         "& li": { mb: 0.5 },
         "& li > p": { mb: 0.75 },
@@ -64,21 +70,34 @@ export function Markdown({ markdown, skipFirstH1 }: Props) {
         },
         "& code": {
           fontFamily: "inherit",
-          fontSize: "0.9em",
+          fontSize: "1em",
           bgcolor: "action.hover",
           px: 0.6,
           py: 0.2,
           borderRadius: 1,
         },
         "& pre code": { bgcolor: "transparent", p: 0 },
-        "& table": { width: "100%", borderCollapse: "collapse", my: 2 },
-        "& th, & td": { border: "1px solid", borderColor: "divider", p: 1, verticalAlign: "top" },
+        "& table": {
+          display: "block",
+          overflowX: "auto",
+          width: "100%",
+          borderCollapse: "collapse",
+          my: 2,
+        },
+        "& th, & td": {
+          border: "1px solid",
+          borderColor: "divider",
+          p: 1,
+          verticalAlign: "top",
+        },
       }}
     >
-      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={components}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkBreaks]}
+        components={components}
+      >
         {source}
       </ReactMarkdown>
     </Box>
   );
 }
-

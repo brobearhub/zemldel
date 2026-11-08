@@ -20,9 +20,10 @@ import { fetchChatInbox } from "@/entities/chat/api/chat-inbox";
 import type { ChatInboxItemDto } from "@/entities/chat/dto/chat.dto";
 import { getLastCabinetRole } from "@/widgets/cabinet-chrome/lib/cabinet-role-storage";
 import { getRequestStatusLabel, type RequestStatus } from "@/entities/request";
+import type { CabinetRole } from "@/widgets/cabinet-chrome/model/nav-config";
 
-export function ChatRequestPage({ requestId }: { requestId: string }) {
-  const role = useMemo(() => getLastCabinetRole(), []);
+export function ChatRequestPage({ requestId, cabinetRole }: { requestId: string; cabinetRole?: CabinetRole }) {
+  const role = useMemo(() => cabinetRole ?? getLastCabinetRole(), [cabinetRole]);
   const params = useSearchParams();
   const requestedConversation = params.get("conversation");
   const [items, setItems] = useState<ChatInboxItemDto[] | null>(null);
@@ -60,7 +61,11 @@ export function ChatRequestPage({ requestId }: { requestId: string }) {
   const active = items?.find((row) => row.conversationId === selected);
   return (
     <main>
-      <Container maxWidth="xxl" sx={sitePageContainerSx}>
+      <Container
+        maxWidth={role === "provider" ? false : "xxl"}
+        disableGutters={role === "provider"}
+        sx={sitePageContainerSx}
+      >
         <Paper sx={{ width: "100%", p: { xs: 2, sm: 3 } }}>
           <Stack spacing={2}>
             <Stack
@@ -69,7 +74,7 @@ export function ChatRequestPage({ requestId }: { requestId: string }) {
               useFlexGap
               sx={{ flexWrap: "wrap" }}
             >
-              <Button color="inherit" component={Link} href="/chats">
+              <Button color="inherit" component={Link} href="/pro/chats">
                 К чатам
               </Button>
               <Button
@@ -105,7 +110,7 @@ export function ChatRequestPage({ requestId }: { requestId: string }) {
               <>
                 <Typography
                   component="h1"
-                  variant="h6"
+                  variant="h1"
                   sx={{ overflowWrap: "anywhere" }}
                 >
                   {items[0].title}

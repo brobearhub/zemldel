@@ -10,7 +10,10 @@ import {
   Typography,
 } from "@mui/material";
 import type { WorkStageStatusOptionDto } from "@/entities/request";
-import { SYSTEM_WORK_STAGE_STATUSES, createCustomWorkStageStatusKey } from "@/entities/request";
+import {
+  SYSTEM_WORK_STAGE_STATUSES,
+  createCustomWorkStageStatusKey,
+} from "@/entities/request";
 import {
   fetchWorkStageStatuses,
   saveCustomWorkStageStatuses,
@@ -35,7 +38,8 @@ export function WorkStageStatusesSettings() {
       try {
         await reload();
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Не удалось загрузить");
+        if (!cancelled)
+          setError(e instanceof Error ? e.message : "Не удалось загрузить");
       }
     })();
     return () => {
@@ -43,7 +47,10 @@ export function WorkStageStatusesSettings() {
     };
   }, []);
 
-  async function persist(next: WorkStageStatusOptionDto[], actionKey: string | null = null) {
+  async function persist(
+    next: WorkStageStatusOptionDto[],
+    actionKey: string | null = null,
+  ) {
     setBusy(true);
     setPendingKey(actionKey);
     setError(null);
@@ -68,14 +75,20 @@ export function WorkStageStatusesSettings() {
 
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Stack spacing={1.5}>
-          <Typography variant="h6" sx={{
-            fontWeight: 800
-          }}>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 700,
+            }}
+          >
             Системные статусы
           </Typography>
-          <Typography variant="body2" sx={{
-            color: "text.secondary"
-          }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+            }}
+          >
             Эти статусы доступны всем и не редактируются.
           </Typography>
           <Stack spacing={0.75}>
@@ -90,22 +103,33 @@ export function WorkStageStatusesSettings() {
 
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Stack spacing={1.5}>
-          <Typography variant="h6" sx={{
-            fontWeight: 800
-          }}>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 700,
+            }}
+          >
             Мои статусы
           </Typography>
           {custom.length === 0 ? (
-            <Typography variant="body2" sx={{
-              color: "text.secondary"
-            }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+              }}
+            >
               Пока нет собственных статусов.
             </Typography>
           ) : (
             custom.map((item) => (
-              <Stack key={item.key} direction="row" spacing={1} sx={{
-                alignItems: "center"
-              }}>
+              <Stack
+                key={item.key}
+                direction="row"
+                spacing={1}
+                sx={{
+                  alignItems: "center",
+                }}
+              >
                 <TextField
                   size="small"
                   fullWidth
@@ -114,7 +138,9 @@ export function WorkStageStatusesSettings() {
                   onChange={(e) => {
                     const label = e.target.value;
                     setCustom((prev) =>
-                      prev.map((row) => (row.key === item.key ? { ...row, label } : row))
+                      prev.map((row) =>
+                        row.key === item.key ? { ...row, label } : row,
+                      ),
                     );
                   }}
                   onBlur={() => void persist(custom)}
@@ -123,7 +149,12 @@ export function WorkStageStatusesSettings() {
                   color="error"
                   loading={pendingKey === `delete:${item.key}`}
                   disabled={busy}
-                  onClick={() => void persist(custom.filter((row) => row.key !== item.key), `delete:${item.key}`)}
+                  onClick={() =>
+                    void persist(
+                      custom.filter((row) => row.key !== item.key),
+                      `delete:${item.key}`,
+                    )
+                  }
                 >
                   Удалить
                 </Button>
@@ -131,9 +162,13 @@ export function WorkStageStatusesSettings() {
             ))
           )}
 
-          <Stack direction="row" spacing={1} sx={{
-            alignItems: "center"
-          }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{
+              alignItems: "center",
+            }}
+          >
             <TextField
               size="small"
               fullWidth
@@ -149,7 +184,10 @@ export function WorkStageStatusesSettings() {
               onClick={() => {
                 const next = [
                   ...custom,
-                  { key: createCustomWorkStageStatusKey(), label: newLabel.trim() },
+                  {
+                    key: createCustomWorkStageStatusKey(),
+                    label: newLabel.trim(),
+                  },
                 ];
                 setNewLabel("");
                 void persist(next, "add");

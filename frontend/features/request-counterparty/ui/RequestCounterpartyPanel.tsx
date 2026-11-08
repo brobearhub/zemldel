@@ -2,7 +2,10 @@
 
 import { Box, Stack, Typography } from "@mui/material";
 import type { CounterpartyField } from "../model/counterparty-card";
-import { getCounterpartyInitials, hasAnyCounterpartyValue } from "../model/counterparty-card";
+import {
+  getCounterpartyInitials,
+  hasAnyCounterpartyValue,
+} from "../model/counterparty-card";
 import { CdnAvatar } from "@/shared/ui/cdn-image";
 
 type Props = {
@@ -17,7 +20,12 @@ function fieldValue(value: string | null): string {
   return normalized.length > 0 ? normalized : "Не указано";
 }
 
-export function RequestCounterpartyPanel({ fields, avatarSrc, avatarName, emptyText = "Контакты не указаны" }: Props) {
+export function RequestCounterpartyPanel({
+  fields,
+  avatarSrc,
+  avatarName,
+  emptyText = "Контакты не указаны",
+}: Props) {
   const hasValues = hasAnyCounterpartyValue(fields);
   const initials = getCounterpartyInitials(avatarName);
 
@@ -27,32 +35,41 @@ export function RequestCounterpartyPanel({ fields, avatarSrc, avatarName, emptyT
       spacing={2}
       sx={{
         alignItems: "flex-start",
-        justifyContent: "space-between"
-      }}>
+        justifyContent: "space-between",
+      }}
+    >
       <Box sx={{ minWidth: 0, flex: "1 1 auto" }}>
         {hasValues ? (
           <Stack spacing={1.5}>
             {fields.map((field) => (
               <Box key={field.label}>
-                <Typography variant="body2" sx={{
-                  color: "text.secondary"
-                }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "text.secondary",
+                  }}
+                >
                   {field.label}
                 </Typography>
                 <Typography
                   sx={{
                     fontWeight: 700,
-                    whiteSpace: "pre-wrap"
-                  }}>
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
                   {fieldValue(field.value)}
                 </Typography>
               </Box>
             ))}
           </Stack>
         ) : (
-          <Typography sx={{
-            color: "text.secondary"
-          }}>{emptyText}</Typography>
+          <Typography
+            sx={{
+              color: "text.secondary",
+            }}
+          >
+            {emptyText}
+          </Typography>
         )}
       </Box>
       <CdnAvatar
@@ -64,7 +81,7 @@ export function RequestCounterpartyPanel({ fields, avatarSrc, avatarName, emptyT
           flexShrink: 0,
           bgcolor: "primary.main",
           color: "common.white",
-          fontSize: 32,
+          fontSize: "2rem",
           fontWeight: 700,
         }}
       >
@@ -73,4 +90,3 @@ export function RequestCounterpartyPanel({ fields, avatarSrc, avatarName, emptyT
     </Stack>
   );
 }
-

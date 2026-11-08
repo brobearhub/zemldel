@@ -13,7 +13,11 @@ import {
   SITE_HEADER_SPACER_PX,
 } from "@/shared/config/site-layout";
 import { rememberInternalNav } from "@/shared/lib/internal-nav-history";
-import { CabinetChrome, CABINET_BOTTOM_NAV_HEIGHT_PX, getCabinetZone } from "@/widgets/cabinet-chrome";
+import {
+  CabinetChrome,
+  CABINET_BOTTOM_NAV_HEIGHT_PX,
+  getCabinetZone,
+} from "@/widgets/cabinet-chrome";
 
 type Props = {
   children: ReactNode;
@@ -25,15 +29,17 @@ function SkipLink() {
       component="a"
       href="#main-content"
       sx={{
-        position: "absolute",
+        position: "fixed",
         left: 8,
-        top: -48,
+        top: 8,
+        maxWidth: "calc(100% - 16px)",
+        transform: "translateY(calc(-100% - 16px))",
         zIndex: 2000,
         px: 1.5,
         py: 1,
         bgcolor: "background.paper",
         color: "text.primary",
-        "&:focus": { top: 8 },
+        "&:focus": { transform: "none" },
       }}
     >
       Перейти к содержимому
@@ -57,7 +63,16 @@ export function SiteChrome({ children }: Props) {
       return (
         <>
           <SkipLink />
-          <Box className="mui-fixed" sx={{ position: "fixed", left: 0, top: 0, width: "100%", zIndex: 1200 }}>
+          <Box
+            className="mui-fixed"
+            sx={{
+              position: "fixed",
+              left: 0,
+              top: 0,
+              width: "100%",
+              zIndex: 1200,
+            }}
+          >
             <Header />
           </Box>
           <Box
@@ -78,14 +93,41 @@ export function SiteChrome({ children }: Props) {
     }
 
     return (
-      <Box sx={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
+      <Box
+        sx={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}
+      >
         <SkipLink />
-        <Box className="mui-fixed" sx={{ position: "fixed", left: 0, top: 0, width: "100%", zIndex: 1200 }}>
+        <Box
+          className="mui-fixed"
+          sx={{
+            position: "fixed",
+            left: 0,
+            top: 0,
+            width: "100%",
+            zIndex: 1200,
+          }}
+        >
           <Header />
         </Box>
         {/* Единый зазор header → контент (см. SITE_HEADER_SPACER_PX). Страницы не дублируют pt сверху. */}
-        <Box sx={{ height: { xs: SITE_HEADER_SPACER_PX.xs, sm: SITE_HEADER_SPACER_PX.sm } }} />
-        <Box component="main" id="main-content" sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+        <Box
+          sx={{
+            height: {
+              xs: SITE_HEADER_SPACER_PX.xs,
+              sm: SITE_HEADER_SPACER_PX.sm,
+            },
+          }}
+        />
+        <Box
+          component="main"
+          id="main-content"
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
           {children}
         </Box>
         <Footer />
@@ -107,18 +149,42 @@ export function SiteChrome({ children }: Props) {
       }}
     >
       <SkipLink />
-      <Box className="mui-fixed" sx={{ position: "fixed", left: 0, top: 0, width: "100%", zIndex: 1200 }}>
-        <Suspense fallback={<Box sx={{ height: { xs: SITE_HEADER_SPACER_PX.xs, sm: SITE_HEADER_SPACER_PX.sm } }} />}>
+      <Box
+        className="mui-fixed"
+        sx={{ position: "fixed", left: 0, top: 0, width: "100%", zIndex: 1200 }}
+      >
+        <Suspense
+          fallback={
+            <Box
+              sx={{
+                height: {
+                  xs: SITE_HEADER_SPACER_PX.xs,
+                  sm: SITE_HEADER_SPACER_PX.sm,
+                },
+              }}
+            />
+          }
+        >
           <CabinetChrome />
         </Suspense>
       </Box>
       {/* На cabinet routes chrome фиксирован, поэтому нужен spacer. */}
-      <Box sx={{ height: { xs: SITE_HEADER_SPACER_PX.xs, sm: SITE_HEADER_SPACER_PX.sm } }} />
+      <Box
+        sx={{
+          height: {
+            xs: SITE_HEADER_SPACER_PX.xs,
+            sm: SITE_HEADER_SPACER_PX.sm,
+          },
+        }}
+      />
 
-      <Box component="main" id="main-content" sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+      <Box
+        component="main"
+        id="main-content"
+        sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}
+      >
         {children}
       </Box>
     </Box>
   );
 }
-

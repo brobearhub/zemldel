@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, forwardRef, useContext, useEffect, useMemo, useState, type ComponentPropsWithoutRef } from "react";
+import {
+  createContext,
+  forwardRef,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentPropsWithoutRef,
+} from "react";
 import { Alert, Box, Button, Stack, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
@@ -11,7 +19,12 @@ import {
   chatMessageClasses,
   chatMessageListClasses,
 } from "@mui/x-chat";
-import type { ChatAdapter, ChatConversation, ChatMessage, ConversationListItemProps } from "@mui/x-chat/headless";
+import type {
+  ChatAdapter,
+  ChatConversation,
+  ChatMessage,
+  ConversationListItemProps,
+} from "@mui/x-chat/headless";
 import { CdnAvatar, CdnImg } from "@/shared/ui/cdn-image";
 import { displayCityName } from "@/shared/lib/format-city-label";
 import {
@@ -23,9 +36,15 @@ import {
   type StoryScope,
 } from "@/entities/story";
 import { pluralRu } from "@/shared/lib/plural-ru";
-import { formatInboxTime, storyMarkerLabel, withSentPreview } from "../lib/inbox-format";
+import {
+  formatInboxTime,
+  storyMarkerLabel,
+  withSentPreview,
+} from "../lib/inbox-format";
 import { brown } from "@mui/material/colors";
-const InboxLookupContext = createContext<ReadonlyMap<string, StoryConversationDto>>(new Map());
+const InboxLookupContext = createContext<
+  ReadonlyMap<string, StoryConversationDto>
+>(new Map());
 
 type Props = {
   scope: StoryScope;
@@ -40,7 +59,10 @@ function avatarSrc(url: string | null | undefined): string | undefined {
   return url ?? undefined;
 }
 
-function stampSelfAvatar(messages: ChatMessage[], selfImageUrl: string | null): ChatMessage[] {
+function stampSelfAvatar(
+  messages: ChatMessage[],
+  selfImageUrl: string | null,
+): ChatMessage[] {
   const src = avatarSrc(selfImageUrl);
   if (!src) return messages;
   let changed = false;
@@ -61,7 +83,10 @@ function emptyAssistantStream(): ReadableStream {
   });
 }
 
-function toChatMessages(items: StoryConversationMessageDto[], conversationId: string): ChatMessage[] {
+function toChatMessages(
+  items: StoryConversationMessageDto[],
+  conversationId: string,
+): ChatMessage[] {
   const messages: ChatMessage[] = [];
   let storyId: string | null = null;
   for (const item of items) {
@@ -92,97 +117,122 @@ function toChatMessages(items: StoryConversationMessageDto[], conversationId: st
   return messages;
 }
 
-const InboxRow = forwardRef<HTMLDivElement, ConversationListItemProps>(function InboxRow(props, ref) {
-  const {
-    conversation,
-    selected,
-    unread: _unread,
-    focused: _focused,
-    ownerState: _ownerState,
-    slots: _slots,
-    slotProps: _slotProps,
-    children: _children,
-    ...rest
-  } = props as ConversationListItemProps & { ownerState?: unknown };
-  const item = useContext(InboxLookupContext).get(conversation.id);
-  const unreadCount = item?.unreadCount ?? conversation.unreadCount ?? 0;
-  const titles = (item?.storyTitles ?? []).map((title) => `«${title}»`).join(", ");
+const InboxRow = forwardRef<HTMLDivElement, ConversationListItemProps>(
+  function InboxRow(props, ref) {
+    const {
+      conversation,
+      selected,
+      unread: _unread,
+      focused: _focused,
+      ownerState: _ownerState,
+      slots: _slots,
+      slotProps: _slotProps,
+      children: _children,
+      ...rest
+    } = props as ConversationListItemProps & { ownerState?: unknown };
+    const item = useContext(InboxLookupContext).get(conversation.id);
+    const unreadCount = item?.unreadCount ?? conversation.unreadCount ?? 0;
+    const titles = (item?.storyTitles ?? [])
+      .map((title) => `«${title}»`)
+      .join(", ");
 
-  return (
-    <Box
-      ref={ref}
-      {...rest}
-      sx={{
-        display: "flex",
-        gap: 1.25,
-        alignItems: "flex-start",
-        px: 1.5,
-        py: 1.25,
-        cursor: "pointer",
-        bgcolor: selected ? (theme) => alpha(theme.palette.primary.main, 0.1) : "transparent",
-        "&:hover": { bgcolor: (theme) => alpha(theme.palette.primary.main, selected ? 0.14 : 0.06) },
-      }}
-    >
-      <CdnAvatar
-        src={item?.imageUrl || undefined}
+    return (
+      <Box
+        ref={ref}
+        {...rest}
         sx={{
-          width: 40,
-          height: 40,
-          bgcolor: (theme) => alpha(theme.palette.primary.main, 0.16),
-          color: "primary.dark",
-          fontSize: 16,
-          fontWeight: 700,
+          display: "flex",
+          gap: 1.25,
+          alignItems: "flex-start",
+          px: 1.5,
+          py: 1.25,
+          cursor: "pointer",
+          bgcolor: selected
+            ? (theme) => alpha(theme.palette.primary.main, 0.1)
+            : "transparent",
+          "&:hover": {
+            bgcolor: (theme) =>
+              alpha(theme.palette.primary.main, selected ? 0.14 : 0.06),
+          },
         }}
       >
-        {(conversation.title ?? "?").trim().charAt(0).toLocaleUpperCase("ru-RU") || "?"}
-      </CdnAvatar>
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Stack direction="row" spacing={1} sx={{ alignItems: "baseline" }}>
-          <Typography noWrap sx={{ flex: 1, fontWeight: unreadCount > 0 ? 800 : 700 }}>
-            {conversation.title}
-          </Typography>
-          <Typography variant="caption" sx={{ color: "text.secondary", flexShrink: 0 }}>
-            {item ? formatInboxTime(item.lastMessageAt, new Date()) : ""}
-          </Typography>
-        </Stack>
-        {titles ? (
-          <Typography noWrap variant="body2" sx={{ color: "primary.dark" }}>
-            {titles}
-          </Typography>
-        ) : null}
-        <Typography noWrap variant="body2" sx={{ color: "text.secondary" }}>
-          {item?.preview ?? ""}
-        </Typography>
-      </Box>
-      {unreadCount > 0 ? (
-        <Box
+        <CdnAvatar
+          src={item?.imageUrl || undefined}
           sx={{
-            minWidth: 22,
-            height: 22,
-            px: 0.75,
-            borderRadius: 11,
-            bgcolor: "primary.main",
-            color: "common.white",
-            fontSize: 12,
+            width: 40,
+            height: 40,
+            bgcolor: (theme) => alpha(theme.palette.primary.main, 0.16),
+            color: "primary.dark",
+            fontSize: "1rem",
             fontWeight: 700,
-            display: "grid",
-            placeItems: "center",
-            flexShrink: 0,
           }}
         >
-          {unreadCount}
+          {(conversation.title ?? "?")
+            .trim()
+            .charAt(0)
+            .toLocaleUpperCase("ru-RU") || "?"}
+        </CdnAvatar>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "baseline" }}>
+            <Typography
+              sx={{ flex: 1, fontWeight: unreadCount > 0 ? 800 : 700 }}
+            >
+              {conversation.title}
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{ color: "text.secondary", flexShrink: 0 }}
+            >
+              {item ? formatInboxTime(item.lastMessageAt, new Date()) : ""}
+            </Typography>
+          </Stack>
+          {titles ? (
+            <Typography variant="body2" sx={{ color: "primary.dark" }}>
+              {titles}
+            </Typography>
+          ) : null}
+          <Typography variant="body2" sx={{ color: "text.secondary" }}>
+            {item?.preview ?? ""}
+          </Typography>
         </Box>
-      ) : null}
-    </Box>
-  );
-});
+        {unreadCount > 0 ? (
+          <Box
+            sx={{
+              minWidth: 22,
+              minHeight: 28,
+              px: 0.75,
+              borderRadius: 11,
+              bgcolor: "primary.main",
+              color: "common.white",
+              fontSize: "1rem",
+              fontWeight: 700,
+              display: "grid",
+              placeItems: "center",
+              flexShrink: 0,
+            }}
+          >
+            {unreadCount}
+          </Box>
+        ) : null}
+      </Box>
+    );
+  },
+);
 
 const SendButton = forwardRef<
   HTMLButtonElement,
   Omit<ComponentPropsWithoutRef<"button">, "color"> & { ownerState?: unknown }
->(function SendButton({ ownerState: _ownerState, children: _children, ...props }, ref) {
+>(function SendButton(
+  { ownerState: _ownerState, children: _children, ...props },
+  ref,
+) {
   return (
-    <Button ref={ref} variant="contained" {...props} sx={{ flexShrink: 0, px: 2.5 }}>
+    <Button
+      ref={ref}
+      variant="contained"
+      {...props}
+      sx={{ flexShrink: 0, px: 2.5 }}
+    >
       Отправить
     </Button>
   );
@@ -218,7 +268,11 @@ export function StoryInboxSection({ scope }: Props) {
       })
       .catch((cause: unknown) => {
         if (!alive) return;
-        setError(cause instanceof Error ? cause.message : "Не удалось загрузить переписку");
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Не удалось загрузить переписку",
+        );
       })
       .finally(() => {
         if (alive) setLoaded(true);
@@ -231,16 +285,32 @@ export function StoryInboxSection({ scope }: Props) {
   useEffect(() => {
     if (!activeId) return;
     let alive = true;
-    void Promise.all([fetchStoryConversations(scope), fetchStoryConversationMessages(scope, activeId)])
+    void Promise.all([
+      fetchStoryConversations(scope),
+      fetchStoryConversationMessages(scope, activeId),
+    ])
       .then(([list, thread]) => {
         if (!alive) return;
         setSelfImageUrl(list.selfImageUrl);
-        setItems(list.items.map((item) => (item.id === activeId ? { ...item, unreadCount: 0 } : item)));
-        setMessages(stampSelfAvatar(toChatMessages(thread.items, activeId), list.selfImageUrl));
+        setItems(
+          list.items.map((item) =>
+            item.id === activeId ? { ...item, unreadCount: 0 } : item,
+          ),
+        );
+        setMessages(
+          stampSelfAvatar(
+            toChatMessages(thread.items, activeId),
+            list.selfImageUrl,
+          ),
+        );
       })
       .catch((cause: unknown) => {
         if (!alive) return;
-        setError(cause instanceof Error ? cause.message : "Не удалось загрузить переписку");
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Не удалось загрузить переписку",
+        );
       });
     return () => {
       alive = false;
@@ -254,14 +324,24 @@ export function StoryInboxSection({ scope }: Props) {
         const text = messageText(input.message);
         if (!conversationId || !text) throw new Error("Введите сообщение");
         await sendStoryConversationMessage(scope, conversationId, text);
-        setItems((current) => withSentPreview(current, conversationId, text, new Date().toISOString()));
+        setItems((current) =>
+          withSentPreview(
+            current,
+            conversationId,
+            text,
+            new Date().toISOString(),
+          ),
+        );
         return emptyAssistantStream();
       },
     }),
     [scope],
   );
 
-  const lookup = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
+  const lookup = useMemo(
+    () => new Map(items.map((item) => [item.id, item])),
+    [items],
+  );
   const conversations = useMemo<ChatConversation[]>(
     () =>
       items.map((item) => ({
@@ -277,13 +357,29 @@ export function StoryInboxSection({ scope }: Props) {
 
   return (
     <Stack spacing={1.5}>
-      <Stack direction="row" sx={{ alignItems: "baseline", justifyContent: "space-between", gap: 2, pb: 1 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, color: "primary.dark" }}>
+      <Stack
+        direction="row"
+        sx={{
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          gap: 2,
+          pb: 1,
+        }}
+      >
+        <Typography
+          variant="h5"
+          sx={{ fontWeight: 700, color: "primary.dark" }}
+        >
           Сообщения по историям
         </Typography>
         {unreadTotal > 0 ? (
           <Typography variant="body2" sx={{ color: "text.secondary" }}>
-            {unreadTotal} {pluralRu(unreadTotal, ["непрочитанное", "непрочитанных", "непрочитанных"])}
+            {unreadTotal}{" "}
+            {pluralRu(unreadTotal, [
+              "непрочитанное",
+              "непрочитанных",
+              "непрочитанных",
+            ])}
           </Typography>
         ) : null}
       </Stack>
@@ -308,7 +404,9 @@ export function StoryInboxSection({ scope }: Props) {
             activeConversationId={activeId ?? undefined}
             onActiveConversationChange={(nextId) => setActiveId(nextId ?? null)}
             messages={messages}
-            onMessagesChange={(next) => setMessages(stampSelfAvatar(next, selfImageUrl))}
+            onMessagesChange={(next) =>
+              setMessages(stampSelfAvatar(next, selfImageUrl))
+            }
             localeText={{
               composerInputPlaceholder: "Написать сообщение...",
               composerInputAriaLabel: "Сообщение",
@@ -330,7 +428,10 @@ export function StoryInboxSection({ scope }: Props) {
                   m: 0,
                   px: 1.5,
                   py: 1.5,
-                  "&:focus-within": { borderColor: "transparent", boxShadow: "none" },
+                  "&:focus-within": {
+                    borderColor: "transparent",
+                    boxShadow: "none",
+                  },
                   [`& .${chatComposerClasses.textArea}`]: {
                     border: 1,
                     borderColor: "divider",
@@ -355,24 +456,29 @@ export function StoryInboxSection({ scope }: Props) {
               [`& .${chatMessageListClasses.root}`]: {
                 bgcolor: (theme) => alpha(theme.palette.primary.dark, 0.4),
               },
-              [`& .${chatConversationClasses.headerActions}`]: { display: "none" },
-              [`& .${chatMessageClasses.roleUser} .${chatMessageClasses.bubble}`]: {
-                bgcolor: "primary.main",
-                color: "common.white",
+              [`& .${chatConversationClasses.headerActions}`]: {
+                display: "none",
               },
-              [`& .${chatMessageClasses.roleAssistant} .${chatMessageClasses.bubble}`]: {
-                bgcolor: "background.paper",
-                color: "text.primary",
-              },
-              [`& .${chatMessageClasses.root}:not(.${chatMessageClasses.roleUser}):not(.${chatMessageClasses.roleAssistant})`]: {
-                justifyItems: "center",
-                [`& .${chatMessageClasses.bubble}`]: {
-                  bgcolor: "transparent",
-                  color: "text.secondary",
-                  boxShadow: "none",
-                  fontSize: 13,
+              [`& .${chatMessageClasses.roleUser} .${chatMessageClasses.bubble}`]:
+                {
+                  bgcolor: "primary.main",
+                  color: "common.white",
                 },
-              },
+              [`& .${chatMessageClasses.roleAssistant} .${chatMessageClasses.bubble}`]:
+                {
+                  bgcolor: "background.paper",
+                  color: "text.primary",
+                },
+              [`& .${chatMessageClasses.root}:not(.${chatMessageClasses.roleUser}):not(.${chatMessageClasses.roleAssistant})`]:
+                {
+                  justifyItems: "center",
+                  [`& .${chatMessageClasses.bubble}`]: {
+                    bgcolor: "transparent",
+                    color: "text.secondary",
+                    boxShadow: "none",
+                    fontSize: "1rem",
+                  },
+                },
             }}
           />
         </InboxLookupContext.Provider>

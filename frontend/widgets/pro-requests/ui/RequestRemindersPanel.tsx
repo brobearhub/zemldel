@@ -40,7 +40,9 @@ export function RequestRemindersPanel({ requestId }: Props) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/pro/requests/${requestId}/reminders`, { cache: "no-store" });
+        const res = await fetch(`/api/pro/requests/${requestId}/reminders`, {
+          cache: "no-store",
+        });
         if (res.ok && !cancelled) {
           const data = (await res.json()) as RequestReminderDto[];
           setReminders(data);
@@ -49,7 +51,9 @@ export function RequestRemindersPanel({ requestId }: Props) {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [requestId]);
 
   async function handleAdd() {
@@ -59,11 +63,18 @@ export function RequestRemindersPanel({ requestId }: Props) {
       const res = await fetch(`/api/pro/requests/${requestId}/reminders`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: text.trim(), remindAt: remindAt.toDate().toISOString() }),
+        body: JSON.stringify({
+          text: text.trim(),
+          remindAt: remindAt.toDate().toISOString(),
+        }),
       });
       if (res.ok) {
         const created = (await res.json()) as RequestReminderDto;
-        setReminders((prev) => [...prev, created].sort((a, b) => a.remindAt.localeCompare(b.remindAt)));
+        setReminders((prev) =>
+          [...prev, created].sort((a, b) =>
+            a.remindAt.localeCompare(b.remindAt),
+          ),
+        );
         setText("");
         setRemindAt(null);
       }
@@ -74,14 +85,20 @@ export function RequestRemindersPanel({ requestId }: Props) {
 
   async function handleToggle(reminder: RequestReminderDto) {
     const next = !reminder.isDone;
-    setReminders((prev) => prev.map((r) => (r.id === reminder.id ? { ...r, isDone: next } : r)));
+    setReminders((prev) =>
+      prev.map((r) => (r.id === reminder.id ? { ...r, isDone: next } : r)),
+    );
     const res = await fetch(`/api/pro/reminders/${reminder.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isDone: next }),
     });
     if (!res.ok) {
-      setReminders((prev) => prev.map((r) => (r.id === reminder.id ? { ...r, isDone: reminder.isDone } : r)));
+      setReminders((prev) =>
+        prev.map((r) =>
+          r.id === reminder.id ? { ...r, isDone: reminder.isDone } : r,
+        ),
+      );
     }
   }
 
@@ -89,7 +106,9 @@ export function RequestRemindersPanel({ requestId }: Props) {
     setReminders((prev) => prev.filter((r) => r.id !== id));
     const res = await fetch(`/api/pro/reminders/${id}`, { method: "DELETE" });
     if (!res.ok) {
-      const res2 = await fetch(`/api/pro/requests/${requestId}/reminders`, { cache: "no-store" });
+      const res2 = await fetch(`/api/pro/requests/${requestId}/reminders`, {
+        cache: "no-store",
+      });
       if (res2.ok) setReminders((await res2.json()) as RequestReminderDto[]);
     }
   }
@@ -97,9 +116,12 @@ export function RequestRemindersPanel({ requestId }: Props) {
   return (
     <Paper variant="outlined" sx={{ p: 2.5 }}>
       <Stack spacing={1.5}>
-        <Typography variant="h6" sx={{
-          fontWeight: 800
-        }}>
+        <Typography
+          variant="h6"
+          sx={{
+            fontWeight: 700,
+          }}
+        >
           Напоминания
         </Typography>
 
@@ -108,22 +130,31 @@ export function RequestRemindersPanel({ requestId }: Props) {
             sx={{
               display: "flex",
               justifyContent: "center",
-              py: 1
-            }}>
+              py: 1,
+            }}
+          >
             <CircularProgress size={20} />
           </Box>
         ) : reminders.length === 0 ? (
-          <Typography variant="body2" sx={{
-            color: "text.secondary"
-          }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+            }}
+          >
             Нет напоминаний по этой заявке.
           </Typography>
         ) : (
           <Stack spacing={0.5}>
             {reminders.map((r) => (
-              <Stack key={r.id} direction="row" spacing={0.5} sx={{
-                alignItems: "center"
-              }}>
+              <Stack
+                key={r.id}
+                direction="row"
+                spacing={0.5}
+                sx={{
+                  alignItems: "center",
+                }}
+              >
                 <Checkbox
                   size="small"
                   checked={r.isDone}
@@ -144,11 +175,16 @@ export function RequestRemindersPanel({ requestId }: Props) {
                   variant="caption"
                   sx={{
                     color: "text.secondary",
-                    whiteSpace: "nowrap"
-                  }}>
+                    whiteSpace: "normal",
+                  }}
+                >
                   {formatRemindAt(r.remindAt)}
                 </Typography>
-                <IconButton size="small" onClick={() => void handleDelete(r.id)} sx={{ color: "text.secondary" }}>
+                <IconButton
+                  size="small"
+                  onClick={() => void handleDelete(r.id)}
+                  sx={{ color: "text.secondary" }}
+                >
                   <DeleteOutlineIcon fontSize="small" />
                 </IconButton>
               </Stack>
@@ -162,8 +198,9 @@ export function RequestRemindersPanel({ requestId }: Props) {
           useFlexGap
           sx={{
             alignItems: "flex-start",
-            flexWrap: "wrap"
-          }}>
+            flexWrap: "wrap",
+          }}
+        >
           <TextField
             size="small"
             placeholder="Текст напоминания"
@@ -173,8 +210,8 @@ export function RequestRemindersPanel({ requestId }: Props) {
           />
           <AppDateLocalization>
             <DateTimePicker
-            views={["hours", "minutes"]}
-            openTo="hours"
+              views={["hours", "minutes"]}
+              openTo="hours"
               value={remindAt}
               onChange={(v) => setRemindAt(v)}
               format="DD.MM.YYYY HH:mm"
@@ -195,7 +232,9 @@ export function RequestRemindersPanel({ requestId }: Props) {
                       height: 40,
                       color: "error.main",
                       "& fieldset": { borderColor: "rgba(224, 21, 21, 0.23)" },
-                      "&:hover fieldset": { borderColor: "rgba(224, 21, 21, 0.4)" },
+                      "&:hover fieldset": {
+                        borderColor: "rgba(224, 21, 21, 0.4)",
+                      },
                       "&.Mui-focused fieldset": { borderColor: "error.main" },
                     },
                   },

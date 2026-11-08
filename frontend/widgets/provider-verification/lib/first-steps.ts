@@ -46,7 +46,7 @@ function verificationStep(input: {
       title: "Проверка отклонена",
       note: `Причина: ${input.rejectReason?.trim() || "не указана"}. Исправьте данные и отправьте снова.`,
       error: true,
-      href: "/pro/profile/verification",
+      href: "/pro/settings/profile/verification",
       actionLabel: "Исправить данные",
     };
   }
@@ -55,7 +55,7 @@ function verificationStep(input: {
     title: "Пройдите проверку",
     note: "На карточке появится значок, и в выдаче вы будете выше",
     optional: true,
-    href: "/pro/profile/verification",
+    href: "/pro/settings/profile/verification",
     actionLabel: "Пройти проверку",
   };
 }

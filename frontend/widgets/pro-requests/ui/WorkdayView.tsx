@@ -2,14 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import {
-  Box,
-  Checkbox,
-  Chip,
-  Paper,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Box, Checkbox, Chip, Paper, Stack, Typography } from "@mui/material";
 import type { RequestReminderDto } from "@/entities/request";
 
 type Props = { initialReminders: RequestReminderDto[] };
@@ -54,7 +47,10 @@ function formatCountdown(remindAt: string, isDone: boolean): string {
   return "менее минуты";
 }
 
-const URGENCY_COLOR: Record<Urgency, "error" | "warning" | "info" | "success" | "default"> = {
+const URGENCY_COLOR: Record<
+  Urgency,
+  "error" | "warning" | "info" | "success" | "default"
+> = {
   overdue: "error",
   soon: "warning",
   near: "info",
@@ -76,14 +72,20 @@ export function WorkdayView({ initialReminders }: Props) {
 
   async function handleToggle(reminder: RequestReminderDto) {
     const next = !reminder.isDone;
-    setReminders((prev) => prev.map((r) => (r.id === reminder.id ? { ...r, isDone: next } : r)));
+    setReminders((prev) =>
+      prev.map((r) => (r.id === reminder.id ? { ...r, isDone: next } : r)),
+    );
     const res = await fetch(`/api/pro/reminders/${reminder.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isDone: next }),
     });
     if (!res.ok) {
-      setReminders((prev) => prev.map((r) => (r.id === reminder.id ? { ...r, isDone: reminder.isDone } : r)));
+      setReminders((prev) =>
+        prev.map((r) =>
+          r.id === reminder.id ? { ...r, isDone: reminder.isDone } : r,
+        ),
+      );
     }
   }
 
@@ -93,14 +95,21 @@ export function WorkdayView({ initialReminders }: Props) {
   if (reminders.length === 0) {
     return (
       <Stack spacing={3}>
-        <Typography component="h1" variant="h4" sx={{
-          fontWeight: 800
-        }}>
+        <Typography
+          component="h1"
+          variant="h1"
+          sx={{
+            fontWeight: 700,
+          }}
+        >
           Рабочий день
         </Typography>
-        <Typography variant="body2" sx={{
-          color: "text.secondary"
-        }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: "text.secondary",
+          }}
+        >
           Напоминаний на сегодня нет. Их можно добавить в разделе напоминаний.
         </Typography>
       </Stack>
@@ -128,12 +137,16 @@ export function WorkdayView({ initialReminders }: Props) {
                   : urgency === "done"
                     ? theme.palette.divider
                     : theme.palette.success.main,
-          opacity: r.isDone ? 0.6 : 1,
+          opacity: 1,
         })}
       >
-        <Stack direction="row" spacing={1.5} sx={{
-          alignItems: "flex-start"
-        }}>
+        <Stack
+          direction="row"
+          spacing={1.5}
+          sx={{
+            alignItems: "flex-start",
+          }}
+        >
           <Checkbox
             size="small"
             checked={r.isDone}
@@ -144,8 +157,9 @@ export function WorkdayView({ initialReminders }: Props) {
           <Box
             sx={{
               flex: 1,
-              minWidth: 0
-            }}>
+              minWidth: 0,
+            }}
+          >
             <Stack
               direction="row"
               spacing={1}
@@ -153,18 +167,25 @@ export function WorkdayView({ initialReminders }: Props) {
               sx={{
                 alignItems: "center",
                 flexWrap: "wrap",
-                mb: 0.5
-              }}>
+                mb: 0.5,
+              }}
+            >
               <Typography
                 variant="body1"
                 sx={{
                   fontWeight: 600,
                   textDecoration: r.isDone ? "line-through" : "none",
-                  color: r.isDone ? "text.secondary" : "text.primary"
-                }}>
+                  color: r.isDone ? "text.secondary" : "text.primary",
+                }}
+              >
                 {r.text}
               </Typography>
-              <Chip size="small" label={countdown} color={color} variant="outlined" />
+              <Chip
+                size="small"
+                label={countdown}
+                color={color}
+                variant="outlined"
+              />
             </Stack>
 
             {(r.request.message || r.request.location) && (
@@ -174,23 +195,27 @@ export function WorkdayView({ initialReminders }: Props) {
                 useFlexGap
                 sx={{
                   flexWrap: "wrap",
-                  mb: 0.5
-                }}>
+                  mb: 0.5,
+                }}
+              >
                 {r.request.message && (
                   <Typography
                     variant="body2"
-                    noWrap
                     sx={{
                       color: "text.secondary",
-                      maxWidth: 400
-                    }}>
+                      maxWidth: 400,
+                    }}
+                  >
                     {r.request.message}
                   </Typography>
                 )}
                 {r.request.location && (
-                  <Typography variant="body2" noWrap sx={{
-                    color: "text.secondary"
-                  }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "text.secondary",
+                    }}
+                  >
                     📍 {r.request.location}
                   </Typography>
                 )}
@@ -216,8 +241,9 @@ export function WorkdayView({ initialReminders }: Props) {
             sx={{
               fontWeight: 700,
               color: "text.secondary",
-              flexShrink: 0
-            }}>
+              flexShrink: 0,
+            }}
+          >
             {formatTime(r.remindAt)}
           </Typography>
         </Stack>
@@ -234,16 +260,34 @@ export function WorkdayView({ initialReminders }: Props) {
         sx={{
           alignItems: "center",
           justifyContent: "space-between",
-          flexWrap: "wrap"
-        }}>
-        <Typography component="h1" variant="h4" sx={{
-          fontWeight: 800
-        }}>
+          flexWrap: "wrap",
+        }}
+      >
+        <Typography
+          component="h1"
+          variant="h1"
+          sx={{
+            fontWeight: 700,
+          }}
+        >
           Рабочий день
         </Typography>
         <Stack direction="row" spacing={1}>
-          {pending.length > 0 && <Chip label={`Осталось: ${pending.length}`} color="primary" size="small" />}
-          {done.length > 0 && <Chip label={`Выполнено: ${done.length}`} color="success" size="small" variant="outlined" />}
+          {pending.length > 0 && (
+            <Chip
+              label={`Осталось: ${pending.length}`}
+              color="primary"
+              size="small"
+            />
+          )}
+          {done.length > 0 && (
+            <Chip
+              label={`Выполнено: ${done.length}`}
+              color="success"
+              size="small"
+              variant="outlined"
+            />
+          )}
         </Stack>
       </Stack>
 
@@ -261,8 +305,9 @@ export function WorkdayView({ initialReminders }: Props) {
             variant="overline"
             sx={{
               color: "text.secondary",
-              letterSpacing: "0.08em"
-            }}>
+              letterSpacing: "0.08em",
+            }}
+          >
             Выполнено
           </Typography>
           <Stack spacing={1}>

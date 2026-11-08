@@ -66,10 +66,18 @@ const newTask = (): Task => ({
   done: false,
 });
 
-export function WorkspaceTools({ providerId }: { providerId: string }) {
+export function WorkspaceTools({
+  providerId,
+  initialTab = "stats",
+  sectionTitle,
+}: {
+  providerId: string;
+  sectionTitle?: string;
+  initialTab?: "stats" | "templates" | "team";
+}) {
   const base = `/api/billing/providers/${providerId}`;
   const [data, setData] = useState<Workspace | null>(null);
-  const [tab, setTab] = useState("stats");
+  const [tab, setTab] = useState<string>(initialTab);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -83,6 +91,9 @@ export function WorkspaceTools({ providerId }: { providerId: string }) {
   useEffect(() => {
     load().catch((e: Error) => setError(e.message));
   }, [load]);
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
   async function save(
     path: string,
     value: Template | Task | (Template & { remove: boolean }),
@@ -134,32 +145,28 @@ export function WorkspaceTools({ providerId }: { providerId: string }) {
   return (
     <div className={s.root}>
       <div className={s.row}>
-        <h1>Инструменты профиля</h1>
+        <h1>{sectionTitle ?? "Инструменты профиля"}</h1>
       </div>
-      <div
-        className={s.actions}
-        aria-label="Раздел инструментов"
-      >
-        {[
-          ["stats", "Статистика"],
-          ["templates", "Шаблоны ответов"],
-          ["team", "Задачи команды"],
-        ].map(([id, label]) => (
-          <button
-            className={tab === id ? s.button : s.secondary}
-            aria-pressed={tab === id}
-            key={id}
-            onClick={() => setTab(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {!sectionTitle && (
+        <div className={s.actions} aria-label="Раздел инструментов">
+          {[
+            ["stats", "Статистика"],
+            ["templates", "Шаблоны ответов"],
+            ["team", "Задачи команды"],
+          ].map(([id, label]) => (
+            <button
+              className={tab === id ? s.button : s.secondary}
+              aria-pressed={tab === id}
+              key={id}
+              onClick={() => setTab(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       {error && (
-        <p
-          role="alert"
-          className={s.error}
-        >
+        <p role="alert" className={s.error}>
           {error}{" "}
           <button
             className={s.secondary}
@@ -176,11 +183,11 @@ export function WorkspaceTools({ providerId }: { providerId: string }) {
           {tab === "stats" && (
             <>
               <div className={s.cards}>
-                <section className={s.card}>
+                <section className={`${s.card} ${s.statCard}`}>
                   <h2>Услуги</h2>
                   <div className={s.big}>{data.stats.services}</div>
                 </section>
-                <section className={s.card}>
+                <section className={`${s.card} ${s.statCard}`}>
                   <h2>Заявки</h2>
                   <div className={s.big}>{data.stats.requests}</div>
                 </section>
@@ -265,10 +272,7 @@ export function WorkspaceTools({ providerId }: { providerId: string }) {
                 <h2>Личные и общие ответы</h2>
                 {!data.templates.length && <p>Шаблонов пока нет.</p>}
                 {data.templates.map((row) => (
-                  <article
-                    key={row.id}
-                    className={s.section}
-                  >
+                  <article key={row.id} className={s.section}>
                     <strong>
                       {row.title} · {row.shared ? "Общий" : "Личный"}
                     </strong>
@@ -386,18 +390,17 @@ export function WorkspaceTools({ providerId }: { providerId: string }) {
                 <div className={s.notice}>
                   На текущем тарифе доступны просмотр задач, заметок и истории.
                   Изменения — на Бизнесе.{" "}
-                  <Link href="/pro/team">Участники профиля</Link> остаются
-                  доступны.
+                  <Link href="/pro/team/add-manager">
+                    Участники профиля
+                  </Link>{" "}
+                  остаются доступны.
                 </div>
               )}
               <section className={s.card}>
                 <h2>Задачи и внутренние заметки</h2>
                 {!data.tasks.length && <p>Задач пока нет.</p>}
                 {data.tasks.map((row) => (
-                  <article
-                    key={row.id}
-                    className={s.section}
-                  >
+                  <article key={row.id} className={s.section}>
                     <strong>
                       {row.title} · {row.done ? "Выполнено" : "В работе"}
                     </strong>
@@ -479,10 +482,7 @@ export function WorkspaceTools({ providerId }: { providerId: string }) {
                   >
                     <MenuItem value="">Не назначен</MenuItem>
                     {data.members.map((m) => (
-                      <MenuItem
-                        key={m.id}
-                        value={m.id}
-                      >
+                      <MenuItem key={m.id} value={m.id}>
                         {m.name}
                       </MenuItem>
                     ))}
@@ -498,10 +498,7 @@ export function WorkspaceTools({ providerId }: { providerId: string }) {
                   >
                     <MenuItem value="">Без привязки</MenuItem>
                     {data.requests.map((r) => (
-                      <MenuItem
-                        key={r.id}
-                        value={r.id}
-                      >
+                      <MenuItem key={r.id} value={r.id}>
                         {r.title}
                       </MenuItem>
                     ))}

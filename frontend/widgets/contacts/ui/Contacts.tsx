@@ -22,7 +22,13 @@ function MaxIconWithGradient({ hover }: { hover: boolean }) {
       }}
     >
       <defs>
-        <linearGradient id="max-hover-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <linearGradient
+          id="max-hover-gradient"
+          x1="0%"
+          y1="0%"
+          x2="100%"
+          y2="100%"
+        >
           <stop offset="0%" stopColor="#229ED9" />
           <stop offset="100%" stopColor="#7B2D8E" />
         </linearGradient>
@@ -35,7 +41,8 @@ function MaxIconWithGradient({ hover }: { hover: boolean }) {
   );
 }
 const TELEGRAM_URL = "https://t.me/Valeriya_Usova";
-const MAX_URL = "https://max.ru/u/f9LHodD0cOL6gASSd2_juOBU4uJL2ZZ6vsS5g6owYfqeLa7FsfLh_UoboAs";
+const MAX_URL =
+  "https://max.ru/u/f9LHodD0cOL6gASSd2_juOBU4uJL2ZZ6vsS5g6owYfqeLa7FsfLh_UoboAs";
 
 export const Contacts = () => {
   const [maxIconHover, setMaxIconHover] = useState(false);
@@ -79,7 +86,11 @@ export const Contacts = () => {
           width: "100%",
           minHeight: "inherit",
           display: "grid",
-          gridTemplateColumns: { xs: "minmax(0, 1fr) auto", md: "repeat(5, minmax(0, 1fr))" },
+          gridTemplateColumns: {
+            xs: "minmax(0, 1fr)",
+            sm: "repeat(2, minmax(0, 1fr))",
+            md: "repeat(5, minmax(0, 1fr))",
+          },
           px: { xs: 2, md: 0 },
           gap: { xs: 2, md: 0 },
           alignItems: "center",
@@ -89,8 +100,10 @@ export const Contacts = () => {
         <Box
           sx={{
             gridColumn: { xs: 1, md: 2 },
-            py: { xs: 4, sm: 5, md: 6 },
-            px: { xs: 0, sm: 2 },
+            py: 3,
+            px: 2,
+            bgcolor: "background.paper",
+            borderRadius: 1,
           }}
         >
           <Stack spacing={2.5}>
@@ -100,9 +113,9 @@ export const Contacts = () => {
                   component="p"
                   sx={{
                     fontWeight: 700,
-                    fontSize: 28,
+                    fontSize: "1.75rem",
                     letterSpacing: "-0.02em",
-                    color: "common.white",
+                    color: "text.primary",
                   }}
                 >
                   Валерия
@@ -110,7 +123,7 @@ export const Contacts = () => {
               </Box>
               <Typography
                 sx={{
-                  fontSize: 14,
+                  fontSize: "1rem",
                   color: "primary.main",
                   mt: 0.25,
                 }}
@@ -123,9 +136,11 @@ export const Contacts = () => {
         <Box sx={{ display: { xs: "none", md: "block" }, gridColumn: 3 }} />
         <Box
           sx={{
-            gridColumn: { xs: 2, md: 4 },
-            py: { xs: 4, sm: 5, md: 6 },
-            px: { xs: 1, sm: 2 },
+            gridColumn: { xs: 1, sm: 2, md: 4 },
+            py: 3,
+            px: 2,
+            bgcolor: "background.paper",
+            borderRadius: 1,
             display: "flex",
             flexDirection: "column",
             alignItems: "flex-end",
@@ -137,9 +152,9 @@ export const Contacts = () => {
             href={`mailto:${EMAIL}`}
             sx={{
               fontWeight: 700,
-              fontSize: { xs: 15, sm: 18 },
-              whiteSpace: "nowrap",
-              color: "#fff !important",
+              fontSize: { xs: "1rem", sm: "1.125rem" },
+              whiteSpace: "normal",
+              color: "text.primary",
               textDecoration: "none",
               "&:hover": { textDecoration: "underline" },
             }}
@@ -157,7 +172,7 @@ export const Contacts = () => {
                 display: "inline-flex",
                 textDecoration: "none",
                 "& .MuiSvgIcon-root": {
-                  color: "common.white",
+                  color: "text.primary",
                   transition: "color 0.2s ease, transform 0.2s ease",
                 },
                 "&:hover .MuiSvgIcon-root": {
@@ -179,7 +194,7 @@ export const Contacts = () => {
               sx={{
                 display: "inline-flex",
                 textDecoration: "none",
-                color: "common.white",
+                color: "text.primary",
                 "&:hover .MuiSvgIcon-root": {
                   transform: "scale(1.15)",
                 },
@@ -188,7 +203,6 @@ export const Contacts = () => {
               <MaxIconWithGradient hover={maxIconHover} />
             </Box>
           </Box>
-          
         </Box>
         <Box sx={{ display: { xs: "none", md: "block" }, gridColumn: 5 }} />
       </Box>

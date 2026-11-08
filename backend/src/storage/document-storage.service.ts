@@ -33,8 +33,9 @@ export class DocumentStorageService {
       new PutObjectCommand({
         ...input,
         Bucket: bucket,
-        ServerSideEncryption: 'aws:kms',
-        SSEKMSKeyId: kmsKeyId,
+        ...(kmsKeyId
+          ? { ServerSideEncryption: 'aws:kms' as const, SSEKMSKeyId: kmsKeyId }
+          : {}),
         CacheControl: 'private, no-store',
       }),
     );

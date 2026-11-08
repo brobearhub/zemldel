@@ -14,20 +14,20 @@
   margin: 0 auto 32px;
 }
 .eyebrow {
-  font-size: 12px;
+  font-size: 1rem;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  font-weight: 800;
+  font-weight: 700;
   color: #526c5b;
 }
 .root h1 {
-  font-size: clamp(28px, 4vw, 46px);
-  line-height: 1.12;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.25;
   margin: 12px 0 18px;
-  font-weight: 800;
+  font-weight: 700;
 }
 .root h2 {
-  font-size: 23px;
+  font-size: 1.4375rem;
   margin: 0 0 14px;
 }
 .root p {
@@ -35,14 +35,14 @@
 }
 .muted {
   color: #526356;
-  font-size: 14px;
+  font-size: 1rem;
 }
 .notice {
   padding: 16px 20px;
   border: 1px solid #bacbbb;
   background: #f0f4ee;
   border-radius: 12px;
-  font-size: 14px;
+  font-size: 1rem;
   line-height: 1.6;
   margin-bottom: 24px;
 }
@@ -63,7 +63,7 @@
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: 14px;
+  font-size: 1rem;
 }
 .table th,
 .table td {
@@ -86,18 +86,18 @@
   border-bottom: 0;
 }
 .planName {
-  font-size: 23px;
-  font-weight: 800;
+  font-size: 1.4375rem;
+  font-weight: 700;
 }
 .price {
   display: block;
-  font-size: 36px;
-  font-weight: 800;
+  font-size: 2.25rem;
+  font-weight: 700;
   margin: 14px 0 0;
   white-space: nowrap;
 }
 .price small {
-  font-size: 13px;
+  font-size: 1rem;
   font-weight: 500;
 }
 .button,
@@ -106,12 +106,12 @@
   justify-content: center;
   align-items: center;
   gap: 8px;
-  min-height: 44px;
+  min-height: 48px;
   padding: 11px 20px;
   border-radius: 9px;
   border: 1px solid var(--forest);
   font: inherit;
-  font-size: 14px;
+  font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
   text-decoration: none;
@@ -170,8 +170,8 @@
   margin-top: 20px;
 }
 .big {
-  font-size: 48px;
-  font-weight: 800;
+  font-size: 3rem;
+  font-weight: 700;
   line-height: 1.2;
   margin: 12px 0;
 }
@@ -208,7 +208,7 @@
   background: #182d2399;
 }
 .dialog h2 {
-  font-size: 26px;
+  font-size: 1.625rem;
   margin-top: 0;
 }
 .dialog p {
@@ -233,6 +233,16 @@
   .card {
     padding: 22px;
   }
+  .statCard {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .statCard h2,
+  .statCard .big {
+    margin: 0;
+  }
   .tabs {
     display: flex;
     gap: 8px;
@@ -254,7 +264,7 @@
     width: 40%;
   }
   .price {
-    font-size: 29px;
+    font-size: 1.8125rem;
   }
   .table .button {
     padding: 10px 8px;
@@ -265,13 +275,13 @@
   display: block;
   width: 100%;
   max-width: 280px;
-  min-height: 44px;
+  min-height: 48px;
   margin-top: 6px;
   padding: 8px 12px;
   box-sizing: border-box;
   color: inherit;
   background: transparent;
-  border: 1px solid #9bab9e;
+  border: 1px solid #6f7d73;
   border-radius: 8px;
   font: inherit;
 }

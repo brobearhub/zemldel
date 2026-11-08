@@ -36,8 +36,9 @@ export function MaintenanceScreen({
         sx={{
           alignItems: "center",
           maxWidth: 480,
-          textAlign: "center"
-        }}>
+          textAlign: "center",
+        }}
+      >
         <Image
           src="/zemledel_logo_dark.svg"
           alt="Земледел"
@@ -46,18 +47,27 @@ export function MaintenanceScreen({
           style={{ objectFit: "contain" }}
           priority
         />
-        <Stack spacing={1.5} sx={{
-          alignItems: "center"
-        }}>
+        <Stack
+          spacing={1.5}
+          sx={{
+            alignItems: "center",
+          }}
+        >
           <Typography
             component="h1"
-            variant="h4"
+            variant="h1"
             color="primary"
-            sx={{ fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1.15 }}
+            sx={{ fontWeight: 700, letterSpacing: "-0.02em" }}
           >
             {title}
           </Typography>
-          <Typography sx={{ color: "text.secondary", lineHeight: 1.7, fontSize: { xs: 15, md: 16 } }}>
+          <Typography
+            sx={{
+              color: "text.secondary",
+              lineHeight: 1.7,
+              fontSize: { xs: "1rem", md: "1rem" },
+            }}
+          >
             {description}
           </Typography>
         </Stack>

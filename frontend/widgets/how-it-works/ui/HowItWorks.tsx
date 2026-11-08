@@ -88,8 +88,8 @@ export function HowItWorks({ audience = "customer" }: Props) {
               flexWrap: "wrap",
               columnGap: 2,
               rowGap: 1,
-              fontSize: { xs: 26, sm: 34 },
-              fontWeight: 800,
+              fontSize: { xs: "1.625rem", sm: "2.125rem" },
+              fontWeight: 700,
             }}
           >
             <LogoIcon

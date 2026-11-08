@@ -8,11 +8,15 @@ import { useAppSelector } from "@/core/store/hooks";
 import {
   CUSTOMER_NAV,
   PROVIDER_CONTACT_NAV,
+  PROVIDER_HEADER_NAV,
   PROVIDER_NAV,
   type CabinetRole,
 } from "@/widgets/cabinet-chrome/model/nav-config";
 import { getCabinetZone } from "@/widgets/cabinet-chrome/lib/is-cabinet-route";
-import { getLastCabinetRole, setLastCabinetRole } from "@/widgets/cabinet-chrome/lib/cabinet-role-storage";
+import {
+  getLastCabinetRole,
+  setLastCabinetRole,
+} from "@/widgets/cabinet-chrome/lib/cabinet-role-storage";
 import { CabinetDesktopBar } from "@/widgets/cabinet-chrome/ui/CabinetDesktopBar";
 import { CabinetMobileHeader } from "@/widgets/cabinet-chrome/ui/CabinetMobileHeader";
 import { CabinetBottomNav } from "@/widgets/cabinet-chrome/ui/CabinetBottomNav";
@@ -21,7 +25,9 @@ export function CabinetChrome() {
   const isWide = useMediaQuery((theme) => theme.breakpoints.up("tablet"));
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const isAuthenticated = useAppSelector((state) => state.auth.status === "authenticated");
+  const isAuthenticated = useAppSelector(
+    (state) => state.auth.status === "authenticated",
+  );
   const isProviderAccount = useAppSelector(
     (state) => resolveAccountKind(state.auth.user) === "PROVIDER",
   );
@@ -39,24 +45,39 @@ export function CabinetChrome() {
    * До загрузки сессии тип аккаунта неизвестен, поэтому роль заказчика не записываем.
    */
   useEffect(() => {
-    if (zone === "profile" && isAuthenticated && !isProviderAccount) setLastCabinetRole("customer");
+    if (zone === "profile" && isAuthenticated && !isProviderAccount)
+      setLastCabinetRole("customer");
     if (zone === "pro") setLastCabinetRole("provider");
   }, [zone, isAuthenticated, isProviderAccount]);
 
-  const nav = isProviderContact ? PROVIDER_CONTACT_NAV : role === "provider" ? PROVIDER_NAV : CUSTOMER_NAV;
+  const nav = isProviderContact
+    ? PROVIDER_CONTACT_NAV
+    : role === "provider"
+      ? PROVIDER_NAV
+      : CUSTOMER_NAV;
   const showProviderCity = role === "provider";
   // touch searchParams to trigger rerender when section changes
   void searchParams;
 
   if (isWide) {
-    return <CabinetDesktopBar items={nav.desktop} showProviderCity={showProviderCity} />;
+    return (
+      <CabinetDesktopBar
+        items={zone === "pro" ? PROVIDER_HEADER_NAV : nav.desktop}
+        showProviderCity={showProviderCity}
+        showProviderStatus={role === "provider"}
+        alignWithWorkspace={zone === "pro"}
+      />
+    );
   }
 
   return (
     <>
       <CabinetMobileHeader showProviderCity={showProviderCity} />
-      <CabinetBottomNav items={nav.mobileBottom} moreItems={nav.mobileMore} />
+      <CabinetBottomNav
+        items={nav.mobileBottom}
+        moreItems={nav.mobileMore}
+        providerMenu={role === "provider" && !isProviderContact}
+      />
     </>
   );
 }
-

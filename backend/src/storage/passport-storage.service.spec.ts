@@ -11,6 +11,37 @@ const settings = {
 };
 
 describe('passport storage configuration', () => {
+  it('uses the public test bucket only for NODE_ENV=testing', () => {
+    expect(
+      readPassportStorageConfig({
+        ...settings,
+        NODE_ENV: 'testing',
+        S3_ENDPOINT: 'https://s3.twcstorage.ru',
+        S3_REGION: 'ru-1',
+        S3_PUBLIC_BUCKET: 'zemledel-testing-public',
+        S3_KEY: 'testing-access',
+        S3_SECRET: 'testing-secret',
+      }),
+    ).toMatchObject({
+      bucket: 'zemledel-testing-public',
+      kmsKeyId: null,
+      credentials: {
+        accessKeyId: 'testing-access',
+        secretAccessKey: 'testing-secret',
+      },
+    });
+  });
+
+  it('does not use public storage in production when secure settings are missing', () => {
+    expect(() =>
+      readPassportStorageConfig({
+        NODE_ENV: 'production',
+        S3_ENDPOINT: 'https://s3.twcstorage.ru',
+        S3_PUBLIC_BUCKET: 'zemledel-testing-public',
+      }),
+    ).toThrow('Missing env PASSPORT_S3_ENDPOINT');
+  });
+
   it('uses dedicated credentials even when general storage is configured', () => {
     expect(
       readPassportStorageConfig({

@@ -4,14 +4,21 @@ import { Button, Chip, Paper, Stack, Typography } from "@mui/material";
 import Link from "@/shared/ui/Link";
 import { VerifiedBadgeIcon } from "@/shared/ui/VerifiedBadgeIcon";
 import { UserLocalDate } from "@/shared/ui/UserLocalDate";
-import { finishSentence, type ProviderVerificationView } from "../model/verification-view";
+import {
+  finishSentence,
+  type ProviderVerificationView,
+} from "../model/verification-view";
 
 const VERIFICATION_PERKS = [
   {
     icon: (
       <RocketLaunchIcon
         aria-hidden
-        sx={{ fontSize: 18, color: "text.primary", transform: "rotate(-45deg)" }}
+        sx={{
+          fontSize: 18,
+          color: "text.primary",
+          transform: "rotate(-45deg)",
+        }}
       />
     ),
     label: "Выше в поиске",
@@ -35,12 +42,17 @@ type Props = {
 export function ProviderVerificationBlock({ view, layout = "card" }: Props) {
   const aside = layout === "aside";
   const frameSx = aside
-    ? { alignItems: { xs: "flex-start", md: "flex-end" }, textAlign: { xs: "left", md: "right" } }
+    ? {
+        alignItems: { xs: "flex-start", md: "flex-end" },
+        textAlign: { xs: "left", md: "right" },
+      }
     : { alignItems: "flex-start", textAlign: "left" };
 
   if (!view.available) {
     const message = <Typography>Проверка для физлиц появится позже</Typography>;
-    return aside ? <Stack sx={frameSx}>{message}</Stack> : (
+    return aside ? (
+      <Stack sx={frameSx}>{message}</Stack>
+    ) : (
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         {message}
       </Paper>
@@ -51,10 +63,17 @@ export function ProviderVerificationBlock({ view, layout = "card" }: Props) {
     const message = (
       <Typography>
         Заявка на проверке, решение до 1 рабочего дня.
-        {view.submittedAt ? <> Отправлена <UserLocalDate iso={view.submittedAt} /></> : null}
+        {view.submittedAt ? (
+          <>
+            {" "}
+            Отправлена <UserLocalDate iso={view.submittedAt} />
+          </>
+        ) : null}
       </Typography>
     );
-    return aside ? <Stack sx={frameSx}>{message}</Stack> : (
+    return aside ? (
+      <Stack sx={frameSx}>{message}</Stack>
+    ) : (
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         {message}
       </Paper>
@@ -67,7 +86,13 @@ export function ProviderVerificationBlock({ view, layout = "card" }: Props) {
         direction="row"
         spacing={1}
         useFlexGap
-        sx={{ alignItems: "center", flexWrap: "wrap", justifyContent: aside ? { xs: "flex-start", md: "flex-end" } : "flex-start" }}
+        sx={{
+          alignItems: "center",
+          flexWrap: "wrap",
+          justifyContent: aside
+            ? { xs: "flex-start", md: "flex-end" }
+            : "flex-start",
+        }}
       >
         <Chip color="success" label="Реквизиты проверены" />
         {view.verifiedAt ? (
@@ -76,13 +101,24 @@ export function ProviderVerificationBlock({ view, layout = "card" }: Props) {
           </Typography>
         ) : null}
         {aside ? (
-          <Link href="/pro/profile/verification" sx={{ color: "text.primary", fontWeight: 700, minHeight: 44, display: "inline-flex", alignItems: "center" }}>
+          <Link
+            href="/pro/settings/profile/verification"
+            sx={{
+              color: "text.primary",
+              fontWeight: 700,
+              minHeight: 44,
+              display: "inline-flex",
+              alignItems: "center",
+            }}
+          >
             Изменить реквизиты
           </Link>
         ) : null}
       </Stack>
     );
-    return aside ? badge : (
+    return aside ? (
+      badge
+    ) : (
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         {badge}
       </Paper>
@@ -90,14 +126,17 @@ export function ProviderVerificationBlock({ view, layout = "card" }: Props) {
   }
 
   const action = (
-    <Stack spacing={1.5} sx={{ alignItems: "center", width: "fit-content", maxWidth: "100%" }}>
+    <Stack
+      spacing={1.5}
+      sx={{ alignItems: "center", width: "fit-content", maxWidth: "100%" }}
+    >
       <Typography
         sx={{
           fontWeight: 700,
           color: "text.primary",
           textAlign: "center",
-          fontSize: { xs: 16, sm: 18 },
-          lineHeight: 1.3,
+          fontSize: { xs: "1rem", sm: "1.125rem" },
+          lineHeight: 1.5,
         }}
       >
         Подтверждение профиля
@@ -131,9 +170,9 @@ export function ProviderVerificationBlock({ view, layout = "card" }: Props) {
               bgcolor: "background.default",
               color: "text.primary",
               fontWeight: 600,
-              fontSize: 14,
-              lineHeight: 1.2,
-              whiteSpace: "nowrap",
+              fontSize: "1rem",
+              lineHeight: 1.5,
+              whiteSpace: "normal",
             }}
           >
             {perk.icon}
@@ -143,16 +182,20 @@ export function ProviderVerificationBlock({ view, layout = "card" }: Props) {
       </Stack>
       <Button
         component="a"
-        href="/pro/profile/verification"
+        href="/pro/settings/profile/verification"
         variant="contained"
         sx={{ alignSelf: "flex-end" }}
       >
-        {view.status === "REJECTED" ? "Исправить и отправить снова →" : "Запросить проверку"}
+        {view.status === "REJECTED"
+          ? "Исправить и отправить снова →"
+          : "Запросить проверку"}
       </Button>
     </Stack>
   );
 
-  return aside ? action : (
+  return aside ? (
+    action
+  ) : (
     <Paper variant="outlined" sx={{ p: 2.5 }}>
       {action}
     </Paper>

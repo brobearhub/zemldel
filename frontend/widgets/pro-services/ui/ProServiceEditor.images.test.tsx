@@ -24,6 +24,16 @@ function mount(images: string[] = [], mode: "create" | "edit" = "edit") {
         mode={mode}
         initialService={{ ...mainService, image: images[0] ?? null, images }}
         initialProviderCity={mainService.provider.city}
+        categories={[
+          {
+            id: "root-1",
+            name: "Земельные работы",
+            slug: "zemelnye-raboty",
+            parentId: null,
+            sortOrder: 1,
+          },
+          mainService.category,
+        ]}
       />
     </ThemeProvider>,
   );

@@ -1,5 +1,15 @@
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
-import { Avatar, Box, Card, CardContent, CardHeader, Container, Rating, Stack, Typography } from "@mui/material";
+import {
+  Avatar,
+  Box,
+  Card,
+  CardContent,
+  CardHeader,
+  Container,
+  Rating,
+  Stack,
+  Typography,
+} from "@mui/material";
 import { formatReviewCountGenitive, type ReviewDto } from "@/entities/review";
 
 type Props = {
@@ -21,14 +31,32 @@ function initials(name: string) {
 function formatDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("ru-RU", { month: "long", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat("ru-RU", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
 }
 
-export function ServiceReviewsSection({ ratingValue, reviewCount, reviews, cityLabel = null }: Props) {
-  const countLabel = reviewCount > 0 ? `на основании ${formatReviewCountGenitive(reviewCount)}` : "отзывов пока нет";
+export function ServiceReviewsSection({
+  ratingValue,
+  reviewCount,
+  reviews,
+  cityLabel = null,
+}: Props) {
+  const countLabel =
+    reviewCount > 0
+      ? `на основании ${formatReviewCountGenitive(reviewCount)}`
+      : "отзывов пока нет";
 
   return (
-    <Box component="section" sx={{ bgcolor: "background.default", pt: { xs: "48px", md: "96px" }, pb: { xs: "48px", md: "104px" } }}>
+    <Box
+      component="section"
+      sx={{
+        bgcolor: "background.default",
+        pt: { xs: "48px", md: "96px" },
+        pb: { xs: "48px", md: "104px" },
+      }}
+    >
       <Container maxWidth="xl">
         <Stack sx={{ gap: { xs: "24px", md: "50px" } }}>
           <Box
@@ -48,32 +76,59 @@ export function ServiceReviewsSection({ ratingValue, reviewCount, reviews, cityL
                   px: { xs: "12px", md: "14px" },
                   py: { xs: "5px", md: "7px" },
                   borderRadius: "999px",
-                  bgcolor: "#e4ece4",
+                  bgcolor: "background.paper",
                 }}
               >
-                <Typography variant="caption" sx={{ color: "primary.dark", letterSpacing: "0.4px" }}>
+                <Typography
+                  variant="caption"
+                  sx={{ color: "text.primary", letterSpacing: "0.4px" }}
+                >
                   Отзывы
                 </Typography>
               </Box>
-              <Typography
-                component="h2"
-                variant="h4"
-              >
+              <Typography component="h2" variant="h4">
                 Отзывы клиентов
               </Typography>
-              <Typography sx={{ color: "text.secondary", maxWidth: 820, fontSize: { xs: 14, md: 16 }, lineHeight: { xs: 1.43, md: 1.5 } }}>
-                Оценки после завершённых заказов{cityLabel ? ` в ${cityLabel}.` : "."}
+              <Typography
+                sx={{
+                  color: "text.secondary",
+                  maxWidth: 820,
+                  fontSize: { xs: "1rem", md: "1rem" },
+                  lineHeight: { xs: 1.43, md: 1.5 },
+                }}
+              >
+                Оценки после завершённых заказов
+                {cityLabel ? ` в ${cityLabel}.` : "."}
               </Typography>
             </Stack>
             {ratingValue != null ? (
-              <Stack spacing={0.5} sx={{ alignItems: { xs: "flex-start", md: "flex-end" } }}>
-                <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                  <StarRoundedIcon sx={{ fontSize: { xs: 22, md: 25 }, color: "#ffb400" }} />
-                  <Typography sx={{ fontWeight: 700, fontSize: 32, lineHeight: 1.235, letterSpacing: "0.25px" }}>
+              <Stack
+                spacing={0.5}
+                sx={{ alignItems: { xs: "flex-start", md: "flex-end" } }}
+              >
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ alignItems: "center" }}
+                >
+                  <StarRoundedIcon
+                    sx={{ fontSize: { xs: 22, md: 25 }, color: "#ffb400" }}
+                  />
+                  <Typography
+                    sx={{
+                      fontWeight: 700,
+                      fontSize: "2rem",
+                      lineHeight: 1.235,
+                      letterSpacing: "0.25px",
+                    }}
+                  >
                     {ratingValue.toFixed(1)}
                   </Typography>
                 </Stack>
-                <Typography variant="caption" sx={{ color: "text.secondary", letterSpacing: "0.4px" }}>
+                <Typography
+                  variant="caption"
+                  sx={{ color: "text.secondary", letterSpacing: "0.4px" }}
+                >
                   {countLabel}
                 </Typography>
               </Stack>
@@ -85,35 +140,78 @@ export function ServiceReviewsSection({ ratingValue, reviewCount, reviews, cityL
           </Box>
 
           {reviews.length === 0 ? (
-            <Typography sx={{ color: "text.secondary" }}>Пока нет отзывов по этой услуге.</Typography>
+            <Typography sx={{ color: "text.secondary" }}>
+              Пока нет отзывов по этой услуге.
+            </Typography>
           ) : (
             <Box
               sx={{
                 display: "grid",
-                gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" },
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  md: "repeat(3, minmax(0, 1fr))",
+                },
                 gap: { xs: 2, md: 3 },
               }}
             >
               {reviews.map((review) => (
-                <Card key={review.id} elevation={0} sx={{ bgcolor: "background.paper", borderRadius: 2.5 }}>
+                <Card
+                  key={review.id}
+                  elevation={0}
+                  sx={{ bgcolor: "background.paper", borderRadius: 2.5 }}
+                >
                   <CardHeader
-                    avatar={<Avatar sx={{ bgcolor: "grey.400", color: "background.paper" }}>{initials(review.authorDisplayName)}</Avatar>}
+                    avatar={
+                      <Avatar
+                        sx={{
+                          bgcolor: "primary.main",
+                          color: "primary.contrastText",
+                        }}
+                      >
+                        {initials(review.authorDisplayName)}
+                      </Avatar>
+                    }
                     title={<Typography>{review.authorDisplayName}</Typography>}
                     subheader={
-                      <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                      <Typography
+                        variant="body2"
+                        sx={{ color: "text.secondary" }}
+                      >
                         {formatDate(review.createdAt)}
                       </Typography>
                     }
-                    sx={{ px: { xs: "16px", md: "28px" }, pt: { xs: "16px", md: "28px" }, pb: 0 }}
+                    sx={{
+                      px: { xs: "16px", md: "28px" },
+                      pt: { xs: "16px", md: "28px" },
+                      pb: 0,
+                    }}
                   />
-                  <CardContent sx={{ px: { xs: "16px", md: "28px" }, pb: { xs: "16px", md: "28px" }, pt: { xs: 2, md: "20px" } }}>
+                  <CardContent
+                    sx={{
+                      px: { xs: "16px", md: "28px" },
+                      pb: { xs: "16px", md: "28px" },
+                      pt: { xs: 2, md: "20px" },
+                    }}
+                  >
                     <Stack spacing={{ xs: 1.5, md: 2.5 }}>
-                      <Rating value={review.rating} readOnly size="small" sx={{ "& .MuiRating-iconFilled": { color: "#ffb400" } }} />
+                      <Rating
+                        value={review.rating}
+                        readOnly
+                        size="small"
+                        sx={{ "& .MuiRating-iconFilled": { color: "#ffb400" } }}
+                      />
                       {review.text ? (
-                        <Typography sx={{ lineHeight: 1.5, fontSize: { xs: 14, md: 16 } }}>{review.text}</Typography>
+                        <Typography
+                          sx={{ lineHeight: 30 / 18, fontSize: "1.125rem" }}
+                        >
+                          {review.text}
+                        </Typography>
                       ) : null}
                       {review.replyText ? (
-                        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                        <Typography
+                          variant="body2"
+                          sx={{ color: "text.secondary" }}
+                        >
                           Ответ исполнителя: {review.replyText}
                         </Typography>
                       ) : null}

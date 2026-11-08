@@ -28,7 +28,11 @@ export function CategoryRequestButton({ size = "medium", ...props }: Props) {
     <>
       <button
         type="button"
-        className={size === "small" ? `${styles.action} ${styles.actionSmall}` : styles.action}
+        className={
+          size === "small"
+            ? `${styles.action} ${styles.actionSmall}`
+            : styles.action
+        }
         aria-haspopup="dialog"
         aria-controls={open ? id : undefined}
         onClick={() => setOpen(true)}
@@ -55,8 +59,8 @@ export function CategoryRequestButton({ size = "medium", ...props }: Props) {
         <DialogTitle
           id={`${id}-title`}
           sx={{
-            fontWeight: 900,
-            fontSize: 22,
+            fontWeight: 700,
+            fontSize: "1.375rem",
             pl: { xs: 2.5, sm: 3 },
             pr: 8,
             pt: "calc(24px + env(safe-area-inset-top))",
@@ -84,10 +88,7 @@ export function CategoryRequestButton({ size = "medium", ...props }: Props) {
             pb: "calc(24px + env(safe-area-inset-bottom))",
           }}
         >
-          <PublicUnlinkedRequestForm
-            {...props}
-            variant="bare"
-          />
+          <PublicUnlinkedRequestForm {...props} variant="bare" />
         </DialogContent>
       </Dialog>
     </>

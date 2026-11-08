@@ -4,7 +4,6 @@ import type { AccountKind } from "@/core/auth/authorization";
 function isProviderArea(path: string): boolean {
   const pathname = path.split("?")[0] ?? path;
   return (
-    pathname === "/pro" ||
     pathname.startsWith("/pro/") ||
     pathname === "/providers/new" ||
     pathname.startsWith("/providers/new/")
@@ -23,7 +22,7 @@ export function resolvePostSignInPath(input: {
     if (input.hasProviderMembership && isSafeReturnToPath(input.returnTo) && isProviderArea(input.returnTo)) {
       return input.returnTo;
     }
-    return input.hasProviderMembership ? "/pro" : "/providers/new";
+    return input.hasProviderMembership ? "/pro/requests/feed" : "/providers/new";
   }
 
   if (!isSafeReturnToPath(input.returnTo) || isProviderArea(input.returnTo)) {

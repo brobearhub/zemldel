@@ -1,12 +1,24 @@
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
-import { Box, Button, Container, Paper, Rating, Stack, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Container,
+  Paper,
+  Rating,
+  Stack,
+  Typography,
+} from "@mui/material";
 import type { PublicProviderProfileDto } from "@/entities/provider";
 import { formatReviewCount } from "@/entities/review";
 import { ServiceQuickApplyButton } from "@/features/create-service-request-lead";
 import { CdnFillImage } from "@/shared/ui/cdn-image";
 import { ProfileTrustNote } from "@/shared/ui/ProfileTrustNote";
 
-function ProviderImagePlaceholder({ type }: { type: PublicProviderProfileDto["type"] }) {
+function ProviderImagePlaceholder({
+  type,
+}: {
+  type: PublicProviderProfileDto["type"];
+}) {
   const isCompany = type === "COMPANY";
 
   return (
@@ -106,16 +118,28 @@ type Props = {
   imageSide?: "left" | "right";
 };
 
-export function ServiceProviderSection({ provider, serviceId, serviceTitle, isAuthenticated, imageSide = "left" }: Props) {
+export function ServiceProviderSection({
+  provider,
+  serviceId,
+  serviceTitle,
+  isAuthenticated,
+  imageSide = "left",
+}: Props) {
   const isRight = imageSide === "right";
 
   return (
-    <Box component="section" sx={{ bgcolor: "primary.main", py: { xs: "48px", md: "100px" } }}>
+    <Box
+      component="section"
+      sx={{ bgcolor: "background.paper", py: { xs: "48px", md: "100px" } }}
+    >
       <Container maxWidth="xl">
         <Box
           sx={{
             display: "flex",
-            flexDirection: { xs: "column", md: isRight ? "row-reverse" : "row" },
+            flexDirection: {
+              xs: "column",
+              md: isRight ? "row-reverse" : "row",
+            },
             gap: { xs: 3, md: 9 },
             alignItems: { xs: "stretch", md: "center" },
           }}
@@ -161,10 +185,17 @@ export function ServiceProviderSection({ provider, serviceId, serviceTitle, isAu
                   px: { xs: "1px", md: "10px" },
                   py: { xs: "1px", md: "1px" },
                   borderRadius: "999px",
-                  bgcolor: "rgba(255,255,255,0.93)",
+                  bgcolor: "background.paper",
                 }}
               >
-                <Box sx={{ width: { xs: 8, md: 9 }, height: { xs: 8, md: 9 }, borderRadius: "50%", bgcolor: "success.main" }} />
+                <Box
+                  sx={{
+                    width: { xs: 8, md: 9 },
+                    height: { xs: 8, md: 9 },
+                    borderRadius: "50%",
+                    bgcolor: "success.main",
+                  }}
+                />
                 <Typography variant="caption" sx={{ letterSpacing: "0.4px" }}>
                   {provider.availabilityLabel}
                 </Typography>
@@ -172,7 +203,10 @@ export function ServiceProviderSection({ provider, serviceId, serviceTitle, isAu
             ) : null}
           </Paper>
 
-          <Stack spacing={{ xs: 2, md: 3 }} sx={{ minWidth: 0, flex: { md: "1 1 0" } }}>
+          <Stack
+            spacing={{ xs: 2, md: 3 }}
+            sx={{ minWidth: 0, flex: { md: "1 1 0" } }}
+          >
             <Stack spacing={0.25}>
               <Typography variant="caption" sx={{ letterSpacing: "0.4px" }}>
                 {providerTypeLabel(provider.type)}
@@ -180,73 +214,105 @@ export function ServiceProviderSection({ provider, serviceId, serviceTitle, isAu
               <Typography
                 component="h2"
                 variant="h4"
-                sx={{ color: "common.white" }}
+                sx={{ color: "text.primary" }}
               >
                 {provider.name}
               </Typography>
-              <ProfileTrustNote verified={provider.verified} onDark />
-              <Typography sx={{ fontSize: { xs: 14, md: 16 }, lineHeight: { xs: 1.43, md: 1.75 } }}>
+              <ProfileTrustNote verified={provider.verified} />
+              <Typography
+                sx={{
+                  fontSize: { xs: "1rem", md: "1rem" },
+                  lineHeight: { xs: 1.43, md: 1.75 },
+                }}
+              >
                 {provider.subtitle}
               </Typography>
               {provider.rating != null ? (
-                <Stack direction="row" spacing={1} sx={{ alignItems: "center", pt: 0.5 }}>
-                  <Rating value={provider.rating} precision={0.1} readOnly size="small" sx={{ "& .MuiRating-iconFilled": { color: "#ffb400" } }} />
-                  <Typography variant="body2" sx={{ color: "common.white" }}>
-                    {provider.rating.toFixed(1)} · {formatReviewCount(provider.reviewCount)}
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ alignItems: "center", pt: 0.5 }}
+                >
+                  <Rating
+                    value={provider.rating}
+                    precision={0.1}
+                    readOnly
+                    size="small"
+                    sx={{ "& .MuiRating-iconFilled": { color: "#ffb400" } }}
+                  />
+                  <Typography variant="body2" sx={{ color: "text.primary" }}>
+                    {provider.rating.toFixed(1)} ·{" "}
+                    {formatReviewCount(provider.reviewCount)}
                   </Typography>
                 </Stack>
               ) : null}
             </Stack>
 
             {provider.about ? (
-              <Typography sx={{ color: "common.white", lineHeight: 1.5, fontSize: { xs: 14, md: 16 } }}>
+              <Typography
+                sx={{
+                  color: "text.primary",
+                  lineHeight: 1.5,
+                  fontSize: { xs: "1rem", md: "1rem" },
+                }}
+              >
                 {provider.about}
               </Typography>
             ) : null}
 
             {provider.stats.some((s) => s.value.trim() && s.label.trim()) ? (
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                gap: { xs: 2, md: 3 },
-              }}
-            >
-              {provider.stats.filter((s) => s.value.trim() && s.label.trim()).slice(0, 3).map((s) => (
-                <Stack
-                  key={`${s.value}-${s.label}`}
-                  spacing={0.5}
-                  sx={{
-                    pt: { xs: 1.5, md: 2.25 },
-                    borderTop: "1px solid",
-                    borderColor: "rgba(255,255,255,0.18)",
-                  }}
-                >
-                  <Typography
-                    sx={{
-                      fontWeight: 800,
-                      fontSize: { xs: 24, md: 32 },
-                      lineHeight: { xs: 1.334, md: 1.235 },
-                      color: "common.white",
-                    }}
-                  >
-                    {s.value}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: "#e8efea", letterSpacing: "0.4px" }}>
-                    {s.label}
-                  </Typography>
-                </Stack>
-              ))}
-            </Box>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                  gap: { xs: 2, md: 3 },
+                }}
+              >
+                {provider.stats
+                  .filter((s) => s.value.trim() && s.label.trim())
+                  .slice(0, 3)
+                  .map((s) => (
+                    <Stack
+                      key={`${s.value}-${s.label}`}
+                      spacing={0.5}
+                      sx={{
+                        pt: { xs: 1.5, md: 2.25 },
+                        borderTop: "1px solid",
+                        borderColor: "rgba(255,255,255,0.18)",
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          fontWeight: 700,
+                          fontSize: { xs: "1.5rem", md: "2rem" },
+                          lineHeight: { xs: 1.334, md: 1.235 },
+                          color: "text.primary",
+                        }}
+                      >
+                        {s.value}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{ color: "text.secondary", letterSpacing: "0.4px" }}
+                      >
+                        {s.label}
+                      </Typography>
+                    </Stack>
+                  ))}
+              </Box>
             ) : null}
 
-            <Stack direction={{ xs: "column", md: "row" }} spacing={{ xs: 1, md: 3 }} sx={{ alignItems: { md: "center" } }}>
+            <Stack
+              direction={{ xs: "column", md: "row" }}
+              spacing={{ xs: 1, md: 3 }}
+              sx={{ alignItems: { md: "center" } }}
+            >
               <ServiceQuickApplyButton
                 serviceId={serviceId}
                 serviceTitle={serviceTitle}
                 isAuthenticated={isAuthenticated}
                 sx={{
-                  bgcolor: "secondary.main",
+                  bgcolor: "text.primary",
                   color: "secondary.contrastText",
                   textTransform: "uppercase",
                   fontWeight: 600,
@@ -263,7 +329,7 @@ export function ServiceProviderSection({ provider, serviceId, serviceTitle, isAu
               <Button
                 variant="text"
                 sx={{
-                  color: "secondary.main",
+                  color: "text.primary",
                   textTransform: "uppercase",
                   fontWeight: 600,
                   letterSpacing: "0.46px",
@@ -283,4 +349,3 @@ export function ServiceProviderSection({ provider, serviceId, serviceTitle, isAu
     </Box>
   );
 }
-

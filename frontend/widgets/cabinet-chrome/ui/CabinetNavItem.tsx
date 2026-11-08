@@ -16,8 +16,22 @@ type Props = {
   size: "desktop" | "mobile";
 };
 
-export function CabinetNavItem({ href, onClick, expanded, label, icon, selected, badge, size }: Props) {
-  const tone = size === "mobile" ? "secondary.main" : selected ? "text.primary" : "text.secondary";
+export function CabinetNavItem({
+  href,
+  onClick,
+  expanded,
+  label,
+  icon,
+  selected,
+  badge,
+  size,
+}: Props) {
+  const tone =
+    size === "mobile"
+      ? "secondary.main"
+      : selected
+        ? "text.primary"
+        : "text.secondary";
   const interactive = href
     ? { component: Link, href }
     : {
@@ -42,7 +56,11 @@ export function CabinetNavItem({ href, onClick, expanded, label, icon, selected,
         font: "inherit",
         cursor: "pointer",
         outline: "none",
-        "&:focus, &:focus-visible": { outline: "none" },
+        "&:focus-visible": {
+          outline: "2px solid",
+          outlineColor: "text.primary",
+          outlineOffset: -2,
+        },
         px: size === "desktop" ? 1.5 : 0.25,
         py: size === "desktop" ? 1 : 0.5,
         minHeight: size === "mobile" ? 44 : undefined,
@@ -61,36 +79,65 @@ export function CabinetNavItem({ href, onClick, expanded, label, icon, selected,
     >
       {size === "desktop" ? (
         <Box sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
-          <Badge color="error" badgeContent={badge ?? 0} max={99} invisible={!badge}>
-            <Box sx={{ display: "inline-flex", alignItems: "center" }}>{icon}</Box>
+          <Badge
+            color="error"
+            badgeContent={badge ?? 0}
+            max={99}
+            invisible={!badge}
+          >
+            <Box sx={{ display: "inline-flex", alignItems: "center" }}>
+              {icon}
+            </Box>
           </Badge>
           <Typography
             variant="body2"
             sx={{
               fontWeight: selected ? 600 : 500,
               color: "inherit",
-              whiteSpace: "nowrap",
+              whiteSpace: "normal",
             }}
           >
             {label}
           </Typography>
         </Box>
       ) : (
-        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.25, minWidth: 0, width: "100%" }}>
-          <Badge color="error" badgeContent={badge ?? 0} max={99} invisible={!badge}>
-            <Box sx={{ display: "inline-flex", alignItems: "center", color: "inherit" }}>{icon}</Box>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 0.25,
+            minWidth: 0,
+            width: "100%",
+          }}
+        >
+          <Badge
+            color="error"
+            badgeContent={badge ?? 0}
+            max={99}
+            invisible={!badge}
+          >
+            <Box
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                color: "inherit",
+              }}
+            >
+              {icon}
+            </Box>
           </Badge>
           <Typography
             variant="caption"
             sx={{
-              fontSize: 12,
-              lineHeight: 1.1,
+              fontSize: "1rem",
+              lineHeight: 1.5,
               fontWeight: selected ? 600 : 500,
               color: "inherit",
               maxWidth: "100%",
               overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              textOverflow: "clip",
+              whiteSpace: "normal",
             }}
           >
             {label}
@@ -100,4 +147,3 @@ export function CabinetNavItem({ href, onClick, expanded, label, icon, selected,
     </Box>
   );
 }
-

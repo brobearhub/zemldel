@@ -7,13 +7,21 @@ import { useCallback, useEffect, useState } from "react";
 export const Hero = () => {
   const theme = useTheme();
   const isLight = theme.palette.mode === "light";
-  const posterSrc = isLight ? "/hero-bg-house_static_day.jpg" : "/hero-bg-house_static.jpg";
+  const posterSrc = isLight
+    ? "/hero-bg-house_static_day.jpg"
+    : "/hero-bg-house_static.jpg";
   const GRID_SIZE = 122;
 
   const [shouldLoadVideo, setShouldLoadVideo] = useState(false);
-  const videoSrc = isLight ? "/hero-bg_video_house_day_convert.mp4" : "/hero-bg_video_house.mp4";
+  const videoSrc = isLight
+    ? "/hero-bg_video_house_day_convert.mp4"
+    : "/hero-bg_video_house.mp4";
 
-  const [hoverCell, setHoverCell] = useState<{ x: number; y: number; visible: boolean }>({
+  const [hoverCell, setHoverCell] = useState<{
+    x: number;
+    y: number;
+    visible: boolean;
+  }>({
     x: 0,
     y: 0,
     visible: false,
@@ -21,10 +29,17 @@ export const Hero = () => {
 
   // Mobile visitors get the optimized still image, without downloading a decorative video.
   useEffect(() => {
-    const desktop = window.matchMedia(`(min-width: ${theme.breakpoints.values.sm}px)`);
+    const desktop = window.matchMedia(
+      `(min-width: ${theme.breakpoints.values.sm}px)`,
+    );
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
-    const update = () => setShouldLoadVideo(desktop.matches && !reducedMotion.matches && !connection?.saveData);
+    const connection = (
+      navigator as Navigator & { connection?: { saveData?: boolean } }
+    ).connection;
+    const update = () =>
+      setShouldLoadVideo(
+        desktop.matches && !reducedMotion.matches && !connection?.saveData,
+      );
     update();
     desktop.addEventListener("change", update);
     reducedMotion.addEventListener("change", update);
@@ -44,7 +59,8 @@ export const Hero = () => {
       const snappedY = Math.floor(y / GRID_SIZE) * GRID_SIZE;
 
       setHoverCell((prev) => {
-        if (prev.visible && prev.x === snappedX && prev.y === snappedY) return prev;
+        if (prev.visible && prev.x === snappedX && prev.y === snappedY)
+          return prev;
         return { x: snappedX, y: snappedY, visible: true };
       });
     },
@@ -132,18 +148,20 @@ export const Hero = () => {
             position: "absolute",
             inset: 0,
             // Thin grid overlay (чётче на светлой теме)
-            backgroundImage: theme.palette.mode === "light"
-              ? `
+            backgroundImage:
+              theme.palette.mode === "light"
+                ? `
                 linear-gradient(rgba(0,0,0,0.22) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(0,0,0,0.22) 1px, transparent 1px)
               `
-              : `
+                : `
                 linear-gradient(rgba(255,255,255,0.14) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255,255,255,0.14) 1px, transparent 1px)
               `,
             backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`,
             backgroundRepeat: "repeat",
-            mixBlendMode: theme.palette.mode === "light" ? "normal" : "soft-light",
+            mixBlendMode:
+              theme.palette.mode === "light" ? "normal" : "soft-light",
             opacity: 1,
           },
         }}
@@ -173,8 +191,9 @@ export const Hero = () => {
           spacing={{ xs: 2.5, md: 3 }}
           sx={{
             alignItems: "center",
-            textAlign: "center"
-          }}>
+            textAlign: "center",
+          }}
+        >
           <Box
             component="h1"
             sx={{
@@ -216,7 +235,7 @@ export const Hero = () => {
               fontWeight: 600,
               letterSpacing: "0.14em",
               textTransform: "uppercase",
-              fontSize: { xs: 12, sm: 13, md: 14 },
+              fontSize: { xs: "1rem", sm: "1rem", md: "1rem" },
             }}
           >
             Ваш путь к идеальному участку
@@ -226,4 +245,3 @@ export const Hero = () => {
     </Box>
   );
 };
-

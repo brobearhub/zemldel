@@ -10,7 +10,7 @@ const provider = {
 describe("providerWithoutProfileRedirect", () => {
   it("ведёт исполнителя без профиля на шаг 2", () => {
     expect(providerWithoutProfileRedirect({ ...provider, pathname: "/" })).toBe("/providers/new");
-    expect(providerWithoutProfileRedirect({ ...provider, pathname: "/pro" })).toBe("/providers/new");
+    expect(providerWithoutProfileRedirect({ ...provider, pathname: "/pro/requests/feed" })).toBe("/providers/new");
     expect(providerWithoutProfileRedirect({ ...provider, pathname: "/profile" })).toBe("/providers/new");
   });
 
@@ -21,7 +21,7 @@ describe("providerWithoutProfileRedirect", () => {
     expect(providerWithoutProfileRedirect({ ...provider, pathname: "/offer" })).toBeNull();
     expect(providerWithoutProfileRedirect({ ...provider, pathname: "/consent" })).toBeNull();
     expect(
-      providerWithoutProfileRedirect({ ...provider, hasMembership: true, pathname: "/pro" }),
+      providerWithoutProfileRedirect({ ...provider, hasMembership: true, pathname: "/pro/requests/feed" }),
     ).toBeNull();
   });
 

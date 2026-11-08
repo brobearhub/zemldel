@@ -8,7 +8,11 @@ type Props = {
   onSelect?: (id: StoryMetricId) => void;
 };
 
-export function StoryMetricCards({ metrics, activeId = null, onSelect }: Props) {
+export function StoryMetricCards({
+  metrics,
+  activeId = null,
+  onSelect,
+}: Props) {
   return (
     <Box
       sx={{
@@ -53,25 +57,39 @@ export function StoryMetricCards({ metrics, activeId = null, onSelect }: Props) 
               alignItems: "center",
               justifyContent: "space-between",
               gap: 2,
-              boxShadow: (theme) => `0 10px 28px ${alpha(theme.palette.common.black, 0.05)}`,
+              boxShadow: (theme) =>
+                `0 10px 28px ${alpha(theme.palette.common.black, 0.05)}`,
               "&:hover": interactive
-                ? { bgcolor: active ? "text.primary" : (theme) => alpha(theme.palette.text.primary, 0.06) }
+                ? {
+                    bgcolor: active
+                      ? "text.primary"
+                      : (theme) => alpha(theme.palette.text.primary, 0.06),
+                  }
                 : undefined,
             }}
           >
             <Typography
               component="span"
-              sx={{ fontWeight: 600, fontSize: 15, lineHeight: 1.25, color: active ? "inherit" : "text.secondary" }}
+              sx={{
+                fontWeight: 600,
+                fontSize: "1rem",
+                lineHeight: 1.5,
+                color: active ? "inherit" : "text.secondary",
+              }}
             >
               {metric.label}
             </Typography>
             <Typography
               component="span"
               sx={{
-                fontWeight: 800,
-                fontSize: metric.wide ? 52 : 40,
+                fontWeight: 700,
+                fontSize: metric.wide ? "3.25rem" : "2.5rem",
                 lineHeight: 1,
-                color: active ? "inherit" : quiet ? "primary.main" : "text.primary",
+                color: active
+                  ? "inherit"
+                  : quiet
+                    ? "primary.main"
+                    : "text.primary",
                 flex: "0 0 auto",
               }}
             >

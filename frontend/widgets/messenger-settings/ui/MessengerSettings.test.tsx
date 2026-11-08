@@ -14,6 +14,19 @@ const status: MessengerStatus = { platform: "TELEGRAM", configured: true, connec
 describe("MessengerSettings", () => {
   beforeEach(() => { vi.resetAllMocks(); });
 
+  it("shows availability only for the messenger that cannot be connected yet", async () => {
+    vi.mocked(messengerApi.status).mockResolvedValue([
+      status,
+      { ...status, platform: "MAX", configured: false },
+    ]);
+
+    render(<MessengerSettings />);
+
+    expect(await screen.findByText("Подключение MAX скоро станет доступно")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Подключить Telegram" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Подключить MAX" })).toBeDisabled();
+  });
+
   it("creates a link before opening the bot and requires a separate confirmation", async () => {
     const expiresAt = new Date(Date.now() + 600000).toISOString();
     vi.mocked(messengerApi.status).mockResolvedValue([status]);
@@ -34,7 +47,8 @@ describe("MessengerSettings", () => {
     vi.mocked(messengerApi.status).mockResolvedValue([{ ...status, connected: true, displayName: "Иван", notificationsEnabled: true }]);
     fireEvent.click(confirm);
     await waitFor(() => expect(messengerApi.confirm).toHaveBeenCalledWith("TELEGRAM", "token"));
-    expect(await screen.findByText("Подключён")).toBeInTheDocument();
+    expect(await screen.findByText("Иван")).toBeInTheDocument();
+    expect(screen.queryByText(/Аккаунт:/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Отключить Telegram" })).toBeInTheDocument();
   });
 
@@ -44,6 +58,6 @@ describe("MessengerSettings", () => {
     render(<MessengerSettings />);
     fireEvent.click(await screen.findByRole("button", { name: "Подключить Telegram" }));
     expect(await screen.findByText("Сервис временно недоступен")).toBeInTheDocument();
-    expect(screen.queryByText("Подключён")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Отключить Telegram" })).not.toBeInTheDocument();
   });
 });

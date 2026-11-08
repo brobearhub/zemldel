@@ -67,10 +67,15 @@ function statusLabel(status: ProContractInstanceListItem["status"]) {
   return "Черновик";
 }
 
-export function ProContractsWorkspace({ initialTemplates, initialInstances }: Props) {
+export function ProContractsWorkspace({
+  initialTemplates,
+  initialInstances,
+}: Props) {
   const searchParams = useSearchParams();
   const requestIdFromQuery = searchParams.get("requestId") ?? "";
-  const [tab, setTab] = useState<"templates" | "instances">(() => (requestIdFromQuery ? "instances" : "templates"));
+  const [tab, setTab] = useState<"templates" | "instances">(() =>
+    requestIdFromQuery ? "instances" : "templates",
+  );
   const [templates, setTemplates] = useState(initialTemplates);
   const [instances, setInstances] = useState(initialInstances);
   const [busy, setBusy] = useState(false);
@@ -79,15 +84,26 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
   const [notice, setNotice] = useState<string | null>(null);
   const confirm = useConfirm();
 
-  const [createInstanceTemplateId, setCreateInstanceTemplateId] = useState<string>("");
-  const [createInstanceOrderId, setCreateInstanceOrderId] = useState<string>(() => requestIdFromQuery);
+  const [createInstanceTemplateId, setCreateInstanceTemplateId] =
+    useState<string>("");
+  const [createInstanceOrderId, setCreateInstanceOrderId] = useState<string>(
+    () => requestIdFromQuery,
+  );
   const templatesSorted = useMemo(
-    () => [...templates].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
-    [templates]
+    () =>
+      [...templates].sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      ),
+    [templates],
   );
   const instancesSorted = useMemo(
-    () => [...instances].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
-    [instances]
+    () =>
+      [...instances].sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      ),
+    [instances],
   );
 
   async function refresh() {
@@ -99,20 +115,32 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
         fetch("/api/pro/contracts/templates", { cache: "no-store" }),
         fetch("/api/pro/contracts/instances", { cache: "no-store" }),
       ]);
-      const tplPayload = (await tplRes.json().catch(() => null)) as ProContractTemplateListItem[] | { error?: string } | null;
-      const instPayload = (await instRes.json().catch(() => null)) as ProContractInstanceListItem[] | { error?: string } | null;
+      const tplPayload = (await tplRes.json().catch(() => null)) as
+        | ProContractTemplateListItem[]
+        | { error?: string }
+        | null;
+      const instPayload = (await instRes.json().catch(() => null)) as
+        | ProContractInstanceListItem[]
+        | { error?: string }
+        | null;
       if (!tplRes.ok) {
         throw new Error(
-          tplPayload && typeof tplPayload === "object" && "error" in tplPayload && typeof tplPayload.error === "string"
+          tplPayload &&
+            typeof tplPayload === "object" &&
+            "error" in tplPayload &&
+            typeof tplPayload.error === "string"
             ? tplPayload.error
-            : "Не удалось загрузить шаблоны"
+            : "Не удалось загрузить шаблоны",
         );
       }
       if (!instRes.ok) {
         throw new Error(
-          instPayload && typeof instPayload === "object" && "error" in instPayload && typeof instPayload.error === "string"
+          instPayload &&
+            typeof instPayload === "object" &&
+            "error" in instPayload &&
+            typeof instPayload.error === "string"
             ? instPayload.error
-            : "Не удалось загрузить договоры"
+            : "Не удалось загрузить договоры",
         );
       }
       setTemplates(tplPayload as ProContractTemplateListItem[]);
@@ -139,13 +167,23 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`/api/pro/contracts/templates/${id}/fork`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({}) });
-      const payload = (await res.json().catch(() => null)) as { id?: string; error?: string } | null;
-      if (!res.ok) throw new Error(payload?.error ?? "Не удалось отпочковать шаблон");
+      const res = await fetch(`/api/pro/contracts/templates/${id}/fork`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const payload = (await res.json().catch(() => null)) as {
+        id?: string;
+        error?: string;
+      } | null;
+      if (!res.ok)
+        throw new Error(payload?.error ?? "Не удалось отпочковать шаблон");
       setNotice("Шаблон отпочкован");
       await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось отпочковать шаблон");
+      setError(
+        e instanceof Error ? e.message : "Не удалось отпочковать шаблон",
+      );
     } finally {
       setBusy(false);
       setPendingAction(null);
@@ -166,9 +204,15 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`/api/pro/contracts/templates/${template.id}`, { method: "DELETE" });
-      const payload = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
-      if (!res.ok) throw new Error(payload?.error ?? "Не удалось удалить шаблон");
+      const res = await fetch(`/api/pro/contracts/templates/${template.id}`, {
+        method: "DELETE",
+      });
+      const payload = (await res.json().catch(() => null)) as {
+        ok?: boolean;
+        error?: string;
+      } | null;
+      if (!res.ok)
+        throw new Error(payload?.error ?? "Не удалось удалить шаблон");
       setNotice("Шаблон удалён");
       await refresh();
     } catch (e) {
@@ -194,9 +238,17 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
           serviceRequestId: createInstanceOrderId,
         }),
       });
-      const payload = (await res.json().catch(() => null)) as { id?: string; error?: string } | null;
-      if (!res.ok) throw new Error(payload?.error ?? "Не удалось создать договор");
-      setNotice(createInstanceOrderId ? "Договор создан и прикреплён к заявке" : "Договор создан");
+      const payload = (await res.json().catch(() => null)) as {
+        id?: string;
+        error?: string;
+      } | null;
+      if (!res.ok)
+        throw new Error(payload?.error ?? "Не удалось создать договор");
+      setNotice(
+        createInstanceOrderId
+          ? "Договор создан и прикреплён к заявке"
+          : "Договор создан",
+      );
       if (!requestIdFromQuery) setCreateInstanceOrderId("");
       await refresh();
     } catch (e) {
@@ -213,8 +265,13 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`/api/pro/contracts/instances/${id}/send`, { method: "POST" });
-      const payload = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+      const res = await fetch(`/api/pro/contracts/instances/${id}/send`, {
+        method: "POST",
+      });
+      const payload = (await res.json().catch(() => null)) as {
+        ok?: boolean;
+        error?: string;
+      } | null;
       if (!res.ok) throw new Error(payload?.error ?? "Не удалось отправить");
       setNotice("Отправлено клиенту");
       await refresh();
@@ -243,18 +300,37 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
         </Tabs>
 
         <Box sx={{ p: 2.5 }}>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{
-            alignItems: { sm: "center" }
-          }}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            sx={{
+              alignItems: { sm: "center" },
+            }}
+          >
             {tab === "templates" ? (
-              <Button component={Link} href="/pro/documents/contracts/templates/new" variant="contained" disabled={busy}>
+              <Button
+                component={Link}
+                href="/pro/documents/contracts/templates/new"
+                variant="contained"
+                disabled={busy}
+              >
                 Создать шаблон
               </Button>
             ) : null}
-            <Button component={Link} href="/pro/documents/contracts/requisites" variant="outlined" disabled={busy}>
+            <Button
+              component={Link}
+              href="/pro/documents/contracts/requisites"
+              variant="outlined"
+              disabled={busy}
+            >
               Реквизиты
             </Button>
-            <Button variant="outlined" onClick={() => void refreshFromButton()} loading={pendingAction === "refresh"} disabled={busy}>
+            <Button
+              variant="outlined"
+              onClick={() => void refreshFromButton()}
+              loading={pendingAction === "refresh"}
+              disabled={busy}
+            >
               Обновить
             </Button>
           </Stack>
@@ -266,36 +342,77 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
           <List dense disablePadding>
             {templatesSorted.length === 0 ? (
               <Box sx={{ p: 2.5 }}>
-                <Typography sx={{
-                  color: "text.secondary"
-                }}>Шаблонов пока нет.</Typography>
+                <Typography
+                  sx={{
+                    color: "text.secondary",
+                  }}
+                >
+                  Шаблонов пока нет.
+                </Typography>
               </Box>
             ) : (
               templatesSorted.map((t) => (
-                <ListItem key={t.id} disableGutters secondaryAction={
-                  <Stack direction="row" spacing={1} sx={{ pr: 2 }}>
-                    <Button component={Link} href={`/pro/documents/contracts/templates/${t.id}/edit`} size="small" variant="outlined" disabled={busy}>
-                      Редактировать
-                    </Button>
-                    <Button size="small" variant="contained" loading={pendingAction === `fork:${t.id}`} disabled={busy} onClick={() => void forkTemplate(t.id)}>
-                      Отпочковать
-                    </Button>
-                    <Button size="small" variant="outlined" color="error" loading={pendingAction === `delete:${t.id}`} disabled={busy} onClick={() => void deleteTemplate(t)}>
-                      Удалить
-                    </Button>
-                  </Stack>
-                }>
-                  <ListItemButton component={Link} href={`/pro/documents/contracts/templates/${t.id}/edit`} sx={{ px: 2.5, py: 1.5 }}>
+                <ListItem
+                  key={t.id}
+                  disableGutters
+                  secondaryAction={
+                    <Stack direction="row" spacing={1} sx={{ pr: 2 }}>
+                      <Button
+                        component={Link}
+                        href={`/pro/documents/contracts/templates/${t.id}/edit`}
+                        size="small"
+                        variant="outlined"
+                        disabled={busy}
+                      >
+                        Редактировать
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        loading={pendingAction === `fork:${t.id}`}
+                        disabled={busy}
+                        onClick={() => void forkTemplate(t.id)}
+                      >
+                        Отпочковать
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="error"
+                        loading={pendingAction === `delete:${t.id}`}
+                        disabled={busy}
+                        onClick={() => void deleteTemplate(t)}
+                      >
+                        Удалить
+                      </Button>
+                    </Stack>
+                  }
+                >
+                  <ListItemButton
+                    component={Link}
+                    href={`/pro/documents/contracts/templates/${t.id}/edit`}
+                    sx={{ px: 2.5, py: 1.5 }}
+                  >
                     <ListItemText
                       primary={
-                        <Stack direction="row" spacing={1} sx={{
-                          alignItems: "center"
-                        }}>
-                          <Typography sx={{
-                            fontWeight: 700
-                          }}>{t.title}</Typography>
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          sx={{
+                            alignItems: "center",
+                          }}
+                        >
+                          <Typography
+                            sx={{
+                              fontWeight: 700,
+                            }}
+                          >
+                            {t.title}
+                          </Typography>
                           <Chip size="small" label={`v${t.version}`} />
-                          {t.parentTemplateId ? <Chip size="small" color="info" label="fork" /> : null}
+                          {t.parentTemplateId ? (
+                            <Chip size="small" color="info" label="fork" />
+                          ) : null}
                         </Stack>
                       }
                       secondary={`Обновлён: ${formatDate(t.updatedAt)}`}
@@ -309,10 +426,14 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
           <Stack spacing={2} sx={{ p: 2.5 }}>
             <Paper variant="outlined" sx={{ p: 2 }}>
               <Stack component="form" spacing={1.5} onSubmit={createInstance}>
-                <Typography sx={{
-                  fontWeight: 800
-                }}>
-                  {requestIdFromQuery ? "Создать договор для заявки" : "Создать экземпляр по заявке"}
+                <Typography
+                  sx={{
+                    fontWeight: 700,
+                  }}
+                >
+                  {requestIdFromQuery
+                    ? "Создать договор для заявки"
+                    : "Создать экземпляр по заявке"}
                 </Typography>
                 <FormControl fullWidth size="small">
                   <InputLabel id="template-id-label">Шаблон</InputLabel>
@@ -320,7 +441,9 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
                     labelId="template-id-label"
                     label="Шаблон"
                     value={createInstanceTemplateId}
-                    onChange={(e) => setCreateInstanceTemplateId(e.target.value)}
+                    onChange={(e) =>
+                      setCreateInstanceTemplateId(e.target.value)
+                    }
                     disabled={busy}
                     required
                   >
@@ -332,7 +455,9 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
                   </Select>
                 </FormControl>
                 {requestIdFromQuery ? (
-                  <Alert severity="info">Договор будет прикреплён к текущей заявке.</Alert>
+                  <Alert severity="info">
+                    Договор будет прикреплён к текущей заявке.
+                  </Alert>
                 ) : (
                   <TextField
                     label="ID заявки"
@@ -344,7 +469,12 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
                     required
                   />
                 )}
-                <Button type="submit" variant="contained" loading={pendingAction === "create"} disabled={busy || templatesSorted.length === 0}>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  loading={pendingAction === "create"}
+                  disabled={busy || templatesSorted.length === 0}
+                >
                   Создать
                 </Button>
               </Stack>
@@ -354,9 +484,13 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
               <List dense disablePadding>
                 {instancesSorted.length === 0 ? (
                   <Box sx={{ p: 2 }}>
-                    <Typography sx={{
-                      color: "text.secondary"
-                    }}>Экземпляров договоров пока нет.</Typography>
+                    <Typography
+                      sx={{
+                        color: "text.secondary",
+                      }}
+                    >
+                      Экземпляров договоров пока нет.
+                    </Typography>
                   </Box>
                 ) : (
                   instancesSorted.map((c) => (
@@ -386,16 +520,31 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
                         </Stack>
                       }
                     >
-                      <ListItemButton component={Link} href={`/pro/documents/contracts/instances/${c.id}`} sx={{ px: 2.5, py: 1.5 }}>
+                      <ListItemButton
+                        component={Link}
+                        href={`/pro/documents/contracts/instances/${c.id}`}
+                        sx={{ px: 2.5, py: 1.5 }}
+                      >
                         <ListItemText
                           primary={
-                            <Stack direction="row" spacing={1} sx={{
-                              alignItems: "center"
-                            }}>
-                              <Typography sx={{
-                                fontWeight: 700
-                              }}>{c.title}</Typography>
-                              <Chip size="small" label={statusLabel(c.status)} />
+                            <Stack
+                              direction="row"
+                              spacing={1}
+                              sx={{
+                                alignItems: "center",
+                              }}
+                            >
+                              <Typography
+                                sx={{
+                                  fontWeight: 700,
+                                }}
+                              >
+                                {c.title}
+                              </Typography>
+                              <Chip
+                                size="small"
+                                label={statusLabel(c.status)}
+                              />
                             </Stack>
                           }
                           secondary={`Обновлён: ${formatDate(c.updatedAt)}${c.requestId ? ` · заказ: ${c.requestId}` : ""}`}
@@ -412,4 +561,3 @@ export function ProContractsWorkspace({ initialTemplates, initialInstances }: Pr
     </Stack>
   );
 }
-

@@ -3,9 +3,9 @@ import { resolveProfileMenuSection } from "./profile-menu-section";
 
 describe("resolveProfileMenuSection", () => {
   it("отмечает кабинет профессионала на маршрутах /pro", () => {
-    expect(resolveProfileMenuSection("/pro")).toBe("pro");
+    expect(resolveProfileMenuSection("/pro/requests/feed")).toBe("pro");
     expect(resolveProfileMenuSection("/pro/services")).toBe("pro");
-    expect(resolveProfileMenuSection("/pro/profile")).toBe("pro");
+    expect(resolveProfileMenuSection("/pro/settings/profile")).toBe("pro");
   });
 
   it("отмечает мой профиль на маршрутах заказчика", () => {

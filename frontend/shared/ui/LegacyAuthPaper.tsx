@@ -1,0 +1,230 @@
+"use client";
+
+import type { ReactNode } from "react";
+import type { PaperProps, SxProps, Theme } from "@mui/material";
+import { Paper } from "@mui/material";
+import { alpha } from "@mui/material/styles";
+
+export type LegacyAuthPaperProps = Omit<PaperProps, "sx" | "children"> & {
+  children?: ReactNode;
+  sx?: SxProps<Theme>;
+  /** Цветовая схема валидации/ошибок для полей внутри (error=красный, warning=оранжевый). */
+  validationTone?: "error" | "warning";
+};
+
+const baseSx: SxProps<Theme> = (theme) => {
+  const isDark = theme.palette.mode === "dark";
+  // Target look: static dark "glass" panel like in the reference screenshot.
+  const glassBase = isDark
+    ? alpha(theme.palette.background.paper, 0.66)
+    : alpha(theme.palette.common.black, 0.4);
+  const inputSurface = alpha(theme.palette.common.white, isDark ? 0.06 : 0.08);
+  const autofillText = alpha(theme.palette.common.white, isDark ? 0.92 : 0.94);
+  const border = alpha(theme.palette.common.white, isDark ? 0.16 : 0.18);
+  const topHighlight = alpha(theme.palette.common.white, isDark ? 0.12 : 0.14);
+  const bottomShade = alpha(theme.palette.common.black, isDark ? 0.26 : 0.22);
+
+  return {
+    position: "relative",
+    overflow: "hidden",
+    backdropFilter: "blur(14px) saturate(140%)",
+    WebkitBackdropFilter: "blur(14px) saturate(140%)",
+    backgroundColor: glassBase,
+    border: `1px solid ${border}`,
+    boxShadow: isDark
+      ? "0 18px 70px rgba(0,0,0,0.55)"
+      : "0 18px 55px rgba(0,0,0,0.22)",
+    color: alpha(theme.palette.common.white, isDark ? 0.9 : 0.92),
+
+    "&::before": {
+      content: '""',
+      position: "absolute",
+      inset: -2,
+      borderRadius: "inherit",
+      pointerEvents: "none",
+      opacity: 1,
+      backgroundImage: [
+        // Soft internal gradient + a tiny bit of static "sheen" (no motion).
+        `linear-gradient(180deg, ${topHighlight} 0%, ${alpha(theme.palette.common.white, 0)} 34%)`,
+        `linear-gradient(180deg, ${alpha(theme.palette.common.white, 0)} 55%, ${bottomShade} 100%)`,
+      ].join(", "),
+      backgroundBlendMode: "screen, multiply",
+      filter: "blur(0.2px)",
+    },
+
+    "&::after": {
+      content: '""',
+      position: "absolute",
+      inset: 0,
+      borderRadius: "inherit",
+      pointerEvents: "none",
+      opacity: 1,
+      backgroundImage: [
+        // Subtle sheen that slowly shifts.
+        `radial-gradient(900px 260px at 12% -20%, ${alpha(
+          theme.palette.common.white,
+          isDark ? 0.14 : 0.18,
+        )} 0%, ${alpha(theme.palette.common.white, 0)} 60%)`,
+      ].join(", "),
+      boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, isDark ? 0.1 : 0.16)}, inset 0 -1px 0 ${alpha(
+        theme.palette.text.primary,
+        isDark ? 0.18 : 0.08,
+      )}`,
+    },
+
+    "& > *": {
+      position: "relative",
+    },
+
+    "& button[aria-haspopup='dialog'] .MuiTypography-root": {
+      fontSize: "0.875rem",
+    },
+    // Make typical form content readable on a dark glass background.
+    "& .MuiTypography-root": {
+      color: "inherit",
+    },
+    "& .MuiInputLabel-root": {
+      color: alpha(theme.palette.common.white, isDark ? 0.78 : 0.82),
+      "&.Mui-focused": {
+        color: alpha(theme.palette.common.white, isDark ? 0.88 : 0.9),
+      },
+    },
+    // Why: глазик пароля — IconButton с action.active (тёмный). На стекле он должен совпадать с label.
+    // Кнопка лежит поверх поля: автозаполнение красит только <input>, и правый край иначе темнее.
+    "& .MuiInputAdornment-positionEnd": {
+      position: "absolute",
+      right: "6px",
+      top: "50%",
+      transform: "translateY(-50%)",
+      zIndex: 1,
+      height: "auto",
+      maxHeight: "none",
+      margin: 0,
+      backgroundColor: "transparent",
+    },
+    "& .MuiOutlinedInput-root:has(.MuiInputAdornment-positionEnd) .MuiInputBase-input":
+      {
+        paddingRight: "44px",
+      },
+    "& .MuiInputAdornment-root .MuiIconButton-root": {
+      backgroundColor: "transparent",
+      color: alpha(theme.palette.common.white, isDark ? 0.78 : 0.82),
+      width: 36,
+      height: 36,
+      minWidth: 36,
+      minHeight: 36,
+      marginRight: 0,
+      "&:hover": {
+        backgroundColor: alpha(theme.palette.common.white, 0.08),
+      },
+    },
+    "& .MuiOutlinedInput-root": {
+      position: "relative",
+      backgroundColor: inputSurface,
+      "&:hover": {
+        backgroundColor: alpha(theme.palette.common.white, isDark ? 0.08 : 0.1),
+      },
+      "&.Mui-focused": {
+        backgroundColor: alpha(
+          theme.palette.common.white,
+          isDark ? 0.09 : 0.12,
+        ),
+      },
+      "& .MuiOutlinedInput-notchedOutline": {
+        borderColor: alpha(theme.palette.common.white, isDark ? 0.26 : 0.28),
+      },
+      "&:hover .MuiOutlinedInput-notchedOutline": {
+        borderColor: alpha(theme.palette.common.white, isDark ? 0.36 : 0.38),
+      },
+      "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+        borderColor: alpha(theme.palette.common.white, isDark ? 0.52 : 0.5),
+      },
+    },
+    "& .MuiInputBase-input": {
+      color: alpha(theme.palette.common.white, isDark ? 0.92 : 0.94),
+    },
+    // Автозаполнение красит <input> своим цветом. Тень того же тона, что и плашка, закрывает его целиком, включая место под глазиком.
+    "& input:-webkit-autofill, & textarea:-webkit-autofill, & select:-webkit-autofill, & input:-webkit-autofill:hover, & textarea:-webkit-autofill:hover, & select:-webkit-autofill:hover, & input:-webkit-autofill:focus, & textarea:-webkit-autofill:focus, & select:-webkit-autofill:focus, & input:-webkit-autofill:active, & textarea:-webkit-autofill:active, & select:-webkit-autofill:active":
+      {
+        WebkitTextFillColor: `${autofillText} !important`,
+        caretColor: `${autofillText} !important`,
+        WebkitBoxShadow: `0 0 0px 1000px ${inputSurface} inset !important`,
+        boxShadow: `0 0 0px 1000px ${inputSurface} inset !important`,
+        transition: "background-color 9999s ease-out 0s",
+      },
+    "& .MuiFormControl-root:has(input:-webkit-autofill) .MuiInputLabel-root, & .MuiFormControl-root:has(textarea:-webkit-autofill) .MuiInputLabel-root":
+      {
+        transform: "translate(14px, -9px) scale(0.75)",
+      },
+    "& .MuiFormControl-root:has(input:-webkit-autofill) .MuiOutlinedInput-notchedOutline legend, & .MuiFormControl-root:has(textarea:-webkit-autofill) .MuiOutlinedInput-notchedOutline legend":
+      {
+        maxWidth: "100%",
+      },
+    "& input:-internal-autofill-selected, & input:-internal-autofill-previewed":
+      {
+        WebkitTextFillColor: `${autofillText} !important`,
+        caretColor: `${autofillText} !important`,
+        WebkitBoxShadow: `0 0 0px 1000px ${inputSurface} inset !important`,
+        boxShadow: `0 0 0px 1000px ${inputSurface} inset !important`,
+      },
+    "& input:-moz-autofill, & textarea:-moz-autofill, & select:-moz-autofill": {
+      caretColor: `${autofillText} !important`,
+      boxShadow: `0 0 0px 1000px ${inputSurface} inset !important`,
+    },
+    "& .MuiFormHelperText-root": {
+      color: alpha(theme.palette.common.white, isDark ? 0.64 : 0.68),
+    },
+    "& .MuiCheckbox-root": {
+      color: alpha(theme.palette.common.white, isDark ? 0.78 : 0.82),
+      "&.Mui-checked": {
+        color: alpha(theme.palette.common.white, isDark ? 0.92 : 0.94),
+      },
+    },
+    "& a": {
+      color: "inherit",
+    },
+
+    // Intentionally no animations: reference effect is static.
+  };
+};
+
+export function LegacyAuthPaper({
+  children,
+  sx,
+  elevation = 10,
+  variant,
+  validationTone = "error",
+  ...paperProps
+}: LegacyAuthPaperProps) {
+  const validationSx: SxProps<Theme> = (theme) => {
+    const tone = theme.palette[validationTone].main;
+    return {
+      "& .MuiFormHelperText-root.Mui-error": { color: tone },
+      "& .MuiInputLabel-root.Mui-error": { color: tone },
+      "& .MuiOutlinedInput-root.Mui-error .MuiOutlinedInput-notchedOutline": {
+        borderColor: tone,
+      },
+      "& .MuiOutlinedInput-root.Mui-error:hover .MuiOutlinedInput-notchedOutline":
+        { borderColor: tone },
+      "& .MuiOutlinedInput-root.Mui-error.Mui-focused .MuiOutlinedInput-notchedOutline":
+        { borderColor: tone },
+    };
+  };
+
+  const mergedSx: SxProps<Theme> = sx
+    ? Array.isArray(sx)
+      ? [baseSx, validationSx, ...sx]
+      : [baseSx, validationSx, sx]
+    : [baseSx, validationSx];
+
+  return (
+    <Paper
+      elevation={elevation}
+      variant={variant}
+      sx={mergedSx}
+      {...paperProps}
+    >
+      {children}
+    </Paper>
+  );
+}

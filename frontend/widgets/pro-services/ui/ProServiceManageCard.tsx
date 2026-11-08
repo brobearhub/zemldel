@@ -52,7 +52,12 @@ export function ProServiceManageCard({ service, highlighted = false, ...actions 
           "&:focus-visible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: -2 },
         }}
       >
-        <ServiceCard item={item} linked={false} titleComponent="h2" />
+        <ServiceCard
+          item={item}
+          linked={false}
+          titleComponent="h2"
+          compact
+        />
       </Box>
       <ProServiceCardActions service={service} {...actions} />
     </Box>

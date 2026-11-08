@@ -22,10 +22,11 @@ export function ServiceSectionHeader({ title, cityLabel }: Props) {
     >
       <Typography
         component="h2"
+        variant="h2"
         sx={{
           fontWeight: 700,
-          fontSize: 24,
-          lineHeight: 1.334,
+          fontSize: { xs: "1.625rem", md: "2rem" },
+          lineHeight: 1.3125,
         }}
       >
         {title}
@@ -38,7 +39,7 @@ export function ServiceSectionHeader({ title, cityLabel }: Props) {
           onClick={() => openCitySelect("customer")}
           sx={{
             fontWeight: 500,
-            fontSize: 14,
+            fontSize: "1rem",
             lineHeight: 1.57,
             letterSpacing: "0.1px",
             color: "text.secondary",

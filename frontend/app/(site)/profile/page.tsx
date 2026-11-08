@@ -30,19 +30,32 @@ import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";
 import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
-import { formatRuPhoneInput, RU_PHONE_PREFIX, ruPhoneDigits } from "@/shared/lib/contact-phone";
+import {
+  formatRuPhoneInput,
+  RU_PHONE_PREFIX,
+  ruPhoneDigits,
+} from "@/shared/lib/contact-phone";
 import { CdnAvatar } from "@/shared/ui/cdn-image";
 import { useAppSelector } from "@/core/store/hooks";
-import { resolveAccountKind, type AuthMembership } from "@/core/auth/authorization";
+import {
+  resolveAccountKind,
+  type AuthMembership,
+} from "@/core/auth/authorization";
 import { CustomerRequestsSection } from "@/widgets/customer-requests/ui/CustomerRequestsSection";
 import { CustomerDocumentsSection } from "@/widgets/customer-documents/ui/CustomerDocumentsSection";
 import { StoriesPage } from "@/views/stories-page";
 import { CabinetNotices } from "@/widgets/cabinet-chrome";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import type { CitySuggestItemDto } from "@/entities/city";
-import { displayCityName, formatCityLabel } from "@/shared/lib/format-city-label";
+import {
+  displayCityName,
+  formatCityLabel,
+} from "@/shared/lib/format-city-label";
 import { LocationField } from "@/features/select-city";
-import { CABINET_SIDEBAR_EXPANDED_W, sitePageContainerSx } from "@/shared/config/site-layout";
+import {
+  CABINET_SIDEBAR_EXPANDED_W,
+  sitePageContainerSx,
+} from "@/shared/config/site-layout";
 
 function getInitials(name: string | null | undefined): string {
   if (!name) return "U";
@@ -75,7 +88,12 @@ const cardSx = { p: { xs: 2.5, md: 3.5 }, borderRadius: 2 } as const;
 type ProfileSection = "profile" | "requests" | "documents" | "stories";
 
 function resolveProfileSection(value: string | null): ProfileSection {
-  if (value === "profile" || value === "requests" || value === "documents" || value === "stories") {
+  if (
+    value === "profile" ||
+    value === "requests" ||
+    value === "documents" ||
+    value === "stories"
+  ) {
     return value;
   }
 
@@ -87,7 +105,10 @@ interface ProfileOverviewProps {
   email: string | null | undefined;
   phone: string | null | undefined;
   image: string | null | undefined;
-  customerCity: { id: string; name: string; regionCode: string; regionName: string } | null | undefined;
+  customerCity:
+    | { id: string; name: string; regionCode: string; regionName: string }
+    | null
+    | undefined;
   memberships: AuthMembership[];
   activeMembership: AuthMembership | null;
   onOpenProfessionalArea: () => void;
@@ -113,7 +134,9 @@ function ProfileOverview({
   const { update: updateSession } = useSession();
   const [busy, setBusy] = useState(false);
   const [imageBusy, setImageBusy] = useState(false);
-  const [imageAction, setImageAction] = useState<"upload" | "delete" | null>(null);
+  const [imageAction, setImageAction] = useState<
+    "upload-icon" | "upload-button" | "delete" | null
+  >(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [imageSuccess, setImageSuccess] = useState<string | null>(null);
   const [cityError, setCityError] = useState<string | null>(null);
@@ -121,11 +144,15 @@ function ProfileOverview({
   const [phoneDraft, setPhoneDraft] = useState(savedPhone);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [phoneSaving, setPhoneSaving] = useState(false);
-  const [providerCityError, setProviderCityError] = useState<string | null>(null);
+  const [providerCityError, setProviderCityError] = useState<string | null>(
+    null,
+  );
   const [customerRating, setCustomerRating] = useState<number | null>(null);
   const [customerReviewCount, setCustomerReviewCount] = useState(0);
   const [profilePublic, setProfilePublic] = useState(false);
-  const [switchingProviderId, setSwitchingProviderId] = useState<string | null>(null);
+  const [switchingProviderId, setSwitchingProviderId] = useState<string | null>(
+    null,
+  );
   const [switchError, setSwitchError] = useState<string | null>(null);
 
   const customerCityValue = useMemo<CitySuggestItemDto | null>(() => {
@@ -185,8 +212,13 @@ function ProfileOverview({
         body: JSON.stringify({ phone: phoneDraftDigits ? phoneDraft : null }),
       });
       if (!res.ok) {
-        const payload = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
-        setPhoneError(payload.message ?? payload.error ?? "Не удалось обновить телефон");
+        const payload = (await res.json().catch(() => ({}))) as {
+          message?: string;
+          error?: string;
+        };
+        setPhoneError(
+          payload.message ?? payload.error ?? "Не удалось обновить телефон",
+        );
         return;
       }
       await updateSession();
@@ -207,7 +239,9 @@ function ProfileOverview({
         body: JSON.stringify({ customerCityId: next?.id ?? null }),
       });
       if (!res.ok) {
-        const payload = (await res.json().catch(() => ({}))) as { error?: string };
+        const payload = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
         setCityError(payload.error ?? "Не удалось обновить локацию");
         return;
       }
@@ -220,7 +254,10 @@ function ProfileOverview({
     }
   }
 
-  async function uploadProfileImage(file: File) {
+  async function uploadProfileImage(
+    file: File,
+    source: "upload-icon" | "upload-button",
+  ) {
     const allowed = ["image/jpeg", "image/png", "image/webp"];
     if (!allowed.includes(file.type)) {
       setImageError("Поддерживаются только JPG, PNG или WebP.");
@@ -232,22 +269,34 @@ function ProfileOverview({
     }
 
     setImageBusy(true);
-    setImageAction("upload");
+    setImageAction(source);
     setImageError(null);
     setImageSuccess(null);
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/users/me/image", { method: "POST", body: formData });
-      const payload = (await res.json().catch(() => null)) as { error?: string } | { image?: string | null } | null;
+      const res = await fetch("/api/users/me/image", {
+        method: "POST",
+        body: formData,
+      });
+      const payload = (await res.json().catch(() => null)) as
+        | { error?: string }
+        | { image?: string | null }
+        | null;
       if (!res.ok) {
-        throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось загрузить фото" : "Не удалось загрузить фото");
+        throw new Error(
+          payload && typeof payload === "object" && "error" in payload
+            ? (payload.error ?? "Не удалось загрузить фото")
+            : "Не удалось загрузить фото",
+        );
       }
       await updateSession();
       router.refresh();
       setImageSuccess("Фото профиля обновлено.");
     } catch (e) {
-      setImageError(e instanceof Error ? e.message : "Не удалось загрузить фото");
+      setImageError(
+        e instanceof Error ? e.message : "Не удалось загрузить фото",
+      );
     } finally {
       setImageBusy(false);
       setImageAction(null);
@@ -261,9 +310,15 @@ function ProfileOverview({
     setImageSuccess(null);
     try {
       const res = await fetch("/api/users/me/image", { method: "DELETE" });
-      const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+      const payload = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
       if (!res.ok) {
-        throw new Error(payload && typeof payload === "object" && "error" in payload ? payload.error ?? "Не удалось удалить фото" : "Не удалось удалить фото");
+        throw new Error(
+          payload && typeof payload === "object" && "error" in payload
+            ? (payload.error ?? "Не удалось удалить фото")
+            : "Не удалось удалить фото",
+        );
       }
       await updateSession();
       router.refresh();
@@ -293,14 +348,21 @@ function ProfileOverview({
     setBusy(true);
     setProviderCityError(null);
     try {
-      const res = await fetch(`/api/providers/${activeMembership.providerId}/city`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ cityId: next?.id ?? null }),
-      });
+      const res = await fetch(
+        `/api/providers/${activeMembership.providerId}/city`,
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ cityId: next?.id ?? null }),
+        },
+      );
       if (!res.ok) {
-        const payload = (await res.json().catch(() => ({}))) as { error?: string };
-        setProviderCityError(payload.error ?? "Не удалось обновить локацию провайдера");
+        const payload = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        setProviderCityError(
+          payload.error ?? "Не удалось обновить локацию провайдера",
+        );
         return;
       }
       await updateSession();
@@ -321,15 +383,25 @@ function ProfileOverview({
     setSwitchingProviderId(providerId);
     setSwitchError(null);
     try {
-      const res = await fetch(`/api/providers/${providerId}/activate`, { method: "POST" });
+      const res = await fetch(`/api/providers/${providerId}/activate`, {
+        method: "POST",
+      });
       if (!res.ok) {
-        const payload = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? "Не удалось открыть кабинет исполнителя");
+        const payload = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(
+          payload?.error ?? "Не удалось открыть кабинет исполнителя",
+        );
       }
       await updateSession();
       onOpenProfessionalArea();
     } catch (e) {
-      setSwitchError(e instanceof Error ? e.message : "Не удалось открыть кабинет исполнителя");
+      setSwitchError(
+        e instanceof Error
+          ? e.message
+          : "Не удалось открыть кабинет исполнителя",
+      );
       setSwitchingProviderId(null);
     }
   }
@@ -351,199 +423,279 @@ function ProfileOverview({
 
   return (
     <Stack spacing={3}>
-      <MessengerSettings />
-      <Paper elevation={0} sx={cardSx}>
-        <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: { xs: 2, md: "24px 32px" } }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 2, md: 4 }, flex: "999 1 320px", minWidth: 0 }}>
-            <Box sx={{ position: "relative", flex: "0 0 auto" }}>
-              <CdnAvatar
-                src={image || undefined}
-                sx={{
-                  width: { xs: 76, md: 104 },
-                  height: { xs: 76, md: 104 },
-                  bgcolor: "primary.main",
-                  color: "primary.contrastText",
-                  fontSize: { xs: 28, md: 38 },
-                  fontWeight: 800,
-                }}
-              >
-                {getInitials(name) || email?.charAt(0)?.toUpperCase() || "U"}
-              </CdnAvatar>
-              <IconButton
-                component="label"
-                aria-label="Загрузить фото"
-                disabled={imageBusy}
-                sx={{
-                  position: "absolute",
-                  right: -6,
-                  bottom: -6,
-                  width: { xs: 36, md: 40 },
-                  height: { xs: 36, md: 40 },
-                  border: 3,
-                  borderColor: "background.paper",
-                  bgcolor: "primary.main",
-                  color: "primary.contrastText",
-                  "&:hover": { bgcolor: "primary.dark" },
-                }}
-              >
-                {imageAction === "upload" ? (
-                  <CircularProgress size={16} color="inherit" />
-                ) : (
-                  <PhotoCameraOutlinedIcon sx={{ fontSize: 18 }} />
-                )}
-                <input
-                  type="file"
-                  hidden
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0] ?? null;
-                    e.currentTarget.value = "";
-                    if (f) void uploadProfileImage(f);
-                  }}
-                />
-              </IconButton>
-            </Box>
-
-            <Stack spacing={1} sx={{ minWidth: 0, flex: 1 }}>
-              <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1.25 }}>
-                <Typography component="h2" sx={{ fontSize: { xs: 22, md: 28 }, fontWeight: 800, lineHeight: 1.2 }}>
-                  {name || "Пользователь"}
-                </Typography>
-                <Chip
-                  size="small"
-                  label={activeMembership ? "Исполнитель" : "Заказчик"}
-                  sx={{ fontWeight: 700, bgcolor: "action.selected" }}
-                />
-              </Box>
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: { xs: "column", sm: "row" },
-                  flexWrap: { xs: "nowrap", sm: "wrap" },
-                  minWidth: 0,
-                  width: "100%",
-                  gap: { xs: 0.75, sm: "8px 20px" },
-                  color: "text.secondary",
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0 }}>
-                  <EmailOutlinedIcon sx={{ fontSize: 18 }} />
-                  <Typography
-                    variant="body2"
-                    noWrap
-                    sx={{ minWidth: 0 }}
-                  >
-                    {email || "Email не указан"}
-                  </Typography>
-                </Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                  <PhoneOutlinedIcon sx={{ fontSize: 18 }} />
-                  <Typography variant="body2">{savedPhone || "Телефон не указан"}</Typography>
-                </Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                  <StarRoundedIcon sx={{ fontSize: 18, color: "warning.main" }} />
-                  <Typography variant="body2">
-                    {customerRating != null ? (
-                      <>
-                        <Box component="b" sx={{ color: "text.primary" }}>
-                          {customerRating.toFixed(1).replace(".", ",")}
-                        </Box>{" "}
-                        · {customerReviewCount} оценок как заказчик
-                      </>
-                    ) : (
-                      "Рейтинг заказчика появится после оценок"
-                    )}
-                  </Typography>
-                </Box>
-              </Box>
-              <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 0.5, ml: -1 }}>
-                <Button component="label" variant="text" disabled={imageBusy} loading={imageAction === "upload"}>
-                  Загрузить фото
-                  <input
-                    type="file"
-                    hidden
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0] ?? null;
-                      e.currentTarget.value = "";
-                      if (f) void uploadProfileImage(f);
-                    }}
-                  />
-                </Button>
-                <Button
-                  variant="text"
-                  color="error"
-                  loading={imageAction === "delete"}
-                  disabled={imageBusy || !hasImage}
-                  onClick={() => void deleteProfileImage()}
-                >
-                  Удалить фото
-                </Button>
-              </Box>
-            </Stack>
-          </Box>
-
-          <FormControlLabel
-            labelPlacement="start"
-            control={<Switch checked={profilePublic} onChange={(_event, checked) => toggleProfilePublic(checked)} />}
-            label={
-              <Box>
-                <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                  {profilePublic ? "Профиль виден другим" : "Профиль скрыт"}
-                </Typography>
-                <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                  {profilePublic ? "Исполнители видят имя и рейтинг" : "Другие видят только имя"}
-                </Typography>
-              </Box>
-            }
-            sx={{
-              m: 0,
-              flex: { xs: "1 1 100%", md: "1 1 260px" },
-              maxWidth: { md: 320 },
-              justifyContent: "space-between",
-              gap: 1.5,
-              px: 2,
-              py: 1.5,
-              border: 1,
-              borderColor: "divider",
-              borderRadius: 3,
-              bgcolor: "background.default",
-            }}
-          />
-
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "minmax(0, 1fr)",
+            md: "minmax(0, 1fr) minmax(0, 1fr)",
+          },
+          gap: 3,
+          alignItems: "stretch",
+        }}
+      >
+        <Paper elevation={0} sx={cardSx}>
           <Box
             sx={{
-              display: { xs: "grid", sm: "none" },
-              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-              gap: 1,
-              width: "100%",
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              gap: { xs: 2, md: "24px 32px" },
             }}
           >
-            <Button component="label" variant="outlined" disabled={imageBusy} loading={imageAction === "upload"}>
-              Загрузить фото
-              <input
-                type="file"
-                hidden
-                accept="image/jpeg,image/png,image/webp"
-                onChange={(e) => {
-                  const f = e.target.files?.[0] ?? null;
-                  e.currentTarget.value = "";
-                  if (f) void uploadProfileImage(f);
-                }}
-              />
-            </Button>
-            <Button
-              variant="outlined"
-              color="error"
-              loading={imageAction === "delete"}
-              disabled={imageBusy || !hasImage}
-              onClick={() => void deleteProfileImage()}
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "104px minmax(0, 1fr)",
+                  sm: "110px minmax(0, 1fr)",
+                },
+                gridTemplateAreas: {
+                  xs: '"avatar heading" "details details"',
+                  sm: '"avatar info"',
+                },
+                alignItems: "start",
+                columnGap: { xs: 2, md: 4 },
+                rowGap: 1.5,
+                flex: "999 1 320px",
+                minWidth: 0,
+              }}
             >
-              Удалить фото
-            </Button>
+              <Stack
+                spacing={1}
+                sx={{
+                  alignItems: "center",
+                  gridArea: "avatar",
+                  flex: "0 0 auto",
+                  width: { xs: 104, md: 110 },
+                }}
+              >
+                <Box sx={{ position: "relative" }}>
+                  <CdnAvatar
+                    src={image || undefined}
+                    sx={{
+                      width: { xs: 76, md: 104 },
+                      height: { xs: 76, md: 104 },
+                      bgcolor: "primary.main",
+                      color: "primary.contrastText",
+                      fontSize: { xs: "1.75rem", md: "2.375rem" },
+                      fontWeight: 700,
+                    }}
+                  >
+                    {getInitials(name) || email?.charAt(0)?.toUpperCase() || "U"}
+                  </CdnAvatar>
+                  <IconButton
+                    component="label"
+                    aria-label="Загрузить фото"
+                    disabled={imageBusy}
+                    sx={{
+                      position: "absolute",
+                      right: -6,
+                      bottom: -6,
+                      width: { xs: 36, md: 40 },
+                      height: { xs: 36, md: 40 },
+                      border: 3,
+                      borderColor: "background.paper",
+                      bgcolor: "primary.main",
+                      color: "primary.contrastText",
+                      "&:hover": { bgcolor: "primary.dark" },
+                      "&.Mui-disabled": {
+                        bgcolor: "primary.main",
+                        color: "primary.contrastText",
+                      },
+                    }}
+                  >
+                    {imageAction === "upload-icon" ? (
+                      <CircularProgress size={16} color="inherit" />
+                    ) : (
+                      <PhotoCameraOutlinedIcon sx={{ fontSize: 18 }} />
+                    )}
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] ?? null;
+                        e.currentTarget.value = "";
+                        if (f) void uploadProfileImage(f, "upload-icon");
+                      }}
+                    />
+                  </IconButton>
+                </Box>
+                <Stack sx={{ alignItems: "center", width: "100%" }}>
+                  <Button
+                    component="label"
+                    variant="text"
+                    disabled={imageBusy}
+                    loading={imageAction === "upload-button"}
+                    sx={{
+                      fontSize: 13,
+                      px: 0.5,
+                      py: 0.25,
+                      minWidth: 0,
+                      minHeight: 32,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Загрузить фото
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] ?? null;
+                        e.currentTarget.value = "";
+                        if (f) void uploadProfileImage(f, "upload-button");
+                      }}
+                    />
+                  </Button>
+                  <Button
+                    variant="text"
+                    color="error"
+                    loading={imageAction === "delete"}
+                    disabled={imageBusy || !hasImage}
+                    onClick={() => void deleteProfileImage()}
+                    sx={{
+                      fontSize: 13,
+                      px: 0.5,
+                      py: 0.25,
+                      minWidth: 0,
+                      minHeight: 32,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Удалить фото
+                  </Button>
+                </Stack>
+              </Stack>
+
+              <Stack
+                spacing={1}
+                sx={{
+                  display: { xs: "contents", sm: "flex" },
+                  gridArea: { sm: "info" },
+                  minWidth: 0,
+                }}
+              >
+                <Box
+                  sx={{
+                    gridArea: { xs: "heading", sm: "auto" },
+                    minWidth: 0,
+                    display: "flex",
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                    gap: 1.25,
+                  }}
+                >
+                  <Typography
+                    component="h2"
+                    variant="h2"
+                    sx={{
+                      fontSize: { xs: "1.375rem", md: "1.75rem" },
+                      fontWeight: 700,
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {name || "Пользователь"}
+                  </Typography>
+                  <Chip
+                    size="small"
+                    label={activeMembership ? "Исполнитель" : "Заказчик"}
+                    sx={{ fontWeight: 700, bgcolor: "background.default" }}
+                  />
+                </Box>
+                <Box
+                  sx={{
+                    gridArea: { xs: "details", sm: "auto" },
+                    display: "flex",
+                    flexDirection: { xs: "column", sm: "row" },
+                    flexWrap: { xs: "nowrap", sm: "wrap" },
+                    minWidth: 0,
+                    width: "100%",
+                    gap: { xs: 0.75, sm: "8px 20px" },
+                    color: "text.secondary",
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.75,
+                      minWidth: 0,
+                    }}
+                  >
+                    <EmailOutlinedIcon sx={{ fontSize: 18 }} />
+                    <Typography
+                      variant="body2"
+                      sx={{ minWidth: 0, overflowWrap: "anywhere" }}
+                    >
+                      {email || "Email не указан"}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                    <PhoneOutlinedIcon sx={{ fontSize: 18 }} />
+                    <Typography variant="body2">
+                      {savedPhone || "Телефон не указан"}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                    <StarRoundedIcon
+                      sx={{ fontSize: 18, color: "warning.main" }}
+                    />
+                    <Typography variant="body2">
+                      {customerRating != null ? (
+                        <>
+                          <Box component="b" sx={{ color: "text.primary" }}>
+                            {customerRating.toFixed(1).replace(".", ",")}
+                          </Box>{" "}
+                          · {customerReviewCount} оценок как заказчик
+                        </>
+                      ) : (
+                        "Рейтинг заказчика появится после оценок"
+                      )}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Stack>
+            </Box>
+
+            <FormControlLabel
+              labelPlacement="start"
+              control={
+                <Switch
+                  checked={profilePublic}
+                  onChange={(_event, checked) => toggleProfilePublic(checked)}
+                />
+              }
+              label={
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    {profilePublic ? "Профиль виден другим" : "Профиль скрыт"}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                    {profilePublic
+                      ? "Исполнители видят имя и рейтинг"
+                      : "Другие видят только имя"}
+                  </Typography>
+                </Box>
+              }
+              sx={{
+                m: 0,
+                flex: { xs: "1 1 100%", md: "1 1 260px" },
+                maxWidth: { md: 320 },
+                justifyContent: "space-between",
+                gap: 1.5,
+                px: 2,
+                py: 1.5,
+                borderRadius: 3,
+                bgcolor: "background.default",
+              }}
+            />
+
           </Box>
-        </Box>
-      </Paper>
+        </Paper>
+        <MessengerSettings singleColumn />
+      </Box>
 
       {imageError ? <Alert severity="error">{imageError}</Alert> : null}
       {imageSuccess ? <Alert severity="success">{imageSuccess}</Alert> : null}
@@ -553,16 +705,22 @@ function ProfileOverview({
           display: "grid",
           gap: 3,
           alignItems: "start",
-          gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1.1fr) minmax(0, 1fr)" },
+          gridTemplateColumns: {
+            xs: "minmax(0, 1fr)",
+            md: "minmax(0, 1fr) minmax(0, 1fr)",
+          },
           gridTemplateAreas: showProfessionalCabinet
-            ? { xs: '"cabinet" "contacts" "login"', md: '"contacts cabinet" "login cabinet"' }
+            ? {
+                xs: '"cabinet" "contacts" "login"',
+                md: '"contacts cabinet" "login cabinet"',
+              }
             : { xs: '"contacts" "login"', md: '"contacts login"' },
         }}
       >
         <Paper elevation={0} sx={{ ...cardSx, gridArea: "contacts" }}>
           <Stack spacing={2.5}>
             <Box>
-              <Typography component="h3" variant="h6" sx={{ fontWeight: 800 }}>
+              <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>
                 Контакты и локация
               </Typography>
               <Typography variant="body2" sx={{ color: "text.secondary" }}>
@@ -574,6 +732,7 @@ function ProfileOverview({
 
             <TextField
               label="Телефон"
+              size="small"
               value={phoneDraft}
               onChange={(event) => {
                 setPhoneDraft(formatRuPhoneInput(event.target.value));
@@ -582,7 +741,9 @@ function ProfileOverview({
               onPaste={(event) => {
                 // Why: вставленный номер заменяет поле целиком, иначе его «8…» склеится с префиксом.
                 event.preventDefault();
-                setPhoneDraft(formatRuPhoneInput(event.clipboardData.getData("text")));
+                setPhoneDraft(
+                  formatRuPhoneInput(event.clipboardData.getData("text")),
+                );
                 if (phoneError) setPhoneError(null);
               }}
               onFocus={() => {
@@ -633,7 +794,11 @@ function ProfileOverview({
                           "&:hover": { bgcolor: "primary.dark" },
                         }}
                       >
-                        {phoneSaving ? <CircularProgress size={18} color="inherit" /> : <CheckIcon fontSize="small" />}
+                        {phoneSaving ? (
+                          <CircularProgress size={18} color="inherit" />
+                        ) : (
+                          <CheckIcon fontSize="small" />
+                        )}
                       </IconButton>
                     </InputAdornment>
                   ) : undefined,
@@ -642,18 +807,25 @@ function ProfileOverview({
               }}
             />
 
-            <LocationField
-              label="Ваша локация"
-              caption="Ваша локация"
-              iconColor="primary"
-              value={customerCityValue}
-              onChange={updateCustomerCity}
-              disabled={busy}
-            />
-
-            {activeMembership ? (
-              <>
-                {providerCityError ? <Alert severity="error">{providerCityError}</Alert> : null}
+            {activeMembership && providerCityError ? (
+              <Alert severity="error">{providerCityError}</Alert>
+            ) : null}
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))",
+                gap: 2,
+              }}
+            >
+              <LocationField
+                label="Ваша локация"
+                caption="Ваша локация"
+                iconColor="primary"
+                value={customerCityValue}
+                onChange={updateCustomerCity}
+                disabled={busy}
+              />
+              {activeMembership ? (
                 <LocationField
                   label="Локация провайдера"
                   caption="Локация провайдера"
@@ -662,21 +834,27 @@ function ProfileOverview({
                   onChange={updateProviderCity}
                   disabled={busy}
                 />
-              </>
-            ) : null}
+              ) : null}
+            </Box>
           </Stack>
         </Paper>
 
         <Paper elevation={0} sx={{ ...cardSx, gridArea: "login" }}>
           <Stack spacing={2}>
-            <Typography component="h3" variant="h6" sx={{ fontWeight: 800 }}>
+            <Typography component="h3" variant="h6" sx={{ fontWeight: 700 }}>
               Способы входа
             </Typography>
             <Box
               sx={{
-                display: "flex",
+                display: { xs: "grid", sm: "flex" },
+                gridTemplateColumns: { xs: "40px minmax(0, 1fr)", sm: "none" },
+                gridTemplateAreas: {
+                  xs: '"icon title" "email email" "status status"',
+                  sm: "none",
+                },
                 alignItems: "center",
-                gap: 1.75,
+                columnGap: 1.75,
+                rowGap: 1,
                 px: 2,
                 py: 1.5,
                 borderRadius: 3,
@@ -687,6 +865,7 @@ function ProfileOverview({
                 sx={{
                   width: 40,
                   height: 40,
+                  gridArea: { xs: "icon", sm: "auto" },
                   flex: "0 0 auto",
                   borderRadius: 2.5,
                   display: "flex",
@@ -697,17 +876,47 @@ function ProfileOverview({
               >
                 <LockOutlinedIcon fontSize="small" />
               </Box>
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              <Box
+                sx={{
+                  display: { xs: "contents", sm: "block" },
+                  flex: 1,
+                  minWidth: 0,
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  sx={{
+                    gridArea: { xs: "title", sm: "auto" },
+                    fontWeight: 700,
+                  }}
+                >
                   Email и пароль
                 </Typography>
                 {email ? (
-                  <Typography variant="caption" noWrap component="p" sx={{ color: "text.secondary" }}>
+                  <Typography
+                    variant="caption"
+                    component="p"
+                    sx={{
+                      gridArea: { xs: "email", sm: "auto" },
+                      color: "text.secondary",
+                      minWidth: 0,
+                      overflowWrap: "anywhere",
+                    }}
+                  >
                     {email}
                   </Typography>
                 ) : null}
               </Box>
-              <Chip size="small" label="Включено" sx={{ fontWeight: 700, bgcolor: "action.selected" }} />
+              <Chip
+                size="small"
+                label="Включено"
+                sx={{
+                  gridArea: { xs: "status", sm: "auto" },
+                  justifySelf: "start",
+                  fontWeight: 700,
+                  bgcolor: "action.selected",
+                }}
+              />
             </Box>
           </Stack>
         </Paper>
@@ -716,7 +925,11 @@ function ProfileOverview({
           <Paper elevation={0} sx={{ ...cardSx, gridArea: "cabinet" }}>
             <Stack spacing={2}>
               <Box>
-                <Typography component="h3" variant="h6" sx={{ fontWeight: 800 }}>
+                <Typography
+                  component="h3"
+                  variant="h6"
+                  sx={{ fontWeight: 700 }}
+                >
                   Кабинет исполнителя
                 </Typography>
                 <Typography variant="body2" sx={{ color: "text.secondary" }}>
@@ -726,17 +939,27 @@ function ProfileOverview({
                 </Typography>
               </Box>
 
-              {switchError ? <Alert severity="error">{switchError}</Alert> : null}
+              {switchError ? (
+                <Alert severity="error">{switchError}</Alert>
+              ) : null}
 
               {memberships.length > 0 ? (
-                <Stack component="ul" spacing={1.25} sx={{ listStyle: "none", m: 0, p: 0 }}>
+                <Stack
+                  component="ul"
+                  spacing={1.25}
+                  sx={{ listStyle: "none", m: 0, p: 0 }}
+                >
                   {memberships.map((membership) => {
-                    const isActive = membership.providerId === activeMembership?.providerId;
-                    const isSwitching = switchingProviderId === membership.providerId;
+                    const isActive =
+                      membership.providerId === activeMembership?.providerId;
+                    const isSwitching =
+                      switchingProviderId === membership.providerId;
                     const meta = [
                       providerTypeLabel(membership.providerType),
                       providerRoleLabel(membership.role),
-                      membership.providerCity ? displayCityName(membership.providerCity.name) : null,
+                      membership.providerCity
+                        ? displayCityName(membership.providerCity.name)
+                        : null,
                     ]
                       .filter(Boolean)
                       .join(" · ");
@@ -744,24 +967,39 @@ function ProfileOverview({
                     return (
                       <Box component="li" key={membership.providerId}>
                         <ButtonBase
-                          onClick={() => void openProviderCabinet(membership.providerId)}
+                          onClick={() =>
+                            void openProviderCabinet(membership.providerId)
+                          }
                           disabled={switchingProviderId !== null}
                           sx={{
                             width: "100%",
                             minHeight: 72,
-                            display: "flex",
+                            display: { xs: "grid", sm: "flex" },
+                            gridTemplateColumns: {
+                              xs: "44px minmax(0, 1fr) 24px",
+                              sm: "none",
+                            },
+                            gridTemplateAreas: {
+                              xs: '"title title arrow" "avatar status status" "meta meta meta"',
+                              sm: "none",
+                            },
                             alignItems: "center",
-                            gap: 1.75,
+                            columnGap: 1.5,
+                            rowGap: 0.75,
                             px: 2,
                             py: 1.5,
                             textAlign: "left",
                             borderRadius: 3,
-                            border: 1,
-                            borderColor: isActive ? "primary.main" : "divider",
-                            bgcolor: isActive ? "action.hover" : "background.paper",
-                            transition: "background-color .15s, border-color .15s",
-                            "&:hover": { bgcolor: "action.hover", borderColor: "primary.main" },
-                            "&.Mui-focusVisible": { outline: 2, outlineColor: "primary.dark", outlineOffset: 2 },
+                            bgcolor: "background.default",
+                            transition: "background-color .15s",
+                            "&:hover": {
+                              bgcolor: "action.hover",
+                            },
+                            "&.Mui-focusVisible": {
+                              outline: 2,
+                              outlineColor: "primary.dark",
+                              outlineOffset: 2,
+                            },
                           }}
                         >
                           <CdnAvatar
@@ -770,36 +1008,83 @@ function ProfileOverview({
                             sx={{
                               width: 44,
                               height: 44,
+                              gridArea: { xs: "avatar", sm: "auto" },
                               borderRadius: 3,
-                              bgcolor: isActive ? "primary.main" : "action.selected",
+                              bgcolor: isActive
+                                ? "primary.main"
+                                : "action.selected",
                               color: "text.primary",
-                              fontSize: 15,
-                              fontWeight: 800,
+                              fontSize: "1rem",
+                              fontWeight: 700,
                             }}
                           >
                             {getInitials(membership.providerName)}
                           </CdnAvatar>
-                          <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", columnGap: 1 }}>
-                              <Typography sx={{ fontWeight: 800, overflowWrap: "anywhere" }}>
+                          <Box
+                            sx={{
+                              display: { xs: "contents", sm: "block" },
+                              flex: 1,
+                              minWidth: 0,
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                display: { xs: "contents", sm: "flex" },
+                                flexWrap: "wrap",
+                                alignItems: "center",
+                                columnGap: 1,
+                              }}
+                            >
+                              <Typography
+                                sx={{
+                                  gridArea: { xs: "title", sm: "auto" },
+                                  minWidth: 0,
+                                  fontWeight: 700,
+                                  overflowWrap: "anywhere",
+                                }}
+                              >
                                 {membership.providerName}
                               </Typography>
                               {isActive ? (
                                 <Chip
                                   size="small"
                                   label="Активный"
-                                  sx={{ height: 20, fontSize: 12, fontWeight: 700, bgcolor: "success.main", color: "success.contrastText" }}
+                                  sx={{
+                                    gridArea: { xs: "status", sm: "auto" },
+                                    justifySelf: "start",
+                                    height: "auto",
+                                    minHeight: 32,
+                                    fontSize: "1rem",
+                                    fontWeight: 700,
+                                    bgcolor: "success.main",
+                                    color: "success.contrastText",
+                                  }}
                                 />
                               ) : null}
                             </Box>
-                            <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                gridArea: { xs: "meta", sm: "auto" },
+                                color: "text.secondary",
+                                overflowWrap: "anywhere",
+                              }}
+                            >
                               {meta}
                             </Typography>
                           </Box>
                           {isSwitching ? (
-                            <CircularProgress size={20} />
+                            <CircularProgress
+                              size={20}
+                              sx={{ gridArea: { xs: "arrow", sm: "auto" } }}
+                            />
                           ) : (
-                            <ChevronRightIcon sx={{ color: "text.secondary" }} />
+                            <ChevronRightIcon
+                              sx={{
+                                gridArea: { xs: "arrow", sm: "auto" },
+                                color: "text.secondary",
+                              }}
+                            />
                           )}
                         </ButtonBase>
                       </Box>
@@ -812,7 +1097,14 @@ function ProfileOverview({
                 variant="outlined"
                 startIcon={<AddIcon />}
                 onClick={onCreateProvider}
-                sx={{ minHeight: 52, borderRadius: 3, borderStyle: "dashed", "&:hover": { borderStyle: "dashed" } }}
+                sx={{
+                  // Временно скрыто.
+                  display: "none",
+                  minHeight: 52,
+                  borderRadius: 3,
+                  borderStyle: "dashed",
+                  "&:hover": { borderStyle: "dashed" },
+                }}
               >
                 Создать профиль исполнителя
               </Button>
@@ -835,10 +1127,17 @@ export default function ProfilePage() {
 function ProfilePageFallback() {
   return (
     <Container maxWidth="xl" sx={sitePageContainerSx}>
-      <Stack direction={{ xs: "column", md: "row" }} spacing={3} sx={{
-        alignItems: "flex-start"
-      }}>
-        <Paper variant="outlined" sx={{ width: { xs: "100%", md: CABINET_SIDEBAR_EXPANDED_W }, p: 3 }}>
+      <Stack
+        direction={{ xs: "column", md: "row" }}
+        spacing={3}
+        sx={{
+          alignItems: "flex-start",
+        }}
+      >
+        <Paper
+          variant="outlined"
+          sx={{ width: { xs: "100%", md: CABINET_SIDEBAR_EXPANDED_W }, p: 3 }}
+        >
           <Skeleton variant="text" width="40%" height={28} sx={{ mb: 2 }} />
           <Skeleton variant="rectangular" height={52} sx={{ mb: 2 }} />
           <Skeleton variant="rectangular" height={180} />
@@ -865,11 +1164,12 @@ function ProfilePageContent() {
   const { status, user } = useAppSelector((state) => state.auth);
   const { unreadByRequestId } = useChatSocket();
   const requestsUnreadCount = useMemo(
-    () => Object.values(unreadByRequestId).reduce((acc, value) => acc + value, 0),
-    [unreadByRequestId]
+    () =>
+      Object.values(unreadByRequestId).reduce((acc, value) => acc + value, 0),
+    [unreadByRequestId],
   );
   const [selectedSection, setSelectedSection] = useState<ProfileSection>(() =>
-    resolveProfileSection(searchParams.get("section"))
+    resolveProfileSection(searchParams.get("section")),
   );
 
   useEffect(() => {
@@ -880,24 +1180,31 @@ function ProfilePageContent() {
 
   /** Why: исполнитель открывает здесь только данные контактного лица — заявки заказчика у него в отдельном аккаунте. */
   const isProviderOutsideContact =
-    status === "authenticated" && user?.accountKind === "PROVIDER" && selectedSection !== "profile";
+    status === "authenticated" &&
+    user?.accountKind === "PROVIDER" &&
+    selectedSection !== "profile";
 
   useEffect(() => {
     if (!isProviderOutsideContact) return;
-    router.replace("/pro?notice=customer-account");
+    router.replace("/pro/requests/feed?notice=customer-account");
   }, [isProviderOutsideContact, router]);
 
   useEffect(() => {
     setSelectedSection(resolveProfileSection(searchParams.get("section")));
   }, [searchParams]);
 
-  const memberships = useMemo(() => user?.memberships ?? [], [user?.memberships]);
+  const memberships = useMemo(
+    () => user?.memberships ?? [],
+    [user?.memberships],
+  );
   const activeMembership = useMemo(
     () =>
-    memberships.find((membership) => membership.providerId === user?.activeProviderId) ??
+      memberships.find(
+        (membership) => membership.providerId === user?.activeProviderId,
+      ) ??
       memberships[0] ??
       null,
-    [memberships, user?.activeProviderId]
+    [memberships, user?.activeProviderId],
   );
 
   const handleSelectSection = (section: ProfileSection) => {
@@ -913,7 +1220,11 @@ function ProfilePageContent() {
     router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
   };
 
-  if (status === "unknown" || status === "unauthenticated" || isProviderOutsideContact) {
+  if (
+    status === "unknown" ||
+    status === "unauthenticated" ||
+    isProviderOutsideContact
+  ) {
     return <ProfilePageFallback />;
   }
 
@@ -922,7 +1233,7 @@ function ProfilePageContent() {
       {selectedSection !== "documents" ? (
         <Typography
           component="h1"
-          variant="h4"
+          variant="h1"
           sx={{
             fontWeight: 700,
             mb: 2,
@@ -959,11 +1270,12 @@ function ProfilePageContent() {
           customerCity={user?.customerCity}
           memberships={memberships}
           activeMembership={activeMembership}
-          onOpenProfessionalArea={() => router.push("/pro")}
+          onOpenProfessionalArea={() => router.push("/pro/requests/feed")}
           onCreateProvider={() => router.push("/providers/new")}
           onCityUpdated={() => router.refresh()}
           showProfessionalCabinet={
-            resolveAccountKind(user) === "PROVIDER" || user?.systemRole === "PLATFORM_ADMIN"
+            resolveAccountKind(user) === "PROVIDER" ||
+            user?.systemRole === "PLATFORM_ADMIN"
           }
         />
       ) : (

@@ -1,6 +1,11 @@
 "use client";
 
-import { useLayoutEffect, useRef, type ChangeEvent, type KeyboardEvent } from "react";
+import {
+  useLayoutEffect,
+  useRef,
+  type ChangeEvent,
+  type KeyboardEvent,
+} from "react";
 import CloseIcon from "@mui/icons-material/Close";
 import { Box, IconButton, Stack, TextField, Typography } from "@mui/material";
 import { CadastralNumberMapLink } from "@/entities/request/ui/CadastralNumberMapLink";
@@ -30,14 +35,23 @@ const PLACEHOLDER = "66:41:0000000:000";
  */
 function splitRows(rows: readonly CadastralNumberParts[]) {
   if (rows.length === 0) {
-    return { chips: [] as CadastralNumberParts[], draft: createEmptyCadastralParts() };
+    return {
+      chips: [] as CadastralNumberParts[],
+      draft: createEmptyCadastralParts(),
+    };
   }
   const draft = rows[rows.length - 1] ?? createEmptyCadastralParts();
-  const chips = rows.slice(0, -1).filter((row) => isCadastralPartsComplete(row));
+  const chips = rows
+    .slice(0, -1)
+    .filter((row) => isCadastralPartsComplete(row));
   return { chips, draft };
 }
 
-export function CadastralNumberChipsField({ value, onChange, disabled = false }: Props) {
+export function CadastralNumberChipsField({
+  value,
+  onChange,
+  disabled = false,
+}: Props) {
   const { chips, draft } = splitRows(value);
   const draftText = formatCadastralParts(draft);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -51,7 +65,10 @@ export function CadastralNumberChipsField({ value, onChange, disabled = false }:
     input.setSelectionRange(caret, caret);
   }, [draftText]);
 
-  function publish(nextChips: CadastralNumberParts[], nextDraft: CadastralNumberParts) {
+  function publish(
+    nextChips: CadastralNumberParts[],
+    nextDraft: CadastralNumberParts,
+  ) {
     onChange([...nextChips, nextDraft]);
   }
 
@@ -91,7 +108,9 @@ export function CadastralNumberChipsField({ value, onChange, disabled = false }:
 
   return (
     <Stack spacing={1} sx={{ width: "100%" }}>
-      <Typography sx={{ color: "common.gray", fontSize: 16, lineHeight: 1.5 }}>
+      <Typography
+        sx={{ color: "common.gray", fontSize: "1rem", lineHeight: 1.5 }}
+      >
         Кадастровый номер · необязательно
       </Typography>
 
@@ -110,13 +129,18 @@ export function CadastralNumberChipsField({ value, onChange, disabled = false }:
                   pr: 0.5,
                   py: 0.5,
                   borderRadius: "8px",
-                  bgcolor: "primary.light",
+                  bgcolor: "background.default",
+                  border: "1px solid",
+                  borderColor: "divider",
                   color: "text.primary",
-                  fontSize: 13,
-                  lineHeight: 1.4,
+                  fontSize: "1rem",
+                  lineHeight: 1.5,
                 }}
               >
-                <CadastralNumberMapLink value={label} sx={{ fontSize: 13, lineHeight: 1.4 }} />
+                <CadastralNumberMapLink
+                  value={label}
+                  sx={{ fontSize: "1rem", lineHeight: 1.5 }}
+                />
                 <IconButton
                   type="button"
                   size="small"

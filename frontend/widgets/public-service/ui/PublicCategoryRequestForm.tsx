@@ -24,10 +24,15 @@ function normalizeNullableString(value: string) {
   return normalized.length > 0 ? normalized : null;
 }
 
-export function PublicCategoryRequestForm({ categoryId, isAuthenticated }: Props) {
+export function PublicCategoryRequestForm({
+  categoryId,
+  isAuthenticated,
+}: Props) {
   const router = useRouter();
   const [message, setMessage] = useState("");
-  const [cadastralNumbers, setCadastralNumbers] = useState([createEmptyCadastralParts()]);
+  const [cadastralNumbers, setCadastralNumbers] = useState([
+    createEmptyCadastralParts(),
+  ]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -57,16 +62,21 @@ export function PublicCategoryRequestForm({ categoryId, isAuthenticated }: Props
       }
 
       if (isAuthenticated) {
-        const res = await fetch(`/api/service-categories/${categoryId}/requests`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            message: normalizeNullableString(message),
-            requestCityId: null,
-            cadastralNumbers: cadastral.numbers,
-          }),
-        });
-        const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+        const res = await fetch(
+          `/api/service-categories/${categoryId}/requests`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              message: normalizeNullableString(message),
+              requestCityId: null,
+              cadastralNumbers: cadastral.numbers,
+            }),
+          },
+        );
+        const payload = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         if (!res.ok) {
           throw new Error(payload?.error ?? "Не удалось создать заявку");
         }
@@ -83,12 +93,18 @@ export function PublicCategoryRequestForm({ categoryId, isAuthenticated }: Props
       });
 
       if (!isAuthenticated) {
-        router.push(buildRequestAuthHref("signup", { kind: "CATEGORY", categoryId }));
+        router.push(
+          buildRequestAuthHref("signup", { kind: "CATEGORY", categoryId }),
+        );
       } else {
         router.push(REQUESTS_PROFILE_RESUME_URL);
       }
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Не удалось создать заявку");
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Не удалось создать заявку",
+      );
     } finally {
       setBusy(false);
     }
@@ -99,15 +115,20 @@ export function PublicCategoryRequestForm({ categoryId, isAuthenticated }: Props
       <RequestFormLogo />
 
       <Stack spacing={2} component="form" onSubmit={handleSubmit}>
-        <Typography variant="body2" sx={{
-          color: "text.secondary"
-        }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: "text.secondary",
+          }}
+        >
           {isAuthenticated
             ? "После подтверждения заявка появится в вашем профиле и станет доступна компаниям в ленте."
             : "Чтобы создать заявку, нужно зарегистрироваться или войти. После этого система продолжит оформление автоматически."}
         </Typography>
 
-        {validationError && !error ? <Alert severity="info">{validationError}</Alert> : null}
+        {validationError && !error ? (
+          <Alert severity="info">{validationError}</Alert>
+        ) : null}
         {error ? <Alert severity="error">{error}</Alert> : null}
 
         <TextField
@@ -119,6 +140,12 @@ export function PublicCategoryRequestForm({ categoryId, isAuthenticated }: Props
           size="small"
           multiline
           minRows={3}
+          sx={{
+            "& .MuiInputBase-multiline": {
+              minHeight: 144,
+              alignItems: "flex-start",
+            },
+          }}
         />
 
         <CadastralNumberChipsField
@@ -133,7 +160,7 @@ export function PublicCategoryRequestForm({ categoryId, isAuthenticated }: Props
           size="large"
           loading={busy}
           disabled={Boolean(validationError)}
-          sx={{ fontWeight: 800, textTransform: "none", px: 3, py: 1.25 }}
+          sx={{ fontWeight: 700, textTransform: "none", px: 3, py: 1.25 }}
         >
           Получить предложения
         </Button>

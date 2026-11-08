@@ -19,8 +19,8 @@ const cardSx = {
 };
 const descriptionSx = {
   mt: 1.5,
-  fontSize: { xs: 13, md: 14 },
-  lineHeight: { xs: "18px", md: "19px" },
+  fontSize: { xs: "1rem", md: "1rem" },
+  lineHeight: 1.5,
 };
 
 export function HomeIntroBanner({ onCreateRequest }: Props) {
@@ -35,7 +35,7 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
         overflow: "hidden",
         border: "1px solid #D3E0DA",
         borderRadius: "18px",
-        bgcolor: "primary.main",
+        bgcolor: green,
         boxShadow: "0 12px 32px -16px rgba(22, 48, 37, 0.45)",
       }}
     >
@@ -92,9 +92,9 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
           >
             <Typography
               sx={{
-                fontSize: 11,
-                lineHeight: "15px",
-                fontWeight: 800,
+                fontSize: "1rem",
+                lineHeight: 1.5,
+                fontWeight: 700,
                 letterSpacing: "1.5px",
               }}
             >
@@ -104,10 +104,9 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
           <Typography
             id="home-intro-title"
             component="h1"
+            variant="h1"
             sx={{
               mt: 1.5,
-              fontSize: { xs: 26, md: 38 },
-              lineHeight: { xs: "30px", md: "43px" },
               fontWeight: 700,
             }}
           >
@@ -134,8 +133,8 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
             />
             <Typography
               sx={{
-                fontSize: 13,
-                lineHeight: "18px",
+                fontSize: "1rem",
+                lineHeight: 1.5,
               }}
             >
               Условия и цену согласуете в чате до договора.
@@ -195,8 +194,8 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
           overflow: "hidden",
           px: { xs: 2, md: 3.5 },
           py: { xs: 2.5, md: 3.5 },
-          bgcolor: "background.default",
-          color: "text.primary",
+          bgcolor: "#f0f0e6",
+          color: green,
         }}
       >
         <Box
@@ -244,9 +243,9 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
               <Typography
                 component="span"
                 sx={{
-                  fontSize: 14,
+                  fontSize: "1rem",
                   fontWeight: 700,
-                  lineHeight: "20px",
+                  lineHeight: 1.5,
                   color: green,
                 }}
               >
@@ -306,9 +305,9 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
               <Typography
                 component="span"
                 sx={{
-                  fontSize: 14,
+                  fontSize: "1rem",
                   fontWeight: 700,
-                  lineHeight: "20px",
+                  lineHeight: 1.5,
                   color: green,
                 }}
               >
@@ -342,7 +341,7 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
             aria-hidden="true"
             sx={{ fontSize: 15, mt: "1px", color: green }}
           />
-          <Typography sx={{ fontSize: 13, lineHeight: "18px" }}>
+          <Typography sx={{ fontSize: "1rem", lineHeight: 1.5 }}>
             Условия и цену согласуете в чате до договора.
           </Typography>
         </Stack>

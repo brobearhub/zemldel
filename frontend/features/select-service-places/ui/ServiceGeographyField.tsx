@@ -10,12 +10,29 @@ import {
   type HTMLAttributes,
   type MutableRefObject,
 } from "react";
-import { Autocomplete, Box, Button, Chip, CircularProgress, Stack, TextField, Typography } from "@mui/material";
+import {
+  Autocomplete,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import type { AutocompleteProps } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { fetchCityJson } from "@/shared/lib/fetch-city-json";
-import { placeChipLabel, placeKey, type ServicePlace } from "@/entities/service";
-import { displayCityName, formatRegionLabel, shortRegionLabel } from "@/shared/lib/format-city-label";
+import {
+  placeChipLabel,
+  placeKey,
+  type ServicePlace,
+} from "@/entities/service";
+import {
+  displayCityName,
+  formatRegionLabel,
+  shortRegionLabel,
+} from "@/shared/lib/format-city-label";
 
 type SuggestItem = {
   kind: "city" | "region";
@@ -61,16 +78,28 @@ type PlaceSuggestPage = {
 function isPlaceSuggestPage(value: unknown): value is PlaceSuggestPage {
   if (!value || typeof value !== "object") return false;
   const page = value as Partial<PlaceSuggestPage>;
-  return Array.isArray(page.regions) && Array.isArray(page.cities) && typeof page.hasMore === "boolean";
+  return (
+    Array.isArray(page.regions) &&
+    Array.isArray(page.cities) &&
+    typeof page.hasMore === "boolean"
+  );
 }
 
-async function fetchPlaceSuggestPage(query: string, offset: number, signal?: AbortSignal): Promise<PlaceSuggestPage> {
+async function fetchPlaceSuggestPage(
+  query: string,
+  offset: number,
+  signal?: AbortSignal,
+): Promise<PlaceSuggestPage> {
   const params = new URLSearchParams({
     q: query,
     limit: String(PLACE_PAGE_SIZE),
     offset: String(offset),
   });
-  return fetchCityJson(`/api/cities/place-suggest?${params.toString()}`, isPlaceSuggestPage, signal);
+  return fetchCityJson(
+    `/api/cities/place-suggest?${params.toString()}`,
+    isPlaceSuggestPage,
+    signal,
+  );
 }
 
 type SuggestListboxProps = HTMLAttributes<HTMLUListElement> & {
@@ -82,8 +111,21 @@ type SuggestListboxProps = HTMLAttributes<HTMLUListElement> & {
   sx?: SxProps<Theme>;
 };
 
-const GeographySuggestListbox = forwardRef<HTMLUListElement, SuggestListboxProps>(function GeographySuggestListbox(
-  { children, onNearEnd, onRetry, onScroll, optionCount = 0, ownerState: _ownerState, savedScroll: savedScrollRef, sx, ...props },
+const GeographySuggestListbox = forwardRef<
+  HTMLUListElement,
+  SuggestListboxProps
+>(function GeographySuggestListbox(
+  {
+    children,
+    onNearEnd,
+    onRetry,
+    onScroll,
+    optionCount = 0,
+    ownerState: _ownerState,
+    savedScroll: savedScrollRef,
+    sx,
+    ...props
+  },
   ref,
 ) {
   const endArmed = useRef(true);
@@ -125,7 +167,8 @@ const GeographySuggestListbox = forwardRef<HTMLUListElement, SuggestListboxProps
       onScroll={(event) => {
         onScroll?.(event);
         const node = event.currentTarget;
-        if (savedScrollRef && !restoring.current) savedScrollRef.current = node.scrollTop;
+        if (savedScrollRef && !restoring.current)
+          savedScrollRef.current = node.scrollTop;
         if (restoring.current) return;
         const overflow = node.scrollHeight - node.clientHeight;
         const distanceToEnd = overflow - node.scrollTop;
@@ -164,10 +207,7 @@ const GeographySuggestListbox = forwardRef<HTMLUListElement, SuggestListboxProps
     >
       {children}
       {onRetry ? (
-        <Box
-          component="li"
-          sx={{ px: 2 }}
-        >
+        <Box component="li" sx={{ px: 2 }}>
           <Button
             onMouseDown={(event) => event.preventDefault()}
             onClick={onRetry}
@@ -181,7 +221,8 @@ const GeographySuggestListbox = forwardRef<HTMLUListElement, SuggestListboxProps
 });
 
 function suggestLabel(item: SuggestItem) {
-  if (item.kind === "region") return formatRegionLabel(item.regionName || item.name);
+  if (item.kind === "region")
+    return formatRegionLabel(item.regionName || item.name);
   return displayCityName(item.name);
 }
 
@@ -228,7 +269,9 @@ export function ServicePlaceChips({
 
   return (
     <Stack spacing={1.25} sx={{ minWidth: 0, flex: 1 }}>
-      {hideHeading ? null : <Typography sx={{ fontWeight: 800 }}>География</Typography>}
+      {hideHeading ? null : (
+        <Typography sx={{ fontWeight: 700 }}>География</Typography>
+      )}
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, minWidth: 0 }}>
         {value.map((place) => (
           <Chip
@@ -237,11 +280,16 @@ export function ServicePlaceChips({
             onDelete={disabled ? undefined : () => removePlace(place)}
             sx={{
               borderRadius: 999,
-              bgcolor: "primary.light",
+              bgcolor: "background.default",
+              border: "1px solid",
+              borderColor: "divider",
               color: "text.primary",
               maxWidth: "100%",
               "& .MuiChip-deleteIcon": { color: "text.primary" },
-              "& .MuiChip-label": { overflowWrap: "anywhere", whiteSpace: "normal" },
+              "& .MuiChip-label": {
+                overflowWrap: "anywhere",
+                whiteSpace: "normal",
+              },
             }}
           />
         ))}
@@ -354,11 +402,19 @@ export function ServiceGeographyField({
         const place = toPlace(item);
         return place ? !selectedKeys.has(placeKey(place)) : false;
       })
-      .sort((left, right) => Number(left.kind === "city") - Number(right.kind === "city"));
+      .sort(
+        (left, right) =>
+          Number(left.kind === "city") - Number(right.kind === "city"),
+      );
   }, [options, selectedKeys]);
-  const hasRegionOptions = visibleOptions.some((item) => item.kind === "region");
+  const hasRegionOptions = visibleOptions.some(
+    (item) => item.kind === "region",
+  );
   const query = inputValue.trim();
-  const noOptionsText = query.length < 2 ? "Начните вводить (минимум 2 символа)" : "Ничего не найдено";
+  const noOptionsText =
+    query.length < 2
+      ? "Начните вводить (минимум 2 символа)"
+      : "Ничего не найдено";
 
   function addPlace(item: SuggestItem | null) {
     if (!item) return;
@@ -373,8 +429,13 @@ export function ServiceGeographyField({
     <Stack spacing={1.25} sx={{ minWidth: 0 }}>
       {showChips ? (
         <Stack spacing={1.25}>
-          <Typography sx={{ fontWeight: 800 }}>География</Typography>
-          <ServicePlaceChips value={value} onChange={onChange} disabled={disabled} hideHeading />
+          <Typography sx={{ fontWeight: 700 }}>География</Typography>
+          <ServicePlaceChips
+            value={value}
+            onChange={onChange}
+            disabled={disabled}
+            hideHeading
+          />
         </Stack>
       ) : null}
       <Autocomplete
@@ -389,7 +450,9 @@ export function ServiceGeographyField({
         open={open && query.length >= 2 && loadError !== "initial"}
         onClose={() => setOpen(false)}
         filterOptions={(items) => items}
-        groupBy={(item) => (item.kind === "region" ? SUGGEST_GROUP_REGION : SUGGEST_GROUP_CITY)}
+        groupBy={(item) =>
+          item.kind === "region" ? SUGGEST_GROUP_REGION : SUGGEST_GROUP_CITY
+        }
         noOptionsText={loadError ? "" : noOptionsText}
         getOptionLabel={(item) => suggestLabel(item)}
         isOptionEqualToValue={() => false}
@@ -400,7 +463,8 @@ export function ServiceGeographyField({
         }}
         onChange={(_, next) => addPlace(next)}
         renderGroup={(params) => {
-          const withDivider = params.group === SUGGEST_GROUP_CITY && hasRegionOptions;
+          const withDivider =
+            params.group === SUGGEST_GROUP_CITY && hasRegionOptions;
           return (
             <Box component="li" key={params.key} sx={{ listStyle: "none" }}>
               <Typography
@@ -413,10 +477,10 @@ export function ServiceGeographyField({
                   borderTop: withDivider ? "1px solid" : "none",
                   borderColor: "divider",
                   color: "text.secondary",
-                  fontSize: 12,
+                  fontSize: "1rem",
                   fontWeight: 500,
                   letterSpacing: "0.08em",
-                  lineHeight: 1.2,
+                  lineHeight: 1.5,
                   textTransform: "uppercase",
                 }}
               >
@@ -431,13 +495,26 @@ export function ServiceGeographyField({
         renderOption={(props, item) => {
           const { key, ...rest } = props;
           return (
-            <li key={key} {...rest} style={{ ...rest.style, listStyle: "none" }}>
+            <li
+              key={key}
+              {...rest}
+              style={{ ...rest.style, listStyle: "none" }}
+            >
               <Box sx={{ minWidth: 0, py: 0.25 }}>
-                <Typography sx={{ color: "text.primary", fontSize: 18, lineHeight: 1.3 }}>
+                <Typography
+                  sx={{
+                    color: "text.primary",
+                    fontSize: "1.125rem",
+                    lineHeight: 1.5,
+                  }}
+                >
                   {suggestLabel(item)}
                 </Typography>
                 {item.kind === "city" ? (
-                  <Typography variant="body2" sx={{ color: "text.secondary", lineHeight: 1.3 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: "text.secondary", lineHeight: 1.3 }}
+                  >
                     {settlementRegionCaption(item.regionName)}
                   </Typography>
                 ) : null}
@@ -451,7 +528,7 @@ export function ServiceGeographyField({
               sx: {
                 borderRadius: 1,
                 mt: 0.5,
-                bgcolor: "#fcfcfc",
+                bgcolor: "background.paper",
                 border: "1px solid",
                 borderColor: "divider",
               },
@@ -477,7 +554,11 @@ export function ServiceGeographyField({
             error={error}
             helperText={helperText}
             onKeyDown={(event) => {
-              if (event.key === "Backspace" && inputValue === "" && value.length > 0) {
+              if (
+                event.key === "Backspace" &&
+                inputValue === "" &&
+                value.length > 0
+              ) {
                 event.preventDefault();
                 onChange(value.slice(0, -1));
               }
@@ -486,7 +567,9 @@ export function ServiceGeographyField({
               ...params.slotProps,
               htmlInput: {
                 ...params.slotProps.htmlInput,
-                ...(label ? {} : { "aria-label": "Добавить город или область" }),
+                ...(label
+                  ? {}
+                  : { "aria-label": "Добавить город или область" }),
               },
               input: {
                 ...params.slotProps.input,
@@ -496,7 +579,12 @@ export function ServiceGeographyField({
                       <CircularProgress
                         color="primary"
                         size={18}
-                        sx={{ position: "absolute", right: 12, top: "50%", mt: "-9px" }}
+                        sx={{
+                          position: "absolute",
+                          right: 12,
+                          top: "50%",
+                          mt: "-9px",
+                        }}
                       />
                     ) : null}
                     {params.slotProps.input.endAdornment}
@@ -507,7 +595,9 @@ export function ServiceGeographyField({
           />
         )}
       />
-      {loadError && (loadError === "initial" || !open) && query === debounced.trim() ? (
+      {loadError &&
+      (loadError === "initial" || !open) &&
+      query === debounced.trim() ? (
         <Button
           disabled={disabled || loading || loadingMore}
           onClick={() => {

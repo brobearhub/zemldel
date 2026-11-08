@@ -2,14 +2,10 @@
 
 import Image from "next/image";
 import { useTheme } from "@mui/material/styles";
-import { useAppSelector } from "@/core/store/hooks";
 import Link from "@/shared/ui/Link";
-import { resolveHeaderLogoHref } from "../lib/header-logo-href";
 
-export const HeaderLogo = () => {
+export const HeaderLogo = ({ compact = false }: { compact?: boolean }) => {
   const theme = useTheme();
-  const user = useAppSelector((state) => state.auth.user);
-  const href = resolveHeaderLogoHref(user);
   const logoSrc =
     theme.palette.mode === "light"
       ? "/zemledel_logo_dark.svg"
@@ -17,11 +13,11 @@ export const HeaderLogo = () => {
 
   return (
     <Link
-      href={href}
+      href="/"
       aria-label="Земледел"
       sx={{
         flexShrink: 0,
-        mr: { xs: 1, sm: 2 },
+        mr: compact ? 2 : { xs: 1, sm: 2 },
         display: "flex",
         alignItems: "center",
         gap: 1,
@@ -31,8 +27,8 @@ export const HeaderLogo = () => {
       <Image
         src={logoSrc}
         alt=""
-        width={100}
-        height={45}
+        width={compact ? 40 : 100}
+        height={compact ? 48 : 45}
         style={{ objectFit: "contain" }}
       />
     </Link>

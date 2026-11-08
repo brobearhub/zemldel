@@ -8,7 +8,7 @@ const key = `passports/${randomUUID()}/form/${randomUUID()}.json`;
 const body = JSON.stringify(passport);
 const sha256 = createHash('sha256').update(body).digest('hex');
 
-function fixture() {
+function fixture(kmsKeyId: string | null = 'kms') {
   const send = vi
     .fn()
     .mockResolvedValue({ Body: { transformToString: () => body } });
@@ -18,13 +18,22 @@ function fixture() {
       getConnection: () => ({
         client: { send },
         bucket: 'private',
-        kmsKeyId: 'kms',
+        kmsKeyId,
       }),
     } as never),
   };
 }
 
 describe('passport JSON storage', () => {
+  it('omits KMS headers for synthetic testing data', async () => {
+    const { send, storage } = fixture(null);
+    await storage.put(key, passport);
+    expect(send.mock.calls[0][0].input).not.toHaveProperty(
+      'ServerSideEncryption',
+    );
+    expect(send.mock.calls[0][0].input).not.toHaveProperty('SSEKMSKeyId');
+  });
+
   it('writes JSON with required encryption and without personal data in metadata', async () => {
     const { send, storage } = fixture();
     expect(await storage.put(key, passport)).toBe(sha256);

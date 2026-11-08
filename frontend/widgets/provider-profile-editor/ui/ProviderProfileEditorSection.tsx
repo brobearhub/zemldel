@@ -28,9 +28,16 @@ import {
 import Link from "@/shared/ui/Link";
 import { normalizeContactEmailInput } from "@/shared/lib/contact-email";
 import { normalizeContactPhoneInput } from "@/shared/lib/contact-phone";
-import { VERIFIED_BADGE_GREEN, VerifiedBadgeIcon } from "@/shared/ui/VerifiedBadgeIcon";
+import {
+  VERIFIED_BADGE_GREEN,
+  VerifiedBadgeIcon,
+} from "@/shared/ui/VerifiedBadgeIcon";
 
-type ProviderType = "INDIVIDUAL" | "SELF_EMPLOYED" | "SOLE_PROPRIETOR" | "COMPANY";
+type ProviderType =
+  | "INDIVIDUAL"
+  | "SELF_EMPLOYED"
+  | "SOLE_PROPRIETOR"
+  | "COMPANY";
 
 type ProviderPublicCity = {
   id: string;
@@ -164,7 +171,14 @@ function providerTypeLabel(type: ProviderType): string {
   }
 }
 
-type EditId = "name" | "subtitle" | "phone" | "email" | "about" | `stat-${0 | 1 | 2}` | null;
+type EditId =
+  | "name"
+  | "subtitle"
+  | "phone"
+  | "email"
+  | "about"
+  | `stat-${0 | 1 | 2}`
+  | null;
 
 function normalizeNullableString(value: string): string | null {
   const trimmed = value.trim();
@@ -181,9 +195,13 @@ const STAT_PLACEHOLDERS = [
   { value: "Значение", label: "подпись" },
 ] as const;
 
-function getStats3(stats: PublicProviderStat[] | undefined | null): Array<{ value: string; label: string }> {
+function getStats3(
+  stats: PublicProviderStat[] | undefined | null,
+): Array<{ value: string; label: string }> {
   const base = Array.isArray(stats) ? stats : [];
-  const out = base.slice(0, 3).map((s) => ({ value: s.value ?? "", label: s.label ?? "" }));
+  const out = base
+    .slice(0, 3)
+    .map((s) => ({ value: s.value ?? "", label: s.label ?? "" }));
   while (out.length < 3) out.push({ value: "", label: "" });
   return out.slice(0, 3);
 }
@@ -218,7 +236,9 @@ function InlineEditableText(props: {
   }, [isEditing, props.value]);
 
   async function handleSave() {
-    const validationMessage = props.validateDraft ? props.validateDraft(draft) : null;
+    const validationMessage = props.validateDraft
+      ? props.validateDraft(draft)
+      : null;
     if (validationMessage) {
       setFieldError(validationMessage);
       return;
@@ -241,7 +261,11 @@ function InlineEditableText(props: {
   const showPlaceholder = !isEditing && (props.value ?? "").trim().length === 0;
 
   const actions = isEditing ? (
-    <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", flexShrink: 0 }}>
+    <Stack
+      direction="row"
+      spacing={0.5}
+      sx={{ alignItems: "center", flexShrink: 0 }}
+    >
       <Tooltip title="Сохранить">
         <span>
           <IconButton
@@ -274,7 +298,7 @@ function InlineEditableText(props: {
           size="small"
           onClick={() => props.setEditId(props.id)}
           disabled={props.disabled || !canEdit}
-          sx={{ color: "rgba(255,255,255,0.82)" }}
+          sx={{ color: "text.secondary" }}
         >
           <EditOutlinedIcon fontSize="small" />
         </IconButton>
@@ -297,7 +321,15 @@ function InlineEditableText(props: {
         minWidth: 0,
       }}
     >
-      <Box sx={{ minWidth: 0, maxWidth: "100%", width: isEditing ? { xs: 220, sm: props.isMultiline ? 480 : 360 } : "auto" }}>
+      <Box
+        sx={{
+          minWidth: 0,
+          maxWidth: "100%",
+          width: isEditing
+            ? { xs: 220, sm: props.isMultiline ? 480 : 360 }
+            : "auto",
+        }}
+      >
         {isEditing ? (
           <Stack spacing={0.75}>
             <TextField
@@ -309,16 +341,20 @@ function InlineEditableText(props: {
               fullWidth
               autoFocus
               multiline={props.isMultiline}
-              minRows={props.isMultiline ? props.minRows ?? 3 : undefined}
+              minRows={props.isMultiline ? (props.minRows ?? 3) : undefined}
               placeholder={props.placeholderWhenEmpty}
               sx={{
                 "& .MuiOutlinedInput-root": {
-                  bgcolor: "common.white",
+                  bgcolor: "background.paper",
                   borderRadius: 1,
                 },
-                "& .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
-                "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
-                "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
+                "& .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "transparent",
+                },
+                "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline":
+                  { borderColor: "transparent" },
+                "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline":
+                  { borderColor: "transparent" },
                 "& .MuiInputBase-input": {
                   ...(props.typographySx ?? {}),
                   color: "text.primary",
@@ -330,13 +366,20 @@ function InlineEditableText(props: {
               }}
             />
             {fieldError ? (
-              <Typography variant="caption" sx={{ color: "#ffe2df" }}>
+              <Typography variant="caption" sx={{ color: "error.main" }}>
                 {fieldError}
               </Typography>
             ) : null}
           </Stack>
         ) : (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: 0 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5,
+              minWidth: 0,
+            }}
+          >
             <Typography
               variant={props.viewVariant ?? "body2"}
               onClick={startEdit}
@@ -344,10 +387,12 @@ function InlineEditableText(props: {
                 ...(props.typographySx ?? {}),
                 minWidth: 0,
                 cursor: canEdit && !props.disabled ? "pointer" : "default",
-                ...(showPlaceholder ? { opacity: 0.75 } : null),
+                ...(showPlaceholder ? { opacity: 1 } : null),
               }}
             >
-              {showPlaceholder ? props.placeholderWhenEmpty ?? "—" : props.value}
+              {showPlaceholder
+                ? (props.placeholderWhenEmpty ?? "—")
+                : props.value}
             </Typography>
             {props.afterValue}
           </Box>
@@ -365,11 +410,17 @@ function InlineEditableStatCard(props: {
   setEditId: (id: EditId) => void;
   disabled?: boolean;
   stats3: Array<{ value: string; label: string }>;
-  onSave: (nextStats3: Array<{ value: string; label: string }>) => Promise<void>;
+  onSave: (
+    nextStats3: Array<{ value: string; label: string }>,
+  ) => Promise<void>;
 }) {
   const isEditing = props.editId === props.id;
-  const [draftValue, setDraftValue] = useState(props.stats3[props.index]?.value ?? "");
-  const [draftLabel, setDraftLabel] = useState(props.stats3[props.index]?.label ?? "");
+  const [draftValue, setDraftValue] = useState(
+    props.stats3[props.index]?.value ?? "",
+  );
+  const [draftLabel, setDraftLabel] = useState(
+    props.stats3[props.index]?.label ?? "",
+  );
   const [saving, setSaving] = useState(false);
   const [fieldError, setFieldError] = useState<string | null>(null);
 
@@ -389,7 +440,9 @@ function InlineEditableStatCard(props: {
     }
 
     const next = props.stats3.map((s, idx) =>
-      idx === props.index ? { value, label } : { value: s.value.trim(), label: s.label.trim() },
+      idx === props.index
+        ? { value, label }
+        : { value: s.value.trim(), label: s.label.trim() },
     );
 
     setSaving(true);
@@ -409,7 +462,11 @@ function InlineEditableStatCard(props: {
   const labelEmpty = view.label.trim().length === 0;
 
   const actions = isEditing ? (
-    <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", flexShrink: 0 }}>
+    <Stack
+      direction="row"
+      spacing={0.5}
+      sx={{ alignItems: "center", flexShrink: 0 }}
+    >
       <Tooltip title="Сохранить">
         <span>
           <IconButton
@@ -425,7 +482,11 @@ function InlineEditableStatCard(props: {
       </Tooltip>
       <Tooltip title="Отмена">
         <span>
-          <IconButton size="small" onClick={() => props.setEditId(null)} disabled={props.disabled || saving}>
+          <IconButton
+            size="small"
+            onClick={() => props.setEditId(null)}
+            disabled={props.disabled || saving}
+          >
             <CloseRoundedIcon fontSize="small" />
           </IconButton>
         </span>
@@ -438,7 +499,7 @@ function InlineEditableStatCard(props: {
           size="small"
           onClick={() => props.setEditId(props.id)}
           disabled={props.disabled}
-          sx={{ color: "rgba(255,255,255,0.82)" }}
+          sx={{ color: "text.secondary" }}
         >
           <EditOutlinedIcon fontSize="small" />
         </IconButton>
@@ -466,7 +527,11 @@ function InlineEditableStatCard(props: {
       <Stack
         spacing={0.5}
         onClick={isEditing ? undefined : startEdit}
-        sx={{ minWidth: 0, width: isEditing ? { xs: 140, sm: 180 } : "auto", cursor: isEditing || props.disabled ? "default" : "pointer" }}
+        sx={{
+          minWidth: 0,
+          width: isEditing ? { xs: 140, sm: 180 } : "auto",
+          cursor: isEditing || props.disabled ? "default" : "pointer",
+        }}
       >
         {isEditing ? (
           <>
@@ -478,17 +543,27 @@ function InlineEditableStatCard(props: {
               disabled={props.disabled || saving}
               placeholder={placeholder.value}
               sx={{
-                "& .MuiOutlinedInput-root": { bgcolor: "common.white", borderRadius: 1 },
-                "& .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
-                "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
-                "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
+                "& .MuiOutlinedInput-root": {
+                  bgcolor: "background.paper",
+                  borderRadius: 1,
+                },
+                "& .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "transparent",
+                },
+                "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline":
+                  { borderColor: "transparent" },
+                "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline":
+                  { borderColor: "transparent" },
                 "& .MuiInputBase-input": {
-                  fontWeight: 800,
-                  fontSize: { xs: 24, md: 32 },
+                  fontWeight: 700,
+                  fontSize: { xs: "1.5rem", md: "2rem" },
                   lineHeight: { xs: 1.334, md: 1.235 },
                   color: "text.primary",
                 },
-                "& .MuiInputBase-input::placeholder": { color: "text.secondary", opacity: 1 },
+                "& .MuiInputBase-input::placeholder": {
+                  color: "text.secondary",
+                  opacity: 1,
+                },
               }}
             />
             <TextField
@@ -499,21 +574,31 @@ function InlineEditableStatCard(props: {
               disabled={props.disabled || saving}
               placeholder={placeholder.label}
               sx={{
-                "& .MuiOutlinedInput-root": { bgcolor: "common.white", borderRadius: 1 },
-                "& .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
-                "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
-                "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
+                "& .MuiOutlinedInput-root": {
+                  bgcolor: "background.paper",
+                  borderRadius: 1,
+                },
+                "& .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "transparent",
+                },
+                "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline":
+                  { borderColor: "transparent" },
+                "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline":
+                  { borderColor: "transparent" },
                 "& .MuiInputBase-input": {
                   color: "text.secondary",
                   fontFamily: "monospace",
                   letterSpacing: "0.4px",
-                  fontSize: 12,
+                  fontSize: "1rem",
                 },
-                "& .MuiInputBase-input::placeholder": { color: "text.secondary", opacity: 0.7 },
+                "& .MuiInputBase-input::placeholder": {
+                  color: "text.secondary",
+                  opacity: 1,
+                },
               }}
             />
             {fieldError ? (
-              <Typography variant="caption" sx={{ color: "#ffe2df" }}>
+              <Typography variant="caption" sx={{ color: "error.main" }}>
                 {fieldError}
               </Typography>
             ) : null}
@@ -522,10 +607,10 @@ function InlineEditableStatCard(props: {
           <>
             <Typography
               sx={{
-                fontWeight: 800,
-                fontSize: { xs: 24, md: 32 },
+                fontWeight: 700,
+                fontSize: { xs: "1.5rem", md: "2rem" },
                 lineHeight: { xs: 1.334, md: 1.235 },
-                color: "common.white",
+                color: "text.primary",
               }}
             >
               {view.value}
@@ -534,7 +619,7 @@ function InlineEditableStatCard(props: {
               <Typography
                 variant="caption"
                 sx={{
-                  color: "rgba(255,255,255,1)",
+                  color: "text.secondary",
                   fontFamily: "monospace",
                   letterSpacing: "0.4px",
                 }}
@@ -567,7 +652,9 @@ export function ProviderProfileEditorSection({
   const [profile, setProfile] = useState<PublicProviderProfile>(initialProfile);
   const [editId, setEditId] = useState<EditId>(null);
   const [busy, setBusy] = useState(false);
-  const [imageAction, setImageAction] = useState<"upload" | "delete" | null>(null);
+  const [imageAction, setImageAction] = useState<"upload" | "delete" | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
 
   const [slug, setSlug] = useState(providerSlug);
@@ -614,10 +701,16 @@ export function ProviderProfileEditorSection({
       headers: { "content-type": "application/json" },
       body: JSON.stringify(partial),
     });
-    const payload = (await res.json().catch(() => null)) as PublicProviderProfile | { error?: string } | null;
+    const payload = (await res.json().catch(() => null)) as
+      | PublicProviderProfile
+      | { error?: string }
+      | null;
     if (!res.ok) {
       const msg =
-        payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+        payload &&
+        typeof payload === "object" &&
+        "error" in payload &&
+        typeof payload.error === "string"
           ? payload.error
           : "Не удалось сохранить профиль";
       throw new Error(msg);
@@ -626,7 +719,8 @@ export function ProviderProfileEditorSection({
       setProfile((current) => ({
         ...current,
         ...(payload as PublicProviderProfile),
-        ownerEmail: (payload as PublicProviderProfile).ownerEmail ?? current.ownerEmail,
+        ownerEmail:
+          (payload as PublicProviderProfile).ownerEmail ?? current.ownerEmail,
       }));
     }
   }
@@ -652,9 +746,19 @@ export function ProviderProfileEditorSection({
         method: "POST",
         body: formData,
       });
-      const payload = (await res.json().catch(() => null)) as PublicProviderProfile | { error?: string } | null;
+      const payload = (await res.json().catch(() => null)) as
+        | PublicProviderProfile
+        | { error?: string }
+        | null;
       if (!res.ok) {
-        throw new Error(payload && typeof payload === "object" && "error" in payload && payload.error ? payload.error : "Не удалось загрузить изображение");
+        throw new Error(
+          payload &&
+            typeof payload === "object" &&
+            "error" in payload &&
+            payload.error
+            ? payload.error
+            : "Не удалось загрузить изображение",
+        );
       }
       if (payload && typeof payload === "object" && "id" in payload) {
         const next = payload as PublicProviderProfile;
@@ -662,7 +766,9 @@ export function ProviderProfileEditorSection({
       }
       await updateSession().catch(() => undefined);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось загрузить изображение");
+      setError(
+        e instanceof Error ? e.message : "Не удалось загрузить изображение",
+      );
     } finally {
       setBusy(false);
       setImageAction(null);
@@ -674,10 +780,22 @@ export function ProviderProfileEditorSection({
     setImageAction("delete");
     setError(null);
     try {
-      const res = await fetch(`/api/providers/${providerId}/image`, { method: "DELETE" });
-      const payload = (await res.json().catch(() => null)) as PublicProviderProfile | { error?: string } | null;
+      const res = await fetch(`/api/providers/${providerId}/image`, {
+        method: "DELETE",
+      });
+      const payload = (await res.json().catch(() => null)) as
+        | PublicProviderProfile
+        | { error?: string }
+        | null;
       if (!res.ok) {
-        throw new Error(payload && typeof payload === "object" && "error" in payload && payload.error ? payload.error : "Не удалось удалить изображение");
+        throw new Error(
+          payload &&
+            typeof payload === "object" &&
+            "error" in payload &&
+            payload.error
+            ? payload.error
+            : "Не удалось удалить изображение",
+        );
       }
       if (payload && typeof payload === "object" && "id" in payload) {
         const next = payload as PublicProviderProfile;
@@ -685,7 +803,9 @@ export function ProviderProfileEditorSection({
       }
       await updateSession().catch(() => undefined);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось удалить изображение");
+      setError(
+        e instanceof Error ? e.message : "Не удалось удалить изображение",
+      );
     } finally {
       setBusy(false);
       setImageAction(null);
@@ -749,8 +869,12 @@ export function ProviderProfileEditorSection({
     const timer = setTimeout(() => {
       void (async () => {
         try {
-          const res = await fetch(`/api/providers/slug-check?slug=${encodeURIComponent(value)}`);
-          const data = (await res.json().catch(() => null)) as { available?: boolean } | null;
+          const res = await fetch(
+            `/api/providers/slug-check?slug=${encodeURIComponent(value)}`,
+          );
+          const data = (await res.json().catch(() => null)) as {
+            available?: boolean;
+          } | null;
           if (cancelled) return;
           setSlugAvailable(Boolean(data?.available));
         } catch {
@@ -797,7 +921,9 @@ export function ProviderProfileEditorSection({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ slug: value }),
       });
-      const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+      const payload = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
       if (!res.ok) {
         setSlugError(payload?.error ?? "Не удалось обновить slug");
         return;
@@ -815,157 +941,218 @@ export function ProviderProfileEditorSection({
 
   return (
     <Stack spacing={2.5}>
-      <Paper variant="elevation" sx={{ p: { xs: 2, md: 3 }, bgcolor: "primary.main" }}>
+      <Paper
+        variant="elevation"
+        sx={{ p: { xs: 2, md: 3 }, bgcolor: "background.paper" }}
+      >
         <Stack
           direction={{ xs: "column", lg: "row" }}
           spacing={2}
           sx={{ justifyContent: "space-between", alignItems: { lg: "center" } }}
         >
-        <Stack spacing={2} sx={{ width: "fit-content", maxWidth: "100%", minWidth: 0 }}>
-          <Typography component="h1" variant="h5">
-            Профиль исполнителя
-          </Typography>
           <Stack
-            direction="row"
             spacing={2}
-            sx={{
-              bgcolor: "common.white",
-              py: 1,
-              px: 2,
-              borderRadius: 10,
-              alignItems: "center",
-              justifyContent: "space-between",
-              width: "100%",
-              maxWidth: "100%",
-              minWidth: 0,
-            }}
+            sx={{ width: "fit-content", maxWidth: "100%", minWidth: 0 }}
           >
-            {slugEditing ? (
-              <Stack spacing={0.5} sx={{ minWidth: 0, flex: "1 1 0" }}>
-                <Stack direction="row" spacing={1} sx={{ alignItems: "center", minWidth: 0 }}>
-                  <Typography variant="body2" sx={{ color: "text.secondary", whiteSpace: "nowrap", fontFamily: "monospace" }}>
-                    {profileBaseUrl}
-                  </Typography>
-                  <TextField
-                    size="small"
-                    value={slugValue}
-                    onChange={(e) => handleSlugInputChange(e.target.value)}
-                    disabled={slugSaving}
-                    placeholder="some-slug-provider"
-                    sx={{ flex: "1 1 0", minWidth: 120 }}
-                  />
-                </Stack>
-                <Typography variant="caption" sx={{ color: slugError ? "error.main" : "text.secondary" }}>
-                  {slugError
-                    ? slugError
-                    : slugChecking
-                      ? "Проверяем доступность…"
-                      : slugValue.trim().toLowerCase() === slug
-                        ? "Это текущий URL"
-                        : slugAvailable === true
-                          ? "Адрес свободен"
-                          : slugAvailable === false
-                            ? "Адрес занят или некорректен"
-                            : " "}
-                </Typography>
-                <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                  Превью: <Box component="span" sx={{ fontFamily: "monospace" }}>{previewUrl}</Box>
-                </Typography>
-              </Stack>
-            ) : (
-              <Typography
-                variant="body2"
-                noWrap
-                title={publicUrl}
-                sx={{ color: "text.secondary", minWidth: 0, flex: "1 1 auto", overflow: "hidden", textOverflow: "ellipsis", fontFamily: "monospace" }}
-              >
-                {publicUrl}
-              </Typography>
-            )}
-
-            <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", flexShrink: 0 }}>
+            <Typography component="h1" variant="h1">
+              Профиль исполнителя
+            </Typography>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={2}
+              sx={{
+                bgcolor: "background.paper",
+                py: 1,
+                px: 2,
+                borderRadius: 10,
+                alignItems: "center",
+                justifyContent: "space-between",
+                width: "100%",
+                maxWidth: "100%",
+                minWidth: 0,
+              }}
+            >
               {slugEditing ? (
-                <>
-                  <Tooltip title="Сохранить">
-                    <span>
-                      <IconButton
-                        size="small"
-                        aria-label="Сохранить адрес профиля"
-                        onClick={() => void handleSlugSave()}
-                        loading={slugSaving}
-                        disabled={slugChecking || !slugValue.trim() || slugValue.trim().toLowerCase() === slug || slugAvailable !== true}
-                      >
-                        <CheckRoundedIcon fontSize="small" />
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                  <Tooltip title="Отмена">
-                    <span>
-                      <IconButton size="small" onClick={handleSlugEditCancel} disabled={slugSaving}>
-                        <CloseRoundedIcon fontSize="small" />
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                </>
+                <Stack spacing={0.5} sx={{ minWidth: 0, flex: "1 1 0" }}>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{ alignItems: "center", minWidth: 0 }}
+                  >
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "text.secondary",
+                        whiteSpace: "normal",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      {profileBaseUrl}
+                    </Typography>
+                    <TextField
+                      size="small"
+                      value={slugValue}
+                      onChange={(e) => handleSlugInputChange(e.target.value)}
+                      disabled={slugSaving}
+                      placeholder="some-slug-provider"
+                      sx={{ flex: "1 1 0", minWidth: 120 }}
+                    />
+                  </Stack>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: slugError ? "error.main" : "text.secondary" }}
+                  >
+                    {slugError
+                      ? slugError
+                      : slugChecking
+                        ? "Проверяем доступность…"
+                        : slugValue.trim().toLowerCase() === slug
+                          ? "Это текущий URL"
+                          : slugAvailable === true
+                            ? "Адрес свободен"
+                            : slugAvailable === false
+                              ? "Адрес занят или некорректен"
+                              : " "}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "text.secondary" }}
+                  >
+                    Превью:{" "}
+                    <Box component="span" sx={{ fontFamily: "monospace" }}>
+                      {previewUrl}
+                    </Box>
+                  </Typography>
+                </Stack>
               ) : (
-                <>
-                  <Tooltip title="Открыть профиль">
-                    <span>
-                      <IconButton
-                        size="small"
-                        component="a"
-                        href={publicUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <LinkIcon fontSize="small" />
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={() => void copyToClipboard(publicUrl)}
-                    sx={{ textTransform: "none", minHeight: 44, flexShrink: 0, color: "text.primary", borderColor: "text.primary" }}
-                  >
-                    Копировать
-                  </Button>
-                  <Button
-                    size="small"
-                    variant="contained"
-                    startIcon={<EditOutlinedIcon fontSize="small" />}
-                    onClick={handleSlugEditStart}
-                    disabled={!canEditName || busy}
-                    sx={{ textTransform: "none", minHeight: 44, flexShrink: 0 }}
-                  >
-                    Редактировать
-                  </Button>
-                </>
+                <Typography
+                  variant="body2"
+                  title={publicUrl}
+                  sx={{
+                    color: "text.secondary",
+                    minWidth: 0,
+                    flex: "1 1 auto",
+                    overflow: "hidden",
+                    textOverflow: "clip",
+                    fontFamily: "monospace",
+                  }}
+                >
+                  {publicUrl}
+                </Typography>
               )}
+
+              <Stack
+                direction="row"
+                spacing={0.5}
+                useFlexGap
+                sx={{
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  minWidth: 0,
+                  maxWidth: "100%",
+                }}
+              >
+                {slugEditing ? (
+                  <>
+                    <Tooltip title="Сохранить">
+                      <span>
+                        <IconButton
+                          size="small"
+                          aria-label="Сохранить адрес профиля"
+                          onClick={() => void handleSlugSave()}
+                          loading={slugSaving}
+                          disabled={
+                            slugChecking ||
+                            !slugValue.trim() ||
+                            slugValue.trim().toLowerCase() === slug ||
+                            slugAvailable !== true
+                          }
+                        >
+                          <CheckRoundedIcon fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                    <Tooltip title="Отмена">
+                      <span>
+                        <IconButton
+                          size="small"
+                          onClick={handleSlugEditCancel}
+                          disabled={slugSaving}
+                        >
+                          <CloseRoundedIcon fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  </>
+                ) : (
+                  <>
+                    <Tooltip title="Открыть профиль">
+                      <span>
+                        <IconButton
+                          size="small"
+                          component="a"
+                          href={publicUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <LinkIcon fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => void copyToClipboard(publicUrl)}
+                      sx={{
+                        textTransform: "none",
+                        minHeight: 44,
+                        flexShrink: 0,
+                        color: "text.primary",
+                        borderColor: "text.primary",
+                      }}
+                    >
+                      Копировать
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      startIcon={<EditOutlinedIcon fontSize="small" />}
+                      onClick={handleSlugEditStart}
+                      disabled={!canEditName || busy}
+                      sx={{
+                        textTransform: "none",
+                        minHeight: 44,
+                        flexShrink: 0,
+                      }}
+                    >
+                      Редактировать
+                    </Button>
+                  </>
+                )}
+              </Stack>
             </Stack>
+            {error ? <Alert severity="error">{error}</Alert> : null}
           </Stack>
-          {error ? <Alert severity="error">{error}</Alert> : null}
-        </Stack>
-        {headerAside ? (
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: { xs: "center", lg: "flex-end" },
-              flex: "1 1 320px",
-              minWidth: 0,
-              alignSelf: { xs: "stretch", lg: "center" },
-            }}
-          >
-            {headerAside}
-          </Box>
-        ) : null}
+          {headerAside ? (
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: { xs: "center", lg: "flex-end" },
+                flex: "1 1 320px",
+                minWidth: 0,
+                alignSelf: { xs: "stretch", lg: "center" },
+              }}
+            >
+              {headerAside}
+            </Box>
+          ) : null}
         </Stack>
       </Paper>
 
       <Paper
         variant="elevation"
         sx={{
-          bgcolor: "primary.main",
+          bgcolor: "background.paper",
           py: { xs: 3, md: 6 },
           overflowX: "hidden",
         }}
@@ -974,7 +1161,10 @@ export function ProviderProfileEditorSection({
           <Box
             sx={{
               display: "flex",
-              flexDirection: { xs: "column", md: isRight ? "row-reverse" : "row" },
+              flexDirection: {
+                xs: "column",
+                md: isRight ? "row-reverse" : "row",
+              },
               gap: { xs: 3, md: 9 },
               alignItems: { xs: "stretch", md: "center" },
             }}
@@ -997,7 +1187,9 @@ export function ProviderProfileEditorSection({
                   bgcolor: "action.hover",
                   width: "100%",
                   height: profile.image ? { xs: 280, md: "auto" } : 96,
-                  aspectRatio: profile.image ? { xs: "280 / 280", md: "300 / 300" } : "auto",
+                  aspectRatio: profile.image
+                    ? { xs: "280 / 280", md: "300 / 300" }
+                    : "auto",
                   borderRadius: profile.image ? { xs: 2.5, md: 999 } : 2.5,
                 }}
               >
@@ -1025,7 +1217,7 @@ export function ProviderProfileEditorSection({
                       px: { xs: "1px", md: "10px" },
                       py: { xs: "1px", md: "1px" },
                       borderRadius: "999px",
-                      bgcolor: "rgba(255,255,255,0.93)",
+                      bgcolor: "text.secondary",
                     }}
                   >
                     <Box
@@ -1036,7 +1228,10 @@ export function ProviderProfileEditorSection({
                         bgcolor: "success.main",
                       }}
                     />
-                    <Typography variant="caption" sx={{ letterSpacing: "0.4px" }}>
+                    <Typography
+                      variant="caption"
+                      sx={{ letterSpacing: "0.4px" }}
+                    >
                       {profile.availabilityLabel}
                     </Typography>
                   </Box>
@@ -1053,7 +1248,7 @@ export function ProviderProfileEditorSection({
                   disabled={busy}
                   sx={{
                     borderColor: "rgba(255,255,255,0.35)",
-                    color: "common.white",
+                    color: "text.primary",
                     textTransform: "uppercase",
                     fontWeight: 600,
                     letterSpacing: "0.46px",
@@ -1094,8 +1289,8 @@ export function ProviderProfileEditorSection({
                       px: { xs: "8px", md: "11px" },
                       minWidth: 0,
                       flex: "1 1 0",
-                      color: "rgba(255,255,255,0.82)",
-                      "&:hover": { color: "rgba(255,255,255,0.95)" },
+                      color: "text.secondary",
+                      "&:hover": { color: "text.secondary" },
                     }}
                   >
                     Удалить
@@ -1104,7 +1299,10 @@ export function ProviderProfileEditorSection({
               </Stack>
             </Stack>
 
-            <Stack spacing={{ xs: 2, md: 3 }} sx={{ minWidth: 0, flex: { md: "1 1 0" } }}>
+            <Stack
+              spacing={{ xs: 2, md: 3 }}
+              sx={{ minWidth: 0, flex: { md: "1 1 0" } }}
+            >
               <Stack spacing={0.25}>
                 <Typography variant="caption" sx={{ letterSpacing: "0.4px" }}>
                   {providerTypeLabel(profile.type)}
@@ -1117,14 +1315,14 @@ export function ProviderProfileEditorSection({
                   disabled={busy}
                   value={profile.name}
                   viewVariant="h4"
-                  typographySx={{ color: "common.white" }}
+                  typographySx={{ color: "text.primary" }}
                   placeholderWhenEmpty="Название профиля"
                   afterValue={
                     <Tooltip
                       title={
                         <Button
                           component={Link}
-                          href="/pro/profile/verification"
+                          href="/pro/settings/profile/verification"
                           size="small"
                           variant="contained"
                           sx={{
@@ -1159,27 +1357,41 @@ export function ProviderProfileEditorSection({
                           display: "inline-flex",
                           cursor: verified ? "default" : "pointer",
                           "& .badge-seal": {
-                            fill: verified ? VERIFIED_BADGE_GREEN : "rgba(255,255,255,0.45)",
+                            fill: verified
+                              ? VERIFIED_BADGE_GREEN
+                              : "rgba(255,255,255,0.45)",
                           },
                           "& .badge-check": {
-                            fill: verified ? "#ffffff" : theme.palette.primary.main,
+                            fill: verified
+                              ? "#ffffff"
+                              : theme.palette.primary.main,
                           },
                           ...(!verified && {
-                            "&:hover .badge-seal": { fill: VERIFIED_BADGE_GREEN },
+                            "&:hover .badge-seal": {
+                              fill: VERIFIED_BADGE_GREEN,
+                            },
                             "&:hover .badge-check": { fill: "#ffffff" },
                           }),
                         })}
                       >
-                        <Box sx={{ transform: "translate(-5px, -12px)", lineHeight: 0 }}>
+                        <Box
+                          sx={{
+                            transform: "translate(-5px, -12px)",
+                            lineHeight: 0,
+                          }}
+                        >
                           <VerifiedBadgeIcon size={26} />
                         </Box>
                       </Box>
                     </Tooltip>
                   }
-                  normalizeBeforeSave={(draft) => normalizeRequiredString(draft) || null}
+                  normalizeBeforeSave={(draft) =>
+                    normalizeRequiredString(draft) || null
+                  }
                   validateDraft={(draft) => {
                     const normalized = draft.trim();
-                    if (normalized.length < 2) return "Название должно быть не короче 2 символов";
+                    if (normalized.length < 2)
+                      return "Название должно быть не короче 2 символов";
                     return null;
                   }}
                   onSave={async (next) => {
@@ -1201,12 +1413,14 @@ export function ProviderProfileEditorSection({
                   value={profile.subtitle}
                   viewVariant="body1"
                   typographySx={{
-                    color: "common.white",
-                    fontSize: { xs: 14, md: 16 },
+                    color: "text.primary",
+                    fontSize: { xs: "1rem", md: "1rem" },
                     lineHeight: { xs: 1.43, md: 1.75 },
                   }}
                   placeholderWhenEmpty="Подзаголовок"
-                  normalizeBeforeSave={(draft) => normalizeNullableString(draft)}
+                  normalizeBeforeSave={(draft) =>
+                    normalizeNullableString(draft)
+                  }
                   onSave={async (next) => {
                     setBusy(true);
                     try {
@@ -1226,9 +1440,9 @@ export function ProviderProfileEditorSection({
                 value={profile.about}
                 viewVariant="body1"
                 typographySx={{
-                  color: "common.white",
+                  color: "text.primary",
                   lineHeight: 1.5,
-                  fontSize: { xs: 14, md: 16 },
+                  fontSize: { xs: "1rem", md: "1rem" },
                 }}
                 placeholderWhenEmpty="Добавьте описание профиля"
                 isMultiline
@@ -1285,7 +1499,8 @@ export function ProviderProfileEditorSection({
                 }}
               >
                 <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                  Эта информация будет отображаться только клиенту после заключения договора
+                  Эта информация будет отображаться только клиенту после
+                  заключения договора
                 </Typography>
                 <InlineEditableText
                   id="phone"
@@ -1294,10 +1509,14 @@ export function ProviderProfileEditorSection({
                   disabled={busy}
                   value={profile.phone}
                   viewVariant="body2"
-                  typographySx={{ color: "common.white" }}
+                  typographySx={{ color: "text.primary" }}
                   placeholderWhenEmpty="Телефон"
-                  normalizeBeforeSave={(draft) => normalizeContactPhoneInput(draft).phone}
-                  validateDraft={(draft) => normalizeContactPhoneInput(draft).error}
+                  normalizeBeforeSave={(draft) =>
+                    normalizeContactPhoneInput(draft).phone
+                  }
+                  validateDraft={(draft) =>
+                    normalizeContactPhoneInput(draft).error
+                  }
                   onSave={async (next) => {
                     setBusy(true);
                     try {
@@ -1315,10 +1534,14 @@ export function ProviderProfileEditorSection({
                   disabled={busy}
                   value={profile.email}
                   viewVariant="body2"
-                  typographySx={{ color: "common.white" }}
+                  typographySx={{ color: "text.primary" }}
                   placeholderWhenEmpty="Email"
-                  normalizeBeforeSave={(draft) => normalizeContactEmailInput(draft).email}
-                  validateDraft={(draft) => normalizeContactEmailInput(draft).error}
+                  normalizeBeforeSave={(draft) =>
+                    normalizeContactEmailInput(draft).email
+                  }
+                  validateDraft={(draft) =>
+                    normalizeContactEmailInput(draft).error
+                  }
                   onSave={async (next) => {
                     setBusy(true);
                     try {
@@ -1340,13 +1563,17 @@ export function ProviderProfileEditorSection({
                         setError(null);
                         void patchProfile({ useOwnEmail: event.target.checked })
                           .catch((cause: unknown) => {
-                            setError(cause instanceof Error ? cause.message : "Не удалось сохранить email");
+                            setError(
+                              cause instanceof Error
+                                ? cause.message
+                                : "Не удалось сохранить email",
+                            );
                           })
                           .finally(() => setBusy(false));
                       }}
                       sx={{
                         "& .MuiSwitch-switchBase": {
-                          color: "rgba(255,255,255,0.85)",
+                          color: "text.secondary",
                         },
                         "& .MuiSwitch-track": {
                           backgroundColor: "rgba(255,255,255,0.35)",
@@ -1355,19 +1582,26 @@ export function ProviderProfileEditorSection({
                         "& .MuiSwitch-switchBase.Mui-checked": {
                           color: "primary.dark",
                         },
-                        "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
-                          backgroundColor: "common.white",
-                          opacity: 1,
-                        },
+                        "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
+                          {
+                            backgroundColor: "common.white",
+                            opacity: 1,
+                          },
                       }}
                     />
                   }
                   label={
                     <Box>
-                      <Typography variant="body2" sx={{ color: "common.white" }}>
+                      <Typography
+                        variant="body2"
+                        sx={{ color: "text.primary" }}
+                      >
                         Использовать свой email
                       </Typography>
-                      <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.72)" }}>
+                      <Typography
+                        variant="caption"
+                        sx={{ color: "text.secondary" }}
+                      >
                         {profile.useOwnEmail && profile.ownerEmail
                           ? `Если email профиля не указан, клиент увидит ${profile.ownerEmail}`
                           : "Если email профиля не указан и переключатель выключен, клиент не увидит email"}
@@ -1383,4 +1617,3 @@ export function ProviderProfileEditorSection({
     </Stack>
   );
 }
-

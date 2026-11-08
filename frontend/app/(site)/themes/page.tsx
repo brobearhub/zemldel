@@ -20,7 +20,15 @@ import { ColorModeToggle } from "@/core/theme/ColorModeToggle";
 import { useColorMode } from "@/core/theme/ColorModeContext";
 import { useMemo } from "react";
 
-const BREAKPOINT_KEYS = ["xs", "sm", "tablet", "md", "lg", "xl", "xxl"] as const;
+const BREAKPOINT_KEYS = [
+  "xs",
+  "sm",
+  "tablet",
+  "md",
+  "lg",
+  "xl",
+  "xxl",
+] as const;
 type BreakpointKey = (typeof BREAKPOINT_KEYS)[number];
 
 type SwatchProps = {
@@ -112,7 +120,10 @@ function getPaletteSwatches(theme: Theme) {
 }
 
 const ThemePaletteBlock = ({ mode }: { mode: "light" | "dark" }) => {
-  const theme = useMemo(() => createAppTheme(mode), [mode]);
+  const theme = useMemo(
+    () => createAppTheme(mode, { cssVariables: false }),
+    [mode],
+  );
   const groups = useMemo(() => getPaletteSwatches(theme), [theme]);
 
   return (
@@ -126,7 +137,7 @@ const ThemePaletteBlock = ({ mode }: { mode: "light" | "dark" }) => {
       >
         <Stack spacing={2}>
           <Stack spacing={0.5}>
-            <Typography variant="h6" sx={{ fontWeight: 800 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
               {mode.toUpperCase()} theme
             </Typography>
             <Typography variant="body2" sx={{ color: "text.secondary" }}>
@@ -215,15 +226,16 @@ export default function ThemesPage() {
             sx={{
               alignItems: { xs: "flex-start", sm: "center" },
               justifyContent: "space-between",
-              gap: 2
-            }}>
+              gap: 2,
+            }}
+          >
             <Box>
-              <Typography variant="h4" sx={{ fontWeight: 900 }}>
+              <Typography component="h1" variant="h1" sx={{ fontWeight: 700 }}>
                 Themes
               </Typography>
               <Typography variant="body2" sx={{ color: "text.secondary" }}>
                 Текущий режим:{" "}
-                <Box component="span" sx={{ fontWeight: 800 }}>
+                <Box component="span" sx={{ fontWeight: 700 }}>
                   {mode}
                 </Box>
               </Typography>
@@ -239,11 +251,12 @@ export default function ThemesPage() {
             }}
           >
             <Stack spacing={1}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                 Live preview (current theme)
               </Typography>
               <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                primary: {theme.palette.primary.main} • secondary: {theme.palette.secondary.main}
+                primary: {theme.palette.primary.main} • secondary:{" "}
+                {theme.palette.secondary.main}
               </Typography>
             </Stack>
           </Paper>
@@ -261,25 +274,28 @@ export default function ThemesPage() {
                 sx={{
                   alignItems: { xs: "flex-start", sm: "center" },
                   justifyContent: "space-between",
-                  gap: 1
-                }}>
+                  gap: 1,
+                }}
+              >
                 <Box>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                     Breakpoints (theme.breakpoints.values)
                   </Typography>
                   <Typography variant="body2" sx={{ color: "text.secondary" }}>
                     Активный брейкпоинт:{" "}
-                    <Box component="span" sx={{ fontWeight: 800 }}>
+                    <Box component="span" sx={{ fontWeight: 700 }}>
                       {activeBreakpointKey}
                     </Box>
                   </Typography>
                 </Box>
                 <Chip
                   label={`active: ${activeBreakpointKey}`}
-                  color={activeBreakpointKey === "unknown" ? "warning" : "primary"}
+                  color={
+                    activeBreakpointKey === "unknown" ? "warning" : "primary"
+                  }
                   variant="outlined"
                   size="small"
-                  sx={{ fontWeight: 800 }}
+                  sx={{ fontWeight: 700 }}
                 />
               </Stack>
 
@@ -305,9 +321,13 @@ export default function ThemesPage() {
                             direction="row"
                             sx={{
                               alignItems: "center",
-                              gap: 1
-                            }}>
-                            <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                              gap: 1,
+                            }}
+                          >
+                            <Typography
+                              variant="body2"
+                              sx={{ fontWeight: 700 }}
+                            >
                               {key}
                             </Typography>
                             {isActive ? (
@@ -315,11 +335,18 @@ export default function ThemesPage() {
                                 label="active"
                                 color="primary"
                                 size="small"
-                                sx={{ height: 20, fontWeight: 800 }}
+                                sx={{
+                                  height: "auto",
+                                  minHeight: 32,
+                                  fontWeight: 700,
+                                }}
                               />
                             ) : null}
                           </Stack>
-                          <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                          <Typography
+                            variant="body2"
+                            sx={{ color: "text.secondary" }}
+                          >
                             {valuePx}px
                           </Typography>
                           <Typography
@@ -349,7 +376,7 @@ export default function ThemesPage() {
             }}
           >
             <Stack spacing={1.25}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                 Gradients tokens (theme.custom.gradients)
               </Typography>
               <Grid container spacing={1.25}>
@@ -362,7 +389,10 @@ export default function ThemesPage() {
                       backgroundImage: theme.custom.gradients.sunset,
                     }}
                   />
-                  <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "text.secondary" }}
+                  >
                     sunset
                   </Typography>
                 </Grid>
@@ -376,7 +406,10 @@ export default function ThemesPage() {
                       backgroundImage: theme.custom.gradients.sky,
                     }}
                   />
-                  <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "text.secondary" }}
+                  >
                     sky
                   </Typography>
                 </Grid>
@@ -390,7 +423,10 @@ export default function ThemesPage() {
                       backgroundImage: theme.custom.gradients.glass,
                     }}
                   />
-                  <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "text.secondary" }}
+                  >
                     glass
                   </Typography>
                 </Grid>
@@ -407,7 +443,7 @@ export default function ThemesPage() {
             }}
           >
             <Stack spacing={2}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                 Buttons preview (background vs paper)
               </Typography>
 
@@ -424,9 +460,14 @@ export default function ThemesPage() {
                   <Typography variant="body2" sx={{ fontWeight: 700 }}>
                     On background.default
                   </Typography>
-                  <Stack direction="row" spacing={1} useFlexGap sx={{
-                    flexWrap: "wrap"
-                  }}>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    useFlexGap
+                    sx={{
+                      flexWrap: "wrap",
+                    }}
+                  >
                     <Button variant="contained" color="primary">
                       Primary
                     </Button>
@@ -487,9 +528,14 @@ export default function ThemesPage() {
                   <Typography variant="body2" sx={{ fontWeight: 700 }}>
                     On background.paper
                   </Typography>
-                  <Stack direction="row" spacing={1} useFlexGap sx={{
-                    flexWrap: "wrap"
-                  }}>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    useFlexGap
+                    sx={{
+                      flexWrap: "wrap",
+                    }}
+                  >
                     <Button variant="contained" color="primary">
                       Primary
                     </Button>
@@ -550,4 +596,3 @@ export default function ThemesPage() {
     </Box>
   );
 }
-
