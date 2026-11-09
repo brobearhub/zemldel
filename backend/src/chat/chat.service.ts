@@ -1220,7 +1220,6 @@ export class ChatService {
 
     try {
       const created = await this.prisma.$transaction(async (tx) => {
-        await this.plans.consumeReply(tx, actorUserId, conversationId);
         const msg = await tx.message.create({
           data: {
             id: randomUUID(),

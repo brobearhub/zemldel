@@ -35,7 +35,7 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
         overflow: "hidden",
         border: "1px solid #D3E0DA",
         borderRadius: "18px",
-        bgcolor: green,
+        bgcolor: "primary.light",
         boxShadow: "0 12px 32px -16px rgba(22, 48, 37, 0.45)",
       }}
     >
@@ -51,7 +51,7 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
           overflow: "hidden",
           px: { xs: 2.5, md: 4.5 },
           py: { xs: 3, md: 4 },
-          color: "#fff",
+          color: "common.white",
           "&::before": {
             content: '""',
             position: "absolute",
@@ -111,8 +111,11 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
             }}
           >
             Земельные и кадастровые услуги
-            <Box component="span" sx={{ display: "block", color: "#CFE6F2" }}>
-              Найдите своего специалиста.
+            <Box
+              component="span"
+              sx={{ display: "block", color: "primary.dark" }}
+            >
+              Найдите своего специалиста
             </Box>
           </Typography>
           <Stack

@@ -16,10 +16,10 @@ describe("clampStoryText", () => {
 
 describe("formatStoryDuration", () => {
   it("склоняет срок", () => {
-    expect(formatStoryDuration(1)).toBe("1 день");
-    expect(formatStoryDuration(2)).toBe("2 дня");
-    expect(formatStoryDuration(3)).toBe("3 дня");
-    expect(formatStoryDuration(7)).toBe("7 дней");
+    expect(formatStoryDuration(1)).toBe("1 час");
+    expect(formatStoryDuration(2)).toBe("2 часа");
+    expect(formatStoryDuration(3)).toBe("3 часа");
+    expect(formatStoryDuration(7)).toBe("7 часов");
   });
 });
 

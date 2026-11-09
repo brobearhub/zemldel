@@ -5,6 +5,7 @@ import {
   nextMidnight,
   PLAN_LIMITS,
   upgradeAmount,
+  purchaseMode,
 } from './plan-policy';
 import {
   BadRequestException,
@@ -15,10 +16,14 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import type { BillingTestOrder, Prisma } from '@prisma/client';
+import type { BillingOrder, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-  addCalendarMonth,
+  addCalendarMonths,
+  PLAN_PRODUCTS,
+  isPlanProduct,
+  planProduct,
+  type BillingPeriod,
   BILLING_PRODUCTS,
   CLOSED_STATUSES,
   REFUND_STATUSES,
@@ -26,6 +31,7 @@ import {
 } from './billing-catalog';
 import {
   billingConfig,
+  bankRedirectDueDate,
   safePaymentUrl,
   TbankClient,
   verifyBankToken,
@@ -59,7 +65,7 @@ export class BillingService {
     await tx.$queryRaw`SELECT "id" FROM "Provider" WHERE "id" = ${providerId}::uuid FOR UPDATE`;
   }
 
-  view(order: BillingTestOrder) {
+  view(order: BillingOrder) {
     return {
       id: order.id,
       product: order.product,
@@ -79,8 +85,8 @@ export class BillingService {
   async overview(userId: string, providerId: string) {
     const member = await this.authorize(userId, providerId);
     const [account, orders] = await Promise.all([
-      this.prisma.billingTestAccount.findUnique({ where: { providerId } }),
-      this.prisma.billingTestOrder.findMany({
+      this.prisma.billingAccount.findUnique({ where: { providerId } }),
+      this.prisma.billingOrder.findMany({
         where: { providerId },
         orderBy: { createdAt: 'desc' },
         take: 30,
@@ -94,6 +100,7 @@ export class BillingService {
       /* visible setup state */
     }
     return {
+      catalog: PLAN_PRODUCTS,
       mode: 'test',
       enabled,
       canPay: member.role === 'OWNER',
@@ -102,8 +109,20 @@ export class BillingService {
       enforcementEnabled: planEnforcementEnabled(),
       limits: PLAN_LIMITS[entitlementPlan(account)],
       autoRenew: account?.autoRenew ?? false,
+      renewalPending: orders.some(
+        (order) =>
+          order.autoRenew &&
+          !order.renewalCycle &&
+          order.consentVersion === account?.consentVersion &&
+          (!CLOSED_STATUSES.includes(order.status) ||
+            (order.status === 'CONFIRMED' &&
+              !order.rebillId &&
+              !account?.rebillId)),
+      ),
       canAutoRenew: Boolean(account?.rebillId),
       nextPlan: account?.nextPlan ?? null,
+      billingPeriod: account?.billingPeriod ?? 'MONTH',
+      nextBillingPeriod: account?.nextBillingPeriod ?? null,
       timezone: account?.timezone ?? 'Europe/Moscow',
       graceUntil: account?.graceUntil ?? null,
       dailyUsed:
@@ -135,25 +154,26 @@ export class BillingService {
     expectedAmount?: number,
   ) {
     await this.authorize(userId, providerId, true);
+    if (product === 'REPLIES_10')
+      throw new BadRequestException(
+        'Отклики на свободные заявки без ограничений',
+      );
     const config = billingConfig();
     const selected = BILLING_PRODUCTS[product];
     if (!selected) throw new BadRequestException('Неизвестный продукт');
     const { order, created } = await this.prisma.$transaction(async (tx) => {
       await this.lock(tx, providerId);
-      const previous = await tx.billingTestOrder.findUnique({
+      const previous = await tx.billingOrder.findUnique({
         where: { providerId_operationId: { providerId, operationId } },
       });
       if (previous) {
-        if (
-          previous.product !== product ||
-          previous.autoRenew !== (autoRenew && product !== 'REPLIES_10')
-        )
+        if (previous.product !== product || previous.autoRenew !== autoRenew)
           throw new ConflictException(
             'Эта операция уже использована для другого продукта',
           );
         return { order: previous, created: false };
       }
-      const pending = await tx.billingTestOrder.findFirst({
+      const pending = await tx.billingOrder.findFirst({
         where: {
           providerId,
           status: { notIn: CLOSED_STATUSES },
@@ -164,34 +184,21 @@ export class BillingService {
         throw new ConflictException(
           'Есть незавершённая оплата. Продолжите её или проверьте статус в истории.',
         );
-      const account = await tx.billingTestAccount.findUnique({
+      const account = await tx.billingAccount.findUnique({
         where: { providerId },
       });
       if (account?.needsReview)
         throw new ConflictException(
           'Возврат платежа требует проверки. Новые тестовые покупки временно недоступны.',
         );
-      if (product === 'REPLIES_10' && effectivePlan(account) === 'BUSINESS') {
+      const mode = purchaseMode(account, product);
+      if (mode === 'schedule')
         throw new ConflictException(
-          'На тарифе Бизнес дополнительные отклики не нужны',
+          'Запланируйте смену тарифа или периода после окончания оплаченного срока',
         );
-      }
-      if (
-        product === 'LITE' &&
-        effectivePlan(account) === 'BUSINESS' &&
-        account?.planExpiresAt &&
-        account.planExpiresAt > new Date()
-      )
+      if (mode === 'current')
         throw new ConflictException(
-          'Запланируйте переход на Лайт после окончания Бизнеса',
-        );
-      if (
-        product === account?.plan &&
-        account.planExpiresAt &&
-        account.planExpiresAt > new Date()
-      )
-        throw new ConflictException(
-          'Тариф уже оплачен. Следующий месяц можно оплатить по окончании текущего срока или включить автопродление.',
+          'Тариф уже оплачен. Следующий период можно оплатить по окончании текущего срока или включить автопродление.',
         );
       const quoted = quoteAt ? new Date(quoteAt) : new Date();
       if (
@@ -205,24 +212,21 @@ export class BillingService {
         throw new ConflictException(
           'Тариф изменился. Обновите расчёт стоимости',
         );
-      const consent =
-        product === 'REPLIES_10'
-          ? null
-          : await tx.billingTestAccount.upsert({
-              where: { providerId },
-              create: { providerId, consentVersion: 1 },
-              update: { consentVersion: { increment: 1 } },
-            });
+      const consent = await tx.billingAccount.upsert({
+        where: { providerId },
+        create: { providerId, consentVersion: 1 },
+        update: { consentVersion: { increment: 1 } },
+      });
       return {
         created: true,
-        order: await tx.billingTestOrder.create({
+        order: await tx.billingOrder.create({
           data: {
             id: randomUUID(),
             providerId,
             product,
             operationId,
             amount,
-            autoRenew: autoRenew && product !== 'REPLIES_10',
+            autoRenew,
             consentVersion:
               consent?.consentVersion ?? account?.consentVersion ?? 0,
             basePlan: account?.plan ?? 'STANDARD',
@@ -238,7 +242,7 @@ export class BillingService {
     return this.initialize(order);
   }
 
-  async initialize(order: BillingTestOrder) {
+  async initialize(order: BillingOrder) {
     const config = billingConfig();
     const selected = BILLING_PRODUCTS[order.product as BillingProduct];
     const providerId = order.providerId;
@@ -261,18 +265,25 @@ export class BillingService {
       },
       PayType: 'O',
       Language: 'ru',
-      RedirectDueDate: order.expiresAt.toISOString(),
+      RedirectDueDate: bankRedirectDueDate(order.expiresAt),
       NotificationURL: config.notificationUrl,
       SuccessURL: returnUrl,
       FailURL: returnUrl,
     });
     if (result.Success === false) {
-      await this.prisma.billingTestOrder.updateMany({
+      await this.prisma.billingOrder.updateMany({
         where: { id: order.id, status: 'INITIALIZING' },
         data: { status: 'INIT_FAILED' },
       });
+      const errorCode =
+        typeof result.ErrorCode === 'string' ||
+        typeof result.ErrorCode === 'number'
+          ? String(result.ErrorCode)
+          : '';
       throw new ServiceUnavailableException(
-        'Банк не создал платёж. Проверьте настройки тестового терминала.',
+        /^\d{1,10}$/.test(errorCode)
+          ? `Банк не создал платёж. Код ошибки банка: ${errorCode}.`
+          : 'Банк не создал платёж. Проверьте настройки тестового терминала.',
       );
     }
     if (result.Success !== true)
@@ -281,11 +292,11 @@ export class BillingService {
     const paymentUrl = safePaymentUrl(result.PaymentURL);
     const saved = await this.prisma.$transaction(async (tx) => {
       await this.lock(tx, providerId);
-      const current = await tx.billingTestOrder.findUniqueOrThrow({
+      const current = await tx.billingOrder.findUniqueOrThrow({
         where: { id: order.id },
       });
       this.validatePayment(current, result);
-      return tx.billingTestOrder.update({
+      return tx.billingOrder.update({
         where: { id: order.id },
         data: {
           paymentId: String(result.PaymentId),
@@ -298,7 +309,7 @@ export class BillingService {
   }
 
   private validatePayment(
-    order: BillingTestOrder,
+    order: BillingOrder,
     payload: Record<string, unknown>,
     refund = false,
   ) {
@@ -338,7 +349,7 @@ export class BillingService {
 
   async refresh(userId: string, providerId: string, orderId: string) {
     await this.authorize(userId, providerId);
-    let order = await this.prisma.billingTestOrder.findFirst({
+    let order = await this.prisma.billingOrder.findFirst({
       where: { id: orderId, providerId },
     });
     if (!order) throw new NotFoundException('Платёж не найден');
@@ -379,7 +390,7 @@ export class BillingService {
         throw new BadRequestException('Заказ банка не совпадает');
       await this.applyState(state, true);
     }
-    order = await this.prisma.billingTestOrder.findUniqueOrThrow({
+    order = await this.prisma.billingOrder.findUniqueOrThrow({
       where: { id: order.id },
     });
     return this.view(order);
@@ -396,7 +407,7 @@ export class BillingService {
       (payload.Success !== true || String(payload.ErrorCode) !== '0')
     )
       throw new ServiceUnavailableException('Банк не вернул статус платежа');
-    const snapshot = await this.prisma.billingTestOrder.findUnique({
+    const snapshot = await this.prisma.billingOrder.findUnique({
       where: { id: payload.OrderId },
     });
     if (!snapshot) throw new NotFoundException('Платёж не найден');
@@ -405,11 +416,14 @@ export class BillingService {
       throw new BadRequestException('Некорректный статус');
     await this.prisma.$transaction(async (tx) => {
       await this.lock(tx, snapshot.providerId);
-      const order = await tx.billingTestOrder.findUniqueOrThrow({
+      const order = await tx.billingOrder.findUniqueOrThrow({
         where: { id: snapshot.id },
       });
       const refund = REFUND_STATUSES.includes(status);
-      this.validatePayment(order, payload, refund);
+      // An unpaid canceled payment has a zero current amount in GetState.
+      const canceledBeforePayment =
+        status === 'CANCELED' && !order.fulfilledAt && payload.Amount === 0;
+      this.validatePayment(order, payload, refund || canceledBeforePayment);
       const rebillId =
         typeof payload.RebillId === 'string' ||
         typeof payload.RebillId === 'number'
@@ -423,12 +437,12 @@ export class BillingService {
         payload.Success === true &&
         ['AUTHORIZED', 'CONFIRMED'].includes(status)
       ) {
-        await tx.billingTestOrder.update({
+        await tx.billingOrder.update({
           where: { id: order.id },
           data: { rebillId },
         });
         if (order.fulfilledAt && !REFUND_STATUSES.includes(order.status))
-          await tx.billingTestAccount.updateMany({
+          await tx.billingAccount.updateMany({
             where: {
               providerId: order.providerId,
               consentVersion: order.consentVersion,
@@ -453,21 +467,21 @@ export class BillingService {
         throw new BadRequestException('Платёж не подтверждён');
       }
       if (refund && (status !== 'REVERSED' || order.fulfilledAt)) {
-        await tx.billingTestAccount.upsert({
+        await tx.billingAccount.upsert({
           where: { providerId: order.providerId },
           create: { providerId: order.providerId, needsReview: true },
           update: { needsReview: true, autoRenew: false },
         });
       }
       if (status === 'CONFIRMED') {
-        const account = await tx.billingTestAccount.upsert({
+        const account = await tx.billingAccount.upsert({
           where: { providerId: order.providerId },
           create: { providerId: order.providerId },
           update: {},
         });
         const now = new Date();
         if (order.product === 'REPLIES_10') {
-          await tx.billingTestAccount.update({
+          await tx.billingAccount.update({
             where: { providerId: order.providerId },
             data: { replyCredits: { increment: 10 } },
           });
@@ -478,11 +492,11 @@ export class BillingService {
               (expectedExpiry?.getTime() ?? null) ||
             (!order.renewalCycle && account.plan !== order.basePlan)
           ) {
-            await tx.billingTestAccount.update({
+            await tx.billingAccount.update({
               where: { providerId: order.providerId },
               data: { needsReview: true, autoRenew: false },
             });
-            await tx.billingTestOrder.update({
+            await tx.billingOrder.update({
               where: { id: order.id },
               data: {
                 paymentId: String(payload.PaymentId),
@@ -502,18 +516,24 @@ export class BillingService {
             });
             return;
           }
+          if (!isPlanProduct(order.product))
+            throw new BadRequestException('Неизвестный продукт');
+          const selected = PLAN_PRODUCTS[order.product];
           const start = order.renewalCycle ?? now;
           const savedMandate = rebillId ?? order.rebillId;
           const consentCurrent =
             account.consentVersion === order.consentVersion;
-          await tx.billingTestAccount.update({
+          await tx.billingAccount.update({
             where: { providerId: order.providerId },
             data: {
-              plan: order.product,
+              plan: selected.plan,
+              billingPeriod: selected.period,
               planStartedAt: start,
-              planExpiresAt: addCalendarMonth(start),
+              planExpiresAt: addCalendarMonths(start, selected.months),
               graceUntil: null,
-              nextPlan: null,
+              ...(consentCurrent
+                ? { nextPlan: null, nextBillingPeriod: null }
+                : {}),
               ...(!order.renewalCycle && consentCurrent
                 ? {
                     autoRenew: order.autoRenew && Boolean(savedMandate),
@@ -531,7 +551,12 @@ export class BillingService {
               ],
             },
           });
-          if (order.autoRenew && !order.renewalCycle && !savedMandate)
+          if (
+            order.autoRenew &&
+            consentCurrent &&
+            !order.renewalCycle &&
+            !savedMandate
+          )
             await tx.billingNotice.upsert({
               where: { key: `mandate:${order.id}` },
               create: {
@@ -544,7 +569,7 @@ export class BillingService {
             });
         }
       }
-      await tx.billingTestOrder.update({
+      await tx.billingOrder.update({
         where: { id: order.id },
         data: {
           paymentId: String(payload.PaymentId),
@@ -556,12 +581,17 @@ export class BillingService {
   }
   async quote(userId: string, providerId: string, product: BillingProduct) {
     await this.authorize(userId, providerId, true);
-    const account = await this.prisma.billingTestAccount.findUnique({
+    if (product === 'REPLIES_10')
+      throw new BadRequestException(
+        'Отклики на свободные заявки без ограничений',
+      );
+    const account = await this.prisma.billingAccount.findUnique({
       where: { providerId },
     });
     const now = new Date();
     return {
       product,
+      mode: purchaseMode(account, product, now),
       amount: upgradeAmount(account, product, now),
       quoteAt: now.toISOString(),
     };
@@ -570,7 +600,12 @@ export class BillingService {
   async settings(
     userId: string,
     providerId: string,
-    input: { timezone?: string; autoRenew?: boolean; nextPlan?: string | null },
+    input: {
+      timezone?: string;
+      autoRenew?: boolean;
+      nextPlan?: string | null;
+      nextBillingPeriod?: BillingPeriod | null;
+    },
   ) {
     await this.authorize(userId, providerId, true);
     if (input.timezone !== undefined) {
@@ -582,7 +617,7 @@ export class BillingService {
     }
     await this.prisma.$transaction(async (tx) => {
       await this.lock(tx, providerId);
-      const account = await tx.billingTestAccount.upsert({
+      const account = await tx.billingAccount.upsert({
         where: { providerId },
         create: { providerId },
         update: {},
@@ -596,12 +631,30 @@ export class BillingService {
         !['STANDARD', 'LITE', 'BUSINESS'].includes(input.nextPlan)
       )
         throw new BadRequestException('Неизвестный тариф');
-      if (input.nextPlan === 'BUSINESS' && account.plan !== 'BUSINESS')
-        throw new BadRequestException('Для повышения оплатите Бизнес');
+      if (
+        input.nextBillingPeriod &&
+        !['MONTH', 'YEAR'].includes(input.nextBillingPeriod)
+      )
+        throw new BadRequestException('Неизвестный период оплаты');
+      const cancellation = input.nextPlan === 'STANDARD';
+      const resume =
+        input.autoRenew === true &&
+        account.nextPlan === 'STANDARD' &&
+        input.nextPlan === undefined;
+      const nextPlan = resume ? null : input.nextPlan;
+      const nextBillingPeriod =
+        cancellation || nextPlan === null ? null : input.nextBillingPeriod;
+      if (
+        input.nextBillingPeriod &&
+        !planProduct(input.nextPlan ?? account.nextPlan ?? account.plan)
+      )
+        throw new BadRequestException(
+          'Выберите платный тариф для следующего периода',
+        );
       const newReset = input.timezone
         ? nextMidnight(new Date(), input.timezone)
         : null;
-      await tx.billingTestAccount.update({
+      await tx.billingAccount.update({
         where: { providerId },
         data: {
           timezone: input.timezone,
@@ -613,14 +666,12 @@ export class BillingService {
                     : newReset,
               }
             : {}),
-          autoRenew: input.nextPlan === 'STANDARD' ? false : input.autoRenew,
-          nextPlan:
-            input.nextPlan === undefined &&
-            input.autoRenew === true &&
-            account.nextPlan === 'STANDARD'
-              ? null
-              : input.nextPlan,
-          ...(input.autoRenew !== undefined || input.nextPlan !== undefined
+          autoRenew: cancellation ? false : input.autoRenew,
+          nextPlan,
+          nextBillingPeriod,
+          ...(input.autoRenew !== undefined ||
+          input.nextPlan !== undefined ||
+          input.nextBillingPeriod !== undefined
             ? { consentVersion: { increment: 1 } }
             : {}),
         },

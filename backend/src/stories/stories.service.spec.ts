@@ -23,7 +23,7 @@ function storyRow(overrides: Record<string, unknown> = {}) {
     cityId: CITY_ID,
     text: 'Привет',
     imageUrl: null,
-    durationDays: 1,
+    durationHours: 24,
     publishedAt: new Date('2026-10-06T10:00:00.000Z'),
     expiresAt: new Date('2027-10-07T10:00:00.000Z'),
     authorUser: { name: 'Анна Кузнецова', image: null },
@@ -148,14 +148,26 @@ describe('StoriesService.create', () => {
         }),
         update: vi.fn().mockResolvedValue({}),
       },
-      story: { create: vi.fn().mockResolvedValue(created) },
+      story: {
+        create: vi.fn().mockResolvedValue(created),
+        count: vi.fn().mockResolvedValue(0),
+      },
+      billingAccount: {
+        findUnique: vi.fn().mockResolvedValue({
+          plan: 'BUSINESS',
+          planExpiresAt: new Date('2099-01-01'),
+        }),
+      },
+      $executeRaw: vi.fn(),
+      $transaction: vi.fn(),
     };
 
+    prisma.$transaction.mockImplementation((fn) => fn(prisma));
     const dto = await makeService(prisma).create({
       actorUserId: USER_ID,
       scope: 'user',
       text: '  Привет  ',
-      durationDays: 1,
+      durationHours: 24,
     });
 
     expect(prisma.story.create).toHaveBeenCalledWith(
@@ -166,7 +178,7 @@ describe('StoriesService.create', () => {
           providerId: null,
           cityId: CITY_ID,
           text: 'Привет',
-          durationDays: 1,
+          durationHours: 24,
         }),
       }),
     );
@@ -191,6 +203,9 @@ describe('StoriesService.create', () => {
         }),
       },
       providerMember: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ status: 'ACTIVE', role: 'OWNER' }),
         findFirst: vi.fn().mockResolvedValue({
           providerId: PROVIDER_ID,
           role: 'OWNER',
@@ -203,14 +218,26 @@ describe('StoriesService.create', () => {
           },
         }),
       },
-      story: { create: vi.fn().mockResolvedValue(created) },
+      story: {
+        create: vi.fn().mockResolvedValue(created),
+        count: vi.fn().mockResolvedValue(0),
+      },
+      billingAccount: {
+        findUnique: vi.fn().mockResolvedValue({
+          plan: 'BUSINESS',
+          planExpiresAt: new Date('2099-01-01'),
+        }),
+      },
+      $executeRaw: vi.fn(),
+      $transaction: vi.fn(),
     };
 
+    prisma.$transaction.mockImplementation((fn) => fn(prisma));
     await makeService(prisma).create({
       actorUserId: USER_ID,
       scope: 'provider',
       text: 'Услуга готова',
-      durationDays: 3,
+      durationHours: 48,
     });
 
     expect(prisma.story.create).toHaveBeenCalledWith(
@@ -230,7 +257,7 @@ describe('StoriesService.create', () => {
         actorUserId: USER_ID,
         scope: 'user',
         text: '   ',
-        durationDays: 1,
+        durationHours: 24,
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
@@ -254,7 +281,7 @@ describe('StoriesService.create', () => {
         actorUserId: USER_ID,
         scope: 'provider',
         text: 'Привет',
-        durationDays: 1,
+        durationHours: 24,
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });

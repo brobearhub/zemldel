@@ -41,6 +41,8 @@ const nextConfig = {
   // Why: forbidden() иначе бросает обычную ошибку, и error.tsx показывает «Что-то пошло не так».
   experimental: {
     authInterrupts: true,
+    // Story videos: 100 MB file plus multipart fields and boundaries.
+    proxyClientMaxBodySize: "101mb",
   },
   turbopack: {
     root: projectRoot,

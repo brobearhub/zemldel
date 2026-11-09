@@ -9,7 +9,7 @@ import {
 } from 'class-validator';
 import {
   collapseStoryLineEndings,
-  STORY_DURATION_DAYS,
+  STORY_DURATION_HOURS,
   STORY_TEXT_MAX_LENGTH,
 } from '../story-rules';
 
@@ -23,10 +23,10 @@ export class CreateStoryDto {
   @MaxLength(STORY_TEXT_MAX_LENGTH)
   text!: string;
 
-  @ApiProperty({ enum: STORY_DURATION_DAYS })
+  @ApiProperty({ enum: STORY_DURATION_HOURS })
   @Transform(({ value }) => (typeof value === 'string' ? Number(value) : value))
-  @IsIn([...STORY_DURATION_DAYS])
-  durationDays!: number;
+  @IsIn([...STORY_DURATION_HOURS])
+  durationHours!: number;
 
   @ApiPropertyOptional({ enum: ['user', 'provider'] })
   @IsOptional()
@@ -65,8 +65,17 @@ export class StoryDto {
   @ApiProperty({ nullable: true })
   imageUrl!: string | null;
 
-  @ApiProperty({ enum: STORY_DURATION_DAYS })
-  durationDays!: number;
+  @ApiProperty({ nullable: true })
+  videoUrl!: string | null;
+
+  @ApiProperty({ nullable: true })
+  videoDurationSeconds!: number | null;
+
+  @ApiProperty({ enum: ['PLAIN', 'BASIC', 'LINKS'] })
+  textFormat!: string;
+
+  @ApiProperty({ enum: STORY_DURATION_HOURS })
+  durationHours!: number;
 
   @ApiProperty({ format: 'date-time' })
   publishedAt!: string;

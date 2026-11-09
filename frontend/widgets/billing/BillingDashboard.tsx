@@ -1,8 +1,14 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { FormControlLabel, MenuItem, Switch, TextField } from "@mui/material";
 import { fetchIdempotentWrite } from "@/shared/api/idempotent-write";
 import {
+  billingProducts,
+  money,
+  productFor,
+  periodLabel,
+  type BillingPeriod,
   productNames,
   statusNames,
   type BillingOrder,
@@ -10,15 +16,69 @@ import {
   type Product,
 } from "./model";
 import s from "./billing.module.css";
+import {
+  BillingReceiptSummary,
+  BillingPlanFeatures,
+  BillingPlanChoices,
+} from "./BillingReceipt";
+import paper from "./billing-paper.module.css";
+
+const timezones = [
+  ["Europe/Kaliningrad", "Калининград"],
+  ["Europe/Moscow", "Москва"],
+  ["Europe/Kirov", "Киров"],
+  ["Europe/Volgograd", "Волгоград"],
+  ["Europe/Astrakhan", "Астрахань"],
+  ["Europe/Saratov", "Саратов"],
+  ["Europe/Ulyanovsk", "Ульяновск"],
+  ["Europe/Samara", "Самара"],
+  ["Asia/Yekaterinburg", "Екатеринбург"],
+  ["Asia/Omsk", "Омск"],
+  ["Asia/Novosibirsk", "Новосибирск"],
+  ["Asia/Barnaul", "Барнаул"],
+  ["Asia/Tomsk", "Томск"],
+  ["Asia/Novokuznetsk", "Новокузнецк"],
+  ["Asia/Krasnoyarsk", "Красноярск"],
+  ["Asia/Irkutsk", "Иркутск"],
+  ["Asia/Chita", "Чита"],
+  ["Asia/Yakutsk", "Якутск"],
+  ["Asia/Khandyga", "Хандыга"],
+  ["Asia/Vladivostok", "Владивосток"],
+  ["Asia/Ust-Nera", "Усть-Нера"],
+  ["Asia/Magadan", "Магадан"],
+  ["Asia/Sakhalin", "Южно-Сахалинск"],
+  ["Asia/Srednekolymsk", "Среднеколымск"],
+  ["Asia/Kamchatka", "Петропавловск-Камчатский"],
+  ["Asia/Anadyr", "Анадырь"],
+];
+
+function timezoneOffset(timeZone: string) {
+  const now = new Date();
+  const offsetMinutes = (zone: string) => {
+    const offset = new Intl.DateTimeFormat("en", {
+      timeZone: zone,
+      timeZoneName: "shortOffset",
+    })
+      .formatToParts(now)
+      .find((part) => part.type === "timeZoneName")!.value;
+    const [hours, minutes = "0"] = (offset.replace("GMT", "") || "0").split(":");
+    return Number(hours) * 60 + (hours.startsWith("-") ? -1 : 1) * Number(minutes);
+  };
+  const difference = offsetMinutes(timeZone) - offsetMinutes("Europe/Moscow");
+  const sign = difference > 0 ? "+" : difference < 0 ? "−" : "";
+  const hours = Math.floor(Math.abs(difference) / 60);
+  const minutes = Math.abs(difference) % 60;
+  return `${sign}${hours} ч${minutes ? ` ${minutes} мин` : ""}`;
+}
 
 async function readResponse<T>(response: Response): Promise<T> {
   const body = await response.json();
   if (!response.ok)
     throw new Error(
-      typeof body.error === "string"
-        ? body.error
-        : typeof body.message === "string"
-          ? body.message
+      typeof body.message === "string" && body.message.trim()
+        ? body.message
+        : typeof body.error === "string" && body.error.trim()
+          ? body.error
           : "Не удалось получить ответ сервера",
     );
   return body as T;
@@ -29,9 +89,12 @@ function bankUrl(value: string) {
     url.protocol !== "https:" ||
     url.username ||
     url.password ||
-    !["pay.tbank.ru", "securepay.tinkoff.ru", "securepay.tbank.ru"].includes(
-      url.hostname,
-    )
+    ![
+      "pay.tbank.ru",
+      "pay.tbank-online.com",
+      "securepay.tinkoff.ru",
+      "securepay.tbank.ru",
+    ].includes(url.hostname)
   )
     throw new Error("Некорректная ссылка банка");
   return url.href;
@@ -42,9 +105,8 @@ function date(value: string) {
   });
 }
 function isProduct(value?: string): value is Product {
-  return ["LITE", "BUSINESS", "REPLIES_10"].includes(value ?? "");
+  return Object.hasOwn(billingProducts, value ?? "");
 }
-const prices = { LITE: 299, BUSINESS: 999, REPLIES_10: 99 };
 
 export function BillingDashboard({
   providerId,
@@ -66,11 +128,14 @@ export function BillingDashboard({
     isProduct(initialProduct) ? initialProduct : null,
   );
   const [autoRenew, setAutoRenew] = useState(true);
+  const [period, setPeriod] = useState<BillingPeriod>(
+    initialProduct?.endsWith("_YEAR") ? "YEAR" : "MONTH",
+  );
   const [quote, setQuote] = useState<{
     amount: number;
     quoteAt: string;
+    mode: "purchase" | "schedule" | "current";
   } | null>(null);
-  const [timezone, setTimezone] = useState("Europe/Moscow");
   useEffect(() => {
     if (!selected) {
       setQuote(null);
@@ -84,7 +149,13 @@ export function BillingDashboard({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ product: selected }),
     })
-      .then(readResponse<{ amount: number; quoteAt: string }>)
+      .then(
+        readResponse<{
+          amount: number;
+          quoteAt: string;
+          mode: "purchase" | "schedule" | "current";
+        }>,
+      )
       .then((value) => {
         if (!cancelled) setQuote(value);
       })
@@ -101,7 +172,6 @@ export function BillingDashboard({
       await fetch(endpoint, { cache: "no-store" }),
     );
     setData(overview);
-    setTimezone(overview.timezone);
     return overview;
   }, [endpoint]);
 
@@ -139,7 +209,7 @@ export function BillingDashboard({
         if (canceled) return;
         setMessage(
           order.status === "CONFIRMED"
-            ? "Тестовая оплата подтверждена. Баланс обновлён."
+            ? "Оплата подтверждена. Тариф обновлён."
             : `Статус платежа: ${statusNames[order.status] ?? "Обрабатывается банком"}.`,
         );
         if (
@@ -165,7 +235,7 @@ export function BillingDashboard({
   }, [returnOrder, refresh]);
 
   async function pay() {
-    if (!selected || busy || !quote) return;
+    if (!selected || busy || !quote || quote.mode !== "purchase") return;
     setBusy(true);
     setError("");
     try {
@@ -175,7 +245,7 @@ export function BillingDashboard({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             product: selected,
-            autoRenew: selected !== "REPLIES_10" && autoRenew,
+            autoRenew,
             quoteAt: quote.quoteAt,
             expectedAmount: quote.amount,
           }),
@@ -189,7 +259,7 @@ export function BillingDashboard({
       await load();
       setMessage(
         order.status === "CONFIRMED"
-          ? "Этот тестовый платёж уже оплачен."
+          ? "Этот платёж уже оплачен."
           : "Платёж сохранён. Проверьте его статус в истории; при ошибке создания можно повторить покупку.",
       );
     } catch (e) {
@@ -205,6 +275,7 @@ export function BillingDashboard({
     timezone?: string;
     autoRenew?: boolean;
     nextPlan?: string | null;
+    nextBillingPeriod?: BillingPeriod | null;
   }) {
     setBusy(true);
     setError("");
@@ -218,7 +289,12 @@ export function BillingDashboard({
           }),
         ),
       );
-      setMessage("Настройки сохранены");
+      setMessage(
+        input.nextPlan === "STANDARD" || input.autoRenew === false
+          ? "Продление отключено. Оплаченный срок сохранён."
+          : "Настройки сохранены",
+      );
+      setSelected(null);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -242,319 +318,355 @@ export function BillingDashboard({
   }
   const disabled = busy || !data?.enabled || !data.canPay || data.needsReview;
   return (
-    <div className={s.root}>
-      <div className={s.row}>
-        <div>
-          <span className={s.eyebrow}>{providerName}</span>
-          <h1>Тариф и оплата</h1>
-        </div>
-        <Link
-          className={s.secondary}
-          href="/pricing"
-        >
-          Сравнить тарифы
-        </Link>
-      </div>
-      <div className={s.notice}>
-        <strong>Тестовый режим Т‑Банка.</strong> Тестовый платёж переключает
-        тариф и ограничения профиля. Реальных списаний нет.
-      </div>
-      {error && (
-        <div
-          className={s.error}
-          role="alert"
-        >
-          {error}
-          {!data && (
-            <div className={s.actions}>
-              <button
-                type="button"
-                className={s.secondary}
-                onClick={() => {
-                  setError("");
-                  load().catch((e: Error) => setError(e.message));
-                }}
-              >
-                Повторить загрузку
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-      {message && (
-        <div
-          className={s.notice}
-          role="status"
-        >
-          {message}
-        </div>
-      )}
-      {!data && !error && <p role="status">Загружаем тариф и историю…</p>}
-      {data && (
-        <>
-          {!data.enabled && (
-            <div className={s.notice}>
-              Тестовая оплата ещё не настроена. Покупки станут доступны после
-              подключения терминала.
-            </div>
-          )}
-          {!data.canPay && (
-            <div className={s.notice}>
-              Покупать тарифы и пакеты может владелец профиля.
-            </div>
-          )}
-          {data.needsReview && (
-            <div className={s.error}>
-              Платёж требует сверки. Новые покупки временно недоступны.
-            </div>
-          )}
-          <section className={s.card}>
-            <h2>Лимит откликов</h2>
-            <p>
-              {data.limits.replies === null
-                ? "Без ограничений"
-                : `Сегодня использовано ${data.dailyUsed} из ${data.limits.replies}`}
-            </p>
-            <p className={s.muted}>
-              Общий лимит всех сотрудников профиля. Обновляется в полночь:{" "}
-              {data.timezone}.
-            </p>
-            {data.graceUntil && new Date(data.graceUntil) > new Date() && (
-              <div className={s.error}>
-                Не удалось продлить тариф. Доступ сохранён до{" "}
-                {date(data.graceUntil)}. Проверьте оплату.
+    <div className={`${s.root} ${paper.root}`}>
+      <header className={paper.pageHeader}>
+        <nav aria-label="Хлебные крошки" className={paper.breadcrumb}>
+          <Link href="/pro/settings">Настройки</Link> / Тариф и оплата
+        </nav>
+        <span className={paper.caption}>{providerName}</span>
+        <h1>Тариф и оплата</h1>
+      </header>
+      <div className={paper.receipt}>
+        {error && (
+          <div className={s.error} role="alert">
+            {error
+              .split(";")
+              .map((part, index) => {
+                const text = part.trim();
+                return index === 0
+                  ? text
+                  : text.charAt(0).toLocaleUpperCase("ru-RU") + text.slice(1);
+              })
+              .filter(Boolean)
+              .join("\n")}
+            {!data && (
+              <div className={s.actions}>
+                <button
+                  type="button"
+                  className={s.secondary}
+                  onClick={() => {
+                    setError("");
+                    load().catch((e: Error) => setError(e.message));
+                  }}
+                >
+                  Повторить загрузку
+                </button>
               </div>
             )}
-            {data.notices.map((notice) => (
-              <p
-                key={notice.id}
-                role="status"
-              >
-                {notice.message}
-              </p>
-            ))}
-            {data.canPay && (
-              <div className={s.actions}>
-                <label>
-                  Часовой пояс{" "}
-                  <input
-                    className={s.textInput}
-                    aria-label="Часовой пояс"
-                    value={timezone}
-                    onChange={(event) => setTimezone(event.target.value)}
-                    list="billing-timezones"
-                  />
-                </label>
-                <datalist id="billing-timezones">
-                  {[
-                    "Europe/Kaliningrad",
-                    "Europe/Moscow",
-                    "Europe/Samara",
-                    "Asia/Yekaterinburg",
-                    "Asia/Omsk",
-                    "Asia/Krasnoyarsk",
-                    "Asia/Irkutsk",
-                    "Asia/Yakutsk",
-                    "Asia/Vladivostok",
-                    "Asia/Magadan",
-                    "Asia/Kamchatka",
-                  ].map((zone) => (
-                    <option
-                      key={zone}
-                      value={zone}
-                    />
+          </div>
+        )}
+        {message && (
+          <div className={s.notice} role="status">
+            {message}
+          </div>
+        )}
+        {!data && !error && <p role="status">Загружаем тариф и историю…</p>}
+        {data && (
+          <>
+            {!data.enabled && (
+              <div className={s.notice}>
+                Оплата ещё не настроена. Покупки станут доступны после
+                подключения терминала.
+              </div>
+            )}
+            {!data.canPay && (
+              <div className={s.notice}>
+                Покупать тарифы может владелец профиля.
+              </div>
+            )}
+            {data.needsReview && (
+              <div className={s.error}>
+                Платёж требует сверки. Новые покупки временно недоступны.
+              </div>
+            )}
+            <div className={paper.workspace}>
+              <BillingReceiptSummary data={data} returnOrder={returnOrder} />
+              <div className={paper.leftColumn}>
+                <BillingPlanFeatures data={data} />
+                <BillingPlanChoices
+                  data={data}
+                  period={period}
+                  onPeriodChange={setPeriod}
+                  onSelect={setSelected}
+                  disabled={disabled}
+                  busy={busy}
+                />
+                <section
+                  className={`${paper.section} ${paper.renewalSection}`}
+                  aria-labelledby="renewal-title"
+                >
+                  <h2 id="renewal-title" className={paper.sectionTitle}>
+                    03 / Продление и настройки
+                  </h2>
+                  {data.graceUntil && new Date(data.graceUntil) > new Date() && (
+                    <div className={s.error}>
+                      Не удалось продлить тариф. Доступ сохранён до{" "}
+                      {date(data.graceUntil)}. Проверьте оплату.
+                    </div>
+                  )}
+                  {data.notices.map((notice) => (
+                    <p key={notice.id} role="status">
+                      {notice.message}
+                    </p>
                   ))}
-                </datalist>
-                <button
-                  className={s.secondary}
-                  disabled={busy}
-                  onClick={() => saveSettings({ timezone })}
-                >
-                  Сохранить часовой пояс
-                </button>
-                <button
-                  className={s.secondary}
-                  disabled={busy || (!data.autoRenew && !data.canAutoRenew)}
-                  onClick={() => saveSettings({ autoRenew: !data.autoRenew })}
-                >
-                  {data.autoRenew
-                    ? "Отключить автопродление"
-                    : "Включить автопродление"}
-                </button>
-                {data.plan !== "STANDARD" && (
-                  <button
-                    className={s.secondary}
-                    disabled={busy}
-                    onClick={() =>
-                      saveSettings({ nextPlan: "STANDARD", autoRenew: false })
-                    }
-                  >
-                    Стандарт после окончания срока
-                  </button>
-                )}
-                {data.nextPlan && (
-                  <>
+                  {data.autoRenew || data.renewalPending ? (
                     <p>
-                      После окончания срока: {productNames[data.nextPlan]}.{" "}
-                      {data.nextPlan !== "STANDARD" && !data.autoRenew
-                        ? "Для продления понадобится оплата."
+                      {data.renewalPending
+                        ? "Подключается автопродление."
+                        : "Автопродление включено."}{" "}
+                      Можно отказаться от продления и пользоваться тарифом до конца
+                      оплаченного срока.
+                    </p>
+                  ) : (
+                    <p role="status">
+                      Продление отключено. Автоматических списаний не будет.
+                      {data.plan !== "STANDARD" && data.planExpiresAt
+                        ? ` Оплаченные возможности доступны до ${date(data.planExpiresAt)}, затем — Стандарт.`
                         : ""}
                     </p>
-                    <button
-                      className={s.secondary}
-                      disabled={busy}
-                      onClick={() => saveSettings({ nextPlan: null })}
-                    >
-                      Отменить переход
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-            <p>
-              <Link href="/pro/settings/promotion">
-                Статистика, шаблоны и задачи команды →
-              </Link>
-            </p>
-          </section>
-          <div className={s.cards}>
-            <section className={`${s.card} ${s.accent}`}>
-              <span className={s.eyebrow}>Текущий тестовый тариф</span>
-              <div className={s.big}>{productNames[data.plan]}</div>
-              <p>
-                {data.plan === "STANDARD"
-                  ? "Бесплатно, без срока действия"
-                  : `Действует до ${date(data.planExpiresAt!)}`}
-              </p>
-              <p className={s.muted}>
-                {data.autoRenew
-                  ? "Автопродление включено"
-                  : "Автопродление выключено"}
-              </p>
-              <div className={s.actions}>
-                <button
-                  type="button"
-                  className={s.button}
-                  disabled={
-                    disabled ||
-                    (data.plan === "LITE" &&
-                      !!data.planExpiresAt &&
-                      new Date(data.planExpiresAt) > new Date())
-                  }
-                  onClick={() =>
-                    data.plan === "BUSINESS" &&
-                    data.planExpiresAt &&
-                    new Date(data.planExpiresAt) > new Date()
-                      ? void saveSettings({ nextPlan: "LITE" })
-                      : setSelected("LITE")
-                  }
-                >
-                  {data.plan === "BUSINESS" &&
-                  data.planExpiresAt &&
-                  new Date(data.planExpiresAt) > new Date()
-                    ? "Лайт со следующего месяца"
-                    : data.plan === "LITE"
-                      ? data.planExpiresAt &&
-                        new Date(data.planExpiresAt) > new Date()
-                        ? "Лайт подключён"
-                        : "Оплатить Лайт"
-                      : "Выбрать Лайт"}{" "}
-                  · 299 ₽
-                </button>
-                <button
-                  type="button"
-                  className={s.secondary}
-                  disabled={
-                    disabled ||
-                    (data.plan === "BUSINESS" &&
-                      !!data.planExpiresAt &&
-                      new Date(data.planExpiresAt) > new Date())
-                  }
-                  onClick={() => setSelected("BUSINESS")}
-                >
-                  {data.plan === "BUSINESS"
-                    ? data.planExpiresAt &&
-                      new Date(data.planExpiresAt) > new Date()
-                      ? "Бизнес подключён"
-                      : "Продлить Бизнес"
-                    : "Выбрать Бизнес"}{" "}
-                  · 999 ₽
-                </button>
-              </div>
-            </section>
-            <section className={s.card}>
-              <span className={s.eyebrow}>Дополнительные отклики</span>
-              <div className={s.big}>{data.replyCredits}</div>
-              <p>В тестовом резерве · не сгорают</p>
-              <p className={s.muted}>
-                {data.plan === "BUSINESS"
-                  ? "На Бизнесе отклики не ограничены. Резерв сохраняется."
-                  : "Пакет: 10 откликов за 99 ₽. Резерв предназначен для откликов сверх дневного лимита."}
-              </p>
-              <button
-                type="button"
-                className={s.secondary}
-                disabled={disabled || data.plan === "BUSINESS"}
-                onClick={() => setSelected("REPLIES_10")}
-              >
-                Добавить 10 откликов · 99 ₽
-              </button>
-            </section>
-          </div>
-          <section className={s.card}>
-            <h2>История тестовых платежей</h2>
-            <p className={s.muted}>
-              Последние 30 операций. После возврата из банка подтверждение может
-              занять несколько секунд.
-            </p>
-            {!data.orders.length ? (
-              <p>
-                Пока нет платежей. Здесь появятся покупки тарифа и
-                дополнительных откликов.
-              </p>
-            ) : (
-              <ul className={s.history}>
-                {data.orders.map((order) => (
-                  <li key={order.id}>
-                    <div className={s.row}>
-                      <div>
-                        <strong>
-                          {productNames[order.product]} · {order.amount / 100} ₽
-                        </strong>
-                        <span className={s.muted}>
-                          {date(order.createdAt)} ·{" "}
-                          {statusNames[order.status] ?? "Обрабатывается банком"}
-                        </span>
-                      </div>
-                      <div className={s.actions}>
-                        {order.paymentUrl && data.canPay && (
-                          <a
-                            className={s.button}
-                            href={bankUrl(order.paymentUrl)}
+                  )}
+                  {data.autoRenew &&
+                    (data.nextPlan ?? data.plan) !== "STANDARD" && (
+                      <p className={`${s.muted} ${paper.muted}`}>
+                        Следующее продление:{" "}
+                        {productNames[data.nextPlan ?? data.plan]} ·{" "}
+                        {money(
+                          data.catalog[
+                            productFor(
+                              (data.nextPlan ?? data.plan) as "LITE" | "BUSINESS",
+                              data.nextBillingPeriod ?? data.billingPeriod,
+                            )
+                          ].amount,
+                        )}{" "}
+                        ₽ за{" "}
+                        {periodLabel(data.nextBillingPeriod ?? data.billingPeriod)}.
+                      </p>
+                    )}
+                  {data.canPay && (
+                    <div className={s.actions}>
+                      <FormControlLabel
+                        label="Автопродление"
+                        control={
+                          <Switch
+                            size="small"
+                            checked={data.autoRenew || data.renewalPending}
+                            disabled={
+                              busy ||
+                              (!data.autoRenew &&
+                                !data.renewalPending &&
+                                !data.canAutoRenew)
+                            }
+                            onChange={(_, checked) =>
+                              saveSettings(
+                                checked
+                                  ? { autoRenew: true }
+                                  : { nextPlan: "STANDARD", autoRenew: false },
+                              )
+                            }
+                            slotProps={{
+                              input: {
+                                role: "switch",
+                                "aria-describedby":
+                                  !data.autoRenew &&
+                                  !data.renewalPending &&
+                                  !data.canAutoRenew
+                                    ? "auto-renew-help"
+                                    : undefined,
+                              },
+                            }}
+                          />
+                        }
+                      />
+                      {!data.autoRenew &&
+                        !data.renewalPending &&
+                        !data.canAutoRenew && (
+                          <p
+                            id="auto-renew-help"
+                            className={`${s.muted} ${paper.muted}`}
                           >
-                            Продолжить оплату
-                          </a>
+                            Чтобы включить автопродление, разрешите его при
+                            следующей оплате картой.
+                          </p>
                         )}
-                        <button
-                          type="button"
-                          className={s.secondary}
-                          disabled={busy || !data.enabled}
-                          onClick={() => checkOrder(order.id)}
-                        >
-                          Проверить статус
-                        </button>
-                      </div>
+                      {data.nextPlan && data.nextPlan !== "STANDARD" && (
+                        <>
+                          <p>
+                            После окончания срока: {productNames[data.nextPlan]},
+                            оплата за{" "}
+                            {periodLabel(
+                              data.nextBillingPeriod ?? data.billingPeriod,
+                            )}
+                            .
+                            {!data.autoRenew
+                              ? " Для перехода понадобится ручная оплата."
+                              : ""}
+                          </p>
+                          <button
+                            type="button"
+                            className={s.secondary}
+                            disabled={busy}
+                            onClick={() =>
+                              saveSettings({
+                                nextPlan: null,
+                                nextBillingPeriod: null,
+                              })
+                            }
+                          >
+                            Отменить переход
+                          </button>
+                        </>
+                      )}
                     </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </>
-      )}
+                  )}
+                  <form
+                    className={paper.timezone}
+                    key={data.timezone}
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const form = new FormData(event.currentTarget);
+                      void saveSettings({
+                        timezone: String(form.get("timezone")).trim(),
+                      });
+                    }}
+                  >
+                    <div>
+                      <label htmlFor="billing-timezone">Часовой пояс профиля</label>
+                      <p className={paper.muted}>Для суточного лимита историй</p>
+                    </div>
+                    <div className={paper.timezoneControls}>
+                      <TextField
+                        id="billing-timezone"
+                        name="timezone"
+                        select
+                        defaultValue={data.timezone}
+                        size="small"
+                        required
+                        disabled={busy || !data.canPay}
+                        slotProps={{
+                          select: {
+                            renderValue: (value) =>
+                              timezones.find(([timezone]) => timezone === value)?.[1] ??
+                              String(value),
+                            inputProps: {
+                              "aria-label": "Часовой пояс профиля",
+                            },
+                            MenuProps: {
+                              slotProps: { paper: { sx: { maxHeight: 320 } } },
+                            },
+                          },
+                        }}
+                      >
+                        {!timezones.some(([timezone]) => timezone === data.timezone) && (
+                          <MenuItem
+                            value={data.timezone}
+                            sx={{ display: "none" }}
+                          >
+                            {data.timezone}
+                          </MenuItem>
+                        )}
+                        {timezones.map(([timezone, city]) => (
+                            <MenuItem
+                              key={timezone}
+                              value={timezone}
+                              sx={{
+                                justifyContent: "space-between",
+                                gap: 3,
+                                whiteSpace: "normal",
+                              }}
+                            >
+                              <span>{city}</span>
+                              <span
+                                className={paper.timezoneOffset}
+                                title="Разница во времени с Москвой"
+                              >
+                                {timezoneOffset(timezone)}
+                              </span>
+                            </MenuItem>
+                          ))}
+                      </TextField>
+                      <button
+                        type="submit"
+                        className={s.secondary}
+                        disabled={busy || !data.canPay}
+                      >
+                        Сохранить
+                      </button>
+                    </div>
+                  </form>
+                </section>
+              </div>
+              <div className={paper.rightColumn}>
+                <section
+                  className={`${paper.section} ${paper.historySection}`}
+                  aria-labelledby="payment-history-title"
+                >
+                  <h2 id="payment-history-title">История платежей</h2>
+                  <p className={`${s.muted} ${paper.muted}`}>
+                    Последние 30 операций. После возврата из банка подтверждение
+                    может занять несколько секунд.
+                  </p>
+                  {!data.orders.length ? (
+                    <p>Пока нет платежей. Здесь появятся покупки тарифа.</p>
+                  ) : (
+                    <ul className={paper.history}>
+                      {data.orders.map((order) => (
+                        <li key={order.id}>
+                          <div className={paper.orderRow}>
+                            <div className={paper.orderDescription}>
+                              <strong>
+                                {productNames[order.product] ?? "Платёж"}
+                              </strong>
+                              <time dateTime={order.createdAt}>
+                                {date(order.createdAt)}
+                              </time>
+                            </div>
+                            <span className={paper.orderAmount}>
+                              {money(order.amount)} ₽
+                            </span>
+                            <span
+                              className={paper.orderStatus}
+                              data-confirmed={order.status === "CONFIRMED"}
+                            >
+                              {statusNames[order.status] ?? "Обрабатывается банком"}
+                            </span>
+                            <div className={paper.orderActions}>
+                              {order.paymentUrl && data.canPay && (
+                                <a
+                                  className={s.button}
+                                  href={bankUrl(order.paymentUrl)}
+                                >
+                                  Продолжить оплату
+                                </a>
+                              )}
+                              <button
+                                type="button"
+                                className={s.secondary}
+                                disabled={busy || !data.enabled}
+                                onClick={() => checkOrder(order.id)}
+                              >
+                                Проверить статус
+                              </button>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+      <footer className={paper.footer}>
+        <Link href="/pricing">Сравнить тарифы →</Link>
+        <Link href="/pro/settings/promotion">
+          Статистика, шаблоны и задачи команды →
+        </Link>
+      </footer>
       <dialog
         ref={dialog}
-        className={s.dialog}
+        className={`${s.dialog} ${paper.dialog}`}
         onCancel={(event) => {
           if (busy) event.preventDefault();
           else setSelected(null);
@@ -562,50 +674,81 @@ export function BillingDashboard({
         onClose={() => setSelected(null)}
         aria-labelledby="checkout-title"
       >
-        {selected && (
+        {selected && data && (
           <>
             <h2 id="checkout-title">{productNames[selected]}</h2>
-            <p className={s.big}>
-              {quote ? quote.amount / 100 : prices[selected]} ₽
-              {selected !== "REPLIES_10" && (
-                <span className={s.muted}> / месяц</span>
-              )}
+            <p className={`${s.big} ${paper.dialogPrice}`}>
+              {money(quote?.amount ?? data.catalog[selected].amount)} ₽
+              <span className={`${s.muted} ${paper.muted}`}>
+                {" "}
+                / {periodLabel(billingProducts[selected].period)}
+              </span>
             </p>
-            <p>
-              {selected === "REPLIES_10"
-                ? "10 откликов без срока действия. Пакеты суммируются."
-                : "Новый тариф действует месяц. При повышении стоимость остатка Лайта вычтена из суммы оплаты."}
-            </p>
-            <p>
-              <strong>Это тестовая покупка.</strong> Деньги не списываются. Вы
-              перейдёте на защищённую страницу Т‑Банка. Следующая оплата при
-              включённом автопродлении — через месяц, по полной цене выбранного
-              тарифа.
-            </p>
-            {selected !== "REPLIES_10" && (
-              <label>
-                <input
-                  type="checkbox"
-                  checked={autoRenew}
-                  onChange={(event) => setAutoRenew(event.target.checked)}
-                  disabled={busy}
-                />{" "}
-                Автоматически продлевать тариф за {prices[selected]} ₽ в месяц.
-                Можно отключить в кабинете.
-              </label>
+            {quote?.mode === "schedule" ? (
+              <p>
+                Переход состоится после окончания оплаченного срока
+                {data?.planExpiresAt ? ` — ${date(data.planExpiresAt)}` : ""}.
+                {data?.autoRenew
+                  ? " Автопродление оплатит выбранный тариф и период."
+                  : " Автопродление выключено. Для перехода потребуется ручная оплата."}
+              </p>
+            ) : quote?.mode === "current" ? (
+              <p>
+                Этот тариф и период уже оплачены. Продлить их можно по окончании
+                срока.
+              </p>
+            ) : (
+              <>
+                <p>
+                  {billingProducts[selected].period === "YEAR"
+                    ? "Оплата сразу за год со скидкой 10%."
+                    : "Оплата за календарный месяц."}{" "}
+                  Стоимость неиспользованного оплаченного срока учитывается при
+                  повышении тарифа или переходе на год.
+                </p>
+                <p>
+                  Вы перейдёте на защищённую страницу Т‑Банка.
+                </p>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={autoRenew}
+                    onChange={(event) => setAutoRenew(event.target.checked)}
+                    disabled={busy}
+                  />{" "}
+                  Продлевать автоматически за{" "}
+                  {money(data.catalog[selected].amount)} ₽ раз в{" "}
+                  {periodLabel(billingProducts[selected].period)}. Отказаться от
+                  продления можно в кабинете в любой момент.
+                </label>
+              </>
             )}
             <div className={s.actions}>
               <button
                 type="button"
                 className={s.button}
                 disabled={
-                  disabled ||
+                  busy ||
+                  !data?.canPay ||
+                  data.needsReview ||
                   !quote ||
-                  (selected === "REPLIES_10" && data?.plan === "BUSINESS")
+                  quote.mode === "current" ||
+                  (quote.mode === "purchase" && !data.enabled)
                 }
-                onClick={pay}
+                onClick={() =>
+                  quote?.mode === "schedule"
+                    ? saveSettings({
+                        nextPlan: billingProducts[selected].plan,
+                        nextBillingPeriod: billingProducts[selected].period,
+                      })
+                    : pay()
+                }
               >
-                {busy ? "Создаём платёж…" : "Перейти к тестовой оплате"}
+                {busy
+                  ? "Сохраняем…"
+                  : quote?.mode === "schedule"
+                    ? "Запланировать переход"
+                    : "Перейти к оплате"}
               </button>
               <button
                 type="button"

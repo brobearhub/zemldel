@@ -6,16 +6,18 @@ import {
   createStory,
   deleteStory,
   fetchMyStories,
+  fetchStoryLimits,
+  type StoryLimits,
+  STORY_VIDEO_MAX_BYTES,
   fetchSavedStories,
   fetchStoryAudience,
   fetchStoryInsights,
   fetchStoryReplyMessages,
   sendStoryReplyMessage,
-  clampStoryText,
   STORY_IMAGE_MAX_BYTES,
   type StoryAudienceDto,
   type StoryDto,
-  type StoryDurationDays,
+  type StoryDurationHours,
   type StoryInsightsDto,
   type StoryReplyMessageDto,
   type StoryScope,
@@ -48,11 +50,26 @@ export function StoryEditorSection({ scope, providerName, authorName }: Props) {
   const [replyStoryId, setReplyStoryId] = useState<string | null>(null);
   const replyLoad = useRef(0);
   const [text, setText] = useState("");
-  const [durationDays, setDurationDays] = useState<StoryDurationDays>(1);
+  const [durationHours, setDurationHours] = useState<StoryDurationHours>(24);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [limits, setLimits] = useState<StoryLimits | null>(null);
+  const refreshLimits = useCallback(async () => {
+    const value = await fetchStoryLimits(scope);
+    setLimits(value);
+    setDurationHours((current) => value.durationHours.includes(current) ? current : 24);
+  }, [scope]);
+
+  useEffect(() => {
+    setLimits(null);
+    const refresh = () => void refreshLimits().catch((cause) => setError(cause instanceof Error ? cause.message : "Не удалось загрузить лимиты"));
+    refresh();
+    window.addEventListener("focus", refresh);
+    const timer = window.setInterval(refresh, 60_000);
+    return () => { window.removeEventListener("focus", refresh); window.clearInterval(timer); };
+  }, [refreshLimits]);
 
   useEffect(() => {
     if (!file) {
@@ -96,32 +113,37 @@ export function StoryEditorSection({ scope, providerName, authorName }: Props) {
     setComposing(false);
     setText("");
     setFile(null);
-    setDurationDays(1);
+    setDurationHours(24);
     setError(null);
   }
 
   async function publish() {
-    const trimmed = clampStoryText(text.trim());
+    const trimmed = text.trim();
+    if (!limits) return;
+    if (trimmed.length > limits.textLimit) { setError(`Максимум ${limits.textLimit} символов`); return; }
+    if (file?.type.startsWith("video/") && !limits.video) { setError("Видео доступно на тарифе Бизнес"); return; }
     if (!trimmed) {
       setError("Введите текст истории");
       return;
     }
-    if (file && file.size > STORY_IMAGE_MAX_BYTES) {
-      setError("Максимальный размер фото — 10 МБ");
+    if (file && file.size > (file.type.startsWith("video/") ? STORY_VIDEO_MAX_BYTES : STORY_IMAGE_MAX_BYTES)) {
+      setError("Максимальный размер фото — 10 МБ, видео — 100 МБ");
       return;
     }
 
     setBusy(true);
     setError(null);
     try {
-      await createStory({ scope, text: trimmed, durationDays, file });
+      await createStory({ scope, text: trimmed, durationHours, file });
       setText("");
       setFile(null);
       setComposing(false);
       await load();
+      await refreshLimits();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось опубликовать историю");
     } finally {
+      void refreshLimits().catch(() => undefined);
       setBusy(false);
     }
   }
@@ -132,6 +154,7 @@ export function StoryEditorSection({ scope, providerName, authorName }: Props) {
     try {
       await deleteStory(storyId);
       await load();
+      await refreshLimits();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось удалить историю");
     } finally {
@@ -211,6 +234,12 @@ export function StoryEditorSection({ scope, providerName, authorName }: Props) {
       </Typography>
 
       {error ? <Alert severity="error">{error}</Alert> : null}
+      {limits ? (
+        <Alert severity={limits.used >= limits.dailyLimit ? "warning" : "info"}>
+          Опубликовано сегодня: {limits.used} из {limits.dailyLimit}. Лимит обновится {new Date(limits.resetAt).toLocaleString("ru-RU", { timeZone: limits.timezone })} ({limits.timezone}).
+          {scope === "provider" ? " Лимит общий для всех сотрудников профиля." : ""} Удаление истории не возвращает публикацию.
+        </Alert>
+      ) : null}
 
       {live.length === 0 && completed.length === 0 && saved.length === 0 ? (
         <Typography sx={{ color: "text.secondary" }}>
@@ -224,6 +253,9 @@ export function StoryEditorSection({ scope, providerName, authorName }: Props) {
           lane={lane}
           busy={busy}
           previewUrl={previewUrl}
+          previewVideo={!!file?.type.startsWith("video/")}
+          allowVideo={limits?.video ?? false}
+          textFormat={limits?.textFormat}
           previewAuthor={previewAuthor}
           previewText={text}
           onToggleCompose={() => setComposing(true)}
@@ -248,13 +280,14 @@ export function StoryEditorSection({ scope, providerName, authorName }: Props) {
             )
           }
         />
-        {composing ? (
+        {composing && limits ? (
           <NewStoryComposer
             text={text}
-            durationDays={durationDays}
+            limits={limits}
+            durationHours={durationHours}
             busy={busy}
             onText={setText}
-            onDuration={setDurationDays}
+            onDuration={setDurationHours}
             onPublish={() => void publish()}
             onCancel={cancelCompose}
           />

@@ -1,25 +1,26 @@
-export const STORY_DURATION_DAYS = [1, 2, 3, 7] as const;
-export type StoryDurationDays = (typeof STORY_DURATION_DAYS)[number];
+export const STORY_DURATION_HOURS = [6, 12, 24, 48] as const;
+export type StoryDurationHours = (typeof STORY_DURATION_HOURS)[number];
 
-export const STORY_TEXT_MAX_LENGTH = 500;
+export const STORY_TEXT_MAX_LENGTH = 2048;
 export const STORY_FEED_LIMIT = 30;
+export const STORY_VIDEO_MAX_BYTES = 100 * 1024 * 1024;
 export const STORY_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 
-const DURATION_SET = new Set<number>(STORY_DURATION_DAYS);
+const DURATION_SET = new Set<number>(STORY_DURATION_HOURS);
 
-export function parseStoryDurationDays(
+export function parseStoryDurationHours(
   value: unknown,
-): StoryDurationDays | null {
+): StoryDurationHours | null {
   const parsed = typeof value === 'number' ? value : Number(value);
   if (!Number.isInteger(parsed) || !DURATION_SET.has(parsed)) return null;
-  return parsed as StoryDurationDays;
+  return parsed as StoryDurationHours;
 }
 
 export function computeStoryExpiresAt(
   publishedAt: Date,
-  durationDays: StoryDurationDays,
+  durationHours: StoryDurationHours,
 ): Date {
-  return new Date(publishedAt.getTime() + durationDays * 24 * 60 * 60 * 1000);
+  return new Date(publishedAt.getTime() + durationHours * 60 * 60 * 1000);
 }
 
 /** Multipart присылает перевод строки как CRLF. Для лимита это один символ. */

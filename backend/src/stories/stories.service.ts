@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { createHash, randomUUID } from 'node:crypto';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   publicCityName,
@@ -21,7 +21,7 @@ import {
   mergeCityFirstStories,
   normalizeStoryText,
   orderStoryFeed,
-  parseStoryDurationDays,
+  parseStoryDurationHours,
   resolveInsightsTimeZone,
   storyFeedReason,
   type StoryFeedReason,
@@ -35,6 +35,14 @@ import {
   type InboxReplyRow,
   type InboxScope,
 } from './story-inbox';
+
+import { entitlementPlan } from '../billing/plan-policy';
+import {
+  STORY_PLAN_LIMITS,
+  storyDayWindow,
+  validateStoryPlan,
+} from './story-plan';
+import { prepareStoryVideo } from './story-video';
 
 const ALLOWED_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
@@ -56,7 +64,10 @@ export type StoryDto = {
   cityId: string | null;
   text: string;
   imageUrl: string | null;
-  durationDays: number;
+  durationHours: number;
+  textFormat: string;
+  videoUrl: string | null;
+  videoDurationSeconds: number | null;
   publishedAt: string;
   expiresAt: string;
   expired: boolean;
@@ -158,7 +169,10 @@ function toDto(
     cityId: row.cityId,
     text: row.text,
     imageUrl: row.imageUrl,
-    durationDays: row.durationDays,
+    durationHours: row.durationHours,
+    textFormat: row.textFormat,
+    videoUrl: row.videoUrl,
+    videoDurationSeconds: row.videoDurationSeconds,
     publishedAt: row.publishedAt.toISOString(),
     expiresAt: row.expiresAt.toISOString(),
     expired: isStoryExpired(row.expiresAt, now),
@@ -271,85 +285,172 @@ export class StoriesService {
     return { items: rows.map((row) => toDto(row, now)) };
   }
 
+  private async publicationContext(
+    actorUserId: string,
+    scope: 'user' | 'provider',
+  ) {
+    if (scope === 'provider') {
+      const member = await this.requireActiveMembership(actorUserId);
+      return { providerId: member.providerId, cityId: member.provider.cityId };
+    }
+    const user = await this.prisma.user.findUnique({
+      where: { id: actorUserId },
+      select: { customerCityId: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    return { providerId: null, cityId: user.customerCityId };
+  }
+
+  private async publicationLimits(
+    actorUserId: string,
+    providerId: string | null,
+    now: Date,
+    tx: Prisma.TransactionClient = this.prisma,
+  ) {
+    const account = providerId
+      ? await tx.billingAccount.findUnique({ where: { providerId } })
+      : null;
+    const plan = providerId ? entitlementPlan(account, now) : 'STANDARD';
+    const timezone = resolveInsightsTimeZone(account?.timezone);
+    const window = storyDayWindow(now, timezone);
+    // Withdrawn stories count too: removing a publication never refunds its quota.
+    const used = await tx.story.count({
+      where: {
+        ...(providerId
+          ? { providerId, authorType: 'PROVIDER' }
+          : { authorUserId: actorUserId, authorType: 'USER' }),
+        publishedAt: { gte: window.start, lt: window.end },
+      },
+    });
+    return {
+      plan,
+      ...STORY_PLAN_LIMITS[plan],
+      used,
+      timezone,
+      resetAt: window.end.toISOString(),
+    };
+  }
+
+  async limits(input: { actorUserId: string; scope: 'user' | 'provider' }) {
+    const context = await this.publicationContext(
+      input.actorUserId,
+      input.scope,
+    );
+    return this.publicationLimits(
+      input.actorUserId,
+      context.providerId,
+      new Date(),
+    );
+  }
+
   async create(input: {
     actorUserId: string;
     scope: 'user' | 'provider';
     text: string;
-    durationDays: unknown;
+    durationHours: unknown;
     file?: Express.Multer.File;
   }): Promise<StoryDto> {
     const text = normalizeStoryText(input.text);
-    if (!text) {
-      throw new BadRequestException('text is required');
-    }
-
-    const durationDays = parseStoryDurationDays(input.durationDays);
-    if (!durationDays) {
-      throw new BadRequestException('durationDays must be 1, 2, 3 or 7');
-    }
-
-    const publishedAt = new Date();
-    const expiresAt = computeStoryExpiresAt(publishedAt, durationDays);
+    if (!text)
+      throw new BadRequestException('Введите текст истории (до 2048 символов)');
+    const durationHours = parseStoryDurationHours(input.durationHours);
+    if (!durationHours)
+      throw new BadRequestException(
+        'Выберите срок показа: 6, 12, 24 или 48 часов',
+      );
+    const context = await this.publicationContext(
+      input.actorUserId,
+      input.scope,
+    );
+    const video = !!input.file?.mimetype.startsWith('video/');
+    const initial = await this.publicationLimits(
+      input.actorUserId,
+      context.providerId,
+      new Date(),
+    );
+    validateStoryPlan(initial.plan, { text, durationHours, video });
+    if (initial.used >= initial.dailyLimit)
+      throw new ForbiddenException('Суточный лимит историй исчерпан');
     const id = randomUUID();
-    const imageUrl = input.file
-      ? await this.uploadStoryImage(id, input.file)
-      : null;
-
+    let imageUrl: string | null = null;
+    let videoUrl: string | null = null;
+    let videoDurationSeconds: number | null = null;
     try {
-      if (input.scope === 'provider') {
-        const membership = await this.requireActiveMembership(
+      if (input.file) {
+        if (video) {
+          const media = await prepareStoryVideo(input.file.buffer);
+          videoDurationSeconds = media.duration;
+          imageUrl = await this.uploadStoryObject(
+            id,
+            media.poster,
+            '.jpg',
+            'image/jpeg',
+          );
+          videoUrl = await this.uploadStoryObject(
+            id,
+            media.video,
+            '.mp4',
+            'video/mp4',
+          );
+        } else imageUrl = await this.uploadStoryImage(id, input.file);
+      }
+      return await this.prisma.$transaction(async (tx) => {
+        // Serialize publications by profile across workers and team members.
+        const key = `story:${context.providerId ?? input.actorUserId}`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
+        if (context.providerId) {
+          const membership = await tx.providerMember.findUnique({
+            where: {
+              providerId_userId: {
+                providerId: context.providerId,
+                userId: input.actorUserId,
+              },
+            },
+          });
+          if (
+            !membership ||
+            membership.status !== 'ACTIVE' ||
+            !['OWNER', 'MANAGER'].includes(membership.role)
+          )
+            throw new ForbiddenException('Provider access denied');
+        }
+        const publishedAt = new Date();
+        const limits = await this.publicationLimits(
           input.actorUserId,
+          context.providerId,
+          publishedAt,
+          tx,
         );
-        const row = await this.prisma.story.create({
+        validateStoryPlan(limits.plan, { text, durationHours, video });
+        if (limits.used >= limits.dailyLimit)
+          throw new ForbiddenException('Суточный лимит историй исчерпан');
+        const row = await tx.story.create({
           data: {
             id,
-            authorType: 'PROVIDER',
+            authorType: input.scope === 'provider' ? 'PROVIDER' : 'USER',
             authorUserId: input.actorUserId,
-            providerId: membership.providerId,
-            cityId: membership.provider.cityId,
+            ...context,
             text,
+            textFormat: limits.textFormat,
             imageUrl,
-            durationDays,
+            videoUrl,
+            videoDurationSeconds,
+            durationHours,
             publishedAt,
-            expiresAt,
+            expiresAt: computeStoryExpiresAt(publishedAt, durationHours),
           },
           include: storyInclude,
         });
+        if (input.scope === 'user')
+          await tx.user.update({
+            where: { id: input.actorUserId },
+            data: { profilePublic: true },
+          });
         return toDto(row, publishedAt);
-      }
-
-      const user = await this.prisma.user.findUnique({
-        where: { id: input.actorUserId },
-        select: { id: true, customerCityId: true },
       });
-      if (!user) {
-        throw new NotFoundException('User not found');
-      }
-
-      const row = await this.prisma.story.create({
-        data: {
-          id,
-          authorType: 'USER',
-          authorUserId: input.actorUserId,
-          providerId: null,
-          cityId: user.customerCityId,
-          text,
-          imageUrl,
-          durationDays,
-          publishedAt,
-          expiresAt,
-        },
-        include: storyInclude,
-      });
-      await this.prisma.user.update({
-        where: { id: input.actorUserId },
-        data: { profilePublic: true },
-      });
-      return toDto(row, publishedAt);
     } catch (error) {
-      if (imageUrl) {
-        await this.deleteStoryObject(imageUrl);
-      }
+      if (imageUrl) await this.deleteStoryObject(imageUrl);
+      if (videoUrl) await this.deleteStoryObject(videoUrl);
       throw error;
     }
   }
@@ -907,7 +1008,7 @@ export class StoriesService {
   repost(input: {
     storyId: string;
     actorUserId: string;
-    durationDays: unknown;
+    durationHours: unknown;
   }): never {
     // Why: маршрут принимает тело, но репост ещё не реализован — аргумент нужен только контракту.
     void input;
@@ -1840,6 +1941,15 @@ export class StoriesService {
       throw new BadRequestException('Unsupported image type');
     }
 
+    return this.uploadStoryObject(storyId, buf, ext, file.mimetype);
+  }
+
+  private async uploadStoryObject(
+    storyId: string,
+    buf: Buffer,
+    ext: string,
+    contentType: string,
+  ) {
     const bucket = this.s3.requirePublicBucket();
     const cdnBase = this.s3.requirePublicCdnBaseUrl();
     const hash = sha256Buffer(buf);
@@ -1851,7 +1961,7 @@ export class StoriesService {
         Bucket: bucket,
         Key: key,
         Body: buf,
-        ContentType: file.mimetype,
+        ContentType: contentType,
         CacheControl: 'public, max-age=31536000, immutable',
       }),
     );

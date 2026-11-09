@@ -55,12 +55,12 @@ export async function fetchMyStories(scope: StoryScope): Promise<StoryListDto> {
 export async function createStory(input: {
   scope: StoryScope;
   text: string;
-  durationDays: number;
+  durationHours: number;
   file?: File | null;
 }): Promise<StoryDto> {
   const form = new FormData();
   form.append("text", input.text);
-  form.append("durationDays", String(input.durationDays));
+  form.append("durationHours", String(input.durationHours));
   form.append("scope", input.scope);
   if (input.file) form.append("file", input.file);
   const res = await fetch("/api/stories", { method: "POST", body: form });
@@ -225,4 +225,9 @@ export async function sendStoryConversationMessage(
     },
   );
   return parseJson<StoryConversationMessageDto>(res, "Не удалось отправить сообщение");
+}
+
+export async function fetchStoryLimits(scope: StoryScope): Promise<import("../dto/story.dto").StoryLimits> {
+  const res = await fetch(`/api/stories/limits?scope=${scope}`, { cache: "no-store" });
+  return parseJson(res, "Не удалось загрузить лимиты историй");
 }

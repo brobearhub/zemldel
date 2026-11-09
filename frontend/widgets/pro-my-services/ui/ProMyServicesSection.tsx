@@ -59,7 +59,7 @@ function ServicePhoto({ service }: { service: ServiceDto }) {
 
 export function ProMyServicesSection({ services }: { services: ServiceDto[] }) {
   const [summaries, setSummaries] = useState<Record<string, Summary>>({});
-  const [showEmpty, setShowEmpty] = useState(false);
+  const [showEmpty, setShowEmpty] = useState(true);
   const [expandedServiceId, setExpandedServiceId] = useState<string | null>(
     null,
   );

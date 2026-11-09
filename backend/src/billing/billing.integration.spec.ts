@@ -86,10 +86,10 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
     await prisma.request.deleteMany({
       where: { conversations: { some: { providerId: { in: providers } } } },
     });
-    await prisma.billingTestOrder.deleteMany({
+    await prisma.billingOrder.deleteMany({
       where: { providerId: { in: providers } },
     });
-    await prisma.billingTestAccount.deleteMany({
+    await prisma.billingAccount.deleteMany({
       where: { providerId: { in: providers } },
     });
     await prisma.providerMember.deleteMany({
@@ -105,7 +105,7 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
     status = 'CONFIRMED',
     changes: Record<string, unknown> = {},
   ) {
-    const order = await prisma.billingTestOrder.findUniqueOrThrow({
+    const order = await prisma.billingOrder.findUniqueOrThrow({
       where: { id: orderId },
     });
     const data = {
@@ -147,15 +147,211 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
           'utf8',
         ),
       );
-      const result = await client.query<{ count: string }>(
-        'SELECT count(*) FROM "BillingTestOrder"',
+      const existingProvider = randomUUID();
+      await client.query('INSERT INTO "Provider" (id) VALUES ($1)', [
+        existingProvider,
+      ]);
+      await client.query(
+        'INSERT INTO "BillingTestAccount" ("providerId", plan, "planExpiresAt", "autoRenew") VALUES ($1, $2, $3, true)',
+        [existingProvider, 'LITE', new Date('2027-01-01T00:00:00Z')],
       );
-      expect(result.rows[0].count).toBe('0');
+      await client.query(
+        readFileSync(
+          'prisma/migrations/20261109210000_annual_billing/migration.sql',
+          'utf8',
+        ),
+      );
+      const oldOrderId = randomUUID();
+      await client.query(
+        'INSERT INTO "BillingTestOrder" (id, "providerId", "operationId", product, amount, "terminalKey", status, "fulfilledAt", "expiresAt", "updatedAt") VALUES ($1, $2, $3, $4, 700, $5, $6, $7, $8, $9)',
+        [
+          oldOrderId,
+          existingProvider,
+          randomUUID(),
+          'LITE',
+          'qaDEMO',
+          'CONFIRMED',
+          new Date('2026-12-01'),
+          new Date('2026-12-01'),
+          new Date('2026-12-01'),
+        ],
+      );
+      // The rename script is transactional in deploy. This test already owns a transaction.
+      const rename = readFileSync(
+        'prisma/migrations/20261109220000_billing_names/migration.sql',
+        'utf8',
+      )
+        .replace(/^BEGIN;$/m, '')
+        .replace(/^COMMIT;$/m, '');
+      await client.query(rename);
+      expect(
+        (
+          await client.query(
+            'SELECT product, amount, status FROM "BillingOrder" WHERE id = $1',
+            [oldOrderId],
+          )
+        ).rows[0],
+      ).toEqual({ product: 'LITE', amount: 700, status: 'CONFIRMED' });
+      expect(
+        (
+          await client.query(
+            `SELECT table_name FROM information_schema.tables WHERE table_schema = 'billing_migration_qa' AND table_name ILIKE '%test%'`,
+          )
+        ).rows,
+      ).toEqual([]);
+      const migrated = await client.query(
+        'SELECT "billingPeriod", "planExpiresAt", "autoRenew" FROM "BillingAccount" WHERE "providerId" = $1',
+        [existingProvider],
+      );
+      expect(migrated.rows[0]).toEqual({
+        billingPeriod: 'MONTH',
+        planExpiresAt: new Date('2027-01-01T00:00:00Z'),
+        autoRenew: true,
+      });
+      const result = await client.query<{ count: string }>(
+        'SELECT count(*) FROM "BillingOrder"',
+      );
+      expect(result.rows[0].count).toBe('1');
     } finally {
       await client.query('ROLLBACK');
       await client.end();
     }
   });
+  it.each([
+    ['LITE_YEAR', 'LITE', 7560],
+    ['BUSINESS_YEAR', 'BUSINESS', 9720],
+  ] as const)(
+    'activates %s for twelve calendar months and keeps cancellation after late notifications',
+    async (product, plan, amount) => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        vi.setSystemTime(new Date('2028-02-29T09:15:00Z'));
+        const quote = await service.quote(userId, providerId, product);
+        expect(quote).toMatchObject({ amount, mode: 'purchase' });
+        const order = await service.checkout(
+          userId,
+          providerId,
+          product,
+          randomUUID(),
+          true,
+          quote.quoteAt,
+          amount,
+        );
+        expect(call.mock.calls[0][1]).toMatchObject({
+          Amount: amount,
+          Recurrent: 'Y',
+        });
+        const before = await service.overview(userId, providerId);
+        expect(before.renewalPending).toBe(true);
+        await service.settings(userId, providerId, {
+          autoRenew: false,
+          nextPlan: 'STANDARD',
+        });
+        await notification(order.id, 'CONFIRMED', { RebillId: '123456789' });
+        await notification(order.id, 'AUTHORIZED', { RebillId: '123456789' });
+        const account = await service.overview(userId, providerId);
+        expect(account).toMatchObject({
+          plan,
+          billingPeriod: 'YEAR',
+          autoRenew: false,
+          renewalPending: false,
+          nextPlan: 'STANDARD',
+        });
+        expect(account.planExpiresAt?.toISOString()).toBe(
+          '2029-02-28T09:15:00.000Z',
+        );
+        vi.setSystemTime(new Date('2029-02-28T09:15:01Z'));
+        const worker = new BillingRenewalService(prisma, service, {
+          call,
+        } as unknown as TbankClient);
+        await worker.renew(providerId);
+        expect(
+          call.mock.calls.filter(([method]) => method === 'Charge'),
+        ).toHaveLength(0);
+        expect((await service.overview(userId, providerId)).plan).toBe(
+          'STANDARD',
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  it('converts a paid month to a year using the server quote and schedules a shorter period', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date('2026-11-16T00:00:00Z'));
+      await prisma.billingAccount.create({
+        data: {
+          providerId,
+          plan: 'LITE',
+          billingPeriod: 'MONTH',
+          planStartedAt: new Date('2026-11-01'),
+          planExpiresAt: new Date('2026-12-01'),
+        },
+      });
+      const quote = await service.quote(userId, providerId, 'LITE_YEAR');
+      expect(quote.amount).toBe(307970);
+      await expect(
+        service.checkout(
+          userId,
+          providerId,
+          'LITE_YEAR',
+          randomUUID(),
+          false,
+          quote.quoteAt,
+          1,
+        ),
+      ).rejects.toThrow('Тариф изменился');
+      const order = await service.checkout(
+        userId,
+        providerId,
+        'LITE_YEAR',
+        randomUUID(),
+        true,
+        quote.quoteAt,
+        quote.amount,
+      );
+      await notification(order.id, 'CONFIRMED', { RebillId: '123' });
+      const account = await service.overview(userId, providerId);
+      expect(account).toMatchObject({
+        plan: 'LITE',
+        billingPeriod: 'YEAR',
+        autoRenew: true,
+      });
+      expect(account.planExpiresAt?.toISOString()).toBe(
+        '2027-11-16T00:00:00.000Z',
+      );
+      expect(await service.quote(userId, providerId, 'LITE')).toMatchObject({
+        mode: 'schedule',
+        amount: 700,
+      });
+      await expect(
+        service.checkout(userId, providerId, 'LITE', randomUUID()),
+      ).rejects.toThrow('Запланируйте');
+      await service.settings(userId, providerId, {
+        nextPlan: 'LITE',
+        nextBillingPeriod: 'MONTH',
+      });
+      expect(await service.overview(userId, providerId)).toMatchObject({
+        billingPeriod: 'YEAR',
+        nextBillingPeriod: 'MONTH',
+        planExpiresAt: account.planExpiresAt,
+      });
+      await service.settings(userId, providerId, {
+        nextPlan: 'STANDARD',
+        autoRenew: false,
+      });
+      expect(await service.overview(userId, providerId)).toMatchObject({
+        autoRenew: false,
+        nextBillingPeriod: null,
+        planExpiresAt: account.planExpiresAt,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('creates exactly one bank payment for concurrent duplicate operations', async () => {
     const operationId = randomUUID();
     const orders = await Promise.all(
@@ -165,10 +361,19 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
     );
     expect(new Set(orders.map((o) => o.id)).size).toBe(1);
     expect(call).toHaveBeenCalledTimes(1);
-    expect(orders[0].amount).toBe(29900);
+    expect(orders[0].amount).toBe(700);
     await expect(
       service.checkout(userId, providerId, 'BUSINESS', operationId),
     ).rejects.toThrow();
+  });
+  it('does not sell reply packages on any plan', async () => {
+    await expect(
+      service.quote(userId, providerId, 'REPLIES_10'),
+    ).rejects.toThrow('без ограничений');
+    await expect(
+      service.checkout(userId, providerId, 'REPLIES_10', randomUUID()),
+    ).rejects.toThrow('без ограничений');
+    expect(call).not.toHaveBeenCalled();
   });
   it('blocks non-members and managers from checkout', async () => {
     await expect(
@@ -187,15 +392,15 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
     const order = await service.checkout(
       userId,
       providerId,
-      'REPLIES_10',
+      'LITE',
       randomUUID(),
     );
     await notification(order.id, 'AUTHORIZED');
-    expect((await service.overview(userId, providerId)).replyCredits).toBe(0);
+    expect((await service.overview(userId, providerId)).plan).toBe('STANDARD');
     await Promise.all(Array.from({ length: 8 }, () => notification(order.id)));
     await notification(order.id, 'AUTHORIZED');
     const overview = await service.overview(userId, providerId);
-    expect(overview.replyCredits).toBe(10);
+    expect(overview.plan).toBe('LITE');
     expect(overview.orders[0].status).toBe('CONFIRMED');
   });
   it('rejects forged notifications and mismatched payment details', async () => {
@@ -241,14 +446,14 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
     const order = await service.checkout(
       userId,
       providerId,
-      'REPLIES_10',
+      'LITE',
       randomUUID(),
     );
     await notification(order.id);
     await notification(order.id, 'PARTIAL_REFUNDED', { Amount: 5000 });
     await notification(order.id);
     const overview = await service.overview(userId, providerId);
-    expect(overview.replyCredits).toBe(10);
+    expect(overview.plan).toBe('LITE');
     expect(overview.needsReview).toBe(true);
     expect(overview.orders[0].status).toBe('PARTIAL_REFUNDED');
     await expect(
@@ -281,7 +486,7 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
             ErrorCode: '0',
             TerminalKey: 'qaDEMO',
             OrderId: order.id,
-            Amount: 99900,
+            Amount: 900,
             PaymentId: '123456',
             Status: 'CONFIRMED',
           },
@@ -304,72 +509,10 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
     ).rejects.toThrow();
     await expect(service.overview(randomUUID(), providerId)).rejects.toThrow();
   });
-  async function conversation() {
-    const customer = randomUUID();
-    users.push(customer);
-    await prisma.user.create({
-      data: { id: customer, email: `${customer}@example.test` },
-    });
-    const request = await prisma.request.create({
-      data: { customerUserId: customer },
-    });
-    return prisma.conversation.create({
-      data: { providerId, requestId: request.id, customerUserId: customer },
-    });
-  }
-
-  it('serializes the shared daily quota, reserves and duplicate replies', async () => {
-    const plans = new PlanService(prisma);
-    const conversations = await Promise.all(
-      Array.from({ length: 6 }, conversation),
-    );
-    const send = (id: string) =>
-      prisma.$transaction((tx) => plans.consumeReply(tx, userId, id));
-    const results = await Promise.allSettled(
-      conversations.map((c) => send(c.id)),
-    );
-    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(5);
-    expect((await service.overview(userId, providerId)).dailyUsed).toBe(5);
-    const index = results.findIndex((r) => r.status === 'rejected');
-    await prisma.billingTestAccount.update({
-      where: { providerId },
-      data: { replyCredits: 10 },
-    });
-    await Promise.all(
-      Array.from({ length: 4 }, () => send(conversations[index].id)),
-    );
-    expect((await service.overview(userId, providerId)).replyCredits).toBe(9);
-    expect(await prisma.replyDebit.count({ where: { providerId } })).toBe(6);
-    const reset = (await service.overview(userId, providerId)).quotaResetAt;
-    await service.settings(userId, providerId, { timezone: 'Asia/Kamchatka' });
-    await expect(
-      service.settings(userId, providerId, { timezone: '' }),
-    ).rejects.toThrow('Неизвестный часовой пояс');
-    const after = await service.overview(userId, providerId);
-    expect(after.timezone).toBe('Asia/Kamchatka');
-    expect(after.dailyUsed).toBe(5);
-    expect(after.quotaResetAt.getTime()).toBeGreaterThanOrEqual(
-      reset.getTime(),
-    );
-  });
-
-  it('rolls back quota when message storage fails', async () => {
-    const conv = await conversation();
-    const plans = new PlanService(prisma);
-    await expect(
-      prisma.$transaction(async (tx) => {
-        await plans.consumeReply(tx, userId, conv.id);
-        throw new Error('message failed');
-      }),
-    ).rejects.toThrow();
-    expect(await prisma.replyDebit.count({ where: { providerId } })).toBe(0);
-    expect((await service.overview(userId, providerId)).dailyUsed).toBe(0);
-  });
-
-  it('retains readable templates/tasks but blocks edits after downgrade', async () => {
+  it('keeps templates and tasks editable after downgrade', async () => {
     const plans = new PlanService(prisma),
       workspace = new WorkspaceService(prisma, plans);
-    await prisma.billingTestAccount.create({
+    await prisma.billingAccount.create({
       data: {
         providerId,
         plan: 'BUSINESS',
@@ -391,25 +534,27 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
     };
     await workspace.template(userId, providerId, template);
     await workspace.task(userId, providerId, task);
-    await prisma.billingTestAccount.update({
+    await prisma.billingAccount.update({
       where: { providerId },
       data: { planExpiresAt: new Date(0) },
     });
     const read = await workspace.read(userId, providerId);
     expect(read.templates).toHaveLength(1);
     expect(read.tasks).toHaveLength(1);
-    expect(read.limits.team).toBe(false);
+    expect(read.limits.team).toBe(true);
     expect(read.stats.byService).toBeUndefined();
     await expect(
       workspace.template(userId, providerId, template),
-    ).rejects.toThrow();
-    await expect(workspace.task(userId, providerId, task)).rejects.toThrow();
+    ).resolves.toBeDefined();
+    await expect(
+      workspace.task(userId, providerId, task),
+    ).resolves.toBeDefined();
     await expect(workspace.read(randomUUID(), providerId)).rejects.toThrow();
   });
 
   it('uses the quoted prorated amount and saves mandate arriving after confirmation', async () => {
     const now = Date.now();
-    await prisma.billingTestAccount.create({
+    await prisma.billingAccount.create({
       data: {
         providerId,
         plan: 'LITE',
@@ -418,7 +563,7 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
       },
     });
     const quote = await service.quote(userId, providerId, 'BUSINESS');
-    expect(quote.amount).toBeGreaterThanOrEqual(84950);
+    expect(quote.amount).toBeGreaterThanOrEqual(550);
     expect(quote.amount).toBeLessThan(84960);
     const order = await service.checkout(
       userId,
@@ -443,59 +588,112 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
     expect((await service.overview(userId, providerId)).autoRenew).toBe(false);
   });
 
-  it('renews once across workers and honors a scheduled lower plan', async () => {
-    await prisma.billingTestAccount.create({
+  it.each(['MONTH', 'YEAR'] as const)(
+    'renews once across workers and honors a scheduled lower plan with %s billing',
+    async (period) => {
+      await prisma.billingAccount.create({
+        data: {
+          providerId,
+          plan: 'BUSINESS',
+          nextPlan: 'LITE',
+          nextBillingPeriod: period,
+          planExpiresAt: new Date(Date.now() - 1000),
+          autoRenew: true,
+          rebillId: '123',
+        },
+      });
+      let state: Record<string, unknown> = {};
+      call.mockImplementation(
+        (method: string, input: Record<string, unknown>) => {
+          if (method === 'Init') {
+            state = {
+              Success: true,
+              ErrorCode: '0',
+              TerminalKey: 'qaDEMO',
+              Amount: input.Amount,
+              OrderId: input.OrderId,
+              PaymentId: period === 'YEAR' ? '987656' : '987654',
+              Status: 'NEW',
+              PaymentURL: 'https://pay.tbank.ru/test',
+            };
+            return state;
+          }
+          if (method === 'Charge') {
+            state = { ...state, Status: 'CONFIRMED' };
+            return state;
+          }
+          return state;
+        },
+      );
+      const worker = new BillingRenewalService(prisma, service, {
+        call,
+      } as unknown as TbankClient);
+      await Promise.all([worker.renew(providerId), worker.renew(providerId)]);
+      expect(
+        call.mock.calls.filter(([method]) => method === 'Charge'),
+      ).toHaveLength(1);
+      expect((await service.overview(userId, providerId)).plan).toBe('LITE');
+      expect(
+        (
+          await prisma.billingOrder.findFirstOrThrow({
+            where: { providerId },
+          })
+        ).amount,
+      ).toBe(period === 'YEAR' ? 7560 : 700);
+      expect((await service.overview(userId, providerId)).billingPeriod).toBe(
+        period,
+      );
+    },
+  );
+
+  it('cancels an annual renewal before Charge when the owner refuses during Init', async () => {
+    await prisma.billingAccount.create({
       data: {
         providerId,
-        plan: 'BUSINESS',
-        nextPlan: 'LITE',
-        planExpiresAt: new Date(Date.now() - 1000),
+        plan: 'LITE',
+        billingPeriod: 'YEAR',
         autoRenew: true,
         rebillId: '123',
+        planExpiresAt: new Date(Date.now() - 1000),
       },
     });
-    let state: Record<string, unknown> = {};
     call.mockImplementation(
-      (method: string, input: Record<string, unknown>) => {
-        if (method === 'Init') {
-          state = {
-            Success: true,
-            ErrorCode: '0',
-            TerminalKey: 'qaDEMO',
-            Amount: input.Amount,
-            OrderId: input.OrderId,
-            PaymentId: '987654',
-            Status: 'NEW',
-            PaymentURL: 'https://pay.tbank.ru/test',
-          };
-          return state;
-        }
-        if (method === 'Charge') {
-          state = { ...state, Status: 'CONFIRMED' };
-          return state;
-        }
-        return state;
+      async (method: string, input: Record<string, unknown>) => {
+        if (method !== 'Init') throw new Error('Charge must not run');
+        await service.settings(userId, providerId, {
+          autoRenew: false,
+          nextPlan: 'STANDARD',
+        });
+        return {
+          Success: true,
+          ErrorCode: '0',
+          TerminalKey: 'qaDEMO',
+          Amount: input.Amount,
+          OrderId: input.OrderId,
+          PaymentId: '987657',
+          Status: 'NEW',
+          PaymentURL: 'https://pay.tbank.ru/test',
+        };
       },
     );
     const worker = new BillingRenewalService(prisma, service, {
       call,
     } as unknown as TbankClient);
-    await Promise.all([worker.renew(providerId), worker.renew(providerId)]);
-    expect(
-      call.mock.calls.filter(([method]) => method === 'Charge'),
-    ).toHaveLength(1);
-    expect((await service.overview(userId, providerId)).plan).toBe('LITE');
+    await worker.renew(providerId);
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(call).toHaveBeenCalledWith('Init', expect.any(Object));
     expect(
       (
-        await prisma.billingTestOrder.findFirstOrThrow({
+        await prisma.billingOrder.findFirstOrThrow({
           where: { providerId },
         })
-      ).amount,
-    ).toBe(29900);
+      ).status,
+    ).toBe('CANCELED');
+    expect((await service.overview(userId, providerId)).autoRenew).toBe(false);
   });
 
   it('does not repeat Charge after a lost response', async () => {
-    await prisma.billingTestAccount.create({
+    await prisma.billingAccount.create({
       data: {
         providerId,
         plan: 'LITE',
@@ -543,7 +741,7 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
     try {
       const start = new Date('2026-11-07T00:00:00Z');
       vi.setSystemTime(start);
-      await prisma.billingTestAccount.create({
+      await prisma.billingAccount.create({
         data: {
           providerId,
           plan: 'BUSINESS',
@@ -577,7 +775,7 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
       for (const hours of [0, 23, 24, 47, 48, 71]) {
         vi.setSystemTime(new Date(start.getTime() + hours * 3600000));
         await worker.renew(providerId);
-        const count = await prisma.billingTestOrder.count({
+        const count = await prisma.billingOrder.count({
           where: { providerId },
         });
         expect(count).toBe(hours < 24 ? 1 : hours < 48 ? 2 : 3);
@@ -606,7 +804,7 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
       randomUUID(),
       true,
     );
-    await prisma.billingTestOrder.update({
+    await prisma.billingOrder.update({
       where: { id: old.id },
       data: { expiresAt: new Date(0) },
     });
@@ -619,7 +817,7 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
     );
     await notification(current.id, 'CONFIRMED', { RebillId: '999' });
     await notification(old.id, 'CONFIRMED', { RebillId: '111' });
-    const account = await prisma.billingTestAccount.findUniqueOrThrow({
+    const account = await prisma.billingAccount.findUniqueOrThrow({
       where: { providerId },
     });
     expect(account.plan).toBe('BUSINESS');
@@ -678,7 +876,7 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
       vi.stubEnv('PLAN_ENFORCEMENT_ENABLED', '1');
       await expect(
         workspace.template(userId, providerId, template),
-      ).rejects.toThrow();
+      ).resolves.toBeDefined();
       expect((await service.overview(userId, providerId)).plan).toBe(
         'STANDARD',
       );

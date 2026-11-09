@@ -1,57 +1,65 @@
-export type Product = "LITE" | "BUSINESS" | "REPLIES_10";
+export type BillingPeriod = "MONTH" | "YEAR";
+export const billingProducts = {
+  LITE: { plan: "LITE", period: "MONTH" },
+  BUSINESS: { plan: "BUSINESS", period: "MONTH" },
+  LITE_YEAR: { plan: "LITE", period: "YEAR" },
+  BUSINESS_YEAR: { plan: "BUSINESS", period: "YEAR" },
+} as const;
+export type Product = keyof typeof billingProducts;
+export type BillingCatalog = Record<Product, { amount: number }>;
+export function productFor(
+  plan: "LITE" | "BUSINESS",
+  period: BillingPeriod,
+): Product {
+  return period === "YEAR" ? `${plan}_YEAR` : plan;
+}
+export function money(kopecks: number) {
+  return (kopecks / 100).toLocaleString("ru-RU", {
+    minimumFractionDigits: kopecks % 100 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
+}
+export function periodLabel(period: BillingPeriod) {
+  return period === "YEAR" ? "год" : "месяц";
+}
 export const plans = [
   {
     id: "STANDARD",
     name: "Стандарт",
-    price: 0,
     description: "Чтобы начать и найти первых клиентов",
   },
   {
     id: "LITE",
     name: "Лайт",
-    price: 299,
     description: "Больше возможностей для самостоятельной работы",
   },
   {
     id: "BUSINESS",
     name: "Бизнес",
-    price: 999,
-    description: "Для команды и работы в нескольких регионах",
+    description: "Для расширенной статистики и оформления услуг",
   },
 ] as const;
 export const comparison = [
+  ["Формат историй", "Фото", "Фото", "Фото и видео до 2 минут"],
+  ["Истории в сутки", "1", "5", "20"],
+  ["Срок показа истории", "24 часа", "24 или 48 часов", "6, 12, 24 или 48 часов"],
+  ["Текст истории", "До 500 символов", "До 1000 символов", "До 2048 символов"],
+  ["Оформление текста истории", "Обычный текст", "Жирный и курсив", "Жирный, курсив и ссылки"],
   ["Фото в каждой услуге", "1", "3", "10"],
   ["Метка на карточке", "Без метки", "Основной цвет", "Все цвета"],
-  [
-    "География объявлений",
-    "1 область или города в ней",
-    "3 области или города в них",
-    "Вся Россия, любые области и города",
-  ],
-  [
-    "Свободные заявки",
-    "5 откликов в день",
-    "10 откликов в день",
-    "Без ограничений",
-  ],
   [
     "Статистика",
     "Базовые счётчики",
     "Услуги и конверсия",
     "Регионы, команда и этапы",
   ],
-  ["Шаблоны ответов", "—", "Личные", "Личные и общие"],
-  [
-    "Инструменты команды",
-    "Базовые",
-    "Базовые",
-    "Назначения, заметки, сроки и история",
-  ],
 ];
 export const productNames: Record<string, string> = {
   STANDARD: "Стандарт",
   LITE: "Лайт",
   BUSINESS: "Бизнес",
+  LITE_YEAR: "Лайт на год",
+  BUSINESS_YEAR: "Бизнес на год",
   REPLIES_10: "10 откликов",
 };
 export const statusNames: Record<string, string> = {
@@ -79,6 +87,7 @@ export type BillingOrder = {
   paymentUrl: string | null;
 };
 export type BillingOverview = {
+  catalog: BillingCatalog;
   entitlementPlan: string;
   enforcementEnabled: boolean;
   limits: {
@@ -93,6 +102,9 @@ export type BillingOverview = {
   autoRenew: boolean;
   canAutoRenew: boolean;
   nextPlan: string | null;
+  billingPeriod: BillingPeriod;
+  nextBillingPeriod: BillingPeriod | null;
+  renewalPending: boolean;
   timezone: string;
   graceUntil: string | null;
   dailyUsed: number;

@@ -138,4 +138,15 @@ describe("service photo gallery", () => {
     expect(uploads).toBe(3);
   });
 
+  it("explains the Standard photo limit instead of disabling the visible upload action", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: unknown) => Response.json(String(url).includes("/api/billing/") ? { entitlementPlan: "STANDARD", limits: { photos: 1 } } : [])));
+    mount(pictures(1));
+    await screen.findByText("Фотографии услуги · 1 из 1");
+    const action = screen.getByRole("button", { name: "Добавить фотографии" });
+    expect(action).not.toBeDisabled();
+    await userEvent.click(action);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("До 3 фото — на Лайте, до 10 — на Бизнесе");
+    expect(screen.getByRole("link", { name: "Перейти к тарифам" })).toHaveAttribute("href", "/pro/settings/tariff");
+  });
+
 });

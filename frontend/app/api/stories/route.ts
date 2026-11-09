@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { fetchBackend, fetchBackendAsUser } from "@/shared/api/backend/server";
+import { backendSwaggerFetch } from "@/shared/api/backend/server/swagger-transport";
+
 import { getServerAuthSession } from "@/core/auth";
+
+export const maxDuration = 240;
 
 export async function GET(request: Request) {
   try {
@@ -17,28 +21,44 @@ export async function GET(request: Request) {
     const response = session?.user?.id
       ? await fetchBackendAsUser(`/stories${suffix}`, session.user.id)
       : await fetchBackend(`/stories${suffix}`);
-    const payload = await response.json().catch(() => ({ error: "Failed to fetch stories" }));
+    const payload = await response
+      .json()
+      .catch(() => ({ error: "Failed to fetch stories" }));
     return NextResponse.json(payload, { status: response.status });
   } catch (error) {
     console.error("Error fetching stories:", error);
-    return NextResponse.json({ error: "Failed to fetch stories" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch stories" },
+      { status: 500 },
+    );
   }
 }
 
 export async function POST(request: Request) {
   try {
     const session = await getServerAuthSession();
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session?.user?.id)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const formData = await request.formData();
-    const response = await fetchBackendAsUser("/stories", session.user.id, {
-      method: "POST",
-      body: formData,
+    const response = await backendSwaggerFetch({
+      path: "/stories",
+      userId: session.user.id,
+      timeoutMs: 230_000,
+      init: {
+        method: "POST",
+        body: formData,
+      },
     });
-    const payload = await response.json().catch(() => ({ error: "Failed to create story" }));
+    const payload = await response
+      .json()
+      .catch(() => ({ error: "Failed to create story" }));
     return NextResponse.json(payload, { status: response.status });
   } catch (error) {
     console.error("Error creating story:", error);
-    return NextResponse.json({ error: "Failed to create story" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create story" },
+      { status: 500 },
+    );
   }
 }

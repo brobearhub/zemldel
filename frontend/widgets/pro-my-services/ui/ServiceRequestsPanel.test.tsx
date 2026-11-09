@@ -119,7 +119,7 @@ describe("ServiceRequestsPanel", () => {
     expect(fetchRequestList).toHaveBeenCalledWith({ serviceId: "svc" });
   });
 
-  it("длиннее трёх сворачивает список и раскрывает иконкой в шапке", async () => {
+  it("показывает три заявки и раскрывает остальные кнопкой под списком", async () => {
     const user = userEvent.setup();
     fetchRequestList.mockResolvedValue({
       items: Array.from({ length: 6 }, (_, index) =>
@@ -133,10 +133,12 @@ describe("ServiceRequestsPanel", () => {
     expect(screen.getByRole("heading", { name: "Заявки" }).parentElement).toHaveTextContent(/Заявки\s*6/);
     expect(screen.queryByRole("link", { name: /Клиент 5/ })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Развернуть заявки" }));
+    expect(screen.getByRole("button", { name: "Ещё" })).toHaveAttribute("aria-expanded", "false");
+    await user.click(screen.getByRole("button", { name: "Ещё" }));
 
     expect(await screen.findByRole("link", { name: /Клиент 5/ })).toBeInTheDocument();
     expect(screen.getAllByRole("link")).toHaveLength(6);
+    expect(screen.getByRole("button", { name: "Свернуть" })).toHaveAttribute("aria-expanded", "true");
 
     await user.click(screen.getByRole("button", { name: "Свернуть заявки" }));
 
@@ -435,15 +437,17 @@ describe("ProMyServicesSection", () => {
     expect(screen.getByText("Фото недоступно")).toBeVisible();
   });
 
-  it("puts actionable services first and hides empty services until expanded", async () => {
+  it("puts actionable services first and shows empty services by default", async () => {
     fetchRequestList.mockImplementation(async (query: { serviceId: string | null }) => ({ items: query.serviceId === "busy" ? [request({ id: "urgent", customerName: "Ждёт ответа", awaitingCustomerReply: false })] : [] }));
     render(<ProMyServicesSection services={[{ ...mainService, id: "empty", title: "Пустая услуга" }, { ...mainService, id: "busy", title: "Рабочая услуга" }]} />);
     expect(await screen.findByRole("link", { name: /Ждёт ответа/ })).toBeVisible();
-    expect(screen.queryByRole("heading", { name: "Пустая услуга" })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Услуги без заявок (1)" }));
     expect(screen.getByRole("heading", { name: "Пустая услуга" })).toBeVisible();
     const headings = screen.getAllByRole("heading").map(node => node.textContent);
     expect(headings.indexOf("Рабочая услуга")).toBeLessThan(headings.indexOf("Пустая услуга"));
+    await userEvent.click(await screen.findByRole("button", { name: "Скрыть услуги без заявок" }));
+    expect(screen.queryByRole("heading", { name: "Пустая услуга" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Услуги без заявок (1)" }));
+    expect(screen.getByRole("heading", { name: "Пустая услуга" })).toBeVisible();
   });
 
   it("разворачивает только один список заявок", async () => {

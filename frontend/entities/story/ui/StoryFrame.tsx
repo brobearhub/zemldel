@@ -1,10 +1,11 @@
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Box } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { CdnImage } from "@/shared/ui/cdn-image";
 
 type Props = {
   imageUrl: string | null;
+  videoUrl?: string | null;
   imageAlt?: string;
   onImageLoad?: () => void;
   onImageError?: () => void;
@@ -16,7 +17,15 @@ type Props = {
  * Кадр сторис: фото на всю область.
  * Один и тот же кадр у превью в кабинете и у полноэкранного просмотра, чтобы обложка не жила в двух местах.
  */
-export function StoryFrame({ imageUrl, imageAlt = "", onImageLoad, onImageError, children, sx }: Props) {
+export function StoryFrame({
+  imageUrl,
+  videoUrl,
+  imageAlt = "",
+  onImageLoad,
+  onImageError,
+  children,
+  sx,
+}: Props) {
   const onImageLoadRef = useRef(onImageLoad);
   const onImageErrorRef = useRef(onImageError);
   const notifiedSrc = useRef<string | null>(null);
@@ -47,7 +56,15 @@ export function StoryFrame({ imageUrl, imageAlt = "", onImageLoad, onImageError,
         ...(sx ? (Array.isArray(sx) ? sx : [sx]) : []),
       ]}
     >
-      {imageUrl ? (
+      {videoUrl ? (
+        <StoryVideo
+          key={videoUrl}
+          src={videoUrl}
+          poster={imageUrl ?? undefined}
+          onReady={onImageLoad}
+          onError={onImageError}
+        />
+      ) : imageUrl ? (
         <CdnImage
           src={imageUrl}
           alt={imageAlt}
@@ -68,5 +85,64 @@ export function StoryFrame({ imageUrl, imageAlt = "", onImageLoad, onImageError,
       ) : null}
       {children}
     </Box>
+  );
+}
+
+function StoryVideo({
+  src,
+  poster,
+  onReady,
+  onError,
+}: {
+  src: string;
+  poster?: string;
+  onReady?: () => void;
+  onError?: () => void;
+}) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const video = ref.current;
+    if (!video) return;
+    const pause = () => {
+      if (document.hidden) video.pause();
+    };
+    const observer =
+      typeof IntersectionObserver === "undefined"
+        ? null
+        : new IntersectionObserver(
+            ([entry]) => {
+              if (entry.intersectionRatio < 0.6) video.pause();
+            },
+            { threshold: [0, 0.6, 1] },
+          );
+    observer?.observe(video);
+    document.addEventListener("visibilitychange", pause);
+    return () => {
+      observer?.disconnect();
+      document.removeEventListener("visibilitychange", pause);
+      video.pause();
+    };
+  }, []);
+  return (
+    <video
+      ref={ref}
+      src={src}
+      poster={poster}
+      controls
+      playsInline
+      preload="metadata"
+      aria-label="Видео истории"
+      onLoadedMetadata={onReady}
+      onError={onError}
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        objectFit: "contain",
+      }}
+    />
   );
 }

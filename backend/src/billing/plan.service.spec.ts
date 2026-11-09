@@ -9,7 +9,7 @@ describe('temporary tariff pause', () => {
   it('gives an unpaid Standard profile every tool without consuming replies', async () => {
     vi.stubEnv('PLAN_ENFORCEMENT_ENABLED', '0');
     const db = {
-      billingTestAccount: { findUnique: vi.fn().mockResolvedValue(null) },
+      billingAccount: { findUnique: vi.fn().mockResolvedValue(null) },
     } as unknown as PrismaService;
     const plans = new PlanService(db);
     const access = await plans.access('provider');
@@ -30,41 +30,32 @@ describe('temporary tariff pause', () => {
         regionCodes: ['01', '02', '03', '04'],
       }),
     ).resolves.toBe(access.limits);
-    await expect(
-      plans.consumeReply({} as never, 'user', 'conversation'),
-    ).resolves.toBeUndefined();
   });
 
-  it('does not charge an old conversation when enforcement resumes', async () => {
+  it('keeps geography, templates and team available with enforcement enabled', async () => {
     vi.stubEnv('PLAN_ENFORCEMENT_ENABLED', '1');
-    const create = vi.fn().mockResolvedValue({});
-    const tx = {
-      conversation: {
-        findUnique: vi.fn().mockResolvedValue({
-          providerId: 'provider',
-          requestId: 'request',
-          customerUserId: 'customer',
-          request: {
-            serviceId: null,
-            categoryId: null,
-            customerUserId: 'customer',
-          },
-        }),
-      },
-      providerMember: {
-        findUnique: vi.fn().mockResolvedValue({ status: 'ACTIVE' }),
-      },
-      $queryRaw: vi.fn().mockResolvedValue([]),
-      replyDebit: { findUnique: vi.fn().mockResolvedValue(null), create },
-      message: { findFirst: vi.fn().mockResolvedValue({ id: 'old-reply' }) },
-      billingTestAccount: { upsert: vi.fn() },
-    };
-    const plans = new PlanService({} as PrismaService);
-    await plans.consumeReply(tx as never, 'provider-user', 'conversation');
-    expect(create).toHaveBeenCalledWith({
-      data: { providerId: 'provider', requestId: 'request', source: 'LEGACY' },
+    const db = {
+      billingAccount: { findUnique: vi.fn().mockResolvedValue(null) },
+    } as unknown as PrismaService;
+    const plans = new PlanService(db);
+    const access = await plans.access('provider');
+    expect(access.limits).toMatchObject({
+      regions: null,
+      replies: null,
+      templates: true,
+      sharedTemplates: true,
+      team: true,
     });
-    expect(tx.billingTestAccount.upsert).not.toHaveBeenCalled();
+    await expect(
+      plans.validateService('provider', {
+        allRussia: true,
+        regionCodes: ['01', '02', '03', '04'],
+      }),
+    ).resolves.toBe(access.limits);
+    for (const feature of ['templates', 'sharedTemplates', 'team'] as const)
+      await expect(
+        plans.requireFeature('provider', feature),
+      ).resolves.toBeUndefined();
   });
 
   it('does not start automatic charges during the pause', async () => {
@@ -73,7 +64,7 @@ describe('temporary tariff pause', () => {
     vi.stubEnv('TBANK_RENEWALS_ENABLED', '1');
     const findMany = vi.fn();
     const db = {
-      billingTestAccount: { findMany },
+      billingAccount: { findMany },
     } as unknown as PrismaService;
     const worker = new BillingRenewalService(db, {} as never, {} as never);
     const tick = vi.spyOn(worker, 'tick');

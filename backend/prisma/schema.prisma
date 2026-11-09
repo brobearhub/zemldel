@@ -455,8 +455,8 @@ model Provider {
   replyTemplates ReplyTemplate[]
   teamTasks ProviderTeamTask[]
   billingNotices BillingNotice[]
-  billingTestAccount BillingTestAccount?
-  billingTestOrders BillingTestOrder[]
+  billingAccount BillingAccount?
+  billingOrders BillingOrder[]
   passportGrants PassportAccessGrant[]
   id                String                 @id @default(uuid()) @db.Uuid
   name              String
@@ -519,15 +519,17 @@ model Provider {
   // частичный уникальный индекс Provider_one_personal_profile_per_owner в миграции.
 }
 
-// DEMO-terminal ledger only. Never used to authorize production features.
-model BillingTestAccount {
+// Provider subscription and payment ledger. Payment mode is configured separately.
+model BillingAccount {
   providerId String @id @db.Uuid
   plan String @default("STANDARD")
   planExpiresAt DateTime?
   planStartedAt DateTime?
+  billingPeriod String @default("MONTH")
   graceUntil DateTime?
   autoRenew Boolean @default(false)
   nextPlan String?
+  nextBillingPeriod String?
   rebillId String?
   consentVersion Int @default(0)
   timezone String @default("Europe/Moscow")
@@ -541,7 +543,7 @@ model BillingTestAccount {
   provider Provider @relation(fields: [providerId], references: [id], onDelete: Restrict)
 }
 
-model BillingTestOrder {
+model BillingOrder {
   id String @id @default(uuid()) @db.Uuid
   providerId String @db.Uuid
   operationId String @db.Uuid
@@ -1067,7 +1069,10 @@ model Story {
   sourceStoryId String?         @db.Uuid
   text          String
   imageUrl      String?
-  durationDays  Int
+  durationHours Int
+  textFormat    String          @default("PLAIN")
+  videoUrl      String?
+  videoDurationSeconds Float?
   publishedAt   DateTime        @default(now())
   expiresAt     DateTime
   withdrawnAt   DateTime?

@@ -48,6 +48,7 @@
 }
 .error {
   padding: 16px;
+  white-space: pre-line;
   background: #fff0eb;
   color: #872e21;
   border-radius: 12px;
@@ -75,8 +76,11 @@
 .table thead th {
   padding-top: 26px;
 }
-.table th:nth-child(3),
-.table td:nth-child(3) {
+.table th:first-child {
+  background: #eaece6;
+}
+.table th:nth-child(4),
+.table td:nth-child(4) {
   background: #e3ebdf;
 }
 .table tbody th {
@@ -284,4 +288,16 @@
   border: 1px solid #6f7d73;
   border-radius: 8px;
   font: inherit;
+}
+
+.periods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 20px 0 12px;
+}
+.table .price {
+  font-size: clamp(1.25rem, 2.8vw, 2rem);
+  white-space: normal;
+  overflow-wrap: anywhere;
 }

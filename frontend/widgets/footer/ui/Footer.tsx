@@ -250,6 +250,21 @@ export const Footer = () => {
               </Link>
               <Link
                 component={NextLink}
+                href="/pricing"
+                sx={{
+                  fontSize: "1rem",
+                  minHeight: 44,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  color: "inherit",
+                  textDecoration: "none",
+                  "&:hover": { textDecoration: "underline", opacity: 1 },
+                }}
+              >
+                Тарифы
+              </Link>
+              <Link
+                component={NextLink}
                 href="/terms"
                 sx={{
                   fontSize: "1rem",

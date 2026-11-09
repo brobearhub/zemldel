@@ -1,27 +1,34 @@
-import type { BillingTestAccount } from '@prisma/client';
+import type { BillingAccount } from '@prisma/client';
+import {
+  BILLING_PRODUCTS,
+  PLAN_PRODUCTS,
+  isPlanProduct,
+  planProduct,
+  type PlanProduct,
+} from './billing-catalog';
 
 export type Plan = 'STANDARD' | 'LITE' | 'BUSINESS';
-// Keep the tariff rules available while their enforcement is paused.
+// Explicit zero is an emergency override; tariff enforcement is on by default.
 export function planEnforcementEnabled() {
-  return process.env.PLAN_ENFORCEMENT_ENABLED === '1';
+  return process.env.PLAN_ENFORCEMENT_ENABLED !== '0';
 }
 export const PLAN_LIMITS = {
   STANDARD: {
     photos: 1,
-    regions: 1,
-    replies: 5,
-    templates: false,
-    sharedTemplates: false,
-    team: false,
+    regions: null,
+    replies: null,
+    templates: true,
+    sharedTemplates: true,
+    team: true,
     statistics: 0,
   },
   LITE: {
     photos: 3,
-    regions: 3,
-    replies: 10,
+    regions: null,
+    replies: null,
     templates: true,
-    sharedTemplates: false,
-    team: false,
+    sharedTemplates: true,
+    team: true,
     statistics: 1,
   },
   BUSINESS: {
@@ -37,7 +44,7 @@ export const PLAN_LIMITS = {
 
 export function effectivePlan(
   account:
-    | (Pick<BillingTestAccount, 'plan' | 'planExpiresAt'> & {
+    | (Pick<BillingAccount, 'plan' | 'planExpiresAt'> & {
         graceUntil?: Date | null;
         autoRenew?: boolean;
       })
@@ -90,30 +97,67 @@ export function nextMidnight(now: Date, timezone: string) {
   return new Date(high);
 }
 
+type PaidAccount = Pick<
+  BillingAccount,
+  'plan' | 'planExpiresAt' | 'planStartedAt'
+> & {
+  billingPeriod?: string;
+};
+
+export function purchaseMode(
+  account: PaidAccount | null,
+  product: PlanProduct,
+  now = new Date(),
+) {
+  const selected = PLAN_PRODUCTS[product];
+  if (
+    !account?.planExpiresAt ||
+    account.planExpiresAt <= now ||
+    !planProduct(account.plan)
+  )
+    return 'purchase';
+  const period = account.billingPeriod ?? 'MONTH';
+  if (account.plan === selected.plan && period === selected.period)
+    return 'current';
+  if (
+    (account.plan === 'BUSINESS' && selected.plan === 'LITE') ||
+    (period === 'YEAR' && selected.period === 'MONTH')
+  )
+    return 'schedule';
+  return 'purchase';
+}
+
 export function upgradeAmount(
-  account: Pick<
-    BillingTestAccount,
-    'plan' | 'planExpiresAt' | 'planStartedAt'
-  > | null,
+  account: PaidAccount | null,
   product: string,
   now = new Date(),
 ) {
+  if (!isPlanProduct(product)) {
+    if (product === 'REPLIES_10') return BILLING_PRODUCTS.REPLIES_10.amount;
+    throw new Error('Unknown billing product');
+  }
+  const price = PLAN_PRODUCTS[product].amount;
+  const current = account && planProduct(account.plan, account.billingPeriod);
   if (
-    product !== 'BUSINESS' ||
-    account?.plan !== 'LITE' ||
+    !account ||
+    !current ||
     !account.planStartedAt ||
     !account.planExpiresAt ||
-    account.planExpiresAt <= now
+    account.planExpiresAt <= now ||
+    purchaseMode(account, product, now) !== 'purchase'
   )
-    return product === 'BUSINESS' ? 99900 : product === 'LITE' ? 29900 : 9900;
+    return price;
   const duration =
     account.planExpiresAt.getTime() - account.planStartedAt.getTime();
   const fraction =
     duration > 0
-      ? Math.min(
-          1,
-          (account.planExpiresAt.getTime() - now.getTime()) / duration,
+      ? Math.max(
+          0,
+          Math.min(
+            1,
+            (account.planExpiresAt.getTime() - now.getTime()) / duration,
+          ),
         )
       : 0;
-  return 99900 - Math.floor(29900 * fraction);
+  return price - Math.floor(PLAN_PRODUCTS[current].amount * fraction);
 }

@@ -6,15 +6,15 @@ import { STORY_TEXT_MAX_LENGTH } from '../story-rules';
 import { CreateStoryDto } from './story.dto';
 
 describe('CreateStoryDto', () => {
-  it('принимает 500 символов, даже если перевод строки пришёл как CRLF', () => {
-    const text = `${Array.from({ length: 50 }, () => 'а'.repeat(9)).join('\n')}б`;
+  it('принимает 2048 символов, даже если перевод строки пришёл как CRLF', () => {
+    const text = 'а\n'.repeat(STORY_TEXT_MAX_LENGTH / 2 - 1) + 'бб';
     const wire = text.replace(/\n/g, '\r\n');
     expect(text).toHaveLength(STORY_TEXT_MAX_LENGTH);
     expect(wire.length).toBeGreaterThan(STORY_TEXT_MAX_LENGTH);
 
     const dto = plainToInstance(CreateStoryDto, {
       text: wire,
-      durationDays: 1,
+      durationHours: 24,
     });
     expect(validateSync(dto)).toEqual([]);
     expect(dto.text).toBe(text);
