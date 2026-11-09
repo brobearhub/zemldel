@@ -92,17 +92,22 @@ export class BillingService {
         take: 30,
       }),
     ]);
-    let enabled = false;
+    let config: ReturnType<typeof billingConfig> | undefined;
+    let configurationError: string | null = null;
     try {
-      billingConfig();
-      enabled = true;
-    } catch {
-      /* visible setup state */
+      config = billingConfig();
+    } catch (error) {
+      configurationError =
+        error instanceof ServiceUnavailableException
+          ? error.message
+          : 'Не удалось проверить настройки оплаты';
     }
     return {
       catalog: PLAN_PRODUCTS,
-      mode: 'test',
-      enabled,
+      mode:
+        config?.mode ?? (process.env.TBANK_MODE === 'live' ? 'live' : 'test'),
+      enabled: Boolean(config),
+      configurationError,
       canPay: member.role === 'OWNER',
       plan: effectivePlan(account),
       entitlementPlan: entitlementPlan(account),
@@ -112,6 +117,7 @@ export class BillingService {
       renewalPending: orders.some(
         (order) =>
           order.autoRenew &&
+          order.terminalKey === config?.terminalKey &&
           !order.renewalCycle &&
           order.consentVersion === account?.consentVersion &&
           (!CLOSED_STATUSES.includes(order.status) ||
@@ -119,7 +125,13 @@ export class BillingService {
               !order.rebillId &&
               !account?.rebillId)),
       ),
-      canAutoRenew: Boolean(account?.rebillId),
+      canAutoRenew: config
+        ? await this.hasRenewalMandate(
+            providerId,
+            account?.rebillId,
+            config.terminalKey,
+          )
+        : false,
       nextPlan: account?.nextPlan ?? null,
       billingPeriod: account?.billingPeriod ?? 'MONTH',
       nextBillingPeriod: account?.nextBillingPeriod ?? null,
@@ -142,6 +154,27 @@ export class BillingService {
       needsReview: account?.needsReview ?? false,
       orders: orders.map((order) => this.view(order)),
     };
+  }
+
+  async hasRenewalMandate(
+    providerId: string,
+    rebillId: string | null | undefined,
+    terminalKey: string,
+    db: Pick<PrismaService, 'billingOrder'> = this.prisma,
+  ) {
+    if (!rebillId) return false;
+    return Boolean(
+      await db.billingOrder.findFirst({
+        where: {
+          providerId,
+          rebillId,
+          terminalKey,
+          autoRenew: true,
+          status: 'CONFIRMED',
+        },
+        select: { id: true },
+      }),
+    );
   }
 
   async checkout(
@@ -167,7 +200,11 @@ export class BillingService {
         where: { providerId_operationId: { providerId, operationId } },
       });
       if (previous) {
-        if (previous.product !== product || previous.autoRenew !== autoRenew)
+        if (
+          previous.product !== product ||
+          previous.autoRenew !== autoRenew ||
+          previous.terminalKey !== config.terminalKey
+        )
           throw new ConflictException(
             'Эта операция уже использована для другого продукта',
           );
@@ -176,6 +213,7 @@ export class BillingService {
       const pending = await tx.billingOrder.findFirst({
         where: {
           providerId,
+          terminalKey: config.terminalKey,
           status: { notIn: CLOSED_STATUSES },
           expiresAt: { gt: new Date() },
         },
@@ -244,6 +282,8 @@ export class BillingService {
 
   async initialize(order: BillingOrder) {
     const config = billingConfig();
+    if (order.terminalKey !== config.terminalKey)
+      throw new BadRequestException('Платёж создан для другого терминала');
     const selected = BILLING_PRODUCTS[order.product as BillingProduct];
     const providerId = order.providerId;
     const returnUrl = `${config.siteUrl}/pro/settings/tariff?order=${order.id}`;
@@ -283,7 +323,7 @@ export class BillingService {
       throw new ServiceUnavailableException(
         /^\d{1,10}$/.test(errorCode)
           ? `Банк не создал платёж. Код ошибки банка: ${errorCode}.`
-          : 'Банк не создал платёж. Проверьте настройки тестового терминала.',
+          : 'Банк не создал платёж. Проверьте настройки терминала.',
       );
     }
     if (result.Success !== true)
@@ -622,7 +662,15 @@ export class BillingService {
         create: { providerId },
         update: {},
       });
-      if (input.autoRenew && !account.rebillId)
+      if (
+        input.autoRenew &&
+        !(await this.hasRenewalMandate(
+          providerId,
+          account.rebillId,
+          billingConfig().terminalKey,
+          tx,
+        ))
+      )
         throw new BadRequestException(
           'Подключите автопродление при следующей оплате картой',
         );

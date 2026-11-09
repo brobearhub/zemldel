@@ -328,7 +328,7 @@ export function BillingDashboard({
       </header>
       <div className={paper.receipt}>
         {error && (
-          <div className={s.error} role="alert">
+          <div className={`${s.error} ${paper.error}`} role="alert">
             {error
               .split(";")
               .map((part, index) => {
@@ -343,7 +343,7 @@ export function BillingDashboard({
               <div className={s.actions}>
                 <button
                   type="button"
-                  className={s.secondary}
+                  className={`${s.secondary} ${paper.secondaryButton}`}
                   onClick={() => {
                     setError("");
                     load().catch((e: Error) => setError(e.message));
@@ -356,7 +356,7 @@ export function BillingDashboard({
           </div>
         )}
         {message && (
-          <div className={s.notice} role="status">
+          <div className={`${s.notice} ${paper.notice}`} role="status">
             {message}
           </div>
         )}
@@ -364,18 +364,17 @@ export function BillingDashboard({
         {data && (
           <>
             {!data.enabled && (
-              <div className={s.notice}>
-                Оплата ещё не настроена. Покупки станут доступны после
-                подключения терминала.
+              <div className={`${s.notice} ${paper.notice}`}>
+                {data.configurationError ?? "Оплата ещё не настроена. Покупки станут доступны после подключения терминала."}
               </div>
             )}
             {!data.canPay && (
-              <div className={s.notice}>
+              <div className={`${s.notice} ${paper.notice}`}>
                 Покупать тарифы может владелец профиля.
               </div>
             )}
             {data.needsReview && (
-              <div className={s.error}>
+              <div className={`${s.error} ${paper.error}`}>
                 Платёж требует сверки. Новые покупки временно недоступны.
               </div>
             )}
@@ -399,7 +398,7 @@ export function BillingDashboard({
                     03 / Продление и настройки
                   </h2>
                   {data.graceUntil && new Date(data.graceUntil) > new Date() && (
-                    <div className={s.error}>
+                    <div className={`${s.error} ${paper.error}`}>
                       Не удалось продлить тариф. Доступ сохранён до{" "}
                       {date(data.graceUntil)}. Проверьте оплату.
                     </div>
@@ -503,7 +502,7 @@ export function BillingDashboard({
                           </p>
                           <button
                             type="button"
-                            className={s.secondary}
+                            className={`${s.secondary} ${paper.secondaryButton}`}
                             disabled={busy}
                             onClick={() =>
                               saveSettings({
@@ -586,7 +585,7 @@ export function BillingDashboard({
                       </TextField>
                       <button
                         type="submit"
-                        className={s.secondary}
+                        className={`${s.secondary} ${paper.secondaryButton}`}
                         disabled={busy || !data.canPay}
                       >
                         Сохранить
@@ -632,7 +631,7 @@ export function BillingDashboard({
                             <div className={paper.orderActions}>
                               {order.paymentUrl && data.canPay && (
                                 <a
-                                  className={s.button}
+                                  className={`${s.button} ${paper.primaryButton}`}
                                   href={bankUrl(order.paymentUrl)}
                                 >
                                   Продолжить оплату
@@ -640,7 +639,7 @@ export function BillingDashboard({
                               )}
                               <button
                                 type="button"
-                                className={s.secondary}
+                                className={`${s.secondary} ${paper.secondaryButton}`}
                                 disabled={busy || !data.enabled}
                                 onClick={() => checkOrder(order.id)}
                               >
@@ -726,7 +725,7 @@ export function BillingDashboard({
             <div className={s.actions}>
               <button
                 type="button"
-                className={s.button}
+                className={`${s.button} ${paper.primaryButton}`}
                 disabled={
                   busy ||
                   !data?.canPay ||
@@ -752,7 +751,7 @@ export function BillingDashboard({
               </button>
               <button
                 type="button"
-                className={s.secondary}
+                className={`${s.secondary} ${paper.secondaryButton}`}
                 disabled={busy}
                 onClick={() => setSelected(null)}
               >

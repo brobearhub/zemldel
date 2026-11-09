@@ -110,7 +110,8 @@ export type BillingOverview = {
   dailyUsed: number;
   quotaResetAt: string;
   notices: { id: string; message: string; createdAt: string }[];
-  mode: "test";
+  mode: "test" | "live";
+  configurationError?: string | null;
   enabled: boolean;
   canPay: boolean;
   plan: string;

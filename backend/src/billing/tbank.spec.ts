@@ -55,6 +55,32 @@ describe('T-Bank protocol', () => {
     vi.stubEnv('TBANK_TEST_ENABLED', '0');
     expect(() => billingConfig()).toThrow();
   });
+  it('allows live payment only with an explicit live configuration', () => {
+    vi.stubEnv('TBANK_ENABLED', '1');
+    vi.stubEnv('TBANK_MODE', 'live');
+    vi.stubEnv('TBANK_TERMINAL_KEY', 'production');
+    vi.stubEnv('TBANK_PASSWORD', 'test');
+    vi.stubEnv('TBANK_SITE_URL', 'https://example.test');
+    vi.stubEnv('TBANK_NOTIFICATION_URL', 'https://example.test/notify');
+    expect(billingConfig()).toMatchObject({
+      mode: 'live',
+      terminalKey: 'production',
+    });
+    vi.stubEnv('TBANK_TERMINAL_KEY', 'testDEMO');
+    expect(() => billingConfig()).toThrow('без DEMO');
+    vi.stubEnv('TBANK_TERMINAL_KEY', 'production');
+    vi.stubEnv('TBANK_MODE', 'invalid');
+    expect(() => billingConfig()).toThrow('test или live');
+    vi.stubEnv('TBANK_MODE', 'live');
+    vi.stubEnv('TBANK_ENABLED', undefined);
+    vi.stubEnv('TBANK_TEST_ENABLED', '1');
+    expect(() => billingConfig()).toThrow('требуется TBANK_ENABLED=1');
+  });
+  it('does not let the legacy test flag override an explicit disabled switch', () => {
+    vi.stubEnv('TBANK_ENABLED', '0');
+    vi.stubEnv('TBANK_TEST_ENABLED', '1');
+    expect(() => billingConfig()).toThrow('Оплата выключена');
+  });
   it('rejects unsafe redirect targets', () => {
     expect(safePaymentUrl('https://pay.tbank.ru/new/123')).toContain(
       'pay.tbank.ru',
@@ -72,23 +98,33 @@ describe('T-Bank protocol', () => {
     ])
       expect(() => safePaymentUrl(value)).toThrow();
   });
-  it('signs requests and never transmits the password', async () => {
-    vi.stubEnv('TBANK_TEST_ENABLED', '1');
-    vi.stubEnv('TBANK_TERMINAL_KEY', 'testDEMO');
-    vi.stubEnv('TBANK_PASSWORD', 'secret');
-    vi.stubEnv('TBANK_SITE_URL', 'https://example.test');
-    vi.stubEnv('TBANK_NOTIFICATION_URL', 'https://example.test/notify');
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(new Response(JSON.stringify({ Success: true })));
-    vi.stubGlobal('fetch', fetchMock);
-    await new TbankClient().call('GetState', { PaymentId: '123' });
-    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe('https://securepay.tinkoff.ru/v2/GetState');
-    const body = JSON.parse(options.body as string) as Record<string, unknown>;
-    expect(body.Password).toBeUndefined();
-    expect(body.Token).toBe(bankToken(body, 'secret'));
-  });
+  it.each(['test', 'live'])(
+    'signs %s requests and never transmits the password',
+    async (mode) => {
+      vi.stubEnv('TBANK_ENABLED', '1');
+      vi.stubEnv('TBANK_MODE', mode);
+      vi.stubEnv(
+        'TBANK_TERMINAL_KEY',
+        mode === 'test' ? 'testDEMO' : 'working-terminal',
+      );
+      vi.stubEnv('TBANK_PASSWORD', 'secret');
+      vi.stubEnv('TBANK_SITE_URL', 'https://example.test');
+      vi.stubEnv('TBANK_NOTIFICATION_URL', 'https://example.test/notify');
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify({ Success: true })));
+      vi.stubGlobal('fetch', fetchMock);
+      await new TbankClient().call('GetState', { PaymentId: '123' });
+      const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('https://securepay.tinkoff.ru/v2/GetState');
+      const body = JSON.parse(options.body as string) as Record<
+        string,
+        unknown
+      >;
+      expect(body.Password).toBeUndefined();
+      expect(body.Token).toBe(bankToken(body, 'secret'));
+    },
+  );
   it('clamps calendar months at month-end while preserving the time', () => {
     expect(
       addCalendarMonth(new Date('2027-01-31T09:00:00Z')).toISOString(),
