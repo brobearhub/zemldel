@@ -111,15 +111,13 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
         account.needsReview
       )
         return null;
-      if (
-        !(await this.billing.hasRenewalMandate(
-          providerId,
-          account.rebillId,
-          config.terminalKey,
-          tx,
-        ))
-      )
-        return null;
+      const mandate = await this.billing.getRenewalMandate(
+        providerId,
+        account.rebillId,
+        config.terminalKey,
+        tx,
+      );
+      if (!mandate) return null;
       if (now.getTime() >= cycle.getTime() + 72 * 3600000) {
         await tx.billingAccount.update({
           where: { providerId },
@@ -184,6 +182,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
           operationId: randomUUID(),
           product,
           amount: BILLING_PRODUCTS[product].amount,
+          receiptEmail: mandate.receiptEmail,
           terminalKey: config.terminalKey,
           autoRenew: true,
           rebillId: account.rebillId,

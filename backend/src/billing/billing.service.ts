@@ -18,6 +18,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import type { BillingOrder, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { billingReceipt, receiptEmail } from './billing-receipt';
 import {
   addCalendarMonths,
   PLAN_PRODUCTS,
@@ -126,10 +127,12 @@ export class BillingService {
               !account?.rebillId)),
       ),
       canAutoRenew: config
-        ? await this.hasRenewalMandate(
-            providerId,
-            account?.rebillId,
-            config.terminalKey,
+        ? Boolean(
+            await this.getRenewalMandate(
+              providerId,
+              account?.rebillId,
+              config.terminalKey,
+            ),
           )
         : false,
       nextPlan: account?.nextPlan ?? null,
@@ -156,25 +159,25 @@ export class BillingService {
     };
   }
 
-  async hasRenewalMandate(
+  async getRenewalMandate(
     providerId: string,
     rebillId: string | null | undefined,
     terminalKey: string,
     db: Pick<PrismaService, 'billingOrder'> = this.prisma,
   ) {
-    if (!rebillId) return false;
-    return Boolean(
-      await db.billingOrder.findFirst({
-        where: {
-          providerId,
-          rebillId,
-          terminalKey,
-          autoRenew: true,
-          status: 'CONFIRMED',
-        },
-        select: { id: true },
-      }),
-    );
+    if (!rebillId) return null;
+    return db.billingOrder.findFirst({
+      where: {
+        providerId,
+        rebillId,
+        terminalKey,
+        autoRenew: true,
+        status: 'CONFIRMED',
+        receiptEmail: { not: null },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, receiptEmail: true },
+    });
   }
 
   async checkout(
@@ -250,6 +253,11 @@ export class BillingService {
         throw new ConflictException(
           'Тариф изменился. Обновите расчёт стоимости',
         );
+      const buyer = await tx.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { email: true },
+      });
+      const email = receiptEmail(buyer.email);
       const consent = await tx.billingAccount.upsert({
         where: { providerId },
         create: { providerId, consentVersion: 1 },
@@ -264,6 +272,7 @@ export class BillingService {
             product,
             operationId,
             amount,
+            receiptEmail: email,
             autoRenew,
             consentVersion:
               consent?.consentVersion ?? account?.consentVersion ?? 0,
@@ -292,6 +301,7 @@ export class BillingService {
       Amount: order.amount,
       OrderId: order.id,
       Description: selected.title,
+      Receipt: billingReceipt(order.receiptEmail, selected.title, order.amount),
       ...(order.autoRenew && !order.renewalCycle
         ? { Recurrent: 'Y', CustomerKey: providerId }
         : {}),
@@ -664,7 +674,7 @@ export class BillingService {
       });
       if (
         input.autoRenew &&
-        !(await this.hasRenewalMandate(
+        !(await this.getRenewalMandate(
           providerId,
           account.rebillId,
           billingConfig().terminalKey,

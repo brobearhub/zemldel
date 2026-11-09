@@ -35,6 +35,8 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
   beforeAll(() => {
     vi.stubEnv('DATABASE_URL', url);
     vi.stubEnv('PLAN_ENFORCEMENT_ENABLED', '1');
+    vi.stubEnv('TBANK_ENABLED', '1');
+    vi.stubEnv('TBANK_MODE', 'test');
     vi.stubEnv('TBANK_TEST_ENABLED', '1');
     vi.stubEnv('TBANK_TERMINAL_KEY', 'qaDEMO');
     vi.stubEnv('TBANK_PASSWORD', 'test-secret');
@@ -124,6 +126,23 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
     });
   }
 
+  async function seedRenewalMandate() {
+    return prisma.billingOrder.create({
+      data: {
+        providerId,
+        operationId: randomUUID(),
+        product: 'BUSINESS',
+        amount: 900,
+        terminalKey: 'qaDEMO',
+        status: 'CONFIRMED',
+        autoRenew: true,
+        rebillId: '123',
+        receiptEmail: 'original-buyer@example.test',
+        expiresAt: new Date(),
+      },
+    });
+  }
+
   it('applies the checked-in migration to a fresh schema', async () => {
     const client = new Client({ connectionString: url });
     await client.connect();
@@ -184,14 +203,25 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
         .replace(/^BEGIN;$/m, '')
         .replace(/^COMMIT;$/m, '');
       await client.query(rename);
+      await client.query(
+        readFileSync(
+          'prisma/migrations/20261110000000_billing_receipt/migration.sql',
+          'utf8',
+        ),
+      );
       expect(
         (
           await client.query(
-            'SELECT product, amount, status FROM "BillingOrder" WHERE id = $1',
+            'SELECT product, amount, status, "receiptEmail" FROM "BillingOrder" WHERE id = $1',
             [oldOrderId],
           )
         ).rows[0],
-      ).toEqual({ product: 'LITE', amount: 700, status: 'CONFIRMED' });
+      ).toEqual({
+        product: 'LITE',
+        amount: 700,
+        status: 'CONFIRMED',
+        receiptEmail: null,
+      });
       expect(
         (
           await client.query(
@@ -217,6 +247,47 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
       await client.end();
     }
   });
+  it('persists the authenticated buyer email and keeps it out of shared history', async () => {
+    const order = await service.checkout(
+      userId,
+      providerId,
+      'LITE',
+      randomUUID(),
+    );
+    expect(call.mock.calls[0][0]).toBe('Init');
+    expect(call.mock.calls[0][1]).toMatchObject({
+      Amount: 700,
+      Receipt: {
+        Email: `${userId}@example.test`,
+        Taxation: 'usn_income_outcome',
+      },
+    });
+    expect(
+      await prisma.billingOrder.findUniqueOrThrow({ where: { id: order.id } }),
+    ).toMatchObject({ receiptEmail: `${userId}@example.test` });
+    await prisma.user.update({
+      where: { id: userId },
+      data: { email: `${userId}@changed.test` },
+    });
+    expect(
+      await prisma.billingOrder.findUniqueOrThrow({ where: { id: order.id } }),
+    ).toMatchObject({ receiptEmail: `${userId}@example.test` });
+    const overview = await service.overview(userId, providerId);
+    expect(overview.orders[0]).not.toHaveProperty('receiptEmail');
+  });
+
+  it('rejects an invalid buyer email without reserving a pending payment', async () => {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { email: 'invalid' },
+    });
+    await expect(
+      service.checkout(userId, providerId, 'LITE', randomUUID()),
+    ).rejects.toThrow('email');
+    expect(await prisma.billingOrder.count({ where: { providerId } })).toBe(0);
+    expect(call).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['LITE_YEAR', 'LITE', 7560],
     ['BUSINESS_YEAR', 'BUSINESS', 9720],
@@ -291,7 +362,7 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
         },
       });
       const quote = await service.quote(userId, providerId, 'LITE_YEAR');
-      expect(quote.amount).toBe(307970);
+      expect(quote.amount).toBe(7210);
       await expect(
         service.checkout(
           userId,
@@ -450,7 +521,7 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
       randomUUID(),
     );
     await notification(order.id);
-    await notification(order.id, 'PARTIAL_REFUNDED', { Amount: 5000 });
+    await notification(order.id, 'PARTIAL_REFUNDED', { Amount: 500 });
     await notification(order.id);
     const overview = await service.overview(userId, providerId);
     expect(overview.plan).toBe('LITE');
@@ -591,6 +662,7 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
   it.each(['MONTH', 'YEAR'] as const)(
     'renews once across workers and honors a scheduled lower plan with %s billing',
     async (period) => {
+      await seedRenewalMandate();
       await prisma.billingAccount.create({
         data: {
           providerId,
@@ -632,11 +704,19 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
       expect(
         call.mock.calls.filter(([method]) => method === 'Charge'),
       ).toHaveLength(1);
+      expect(
+        call.mock.calls.find(([method]) => method === 'Init')?.[1],
+      ).toMatchObject({
+        Receipt: {
+          Email: 'original-buyer@example.test',
+          Taxation: 'usn_income_outcome',
+        },
+      });
       expect((await service.overview(userId, providerId)).plan).toBe('LITE');
       expect(
         (
           await prisma.billingOrder.findFirstOrThrow({
-            where: { providerId },
+            where: { providerId, renewalCycle: { not: null } },
           })
         ).amount,
       ).toBe(period === 'YEAR' ? 7560 : 700);
@@ -647,6 +727,7 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
   );
 
   it('cancels an annual renewal before Charge when the owner refuses during Init', async () => {
+    await seedRenewalMandate();
     await prisma.billingAccount.create({
       data: {
         providerId,
@@ -685,7 +766,7 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
     expect(
       (
         await prisma.billingOrder.findFirstOrThrow({
-          where: { providerId },
+          where: { providerId, renewalCycle: { not: null } },
         })
       ).status,
     ).toBe('CANCELED');
@@ -693,6 +774,7 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
   });
 
   it('does not repeat Charge after a lost response', async () => {
+    await seedRenewalMandate();
     await prisma.billingAccount.create({
       data: {
         providerId,
@@ -741,6 +823,7 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
     try {
       const start = new Date('2026-11-07T00:00:00Z');
       vi.setSystemTime(start);
+      await seedRenewalMandate();
       await prisma.billingAccount.create({
         data: {
           providerId,
@@ -776,7 +859,7 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
         vi.setSystemTime(new Date(start.getTime() + hours * 3600000));
         await worker.renew(providerId);
         const count = await prisma.billingOrder.count({
-          where: { providerId },
+          where: { providerId, renewalCycle: { not: null } },
         });
         expect(count).toBe(hours < 24 ? 1 : hours < 48 ? 2 : 3);
         expect((await service.overview(userId, providerId)).plan).toBe(
