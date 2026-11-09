@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import type { BillingOrder } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BillingService } from './billing.service';
-import { TbankClient } from './tbank';
+import { billingConfig, TbankClient } from './tbank';
 import {
   BILLING_PRODUCTS,
   CLOSED_STATUSES,
@@ -28,12 +28,13 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit() {
-    if (
-      !planEnforcementEnabled() ||
-      process.env.TBANK_TEST_ENABLED !== '1' ||
-      process.env.TBANK_RENEWALS_ENABLED === '0'
-    )
+    if (!planEnforcementEnabled() || process.env.TBANK_RENEWALS_ENABLED === '0')
       return;
+    try {
+      billingConfig();
+    } catch {
+      return;
+    }
     this.timer = setInterval(() => {
       void this.tick();
     }, 60000);
@@ -49,6 +50,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
     if (this.running) return;
     this.running = true;
     try {
+      const config = billingConfig();
       const accounts = await this.prisma.billingAccount.findMany({
         where: {
           autoRenew: true,
@@ -72,6 +74,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
       const pending = await this.prisma.billingOrder.findMany({
         where: {
           renewalCycle: { not: null },
+          terminalKey: config.terminalKey,
           status: { notIn: CLOSED_STATUSES },
         },
         take: 100,
@@ -92,6 +95,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
   }
 
   async renew(providerId: string) {
+    const config = billingConfig();
     const claim = await this.prisma.$transaction(async (tx) => {
       await this.billing.lock(tx, providerId);
       const account = await tx.billingAccount.findUniqueOrThrow({
@@ -105,6 +109,15 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
         !cycle ||
         cycle > now ||
         account.needsReview
+      )
+        return null;
+      if (
+        !(await this.billing.hasRenewalMandate(
+          providerId,
+          account.rebillId,
+          config.terminalKey,
+          tx,
+        ))
       )
         return null;
       if (now.getTime() >= cycle.getTime() + 72 * 3600000) {
@@ -125,7 +138,11 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
         return null;
       }
       const attempts = await tx.billingOrder.findMany({
-        where: { providerId, renewalCycle: cycle },
+        where: {
+          providerId,
+          renewalCycle: cycle,
+          terminalKey: config.terminalKey,
+        },
         orderBy: { renewalAttempt: 'desc' },
       });
       if (attempts.some((o) => !CLOSED_STATUSES.includes(o.status)))
@@ -135,6 +152,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
         await tx.billingOrder.findFirst({
           where: {
             providerId,
+            terminalKey: config.terminalKey,
             renewalCycle: null,
             status: { notIn: CLOSED_STATUSES },
             expiresAt: { gt: now },
@@ -166,7 +184,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
           operationId: randomUUID(),
           product,
           amount: BILLING_PRODUCTS[product].amount,
-          terminalKey: process.env.TBANK_TERMINAL_KEY!,
+          terminalKey: config.terminalKey,
           autoRenew: true,
           rebillId: account.rebillId,
           consentVersion: account.consentVersion,
@@ -194,6 +212,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async charge(order: BillingOrder) {
+    if (order.terminalKey !== billingConfig().terminalKey) return;
     const allowed = await this.prisma.$transaction(async (tx) => {
       await this.billing.lock(tx, order.providerId);
       const current = await tx.billingOrder.findUniqueOrThrow({
@@ -240,6 +259,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async reconcile(order: BillingOrder) {
+    if (order.terminalKey !== billingConfig().terminalKey) return;
     let paymentId = order.paymentId;
     if (!paymentId) {
       const check = await this.bank.call('CheckOrder', { OrderId: order.id });

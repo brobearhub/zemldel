@@ -1,13 +1,13 @@
 .root {
-  --forest: #285645;
-  --paper: #fffef8;
-  --receipt-ink: #252a28;
-  --receipt-muted: #636b66;
-  --receipt-rule: #c8cec8;
+  --forest: var(--mui-palette-text-primary);
+  --paper: var(--mui-palette-background-paper);
+  --receipt-ink: var(--mui-palette-text-primary);
+  --receipt-muted: var(--mui-palette-text-secondary);
+  --receipt-rule: var(--mui-palette-divider);
   max-width: none;
   border-radius: 0;
   padding: 32px 24px 48px;
-  background: #f0f0e6;
+  background: var(--mui-palette-background-default);
   color: var(--receipt-ink);
   font-family: var(--font-billing-mono), "Courier New", monospace;
   font-size: 13px;
@@ -88,11 +88,16 @@
   padding: 28px 32px;
 }
 .summary {
+  --receipt-ink: var(--mui-palette-primary-contrastText);
+  --receipt-muted: color-mix(in srgb, var(--mui-palette-primary-contrastText) 75%, transparent);
+  --receipt-rule: color-mix(in srgb, var(--mui-palette-primary-contrastText) 25%, transparent);
+  --forest: var(--mui-palette-primary-contrastText);
+  color: var(--receipt-ink);
   background: var(--mui-palette-primary-light);
   padding-bottom: 20px;
 }
 .section + .section {
-  border-top: 1px dashed #9aa29b;
+  border-top: 1px dashed var(--receipt-rule);
 }
 .workspace {
   display: flex;
@@ -108,14 +113,14 @@
 }
 .choicesSection {
   order: 2;
-  border-top: 1px dashed #9aa29b;
+  border-top: 1px dashed var(--receipt-rule);
 }
 .renewalSection {
   order: 3;
 }
 .historySection {
   order: 4;
-  border-top: 1px dashed #9aa29b;
+  border-top: 1px dashed var(--receipt-rule);
 }
 .receiptHeading,
 .planHeading,
@@ -128,7 +133,7 @@
   gap: 16px;
 }
 .receiptHeading {
-  border-bottom: 1px dashed #a3ada4;
+  border-bottom: 1px dashed var(--receipt-rule);
   padding-bottom: 16px;
   margin-bottom: 20px;
 }
@@ -146,7 +151,7 @@
   font-size: 16px;
 }
 .paymentTotal {
-  border-top: 1px dashed #9aa29b;
+  border-top: 1px dashed var(--receipt-rule);
   margin-top: 20px;
   padding-block: 20px;
 }
@@ -187,7 +192,7 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
   padding-block: 12px;
-  border-bottom: 1px dashed #d6d9d1;
+  border-bottom: 1px dashed var(--receipt-rule);
 }
 .features dt {
   color: var(--receipt-muted);
@@ -219,7 +224,7 @@
 }
 .periods button[aria-pressed="true"] {
   background: var(--mui-palette-primary-light);
-  color: var(--receipt-ink);
+  color: var(--mui-palette-primary-contrastText);
 }
 .plans,
 .history {
@@ -367,11 +372,29 @@
 .root .timezoneControls button {
   border: 0;
   border-radius: 0;
-  background: #e3ebe5;
+  background: var(--mui-palette-action-hover);
   color: var(--receipt-ink);
   font-size: 12px;
   min-height: 40px;
   padding: 10px 14px;
+}
+.root .notice {
+  background: color-mix(in srgb, var(--mui-palette-primary-main) 12%, var(--paper));
+  border-color: var(--mui-palette-divider);
+  color: var(--receipt-ink);
+}
+.root .error {
+  background: color-mix(in srgb, var(--mui-palette-error-main) 12%, var(--paper));
+  color: var(--mui-palette-error-main);
+}
+.root .primaryButton {
+  background: var(--mui-palette-primary-main);
+  border-color: var(--mui-palette-primary-main);
+  color: var(--mui-palette-primary-contrastText);
+}
+.root .secondaryButton {
+  border-color: var(--mui-palette-divider);
+  color: var(--receipt-ink);
 }
 .footer {
   display: flex;
@@ -390,6 +413,9 @@
   font-size: 14px;
   max-height: calc(100dvh - 40px);
   overflow-y: auto;
+}
+.dialog::backdrop {
+  background: color-mix(in srgb, var(--mui-palette-common-black) 60%, transparent);
 }
 .dialog input[type="checkbox"] {
   accent-color: var(--forest);
@@ -418,7 +444,7 @@
   }
   .leftColumn {
     grid-area: left;
-    border-right: 1px dashed #9aa29b;
+    border-right: 1px dashed var(--receipt-rule);
   }
   .rightColumn {
     grid-area: right;

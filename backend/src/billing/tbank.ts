@@ -50,21 +50,41 @@ function httpsUrl(value: string | undefined) {
     /* invalid configuration */
   }
   throw new ServiceUnavailableException(
-    'Не настроены HTTPS-адреса тестовой оплаты',
+    'Не настроены HTTPS-адреса оплаты: TBANK_SITE_URL и TBANK_NOTIFICATION_URL',
   );
 }
 
 export function billingConfig() {
-  const terminalKey = process.env.TBANK_TERMINAL_KEY ?? '';
+  const mode = process.env.TBANK_MODE ?? 'test';
+  const enabled = process.env.TBANK_ENABLED ?? process.env.TBANK_TEST_ENABLED;
+  if (enabled !== '1')
+    throw new ServiceUnavailableException(
+      'Оплата выключена: установите TBANK_ENABLED=1',
+    );
+  if (mode !== 'test' && mode !== 'live')
+    throw new ServiceUnavailableException(
+      'TBANK_MODE должен быть test или live',
+    );
+  if (mode === 'live' && process.env.TBANK_ENABLED !== '1')
+    throw new ServiceUnavailableException(
+      'Для боевой оплаты требуется TBANK_ENABLED=1',
+    );
+  const terminalKey = (process.env.TBANK_TERMINAL_KEY ?? '').trim();
   const password = process.env.TBANK_PASSWORD ?? '';
-  if (
-    process.env.TBANK_TEST_ENABLED !== '1' ||
-    !terminalKey.endsWith('DEMO') ||
-    !password
-  ) {
-    throw new ServiceUnavailableException('Тестовая оплата пока не настроена');
-  }
+  if (!terminalKey || !password)
+    throw new ServiceUnavailableException(
+      'Не заданы TBANK_TERMINAL_KEY и TBANK_PASSWORD',
+    );
+  if (mode === 'test' && !terminalKey.endsWith('DEMO'))
+    throw new ServiceUnavailableException(
+      'Для тестового режима нужен DEMO-терминал',
+    );
+  if (mode === 'live' && terminalKey.endsWith('DEMO'))
+    throw new ServiceUnavailableException(
+      'Для боевой оплаты нужен рабочий терминал без DEMO',
+    );
   return {
+    mode,
     terminalKey,
     password,
     siteUrl: httpsUrl(process.env.TBANK_SITE_URL).origin,
@@ -106,7 +126,7 @@ export class TbankClient {
     const config = billingConfig();
     const payload = { ...data, TerminalKey: config.terminalKey };
     try {
-      // DEMO terminals use the production API host, but cannot charge real money.
+      // Live terminals and DEMO terminal test cases use this API host.
       const response = await fetch(
         `https://securepay.tinkoff.ru/v2/${method}`,
         {
