@@ -1,15 +1,25 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import AddIcon from "@mui/icons-material/Add";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-import { Box, IconButton, Menu, MenuItem, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  IconButton,
+  Menu,
+  MenuItem,
+  Typography,
+} from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
   formatStoryRemaining,
   StoryFrame,
+  StoryText,
   type StoryDto,
 } from "@/entities/story";
+
+import { PlanFeatureGate, BUSINESS_ONLY } from "@/shared/ui/PlanFeatureGate";
 
 const TILE_W = 200;
 export const STORY_TILE_HEIGHT = 340;
@@ -23,6 +33,9 @@ type Props = {
   lane: StoriesLane;
   busy: boolean;
   previewUrl: string | null;
+  previewVideo?: boolean;
+  allowVideo?: boolean;
+  textFormat?: StoryDto["textFormat"];
   previewAuthor: string;
   previewText: string;
   onToggleCompose: () => void;
@@ -50,6 +63,9 @@ export function MyStoriesGallery({
   lane,
   busy,
   previewUrl,
+  previewVideo,
+  allowVideo,
+  textFormat,
   previewAuthor,
   previewText,
   onToggleCompose,
@@ -72,6 +88,9 @@ export function MyStoriesGallery({
         composing={composing}
         busy={busy}
         previewUrl={previewUrl}
+        previewVideo={previewVideo}
+        allowVideo={allowVideo}
+        textFormat={textFormat}
         previewAuthor={previewAuthor}
         previewText={previewText}
         onStart={onToggleCompose}
@@ -168,6 +187,9 @@ function NewStoryTile({
   composing,
   busy,
   previewUrl,
+  previewVideo,
+  allowVideo,
+  textFormat,
   previewAuthor,
   previewText,
   onStart,
@@ -176,11 +198,16 @@ function NewStoryTile({
   composing: boolean;
   busy: boolean;
   previewUrl: string | null;
+  previewVideo?: boolean;
+  allowVideo?: boolean;
+  textFormat?: StoryDto["textFormat"];
   previewAuthor: string;
   previewText: string;
   onStart: () => void;
   onFile: (file: File | null) => void;
 }) {
+  const photoInput = useRef<HTMLInputElement>(null);
+  const videoInput = useRef<HTMLInputElement>(null);
   if (!composing) {
     return (
       <Box
@@ -244,7 +271,8 @@ function NewStoryTile({
     >
       {previewUrl ? (
         <StoryFrame
-          imageUrl={previewUrl}
+          imageUrl={previewVideo ? null : previewUrl}
+          videoUrl={previewVideo ? previewUrl : null}
           imageAlt="Превью фото"
           sx={{ width: "100%", height: "100%" }}
         >
@@ -253,7 +281,7 @@ function NewStoryTile({
               position: "absolute",
               left: 0,
               right: 0,
-              bottom: 0,
+              bottom: previewVideo ? 48 : 0,
               px: 1.75,
               pt: 4,
               pb: 1.75,
@@ -287,7 +315,11 @@ function NewStoryTile({
                   whiteSpace: "pre-wrap",
                 }}
               >
-                {previewText}
+                <StoryText
+                  text={previewText}
+                  format={textFormat}
+                  interactive={false}
+                />
               </Typography>
             ) : null}
           </Box>
@@ -304,17 +336,67 @@ function NewStoryTile({
               px: 2,
             }}
           >
-            Загрузить фото
+            {allowVideo ? "Загрузить фото или видео" : "Загрузить фото"}
           </Typography>
         </>
       )}
       <Box
+        sx={{
+          position: "absolute",
+          top: 8,
+          left: 8,
+          right: 8,
+          display: "flex",
+          gap: 1,
+          bgcolor: "background.paper",
+          borderRadius: 1,
+          p: 0.5,
+        }}
+      >
+        <Button
+          size="small"
+          disabled={busy}
+          onClick={() => photoInput.current?.click()}
+        >
+          Фото
+        </Button>
+        <PlanFeatureGate
+          message={!allowVideo ? BUSINESS_ONLY : null}
+          label="Видео"
+        >
+          <Button
+            size="small"
+            disabled={busy}
+            onClick={() => videoInput.current?.click()}
+          >
+            Видео
+          </Button>
+        </PlanFeatureGate>
+      </Box>
+      <Box
         component="input"
+        ref={photoInput}
         type="file"
         accept="image/jpeg,image/png,image/webp"
         aria-label="Добавить фото"
         disabled={busy}
-        onChange={(event) => onFile(event.target.files?.[0] ?? null)}
+        onChange={(event) => {
+          onFile(event.target.files?.[0] ?? null);
+          event.target.value = "";
+        }}
+        sx={{ display: "none" }}
+      />
+      <Box
+        component="input"
+        ref={videoInput}
+        type="file"
+        accept="video/mp4,video/quicktime,video/webm"
+        aria-label="Добавить видео"
+        disabled={busy || !allowVideo}
+        onChange={(event) => {
+          onFile(event.target.files?.[0] ?? null);
+          event.target.value = "";
+        }}
         sx={{ display: "none" }}
       />
     </Box>
@@ -468,7 +550,11 @@ function OwnStoryTile({
                 whiteSpace: "pre-wrap",
               }}
             >
-              {story.text}
+              <StoryText
+                text={story.text}
+                format={story.textFormat}
+                interactive={false}
+              />
             </Typography>
           </Box>
         </StoryFrame>

@@ -35,7 +35,7 @@ import {
   StoryListDto,
 } from './dto/story.dto';
 import { StoriesService } from './stories.service';
-import { STORY_IMAGE_MAX_BYTES } from './story-rules';
+import { STORY_VIDEO_MAX_BYTES } from './story-rules';
 
 @ApiStandardErrors()
 @ApiTags('stories')
@@ -65,6 +65,14 @@ export class StoriesController {
     );
   }
 
+  @Get('stories/limits')
+  limits(@Req() request: Request, @Query('scope') scope?: string) {
+    return this.stories.limits({
+      actorUserId: this.internalAuth.getUserIdFromRequest(request),
+      scope: scope === 'provider' ? 'provider' : 'user',
+    });
+  }
+
   @Get('stories/mine')
   @ApiQuery({ name: 'scope', required: false, enum: ['user', 'provider'] })
   @ApiOkResponse({ type: StoryListDto })
@@ -82,22 +90,40 @@ export class StoriesController {
       type: 'object',
       properties: {
         text: { type: 'string' },
-        durationDays: { type: 'number', enum: [1, 2, 3, 7] },
+        durationHours: { type: 'number', enum: [6, 12, 24, 48] },
         scope: { type: 'string', enum: ['user', 'provider'] },
         file: { type: 'string', format: 'binary' },
       },
-      required: ['text', 'durationDays'],
+      required: ['text', 'durationHours'],
     },
   })
   @ApiOkResponse({ type: StoryDto })
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
-      limits: { fileSize: STORY_IMAGE_MAX_BYTES },
+      limits: {
+        fileSize: STORY_VIDEO_MAX_BYTES,
+        files: 1,
+        fields: 3,
+        parts: 4,
+        fieldSize: 8192,
+      },
       fileFilter: (_req, file, cb) => {
-        const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+        const allowed = [
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+          'video/mp4',
+          'video/quicktime',
+          'video/webm',
+        ];
         if (!allowed.includes(file.mimetype)) {
-          cb(new Error('Unsupported file type'), false);
+          cb(
+            new UnprocessableEntityException(
+              'Загрузите JPEG, PNG, WebP, MP4, MOV или WebM',
+            ),
+            false,
+          );
           return;
         }
         cb(null, true);
@@ -110,7 +136,7 @@ export class StoriesController {
       actorUserId: this.internalAuth.getUserIdFromRequest(request),
       scope: body.scope === 'provider' ? 'provider' : 'user',
       text: body.text,
-      durationDays: body.durationDays,
+      durationHours: body.durationHours,
       file,
     });
   }
@@ -354,12 +380,12 @@ export class StoriesController {
   repost(
     @Req() request: Request,
     @Param('id') id: string,
-    @Body() body: { durationDays?: unknown },
+    @Body() body: { durationHours?: unknown },
   ) {
     return this.stories.repost({
       storyId: id,
       actorUserId: this.internalAuth.getUserIdFromRequest(request),
-      durationDays: body?.durationDays,
+      durationHours: body?.durationHours,
     });
   }
 

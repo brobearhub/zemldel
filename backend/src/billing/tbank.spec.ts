@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import {
+  bankRedirectDueDate,
   bankToken,
   billingConfig,
   safePaymentUrl,
@@ -14,6 +15,14 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe('T-Bank protocol', () => {
+  it('formats payment deadlines with seconds and an explicit UTC offset', () => {
+    expect(bankRedirectDueDate(new Date('2026-11-09T19:30:00.419+05:00'))).toBe(
+      '2026-11-09T14:30:00+00:00',
+    );
+    expect(bankRedirectDueDate(new Date('2026-12-01T00:10:00.000+05:00'))).toBe(
+      '2026-11-30T19:10:00+00:00',
+    );
+  });
   it('sorts scalars, includes booleans and excludes nested data and Token', () => {
     const data = {
       TerminalKey: 'demoDEMO',
@@ -50,9 +59,14 @@ describe('T-Bank protocol', () => {
     expect(safePaymentUrl('https://pay.tbank.ru/new/123')).toContain(
       'pay.tbank.ru',
     );
+    expect(safePaymentUrl('https://pay.tbank-online.com/new/123')).toBe(
+      'https://pay.tbank-online.com/new/123',
+    );
     for (const value of [
       'javascript:alert(1)',
       'https://pay.tbank.ru.evil.test',
+      'https://pay.tbank-online.com.evil.test',
+      'https://user@pay.tbank-online.com/new/123',
       'https://user@pay.tbank.ru',
       'http://pay.tbank.ru',
     ])

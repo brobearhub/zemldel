@@ -9,6 +9,7 @@ import {
   Stack,
   TextField,
 } from "@mui/material";
+import { PlanFeatureGate, LITE_AND_BUSINESS, BUSINESS_ONLY } from "@/shared/ui/PlanFeatureGate";
 import type { BillingOverview } from "./model";
 import s from "./billing.module.css";
 
@@ -195,7 +196,9 @@ export function WorkspaceTools({
               <section className={s.card}>
                 <h2>Услуги и конверсия</h2>
                 {!data.stats.byService ? (
-                  <p>Подробная статистика доступна на Лайте и Бизнесе.</p>
+                  <PlanFeatureGate message={LITE_AND_BUSINESS} label="Открыть статистику услуг и конверсии" fullWidth>
+                    <Button size="small">Просмотры · Заявки · Конверсия</Button>
+                  </PlanFeatureGate>
                 ) : (
                   <>
                     <p className={s.muted}>
@@ -216,7 +219,13 @@ export function WorkspaceTools({
               <section className={`${s.card} ${s.section}`}>
                 <h2>Регионы, команда и этапы</h2>
                 {data.limits.statistics < 2 ? (
-                  <p>Расширенная статистика доступна на Бизнесе.</p>
+                  <Stack spacing={1}>
+                    {["По регионам", "Этапы заявок", "Команда"].map((label) => (
+                      <PlanFeatureGate key={label} message={BUSINESS_ONLY} label={`Статистика: ${label}`} fullWidth>
+                        <Button size="small">{label}</Button>
+                      </PlanFeatureGate>
+                    ))}
+                  </Stack>
                 ) : (
                   <>
                     <h3>По регионам</h3>

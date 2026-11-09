@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { Box, Collapse, IconButton, Paper, Typography } from "@mui/material";
+import { Box, ButtonBase, Collapse, IconButton, Paper, Typography } from "@mui/material";
 import type { RequestProDto } from "@/entities/request";
 import { useRequestList } from "../model/use-request-list";
 import { ProviderRequestReplyDialog } from "./ProviderRequestReplyDialog";
@@ -24,7 +24,6 @@ type Props = {
 };
 
 const PREVIEW_COUNT = 3;
-const PREVIEW_FADE_PX = 72;
 
 function rowTitle(
   request: RequestProDto,
@@ -139,7 +138,7 @@ export function ServiceRequestsPanel({
         </Typography>
       ) : (
         <>
-          <Box sx={{ position: "relative" }}>
+          <Box>
             {previewRequests?.map((request) => (
               <ServiceRequestRow
                 key={request.id}
@@ -150,31 +149,6 @@ export function ServiceRequestsPanel({
                 onReply={setReplyItem}
               />
             ))}
-            {canFold ? (
-              <Box
-                component="button"
-                type="button"
-                aria-expanded={expanded}
-                aria-label="Показать остальные заявки"
-                tabIndex={expanded ? -1 : 0}
-                onClick={() => changeExpanded(true)}
-                sx={{
-                  position: "absolute",
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: PREVIEW_FADE_PX,
-                  border: 0,
-                  p: 0,
-                  cursor: "pointer",
-                  opacity: expanded ? 0 : 1,
-                  pointerEvents: expanded ? "none" : "auto",
-                  transition: "opacity 320ms ease",
-                  background:
-                    "linear-gradient(to bottom, transparent, var(--mui-palette-background-paper))",
-                }}
-              />
-            ) : null}
           </Box>
           {restRequests.length > 0 ? (
             <Collapse in={expanded} timeout="auto">
@@ -191,6 +165,34 @@ export function ServiceRequestsPanel({
                 ))}
               </Box>
             </Collapse>
+          ) : null}
+          {canFold ? (
+            <ButtonBase
+              type="button"
+              aria-expanded={expanded}
+              onClick={() => changeExpanded(!expanded)}
+              sx={{
+                display: "flex",
+                width: "100%",
+                gap: 0.5,
+                py: 1.25,
+                borderTop: "1px solid",
+                borderColor: "divider",
+                color: "text.primary",
+                fontWeight: 700,
+                "&:hover": {
+                  bgcolor: "action.hover",
+                },
+                "&.Mui-focusVisible": {
+                  outline: "2px solid",
+                  outlineColor: "primary.dark",
+                  outlineOffset: -2,
+                },
+              }}
+            >
+              {expanded ? "Свернуть" : "Ещё"}
+              {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            </ButtonBase>
           ) : null}
         </>
       )}

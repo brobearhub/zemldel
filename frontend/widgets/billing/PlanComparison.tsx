@@ -1,13 +1,30 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { comparison, plans } from "./model";
+import {
+  comparison,
+  plans,
+  money,
+  productFor,
+  periodLabel,
+  type BillingPeriod,
+  type BillingCatalog,
+} from "./model";
+import { BillingPeriodSelector } from "./BillingPeriodSelector";
 import s from "./billing.module.css";
 
-export function PlanComparison() {
-  const [selected, setSelected] = useState(1);
+export function PlanComparison({ catalog }: { catalog: BillingCatalog }) {
+  const [selected, setSelected] = useState(2);
+  const [period, setPeriod] = useState<BillingPeriod>("MONTH");
   return (
     <>
+      <BillingPeriodSelector
+        value={period}
+        onChange={setPeriod}
+      />
+      <p className={s.muted}>
+        При оплате за год скидка 10%. Вся сумма оплачивается сразу.
+      </p>
       <div
         className={s.tabs}
         aria-label="Выбор тарифа для сравнения"
@@ -44,17 +61,21 @@ export function PlanComparison() {
                 >
                   <div className={s.planName}>{plan.name}</div>
                   <span className={s.price}>
-                    {plan.price === 0 ? "Бесплатно" : `${plan.price} ₽`}
+                    {plan.id === "STANDARD"
+                      ? "Бесплатно"
+                      : `${money(catalog[productFor(plan.id, period)].amount)} ₽`}
                   </span>
                   <span className={s.muted}>
-                    {plan.price === 0 ? "Без срока действия" : "за месяц"}
+                    {plan.id === "STANDARD"
+                      ? "Без срока действия"
+                      : `за ${periodLabel(period)}`}
                   </span>
                   <p className={s.muted}>{plan.description}</p>
                   <Link
                     className={`${s.button} ${s.wide}`}
-                    href={`/pro/settings/tariff${plan.price ? `?product=${plan.id}` : ""}`}
+                    href={`/pro/settings/tariff${plan.id !== "STANDARD" ? `?product=${productFor(plan.id, period)}` : ""}`}
                   >
-                    {plan.price ? "Попробовать оплату" : "Начать бесплатно"}
+                    {plan.id === "STANDARD" ? "Начать бесплатно" : "Выбрать тариф"}
                   </Link>
                 </th>
               ))}

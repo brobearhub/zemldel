@@ -1,6 +1,6 @@
 export type StoryAuthorType = "USER" | "PROVIDER";
 export type StoryScope = "user" | "provider";
-export type StoryDurationDays = 1 | 2 | 3 | 7;
+export type StoryDurationHours = 6 | 12 | 24 | 48;
 
 export type StoryDto = {
   id: string;
@@ -13,7 +13,10 @@ export type StoryDto = {
   cityId: string | null;
   text: string;
   imageUrl: string | null;
-  durationDays: StoryDurationDays;
+  videoUrl?: string | null;
+  videoDurationSeconds?: number | null;
+  textFormat?: "PLAIN" | "BASIC" | "LINKS";
+  durationHours: StoryDurationHours;
   publishedAt: string;
   expiresAt: string;
   expired: boolean;
@@ -34,17 +37,46 @@ export type StoryInsightsDto = {
   guestViewCount: number;
   uniqueViewerCount: number;
   hourly: Array<{ hour: string; viewCount: number }>;
-  viewers: Array<{ userId: string; name: string; viewCount: number; lastViewedAt: string; cityName: string | null }>;
+  viewers: Array<{
+    userId: string;
+    name: string;
+    viewCount: number;
+    lastViewedAt: string;
+    cityName: string | null;
+  }>;
   guestViews: Array<{ viewedAt: string }>;
   cities: Array<{ name: string; viewCount: number; uniqueViewerCount: number }>;
   profileOpenCount: number;
   guestProfileOpenCount: number;
-  profileOpens: Array<{ userId: string; name: string; cityName: string | null; openedAt: string }>;
+  profileOpens: Array<{
+    userId: string;
+    name: string;
+    cityName: string | null;
+    openedAt: string;
+  }>;
   guestProfileOpens: Array<{ openedAt: string }>;
-  replies: Array<{ id: string; authorUserId: string; text: string; name: string; cityName: string | null; createdAt: string }>;
-  comments: Array<{ id: string; text: string; name: string; likeCount: number; createdAt: string }>;
+  replies: Array<{
+    id: string;
+    authorUserId: string;
+    text: string;
+    name: string;
+    cityName: string | null;
+    createdAt: string;
+  }>;
+  comments: Array<{
+    id: string;
+    text: string;
+    name: string;
+    likeCount: number;
+    createdAt: string;
+  }>;
   saveCount: number;
-  saves: Array<{ userId: string; name: string; cityName: string | null; savedAt: string }>;
+  saves: Array<{
+    userId: string;
+    name: string;
+    cityName: string | null;
+    savedAt: string;
+  }>;
 };
 
 export type StoryReplyMessageDto = {
@@ -109,4 +141,16 @@ export type StoryAudienceDto = {
   followers: Array<{ userId: string; name: string; at: string }>;
   unfollows: Array<{ userId: string; name: string; at: string }>;
   replyCount: number;
+};
+
+export type StoryLimits = {
+  plan: "STANDARD" | "LITE" | "BUSINESS";
+  dailyLimit: number;
+  durationHours: StoryDurationHours[];
+  textLimit: number;
+  textFormat: "PLAIN" | "BASIC" | "LINKS";
+  video: boolean;
+  used: number;
+  timezone: string;
+  resetAt: string;
 };

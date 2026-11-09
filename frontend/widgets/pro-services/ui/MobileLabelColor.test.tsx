@@ -45,4 +45,14 @@ describe("MobileLabelColor", () => {
     expect(screen.queryByRole("menu")).toBeNull();
     expect(screen.getByRole("button", { name: "warning" })).toHaveStyle({ borderColor: "transparent" });
   });
+  it("explains locked colors on Lite while keeping primary available", async () => {
+    const change = vi.fn();
+    render(<MobileLabelColor badge="Метка" onBadgeChange={vi.fn()} color="primary" onColorChange={change} disabled={false} colorLocked />);
+    await userEvent.click(screen.getByRole("button", { name: "Цвет метки: warning" }));
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Бизнес");
+    expect(change).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "primary" }));
+    expect(change).toHaveBeenCalledWith("primary");
+  });
+
 });

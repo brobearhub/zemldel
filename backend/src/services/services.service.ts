@@ -55,7 +55,7 @@ const serviceSelect = {
       slug: true,
       type: true,
       verificationStatus: true,
-      billingTestAccount: {
+      billingAccount: {
         select: {
           plan: true,
           planExpiresAt: true,
@@ -254,7 +254,7 @@ export class ServicesService {
       ? rows.flatMap((row) => {
           const effective = publicServiceForPlan(
             row,
-            row.provider.billingTestAccount,
+            row.provider.billingAccount,
           );
           if (!effective) return [];
           const matches = (place: { id: string; regionCode: string }) =>
@@ -297,7 +297,7 @@ export class ServicesService {
     if (!row) return null;
     const effective = scope?.providerId
       ? row
-      : publicServiceForPlan(row, row.provider.billingTestAccount);
+      : publicServiceForPlan(row, row.provider.billingAccount);
     return effective ? serviceDbRowToDtoPlain(effective as ServiceDbRow) : null;
   }
 

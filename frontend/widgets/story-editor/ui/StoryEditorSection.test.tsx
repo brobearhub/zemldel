@@ -2,7 +2,8 @@ import { ThemeProvider } from "@mui/material";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createAppTheme } from "@/core/theme/createAppTheme";
-import { STORY_TEXT_MAX_LENGTH } from "@/entities/story";
+const STORY_TEXT_MAX_LENGTH = 500;
+const limitsFixture = { plan: "STANDARD", dailyLimit: 1, used: 0, durationHours: [24], textLimit: 500, textFormat: "PLAIN", video: false, timezone: "Europe/Moscow", resetAt: "2099-01-01T00:00:00Z" };
 import { StoryEditorSection } from "./StoryEditorSection";
 
 const emptyInsights = {
@@ -52,7 +53,7 @@ describe("StoryEditorSection", () => {
       cityId: null,
       text: "Ищу инженера",
       imageUrl: null,
-      durationDays: 3,
+      durationHours: 48,
       publishedAt: "2026-10-06T10:00:00.000Z",
       expiresAt: "2026-10-09T10:00:00.000Z",
       expired: false,
@@ -62,6 +63,7 @@ describe("StoryEditorSection", () => {
       .spyOn(global, "fetch")
       .mockImplementation((input, init) => {
         const url = String(input);
+        if (url.includes("/limits")) return json({ plan: "STANDARD", dailyLimit: 1, used: 0, durationHours: [24], textLimit: 500, textFormat: "PLAIN", video: false, timezone: "Europe/Moscow", resetAt: "2099-01-01T00:00:00Z" });
         if (init?.method === "POST") {
           published = true;
           return json(created);
@@ -81,7 +83,7 @@ describe("StoryEditorSection", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Новая" }));
     await user.type(screen.getByLabelText("Текст"), "Ищу инженера");
-    await user.click(screen.getByRole("button", { name: "3 д" }));
+    await user.click(screen.getByRole("button", { name: "24 ч" }));
     await user.click(screen.getByRole("button", { name: "Опубликовать" }));
 
     await screen.findByText("Ищу инженера");
@@ -96,11 +98,11 @@ describe("StoryEditorSection", () => {
     const body = createCall?.[1]?.body;
     expect(body).toBeInstanceOf(FormData);
     expect((body as FormData).get("text")).toBe("Ищу инженера");
-    expect((body as FormData).get("durationDays")).toBe("3");
+    expect((body as FormData).get("durationHours")).toBe("24");
     expect((body as FormData).get("scope")).toBe("user");
   });
 
-  it("вставка длинного текста обрезается до лимита и уходит в публикацию", async () => {
+  it("длинный текст сохраняется в редакторе, но публикация заблокирована", async () => {
     const pasted = "у".repeat(3000);
     const kept = pasted.slice(0, STORY_TEXT_MAX_LENGTH);
     const created = {
@@ -112,7 +114,7 @@ describe("StoryEditorSection", () => {
       cityId: null,
       text: kept,
       imageUrl: null,
-      durationDays: 1,
+      durationHours: 24,
       publishedAt: "2026-10-06T10:00:00.000Z",
       expiresAt: "2026-10-07T10:00:00.000Z",
       expired: false,
@@ -121,6 +123,7 @@ describe("StoryEditorSection", () => {
       .spyOn(global, "fetch")
       .mockImplementation((input, init) => {
         const url = String(input);
+        if (url.includes("/limits")) return json({ plan: "STANDARD", dailyLimit: 1, used: 0, durationHours: [24], textLimit: 500, textFormat: "PLAIN", video: false, timezone: "Europe/Moscow", resetAt: "2099-01-01T00:00:00Z" });
         if (init?.method === "POST") return json(created);
         if (url.includes("/insights")) return json(emptyInsights);
         if (url.includes("/saved") || url.includes("/audience")) {
@@ -140,26 +143,14 @@ describe("StoryEditorSection", () => {
     await user.click(field);
     await user.paste(pasted);
 
-    expect(field).toHaveValue(kept);
+    expect(field).toHaveValue(pasted);
     expect(
-      screen.getByText(`${STORY_TEXT_MAX_LENGTH} / ${STORY_TEXT_MAX_LENGTH}`),
+      screen.getByText(`${pasted.length} / ${STORY_TEXT_MAX_LENGTH}`),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Опубликовать" }));
-
-    await waitFor(() => {
-      const createCall = fetchMock.mock.calls.find(
-        (call) =>
-          call[1] &&
-          typeof call[1] === "object" &&
-          "method" in call[1] &&
-          call[1].method === "POST",
-      );
-      expect(createCall).toBeTruthy();
-      const body = createCall?.[1]?.body;
-      expect(body).toBeInstanceOf(FormData);
-      expect((body as FormData).get("text")).toBe(kept);
-    });
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("2048");
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
   });
 
   it("сначала показывает свои сторис, форма закрыта", async () => {
@@ -172,13 +163,14 @@ describe("StoryEditorSection", () => {
       cityId: null,
       text: "Продаю участок за 5000 ₽",
       imageUrl: "https://cdn.example/story.jpg",
-      durationDays: 1 as const,
+      durationHours: 24 as const,
       publishedAt: "2026-10-06T10:00:00.000Z",
       expiresAt: "2026-10-08T06:00:00.000Z",
       expired: false,
     };
     vi.spyOn(global, "fetch").mockImplementation((input) => {
       const url = String(input);
+      if (url.includes("/limits")) return json(limitsFixture);
       if (url.includes("/insights")) return json(emptyInsights);
       if (url.includes("/saved")) return json({ items: [] });
       if (url.includes("/audience"))
@@ -217,6 +209,7 @@ describe("StoryEditorSection", () => {
   it("крестик отменяет создание и сбрасывает черновик", async () => {
     vi.spyOn(global, "fetch").mockImplementation((input) => {
       const url = String(input);
+      if (url.includes("/limits")) return json(limitsFixture);
       if (url.includes("/insights")) return json(emptyInsights);
       if (url.includes("/saved")) return json({ items: [] });
       if (url.includes("/audience"))
@@ -228,7 +221,7 @@ describe("StoryEditorSection", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Новая" }));
     await user.type(screen.getByLabelText("Текст"), "Черновик");
-    await user.click(screen.getByRole("button", { name: "3 д" }));
+    await user.click(screen.getByRole("button", { name: "24 ч" }));
     await user.click(screen.getByRole("button", { name: "Отменить" }));
 
     expect(screen.queryByLabelText("Текст")).not.toBeInTheDocument();
@@ -238,7 +231,7 @@ describe("StoryEditorSection", () => {
 
     await user.click(screen.getByRole("button", { name: "Новая" }));
     expect(screen.getByLabelText("Текст")).toHaveValue("");
-    expect(screen.getByRole("button", { name: "1 д" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "24 ч" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -254,13 +247,14 @@ describe("StoryEditorSection", () => {
       cityId: null,
       text: "Продаю участок за 5000 ₽",
       imageUrl: "https://cdn.example/story.jpg",
-      durationDays: 1 as const,
+      durationHours: 24 as const,
       publishedAt: "2026-10-06T10:00:00.000Z",
       expiresAt: "2026-10-08T06:00:00.000Z",
       expired: false,
     };
     vi.spyOn(global, "fetch").mockImplementation((input) => {
       const url = String(input);
+      if (url.includes("/limits")) return json(limitsFixture);
       if (url.includes("/insights")) return json(emptyInsights);
       if (url.includes("/saved")) return json({ items: [] });
       if (url.includes("/audience")) {
@@ -318,7 +312,7 @@ describe("StoryEditorSection", () => {
       cityId: null,
       text: "В эфире",
       imageUrl: null,
-      durationDays: 1 as const,
+      durationHours: 24 as const,
       publishedAt: "2026-10-06T10:00:00.000Z",
       expiresAt: "2026-10-08T06:00:00.000Z",
       expired: false,
@@ -331,6 +325,7 @@ describe("StoryEditorSection", () => {
     };
     vi.spyOn(global, "fetch").mockImplementation((input) => {
       const url = String(input);
+      if (url.includes("/limits")) return json(limitsFixture);
       if (url.includes("/insights")) return json(emptyInsights);
       if (url.includes("/saved")) return json({ items: [savedStory] });
       if (url.includes("/audience"))
@@ -391,7 +386,7 @@ describe("StoryEditorSection", () => {
         cityId: null,
         text: "Первая",
         imageUrl: null,
-        durationDays: 1 as const,
+        durationHours: 24 as const,
         publishedAt: "2026-10-06T10:00:00.000Z",
         expiresAt: "2026-10-08T06:00:00.000Z",
         expired: false,
@@ -405,7 +400,7 @@ describe("StoryEditorSection", () => {
         cityId: null,
         text: "Вторая",
         imageUrl: null,
-        durationDays: 1 as const,
+        durationHours: 24 as const,
         publishedAt: "2026-10-06T11:00:00.000Z",
         expiresAt: "2026-10-08T07:00:00.000Z",
         expired: false,
@@ -413,6 +408,7 @@ describe("StoryEditorSection", () => {
     ];
     const fetchMock = vi.spyOn(global, "fetch").mockImplementation((input) => {
       const url = String(input);
+      if (url.includes("/limits")) return json(limitsFixture);
       if (url.includes("/insights")) return json(emptyInsights);
       if (url.includes("/saved")) return json({ items: [] });
       if (url.includes("/audience"))
@@ -469,9 +465,7 @@ describe("StoryEditorSection", () => {
   it("показывает превью выбранного фото", async () => {
     URL.createObjectURL = vi.fn(() => "blob:preview");
     URL.revokeObjectURL = vi.fn();
-    vi.spyOn(global, "fetch").mockResolvedValueOnce(
-      new Response(JSON.stringify({ items: [] })),
-    );
+    vi.spyOn(global, "fetch").mockImplementation((input) => json(String(input).includes("/limits") ? limitsFixture : { items: [] }));
 
     render(<StoryEditorSection scope="user" authorName="Анна" />);
     const user = userEvent.setup();
@@ -486,4 +480,13 @@ describe("StoryEditorSection", () => {
     expect(preview.parentElement).toHaveTextContent("Анна");
     expect(preview.parentElement).toHaveTextContent("Продам за бесценок");
   });
+  it("shows video on Standard and explains the Business requirement", async () => {
+    vi.spyOn(global, "fetch").mockImplementation((input) => json(String(input).includes("/limits") ? limitsFixture : { items: [] }));
+    render(<StoryEditorSection scope="user" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Новая" }));
+    await userEvent.click(screen.getByRole("button", { name: "Видео" }));
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Доступно на тарифе Бизнес");
+    expect(screen.getByLabelText("Добавить видео")).toBeDisabled();
+  });
+
 });

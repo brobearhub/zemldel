@@ -5,8 +5,10 @@ import {
   localDay,
   nextMidnight,
   upgradeAmount,
+  purchaseMode,
   PLAN_LIMITS,
 } from './plan-policy';
+import { PLAN_PRODUCTS, addCalendarMonths } from './billing-catalog';
 import { publicServiceForPlan } from './service-plan';
 import type { ServiceDbRow } from '../services/dto/service.dto';
 
@@ -15,7 +17,11 @@ describe('plan policy', () => {
   afterEach(() => vi.unstubAllEnvs());
 
   it('pauses entitlements for Standard and restores them with one switch', () => {
-    const standard = { plan: 'STANDARD', planExpiresAt: null };
+    const standard = {
+      plan: 'STANDARD',
+      planExpiresAt: null,
+      graceUntil: null,
+    };
     const row = {
       image: 'one',
       images: ['one', 'two'],
@@ -37,7 +43,11 @@ describe('plan policy', () => {
     });
     vi.stubEnv('PLAN_ENFORCEMENT_ENABLED', '1');
     expect(entitlementPlan(standard)).toBe('STANDARD');
-    expect(publicServiceForPlan(row, standard)).toBeNull();
+    expect(publicServiceForPlan(row, standard)).toMatchObject({
+      allRussia: true,
+      images: ['one'],
+      stockBadge: null,
+    });
   });
   it('defaults existing profiles to Standard and observes exact expiration and grace', () => {
     const now = new Date('2026-11-01T00:00:00Z');
@@ -55,7 +65,7 @@ describe('plan policy', () => {
         now,
       ),
     ).toBe('BUSINESS');
-    expect(PLAN_LIMITS.LITE.replies).toBe(10);
+    expect(PLAN_LIMITS.LITE.replies).toBeNull();
   });
   it('calculates remaining Lite value in kopecks without charging client-supplied prices', () => {
     const account = {
@@ -65,10 +75,53 @@ describe('plan policy', () => {
     };
     expect(
       upgradeAmount(account, 'BUSINESS', new Date('2026-11-16T00:00:00Z')),
-    ).toBe(84950);
+    ).toBe(550);
     expect(
       upgradeAmount(account, 'BUSINESS', new Date('2026-12-01T00:00:00Z')),
-    ).toBe(99900);
+    ).toBe(900);
+  });
+  it('prices annual plans at exactly 90% of twelve months', () => {
+    expect(PLAN_PRODUCTS.LITE_YEAR.amount).toBe(700 * 12 * 0.9);
+    expect(PLAN_PRODUCTS.BUSINESS_YEAR.amount).toBe(900 * 12 * 0.9);
+    expect(
+      addCalendarMonths(new Date('2028-02-29T09:15:00Z'), 12).toISOString(),
+    ).toBe('2029-02-28T09:15:00.000Z');
+  });
+  it('credits a monthly balance on annual conversion and an annual balance on upgrade', () => {
+    const account = {
+      plan: 'LITE',
+      billingPeriod: 'MONTH',
+      planStartedAt: new Date('2026-11-01T00:00:00Z'),
+      planExpiresAt: new Date('2026-12-01T00:00:00Z'),
+    };
+    const now = new Date('2026-11-16T00:00:00Z');
+    expect(upgradeAmount(account, 'LITE_YEAR', now)).toBe(7560 - 350);
+    expect(upgradeAmount(account, 'BUSINESS_YEAR', now)).toBe(9720 - 350);
+    expect(
+      upgradeAmount(
+        { ...account, billingPeriod: 'YEAR' },
+        'BUSINESS_YEAR',
+        now,
+      ),
+    ).toBe(9720 - 3780);
+  });
+  it('defers shortening the period or downgrading without producing a negative charge', () => {
+    const account = {
+      plan: 'LITE',
+      billingPeriod: 'YEAR',
+      planStartedAt: new Date('2026-11-01T00:00:00Z'),
+      planExpiresAt: new Date('2027-11-01T00:00:00Z'),
+    };
+    const now = new Date('2026-11-02T00:00:00Z');
+    expect(purchaseMode(account, 'BUSINESS', now)).toBe('schedule');
+    expect(upgradeAmount(account, 'BUSINESS', now)).toBe(900);
+    expect(purchaseMode(account, 'LITE_YEAR', now)).toBe('current');
+    expect(
+      purchaseMode({ ...account, plan: 'BUSINESS' }, 'LITE_YEAR', now),
+    ).toBe('schedule');
+    expect(purchaseMode(account, 'LITE', new Date('2027-11-02'))).toBe(
+      'purchase',
+    );
   });
   it.each([
     'Europe/Moscow',
@@ -101,8 +154,8 @@ describe('plan policy', () => {
     const standard = publicServiceForPlan(row)!;
     expect(standard.images).toEqual(['one']);
     expect(standard.stockBadge).toBeNull();
-    expect(standard.regions.map((r) => r.regionCode)).toEqual(['B']);
-    expect(standard.cities).toEqual([]);
+    expect(standard.regions).toEqual(row.regions);
+    expect(standard.cities).toEqual(row.cities);
     const lite = publicServiceForPlan(row, {
       plan: 'LITE',
       planExpiresAt: new Date(Date.now() + 100000),
@@ -114,14 +167,18 @@ describe('plan policy', () => {
     expect(row.paletteColor).toBe('error');
     expect(row.regions).toHaveLength(4);
   });
-  it('replaces nationwide coverage with home region or hides publication', () => {
-    const national = { ...row, allRussia: true, cities: [], regions: [] };
-    expect(publicServiceForPlan(national)?.regions[0].regionCode).toBe('HOME');
-    expect(
-      publicServiceForPlan({
-        ...national,
-        provider: { ...row.provider, city: null },
-      }),
-    ).toBeNull();
+  it('preserves nationwide coverage for Standard without a home city', () => {
+    const national = {
+      ...row,
+      allRussia: true,
+      cities: [],
+      regions: [],
+      provider: { ...row.provider, city: null },
+    };
+    expect(publicServiceForPlan(national)).toMatchObject({
+      allRussia: true,
+      cities: [],
+      regions: [],
+    });
   });
 });

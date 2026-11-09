@@ -43,6 +43,11 @@ import {
   ServicePlaceChips,
 } from "@/features/select-service-places";
 import { STOCK_BADGE_MAX_LENGTH } from "../lib/stock-badge-suggestions";
+import {
+  PlanFeatureGate,
+  LITE_AND_BUSINESS,
+  BUSINESS_ONLY,
+} from "@/shared/ui/PlanFeatureGate";
 import { DesktopLabelColor } from "./DesktopLabelColor";
 import { MobileLabelColor } from "./MobileLabelColor";
 import { StockBadgeField } from "./StockBadgeField";
@@ -159,7 +164,11 @@ function ServiceEditorActions({
   onDraft: () => void;
 }) {
   return (
-    <Stack direction={{ xs: "row", md: "column" }} spacing={2} useFlexGap>
+    <Stack
+      direction={{ xs: "row", md: "column" }}
+      spacing={2}
+      useFlexGap
+    >
       <Button
         type="button"
         variant="contained"
@@ -282,7 +291,6 @@ export function ProServiceEditor({
   const providerCity = activeMembership?.providerCity ?? initialProviderCity;
   const [plan, setPlan] = useState("BUSINESS");
   const [photoLimit, setPhotoLimit] = useState(10);
-  const [regionLimit, setRegionLimit] = useState<number | null>(null);
   const [allRussia, setAllRussia] = useState(
     initialService?.allRussia ?? false,
   );
@@ -296,12 +304,11 @@ export function ProServiceEditor({
         if (!response.ok) return;
         const data = (await response.json()) as {
           entitlementPlan: string;
-          limits: { photos: number; regions: number | null };
+          limits: { photos: number };
         };
         if (!cancelled) {
           setPlan(data.entitlementPlan);
           setPhotoLimit(data.limits.photos);
-          setRegionLimit(data.limits.regions);
         }
       })
       .catch(() => undefined);
@@ -433,36 +440,16 @@ export function ProServiceEditor({
     const previewImage =
       normalizeNullableString(form.image) ?? pendingImage?.previewUrl ?? null;
 
-    const allowedRegions = new Set(
-      [...new Set(places.map((place) => place.regionCode))].slice(
-        0,
-        regionLimit ?? undefined,
-      ),
-    );
-    const visiblePlaces: ServicePlace[] =
-      allRussia && plan === "BUSINESS"
-        ? [
-            {
-              kind: "region",
-              name: "Вся Россия",
-              regionName: "Вся Россия",
-              regionCode: "RU",
-            },
-          ]
-        : allRussia && providerCity
-          ? [
-              {
-                kind: "region",
-                name: providerCity.regionName,
-                regionName: providerCity.regionName,
-                regionCode: providerCity.regionCode,
-              },
-            ]
-          : places.filter(
-              (place) =>
-                place.regionCode !== "RU" &&
-                allowedRegions.has(place.regionCode),
-            );
+    const visiblePlaces: ServicePlace[] = allRussia
+      ? [
+          {
+            kind: "region",
+            name: "Вся Россия",
+            regionName: "Вся Россия",
+            regionCode: "RU",
+          },
+        ]
+      : places.filter((place) => place.regionCode !== "RU");
     return {
       id: initialService?.id ?? "preview-service",
       title: form.title.trim() || "Название услуги появится здесь",
@@ -487,9 +474,7 @@ export function ProServiceEditor({
     };
   }, [
     plan,
-    regionLimit,
     allRussia,
-    providerCity,
     activeMembership?.providerCity,
     activeMembership?.providerId,
     activeMembership?.providerName,
@@ -663,6 +648,15 @@ export function ProServiceEditor({
     event.preventDefault();
   }
 
+  const photoRestriction =
+    imageCount >= photoLimit
+      ? photoLimit < 3
+        ? `Сейчас доступно ${photoLimit} фото. До 3 фото — на Лайте, до 10 — на Бизнесе.`
+        : photoLimit < 10
+          ? "До 10 фотографий доступно на тарифе Бизнес."
+          : "В одной услуге можно разместить до 10 фотографий."
+      : null;
+
   function openImagePicker(source: "icon" | "add" | null = null) {
     if (busy || imageCount >= photoLimit) return;
     imagePickerSource.current = source;
@@ -671,17 +665,6 @@ export function ProServiceEditor({
 
   function onPlacesChange(input: ServicePlace[]) {
     const next = input.filter((place) => place.regionCode !== "RU");
-    if (
-      regionLimit !== null &&
-      new Set(next.map((place) => place.regionCode)).size > regionLimit &&
-      new Set(next.map((place) => place.regionCode)).size >=
-        new Set(places.map((place) => place.regionCode)).size
-    ) {
-      setError(
-        `Тариф позволяет выбрать до ${regionLimit} областей. Выберите подходящий тариф или сократите географию.`,
-      );
-      return;
-    }
     setAllRussia(false);
     placesTouched.current = true;
     setPlaces(next);
@@ -784,30 +767,42 @@ export function ProServiceEditor({
           mx: "auto",
         }}
       >
-        <Stack spacing={1.5} sx={{ alignItems: "flex-start" }}>
-          <Box
-            role="button"
-            tabIndex={busy ? -1 : 0}
-            aria-label="Загрузить фото"
-            aria-disabled={busy}
-            onClick={() => {
-              if (!busy) openImagePicker();
-            }}
-            onKeyDown={(event) => {
-              if (event.target !== event.currentTarget || busy) return;
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                openImagePicker();
-              }
-            }}
-            sx={{
-              width: "100%",
-              cursor: busy ? "default" : "pointer",
-              borderRadius: 1,
-            }}
+        <Stack
+          spacing={1.5}
+          sx={{ alignItems: "flex-start" }}
+        >
+          <PlanFeatureGate
+            message={photoRestriction}
+            label="Загрузить фото"
+            fullWidth
           >
-            <ServiceCard item={previewItem} linked={false} />
-          </Box>
+            <Box
+              role="button"
+              tabIndex={busy ? -1 : 0}
+              aria-label="Загрузить фото"
+              aria-disabled={busy}
+              onClick={() => {
+                if (!busy) openImagePicker();
+              }}
+              onKeyDown={(event) => {
+                if (event.target !== event.currentTarget || busy) return;
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  openImagePicker();
+                }
+              }}
+              sx={{
+                width: "100%",
+                cursor: busy ? "default" : "pointer",
+                borderRadius: 1,
+              }}
+            >
+              <ServiceCard
+                item={previewItem}
+                linked={false}
+              />
+            </Box>
+          </PlanFeatureGate>
           <Stack
             direction="row"
             sx={{
@@ -832,25 +827,35 @@ export function ProServiceEditor({
             >
               Удалить
             </Button>
-            <IconButton
-              aria-label="Загрузить фото"
-              loading={pendingAction === "upload:icon"}
-              disabled={busy || imageCount >= photoLimit}
-              onClick={() => openImagePicker("icon")}
+            <PlanFeatureGate
+              message={photoRestriction}
+              label="Загрузить фото"
             >
-              <PhotoCameraOutlinedIcon sx={{ color: "primary.main" }} />
-            </IconButton>
-            <Button
-              type="button"
-              variant="text"
-              color="success"
-              loading={pendingAction === "upload:add"}
-              disabled={busy || imageCount >= photoLimit}
-              onClick={() => openImagePicker("add")}
-              sx={{ color: "success.main" }}
+              <IconButton
+                aria-label="Загрузить фото"
+                loading={pendingAction === "upload:icon"}
+                disabled={busy}
+                onClick={() => openImagePicker("icon")}
+              >
+                <PhotoCameraOutlinedIcon sx={{ color: "primary.main" }} />
+              </IconButton>
+            </PlanFeatureGate>
+            <PlanFeatureGate
+              message={photoRestriction}
+              label="Добавить"
             >
-              Добавить
-            </Button>
+              <Button
+                type="button"
+                variant="text"
+                color="success"
+                loading={pendingAction === "upload:add"}
+                disabled={busy}
+                onClick={() => openImagePicker("add")}
+                sx={{ color: "success.main" }}
+              >
+                Добавить
+              </Button>
+            </PlanFeatureGate>
           </Stack>
         </Stack>
       </Stack>
@@ -883,16 +888,28 @@ export function ProServiceEditor({
           }}
         />
         {error ? (
-          <Alert severity="error" sx={{ borderRadius: 0 }}>
+          <Alert
+            severity="error"
+            sx={{ borderRadius: 0 }}
+          >
             {error}
+            {error.startsWith("Тариф позволяет") ? (
+              <a href="/pro/settings/tariff"> Перейти к тарифам</a>
+            ) : null}
           </Alert>
         ) : null}
 
-        <Stack spacing={1.5} sx={{ p: 2 }}>
+        <Stack
+          spacing={1.5}
+          sx={{ p: 2 }}
+        >
           <Typography variant="subtitle1">
             Фотографии услуги · {imageCount} из {photoLimit}
           </Typography>
-          <Typography variant="body2" sx={{ color: "text.secondary" }}>
+          <Typography
+            variant="body2"
+            sx={{ color: "text.secondary" }}
+          >
             JPG, PNG или WebP, до 10 МБ каждое. Первое фото — обложка карточки.
           </Typography>
           <Box
@@ -962,21 +979,36 @@ export function ProServiceEditor({
                   </Button>
                 )}
                 <Typography variant="caption">
-                  {index >= photoLimit ? "Скрыто тарифом · " : ""}
+                  {index >= photoLimit ? (
+                    <PlanFeatureGate
+                      message={index < 3 ? LITE_AND_BUSINESS : BUSINESS_ONLY}
+                      label={`Фото ${index + 1}: скрыто тарифом`}
+                    >
+                      <span>Скрыто тарифом · </span>
+                    </PlanFeatureGate>
+                  ) : null}
                   {index === 0 ? "Обложка" : `Фото ${index + 1}`}
                   {!image.saved ? " · Не загружено" : ""}
                 </Typography>
               </Box>
             ))}
           </Box>
-          <Stack direction="row" spacing={1}>
-            <Button
-              type="button"
-              onClick={() => openImagePicker("add")}
-              disabled={busy || imageCount >= photoLimit}
+          <Stack
+            direction="row"
+            spacing={1}
+          >
+            <PlanFeatureGate
+              message={photoRestriction}
+              label="Добавить фотографии"
             >
-              Добавить фотографии
-            </Button>
+              <Button
+                type="button"
+                onClick={() => openImagePicker("add")}
+                disabled={busy}
+              >
+                Добавить фотографии
+              </Button>
+            </PlanFeatureGate>
             {savedServiceId.current && pendingImages.length > 0 ? (
               <Button
                 type="button"
@@ -1025,7 +1057,10 @@ export function ProServiceEditor({
                   flexShrink: 0,
                 }}
               >
-                <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                <Typography
+                  variant="body2"
+                  sx={{ color: "text.secondary" }}
+                >
                   Превью карточки
                 </Typography>
                 <Box
@@ -1049,7 +1084,10 @@ export function ProServiceEditor({
                     borderRadius: 1,
                   }}
                 >
-                  <ServiceCard item={previewItem} linked={false} />
+                  <ServiceCard
+                    item={previewItem}
+                    linked={false}
+                  />
                 </Box>
                 {canRemoveImage ? (
                   <Button
@@ -1265,19 +1303,12 @@ export function ProServiceEditor({
               <Typography sx={{ display: { md: "none" }, fontWeight: 700 }}>
                 География
               </Typography>
-              <Typography variant="body2">
-                География:{" "}
-                {regionLimit === null
-                  ? "без ограничений"
-                  : `до ${regionLimit} областей для этой услуги`}
-                .
-              </Typography>
               <FormControlLabel
                 label="Вся Россия"
                 control={
                   <Checkbox
                     checked={allRussia}
-                    disabled={busy || (plan !== "BUSINESS" && !allRussia)}
+                    disabled={busy}
                     onChange={(event) => {
                       setAllRussia(event.target.checked);
                       if (!event.target.checked)
@@ -1310,74 +1341,45 @@ export function ProServiceEditor({
                   hideHeading
                 />
               </Box>
-              {!allRussia &&
-                regionLimit !== null &&
-                new Set(places.map((place) => place.regionCode)).size >
-                  regionLimit && (
-                  <Stack spacing={1}>
-                    <Typography variant="body2" color="text.secondary">
-                      Сохранены все регионы. В публикации — первые {regionLimit}
-                      . Поднимите нужные регионы, затем сохраните услугу.
-                    </Typography>
-                    {[...new Set(places.map((place) => place.regionCode))].map(
-                      (code, index) => (
-                        <Button
-                          key={code}
-                          variant={
-                            index < regionLimit ? "contained" : "outlined"
-                          }
-                          disabled={busy || index === 0}
-                          onClick={() => {
-                            placesTouched.current = true;
-                            setPlaces((current) => [
-                              ...current.filter(
-                                (place) => place.regionCode === code,
-                              ),
-                              ...current.filter(
-                                (place) => place.regionCode !== code,
-                              ),
-                            ]);
-                          }}
-                        >
-                          {
-                            places.find((place) => place.regionCode === code)
-                              ?.regionName
-                          }{" "}
-                          ·{" "}
-                          {index < regionLimit
-                            ? "Публикуется"
-                            : "Поднять в начало"}
-                        </Button>
-                      ),
-                    )}
-                  </Stack>
-                )}
               <Stack spacing={0.75}>
                 <Box sx={{ display: { xs: "none", md: "block" } }}>
-                  <StockBadgeField
-                    value={form.stockBadge}
-                    disabled={busy || plan === "STANDARD"}
-                    onChange={(stockBadge) =>
-                      setForm((current) => ({
-                        ...current,
-                        stockBadge,
-                        paletteColor:
-                          plan === "LITE" ? "primary" : current.paletteColor,
-                      }))
-                    }
-                    endAdornment={
-                      <DesktopLabelColor
-                        value={plan === "LITE" ? "primary" : form.paletteColor}
-                        disabled={busy || plan !== "BUSINESS"}
-                        onChange={(color) =>
-                          setForm((current) => ({
-                            ...current,
-                            paletteColor: color,
-                          }))
-                        }
-                      />
-                    }
-                  />
+                  <PlanFeatureGate
+                    message={plan === "STANDARD" ? LITE_AND_BUSINESS : null}
+                    label="Метка и цвет метки"
+                    fullWidth
+                  >
+                    <StockBadgeField
+                      value={form.stockBadge}
+                      disabled={busy}
+                      onChange={(stockBadge) =>
+                        setForm((current) => ({
+                          ...current,
+                          stockBadge,
+                          paletteColor:
+                            plan === "LITE" ? "primary" : current.paletteColor,
+                        }))
+                      }
+                      endAdornment={
+                        <PlanFeatureGate
+                          message={plan !== "BUSINESS" ? BUSINESS_ONLY : null}
+                          label="Цвет метки"
+                        >
+                          <DesktopLabelColor
+                            value={
+                              plan === "LITE" ? "primary" : form.paletteColor
+                            }
+                            disabled={busy}
+                            onChange={(color) =>
+                              setForm((current) => ({
+                                ...current,
+                                paletteColor: color,
+                              }))
+                            }
+                          />
+                        </PlanFeatureGate>
+                      }
+                    />
+                  </PlanFeatureGate>
                 </Box>
                 <Box sx={{ display: { md: "none" } }}>
                   <MobileLabelColor
@@ -1392,7 +1394,8 @@ export function ProServiceEditor({
                     }
                     color={plan === "LITE" ? "primary" : form.paletteColor}
                     colorLocked={plan !== "BUSINESS"}
-                    disabled={busy || plan === "STANDARD"}
+                    disabled={busy}
+                    badgeLocked={plan === "STANDARD"}
                     onColorChange={(color) =>
                       setForm((current) => ({
                         ...current,
@@ -1447,7 +1450,10 @@ export function ProServiceEditor({
           mx: "auto",
         }}
       >
-        <ServiceCard item={previewItem} linked={false} />
+        <ServiceCard
+          item={previewItem}
+          linked={false}
+        />
         <ServiceEditorActions
           publishDisabled={publishDisabled}
           needsPhoto={needsPhoto}

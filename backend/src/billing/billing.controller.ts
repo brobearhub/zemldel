@@ -21,7 +21,7 @@ import {
 import type { Request } from 'express';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import { BillingService } from './billing.service';
-import { BILLING_PRODUCTS } from './billing-catalog';
+import { BILLING_PRODUCTS, PLAN_PRODUCTS } from './billing-catalog';
 import type { BillingProduct } from './billing-catalog';
 
 class CheckoutDto {
@@ -38,6 +38,10 @@ class CheckoutDto {
 class SettingsDto {
   @IsOptional() @IsString() timezone?: string;
   @IsOptional() @IsBoolean() autoRenew?: boolean;
+  @IsOptional() @IsIn(['MONTH', 'YEAR', null]) nextBillingPeriod?:
+    | 'MONTH'
+    | 'YEAR'
+    | null;
   @IsOptional() @IsIn(['STANDARD', 'LITE', 'BUSINESS', null]) nextPlan?:
     | string
     | null;
@@ -51,6 +55,12 @@ export class BillingController {
     private readonly billing: BillingService,
     private readonly auth: InternalAuthService,
   ) {}
+
+  @Get('catalog')
+  @Header('Cache-Control', 'no-store')
+  catalog() {
+    return PLAN_PRODUCTS;
+  }
 
   @Get('providers/:providerId')
   overview(

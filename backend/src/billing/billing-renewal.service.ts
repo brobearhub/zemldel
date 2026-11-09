@@ -5,14 +5,14 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import type { BillingTestOrder } from '@prisma/client';
+import type { BillingOrder } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BillingService } from './billing.service';
 import { TbankClient } from './tbank';
 import {
   BILLING_PRODUCTS,
   CLOSED_STATUSES,
-  type BillingProduct,
+  planProduct,
 } from './billing-catalog';
 import { planEnforcementEnabled } from './plan-policy';
 
@@ -31,7 +31,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
     if (
       !planEnforcementEnabled() ||
       process.env.TBANK_TEST_ENABLED !== '1' ||
-      process.env.TBANK_RENEWALS_ENABLED !== '1'
+      process.env.TBANK_RENEWALS_ENABLED === '0'
     )
       return;
     this.timer = setInterval(() => {
@@ -49,7 +49,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
     if (this.running) return;
     this.running = true;
     try {
-      const accounts = await this.prisma.billingTestAccount.findMany({
+      const accounts = await this.prisma.billingAccount.findMany({
         where: {
           autoRenew: true,
           rebillId: { not: null },
@@ -69,7 +69,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
         }
       }
       // Reconcile in-flight charges even if the owner has since disabled renewal.
-      const pending = await this.prisma.billingTestOrder.findMany({
+      const pending = await this.prisma.billingOrder.findMany({
         where: {
           renewalCycle: { not: null },
           status: { notIn: CLOSED_STATUSES },
@@ -94,7 +94,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
   async renew(providerId: string) {
     const claim = await this.prisma.$transaction(async (tx) => {
       await this.billing.lock(tx, providerId);
-      const account = await tx.billingTestAccount.findUniqueOrThrow({
+      const account = await tx.billingAccount.findUniqueOrThrow({
         where: { providerId },
       });
       const now = new Date(),
@@ -108,7 +108,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
       )
         return null;
       if (now.getTime() >= cycle.getTime() + 72 * 3600000) {
-        await tx.billingTestAccount.update({
+        await tx.billingAccount.update({
           where: { providerId },
           data: { autoRenew: false, graceUntil: null },
         });
@@ -124,7 +124,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
         });
         return null;
       }
-      const attempts = await tx.billingTestOrder.findMany({
+      const attempts = await tx.billingOrder.findMany({
         where: { providerId, renewalCycle: cycle },
         orderBy: { renewalAttempt: 'desc' },
       });
@@ -132,7 +132,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
         return null;
       // Do not race a manual recovery payment.
       if (
-        await tx.billingTestOrder.findFirst({
+        await tx.billingOrder.findFirst({
           where: {
             providerId,
             renewalCycle: null,
@@ -150,13 +150,16 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
           now.getTime() < attempts[0].createdAt.getTime() + 24 * 3600000)
       )
         return null;
-      const product = (account.nextPlan ?? account.plan) as BillingProduct;
-      if (product !== 'LITE' && product !== 'BUSINESS') return null;
-      await tx.billingTestAccount.update({
+      const product = planProduct(
+        account.nextPlan ?? account.plan,
+        account.nextBillingPeriod ?? account.billingPeriod,
+      );
+      if (!product) return null;
+      await tx.billingAccount.update({
         where: { providerId },
         data: { graceUntil: new Date(cycle.getTime() + 72 * 3600000) },
       });
-      return tx.billingTestOrder.create({
+      return tx.billingOrder.create({
         data: {
           id: randomUUID(),
           providerId,
@@ -177,7 +180,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
     try {
       await this.billing.initialize(claim);
       await this.charge(
-        await this.prisma.billingTestOrder.findUniqueOrThrow({
+        await this.prisma.billingOrder.findUniqueOrThrow({
           where: { id: claim.id },
         }),
       );
@@ -190,13 +193,13 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async charge(order: BillingTestOrder) {
+  private async charge(order: BillingOrder) {
     const allowed = await this.prisma.$transaction(async (tx) => {
       await this.billing.lock(tx, order.providerId);
-      const current = await tx.billingTestOrder.findUniqueOrThrow({
+      const current = await tx.billingOrder.findUniqueOrThrow({
         where: { id: order.id },
       });
-      const account = await tx.billingTestAccount.findUniqueOrThrow({
+      const account = await tx.billingAccount.findUniqueOrThrow({
         where: { providerId: order.providerId },
       });
       if (
@@ -211,13 +214,13 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
         account.planExpiresAt?.getTime() !== order.renewalCycle?.getTime() ||
         account.needsReview
       ) {
-        await tx.billingTestOrder.update({
+        await tx.billingOrder.update({
           where: { id: order.id },
           data: { status: 'CANCELED' },
         });
         return false;
       }
-      await tx.billingTestOrder.update({
+      await tx.billingOrder.update({
         where: { id: order.id },
         data: { chargeStartedAt: new Date() },
       });
@@ -230,13 +233,13 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
       RebillId: order.rebillId,
     });
     await this.reconcile(
-      await this.prisma.billingTestOrder.findUniqueOrThrow({
+      await this.prisma.billingOrder.findUniqueOrThrow({
         where: { id: order.id },
       }),
     );
   }
 
-  private async reconcile(order: BillingTestOrder) {
+  private async reconcile(order: BillingOrder) {
     let paymentId = order.paymentId;
     if (!paymentId) {
       const check = await this.bank.call('CheckOrder', { OrderId: order.id });
@@ -253,7 +256,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
           Array.isArray(check.Payments) &&
           check.Payments.length === 0
         )
-          await this.prisma.billingTestOrder.updateMany({
+          await this.prisma.billingOrder.updateMany({
             where: { id: order.id, status: 'INITIALIZING' },
             data: { status: 'INIT_FAILED' },
           });
@@ -266,7 +269,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
     const state = await this.bank.call('GetState', { PaymentId: paymentId });
     if (state.OrderId !== order.id) throw new Error('Order mismatch');
     await this.billing.applyState(state, true);
-    const current = await this.prisma.billingTestOrder.findUniqueOrThrow({
+    const current = await this.prisma.billingOrder.findUniqueOrThrow({
       where: { id: order.id },
     });
     if (current.status === 'NEW' && !current.chargeStartedAt)
@@ -283,7 +286,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
       );
   }
 
-  private async notice(order: BillingTestOrder, message: string) {
+  private async notice(order: BillingOrder, message: string) {
     await this.prisma.billingNotice.upsert({
       where: { key: `renewal:${order.id}` },
       create: {

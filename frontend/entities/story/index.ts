@@ -8,7 +8,8 @@ export type {
   StoryConversationMessageDto,
   StoryConversationMessagesDto,
   StoryDto,
-  StoryDurationDays,
+  StoryLimits,
+  StoryDurationHours,
   StoryInsightsDto,
   StoryListDto,
   StoryReplyMessageDto,
@@ -21,6 +22,7 @@ export {
   deleteStory,
   deleteStoryComment,
   fetchMyStories,
+  fetchStoryLimits,
   fetchPublicStories,
   fetchStoryComments,
   fetchStoryConversationMessages,
@@ -42,8 +44,22 @@ export {
   unsaveStory,
   updateStoryComment,
 } from "./api/stories";
-export { liftUnseenStories, markStoriesViewed, readGuestStoryViews, rememberGuestStoryView } from "./lib/guest-story-views";
+export {
+  liftUnseenStories,
+  markStoriesViewed,
+  readGuestStoryViews,
+  rememberGuestStoryView,
+} from "./lib/guest-story-views";
 export { isOwnStory } from "./lib/own-story";
 export { resolveStoryCover, storyAuthorInitials } from "./lib/story-cover";
-export { clampStoryText, formatStoryDuration, formatStoryRemaining, STORY_DURATION_OPTIONS, STORY_IMAGE_MAX_BYTES, STORY_TEXT_MAX_LENGTH } from "./lib/story-duration";
+export {
+  clampStoryText,
+  formatStoryDuration,
+  formatStoryRemaining,
+  STORY_DURATION_OPTIONS,
+  STORY_IMAGE_MAX_BYTES,
+  STORY_VIDEO_MAX_BYTES,
+  STORY_TEXT_MAX_LENGTH,
+} from "./lib/story-duration";
 export { StoryFrame } from "./ui/StoryFrame";
+export { StoryText } from "./ui/StoryText";

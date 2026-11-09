@@ -23,6 +23,7 @@ import {
   unlikeStoryComment,
   updateStoryComment,
   StoryFrame,
+  StoryText,
   unsaveStory,
   type StoryCommentDto,
   type StoryDto,
@@ -133,11 +134,13 @@ function captionOverflows(clamp: HTMLElement): boolean {
 
 function StoryCaption({
   text,
+  format,
   expanded,
   onToggle,
   expandable = false,
 }: {
   text: string;
+  format?: StoryDto["textFormat"];
   expanded: boolean;
   onToggle: () => void;
   expandable?: boolean;
@@ -226,7 +229,7 @@ function StoryCaption({
             : null),
         }}
       >
-        {shown}
+        <StoryText text={shown} format={format} />
       </Box>
     </Box>
   );
@@ -719,6 +722,7 @@ export function StoriesViewerModal({ items, startId, scope = "user", onClose, on
             >
               <StoryFrame
               imageUrl={fetchIds.has(story.id) ? story.imageUrl : null}
+              videoUrl={fetchIds.has(story.id) ? story.videoUrl : null}
               imageAlt="Фото истории"
               onImageLoad={() => markReadyRef.current(story.id)}
               onImageError={() => markReadyRef.current(story.id)}
@@ -789,7 +793,7 @@ export function StoriesViewerModal({ items, startId, scope = "user", onClose, on
                   position: "absolute",
                   left: 0,
                   right: 0,
-                  bottom: 0,
+                  bottom: story.videoUrl ? 48 : 0,
                   px: 2.5,
                   pb: 2.5,
                   pt: textExpanded ? 7 : story.imageUrl ? 14 : 2.5,
@@ -891,6 +895,7 @@ export function StoriesViewerModal({ items, startId, scope = "user", onClose, on
                   <Box sx={textExpanded ? { maxHeight: "45%", minHeight: 0, display: "flex", flexShrink: 0 } : undefined}>
                     <StoryCaption
                       text={story.text}
+                      format={story.textFormat}
                       expanded={textExpanded}
                       expandable
                       onToggle={() => {

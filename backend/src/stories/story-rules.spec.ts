@@ -7,41 +7,41 @@ import {
   collapseStoryLineEndings,
   normalizeStoryText,
   orderStoryFeed,
-  parseStoryDurationDays,
+  parseStoryDurationHours,
   resolveInsightsTimeZone,
   storyFeedReason,
   STORY_FEED_LIMIT,
   STORY_TEXT_MAX_LENGTH,
 } from './story-rules';
 
-describe('parseStoryDurationDays', () => {
-  it('принимает 1, 2, 3 и 7 дней', () => {
-    expect(parseStoryDurationDays(1)).toBe(1);
-    expect(parseStoryDurationDays(2)).toBe(2);
-    expect(parseStoryDurationDays(3)).toBe(3);
-    expect(parseStoryDurationDays(7)).toBe(7);
+describe('parseStoryDurationHours', () => {
+  it('принимает 6, 12, 24 и 48 часов', () => {
+    expect(parseStoryDurationHours(6)).toBe(6);
+    expect(parseStoryDurationHours(12)).toBe(12);
+    expect(parseStoryDurationHours(24)).toBe(24);
+    expect(parseStoryDurationHours(48)).toBe(48);
   });
 
   it('принимает строку с допустимым числом', () => {
-    expect(parseStoryDurationDays('3')).toBe(3);
+    expect(parseStoryDurationHours('24')).toBe(24);
   });
 
   it('отклоняет срок вне набора', () => {
-    expect(parseStoryDurationDays(5)).toBeNull();
-    expect(parseStoryDurationDays(0)).toBeNull();
-    expect(parseStoryDurationDays('8')).toBeNull();
-    expect(parseStoryDurationDays('abc')).toBeNull();
+    expect(parseStoryDurationHours(5)).toBeNull();
+    expect(parseStoryDurationHours(0)).toBeNull();
+    expect(parseStoryDurationHours('8')).toBeNull();
+    expect(parseStoryDurationHours('abc')).toBeNull();
   });
 });
 
 describe('computeStoryExpiresAt', () => {
-  it('прибавляет выбранные сутки к publishedAt', () => {
+  it('прибавляет выбранные часы к publishedAt', () => {
     const publishedAt = new Date('2026-10-06T12:00:00.000Z');
-    expect(computeStoryExpiresAt(publishedAt, 1).toISOString()).toBe(
+    expect(computeStoryExpiresAt(publishedAt, 24).toISOString()).toBe(
       '2026-10-07T12:00:00.000Z',
     );
-    expect(computeStoryExpiresAt(publishedAt, 7).toISOString()).toBe(
-      '2026-10-13T12:00:00.000Z',
+    expect(computeStoryExpiresAt(publishedAt, 6).toISOString()).toBe(
+      '2026-10-06T18:00:00.000Z',
     );
   });
 });
@@ -64,7 +64,7 @@ describe('normalizeStoryText', () => {
   });
 
   it('считает CRLF из multipart одним символом', () => {
-    const text = `${Array.from({ length: 50 }, () => 'а'.repeat(9)).join('\n')}б`;
+    const text = 'а\n'.repeat(STORY_TEXT_MAX_LENGTH / 2 - 1) + 'бб';
     const wire = text.replace(/\n/g, '\r\n');
     expect(text).toHaveLength(STORY_TEXT_MAX_LENGTH);
     expect(wire.length).toBeGreaterThan(STORY_TEXT_MAX_LENGTH);

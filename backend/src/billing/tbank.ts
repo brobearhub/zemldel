@@ -1,6 +1,11 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 
+export function bankRedirectDueDate(date: Date): string {
+  // Init requires seconds and an explicit UTC offset; milliseconds with Z cause 9999.
+  return date.toISOString().replace(/\.\d{3}Z$/, '+00:00');
+}
+
 export function bankToken(payload: Record<string, unknown>, password: string) {
   const values = { ...payload, Password: password };
   const source = Object.keys(values)
@@ -75,9 +80,12 @@ export function safePaymentUrl(value: unknown): string {
         url.protocol === 'https:' &&
         !url.username &&
         !url.password &&
-        ['pay.tbank.ru', 'securepay.tinkoff.ru', 'securepay.tbank.ru'].includes(
-          url.hostname,
-        )
+        [
+          'pay.tbank.ru',
+          'pay.tbank-online.com',
+          'securepay.tinkoff.ru',
+          'securepay.tbank.ru',
+        ].includes(url.hostname)
       )
         return value;
     } catch {

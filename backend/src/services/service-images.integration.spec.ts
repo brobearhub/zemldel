@@ -89,7 +89,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
           status: 'PUBLISHED',
         },
       });
-      await db.billingTestAccount.upsert({
+      await db.billingAccount.upsert({
         where: { providerId },
         create: {
           providerId,
@@ -105,7 +105,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
     });
     afterAll(async () => {
       await db.service.deleteMany({ where: { providerId } });
-      await db.billingTestAccount.deleteMany({ where: { providerId } });
+      await db.billingAccount.deleteMany({ where: { providerId } });
       await db.provider.deleteMany({ where: { id: providerId } });
       await db.serviceCategory.deleteMany({ where: { id: categoryId } });
       await db.user.deleteMany({ where: { id: owner } });
@@ -178,20 +178,20 @@ describe.skipIf(!process.env.DATABASE_URL)(
       ).toEqual([]);
     });
     it('enforces Standard and Lite photo limits and preserves hidden originals', async () => {
-      await db.billingTestAccount.update({
+      await db.billingAccount.update({
         where: { providerId },
         data: { plan: 'STANDARD' },
       });
       await upload(1);
       await expect(upload(2)).rejects.toThrow();
-      await db.billingTestAccount.update({
+      await db.billingAccount.update({
         where: { providerId },
         data: { plan: 'LITE' },
       });
       await upload(2);
       await upload(3);
       await expect(upload(4)).rejects.toThrow();
-      await db.billingTestAccount.update({
+      await db.billingAccount.update({
         where: { providerId },
         data: { plan: 'STANDARD' },
       });
@@ -201,9 +201,9 @@ describe.skipIf(!process.env.DATABASE_URL)(
         (await db.service.findUniqueOrThrow({ where: { id: serviceId } }))
           .images,
       ).toHaveLength(3);
-      expect(JSON.stringify(publicRow)).not.toContain('billingTestAccount');
+      expect(JSON.stringify(publicRow)).not.toContain('billingAccount');
     });
-    it('enforces geography and badge gates, allows reordering hidden regions after downgrade', async () => {
+    it('preserves unrestricted geography after downgrade while enforcing badge gates', async () => {
       const cityIds = [randomUUID(), randomUUID()];
       const codes = cityIds.map((id) => id.slice(0, 8));
       try {
@@ -231,7 +231,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
           { places, stockBadge: 'Скидка', paletteColor: 'error' },
           { providerId },
         );
-        await db.billingTestAccount.update({
+        await db.billingAccount.update({
           where: { providerId },
           data: { plan: 'STANDARD' },
         });
@@ -239,7 +239,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
           (await service.getServiceById(serviceId))?.places.map(
             (p) => p.regionCode,
           ),
-        ).toEqual([codes[0]]);
+        ).toEqual(codes);
         await service.updateService(
           serviceId,
           { places: [...places].reverse() },
@@ -249,7 +249,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
           (await service.getServiceById(serviceId))?.places.map(
             (p) => p.regionCode,
           ),
-        ).toEqual([codes[1]]);
+        ).toEqual([...codes].reverse());
         expect(await db.serviceRegion.count({ where: { serviceId } })).toBe(2);
         await expect(
           service.updateService(
@@ -257,7 +257,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
             { allRussia: true, places: [] },
             { providerId },
           ),
-        ).rejects.toThrow();
+        ).resolves.toBeDefined();
         await expect(
           service.updateService(
             serviceId,
@@ -272,8 +272,8 @@ describe.skipIf(!process.env.DATABASE_URL)(
         );
         await expect(
           service.updateService(serviceId, { places }, { providerId }),
-        ).rejects.toThrow();
-        await db.billingTestAccount.update({
+        ).resolves.toBeDefined();
+        await db.billingAccount.update({
           where: { providerId },
           data: { plan: 'BUSINESS' },
         });
@@ -287,11 +287,13 @@ describe.skipIf(!process.env.DATABASE_URL)(
             (s) => s.id === serviceId,
           ),
         ).toBe(true);
-        await db.billingTestAccount.update({
+        await db.billingAccount.update({
           where: { providerId },
           data: { plan: 'STANDARD' },
         });
-        expect(await service.getServiceById(serviceId)).toBeNull();
+        expect(await service.getServiceById(serviceId)).toMatchObject({
+          allRussia: true,
+        });
         expect(
           (await service.getServiceById(serviceId, { providerId }))?.allRussia,
         ).toBe(true);
@@ -302,7 +304,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
     it('publishes all Standard content while enforcement is paused', async () => {
       vi.stubEnv('PLAN_ENFORCEMENT_ENABLED', '0');
       try {
-        await db.billingTestAccount.update({
+        await db.billingAccount.update({
           where: { providerId },
           data: { plan: 'STANDARD' },
         });

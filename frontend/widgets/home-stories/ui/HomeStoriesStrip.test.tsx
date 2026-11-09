@@ -38,7 +38,7 @@ const story: StoryDto = {
   cityId: null,
   text: "Ищу кадастрового инженера",
   imageUrl: null,
-  durationDays: 1,
+  durationHours: 24,
   publishedAt: "2026-10-06T10:00:00.000Z",
   expiresAt: "2026-10-07T10:00:00.000Z",
   expired: false,
