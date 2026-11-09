@@ -84,7 +84,7 @@ describe('renewal worker activation', () => {
     };
     const billing = {
       lock: vi.fn(),
-      hasRenewalMandate: vi.fn().mockResolvedValue(false),
+      getRenewalMandate: vi.fn().mockResolvedValue(null),
       initialize: vi.fn(),
     };
     const bank = { call: vi.fn() };
@@ -94,7 +94,7 @@ describe('renewal worker activation', () => {
       bank as never,
     );
     await service.renew('provider');
-    expect(billing.hasRenewalMandate).toHaveBeenCalledWith(
+    expect(billing.getRenewalMandate).toHaveBeenCalledWith(
       'provider',
       '123',
       'qa-live',

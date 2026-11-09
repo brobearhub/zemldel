@@ -549,6 +549,7 @@ model BillingOrder {
   operationId String @db.Uuid
   product String
   amount Int
+  receiptEmail String?
   autoRenew Boolean @default(false)
   consentVersion Int @default(0)
   rebillId String?

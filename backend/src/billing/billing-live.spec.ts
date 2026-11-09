@@ -56,8 +56,8 @@ describe('live billing configuration', () => {
   it('looks for a confirmed mandate on the active terminal', async () => {
     const { service, db } = setup();
     expect(
-      await service.hasRenewalMandate('provider', '123', 'working-terminal'),
-    ).toBe(false);
+      await service.getRenewalMandate('provider', '123', 'working-terminal'),
+    ).toBeNull();
     expect(db.billingOrder.findFirst).toHaveBeenCalledWith({
       where: {
         providerId: 'provider',
@@ -65,8 +65,10 @@ describe('live billing configuration', () => {
         terminalKey: 'working-terminal',
         autoRenew: true,
         status: 'CONFIRMED',
+        receiptEmail: { not: null },
       },
-      select: { id: true },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, receiptEmail: true },
     });
   });
 
