@@ -1,4 +1,11 @@
-# Redux Toolkit TypeScript Example
+# Zemledel frontend
+
+## Docker / Timeweb App Platform
+
+Настройки деплоя, переменные сборки и запуска, команды локальной проверки:
+[инструкция](../docs/frontend-docker.md).
+
+## Redux Toolkit TypeScript Example
 
 This example shows how to integrate Next.js with [Redux Toolkit](https://redux-toolkit.js.org).
 

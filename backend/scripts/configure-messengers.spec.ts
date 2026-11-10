@@ -40,9 +40,13 @@ globalThis.fetch = async (url, init) => {
   if (scenario === 'invalid-json') return new Response(process.env.TELEGRAM_BOT_TOKEN, { status: 200 });
   if (path === 'getMe') return Response.json({ ok: true, result: { username: scenario === 'username' ? 'other_bot' : 'telegram_bot' } });
   if (path === 'me') return Response.json({ username: 'max_bot' });
-  if (path === 'getWebhookInfo') return Response.json({ ok: true, result: { url: scenario === 'conflict' ? 'https://other.example/' + process.env.TELEGRAM_BOT_TOKEN : '' } });
+  if (path === 'getWebhookInfo') return Response.json({ ok: true, result: { url: scenario === 'conflict' ? 'https://other.example/' + process.env.TELEGRAM_BOT_TOKEN : scenario.startsWith('polling') ? 'https://api.example.com/messengers/TELEGRAM/webhook' : '' } });
   if (path === 'subscriptions' && init.method === 'GET') return Response.json({ subscriptions: [] });
-  if (scenario === 'apply' && init.method === 'POST') {
+  if (scenario === 'polling-apply' && path === 'deleteWebhook') {
+    if (JSON.parse(init.body).drop_pending_updates !== false) throw new Error('Updates must be preserved');
+    return Response.json({ ok: true, result: true });
+  }
+  if ((scenario === 'apply' || scenario === 'polling-apply') && init.method === 'POST') {
     const body = JSON.parse(init.body);
     const platform = telegram ? 'TELEGRAM' : 'MAX';
     if (body.url !== 'https://api.example.com/messengers/' + platform + '/webhook') throw new Error('Invalid webhook URL');
@@ -61,6 +65,7 @@ function run(
   scenario = 'ok',
   baseUrl = 'https://api.example.com',
   apply = false,
+  mode = 'webhook',
 ) {
   const result = spawnSync(
     process.execPath,
@@ -83,6 +88,7 @@ function run(
         TELEGRAM_BOT_USERNAME: 'telegram_bot',
         TELEGRAM_BOT_TOKEN: secretMarker,
         TELEGRAM_WEBHOOK_SECRET: secretMarker,
+        TELEGRAM_UPDATES_MODE: mode,
         MAX_BOT_USERNAME: 'max_bot',
         MAX_BOT_TOKEN: secretMarker,
         MAX_WEBHOOK_SECRET: secretMarker,
@@ -152,5 +158,36 @@ describe('messenger setup diagnostics', () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('уже подключён к другому сервису');
     expect(result.stdout).not.toContain('запрос setWebhook');
+  });
+
+  it('checks polling without deleting the webhook', () => {
+    const result = run('polling', undefined, false, 'polling');
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('режим polling; webhook нужно отключить');
+    expect(result.stdout).not.toContain('запрос deleteWebhook');
+    expect(result.stdout).not.toContain('запрос setWebhook');
+  });
+
+  it('switches Telegram to polling, preserving events and keeping MAX on webhook', () => {
+    const result = run('polling-apply', undefined, true, 'polling');
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('запрос deleteWebhook');
+    expect(result.stdout).toContain('накопленные события сохранены');
+    expect(result.stdout).toContain('MAX: webhook зарегистрирован');
+    expect(result.stdout).not.toContain('запрос setWebhook');
+  });
+
+  it('does not delete an unrelated webhook in polling mode', () => {
+    const result = run('conflict', undefined, true, 'polling');
+    expect(result.status).toBe(1);
+    expect(result.stdout).not.toContain('запрос deleteWebhook');
+  });
+
+  it('can apply polling again when Telegram already has no webhook', () => {
+    const result = run('apply', undefined, true, 'polling');
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('режим polling; webhook отключён');
+    expect(result.stdout).not.toContain('запрос deleteWebhook');
+    expect(result.stdout).toContain('MAX: webhook зарегистрирован');
   });
 });

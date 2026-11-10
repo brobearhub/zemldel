@@ -15,7 +15,9 @@ if (storageEndpoint && storageBucket) {
   const pathStyle = process.env.NEXT_PUBLIC_S3_FORCE_PATH_STYLE === "true";
   storageImagePatterns.push({
     protocol: "https",
-    hostname: pathStyle ? endpoint.hostname : `${storageBucket}.${endpoint.hostname}`,
+    hostname: pathStyle
+      ? endpoint.hostname
+      : `${storageBucket}.${endpoint.hostname}`,
     port: endpoint.port,
     pathname: `${endpoint.pathname.replace(/\/+$/, "")}/${pathStyle ? `${encodeURIComponent(storageBucket)}/` : ""}public/**`,
   });
@@ -24,15 +26,22 @@ if (storageEndpoint && storageBucket) {
 // Baseline security headers for every marketplace response (SEO audit 2026-10, section 2.3).
 // No Content-Security-Policy yet: roll it out as Report-Only first (GTM, Google Maps, photo CDN).
 const SECURITY_HEADERS = [
-  { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=31536000; includeSubDomains",
+  },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=()",
+  },
 ];
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
   reactStrictMode: true,
   poweredByHeader: false,
   async headers() {
@@ -52,7 +61,10 @@ const nextConfig = {
     },
   },
   webpack: (config) => {
-    config.resolve.alias["#remend"] = path.join(projectRoot, "node_modules/remend");
+    config.resolve.alias["#remend"] = path.join(
+      projectRoot,
+      "node_modules/remend",
+    );
     return config;
   },
   async redirects() {

@@ -65,7 +65,10 @@ export class MessengerRepository {
         tokenHash,
         expiresAt: { gt: new Date() },
         confirmedAt: null,
-        externalUserId: null,
+        OR: [
+          { externalUserId: null },
+          { externalUserId: event.externalUserId, chatId: event.chatId },
+        ],
       },
       data: {
         externalUserId: event.externalUserId,

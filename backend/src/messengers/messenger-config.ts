@@ -8,6 +8,14 @@ export class MessengerConfig {
     process.env.MESSENGER_LISTEN_DATABASE_URL ?? process.env.DATABASE_URL;
   readonly siteUrl = (process.env.MESSENGER_SITE_URL ?? '').replace(/\/$/, '');
   readonly workerEnabled = process.env.MESSENGER_WORKER_ENABLED === 'true';
+  readonly telegramUpdatesMode = this.readTelegramUpdatesMode();
+
+  private readTelegramUpdatesMode(): 'webhook' | 'polling' {
+    const mode = process.env.TELEGRAM_UPDATES_MODE ?? 'webhook';
+    if (mode !== 'webhook' && mode !== 'polling')
+      throw new Error('TELEGRAM_UPDATES_MODE должен быть webhook или polling');
+    return mode;
+  }
 
   bot(platform: MessengerPlatform) {
     return {
