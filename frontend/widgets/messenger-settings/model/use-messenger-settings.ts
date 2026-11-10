@@ -18,36 +18,54 @@ export function useMessengerSettings() {
     Partial<Record<MessengerPlatform, MessengerLink>>
   >({});
   const mounted = useRef(false);
-  const fetching = useRef<Promise<void> | null>(null);
+  const revision = useRef(0);
+  const busyRef = useRef<string | null>(null);
+  const fetching = useRef<{ revision: number; promise: Promise<void> } | null>(
+    null,
+  );
 
-  const refresh = useCallback((): Promise<void> => {
-    if (fetching.current) return fetching.current;
-    if (mounted.current) setRefreshing(true);
-    const pending = (async () => {
-      try {
-        const result = await messengerApi.status();
-        if (mounted.current) {
-          setItems(result);
-          setError(null);
+  const refresh = useCallback(
+    (options?: {
+      afterAction?: boolean;
+      errorMessage?: string;
+    }): Promise<void> => {
+      if (busyRef.current && !options?.afterAction) return Promise.resolve();
+      if (fetching.current?.revision === revision.current)
+        return fetching.current.promise;
+      const currentRevision = revision.current;
+      const isCurrent = () =>
+        mounted.current && revision.current === currentRevision;
+      if (mounted.current) setRefreshing(true);
+      const pending = (async () => {
+        try {
+          const result = await messengerApi.status();
+          if (isCurrent()) {
+            setItems(result);
+            setError(null);
+          }
+        } catch (e) {
+          if (isCurrent())
+            setError(
+              options?.errorMessage ??
+                (e instanceof Error
+                  ? e.message
+                  : "Не удалось загрузить подключения"),
+            );
+        } finally {
+          if (isCurrent()) {
+            setLoading(false);
+            setRefreshing(false);
+          }
         }
-      } catch (e) {
-        if (mounted.current)
-          setError(
-            e instanceof Error ? e.message : "Не удалось загрузить подключения",
-          );
-      } finally {
-        if (mounted.current) {
-          setLoading(false);
-          setRefreshing(false);
-        }
-      }
-    })();
-    fetching.current = pending;
-    void pending.then(() => {
-      fetching.current = null;
-    });
-    return pending;
-  }, []);
+      })();
+      fetching.current = { revision: currentRevision, promise: pending };
+      void pending.then(() => {
+        if (fetching.current?.promise === pending) fetching.current = null;
+      });
+      return pending;
+    },
+    [],
+  );
 
   useEffect(() => {
     mounted.current = true;
@@ -58,6 +76,7 @@ export function useMessengerSettings() {
     window.addEventListener("focus", focus);
     return () => {
       mounted.current = false;
+      revision.current += 1;
       window.removeEventListener("focus", focus);
     };
   }, [refresh]);
@@ -76,8 +95,11 @@ export function useMessengerSettings() {
     kind: "link" | "confirm" | "disconnect" | "notifications",
     value?: string | boolean,
   ) {
-    if (busy) return;
-    setBusy(`${platform}:${kind}`);
+    if (busyRef.current) return;
+    busyRef.current = `${platform}:${kind}`;
+    revision.current += 1;
+    setBusy(busyRef.current);
+    setRefreshing(false);
     setError(null);
     try {
       if (kind === "link") {
@@ -93,15 +115,47 @@ export function useMessengerSettings() {
       } else if (kind === "notifications" && typeof value === "boolean") {
         await messengerApi.notifications(platform, value);
       }
-      // Дожидаемся старого опроса, затем читаем состояние после мутации.
-      if (fetching.current) await fetching.current;
-      await refresh();
+      if (!mounted.current) return;
+      // Apply only a confirmed mutation. A slow background GET from before the
+      // mutation is invalidated by revision and cannot restore stale state.
+      setItems((previous) =>
+        previous.map((item) => {
+          if (item.platform !== platform) return item;
+          if (kind === "disconnect")
+            return {
+              ...item,
+              connected: false,
+              displayName: null,
+              pending: null,
+              blocked: false,
+              notificationsEnabled: false,
+            };
+          if (kind === "confirm")
+            return {
+              ...item,
+              connected: true,
+              displayName: item.pending?.displayName ?? item.displayName,
+              pending: null,
+              notificationsEnabled: true,
+              blocked: false,
+            };
+          if (kind === "notifications" && typeof value === "boolean")
+            return { ...item, notificationsEnabled: value };
+          return item;
+        }),
+      );
+      await refresh({
+        afterAction: true,
+        errorMessage:
+          "Изменение сохранено, но не удалось обновить статус. Нажмите «Повторить».",
+      });
     } catch (e) {
       if (mounted.current)
         setError(
           e instanceof Error ? e.message : "Не удалось обновить подключение",
         );
     } finally {
+      busyRef.current = null;
       if (mounted.current) setBusy(null);
     }
   }

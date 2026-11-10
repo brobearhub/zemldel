@@ -7,7 +7,6 @@ import { resolveAccountKind } from "@/core/auth/authorization";
 import { useAppSelector } from "@/core/store/hooks";
 import {
   CUSTOMER_NAV,
-  PROVIDER_CONTACT_NAV,
   PROVIDER_HEADER_NAV,
   PROVIDER_NAV,
   type CabinetRole,
@@ -19,7 +18,6 @@ import {
 } from "@/widgets/cabinet-chrome/lib/cabinet-role-storage";
 import { CabinetDesktopBar } from "@/widgets/cabinet-chrome/ui/CabinetDesktopBar";
 import { CabinetMobileHeader } from "@/widgets/cabinet-chrome/ui/CabinetMobileHeader";
-import { CabinetBottomNav } from "@/widgets/cabinet-chrome/ui/CabinetBottomNav";
 
 export function CabinetChrome() {
   const isWide = useMediaQuery((theme) => theme.breakpoints.up("tablet"));
@@ -33,12 +31,12 @@ export function CabinetChrome() {
   );
 
   const zone = useMemo(() => getCabinetZone(pathname), [pathname]);
-  const isProviderContact = zone === "profile" && isProviderAccount;
   const role: CabinetRole = useMemo(() => {
+    if (isProviderAccount) return "provider";
     if (zone === "profile") return "customer";
     if (zone === "pro") return "provider";
     return getLastCabinetRole();
-  }, [zone]);
+  }, [zone, isProviderAccount]);
 
   /**
    * Why: контактное лицо — часть аккаунта исполнителя, чаты остаются чатами исполнителя.
@@ -50,11 +48,7 @@ export function CabinetChrome() {
     if (zone === "pro") setLastCabinetRole("provider");
   }, [zone, isAuthenticated, isProviderAccount]);
 
-  const nav = isProviderContact
-    ? PROVIDER_CONTACT_NAV
-    : role === "provider"
-      ? PROVIDER_NAV
-      : CUSTOMER_NAV;
+  const nav = role === "provider" ? PROVIDER_NAV : CUSTOMER_NAV;
   const showProviderCity = role === "provider";
   // touch searchParams to trigger rerender when section changes
   void searchParams;
@@ -70,14 +64,5 @@ export function CabinetChrome() {
     );
   }
 
-  return (
-    <>
-      <CabinetMobileHeader showProviderCity={showProviderCity} />
-      <CabinetBottomNav
-        items={nav.mobileBottom}
-        moreItems={nav.mobileMore}
-        providerMenu={role === "provider" && !isProviderContact}
-      />
-    </>
-  );
+  return <CabinetMobileHeader showProviderCity={showProviderCity} />;
 }

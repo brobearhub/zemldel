@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
-import { Box, IconButton, Typography } from "@mui/material";
+import { Badge, Box, IconButton, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
+import { useReminderCount } from "../model/ReminderCountProvider";
 
 const timeFormatter = new Intl.DateTimeFormat("ru-RU", {
   hour: "2-digit",
@@ -130,24 +131,53 @@ export function ProviderHeaderStatus() {
   );
 }
 
-export function ProviderNotificationsButton() {
+export function ProviderNotificationsButton({
+  onNavigate,
+  label = "Открыть напоминания",
+  buttonSize = 40,
+}: {
+  onNavigate?: () => void;
+  label?: string;
+  buttonSize?: number;
+} = {}) {
+  const count = useReminderCount();
   return (
     <IconButton
       component={Link}
       href="/pro/reminders"
-      aria-label="Открыть напоминания"
+      aria-label={count > 0 ? `${label}: ${count} в ближайший час` : label}
+      title={count > 0 ? `В ближайший час: ${count}` : label}
+      onClick={onNavigate}
       size="small"
       sx={{
         color: "inherit",
-        minWidth: 40,
-        minHeight: 40,
+        width: buttonSize,
+        height: buttonSize,
+        flexShrink: 0,
       }}
     >
-      <NotificationsNoneOutlinedIcon
+      <Badge
+        badgeContent={count}
+        max={99}
         sx={{
-          fontSize: 23,
+          "& .MuiBadge-badge": {
+            bgcolor: "#ed6c02",
+            color: "#1f160d",
+            fontSize: "0.6875rem",
+            fontWeight: 800,
+            height: 18,
+            minWidth: 18,
+            px: 0.5,
+            borderRadius: "9px",
+          },
         }}
-      />
+      >
+        <NotificationsNoneOutlinedIcon
+          sx={{
+            fontSize: 23,
+          }}
+        />
+      </Badge>
     </IconButton>
   );
 }

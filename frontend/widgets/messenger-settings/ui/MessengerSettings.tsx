@@ -4,6 +4,7 @@ import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   FormControlLabel,
   Paper,
   Skeleton,
@@ -38,16 +39,6 @@ export function MessengerSettings({
       <Stack
         spacing={2.5}
       >
-        <Typography
-          component="h2"
-          variant="h6"
-          sx={{
-            fontSize: 18,
-            fontWeight: 600,
-          }}
-        >
-          Мессенджеры
-        </Typography>
         <Typography
           variant="body2"
           color="text.secondary"
@@ -144,9 +135,18 @@ export function MessengerSettings({
                 item.pending &&
                 link &&
                 item.pending.expiresAt === link.expiresAt;
+              const itemBusy = busy?.startsWith(`${item.platform}:`) ?? false;
+              const busyLabel = busy === `${item.platform}:disconnect`
+                ? `Отключаем ${name}…`
+                : busy === `${item.platform}:confirm`
+                  ? `Подтверждаем подключение ${name}…`
+                  : busy === `${item.platform}:notifications`
+                    ? "Сохраняем настройки…"
+                    : `Создаём ссылку для ${name}…`;
               return (
                 <Stack
                   key={item.platform}
+                  aria-busy={itemBusy}
                   spacing={1.5}
                   sx={{
                     p: singleColumn ? 0 : 1.5,
@@ -157,12 +157,11 @@ export function MessengerSettings({
                   }}
                 >
                   <Stack
-                    direction={singleColumn ? "row" : { xs: "column", sm: "row" }}
+                    direction="row"
                     sx={{
-                      alignItems: singleColumn
-                        ? "center"
-                        : { xs: "flex-start", sm: "center" },
+                      alignItems: "center",
                       justifyContent: "space-between",
+                      flexWrap: "wrap",
                       gap: 1,
                       minHeight: 24,
                     }}
@@ -185,56 +184,83 @@ export function MessengerSettings({
                           flexShrink: 0,
                         }}
                       />
+                      <Box
+                        sx={{
+                          minWidth: 0,
+                          overflowWrap: "anywhere",
+                        }}
+                      >
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: 600,
+                          }}
+                        >
+                          {name}
+                        </Typography>
+                        {item.connected && (
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                          >
+                            {item.displayName?.trim() || "Подключено"}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Stack>
+                    <FormControlLabel
+                      label={item.connected ? "Отключить" : "Подключить"}
+                      labelPlacement="start"
+                      sx={{
+                        m: 0,
+                        ml: "auto",
+                        flexShrink: 0,
+                        gap: 1,
+                        "& .MuiFormControlLabel-label": {
+                          fontSize: 14,
+                        },
+                      }}
+                      control={
+                        <Switch
+                          size="small"
+                          checked={item.connected}
+                          disabled={
+                            Boolean(busy) ||
+                            (!item.connected && (!item.configured || Boolean(item.pending)))
+                          }
+                          slotProps={{
+                            input: {
+                              "aria-label": `${item.connected ? "Отключить" : "Подключить"} ${name}`,
+                            },
+                          }}
+                          onChange={() => void action(item.platform, item.connected ? "disconnect" : "link")}
+                        />
+                      }
+                    />
+                  </Stack>
+                  {itemBusy && (
+                    <Stack
+                      direction="row"
+                      role="status"
+                      aria-live="polite"
+                      sx={{
+                        alignItems: "center",
+                        gap: 1,
+                      }}
+                    >
+                      <CircularProgress
+                        size={16}
+                        color="inherit"
+                        aria-hidden="true"
+                      />
                       <Typography
                         variant="body2"
-                        sx={{
-                          fontWeight: 600,
-                        }}
+                        color="text.secondary"
                       >
-                        {name}
+                        {busyLabel}
                       </Typography>
                     </Stack>
-                    {item.connected ? (
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{
-                          minWidth: 0,
-                          maxWidth: "100%",
-                          overflowWrap: "anywhere",
-                          textAlign: { xs: "left", sm: "right" },
-                        }}
-                      >
-                        {item.displayName?.trim() || "Подключено"}
-                      </Typography>
-                    ) : (
-                      <Button
-                        size="small"
-                        variant="text"
-                        color="inherit"
-                        aria-label={`Подключить ${name}`}
-                        loading={busy === `${item.platform}:link`}
-                        disabled={
-                          !item.configured ||
-                          Boolean(item.pending) ||
-                          (Boolean(busy) && busy !== `${item.platform}:link`)
-                        }
-                        onClick={() => void action(item.platform, "link")}
-                        sx={{
-                          flexShrink: 0,
-                          minWidth: 0,
-                          p: 0.5,
-                          color: "text.secondary",
-                          textTransform: "none",
-                          "&.Mui-disabled": {
-                            color: "text.secondary",
-                          },
-                        }}
-                      >
-                        Подключить
-                      </Button>
-                    )}
-                  </Stack>
+                  )}
                   {item.connected ? (
                     <>
                       {item.blocked && (
@@ -249,6 +275,7 @@ export function MessengerSettings({
                         label="Дублировать входящие сообщения"
                         control={
                           <Switch
+                            size="small"
                             checked={item.notificationsEnabled}
                             disabled={Boolean(busy)}
                             onChange={(_, checked) =>
@@ -261,21 +288,6 @@ export function MessengerSettings({
                           />
                         }
                       />
-                      <Button
-                        variant="outlined"
-                        color="inherit"
-                        loading={busy === `${item.platform}:disconnect`}
-                        disabled={
-                          Boolean(busy) &&
-                          busy !== `${item.platform}:disconnect`
-                        }
-                        onClick={() => void action(item.platform, "disconnect")}
-                        sx={{
-                          alignSelf: "flex-start",
-                        }}
-                      >
-                        Отключить {name}
-                      </Button>
                     </>
                   ) : item.pending?.displayName ? (
                     <>

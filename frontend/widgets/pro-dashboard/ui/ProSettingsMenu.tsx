@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { useId, useState, type ReactNode } from "react";
 import {
@@ -18,6 +19,7 @@ import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
+import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useColorMode } from "@/core/theme/ColorModeContext";
@@ -69,7 +71,8 @@ export function ProSettingsMenu({ onNavigate }: { onNavigate?: () => void }) {
   );
   return (
     <List disablePadding aria-label="Разделы настроек">
-      {link("/pro/settings/profile", "Профиль", <PersonOutlineIcon />)}
+      {link("/pro/settings/profile", "Мой профиль", <PersonOutlineIcon />)}
+      {link("/pro/settings/account", "Мои данные", <PersonOutlineIcon />)}
       {link("/pro/settings/promotion", "Продвижение", <TrendingUpIcon />)}
       <ListItemButton
         onClick={() => setTemplatesOpen(!templatesOpen)}
@@ -108,6 +111,15 @@ export function ProSettingsMenu({ onNavigate }: { onNavigate?: () => void }) {
           slotProps={{ input: { tabIndex: -1, "aria-hidden": true } }}
           sx={{ pointerEvents: "none" }}
         />
+      </ListItemButton>
+      <ListItemButton
+        onClick={() => void signOut({ callbackUrl: "/" })}
+        sx={{ ...rowSx, color: "error.main" }}
+      >
+        <ListItemIcon sx={{ minWidth: 24, color: "inherit" }}>
+          <LogoutRoundedIcon />
+        </ListItemIcon>
+        <ListItemText primary="Выйти" />
       </ListItemButton>
     </List>
   );

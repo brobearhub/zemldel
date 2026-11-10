@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider } from "@mui/material";
 import { useMemo } from "react";
@@ -80,6 +80,24 @@ describe("ColorModeProvider", () => {
     );
 
     expect(await screen.findByText("dark")).toBeInTheDocument();
+  });
+
+  it("в системном режиме отслеживает изменения темы устройства", () => {
+    let listener: (() => void) | undefined;
+    const media = {
+      matches: true,
+      addEventListener: vi.fn((_event: string, callback: () => void) => { listener = callback; }),
+      removeEventListener: vi.fn(),
+    };
+    vi.stubGlobal("matchMedia", vi.fn(() => media));
+    window.localStorage.setItem(COLOR_MODE_STORAGE_KEY, "system");
+    const { unmount } = render(<ColorModeProvider><ModeProbe /></ColorModeProvider>);
+    expect(screen.getByText("dark")).toBeInTheDocument();
+    act(() => { media.matches = false; listener?.(); });
+    expect(screen.getByText("light")).toBeInTheDocument();
+    expect(window.localStorage.getItem(COLOR_MODE_STORAGE_KEY)).toBe("system");
+    unmount();
+    expect(media.removeEventListener).toHaveBeenCalled();
   });
 
   it("toggles theme and persists the choice", async () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
+import { useState, type MouseEvent, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Box,
@@ -11,7 +11,6 @@ import {
   Typography,
 } from "@mui/material";
 import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
-import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import LogoutIcon from "@mui/icons-material/Logout";
 import LoginIcon from "@mui/icons-material/Login";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
@@ -19,6 +18,7 @@ import WorkOutlineOutlinedIcon from "@mui/icons-material/WorkOutlineOutlined";
 import WorkIcon from "@mui/icons-material/Work";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
+import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { buildSignInHref } from "@/core/auth/session-recovery";
 import { useAppSelector } from "@/core/store/hooks";
@@ -34,15 +34,12 @@ import {
   type ProviderIdentity,
 } from "@/entities/provider/lib/provider-identity";
 import { resolveProfileMenuSection } from "../lib/profile-menu-section";
-import {
-  formatContactShortName,
-  readProviderMenuMode,
-  resolveProviderMenuMode,
-  saveProviderMenuMode,
-  type ProviderMenuMode,
-} from "../lib/provider-menu-mode";
-
-const CONTACT_PROFILE_HREF = "/profile?section=profile";
+function formatContactShortName(name: string | null | undefined) {
+  const parts = name?.trim().split(/\s+/).filter(Boolean) ?? [];
+  return parts.length > 1
+    ? `${parts[0]} ${parts.at(-1)?.charAt(0)}.`
+    : (parts[0] ?? null);
+}
 
 function getInitials(name: string | null | undefined): string {
   const parts = name?.trim().split(/\s+/).filter(Boolean) ?? [];
@@ -199,22 +196,16 @@ export const ProfileMenu = ({
     pathname,
     searchParams: new URLSearchParams(searchParams.toString()),
   };
-  const [storedProviderMode, setStoredProviderMode] =
-    useState<ProviderMenuMode | null>(null);
-  /** Why: исполнитель переключается между кабинетом и контактным лицом — у заказчика режима нет. */
-  const providerMode = isProviderAccount
-    ? resolveProviderMenuMode(activeSection, storedProviderMode)
-    : null;
   const activeMembership = isProviderAccount ? getActiveMembership(user) : null;
   const providerIdentity = activeMembership
     ? formatProviderIdentity(activeMembership)
     : null;
   /**
-   * Why: у аккаунта с исполнителем человек — контактное лицо: подпись и «Фамилия И. О.», как в документах.
+   * Why: до создания профиля исполнителя используем имя пользователя.
    * У заказчика остаётся «Имя Ф.».
    */
-  const contactIdentity: ProviderIdentity = {
-    kindLabel: isProviderAccount ? "Контактное лицо" : null,
+  const personalIdentity: ProviderIdentity = {
+    kindLabel: null,
     title:
       (isProviderAccount
         ? formatSurnameInitials(user?.person, user?.name)
@@ -228,20 +219,16 @@ export const ProfileMenu = ({
       user?.email?.charAt(0)?.toUpperCase() ||
       "U",
   };
-  const isProviderIdentity =
-    providerMode === "provider" && providerIdentity !== null;
+  const isProviderIdentity = isProviderAccount && providerIdentity !== null;
   const currentIdentity = isProviderIdentity
     ? providerIdentity
-    : contactIdentity;
+    : personalIdentity;
   const showCustomerCabinet = !isProviderAccount;
   /** Why: пункт ведёт в другой раздел — на странице самого раздела он лишний, на публичных страницах нужны оба. */
-  const showContactProfile = isProviderAccount && activeSection !== "profile";
   const showProviderCabinet = isProviderAccount
     ? activeSection !== "pro"
     : isPlatformAdmin;
-  const showProRing = providerMode
-    ? isProviderIdentity
-    : activeSection === "pro";
+  const showProRing = isProviderAccount;
   /** Why: в кабинете аватар принадлежит исполнителю, а не фото контактного лица. */
   const avatarSrc =
     (isProviderIdentity ? activeMembership?.providerImage : user?.image) ||
@@ -271,7 +258,6 @@ export const ProfileMenu = ({
   ) : (
     "Кабинет исполнителя"
   );
-  const contactProfileLabel = <IdentityLabel identity={contactIdentity} />;
 
   const handleMouseEnter = (event: MouseEvent<HTMLElement>) => {
     if (isInline || onPress) return;
@@ -300,18 +286,6 @@ export const ProfileMenu = ({
     go();
   };
 
-  useEffect(() => {
-    if (!isProviderAccount) return;
-    if (activeSection === "pro") saveProviderMenuMode("provider");
-    if (activeSection === "profile") saveProviderMenuMode("contact");
-    setStoredProviderMode(readProviderMenuMode());
-  }, [isProviderAccount, activeSection]);
-
-  const handleContactProfile = () => {
-    saveProviderMenuMode("contact");
-    closeAndGo(() => router.push(CONTACT_PROFILE_HREF));
-  };
-
   const handleSignOut = async () => {
     handleClose();
     onNavigate?.();
@@ -325,7 +299,9 @@ export const ProfileMenu = ({
 
   const handleSignInPro = () => {
     closeAndGo(() =>
-      router.push(`/signin?returnTo=${encodeURIComponent("/pro/requests/feed")}`),
+      router.push(
+        `/signin?returnTo=${encodeURIComponent("/pro/requests/feed")}`,
+      ),
     );
   };
 
@@ -334,7 +310,6 @@ export const ProfileMenu = ({
   };
 
   const handleProDashboard = () => {
-    if (isProviderAccount) saveProviderMenuMode("provider");
     closeAndGo(() => router.push("/pro/requests/feed"));
   };
 
@@ -381,17 +356,6 @@ export const ProfileMenu = ({
           {providerCabinetLabel}
         </Box>
       ) : null}
-      {showContactProfile ? (
-        <Box
-          component="button"
-          type="button"
-          onClick={handleContactProfile}
-          sx={rowSx}
-        >
-          <PersonOutlineRoundedIcon sx={{ fontSize: 22 }} />
-          {contactProfileLabel}
-        </Box>
-      ) : null}
       {isPlatformAdmin ? (
         <Box component="button" type="button" onClick={handleAdmin} sx={rowSx}>
           <AdminPanelSettingsOutlinedIcon sx={{ fontSize: 22 }} />
@@ -431,6 +395,38 @@ export const ProfileMenu = ({
       )}
     </Box>
   );
+
+  if (isProviderAccount) {
+    return (
+      <Tooltip title={`Мой профиль · ${currentIdentity.title}`}>
+        <Box
+          component={Link}
+          href={activeMembership ? "/pro/settings/profile" : "/providers/new"}
+          aria-label="Мой профиль"
+          onClick={onNavigate}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            minWidth: 44,
+            minHeight: 44,
+            p: 0.75,
+            borderRadius: 2,
+            color: "text.primary",
+            textDecoration: "none",
+          }}
+        >
+          <CdnAvatar
+            src={avatarSrc}
+            sx={{ width: 32, height: 32, ...proAvatarRingSx }}
+          >
+            {initials}
+          </CdnAvatar>
+          {showLabel ? <Typography>{currentIdentity.title}</Typography> : null}
+        </Box>
+      </Tooltip>
+    );
+  }
 
   if (layout === "sheet") {
     return inlineActions;
@@ -643,16 +639,6 @@ export const ProfileMenu = ({
                   filledIcon={<WorkIcon sx={menuIconSx} />}
                 >
                   {providerCabinetLabel}
-                </SectionMenuItem>
-              ) : null}
-              {showContactProfile ? (
-                <SectionMenuItem
-                  active={false}
-                  onClick={handleContactProfile}
-                  outlineIcon={<PersonOutlineRoundedIcon sx={menuIconSx} />}
-                  filledIcon={<PersonRoundedIcon sx={menuIconSx} />}
-                >
-                  {contactProfileLabel}
                 </SectionMenuItem>
               ) : null}
               {isPlatformAdmin ? (

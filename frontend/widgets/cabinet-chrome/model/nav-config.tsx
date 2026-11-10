@@ -115,9 +115,10 @@ export const CUSTOMER_NAV: {
     {
       key: "chat",
       label: "Чат",
-      href: "/pro/chats",
+      href: "/profile?section=requests",
       icon: <ChatOutlinedIcon />,
-      isActive: ({ pathname }) => pathname.startsWith("/pro/chats"),
+      // Customer conversations open from requests; keep only the Requests tab selected.
+      isActive: () => false,
       badgeKind: "chatUnreadTotal",
     },
     {
@@ -150,50 +151,6 @@ export const CUSTOMER_NAV: {
         isProfileSection(searchParams, "stories"),
     },
   ],
-};
-
-/** Why: исполнитель в роли контактного лица видит только свои данные, без разделов заказчика. */
-export const PROVIDER_CONTACT_NAV: {
-  desktop: readonly CabinetNavItem[];
-  mobileTop: readonly CabinetNavItem[];
-  mobileBottom: readonly CabinetNavItem[];
-  mobileMore: readonly CabinetNavItem[];
-} = {
-  desktop: [
-    {
-      key: "cabinet",
-      label: "Кабинет исполнителя",
-      href: "/pro/requests/feed",
-      icon: <HomeOutlinedIcon />,
-      isActive: ({ pathname }) => pathname === "/pro/requests/feed",
-    },
-  ],
-  mobileTop: [],
-  mobileBottom: [
-    {
-      key: "home",
-      label: "Кабинет",
-      href: "/pro/requests/feed",
-      icon: <HomeOutlinedIcon />,
-      isActive: ({ pathname }) => pathname === "/pro/requests/feed",
-    },
-    {
-      key: "chat",
-      label: "Чат",
-      href: "/pro/chats",
-      icon: <ChatOutlinedIcon />,
-      isActive: ({ pathname }) => pathname.startsWith("/pro/chats"),
-      badgeKind: "chatUnreadTotal",
-    },
-    {
-      key: "profile",
-      label: "Контактное лицо",
-      href: "/profile?section=profile",
-      icon: <PersonOutlineOutlinedIcon />,
-      isActive: ({ pathname }) => pathname.startsWith("/profile"),
-    },
-  ],
-  mobileMore: [],
 };
 
 const providerFeed: CabinetNavItem = {

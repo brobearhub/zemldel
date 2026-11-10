@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Box, Paper, Stack, Typography } from "@mui/material";
+import { Box, Button, Paper, Stack, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import type {
   ChatConversationAccessDto,
@@ -64,6 +64,9 @@ type Props = {
   selectedProviderId?: string | null;
   requestArchived?: boolean;
   onOpenSelectedConversation?: () => void;
+  appearance?: "default" | "messenger";
+  initialUnreadCount?: number;
+  onMessage?: (message: ChatMessageDto) => void;
 };
 
 export function ServiceRequestChatPanel({
@@ -77,7 +80,11 @@ export function ServiceRequestChatPanel({
   selectedProviderId,
   requestArchived = false,
   onOpenSelectedConversation,
+  appearance = "default",
+  initialUnreadCount = 0,
+  onMessage,
 }: Props) {
+  const openingUnreadCount = useRef(initialUnreadCount);
   const { data: session } = useSession();
   const currentUserId = session?.user?.id ?? "";
 
@@ -107,6 +114,7 @@ export function ServiceRequestChatPanel({
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
+  const [bootAttempt, setBootAttempt] = useState(0);
   const [serverAccess, setAccess] = useState(createClosedChatAccess);
   const access = requestArchived
     ? resolveChatAccess({
@@ -191,9 +199,7 @@ export function ServiceRequestChatPanel({
           },
         );
         const payload = (await response.json().catch(() => null)) as
-          | ChatMessageDto[]
-          | { error?: string }
-          | null;
+          ChatMessageDto[] | { error?: string } | null;
         if (!response.ok) {
           const message =
             payload &&
@@ -295,9 +301,7 @@ export function ServiceRequestChatPanel({
         const ensurePayload = (await ensureResponse
           .json()
           .catch(() => null)) as
-          | ChatEnsureResponse
-          | { error?: string; message?: string }
-          | null;
+          ChatEnsureResponse | { error?: string; message?: string } | null;
 
         if (!ensureResponse.ok) {
           const message =
@@ -338,6 +342,7 @@ export function ServiceRequestChatPanel({
   }, [
     serviceRequestId,
     forcedConversationId,
+    bootAttempt,
     requestLockedAt,
     selectedProviderId,
     requestArchived,
@@ -426,6 +431,7 @@ export function ServiceRequestChatPanel({
         return;
       }
       setServerMessages((prev) => mergeServerMessages(prev, msg));
+      if (document.visibilityState === "visible") void markRead(conversationId);
       setOutbound((prev) =>
         prev.filter((o) => o.clientMessageId !== msg.clientMessageId),
       );
@@ -434,7 +440,7 @@ export function ServiceRequestChatPanel({
     return () => {
       socket?.off("message.created", handler);
     };
-  }, [conversationId, socket, setOutbound]);
+  }, [conversationId, socket, setOutbound, markRead]);
 
   useEffect(() => {
     if (!conversationId || !viewerSide) {
@@ -529,11 +535,12 @@ export function ServiceRequestChatPanel({
       }
       const data = payload as ChatPostMessageResponse;
       setServerMessages((prev) => mergeServerMessages(prev, data.message));
+      onMessage?.(data.message);
       setOutbound((prev) =>
         prev.filter((o) => o.clientMessageId !== clientMessageId),
       );
     },
-    [conversationId],
+    [conversationId, onMessage, setOutbound],
   );
 
   const applyPostFailure = useCallback((error: unknown) => {
@@ -684,7 +691,10 @@ export function ServiceRequestChatPanel({
       variant="outlined"
       sx={{
         height: "100%",
-        minHeight: 420,
+        minHeight: appearance === "messenger" ? 0 : 420,
+        flex: appearance === "messenger" ? 1 : undefined,
+        border: appearance === "messenger" ? 0 : undefined,
+        borderRadius: appearance === "messenger" ? 0 : undefined,
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -692,6 +702,7 @@ export function ServiceRequestChatPanel({
     >
       <Box
         sx={(theme) => ({
+          display: appearance === "messenger" ? "none" : undefined,
           px: 2,
           py: 1.5,
           borderBottom: "1px solid",
@@ -705,7 +716,9 @@ export function ServiceRequestChatPanel({
                     transform: "translateX(-140%) skewX(-20deg)",
                     opacity: 0,
                   },
-                  "15%": { opacity: 0.65 },
+                  "15%": {
+                    opacity: 0.65,
+                  },
                   "100%": {
                     transform: "translateX(260%) skewX(-20deg)",
                     opacity: 0,
@@ -727,7 +740,10 @@ export function ServiceRequestChatPanel({
                   willChange: "transform, opacity",
                 },
                 "@media (prefers-reduced-motion: reduce)": {
-                  "&::after": { animation: "none", opacity: 0 },
+                  "&::after": {
+                    animation: "none",
+                    opacity: 0,
+                  },
                 },
               }
             : null),
@@ -791,11 +807,29 @@ export function ServiceRequestChatPanel({
         </Box>
       ) : null}
 
-      <Box sx={{ flex: 1, minHeight: 0 }}>
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+        }}
+      >
         {bootError ? (
-          <Typography color="error" variant="body2">
-            {bootError}
-          </Typography>
+          <Stack
+            spacing={1}
+            sx={{
+              p: 2,
+            }}
+          >
+            <Typography
+              color="error"
+              variant="body2"
+            >
+              {bootError}
+            </Typography>
+            <Button onClick={() => setBootAttempt((value) => value + 1)}>
+              Повторить загрузку
+            </Button>
+          </Stack>
         ) : (
           <Chat
             rows={rows}
@@ -813,6 +847,8 @@ export function ServiceRequestChatPanel({
             readOnly={!access.canWrite}
             inputPlaceholder={inputPlaceholder}
             autoFocusInput={autoFocusInput}
+            appearance={appearance}
+            initialUnreadCount={openingUnreadCount.current}
           />
         )}
       </Box>

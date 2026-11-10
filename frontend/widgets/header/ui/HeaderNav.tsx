@@ -7,6 +7,7 @@ import FavoriteBorderRoundedIcon from "@mui/icons-material/FavoriteBorderRounded
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import Link from "next/link";
+import { resolveAccountKind } from "@/core/auth/authorization";
 import { useAppSelector } from "@/core/store/hooks";
 import { ProfileMenu } from "./ProfileMenu";
 
@@ -49,6 +50,9 @@ export const HeaderNav = ({
   showLabels = false,
   onNavigate,
 }: HeaderNavProps) => {
+  const isProvider = useAppSelector(
+    (state) => resolveAccountKind(state.auth.user) === "PROVIDER",
+  );
   const isAuthenticated = useAppSelector(
     (state) => state.auth.status === "authenticated",
   );
@@ -69,7 +73,7 @@ export const HeaderNav = ({
         <Box
           key={label}
           component={Link}
-          href={href}
+          href={isProvider ? "/pro/requests/feed" : href}
           aria-label={label}
           onClick={onNavigate}
           sx={navItemSx(showLabels)}

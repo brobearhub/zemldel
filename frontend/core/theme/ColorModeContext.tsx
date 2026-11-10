@@ -12,20 +12,23 @@ import {
 import type { ReactNode } from "react";
 
 export const COLOR_MODE_STORAGE_KEY = "color-mode";
+export type ColorPreference = PaletteMode | "system";
 
 type ColorModeContextValue = {
   mode: PaletteMode;
+  preference: ColorPreference;
+  setPreference: (preference: ColorPreference) => void;
   setMode: (mode: PaletteMode) => void;
   toggleMode: () => void;
 };
 
 const ColorModeContext = createContext<ColorModeContextValue | null>(null);
 
-function isPaletteMode(value: string | null): value is PaletteMode {
-  return value === "light" || value === "dark";
+function isPaletteMode(value: string | null): value is ColorPreference {
+  return value === "light" || value === "dark" || value === "system";
 }
 
-function readStoredMode(): PaletteMode | null {
+function readStoredMode(): ColorPreference | null {
   try {
     const stored = window.localStorage.getItem(COLOR_MODE_STORAGE_KEY);
     return isPaletteMode(stored) ? stored : null;
@@ -34,7 +37,7 @@ function readStoredMode(): PaletteMode | null {
   }
 }
 
-function persistMode(mode: PaletteMode) {
+function persistMode(mode: ColorPreference) {
   try {
     window.localStorage.setItem(COLOR_MODE_STORAGE_KEY, mode);
   } catch {
@@ -48,33 +51,62 @@ export function ColorModeProvider({
   readonly children: ReactNode;
 }) {
   const [mode, setModeState] = useState<PaletteMode>("light");
+  const [preference, setPreferenceState] = useState<ColorPreference>("light");
 
   useEffect(() => {
     const stored = readStoredMode();
     if (stored) {
-      setModeState(stored);
+      setPreferenceState(stored);
+      setModeState(
+        stored === "system"
+          ? window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light"
+          : stored,
+      );
     }
   }, []);
 
-  const setMode = useCallback((next: PaletteMode) => {
-    setModeState(next);
+  useEffect(() => {
+    if (preference !== "system") return;
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const update = () => setModeState(media.matches ? "dark" : "light");
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, [preference]);
+
+  const setPreference = useCallback((next: ColorPreference) => {
+    setPreferenceState(next);
+    setModeState(
+      next === "system"
+        ? window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light"
+        : next,
+    );
     persistMode(next);
   }, []);
 
-  const toggleMode = useCallback(() => {
-    setModeState((current) => {
-      const next = current === "light" ? "dark" : "light";
-      persistMode(next);
-      return next;
-    });
-  }, []);
-
-  const value = useMemo<ColorModeContextValue>(
-    () => ({ mode, setMode, toggleMode }),
-    [mode, setMode, toggleMode],
+  const setMode = useCallback(
+    (next: PaletteMode) => setPreference(next),
+    [setPreference],
   );
 
-  return <ColorModeContext.Provider value={value}>{children}</ColorModeContext.Provider>;
+  const toggleMode = useCallback(() => {
+    setPreference(mode === "light" ? "dark" : "light");
+  }, [mode, setPreference]);
+
+  const value = useMemo<ColorModeContextValue>(
+    () => ({ mode, preference, setPreference, setMode, toggleMode }),
+    [mode, preference, setPreference, setMode, toggleMode],
+  );
+
+  return (
+    <ColorModeContext.Provider value={value}>
+      {children}
+    </ColorModeContext.Provider>
+  );
 }
 
 export function useColorMode() {

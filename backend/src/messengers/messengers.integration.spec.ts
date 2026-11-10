@@ -18,6 +18,7 @@ describe.skipIf(process.env.MESSENGER_DB_TESTS !== '1')(
     const repository = new MessengerRepository(db);
     const config = new MessengerConfig();
     const transport = new MessengerTransport(config);
+    vi.spyOn(transport, 'answerCallback').mockResolvedValue(undefined);
     const send = vi
       .spyOn(transport, 'send')
       .mockImplementation(() => Promise.resolve(randomUUID()));
@@ -174,6 +175,7 @@ describe.skipIf(process.env.MESSENGER_DB_TESTS !== '1')(
         external,
         expect.stringContaining('Сообщение для MAX'),
         expect.any(String),
+        `reply:${delivery.id}`,
       );
       const event = {
         update_type: 'message_created',
@@ -195,6 +197,277 @@ describe.skipIf(process.env.MESSENGER_DB_TESTS !== '1')(
       expect(messages[0].replyToMessageId).toBe(original.message.id);
       await repository.disconnect(users[0], 'MAX');
     });
+
+    it.each(['TELEGRAM', 'MAX'] as const)(
+      'routes one ordinary reply after a %s button; survives retries, expiry and competing messages',
+      async (platform) => {
+        const connection = await db.messengerConnection.create({
+          data: {
+            userId: users[0],
+            platform,
+            externalUserId: external,
+            chatId: external,
+            displayName: 'QA',
+          },
+        });
+        const original = await chat.createMessage(users[1], conversationId, {
+          body: `Button ${platform}`,
+          clientMessageId: randomUUID(),
+        });
+        const sourceRequest = await db.request.findUniqueOrThrow({
+          where: { id: requestId },
+        });
+        const secondRequest = await db.request.create({
+          data: {
+            customerUserId: users[0],
+            providerId,
+            serviceId: sourceRequest.serviceId,
+          },
+        });
+        const secondConversation = await db.conversation.create({
+          data: {
+            requestId: secondRequest.id,
+            providerId,
+            customerUserId: users[0],
+          },
+        });
+        const second = await chat.createMessage(
+          users[1],
+          secondConversation.id,
+          {
+            body: `Second ${platform}`,
+            clientMessageId: randomUUID(),
+          },
+        );
+        const delivery = await db.messengerDelivery.create({
+          data: {
+            connectionId: connection.id,
+            messageId: original.message.id,
+            status: 'SENT',
+            externalMessageId: '501',
+          },
+        });
+        const otherDelivery = await db.messengerDelivery.create({
+          data: {
+            connectionId: connection.id,
+            messageId: second.message.id,
+            status: 'SENT',
+            externalMessageId: '502',
+          },
+        });
+        let order = platform === 'MAX' ? Date.now() : 1000;
+        const button = (id = delivery.id, mid = '501') => {
+          const current = ++order;
+          return platform === 'TELEGRAM'
+            ? {
+                update_id: current,
+                callback_query: {
+                  id: String(current),
+                  from: { id: Number(external) },
+                  data: `reply:${id}`,
+                  message: {
+                    message_id: Number(mid),
+                    chat: { id: Number(external), type: 'private' },
+                  },
+                },
+              }
+            : {
+                update_type: 'message_callback',
+                callback: {
+                  callback_id: String(current),
+                  timestamp: current,
+                  user: { user_id: Number(external) },
+                  payload: `reply:${id}`,
+                },
+                message: {
+                  recipient: { chat_id: Number(external), chat_type: 'dialog' },
+                  body: { mid },
+                },
+              };
+        };
+        const textEvent = (text: string, replyId?: string) => {
+          const current = ++order;
+          return platform === 'TELEGRAM'
+            ? {
+                update_id: current,
+                message: {
+                  message_id: current,
+                  date: Date.now() / 1000,
+                  from: { id: Number(external) },
+                  chat: { id: Number(external), type: 'private' },
+                  text,
+                  ...(replyId
+                    ? { reply_to_message: { message_id: Number(replyId) } }
+                    : {}),
+                },
+              }
+            : {
+                update_type: 'message_created',
+                message: {
+                  sender: { user_id: Number(external) },
+                  recipient: { chat_id: Number(external), chat_type: 'dialog' },
+                  timestamp: current,
+                  body: { mid: String(current), text },
+                  ...(replyId
+                    ? { link: { type: 'reply', message: { mid: replyId } } }
+                    : {}),
+                },
+              };
+        };
+        try {
+          const queued = textEvent(`Queued ${platform}`);
+          const click = button();
+          await service.receive(platform, click);
+          await service.receive(platform, queued); // older messages cannot consume a newer selection
+          expect(
+            await db.message.count({ where: { body: `Queued ${platform}` } }),
+          ).toBe(0);
+          const answer = textEvent(`Button answer ${platform}`);
+          const failOnce = vi
+            .spyOn(chat, 'createMessage')
+            .mockRejectedValueOnce(new Error('Transient database failure'));
+          await expect(service.receive(platform, answer)).rejects.toThrow(
+            'Transient database failure',
+          );
+          failOnce.mockRestore();
+          await service.receive(platform, answer);
+          // A replayed click cannot rearm an already consumed selection.
+          await service.receive(platform, click);
+          await service.receive(platform, textEvent(`Unselected ${platform}`));
+          expect(
+            await db.message.count({
+              where: { body: `Unselected ${platform}` },
+            }),
+          ).toBe(0);
+          await service.receive(platform, button(otherDelivery.id, '502'));
+          const restarted = new MessengerService(
+            new MessengerRepository(db),
+            chat,
+            config,
+            transport,
+          );
+          await restarted.receive(platform, answer);
+          const stored = await db.message.findMany({
+            where: { body: `Button answer ${platform}` },
+          });
+          expect(stored).toHaveLength(1);
+          expect(stored[0].replyToMessageId).toBe(original.message.id);
+          // Concurrent webhook messages cannot both consume the same selection.
+          await Promise.all([
+            service.receive(platform, textEvent(`Race A ${platform}`)),
+            service.receive(platform, textEvent(`Race B ${platform}`)),
+          ]);
+          const raced = await db.message.findMany({
+            where: {
+              body: { in: [`Race A ${platform}`, `Race B ${platform}`] },
+            },
+          });
+          expect(raced).toHaveLength(1);
+          expect(raced[0].replyToMessageId).toBe(second.message.id);
+          expect(raced[0].conversationId).toBe(secondConversation.id);
+          await service.receive(platform, button());
+          await db.messengerReplySelection.updateMany({
+            where: { connectionId: connection.id, active: true },
+            data: { expiresAt: new Date(0) },
+          });
+          await service.receive(platform, textEvent(`Expired ${platform}`));
+          expect(
+            await db.message.count({ where: { body: `Expired ${platform}` } }),
+          ).toBe(0);
+          await service.receive(platform, button());
+          await service.receive(platform, textEvent('/cancel'));
+          await service.receive(platform, textEvent(`Cancelled ${platform}`));
+          expect(
+            await db.message.count({
+              where: { body: `Cancelled ${platform}` },
+            }),
+          ).toBe(0);
+          await service.receive(platform, button());
+          await service.receive(
+            platform,
+            textEvent(`Native ${platform}`, '502'),
+          );
+          expect(
+            (
+              await db.message.findFirstOrThrow({
+                where: { body: `Native ${platform}` },
+              })
+            ).replyToMessageId,
+          ).toBe(second.message.id);
+          expect(
+            await db.messengerReplySelection.count({
+              where: { connectionId: connection.id, active: true },
+            }),
+          ).toBe(0);
+          // Callback payload alone is insufficient: the original notification must match.
+          await service.receive(platform, button(delivery.id, '999'));
+          expect(
+            await db.messengerReplySelection.count({
+              where: { connectionId: connection.id, active: true },
+            }),
+          ).toBe(0);
+          // A different site user cannot select a delivery belonging to this connection.
+          const stranger = await db.messengerConnection.create({
+            data: {
+              userId: users[2],
+              platform,
+              externalUserId: `${external}1`,
+              chatId: `${external}1`,
+              displayName: 'Other',
+            },
+          });
+          expect(
+            await repository.buttonTarget(stranger.id, delivery.id, '501'),
+          ).toBeNull();
+          // Even a stored notification cannot grant access to a conversation.
+          const forbiddenDelivery = await db.messengerDelivery.create({
+            data: {
+              connectionId: stranger.id,
+              messageId: original.message.id,
+              status: 'SENT',
+              externalMessageId: '503',
+            },
+          });
+          const strangerId = Number(stranger.externalUserId);
+          const forbiddenClick =
+            platform === 'TELEGRAM'
+              ? {
+                  update_id: ++order,
+                  callback_query: {
+                    id: 'forbidden',
+                    from: { id: strangerId },
+                    data: `reply:${forbiddenDelivery.id}`,
+                    message: {
+                      message_id: 503,
+                      chat: { id: strangerId, type: 'private' },
+                    },
+                  },
+                }
+              : {
+                  update_type: 'message_callback',
+                  callback: {
+                    callback_id: 'forbidden',
+                    timestamp: ++order,
+                    user: { user_id: strangerId },
+                    payload: `reply:${forbiddenDelivery.id}`,
+                  },
+                  message: {
+                    recipient: { chat_id: strangerId, chat_type: 'dialog' },
+                    body: { mid: '503' },
+                  },
+                };
+          await service.receive(platform, forbiddenClick);
+          expect(
+            await db.messengerReplySelection.count({
+              where: { connectionId: stranger.id },
+            }),
+          ).toBe(0);
+          await repository.disconnect(users[2], platform);
+        } finally {
+          await repository.disconnect(users[0], platform);
+        }
+      },
+    );
 
     it('does not accept an expired link', async () => {
       const token = await repository.createLink(

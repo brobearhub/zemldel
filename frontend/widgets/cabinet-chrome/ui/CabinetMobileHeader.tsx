@@ -3,7 +3,7 @@
 import { AppBar, Box, Toolbar } from "@mui/material";
 import { HeaderCity } from "@/widgets/header/ui/HeaderCity";
 import { HeaderLogo } from "@/widgets/header/ui/HeaderLogo";
-import { ProfileMenu } from "@/widgets/header/ui/ProfileMenu";
+import { MobileMenuButton } from "@/widgets/mobile-navigation/ui/MobileNavigation";
 import { ProviderNotificationsButton } from "./ProviderHeaderStatus";
 
 type Props = {
@@ -26,7 +26,9 @@ export function CabinetMobileHeader({ showProviderCity = false }: Props) {
           gap: 1,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, flex: 1 }}>
+        <Box
+          sx={{ display: "flex", alignItems: "center", minWidth: 0, flex: 1 }}
+        >
           <HeaderLogo />
           {showProviderCity ? (
             <Box sx={{ minWidth: 0, overflow: "hidden" }}>
@@ -36,10 +38,9 @@ export function CabinetMobileHeader({ showProviderCity = false }: Props) {
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
           {showProviderCity ? <ProviderNotificationsButton /> : null}
-          <ProfileMenu />
+          <MobileMenuButton />
         </Box>
       </Toolbar>
     </AppBar>
   );
 }
-

@@ -24,7 +24,9 @@ function displayName(...values: unknown[]): string {
 }
 
 export type MessengerEvent = {
-  kind: 'start' | 'message' | 'stop';
+  kind: 'start' | 'message' | 'stop' | 'callback';
+  callbackId?: string;
+  eventOrder?: number;
   externalUserId: string;
   chatId: string;
   displayName: string;
@@ -42,9 +44,10 @@ export function parseMessengerEvent(
   const update = record(input);
   if (platform === 'TELEGRAM') {
     const membership = record(update.my_chat_member);
-    const message = record(update.message);
+    const callback = record(update.callback_query);
+    const message = record(callback.message ?? update.message);
     const chat = record(message.chat ?? membership.chat);
-    const from = record(message.from ?? membership.from);
+    const from = record(callback.from ?? message.from ?? membership.from);
     const externalUserId = id(from.id);
     const chatId = id(chat.id);
     if (
@@ -58,12 +61,26 @@ export function parseMessengerEvent(
     const base = {
       externalUserId,
       chatId,
+      eventOrder: Number.isSafeInteger(update.update_id)
+        ? Number(update.update_id)
+        : undefined,
       displayName: displayName(from.first_name, from.username, externalUserId),
     };
     if (record(membership.new_chat_member).status === 'kicked')
       return { ...base, kind: 'stop' };
     const messageId = id(message.message_id);
     if (!messageId) return null;
+    if (id(callback.id)) {
+      if (typeof callback.data !== 'string' || base.eventOrder === undefined)
+        return null;
+      return {
+        ...base,
+        kind: 'callback',
+        callbackId: id(callback.id)!,
+        messageId,
+        payload: callback.data,
+      };
+    }
     const text = typeof message.text === 'string' ? message.text : '';
     const start = /^\/start(?:@\w+)?(?:\s+([A-Za-z0-9_-]+))?\s*$/.exec(text);
     return {
@@ -79,13 +96,16 @@ export function parseMessengerEvent(
   }
   const message = record(update.message);
   const recipient = record(message.recipient);
-  const user = record(update.user ?? message.sender);
+  const callback = record(update.callback);
+  const user = record(callback.user ?? update.user ?? message.sender);
   const externalUserId = id(user.user_id);
   const chatId = id(update.chat_id ?? recipient.chat_id);
   if (!externalUserId || !chatId || user.is_bot === true) return null;
   // Принимаем текст только из личных диалогов, не из групп/каналов.
   if (
-    update.update_type === 'message_created' &&
+    ['message_created', 'message_callback'].includes(
+      String(update.update_type),
+    ) &&
     recipient.chat_type !== 'dialog'
   )
     return null;
@@ -101,6 +121,24 @@ export function parseMessengerEvent(
       kind: 'start',
       payload: typeof update.payload === 'string' ? update.payload : undefined,
     };
+  if (update.update_type === 'message_callback') {
+    if (
+      !id(callback.callback_id) ||
+      !id(record(message.body).mid) ||
+      typeof callback.payload !== 'string' ||
+      !Number.isSafeInteger(callback.timestamp)
+    )
+      return null;
+    return {
+      ...base,
+      kind: 'callback',
+      callbackId: id(callback.callback_id)!,
+      messageId: id(record(message.body).mid)!,
+      payload: callback.payload,
+      eventOrder: Number(callback.timestamp),
+      timestamp: Number(callback.timestamp),
+    };
+  }
   if (update.update_type !== 'message_created') return null;
   const body = record(message.body);
   const messageId = id(body.mid);
@@ -109,6 +147,9 @@ export function parseMessengerEvent(
   return {
     ...base,
     kind: 'message',
+    eventOrder: Number.isSafeInteger(message.timestamp)
+      ? Number(message.timestamp)
+      : undefined,
     messageId,
     text: typeof body.text === 'string' ? body.text : '',
     replyId:

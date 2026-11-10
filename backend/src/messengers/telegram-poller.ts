@@ -136,7 +136,7 @@ export class TelegramPoller implements OnModuleInit, OnModuleDestroy {
             offset: this.offset,
             timeout: 25,
             limit: 25,
-            allowed_updates: ['message', 'my_chat_member'],
+            allowed_updates: ['message', 'my_chat_member', 'callback_query'],
           },
           apiSignal,
         );

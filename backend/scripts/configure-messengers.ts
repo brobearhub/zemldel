@@ -188,7 +188,7 @@ async function main() {
       await callTelegram('setWebhook', () =>
         telegramApi.setWebhook(target, {
           secret_token: bot.secret,
-          allowed_updates: ['message', 'my_chat_member'],
+          allowed_updates: ['message', 'my_chat_member', 'callback_query'],
           drop_pending_updates: false,
         }),
       );
@@ -196,7 +196,12 @@ async function main() {
       await callMax('subscriptions', {
         url: target,
         secret: bot.secret,
-        update_types: ['message_created', 'bot_started', 'bot_stopped'],
+        update_types: [
+          'message_created',
+          'bot_started',
+          'bot_stopped',
+          'message_callback',
+        ],
       });
     }
     console.log(`${platform}: webhook зарегистрирован`);

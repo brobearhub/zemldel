@@ -16,7 +16,7 @@ vi.mock("next-auth/react", () => ({
   signOut: vi.fn(),
 }));
 
-function renderNav(state: "unauth" | "customer") {
+function renderNav(state: "unauth" | "customer" | "provider") {
   const store = makeStore();
   if (state === "unauth") {
     store.dispatch(setUnauthenticated());
@@ -29,7 +29,7 @@ function renderNav(state: "unauth" | "customer") {
         image: null,
         phone: null,
         systemRole: "CUSTOMER",
-        accountKind: "CUSTOMER",
+        accountKind: state === "provider" ? "PROVIDER" : "CUSTOMER",
         activeProviderId: null,
         customerCity: null,
         memberships: [],
@@ -47,6 +47,10 @@ function renderNav(state: "unauth" | "customer") {
 }
 
 describe("HeaderNav drawer", () => {
+  it("ведёт исполнителя сразу в рабочие заявки", () => {
+    renderNav("provider");
+    expect(screen.getByRole("link", { name: "Заявки" })).toHaveAttribute("href", "/pro/requests/feed");
+  });
   it("ставит регистрацию в общий список пунктов для гостя", () => {
     renderNav("unauth");
 

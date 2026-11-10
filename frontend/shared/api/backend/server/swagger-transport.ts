@@ -105,6 +105,9 @@ export async function backendSwaggerFetch({ path, init, userId, timeoutMs }: Bac
 
   const webHeaders = axiosHeadersToWebHeaders(axiosRes.headers);
   const buffer = axiosRes.data ? new Uint8Array(axiosRes.data) : new Uint8Array();
-  return new Response(buffer, { status: axiosRes.status, headers: webHeaders });
+  // Response rejects even an empty Uint8Array for statuses that forbid a body.
+  // Otherwise successful DELETE/PATCH/confirm requests turn into a BFF 503.
+  const noBody = method === "HEAD" || [204, 205, 304].includes(axiosRes.status);
+  return new Response(noBody ? null : buffer, { status: axiosRes.status, headers: webHeaders });
 }
 

@@ -25,6 +25,7 @@ export class MessengerTransport {
     chatId: string,
     text: string,
     link?: string,
+    replyPayload?: string,
   ): Promise<string> {
     const bot = this.config.bot(platform);
     if (platform === 'TELEGRAM') {
@@ -39,6 +40,16 @@ export class MessengerTransport {
               ? {
                   reply_markup: {
                     inline_keyboard: [
+                      ...(replyPayload
+                        ? [
+                            [
+                              {
+                                text: 'Ответить здесь',
+                                callback_data: replyPayload,
+                              },
+                            ],
+                          ]
+                        : []),
                       [{ text: 'Открыть чат на сайте', url: link }],
                     ],
                   },
@@ -64,7 +75,56 @@ export class MessengerTransport {
       return String(messageId);
     }
     const url = `https://platform-api2.max.ru/messages?chat_id=${encodeURIComponent(chatId)}`;
-    const body = {
+    const payload = await this.maxRequest(
+      url,
+      this.maxMessage(text, link, replyPayload),
+    );
+    const messageId = record(record(payload.message).body).mid;
+    if (typeof messageId !== 'string' && typeof messageId !== 'number')
+      throw new MessengerApiError(502);
+    return String(messageId);
+  }
+
+  async answerCallback(
+    platform: MessengerPlatform,
+    callbackId: string,
+    original?: { text: string; link: string; replyPayload: string },
+  ): Promise<void> {
+    if (platform === 'TELEGRAM') {
+      try {
+        await createTelegramApi(
+          this.config.bot(platform).token,
+          10,
+        ).answerCallbackQuery(callbackId);
+      } catch (error) {
+        if (error instanceof GrammyError)
+          throw new MessengerApiError(
+            error.error_code,
+            error.parameters.retry_after ?? 0,
+          );
+        throw new MessengerApiError(0);
+      }
+    } else if (original) {
+      // Current MAX API accepts the original message in callback answers.
+      // Keep its text and both buttons rather than replacing the notification with a prompt.
+      await this.maxRequest(
+        `https://platform-api2.max.ru/answers?callback_id=${encodeURIComponent(callbackId)}`,
+        {
+          message: {
+            ...this.maxMessage(
+              original.text,
+              original.link,
+              original.replyPayload,
+            ),
+            notify: false,
+          },
+        },
+      );
+    }
+  }
+
+  private maxMessage(text: string, link?: string, replyPayload?: string) {
+    return {
       text,
       ...(link
         ? {
@@ -73,13 +133,18 @@ export class MessengerTransport {
                 type: 'inline_keyboard',
                 payload: {
                   buttons: [
-                    [
-                      {
-                        type: 'link',
-                        text: 'Открыть чат на сайте',
-                        url: link,
-                      },
-                    ],
+                    ...(replyPayload
+                      ? [
+                          [
+                            {
+                              type: 'callback',
+                              text: 'Ответить здесь',
+                              payload: replyPayload,
+                            },
+                          ],
+                        ]
+                      : []),
+                    [{ type: 'link', text: 'Открыть чат на сайте', url: link }],
                   ],
                 },
               },
@@ -87,13 +152,16 @@ export class MessengerTransport {
           }
         : {}),
     };
+  }
+
+  private async maxRequest(url: string, body: unknown) {
     let response: Response;
     try {
       response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: bot.token,
+          Authorization: this.config.bot('MAX').token,
         },
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(10_000),
@@ -112,9 +180,6 @@ export class MessengerTransport {
         ),
       );
     }
-    const messageId = record(record(payload.message).body).mid;
-    if (typeof messageId !== 'string' && typeof messageId !== 'number')
-      throw new MessengerApiError(502);
-    return String(messageId);
+    return payload;
   }
 }

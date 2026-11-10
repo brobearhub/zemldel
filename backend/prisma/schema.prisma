@@ -27,6 +27,7 @@ model MessengerConnection {
   createdAt DateTime @default(now())
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   deliveries MessengerDelivery[]
+  replySelections MessengerReplySelection[]
   @@unique([userId, platform])
   @@unique([platform, externalUserId])
 }
@@ -67,10 +68,26 @@ model MessengerDelivery {
   createdAt DateTime @default(now())
   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
   connection MessengerConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  replySelections MessengerReplySelection[]
   @@unique([messageId, connectionId, part])
   @@unique([connectionId, externalMessageId])
   @@index([status, nextAttemptAt])
   @@index([connectionId, status, createdAt, part, id], map: "MessengerDelivery_connection_pending_order_idx")
+}
+
+// One callback selects one subsequent text message. Retain consumed selections for retries.
+model MessengerReplySelection {
+  id String @id @db.Uuid
+  connectionId String @db.Uuid
+  deliveryId String @db.Uuid
+  eventOrder BigInt
+  active Boolean @default(true)
+  claimedMessageId String? @unique @db.Uuid
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  connection MessengerConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  delivery MessengerDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  @@index([connectionId, active])
 }
 
 datasource db {

@@ -52,7 +52,7 @@ async function proxy(request: Request, context: Context) {
     });
   } catch {
     return NextResponse.json(
-      { message: "Мессенджеры временно недоступны. Попробуйте ещё раз." },
+      { message: "Не удалось получить ответ сервера. Обновите статус подключения." },
       { status: 503 },
     );
   }

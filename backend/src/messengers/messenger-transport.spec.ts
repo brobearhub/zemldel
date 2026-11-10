@@ -80,6 +80,84 @@ describe('messenger HTTP adapters', () => {
       (fetch.mock.calls[0][1]?.headers as Record<string, string>).Authorization,
     ).toBe('private-token');
   });
+  it.each(['TELEGRAM', 'MAX'] as const)(
+    'adds a reply button alongside the site link for %s',
+    async (platform) => {
+      const fetch = vi
+        .fn<typeof globalThis.fetch>()
+        .mockResolvedValue(
+          new Response(
+            JSON.stringify(
+              platform === 'TELEGRAM'
+                ? { ok: true, result: { message_id: 12 } }
+                : { message: { body: { mid: '12' } } },
+            ),
+          ),
+        );
+      vi.stubGlobal('fetch', fetch);
+      await transport().send(
+        platform,
+        '42',
+        'Сообщение',
+        'https://example.com/chat',
+        'reply:delivery',
+      );
+      const body = JSON.parse(fetch.mock.calls[0][1]?.body as string) as {
+        reply_markup: { inline_keyboard: unknown[][] };
+        attachments: { payload: { buttons: unknown[][] } }[];
+      };
+      const buttons =
+        platform === 'TELEGRAM'
+          ? body.reply_markup.inline_keyboard
+          : body.attachments[0].payload.buttons;
+      expect(buttons).toHaveLength(2);
+      expect(buttons[0][0]).toMatchObject({
+        text: 'Ответить здесь',
+        ...(platform === 'TELEGRAM'
+          ? { callback_data: 'reply:delivery' }
+          : { type: 'callback', payload: 'reply:delivery' }),
+      });
+      expect(buttons[1][0]).toMatchObject({
+        text: 'Открыть чат на сайте',
+        url: 'https://example.com/chat',
+      });
+    },
+  );
+  it.each(['TELEGRAM', 'MAX'] as const)(
+    'acknowledges %s callbacks without removing notification buttons',
+    async (platform) => {
+      const fetch = vi
+        .fn<typeof globalThis.fetch>()
+        .mockResolvedValue(
+          new Response(
+            JSON.stringify({ ok: true, result: true, success: true }),
+          ),
+        );
+      vi.stubGlobal('fetch', fetch);
+      await transport().answerCallback(platform, 'callback/1', {
+        text: 'Исходное сообщение',
+        link: 'https://example.com/chat',
+        replyPayload: 'reply:delivery',
+      });
+      const body = JSON.parse(fetch.mock.calls[0][1]?.body as string) as {
+        callback_query_id: string;
+        message: {
+          text: string;
+          attachments: { payload: { buttons: unknown[][] } }[];
+        };
+      };
+      if (platform === 'TELEGRAM') {
+        expect(fetch.mock.calls[0][0]).toContain('/answerCallbackQuery');
+        expect(body.callback_query_id).toBe('callback/1');
+      } else {
+        expect(fetch.mock.calls[0][0]).toBe(
+          'https://platform-api2.max.ru/answers?callback_id=callback%2F1',
+        );
+        expect(body.message.text).toBe('Исходное сообщение');
+        expect(body.message.attachments[0].payload.buttons).toHaveLength(2);
+      }
+    },
+  );
   it('preserves retry-after and never leaks tokens from network exceptions', async () => {
     vi.stubGlobal(
       'fetch',

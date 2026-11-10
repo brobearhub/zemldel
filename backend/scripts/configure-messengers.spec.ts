@@ -51,10 +51,10 @@ globalThis.fetch = async (url, init) => {
     const platform = telegram ? 'TELEGRAM' : 'MAX';
     if (body.url !== 'https://api.example.com/messengers/' + platform + '/webhook') throw new Error('Invalid webhook URL');
     if (telegram) {
-      if (path !== 'setWebhook' || body.secret_token !== process.env.TELEGRAM_WEBHOOK_SECRET || body.drop_pending_updates !== false || JSON.stringify(body.allowed_updates) !== JSON.stringify(['message', 'my_chat_member'])) throw new Error('Invalid Telegram subscription');
+      if (path !== 'setWebhook' || body.secret_token !== process.env.TELEGRAM_WEBHOOK_SECRET || body.drop_pending_updates !== false || JSON.stringify(body.allowed_updates) !== JSON.stringify(['message', 'my_chat_member', 'callback_query'])) throw new Error('Invalid Telegram subscription');
       return Response.json({ ok: true, result: true });
     }
-    if (path !== 'subscriptions' || body.secret !== process.env.MAX_WEBHOOK_SECRET || !body.update_types.includes('bot_started')) throw new Error('Invalid MAX subscription');
+    if (path !== 'subscriptions' || body.secret !== process.env.MAX_WEBHOOK_SECRET || !body.update_types.includes('bot_started') || !body.update_types.includes('message_callback')) throw new Error('Invalid MAX subscription');
     return Response.json({ success: true });
   }
   throw new Error('Unexpected mutation or request: ' + url);
