@@ -39,3 +39,7 @@ export function writeRequestListCache(
 export function clearRequestListCache(): void {
   cache.clear();
 }
+
+export function invalidateRequestListCache(query: RequestListQuery): void {
+  cache.delete(scopeKey(query.serviceId));
+}

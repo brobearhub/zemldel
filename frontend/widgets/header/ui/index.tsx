@@ -25,7 +25,12 @@ export const Header = () => {
   const isWide = useMediaQuery((theme) => theme.breakpoints.up("tablet"));
   const hideHeaderCity = pathname === "/signup";
 
-  if (pathname === "/" && isAuthenticated && isProviderAccount && isWide) {
+  if (
+    (pathname === "/" || pathname === "/about") &&
+    isAuthenticated &&
+    isProviderAccount &&
+    isWide
+  ) {
     return (
       <Suspense fallback={null}>
         <CabinetDesktopBar

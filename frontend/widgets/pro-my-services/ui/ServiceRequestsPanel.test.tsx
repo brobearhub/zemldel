@@ -24,6 +24,7 @@ vi.mock("../lib/reply-to-customer", () => ({
 vi.mock("../lib/request-list-cache", () => ({
   readRequestListCache,
   writeRequestListCache,
+  invalidateRequestListCache: vi.fn(),
 }));
 
 vi.mock("@/core/store/hooks", () => ({
@@ -155,6 +156,60 @@ describe("ServiceRequestsPanel", () => {
     expect(screen.queryByRole("navigation", { name: "Фильтр заявок" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Заявки" }).parentElement).toHaveTextContent(/Заявки\s*0/);
     expect(fetchRequestList).toHaveBeenCalledWith({ serviceId: null });
+  });
+
+  it("накапливает новые заявки и сохраняет строки до нажатия, включая возврат во вкладку", async () => {
+    fetchRequestList.mockResolvedValue({ items: [request({ id: "old", customerName: "Старая" })] });
+    render(<ServiceRequestsPanel serviceId={null} titleFor={(item) => item.customerName!} />);
+    await screen.findByRole("link", { name: /Старая/ });
+    fetchRequestList.mockResolvedValue({ items: [request({ id: "new", customerName: "Новый заказчик" }), request({ id: "old", customerName: "Старая" })] });
+    act(() => {
+      for (let i = 0; i < 10000; i++) window.dispatchEvent(new Event("free-request:created"));
+    });
+    expect(fetchRequestList).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Показать новые" })).toBeVisible();
+    expect(screen.queryByRole("link", { name: /Новый заказчик/ })).not.toBeInTheDocument();
+    await act(async () => { window.dispatchEvent(new Event("focus")); });
+    expect(screen.queryByRole("link", { name: /Новый заказчик/ })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+    await userEvent.click(screen.getByRole("button", { name: "Показать новые" }));
+    expect(await screen.findByRole("link", { name: /Новый заказчик/ })).toBeVisible();
+    expect(screen.getAllByRole("link")[0]).toHaveTextContent("Новый заказчик");
+    expect(screen.queryByRole("button", { name: "Показать новые" })).not.toBeInTheDocument();
+  });
+
+  it("при ошибке обновления сохраняет список и позволяет повторить загрузку", async () => {
+    fetchRequestList.mockResolvedValueOnce({ items: [request({ customerName: "Старая" })] });
+    render(<ServiceRequestsPanel serviceId={null} titleFor={(item) => item.customerName!} />);
+    await screen.findByRole("link", { name: /Старая/ });
+    act(() => window.dispatchEvent(new Event("free-request:created")));
+    fetchRequestList.mockRejectedValueOnce(new Error("Нет соединения"));
+    await userEvent.click(screen.getByRole("button", { name: "Показать новые" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Нет соединения");
+    expect(screen.getByRole("link", { name: /Старая/ })).toBeVisible();
+    fetchRequestList.mockResolvedValueOnce({ items: [request({ customerName: "Новый заказчик" })] });
+    await userEvent.click(screen.getByRole("button", { name: "Показать новые" }));
+    expect(await screen.findByRole("link", { name: /Новый заказчик/ })).toBeVisible();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("не теряет уведомление, пришедшее во время загрузки, и блокирует повторный клик", async () => {
+    fetchRequestList.mockResolvedValueOnce({ items: [] });
+    render(<ServiceRequestsPanel serviceId={null} />);
+    await screen.findByText("Пока нет заявок");
+    act(() => window.dispatchEvent(new Event("free-request:created")));
+    let resolveLoad!: (value: { items: RequestProDto[] }) => void;
+    fetchRequestList.mockReturnValueOnce(new Promise((resolve) => { resolveLoad = resolve; }));
+    await userEvent.click(screen.getByRole("button", { name: "Показать новые" }));
+    expect(screen.getByRole("button", { name: "Обновление…" })).toBeDisabled();
+    act(() => window.dispatchEvent(new Event("free-request:created")));
+    await act(async () => resolveLoad({ items: [request({ id: "first" })] }));
+    expect(screen.getByRole("button", { name: "Показать новые" })).toBeEnabled();
+    expect(fetchRequestList).toHaveBeenCalledTimes(2);
+    fetchRequestList.mockResolvedValueOnce({ items: [request({ id: "last" }), request({ id: "first" })] });
+    await userEvent.click(screen.getByRole("button", { name: "Показать новые" }));
+    await waitFor(() => expect(screen.getAllByRole("link")).toHaveLength(2));
+    expect(screen.queryByRole("button", { name: "Показать новые" })).not.toBeInTheDocument();
   });
 
   it("не повторяет имя заказчика, если оно уже в заголовке", async () => {

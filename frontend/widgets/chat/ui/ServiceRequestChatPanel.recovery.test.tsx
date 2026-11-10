@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ServiceRequestChatPanel } from "./ServiceRequestChatPanel";
 import type { ChatMessageDto } from "@/entities/chat/dto/chat.dto";
-const socket = vi.hoisted(() => ({socket: null, socketConnected: false, setOpenConversationId: vi.fn(), joinConversationRoom: vi.fn(async () => ({ok: true, viewerSide: "customer", peerOnline: true})), clearUnreadForRequest: vi.fn()}));
+const socket = vi.hoisted(() => ({socket: null, socketConnected: false, setOpenConversationId: vi.fn(), joinConversationRoom: vi.fn(async () => ({ok: true, viewerSide: "customer", peerOnline: true})), clearUnreadForConversation: vi.fn()}));
 vi.mock("next-auth/react", () => ({useSession: () => ({data: {user: {id: "actor"}}})}));
 vi.mock("@/widgets/chat/socket/ChatSocketContext", () => ({useChatSocket: () => socket}));
 vi.mock("./Chat", () => ({Chat: (p: {draft: string; onDraftChange: (v: string) => void; rows: {kind: string; message?: ChatMessageDto}[]}) => <><input aria-label="draft" value={p.draft} onChange={e=>p.onDraftChange(e.target.value)} />{p.rows.map(r=>r.message && <span key={r.message.id}>{r.message.body}</span>)}</>}));

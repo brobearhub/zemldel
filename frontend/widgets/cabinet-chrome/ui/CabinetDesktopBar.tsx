@@ -124,9 +124,9 @@ export function CabinetDesktopBar({
       position="fixed"
       elevation={0}
       sx={{
-        left: alignWithWorkspace ? "var(--pro-sidebar-width, 240px)" : 0,
+        left: alignWithWorkspace ? "var(--cabinet-sidebar-width, 300px)" : 0,
         width: alignWithWorkspace
-          ? "calc(100% - var(--pro-sidebar-width, 240px))"
+          ? "calc(100% - var(--cabinet-sidebar-width, 300px))"
           : "100%",
         ...(alignWithWorkspace && {
           borderBottomColor: (theme) =>
@@ -169,25 +169,39 @@ export function CabinetDesktopBar({
             <HeaderLogo />
           )}
           {showSiteCity ? <HeaderCity showLabel /> : null}
-          {showProviderCity ? <HeaderCity showLabel scope="provider" /> : null}
+          {showProviderCity && !alignWithWorkspace ? (
+            <HeaderCity
+              showLabel
+              scope="provider"
+            />
+          ) : null}
         </Box>
 
-        <NavScroller>
-          {items.map((item) => (
-            <Box key={item.key} sx={{ flex: "0 0 auto" }}>
-              <CabinetNavItem
-                href={item.href}
-                label={item.label}
-                icon={item.icon}
-                selected={item.isActive(ctx)}
-                badge={
-                  item.badgeKind === "chatUnreadTotal" ? unreadTotal : undefined
-                }
-                size="desktop"
-              />
-            </Box>
-          ))}
-        </NavScroller>
+        {alignWithWorkspace ? (
+          <Box />
+        ) : (
+          <NavScroller>
+            {items.map((item) => (
+              <Box
+                key={item.key}
+                sx={{ flex: "0 0 auto" }}
+              >
+                <CabinetNavItem
+                  href={item.href}
+                  label={item.label}
+                  icon={item.icon}
+                  selected={item.isActive(ctx)}
+                  badge={
+                    item.badgeKind === "chatUnreadTotal"
+                      ? unreadTotal
+                      : undefined
+                  }
+                  size="desktop"
+                />
+              </Box>
+            ))}
+          </NavScroller>
+        )}
 
         <Box
           sx={{

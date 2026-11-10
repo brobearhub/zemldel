@@ -93,7 +93,7 @@ export function ServiceRequestChatPanel({
     socketConnected,
     setOpenConversationId,
     joinConversationRoom,
-    clearUnreadForRequest,
+    clearUnreadForConversation,
   } = useChatSocket();
 
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -244,9 +244,9 @@ export function ServiceRequestChatPanel({
       const response = await fetch(`/api/chat/conversations/${convId}/read`, {
         method: "POST",
       }).catch(() => null);
-      if (response?.ok) clearUnreadForRequest(serviceRequestId);
+      if (response?.ok) clearUnreadForConversation(convId);
     },
-    [clearUnreadForRequest, serviceRequestId],
+    [clearUnreadForConversation],
   );
 
   useEffect(() => {

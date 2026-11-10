@@ -1,3 +1,8 @@
+import {
+  FreeRequestBroadcast,
+  FREE_REQUEST_PROVIDERS_ROOM,
+  type FreeRequestNotification,
+} from './free-request-broadcast';
 import { forwardRef, Inject, Logger } from '@nestjs/common';
 import {
   ConnectedSocket,
@@ -12,6 +17,7 @@ import type { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 import { SocketJwtService } from './socket-jwt.service';
 import { ChatPresenceRegistry } from './chat-presence-registry';
+import { PrismaService } from '../prisma/prisma.service';
 import {
   pickPeerOnline,
   type ChatPresenceUpdatedPayload,
@@ -19,6 +25,7 @@ import {
 
 const CONVERSATION_PREFIX = 'conversation:';
 const USER_PREFIX = 'user:';
+
 const DISCONNECT_GRACE_MS = 2500;
 
 export type JoinConversationPayload = {
@@ -43,18 +50,46 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly socketJwt: SocketJwtService,
     @Inject(forwardRef(() => ChatService))
     private readonly chatService: ChatService,
-  ) {}
+    private readonly prisma: PrismaService,
+  ) {
+    this.freeRequests = new FreeRequestBroadcast(prisma, () => this.server);
+  }
 
-  handleConnection(client: Socket) {
+  private readonly freeRequests: FreeRequestBroadcast;
+
+  onModuleDestroy() {
+    this.freeRequests.destroy();
+  }
+
+  async handleConnection(client: Socket) {
     try {
       const token =
         typeof client.handshake.auth?.token === 'string'
           ? client.handshake.auth.token
           : undefined;
       const { sub: userId } = this.socketJwt.verify(token);
+      const actor = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { accountKind: true },
+      });
+      if (!actor) throw new Error('Socket user not found');
+      if (!client.connected) return;
       const data = client.data as unknown as { userId?: string };
       data.userId = userId;
-      void client.join(`${USER_PREFIX}${userId}`);
+      await client.join(`${USER_PREFIX}${userId}`);
+      if (actor.accountKind === 'PROVIDER') {
+        await client.join(FREE_REQUEST_PROVIDERS_ROOM);
+        try {
+          client.emit(
+            'free-request.snapshot',
+            await this.freeRequests.snapshot(userId),
+          );
+        } catch (error) {
+          this.logger.warn(
+            `Could not sync free request notification: ${String(error)}`,
+          );
+        }
+      }
       const { becameOnline } = this.presence.registerConnected(
         userId,
         client.id,
@@ -143,6 +178,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server
       .to(`${USER_PREFIX}${userId}`)
       .emit('request.changed', { requestId });
+  }
+
+  emitFreeRequestCreated(payload: FreeRequestNotification) {
+    this.freeRequests.enqueue(payload);
   }
 
   emitPresenceUpdated(

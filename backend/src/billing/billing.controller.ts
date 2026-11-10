@@ -17,6 +17,8 @@ import {
   IsString,
   IsInt,
   Min,
+  Matches,
+  MaxLength,
 } from 'class-validator';
 import type { Request } from 'express';
 import { InternalAuthService } from '../auth/internal-auth.service';
@@ -25,6 +27,8 @@ import { BILLING_PRODUCTS, PLAN_PRODUCTS } from './billing-catalog';
 import type { BillingProduct } from './billing-catalog';
 
 class CheckoutDto {
+  @IsOptional() @IsInt() @Min(1) expectedRenewalAmount?: number;
+  @IsString() @Matches(/^\d{4}-\d{2}-\d{2}$/) acceptedOfferVersion!: string;
   @IsOptional() @IsBoolean() autoRenew?: boolean;
   @IsOptional() @IsString() quoteAt?: string;
   @IsOptional() @IsInt() @Min(1) expectedAmount?: number;
@@ -36,6 +40,8 @@ class CheckoutDto {
 }
 
 class SettingsDto {
+  @IsOptional() @IsString() acceptedOfferVersion?: string;
+  @IsOptional() @IsInt() @Min(1) expectedRenewalAmount?: number;
   @IsOptional() @IsString() timezone?: string;
   @IsOptional() @IsBoolean() autoRenew?: boolean;
   @IsOptional() @IsIn(['MONTH', 'YEAR', null]) nextBillingPeriod?:
@@ -48,6 +54,14 @@ class SettingsDto {
 }
 class QuoteDto {
   @IsIn(Object.keys(BILLING_PRODUCTS)) product!: BillingProduct;
+}
+class SlugQuoteDto {
+  @IsString() @MaxLength(64) slug!: string;
+}
+class SlugCheckoutDto extends SlugQuoteDto {
+  @IsUUID('4') operationId!: string;
+  @IsString() @Matches(/^\d{4}-\d{2}-\d{2}$/) acceptedOfferVersion!: string;
+  @IsInt() @Min(1) expectedAmount!: number;
 }
 @Controller('billing')
 export class BillingController {
@@ -87,6 +101,8 @@ export class BillingController {
       body.autoRenew,
       body.quoteAt,
       body.expectedAmount,
+      body.acceptedOfferVersion,
+      body.expectedRenewalAmount,
     );
   }
 
@@ -125,6 +141,43 @@ export class BillingController {
       this.auth.getUserIdFromRequest(request),
       providerId,
       body.product,
+    );
+  }
+
+  @Get('providers/:providerId/slug-change')
+  slugStatus(
+    @Req() request: Request,
+    @Param('providerId', ParseUUIDPipe) providerId: string,
+  ) {
+    return this.billing.slugChangeStatus(
+      this.auth.getUserIdFromRequest(request),
+      providerId,
+    );
+  }
+
+  @Post('providers/:providerId/slug-quote')
+  slugQuote(
+    @Req() request: Request,
+    @Param('providerId', ParseUUIDPipe) providerId: string,
+    @Body() body: SlugQuoteDto,
+  ) {
+    return this.billing.slugQuote(
+      this.auth.getUserIdFromRequest(request),
+      providerId,
+      body.slug,
+    );
+  }
+
+  @Post('providers/:providerId/slug-checkout')
+  slugCheckout(
+    @Req() request: Request,
+    @Param('providerId', ParseUUIDPipe) providerId: string,
+    @Body() body: SlugCheckoutDto,
+  ) {
+    return this.billing.checkoutSlugChange(
+      this.auth.getUserIdFromRequest(request),
+      providerId,
+      body,
     );
   }
 

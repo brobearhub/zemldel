@@ -16,8 +16,6 @@ export function ProviderProfileTabs() {
       scrollButtons="auto"
       sx={{
         mb: 3,
-        borderBottom: 1,
-        borderColor: "divider",
       }}
     >
       <Tab

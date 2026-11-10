@@ -1,9 +1,14 @@
+import {
+  freeRequestEligibilityWhere,
+  providerRequestCategories,
+} from './free-request-eligibility';
 import { withWriteOperation } from '../common/idempotency/write-operation';
 import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -197,6 +202,21 @@ type LockedRequestRow = {
 
 @Injectable()
 export class RequestsService {
+  private readonly logger = new Logger(RequestsService.name);
+
+  private notifyFreeRequestCreated(result: RequestCustomerDto) {
+    try {
+      this.chat.notifyFreeRequestCreated({
+        requestId: result.id,
+        createdAt: result.createdAt,
+        categoryId: result.categoryId,
+        regionCode: result.requestCity?.regionCode ?? null,
+      });
+    } catch (error) {
+      this.logger.warn(`Free request notification failed: ${String(error)}`);
+    }
+  }
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
@@ -423,11 +443,7 @@ export class RequestsService {
   private async getProviderEligibleCategoryIds(
     providerId: string,
   ): Promise<Set<string>> {
-    const rows = await this.prisma.service.findMany({
-      where: { providerId, status: 'PUBLISHED' },
-      select: { categoryId: true },
-    });
-    return new Set(rows.map((r) => r.categoryId));
+    return providerRequestCategories(this.prisma, providerId);
   }
 
   private async resolveRequestsRegionCodes(
@@ -590,7 +606,7 @@ export class RequestsService {
       data: {
         status: 'ACCEPTED',
         acceptedAt: now,
-        acceptedByUserId: row.customerUserId,
+        acceptedByUserId: null,
       },
       select,
     });
@@ -598,7 +614,6 @@ export class RequestsService {
     await this.addEvent(tx, {
       requestId: row.id,
       type: 'AUTO_ACCEPT',
-      actorUserId: row.customerUserId,
       payload: { at: now.toISOString() },
     });
 
@@ -672,10 +687,13 @@ export class RequestsService {
         select,
       });
 
-    if (!input.operationId)
-      return requestRowToCustomerDtoPlain(
+    if (!input.operationId) {
+      const created = requestRowToCustomerDtoPlain(
         (await create(this.prisma)) as unknown as RequestDbRow,
       );
+      this.notifyFreeRequestCreated(created);
+      return created;
+    }
     const result = await this.prisma.$transaction((tx) =>
       withWriteOperation(
         tx,
@@ -691,6 +709,7 @@ export class RequestsService {
           ),
       ),
     );
+    if (!result.replayed) this.notifyFreeRequestCreated(result.value);
     return result.value;
   }
 
@@ -874,10 +893,13 @@ export class RequestsService {
         select,
       });
 
-    if (!input.operationId)
-      return requestRowToCustomerDtoPlain(
+    if (!input.operationId) {
+      const created = requestRowToCustomerDtoPlain(
         (await create(this.prisma)) as unknown as RequestDbRow,
       );
+      this.notifyFreeRequestCreated(created);
+      return created;
+    }
     const result = await this.prisma.$transaction((tx) =>
       withWriteOperation(
         tx,
@@ -893,6 +915,7 @@ export class RequestsService {
           ),
       ),
     );
+    if (!result.replayed) this.notifyFreeRequestCreated(result.value);
     return result.value;
   }
 
@@ -1786,6 +1809,10 @@ export class RequestsService {
           AND: [
             { providerId: null, status: { in: ['NEW', 'DISCUSSING'] } },
             scopeWhere,
+            freeRequestEligibilityWhere(
+              providerRegionCode,
+              eligibleCategoryIds,
+            ),
           ],
         },
         select,
@@ -1797,6 +1824,10 @@ export class RequestsService {
           AND: [
             { serviceId: null, providerId: { not: null }, status: 'ACTIVE' },
             scopeWhere,
+            freeRequestEligibilityWhere(
+              providerRegionCode,
+              eligibleCategoryIds,
+            ),
           ],
         },
         select,
@@ -2010,6 +2041,9 @@ export class RequestsService {
         status: { in: ['NEW', 'DISCUSSING'] },
         ...categoryWhere,
         ...poolInboxWhere,
+        AND: [
+          freeRequestEligibilityWhere(providerRegionCode, eligibleCategoryIds),
+        ],
       },
       select,
       orderBy: [{ createdAt: 'desc' }],

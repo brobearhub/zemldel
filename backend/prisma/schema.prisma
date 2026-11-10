@@ -474,10 +474,12 @@ model Provider {
   billingNotices BillingNotice[]
   billingAccount BillingAccount?
   billingOrders BillingOrder[]
+  billingConsents BillingConsent[]
   passportGrants PassportAccessGrant[]
   id                String                 @id @default(uuid()) @db.Uuid
   name              String
   slug              String                 @unique
+  slugChangedAt     DateTime?
   type              ProviderType
   ownerUserId       String?                @db.Uuid
   cityId            String?                @db.Uuid
@@ -537,6 +539,20 @@ model Provider {
 }
 
 // Provider subscription and payment ledger. Payment mode is configured separately.
+model BillingConsent {
+  providerId String @db.Uuid
+  version Int
+  actorUserId String @db.Uuid
+  action String
+  offerVersion String?
+  offerMarkdown String?
+  snapshot Json
+  createdAt DateTime @default(now())
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Restrict)
+
+  @@id([providerId, version])
+}
+
 model BillingAccount {
   providerId String @id @db.Uuid
   plan String @default("STANDARD")
@@ -584,10 +600,26 @@ model BillingOrder {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   provider Provider @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  slugChange ProviderSlugChange?
 
   @@unique([providerId, renewalCycle, renewalAttempt])
   @@unique([providerId, operationId])
   @@index([providerId, createdAt])
+}
+
+// One-off URL purchases have their own consent and never alter subscription consent.
+model ProviderSlugChange {
+  orderId String @id @db.Uuid
+  actorUserId String @db.Uuid
+  previousSlug String
+  targetSlug String
+  reservedSlug String? @unique
+  reservedUntil DateTime
+  offerVersion String
+  offerMarkdown String
+  appliedAt DateTime?
+  needsReview Boolean @default(false)
+  order BillingOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
 
 model ProviderLegalProfile {

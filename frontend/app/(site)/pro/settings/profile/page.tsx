@@ -59,8 +59,11 @@ export default async function ProProfilePage() {
           canEditName={activeMembership.role === "OWNER"}
           imageSide="right"
           verified={verification.status === "VERIFIED"}
-          headerAside={
-            <ProviderVerificationBlock view={verification} layout="aside" />
+          headerVerification={
+            <ProviderVerificationBlock
+              view={verification}
+              layout="banner"
+            />
           }
         />
       </>

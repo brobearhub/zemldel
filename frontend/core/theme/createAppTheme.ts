@@ -616,9 +616,13 @@ export function createAppTheme(
         MuiTab: {
           styleOverrides: {
             root: {
+              color: t.primary.main,
               fontSize: "1rem",
               lineHeight: 1.5,
               textTransform: "none",
+              "&.Mui-selected": {
+                color: t.textPrimary,
+              },
             },
           },
         },

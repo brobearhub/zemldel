@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchChatInbox } from "@/entities/chat/api/chat-inbox";
+import {
+  fetchChatInbox,
+  type ChatInboxRole,
+} from "@/entities/chat/api/chat-inbox";
 import type {
   ChatInboxItemDto,
   ChatMessageDto,
@@ -19,8 +22,8 @@ function newestFirst(items: ChatInboxItemDto[]) {
 }
 
 /** One inbox snapshot, updated by the existing socket; no polling or second connection. */
-export function useProviderChatInbox(scope: string) {
-  const { socket, unreadByRequestId } = useChatSocket();
+export function useChatInbox(scope: string, role: ChatInboxRole) {
+  const { socket, unreadByConversationId } = useChatSocket();
   const [items, setItems] = useState<ChatInboxItemDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const itemsRef = useRef(items);
@@ -28,11 +31,11 @@ export function useProviderChatInbox(scope: string) {
   const revision = useRef(0);
 
   const refresh = useVisibleRefresh({
-    scope: `chat-inbox:${scope}`,
+    scope: `chat-inbox:${role}:${scope}`,
     onRefresh: async (signal) => {
       const started = revision.current;
       try {
-        const incoming = await fetchChatInbox("provider");
+        const incoming = await fetchChatInbox(role);
         if (signal.aborted) return;
         setItems((current) =>
           newestFirst(
@@ -119,5 +122,5 @@ export function useProviderChatInbox(scope: string) {
     };
   }, [socket, refresh, updatePreview, onMessage]);
 
-  return { items, error, refresh, onMessage, unreadByRequestId };
+  return { items, error, refresh, onMessage, unreadByConversationId };
 }

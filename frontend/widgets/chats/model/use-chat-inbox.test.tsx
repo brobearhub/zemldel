@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useProviderChatInbox } from "./use-provider-chat-inbox";
+import { useChatInbox } from "./use-chat-inbox";
 import { fetchChatInbox } from "@/entities/chat/api/chat-inbox";
 import type { ChatInboxItemDto } from "@/entities/chat/dto/chat.dto";
 
@@ -20,7 +20,7 @@ const context = vi.hoisted(() => {
   };
 });
 vi.mock("@/widgets/chat/socket/ChatSocketContext", () => ({
-  useChatSocket: () => ({ socket: context.socket, unreadByRequestId: {} }),
+  useChatSocket: () => ({ socket: context.socket, unreadByConversationId: {} }),
 }));
 vi.mock("@/entities/chat/api/chat-inbox", () => ({ fetchChatInbox: vi.fn() }));
 const rows: ChatInboxItemDto[] = [
@@ -53,9 +53,22 @@ beforeEach(() => {
 });
 
 describe("provider inbox existing socket", () => {
+  it("loads the customer inbox and reuses the same socket events", async () => {
+    const { result } = renderHook(() => useChatInbox("actor", "customer"));
+    await waitFor(() => expect(result.current.items).toHaveLength(2));
+    expect(fetchChatInbox).toHaveBeenCalledWith("customer");
+    emit("chat.unreadHint", {
+      conversationId: "b",
+      lastMessageAt: "2026-11-10T09:00:00Z",
+      bodySnippet: "Ответ исполнителя",
+    });
+    expect(result.current.items?.[0].lastSnippet).toBe("Ответ исполнителя");
+    expect(fetchChatInbox).toHaveBeenCalledTimes(1);
+  });
+
   it("updates the preview and order from a hint without another HTTP request", async () => {
     const { result, unmount } = renderHook(() =>
-      useProviderChatInbox("actor:provider"),
+      useChatInbox("actor:provider", "provider"),
     );
     await waitFor(() => expect(result.current.items).toHaveLength(2));
     emit("chat.unreadHint", {
@@ -74,7 +87,9 @@ describe("provider inbox existing socket", () => {
     );
   });
   it("loads context for a new conversation and recovers on reconnect", async () => {
-    const { result } = renderHook(() => useProviderChatInbox("actor:provider"));
+    const { result } = renderHook(() =>
+      useChatInbox("actor:provider", "provider"),
+    );
     await waitFor(() => expect(result.current.items).toHaveLength(2));
     emit("chat.unreadHint", {
       conversationId: "new",
@@ -85,7 +100,9 @@ describe("provider inbox existing socket", () => {
     await waitFor(() => expect(fetchChatInbox).toHaveBeenCalledTimes(3));
   });
   it("preserves a newer socket event when an older snapshot arrives late", async () => {
-    const { result } = renderHook(() => useProviderChatInbox("actor:provider"));
+    const { result } = renderHook(() =>
+      useChatInbox("actor:provider", "provider"),
+    );
     await waitFor(() => expect(result.current.items).toHaveLength(2));
     let finish!: (value: ChatInboxItemDto[]) => void;
     vi.mocked(fetchChatInbox).mockImplementationOnce(
@@ -104,7 +121,9 @@ describe("provider inbox existing socket", () => {
     expect(result.current.items?.[0].lastSnippet).toBe("Самое новое");
   });
   it("keeps existing conversations after an HTTP error and allows retry", async () => {
-    const { result } = renderHook(() => useProviderChatInbox("actor:provider"));
+    const { result } = renderHook(() =>
+      useChatInbox("actor:provider", "provider"),
+    );
     await waitFor(() => expect(result.current.items).toHaveLength(2));
     vi.mocked(fetchChatInbox).mockRejectedValueOnce(new Error("Offline"));
     act(() => result.current.refresh());

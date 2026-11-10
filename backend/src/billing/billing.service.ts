@@ -15,6 +15,13 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { LegalDocsService } from '../legal-docs/legal-docs.service';
+import { purchaseSnapshot } from './billing-consent';
+import {
+  CUSTOM_SLUG_PATTERN,
+  lockProviderSlugs,
+  providerSlugTaken,
+} from '../providers/provider-slug-availability';
 import { randomUUID } from 'node:crypto';
 import type { BillingOrder, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -43,6 +50,7 @@ export class BillingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly bank: TbankClient,
+    private readonly legalDocs: LegalDocsService,
   ) {}
 
   private async authorize(userId: string, providerId: string, owner = false) {
@@ -188,11 +196,17 @@ export class BillingService {
     autoRenew = false,
     quoteAt?: string,
     expectedAmount?: number,
+    acceptedOfferVersion?: string,
+    expectedRenewalAmount?: number,
   ) {
     await this.authorize(userId, providerId, true);
     if (product === 'REPLIES_10')
       throw new BadRequestException(
         'Отклики на свободные заявки без ограничений',
+      );
+    if (!isPlanProduct(product))
+      throw new BadRequestException(
+        'Для смены адреса используйте настройки профиля',
       );
     const config = billingConfig();
     const selected = BILLING_PRODUCTS[product];
@@ -216,6 +230,7 @@ export class BillingService {
       const pending = await tx.billingOrder.findFirst({
         where: {
           providerId,
+          product: { not: 'PROVIDER_SLUG_CHANGE' },
           terminalKey: config.terminalKey,
           status: { notIn: CLOSED_STATUSES },
           expiresAt: { gt: new Date() },
@@ -258,10 +273,26 @@ export class BillingService {
         select: { email: true },
       });
       const email = receiptEmail(buyer.email);
+      const offer = await this.acceptedOffer(acceptedOfferVersion);
+      if (autoRenew && expectedRenewalAmount !== PLAN_PRODUCTS[product].amount)
+        throw new ConflictException(
+          'Стоимость продления изменилась. Проверьте условия ещё раз',
+        );
       const consent = await tx.billingAccount.upsert({
         where: { providerId },
         create: { providerId, consentVersion: 1 },
         update: { consentVersion: { increment: 1 } },
+      });
+      await tx.billingConsent.create({
+        data: {
+          providerId,
+          version: consent.consentVersion,
+          actorUserId: userId,
+          action: 'CHECKOUT',
+          offerVersion: offer.version,
+          offerMarkdown: offer.markdown,
+          snapshot: purchaseSnapshot(product, amount, autoRenew),
+        },
       });
       return {
         created: true,
@@ -295,7 +326,10 @@ export class BillingService {
       throw new BadRequestException('Платёж создан для другого терминала');
     const selected = BILLING_PRODUCTS[order.product as BillingProduct];
     const providerId = order.providerId;
-    const returnUrl = `${config.siteUrl}/pro/settings/tariff?order=${order.id}`;
+    const returnUrl =
+      order.product === 'PROVIDER_SLUG_CHANGE'
+        ? `${config.siteUrl}/pro/settings/profile?slugOrder=${order.id}`
+        : `${config.siteUrl}/pro/settings/tariff?order=${order.id}`;
     // Persist first, then exactly one Init. A lost response is recovered by CheckOrder.
     const result = await this.bank.call('Init', {
       Amount: order.amount,
@@ -517,11 +551,30 @@ export class BillingService {
         throw new BadRequestException('Платёж не подтверждён');
       }
       if (refund && (status !== 'REVERSED' || order.fulfilledAt)) {
-        await tx.billingAccount.upsert({
-          where: { providerId: order.providerId },
-          create: { providerId: order.providerId, needsReview: true },
-          update: { needsReview: true, autoRenew: false },
+        if (order.product === 'PROVIDER_SLUG_CHANGE') {
+          await tx.providerSlugChange.update({
+            where: { orderId: order.id },
+            data: { needsReview: true, reservedSlug: null },
+          });
+        } else {
+          await tx.billingAccount.upsert({
+            where: { providerId: order.providerId },
+            create: { providerId: order.providerId, needsReview: true },
+            update: { needsReview: true, autoRenew: false },
+          });
+        }
+      }
+      if (order.product === 'PROVIDER_SLUG_CHANGE') {
+        await this.applySlugChange(tx, order, status);
+        await tx.billingOrder.update({
+          where: { id: order.id },
+          data: {
+            paymentId: String(payload.PaymentId),
+            status,
+            ...(status === 'CONFIRMED' ? { fulfilledAt: new Date() } : {}),
+          },
         });
+        return;
       }
       if (status === 'CONFIRMED') {
         const account = await tx.billingAccount.upsert({
@@ -635,12 +688,19 @@ export class BillingService {
       throw new BadRequestException(
         'Отклики на свободные заявки без ограничений',
       );
+    if (!isPlanProduct(product))
+      throw new BadRequestException(
+        'Для смены адреса используйте настройки профиля',
+      );
     const account = await this.prisma.billingAccount.findUnique({
       where: { providerId },
     });
     const now = new Date();
+    const offer = await this.legalDocs.getCurrent('offer');
     return {
       product,
+      offerVersion: offer.version,
+      regularAmount: PLAN_PRODUCTS[product].amount,
       mode: purchaseMode(account, product, now),
       amount: upgradeAmount(account, product, now),
       quoteAt: now.toISOString(),
@@ -655,6 +715,8 @@ export class BillingService {
       autoRenew?: boolean;
       nextPlan?: string | null;
       nextBillingPeriod?: BillingPeriod | null;
+      acceptedOfferVersion?: string;
+      expectedRenewalAmount?: number;
     },
   ) {
     await this.authorize(userId, providerId, true);
@@ -712,7 +774,35 @@ export class BillingService {
       const newReset = input.timezone
         ? nextMidnight(new Date(), input.timezone)
         : null;
-      await tx.billingAccount.update({
+      const changesRenewal =
+        input.autoRenew !== undefined ||
+        input.nextPlan !== undefined ||
+        input.nextBillingPeriod !== undefined;
+      const willRenew = cancellation
+        ? false
+        : (input.autoRenew ?? account.autoRenew);
+      const renewalProduct = planProduct(
+        nextPlan === undefined
+          ? (account.nextPlan ?? account.plan)
+          : (nextPlan ?? account.plan),
+        nextBillingPeriod === undefined
+          ? (account.nextBillingPeriod ?? account.billingPeriod)
+          : (nextBillingPeriod ?? account.billingPeriod),
+      );
+      const offer =
+        changesRenewal && willRenew
+          ? await this.acceptedOffer(input.acceptedOfferVersion)
+          : null;
+      if (
+        changesRenewal &&
+        willRenew &&
+        (!renewalProduct ||
+          input.expectedRenewalAmount !== PLAN_PRODUCTS[renewalProduct].amount)
+      )
+        throw new ConflictException(
+          'Стоимость продления изменилась. Проверьте условия ещё раз',
+        );
+      const updated = await tx.billingAccount.update({
         where: { providerId },
         data: {
           timezone: input.timezone,
@@ -734,7 +824,270 @@ export class BillingService {
             : {}),
         },
       });
+      if (changesRenewal) {
+        await tx.billingConsent.create({
+          data: {
+            providerId,
+            version: updated.consentVersion,
+            actorUserId: userId,
+            action: willRenew ? 'RENEWAL_ENABLED' : 'RENEWAL_DISABLED',
+            offerVersion: offer?.version,
+            offerMarkdown: offer?.markdown,
+            snapshot: renewalProduct
+              ? purchaseSnapshot(
+                  renewalProduct,
+                  PLAN_PRODUCTS[renewalProduct].amount,
+                  willRenew,
+                )
+              : { autoRenew: false, product: 'STANDARD' },
+          },
+        });
+      }
     });
     return this.overview(userId, providerId);
+  }
+
+  async slugChangeStatus(userId: string, providerId: string) {
+    await this.authorize(userId, providerId, true);
+    const provider = await this.prisma.provider.findUniqueOrThrow({
+      where: { id: providerId },
+      select: { slug: true, slugChangedAt: true },
+    });
+    const order = await this.prisma.billingOrder.findFirst({
+      where: { providerId, product: 'PROVIDER_SLUG_CHANGE' },
+      orderBy: { createdAt: 'desc' },
+      include: { slugChange: true },
+    });
+    return {
+      slug: provider.slug,
+      nextChangeAt: provider.slugChangedAt
+        ? addCalendarMonths(provider.slugChangedAt, 1)
+        : null,
+      amount: BILLING_PRODUCTS.PROVIDER_SLUG_CHANGE.amount,
+      enabled: this.paymentEnabled(),
+      order: order
+        ? {
+            ...this.view(order),
+            targetSlug: order.slugChange?.targetSlug,
+            appliedAt: order.slugChange?.appliedAt,
+            needsReview: order.slugChange?.needsReview,
+            expiresAt: order.expiresAt,
+          }
+        : null,
+    };
+  }
+
+  async slugQuote(userId: string, providerId: string, slug: string) {
+    await this.authorize(userId, providerId, true);
+    const target = slug.trim().toLowerCase();
+    if (!CUSTOM_SLUG_PATTERN.test(target))
+      throw new BadRequestException(
+        'Введите только английские буквы и цифры, до 64 символов',
+      );
+    const provider = await this.prisma.provider.findUniqueOrThrow({
+      where: { id: providerId },
+    });
+    this.assertSlugChangeAllowed(provider, target);
+    if (await providerSlugTaken(this.prisma, target))
+      throw new ConflictException('Этот адрес уже занят. Выберите другой');
+    return {
+      slug: target,
+      available: true,
+      amount: BILLING_PRODUCTS.PROVIDER_SLUG_CHANGE.amount,
+      offerVersion: await this.currentOfferVersion(),
+      enabled: this.paymentEnabled(),
+    };
+  }
+
+  private paymentEnabled() {
+    try {
+      billingConfig();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private assertSlugChangeAllowed(
+    provider: { slug: string; slugChangedAt: Date | null },
+    target: string,
+  ) {
+    if (provider.slug === target)
+      throw new BadRequestException('Это текущий адрес профиля');
+    const next = provider.slugChangedAt
+      ? addCalendarMonths(provider.slugChangedAt, 1)
+      : null;
+    if (next && next > new Date())
+      throw new ConflictException(
+        `Менять адрес можно один раз в месяц. Следующая смена доступна с ${next.toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' })}`,
+      );
+  }
+
+  async checkoutSlugChange(
+    userId: string,
+    providerId: string,
+    input: {
+      slug: string;
+      operationId: string;
+      acceptedOfferVersion: string;
+      expectedAmount: number;
+    },
+  ) {
+    await this.authorize(userId, providerId, true);
+    const target = input.slug.trim().toLowerCase();
+    if (!CUSTOM_SLUG_PATTERN.test(target))
+      throw new BadRequestException(
+        'Введите только английские буквы и цифры, до 64 символов',
+      );
+    const config = billingConfig();
+    const { order, created } = await this.prisma.$transaction(async (tx) => {
+      await this.lock(tx, providerId);
+      const previous = await tx.billingOrder.findUnique({
+        where: {
+          providerId_operationId: {
+            providerId,
+            operationId: input.operationId,
+          },
+        },
+        include: { slugChange: true },
+      });
+      if (previous) {
+        if (
+          previous.product !== 'PROVIDER_SLUG_CHANGE' ||
+          previous.slugChange?.targetSlug !== target ||
+          previous.terminalKey !== config.terminalKey
+        )
+          throw new ConflictException(
+            'Эта операция уже использована для другой покупки',
+          );
+        return { order: previous, created: false };
+      }
+      if (input.expectedAmount !== BILLING_PRODUCTS.PROVIDER_SLUG_CHANGE.amount)
+        throw new ConflictException(
+          'Стоимость изменилась. Проверьте условия ещё раз',
+        );
+      const offer = await this.acceptedOffer(input.acceptedOfferVersion);
+      const provider = await tx.provider.findUniqueOrThrow({
+        where: { id: providerId },
+      });
+      this.assertSlugChangeAllowed(provider, target);
+      const pending = await tx.billingOrder.findFirst({
+        where: {
+          providerId,
+          product: 'PROVIDER_SLUG_CHANGE',
+          status: { notIn: CLOSED_STATUSES },
+          expiresAt: { gt: new Date() },
+        },
+      });
+      if (pending)
+        throw new ConflictException(
+          'Уже есть незавершённая оплата смены адреса. Проверьте её статус',
+        );
+      await lockProviderSlugs(tx);
+      if (await providerSlugTaken(tx, target))
+        throw new ConflictException('Этот адрес уже занят. Выберите другой');
+      const buyer = await tx.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { email: true },
+      });
+      const expiresAt = new Date(Date.now() + 30 * 60000);
+      const order = await tx.billingOrder.create({
+        data: {
+          providerId,
+          operationId: input.operationId,
+          product: 'PROVIDER_SLUG_CHANGE',
+          amount: BILLING_PRODUCTS.PROVIDER_SLUG_CHANGE.amount,
+          receiptEmail: receiptEmail(buyer.email),
+          terminalKey: config.terminalKey,
+          expiresAt,
+          slugChange: {
+            create: {
+              actorUserId: userId,
+              previousSlug: provider.slug,
+              targetSlug: target,
+              reservedSlug: target,
+              reservedUntil: expiresAt,
+              offerVersion: offer.version,
+              offerMarkdown: offer.markdown,
+            },
+          },
+        },
+      });
+      return { order, created: true };
+    });
+    return created ? this.initialize(order) : this.view(order);
+  }
+
+  private async applySlugChange(
+    tx: Prisma.TransactionClient,
+    order: BillingOrder,
+    status: string,
+  ) {
+    if (!CLOSED_STATUSES.includes(status)) return;
+    await lockProviderSlugs(tx);
+    const change = await tx.providerSlugChange.findUniqueOrThrow({
+      where: { orderId: order.id },
+    });
+    if (status === 'CONFIRMED') {
+      const provider = await tx.provider.findUniqueOrThrow({
+        where: { id: order.providerId },
+      });
+      // Temporarily release this order's reservation, retaining the namespace lock.
+      await tx.providerSlugChange.update({
+        where: { orderId: order.id },
+        data: { reservedSlug: null },
+      });
+      const next = provider.slugChangedAt
+        ? addCalendarMonths(provider.slugChangedAt, 1)
+        : null;
+      if (
+        provider.slug !== change.previousSlug ||
+        (next && next > new Date()) ||
+        (await providerSlugTaken(tx, change.targetSlug))
+      ) {
+        await tx.providerSlugChange.update({
+          where: { orderId: order.id },
+          data: { needsReview: true },
+        });
+        await tx.billingNotice.upsert({
+          where: { key: `slug-conflict:${order.id}` },
+          create: {
+            providerId: order.providerId,
+            key: `slug-conflict:${order.id}`,
+            message:
+              'Оплата смены адреса получена, но применить новый адрес не удалось. Обратитесь в поддержку для возврата или урегулирования платежа.',
+          },
+          update: {},
+        });
+        return;
+      }
+      const now = new Date();
+      await tx.provider.update({
+        where: { id: provider.id },
+        data: { slug: change.targetSlug, slugChangedAt: now },
+      });
+      await tx.providerSlugChange.update({
+        where: { orderId: order.id },
+        data: { appliedAt: now },
+      });
+    } else {
+      await tx.providerSlugChange.update({
+        where: { orderId: order.id },
+        data: { reservedSlug: null },
+      });
+    }
+  }
+
+  async currentOfferVersion() {
+    return (await this.legalDocs.getCurrent('offer')).version;
+  }
+
+  private async acceptedOffer(version?: string) {
+    const offer = await this.legalDocs.getCurrent('offer');
+    if (!version || version !== offer.version)
+      throw new ConflictException(
+        'Ознакомьтесь с актуальной офертой и подтвердите её условия',
+      );
+    return offer;
   }
 }

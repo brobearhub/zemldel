@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
-import { ProviderChatsWorkspace } from "@/widgets/chats/ui/ProviderChatsWorkspace";
+import { ChatsWorkspace } from "@/widgets/chats/ui/ChatsWorkspace";
 
 export default function ChatsLayout({ children }: { children: ReactNode }) {
   return (
     <>
       {children}
-      <ProviderChatsWorkspace />
+      <ChatsWorkspace role="provider" />
     </>
   );
 }

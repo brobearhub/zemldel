@@ -1,3 +1,4 @@
+import { LegalDocsService } from '../legal-docs/legal-docs.service';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BillingService } from './billing.service';
 
@@ -30,7 +31,11 @@ describe('live billing configuration', () => {
     return {
       db,
       bank,
-      service: new BillingService(db as never, bank as never),
+      service: new BillingService(
+        db as never,
+        bank as never,
+        new LegalDocsService(),
+      ),
     };
   }
 

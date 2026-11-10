@@ -14,6 +14,7 @@ import {
   CLOSED_STATUSES,
   planProduct,
 } from './billing-catalog';
+import { permitsRenewal } from './billing-consent';
 import { planEnforcementEnabled } from './plan-policy';
 
 @Injectable()
@@ -152,6 +153,7 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
             providerId,
             terminalKey: config.terminalKey,
             renewalCycle: null,
+            product: { not: 'PROVIDER_SLUG_CHANGE' },
             status: { notIn: CLOSED_STATUSES },
             expiresAt: { gt: now },
           },
@@ -171,6 +173,34 @@ export class BillingRenewalService implements OnModuleInit, OnModuleDestroy {
         account.nextBillingPeriod ?? account.billingPeriod,
       );
       if (!product) return null;
+      const consent = await tx.billingConsent.findUnique({
+        where: {
+          providerId_version: { providerId, version: account.consentVersion },
+        },
+      });
+      if (
+        !permitsRenewal(
+          consent,
+          product,
+          await this.billing.currentOfferVersion(),
+        )
+      ) {
+        await tx.billingAccount.update({
+          where: { providerId },
+          data: { autoRenew: false, graceUntil: null },
+        });
+        await tx.billingNotice.upsert({
+          where: { key: `consent:${providerId}:${account.consentVersion}` },
+          create: {
+            providerId,
+            key: `consent:${providerId}:${account.consentVersion}`,
+            message:
+              'Автопродление отключено: подтвердите актуальную оферту и стоимость в настройках тарифа. Оплаченный срок сохранён.',
+          },
+          update: {},
+        });
+        return null;
+      }
       await tx.billingAccount.update({
         where: { providerId },
         data: { graceUntil: new Date(cycle.getTime() + 72 * 3600000) },

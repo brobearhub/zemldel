@@ -1,3 +1,4 @@
+import { LegalDocsService } from '../legal-docs/legal-docs.service';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BillingService } from './billing.service';
 import { billingReceipt, receiptEmail } from './billing-receipt';
@@ -68,6 +69,7 @@ describe('fiscal receipt', () => {
           $transaction: (fn: (client: typeof tx) => unknown) => fn(tx),
         } as never,
         new TbankClient(),
+        new LegalDocsService(),
       );
       await service.initialize(order as never);
       const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -108,7 +110,11 @@ describe('fiscal receipt', () => {
     'rejects invalid receipt contact %s before Init',
     async (email) => {
       const bank = { call: vi.fn() };
-      const service = new BillingService({} as never, bank as never);
+      const service = new BillingService(
+        {} as never,
+        bank as never,
+        new LegalDocsService(),
+      );
       await expect(
         service.initialize({
           terminalKey: 'receipt-terminal',

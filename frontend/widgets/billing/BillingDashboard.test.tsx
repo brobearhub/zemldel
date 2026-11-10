@@ -61,6 +61,8 @@ function setup(
     if (url.endsWith("/quote"))
       return Response.json({
         mode,
+        offerVersion: "2026-11-10",
+        regularAmount: current.catalog[body.product as Product].amount,
         quoteAt: new Date().toISOString(),
         amount: current.catalog[body.product as Product].amount,
       });
@@ -286,10 +288,17 @@ describe("annual plans and renewal cancellation", () => {
       });
       expect(toggle).not.toBeChecked();
       await userEvent.click(toggle);
+      expect(toggle).not.toBeChecked();
+      await userEvent.click(await screen.findByRole("checkbox", { name: /Принимаю условия/ }));
+      await userEvent.click(screen.getByRole("button", { name: "Подтвердить автопродление" }));
       await waitFor(() => expect(toggle).toBeChecked());
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/billing/providers/provider/settings",
-        expect.objectContaining({ body: JSON.stringify({ autoRenew: true }) }),
+        expect.objectContaining({ body: JSON.stringify({
+          autoRenew: true,
+          acceptedOfferVersion: "2026-11-10",
+          expectedRenewalAmount: billingPeriod === "YEAR" ? 7560 : 700,
+        }) }),
       );
       expect(screen.getByText(/Следующее продление:/)).toHaveTextContent(
         billingPeriod === "YEAR" ? /75,60 ₽ за год/ : "7 ₽ за месяц",
@@ -340,9 +349,10 @@ describe("annual plans and renewal cancellation", () => {
     const checkbox = await screen.findByRole("checkbox", {
       name: /Продлевать автоматически/,
     });
-    expect(checkbox).toBeChecked();
+    expect(checkbox).not.toBeChecked();
     expect(checkbox).toHaveAccessibleName(/раз в год/);
-    await userEvent.click(checkbox);
+    expect(screen.getByRole("button", { name: "Перейти к оплате" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("checkbox", { name: /Принимаю условия/ }));
     await userEvent.click(
       screen.getByRole("button", { name: "Перейти к оплате" }),
     );
@@ -355,6 +365,7 @@ describe("annual plans and renewal cancellation", () => {
         product: "LITE_YEAR",
         expectedAmount: 7560,
         autoRenew: false,
+        acceptedOfferVersion: "2026-11-10",
       });
     });
   });
@@ -370,12 +381,15 @@ describe("annual plans and renewal cancellation", () => {
     const button = await screen.findByRole("button", {
       name: "Запланировать переход",
     });
+    await userEvent.click(await screen.findByRole("checkbox", { name: /Принимаю условия/ }));
     await userEvent.click(button);
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/billing/providers/provider/settings",
         expect.objectContaining({
           body: JSON.stringify({
+            acceptedOfferVersion: "2026-11-10",
+            expectedRenewalAmount: 700,
             nextPlan: "LITE",
             nextBillingPeriod: "MONTH",
           }),

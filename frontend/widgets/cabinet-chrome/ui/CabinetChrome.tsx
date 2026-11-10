@@ -59,7 +59,7 @@ export function CabinetChrome() {
         items={zone === "pro" ? PROVIDER_HEADER_NAV : nav.desktop}
         showProviderCity={showProviderCity}
         showProviderStatus={role === "provider"}
-        alignWithWorkspace={zone === "pro"}
+        alignWithWorkspace={zone === "pro" || zone === "profile"}
       />
     );
   }

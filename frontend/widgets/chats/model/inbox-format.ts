@@ -21,8 +21,9 @@ export function chatStatus(row: ChatInboxItemDto) {
       : "";
 }
 
-export function chatHref(row: ChatInboxItemDto) {
-  return `/pro/chats/${encodeURIComponent(row.serviceRequestId)}${row.conversationId ? `?conversation=${encodeURIComponent(row.conversationId)}` : ""}`;
+export function chatHref(row: ChatInboxItemDto, role: "provider" | "customer") {
+  const basePath = role === "provider" ? "/pro/chats" : "/profile/chats";
+  return `${basePath}/${encodeURIComponent(row.serviceRequestId)}${row.conversationId ? `?conversation=${encodeURIComponent(row.conversationId)}` : ""}`;
 }
 
 export function inboxTime(iso: string | null, now = new Date()) {

@@ -1,7 +1,8 @@
 "use client";
 
-import { Box, Stack, Tab, Tabs } from "@mui/material";
+import { Badge, Box, Stack, Tab, Tabs } from "@mui/material";
 import { useState, type ReactNode } from "react";
+import { useFreeRequestNotifications } from "@/widgets/pro-my-services/model/FreeRequestNotificationsProvider";
 
 type SectionId = "services" | "free" | "reminders";
 
@@ -23,6 +24,7 @@ export function ProHomeSectionSwitch({
   reminders,
 }: Props) {
   const [section, setSection] = useState<SectionId>("services");
+  const { hasNew } = useFreeRequestNotifications();
   const content =
     section === "services"
       ? services
@@ -44,7 +46,35 @@ export function ProHomeSectionSwitch({
           <Tab
             key={item.id}
             value={item.id}
-            label={item.label}
+            label={
+              item.id === "free" ? (
+                <Badge
+                  variant="dot"
+                  color="error"
+                  invisible={!hasNew}
+                  sx={{
+                    "& .MuiBadge-badge": {
+                      top: 2,
+                      right: -8,
+                      width: 8,
+                      minWidth: 8,
+                      height: 8,
+                      p: 0,
+                      borderRadius: "50%",
+                    },
+                  }}
+                >
+                  {item.label}
+                </Badge>
+              ) : (
+                item.label
+              )
+            }
+            aria-label={
+              item.id === "free" && hasNew
+                ? `${item.label}: есть новые заявки`
+                : item.label
+            }
             id={`pro-home-tab-${item.id}`}
             aria-controls={`pro-home-panel-${item.id}`}
             sx={{
