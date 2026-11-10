@@ -92,6 +92,19 @@ export class RemindersService {
     });
   }
 
+  async upcomingCount(userId: string) {
+    const providerId = await this.resolveProviderId(userId);
+    const now = new Date();
+    const count = await this.prisma.requestReminder.count({
+      where: {
+        providerId,
+        isDone: false,
+        remindAt: { gte: now, lte: new Date(now.getTime() + 60 * 60 * 1000) },
+      },
+    });
+    return { count };
+  }
+
   async listToday(userId: string) {
     const providerId = await this.resolveProviderId(userId);
     const { start, end } = getTodayBounds();

@@ -12,17 +12,25 @@ import {
 } from "@/core/theme/ColorModeContext";
 import { ProSidebar } from "./ProSidebar";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/pro/requests/feed" }));
+const chatState = vi.hoisted(() => ({
+  unreadByRequestId: {} as Record<string, number>,
+  pathname: "/pro/requests/feed",
+}));
+vi.mock("next/navigation", () => ({ usePathname: () => chatState.pathname }));
 vi.mock("@/core/store/hooks", () => ({ useAppSelector: () => "Компания" }));
 vi.mock("@/widgets/chat/socket/ChatSocketContext", () => ({
-  useChatSocket: () => ({ unreadByRequestId: {} }),
+  useChatSocket: () => chatState,
 }));
 vi.mock("@mui/material", async (original) => ({
   ...(await original<typeof import("@mui/material")>()),
   useMediaQuery: () => true,
 }));
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  chatState.unreadByRequestId = {};
+  chatState.pathname = "/pro/requests/feed";
+});
 const setup = (collapsed = false) =>
   render(
     <ColorModeProvider>
@@ -31,6 +39,33 @@ const setup = (collapsed = false) =>
   );
 
 describe("Меню исполнителя", () => {
+  it("обновляет счётчик чатов в свёрнутом меню", () => {
+    chatState.pathname = "/pro/chats/request-1";
+    chatState.unreadByRequestId = { first: 2, second: 3 };
+    const view = setup(true);
+    const chat = screen.getByRole("link", {
+      name: "Чаты, непрочитанных сообщений: 5",
+    });
+    expect(chat).toHaveAttribute("href", "/pro/chats");
+    expect(chat).toHaveAttribute("aria-current", "page");
+    expect(within(chat).getByText("5")).toHaveClass("MuiBadge-colorError");
+    expect(
+      within(screen.getByRole("button", { name: "Заявки" })).queryByText("5"),
+    ).toBeNull();
+    chatState.unreadByRequestId = {};
+    view.rerender(
+      <ColorModeProvider>
+        <ProSidebar
+          providerName="Компания"
+          collapsed
+        />
+      </ColorModeProvider>,
+    );
+    expect(
+      screen.getByRole("link", { name: "Чаты" }).querySelector(".MuiBadge-badge"),
+    ).toHaveClass("MuiBadge-invisible");
+  });
+
   it("показывает основные разделы и вложенные настройки, сохраняет выбранную тему", () => {
     setup();
     const menu = screen.getByRole("navigation", { name: "Меню исполнителя" });
@@ -38,7 +73,7 @@ describe("Меню исполнителя", () => {
       within(menu)
         .getAllByRole("link")
         .map((link) => link.textContent),
-    ).toEqual(["Лента", "Доска", "Услуги", "Клиенты", "Сторисы", "Обзор"]);
+    ).toEqual(["Чаты", "Лента", "Доска", "Услуги", "Клиенты", "Сторисы", "Обзор"]);
     const team = within(menu).getByRole("button", { name: "Команда" });
     expect(team).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(team);
@@ -67,6 +102,7 @@ describe("Меню исполнителя", () => {
         .map((link) => link.getAttribute("href")),
     ).toEqual([
       "/pro/settings/profile",
+      "/pro/settings/account",
       "/pro/settings/promotion",
       "/pro/settings/templates/replies",
       "/pro/settings/templates/stage-statuses",
@@ -74,7 +110,7 @@ describe("Меню исполнителя", () => {
       "/pro/settings/tariff",
     ]);
     const theme = within(settings).getByRole("switch", { name: "Тема" });
-    expect(theme).toBe(within(settings).getByRole("list").lastElementChild);
+    expect(within(settings).getByRole("button", { name: "Выйти" })).toBeInTheDocument();
     fireEvent.click(theme);
     expect(theme).toHaveAttribute("aria-checked", "true");
     expect(localStorage.getItem(COLOR_MODE_STORAGE_KEY)).toBe("dark");

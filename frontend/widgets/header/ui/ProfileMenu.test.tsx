@@ -271,109 +271,36 @@ describe("ProfileMenu", () => {
     expect(screen.queryByRole("menuitem", { name: "Кабинет исполнителя" })).not.toBeInTheDocument();
   });
 
-  it("в кабинете показывает организацию и ссылку на контактное лицо", async () => {
-    navigation.pathname = "/pro/services";
-    const { user } = renderWithAuthState("provider", { withMembership: true });
+  it.each(["/pro/services", "/pro/settings/account", "/profile", "/"])(
+    "сохраняет идентичность исполнителя на %s и ведёт в единый профиль",
+    async (pathname) => {
+      navigation.pathname = pathname;
+      window.localStorage.setItem("ui.profileMenu.providerMode", "contact");
+      const { user } = renderWithAuthState("provider", { withMembership: true });
+      const profile = screen.getByRole("link", { name: "Мой профиль" });
+      expect(profile).toHaveAttribute("href", "/pro/settings/profile");
+      expect(profile).toHaveTextContent("БМ");
+      expect(avatarHasAccentRing(profile)).toBe(true);
+      await user.hover(profile);
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+      expect(screen.queryByText("Контактное лицо")).not.toBeInTheDocument();
+    },
+  );
 
-    const cabinetButton = screen.getByRole("button", { name: "ООО Бурый Медведь" });
-    await user.hover(cabinetButton);
+  it.each(["SELF_EMPLOYED", "SOLE_PROPRIETOR", "INDIVIDUAL"] as const)(
+    "использует единый профиль для %s",
+    (providerType) => {
+      renderWithAuthState("provider", {
+        membership: { ...membership, providerType, providerName: "Павел Усов", providerPerson: { lastName: "Усов", firstName: "Павел", middleName: "Николаевич" } },
+      });
+      expect(screen.getByRole("link", { name: "Мой профиль" })).toHaveAttribute("href", "/pro/settings/profile");
+      expect(screen.getByRole("link", { name: "Мой профиль" })).toHaveTextContent("ПУ");
+    },
+  );
 
-    const menu = screen.getByRole("menu");
-    expect(within(menu).getByText("Организация")).toBeInTheDocument();
-    expect(within(menu).getByText("ООО Бурый Медведь")).toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: /Бурый Медведь/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: "Мой профиль" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: "Заявки" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: "Документы" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: "История" })).not.toBeInTheDocument();
-    expect(avatarHasAccentRing(cabinetButton)).toBe(true);
-
-    await user.click(screen.getByRole("menuitem", { name: /Контактное лицо/ }));
-    expect(navigation.push).toHaveBeenCalledWith("/profile?section=profile");
-  });
-
-  it("у контактного лица подписывает «Контактное лицо» и ведёт в кабинет по названию исполнителя", async () => {
-    navigation.pathname = "/profile";
-    const { user } = renderWithAuthState("provider", { withMembership: true });
-
-    const profileButton = screen.getByRole("button", { name: "Name U." });
-    expect(avatarHasAccentRing(profileButton)).toBe(false);
-    await user.hover(profileButton);
-
-    const menu = screen.getByRole("menu");
-    expect(within(menu).getByText("Контактное лицо")).toBeInTheDocument();
-    expect(within(menu).getByText("Name U.")).toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: /Контактное лицо/ })).not.toBeInTheDocument();
-
-    const cabinetItem = screen.getByRole("menuitem", { name: /ООО Бурый Медведь/ });
-    expect(within(cabinetItem).getByText("Организация")).toBeInTheDocument();
-    await user.click(cabinetItem);
-    expect(navigation.push).toHaveBeenCalledWith("/pro/requests/feed");
-  });
-
-  it("на публичной странице даёт и кабинет, и контактное лицо", async () => {
-    navigation.pathname = "/providers/ooo-buryy-medved";
-    const { user } = renderWithAuthState("provider", { withMembership: true });
-
-    await user.hover(screen.getByRole("button", { name: "ООО Бурый Медведь" }));
-
-    expect(screen.getByRole("menuitem", { name: /Контактное лицо/ })).toBeInTheDocument();
-    await user.click(screen.getByRole("menuitem", { name: /ООО Бурый Медведь/ }));
-    expect(navigation.push).toHaveBeenCalledWith("/pro/requests/feed");
-  });
-
-  it("вне кабинета помнит, что исполнитель переключился на контактное лицо", async () => {
-    window.localStorage.setItem("ui.profileMenu.providerMode", "contact");
-    const { user } = renderWithAuthState("provider", { withMembership: true });
-
-    await user.hover(screen.getByRole("button", { name: "Name U." }));
-
-    const menu = screen.getByRole("menu");
-    expect(within(menu).getAllByText("Контактное лицо")).toHaveLength(2);
-    expect(screen.getByRole("menuitem", { name: /ООО Бурый Медведь/ })).toBeInTheDocument();
-  });
-
-  it("самозанятого называет «Фамилия И. О.» с подписью «Самозанятый»", async () => {
-    navigation.pathname = "/pro/requests/feed";
-    const { user } = renderWithAuthState("provider", {
-      membership: {
-        ...membership,
-        providerName: "Павел Усов",
-        providerType: "SELF_EMPLOYED",
-        providerPerson: { lastName: "Усов", firstName: "Павел", middleName: "Николаевич" },
-      },
-    });
-
-    await user.hover(screen.getByRole("button", { name: "Усов П. Н." }));
-
-    const menu = screen.getByRole("menu");
-    expect(within(menu).getByText("Самозанятый")).toBeInTheDocument();
-    expect(within(menu).getByText("Усов П. Н.")).toBeInTheDocument();
-  });
-
-  it("контактное лицо исполнителя называет «Фамилия И. О.»", async () => {
-    navigation.pathname = "/profile";
-    const { user } = renderWithAuthState("provider", {
-      withMembership: true,
-      person: { lastName: "Усов", firstName: "Павел", middleName: "Николаевич" },
-    });
-
-    const button = screen.getByRole("button", { name: "Усов П. Н." });
-    expect(button).toHaveTextContent("ПУ");
-    await user.hover(button);
-
-    expect(within(screen.getByRole("menu")).getByText("Усов П. Н.")).toBeInTheDocument();
-  });
-
-  it("без имени показывает почту один раз и берёт инициал из неё", async () => {
-    navigation.pathname = "/profile";
-    const { user } = renderWithAuthState("provider", { withMembership: true, name: null });
-
-    const button = screen.getByRole("button", { name: "user@example.com" });
-    expect(button).toHaveTextContent("U");
-    await user.hover(button);
-
-    expect(within(screen.getByRole("menu")).getAllByText("user@example.com")).toHaveLength(1);
+  it("ведёт исполнителя без профиля в создание профиля", () => {
+    renderWithAuthState("provider");
+    expect(screen.getByRole("link", { name: "Мой профиль" })).toHaveAttribute("href", "/providers/new");
   });
 
   it("заказчику пишет «Имя Ф.» без подписи «Контактное лицо»", async () => {

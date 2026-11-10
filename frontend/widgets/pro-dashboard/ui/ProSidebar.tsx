@@ -1,9 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import {
+  REQUEST_ITEMS,
+  CHAT_ITEM,
+  TEAM_ITEMS,
+  NAV_ITEMS,
+  type SidebarNavItem,
+} from "../model/navigation";
 import { usePathname } from "next/navigation";
 import {
-  Badge,
   Box,
   Collapse,
   IconButton,
@@ -16,89 +22,26 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import InboxOutlinedIcon from "@mui/icons-material/InboxOutlined";
-import ViewKanbanOutlinedIcon from "@mui/icons-material/ViewKanbanOutlined";
-import DynamicFeedOutlinedIcon from "@mui/icons-material/DynamicFeedOutlined";
 import ExpandLessRoundedIcon from "@mui/icons-material/ExpandLessRounded";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
-import BarChartOutlinedIcon from "@mui/icons-material/BarChartOutlined";
 import PeopleOutlineOutlinedIcon from "@mui/icons-material/PeopleOutlineOutlined";
-import Groups2OutlinedIcon from "@mui/icons-material/Groups2Outlined";
-import FormatListBulletedOutlinedIcon from "@mui/icons-material/FormatListBulletedOutlined";
-import DataSaverOnIcon from "@mui/icons-material/DataSaverOn";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
+import { UnreadCountBadge } from "@/shared/ui/UnreadCountBadge";
 import { ProSettingsMenu } from "./ProSettingsMenu";
 import { getActiveMembership } from "@/core/auth/authorization";
 import { useAppSelector } from "@/core/store/hooks";
-
-type SidebarNavItem = {
-  href: string;
-  label: string;
-  icon: ReactNode;
-  active: (pathname: string) => boolean;
-};
-
-const REQUEST_ITEMS: readonly SidebarNavItem[] = [
-  {
-    href: "/pro/requests/feed",
-    label: "Лента",
-    icon: <DynamicFeedOutlinedIcon />,
-    active: (pathname) => pathname === "/pro/requests/feed",
-  },
-  {
-    href: "/pro/requests/board",
-    label: "Доска",
-    icon: <ViewKanbanOutlinedIcon />,
-    active: (pathname) =>
-      pathname.startsWith("/pro/requests") && pathname !== "/pro/requests/feed",
-  },
-];
-
-const TEAM_ITEMS: readonly SidebarNavItem[] = [
-  {
-    href: "/pro/team/add-manager",
-    label: "Добавление менеджера",
-    icon: null,
-    active: (pathname) => pathname === "/pro/team/add-manager",
-  },
-  {
-    href: "/pro/team/tasks",
-    label: "Задачи команды",
-    icon: null,
-    active: (pathname) => pathname === "/pro/team/tasks",
-  },
-];
-
-const NAV_ITEMS: readonly SidebarNavItem[] = [
-  {
-    href: "/pro/services",
-    label: "Услуги",
-    icon: <FormatListBulletedOutlinedIcon />,
-    active: (path) => path.startsWith("/pro/services"),
-  },
-  {
-    href: "/pro/clients",
-    label: "Клиенты",
-    icon: <Groups2OutlinedIcon />,
-    active: (path) => path.startsWith("/pro/clients"),
-  },
-  {
-    href: "/pro/stories",
-    label: "Сторисы",
-    icon: <DataSaverOnIcon />,
-    active: (path) => path.startsWith("/pro/stories"),
-  },
-  {
-    href: "/pro/overview",
-    label: "Обзор",
-    icon: <BarChartOutlinedIcon />,
-    active: (path) => path.startsWith("/pro/overview"),
-  },
-];
 
 type Props = {
   collapsed?: boolean;
@@ -170,6 +113,7 @@ export function ProSidebar({
 
   const renderItem = (item: SidebarNavItem, nested = false) => {
     const selected = item.active(pathname);
+    const isChat = item.href === CHAT_ITEM.href;
     const button = (
       <ListItemButton
         key={item.href}
@@ -178,7 +122,13 @@ export function ProSidebar({
         onClick={onNavigate}
         selected={selected}
         aria-current={selected ? "page" : undefined}
-        aria-label={collapsed ? item.label : undefined}
+        aria-label={
+          isChat && unreadTotal > 0
+            ? `Чаты, непрочитанных сообщений: ${unreadTotal}`
+            : collapsed
+              ? item.label
+              : undefined
+        }
         sx={{
           minHeight: nested ? 44 : 52,
           mx: collapsed ? 1 : 1.75,
@@ -226,7 +176,13 @@ export function ProSidebar({
               },
             }}
           >
-            {item.icon}
+            {isChat ? (
+              <UnreadCountBadge count={unreadTotal}>
+                {item.icon}
+              </UnreadCountBadge>
+            ) : (
+              item.icon
+            )}
           </ListItemIcon>
         )}
         {collapsed ? null : (
@@ -404,6 +360,7 @@ export function ProSidebar({
       ) : (
         <>
           <List disablePadding sx={{ pt: 1.75, overflowY: "auto", flex: 1 }}>
+            {renderItem(CHAT_ITEM)}
             <Tooltip title={collapsed ? "Заявки" : ""} placement="right">
               <ListItemButton
                 onClick={() => setRequestsExpanded((value) => !value)}
@@ -426,14 +383,7 @@ export function ProSidebar({
                     color: "inherit",
                   }}
                 >
-                  <Badge
-                    badgeContent={unreadTotal}
-                    color="error"
-                    max={99}
-                    invisible={unreadTotal === 0}
-                  >
-                    <InboxOutlinedIcon sx={{ fontSize: 22 }} />
-                  </Badge>
+                  <InboxOutlinedIcon sx={{ fontSize: 22 }} />
                 </ListItemIcon>
                 {collapsed ? null : (
                   <>
@@ -564,24 +514,26 @@ export function ProSidebar({
             )}
           </ListItemButton>
         </Tooltip>
-        {!mobile && <Tooltip title={collapsed ? "Развернуть меню" : "Свернуть меню"}>
-          <IconButton
-            size="small"
-            aria-label={collapsed ? "Развернуть меню" : "Свернуть меню"}
-            onClick={() => {
-              if (settingsOpen) setSettingsOpen(false);
-              if (!settingsOpen || !sidebarCollapsed) onToggleCollapsed?.();
-            }}
-            disabled={!onToggleCollapsed}
-            sx={{ flexShrink: 0 }}
-          >
-            {collapsed ? (
-              <ChevronRightRoundedIcon />
-            ) : (
-              <ChevronLeftRoundedIcon />
-            )}
-          </IconButton>
-        </Tooltip>}
+        {!mobile && (
+          <Tooltip title={collapsed ? "Развернуть меню" : "Свернуть меню"}>
+            <IconButton
+              size="small"
+              aria-label={collapsed ? "Развернуть меню" : "Свернуть меню"}
+              onClick={() => {
+                if (settingsOpen) setSettingsOpen(false);
+                if (!settingsOpen || !sidebarCollapsed) onToggleCollapsed?.();
+              }}
+              disabled={!onToggleCollapsed}
+              sx={{ flexShrink: 0 }}
+            >
+              {collapsed ? (
+                <ChevronRightRoundedIcon />
+              ) : (
+                <ChevronLeftRoundedIcon />
+              )}
+            </IconButton>
+          </Tooltip>
+        )}
       </Box>
     </Box>
   );

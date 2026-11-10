@@ -191,6 +191,115 @@ export class MessengerRepository {
     });
   }
 
+  buttonTarget(
+    connectionId: string,
+    deliveryId: string,
+    externalMessageId: string,
+  ) {
+    return this.prisma.messengerDelivery.findFirst({
+      where: {
+        id: deliveryId,
+        connectionId,
+        externalMessageId,
+        status: 'SENT',
+      },
+      include: { message: { include: { conversation: true, sender: true } } },
+    });
+  }
+
+  async selectReply(
+    connectionId: string,
+    deliveryId: string,
+    callbackId: string,
+    eventOrder: number,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      // Serialize selection/claim across webhook requests and backend replicas.
+      await tx.$queryRaw`SELECT id FROM "MessengerConnection" WHERE id = ${connectionId}::uuid FOR UPDATE`;
+      const existing = await tx.messengerReplySelection.findUnique({
+        where: { id: callbackId },
+      });
+      if (existing) return existing.active && existing.expiresAt > new Date();
+      const newer = await tx.messengerReplySelection.findFirst({
+        where: {
+          connectionId,
+          eventOrder: { gte: BigInt(eventOrder) },
+          createdAt: { gt: new Date(Date.now() - 24 * 60 * 60_000) },
+        },
+      });
+      if (newer) return false;
+      await tx.messengerReplySelection.updateMany({
+        where: { connectionId, active: true },
+        data: { active: false },
+      });
+      await tx.messengerReplySelection.create({
+        data: {
+          id: callbackId,
+          connectionId,
+          deliveryId,
+          eventOrder: BigInt(eventOrder),
+          expiresAt: new Date(Date.now() + 10 * 60_000),
+        },
+      });
+      return true;
+    });
+  }
+
+  async claimReply(
+    connectionId: string,
+    messageId: string,
+    eventOrder: number | undefined,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "MessengerConnection" WHERE id = ${connectionId}::uuid FOR UPDATE`;
+      const include = {
+        delivery: {
+          select: {
+            messageId: true,
+            message: { select: { conversationId: true } },
+          },
+        },
+      } as const;
+      // A retry must retain its original destination even after another button is clicked.
+      const replay = await tx.messengerReplySelection.findFirst({
+        where: { connectionId, claimedMessageId: messageId },
+        include,
+      });
+      if (replay) return replay.delivery;
+      if (eventOrder === undefined) return null;
+      const selection = await tx.messengerReplySelection.findFirst({
+        where: {
+          connectionId,
+          active: true,
+          expiresAt: { gt: new Date() },
+          eventOrder: { lt: BigInt(eventOrder) },
+        },
+        include,
+      });
+      if (!selection) return null;
+      await tx.messengerReplySelection.update({
+        where: { id: selection.id },
+        data: { active: false, claimedMessageId: messageId },
+      });
+      return selection.delivery;
+    });
+  }
+
+  async cancelReply(connectionId: string, eventOrder: number | undefined) {
+    if (eventOrder === undefined) return;
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "MessengerConnection" WHERE id = ${connectionId}::uuid FOR UPDATE`;
+      await tx.messengerReplySelection.updateMany({
+        where: {
+          connectionId,
+          active: true,
+          eventOrder: { lt: BigInt(eventOrder) },
+        },
+        data: { active: false },
+      });
+    });
+  }
+
   pendingEvents() {
     return this.prisma.messengerOutbox.findMany({
       where: { expandedAt: null },

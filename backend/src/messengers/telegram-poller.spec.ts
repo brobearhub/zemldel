@@ -169,7 +169,7 @@ describe('Telegram polling lifecycle', () => {
     expect(state.getUpdates.mock.calls[1][0]).toMatchObject({
       offset: 13,
       timeout: 25,
-      allowed_updates: ['message', 'my_chat_member'],
+      allowed_updates: ['message', 'my_chat_member', 'callback_query'],
     });
   });
 

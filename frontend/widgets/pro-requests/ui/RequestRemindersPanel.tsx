@@ -15,6 +15,7 @@ import {
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
 import type { RequestReminderDto } from "@/entities/request";
+import { notifyRemindersChanged } from "@/entities/request/lib/reminder-events";
 import { AppDateLocalization } from "@/shared/ui/date-field";
 import dayjs, { type Dayjs } from "dayjs";
 
@@ -69,6 +70,7 @@ export function RequestRemindersPanel({ requestId }: Props) {
         }),
       });
       if (res.ok) {
+        notifyRemindersChanged();
         const created = (await res.json()) as RequestReminderDto;
         setReminders((prev) =>
           [...prev, created].sort((a, b) =>
@@ -93,6 +95,7 @@ export function RequestRemindersPanel({ requestId }: Props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isDone: next }),
     });
+    if (res.ok) notifyRemindersChanged();
     if (!res.ok) {
       setReminders((prev) =>
         prev.map((r) =>
@@ -105,6 +108,7 @@ export function RequestRemindersPanel({ requestId }: Props) {
   async function handleDelete(id: string) {
     setReminders((prev) => prev.filter((r) => r.id !== id));
     const res = await fetch(`/api/pro/reminders/${id}`, { method: "DELETE" });
+    if (res.ok) notifyRemindersChanged();
     if (!res.ok) {
       const res2 = await fetch(`/api/pro/requests/${requestId}/reminders`, {
         cache: "no-store",

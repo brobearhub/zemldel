@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Badge, Box, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
+import { UnreadCountBadge } from "@/shared/ui/UnreadCountBadge";
 import { alpha } from "@mui/material/styles";
 
 type Props = {
@@ -62,7 +63,7 @@ export function CabinetNavItem({
           outlineOffset: -2,
         },
         px: size === "desktop" ? 1.5 : 0.25,
-        py: size === "desktop" ? 1 : 0.5,
+        py: size === "desktop" ? 1.75 : 0.5,
         minHeight: size === "mobile" ? 44 : undefined,
         flex: size === "mobile" ? "1 1 0" : undefined,
         minWidth: size === "mobile" ? 0 : undefined,
@@ -79,16 +80,11 @@ export function CabinetNavItem({
     >
       {size === "desktop" ? (
         <Box sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
-          <Badge
-            color="error"
-            badgeContent={badge ?? 0}
-            max={99}
-            invisible={!badge}
-          >
+          <UnreadCountBadge count={badge}>
             <Box sx={{ display: "inline-flex", alignItems: "center" }}>
               {icon}
             </Box>
-          </Badge>
+          </UnreadCountBadge>
           <Typography
             variant="body2"
             sx={{
@@ -111,12 +107,7 @@ export function CabinetNavItem({
             width: "100%",
           }}
         >
-          <Badge
-            color="error"
-            badgeContent={badge ?? 0}
-            max={99}
-            invisible={!badge}
-          >
+          <UnreadCountBadge count={badge}>
             <Box
               sx={{
                 display: "inline-flex",
@@ -126,7 +117,7 @@ export function CabinetNavItem({
             >
               {icon}
             </Box>
-          </Badge>
+          </UnreadCountBadge>
           <Typography
             variant="caption"
             sx={{

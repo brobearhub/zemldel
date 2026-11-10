@@ -2,10 +2,11 @@ import {
   ForbiddenException,
   HttpException,
   Injectable,
+  Logger,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
-import type { MessengerPlatform } from '@prisma/client';
+import type { MessengerConnection, MessengerPlatform } from '@prisma/client';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { ChatService } from '../chat/chat.service';
 import { MessengerConfig } from './messenger-config';
@@ -13,6 +14,7 @@ import {
   incomingMessageUuid,
   parseMessengerEvent,
   splitMessage,
+  type MessengerEvent,
 } from './messenger-events';
 import { MessengerRepository } from './messenger.repository';
 import { MessengerApiError, MessengerTransport } from './messenger-transport';
@@ -23,6 +25,7 @@ const hash = (value: string) =>
 
 @Injectable()
 export class MessengerService {
+  private readonly logger = new Logger(MessengerService.name);
   constructor(
     private readonly repository: MessengerRepository,
     private readonly chat: ChatService,
@@ -122,7 +125,7 @@ export class MessengerService {
           platform,
           event.chatId,
           connection
-            ? 'Вы подключены. Для ответа клиенту или исполнителю используйте «Ответить» на нужном уведомлении. Сообщения также доступны на сайте.'
+            ? 'Вы подключены. Для ответа клиенту или исполнителю нажмите «Ответить здесь» под нужным уведомлением. Сообщения также доступны на сайте.'
             : 'Подключите мессенджер в личном кабинете сайта: «Мессенджеры» → «Подключить».',
         );
       }
@@ -140,20 +143,22 @@ export class MessengerService {
       );
       return;
     }
+    if (event.kind === 'callback') {
+      await this.selectReply(connection, event);
+      return;
+    }
     // Старые события после перепривязки не должны создавать новые сообщения.
     if (
       !event.timestamp ||
       event.timestamp < Math.floor(connection.createdAt.getTime() / 1000) * 1000
     )
       return;
-    const target = event.replyId
-      ? await this.repository.replyTarget(connection.id, event.replyId)
-      : null;
-    if (!target) {
+    if (event.text?.trim() === '/cancel') {
+      await this.repository.cancelReply(connection.id, event.eventOrder);
       await this.transport.send(
         platform,
         event.chatId,
-        'Выберите уведомление о нужной заявке и нажмите «Ответить» на нём. Так ответ попадёт нужному собеседнику.',
+        'Выбор заявки отменён. Для нового ответа нажмите «Ответить здесь» под нужным уведомлением.',
       );
       return;
     }
@@ -165,6 +170,28 @@ export class MessengerService {
       );
       return;
     }
+    const messageId = incomingMessageUuid(
+      platform,
+      event.chatId,
+      event.messageId!,
+    );
+    const target = event.replyId
+      ? await this.repository.replyTarget(connection.id, event.replyId)
+      : await this.repository.claimReply(
+          connection.id,
+          messageId,
+          event.eventOrder,
+        );
+    if (!target) {
+      await this.transport.send(
+        platform,
+        event.chatId,
+        'Нажмите «Ответить здесь» под уведомлением о нужной заявке, затем напишите ответ. Также можно использовать обычную функцию «Ответить» на уведомлении.',
+      );
+      return;
+    }
+    if (event.replyId)
+      await this.repository.cancelReply(connection.id, event.eventOrder);
     try {
       await this.chat.createMessage(
         connection.userId,
@@ -172,11 +199,7 @@ export class MessengerService {
         {
           body: event.text,
           replyToMessageId: target.messageId,
-          clientMessageId: incomingMessageUuid(
-            platform,
-            event.chatId,
-            event.messageId!,
-          ),
+          clientMessageId: messageId,
         },
       );
     } catch (error) {
@@ -193,6 +216,93 @@ export class MessengerService {
       }
       throw error;
     }
+  }
+
+  private async selectReply(
+    connection: MessengerConnection,
+    event: MessengerEvent,
+  ) {
+    const deliveryId =
+      /^reply:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(
+        event.payload ?? '',
+      )?.[1];
+    const target = deliveryId
+      ? await this.repository.buttonTarget(
+          connection.id,
+          deliveryId,
+          event.messageId!,
+        )
+      : null;
+    let selected = false;
+    let accessible = false;
+    if (target) {
+      try {
+        await this.chat.assertConversationAccess(
+          connection.userId,
+          target.message.conversationId,
+          'write',
+        );
+        accessible = true;
+        selected = await this.repository.selectReply(
+          connection.id,
+          target.id,
+          incomingMessageUuid(
+            connection.platform,
+            connection.chatId,
+            `callback:${event.callbackId}:${event.eventOrder}`,
+          ),
+          event.eventOrder!,
+        );
+      } catch (error) {
+        if (
+          !(
+            error instanceof HttpException &&
+            [403, 404].includes(error.getStatus())
+          )
+        )
+          throw error;
+      }
+    }
+    if (!selected)
+      await this.repository.cancelReply(connection.id, event.eventOrder);
+    try {
+      await this.transport.answerCallback(
+        connection.platform,
+        event.callbackId!,
+        target && accessible
+          ? this.notification(connection.userId, target)
+          : undefined,
+      );
+    } catch (error) {
+      // Expired callback acknowledgements must not discard an already saved selection.
+      this.logger.warn(
+        `Не удалось подтвердить кнопку: ${error instanceof MessengerApiError ? error.status : 0}`,
+      );
+    }
+    await this.transport.send(
+      connection.platform,
+      connection.chatId,
+      selected && target
+        ? `Напишите ответ для ${(target.message.sender.name ?? 'собеседника').slice(0, 100)} по заявке №${target.message.conversation.requestId.slice(0, 8)}. Следующее текстовое сообщение отправится в этот чат на сайте. Выбор действует 10 минут. Отмена: /cancel.`
+        : 'Не удалось выбрать заявку: чат недоступен или это нажатие уже обработано. Нажмите «Ответить здесь» ещё раз или откройте чат на сайте.',
+    );
+  }
+
+  private notification(
+    userId: string,
+    delivery: Pick<
+      Awaited<ReturnType<MessengerRepository['claimDeliveries']>>[number],
+      'id' | 'part' | 'message'
+    >,
+  ) {
+    const { message } = delivery;
+    const parts = splitMessage(message.body);
+    const suffix =
+      parts.length > 1 ? ` · ${delivery.part + 1}/${parts.length}` : '';
+    const text = `Заявка №${message.conversation.requestId.slice(0, 8)}${suffix}\n${(message.sender.name ?? 'Собеседник').slice(0, 100)}:\n\n${parts[delivery.part]}\n\nНажмите «Ответить здесь» или используйте «Ответить» на этом сообщении.`;
+    const customer = userId === message.conversation.customerUserId;
+    const link = `${this.config.siteUrl}/${customer ? 'profile' : 'pro'}/requests/${message.conversation.requestId}?conversationId=${message.conversationId}`;
+    return { text, link, replyPayload: `reply:${delivery.id}` };
   }
 
   async tick(): Promise<void> {
@@ -236,18 +346,13 @@ export class MessengerService {
       );
       if (!this.config.configured(connection.platform))
         throw new MessengerApiError(503);
-      const parts = splitMessage(message.body);
-      const suffix =
-        parts.length > 1 ? ` · ${delivery.part + 1}/${parts.length}` : '';
-      const text = `Заявка №${message.conversation.requestId.slice(0, 8)}${suffix}\n${(message.sender.name ?? 'Собеседник').slice(0, 100)}:\n\n${parts[delivery.part]}\n\nИспользуйте «Ответить» на этом сообщении.`;
-      const customer =
-        connection.userId === message.conversation.customerUserId;
-      const link = `${this.config.siteUrl}/${customer ? 'profile' : 'pro'}/requests/${message.conversation.requestId}?conversationId=${message.conversationId}`;
+      const notification = this.notification(connection.userId, delivery);
       const externalMessageId = await this.transport.send(
         connection.platform,
         connection.chatId,
-        text,
-        link,
+        notification.text,
+        notification.link,
+        notification.replyPayload,
       );
       await this.repository.finish(delivery.id, delivery.leaseToken, {
         status: 'SENT',

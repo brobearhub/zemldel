@@ -15,6 +15,7 @@ import {
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
 import FolderOpenOutlinedIcon from "@mui/icons-material/FolderOpenOutlined";
 import type { RequestReminderDto } from "@/entities/request";
+import { notifyRemindersChanged } from "@/entities/request/lib/reminder-events";
 
 type View = "byDate" | "byRequest";
 
@@ -95,6 +96,7 @@ export function RemindersListView({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isDone: next }),
     });
+    if (res.ok) notifyRemindersChanged();
     if (!res.ok) {
       setReminders((prev) =>
         prev.map((r) =>

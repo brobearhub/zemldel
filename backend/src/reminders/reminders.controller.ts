@@ -16,6 +16,7 @@ import { CreateReminderDto } from './dto/create-reminder.dto';
 import { UpdateReminderDto } from './dto/update-reminder.dto';
 import { OkResponseDto } from '../common/dto/ok-response.dto';
 import { ReminderDto } from './dto/reminder-response.dto';
+import { UpcomingReminderCountDto } from './dto/upcoming-reminder-count.dto';
 import { ApiStandardErrors } from '../common/swagger/api-standard-errors.decorator';
 
 @ApiTags('reminders')
@@ -39,6 +40,13 @@ export class RemindersController {
   listToday(@Req() request: Request) {
     const userId = this.internalAuthService.getUserIdFromRequest(request);
     return this.remindersService.listToday(userId);
+  }
+
+  @Get('pro/reminders/upcoming-count')
+  @ApiOkResponse({ type: UpcomingReminderCountDto })
+  upcomingCount(@Req() request: Request) {
+    const userId = this.internalAuthService.getUserIdFromRequest(request);
+    return this.remindersService.upcomingCount(userId);
   }
 
   @Get('pro/reminders/workday')

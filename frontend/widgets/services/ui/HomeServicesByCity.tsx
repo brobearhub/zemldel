@@ -26,7 +26,7 @@ function ServiceGrid({
         gridTemplateColumns: {
           xs: "minmax(0, 1fr)",
           sm: "repeat(2, minmax(0, 1fr))",
-          tablet: "repeat(1, minmax(0, 1fr))",
+          tablet: "repeat(2, minmax(0, 1fr))",
           md: "repeat(2, minmax(0, 1fr))",
           lg: "repeat(3, minmax(0, 1fr))",
           xl: "repeat(4, minmax(0, 1fr))",

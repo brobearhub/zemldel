@@ -4,18 +4,18 @@ import type { ReactNode } from "react";
 import { Suspense } from "react";
 import { Box } from "@mui/material";
 import { usePathname } from "next/navigation";
+import { MobileNavigation } from "@/widgets/mobile-navigation/ui/MobileNavigation";
+import { ReminderCountProvider } from "@/widgets/cabinet-chrome/model/ReminderCountProvider";
 import { Header } from "@/widgets/header/ui";
 import { AuthFooter } from "@/widgets/footer/ui/AuthFooter";
 import { Footer } from "@/widgets/footer/ui/Footer";
 import {
   isFullBleedAuthPath,
-  SITE_CONTENT_GAP_PX,
   SITE_HEADER_SPACER_PX,
 } from "@/shared/config/site-layout";
 import { rememberInternalNav } from "@/shared/lib/internal-nav-history";
 import {
   CabinetChrome,
-  CABINET_BOTTOM_NAV_HEIGHT_PX,
   getCabinetZone,
 } from "@/widgets/cabinet-chrome";
 
@@ -39,7 +39,9 @@ function SkipLink() {
         py: 1,
         bgcolor: "background.paper",
         color: "text.primary",
-        "&:focus": { transform: "none" },
+        "&:focus": {
+          transform: "none",
+        },
       }}
     >
       Перейти к содержимому
@@ -48,8 +50,21 @@ function SkipLink() {
 }
 
 export function SiteChrome({ children }: Props) {
+  return (
+    <ReminderCountProvider>
+      <MobileNavigation>
+        <SiteChromeContent>{children}</SiteChromeContent>
+      </MobileNavigation>
+    </ReminderCountProvider>
+  );
+}
+
+function SiteChromeContent({ children }: Props) {
   const pathname = usePathname();
   const zone = getCabinetZone(pathname);
+  const isChats =
+    pathname === "/pro/chats" || pathname.startsWith("/pro/chats/");
+  const isChatThread = pathname.startsWith("/pro/chats/");
   const fullBleedAuth = isFullBleedAuthPath(pathname);
 
   // Why: пишем синхронно в render, чтобы «Назад» на услуге успел прочитать prev
@@ -94,7 +109,11 @@ export function SiteChrome({ children }: Props) {
 
     return (
       <Box
-        sx={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}
+        sx={{
+          minHeight: "100dvh",
+          display: "flex",
+          flexDirection: "column",
+        }}
       >
         <SkipLink />
         <Box
@@ -138,20 +157,48 @@ export function SiteChrome({ children }: Props) {
   return (
     <Box
       sx={{
-        minHeight: "100dvh",
+        minHeight: isChats ? 0 : "100dvh",
+        height: isChats ? "var(--chat-viewport-height, 100dvh)" : undefined,
+        overflow: isChats ? "hidden" : undefined,
+        position: isChatThread
+          ? {
+              xs: "fixed",
+              tablet: "relative",
+            }
+          : undefined,
+        top: isChatThread
+          ? {
+              xs: "var(--chat-viewport-top, 0px)",
+              tablet: 0,
+            }
+          : undefined,
+        width: "100%",
         display: "flex",
         flexDirection: "column",
-        pb: {
-          xs: `calc(${CABINET_BOTTOM_NAV_HEIGHT_PX}px + ${SITE_CONTENT_GAP_PX.xs}px + env(safe-area-inset-bottom))`,
-          sm: `calc(${CABINET_BOTTOM_NAV_HEIGHT_PX}px + ${SITE_CONTENT_GAP_PX.sm}px + env(safe-area-inset-bottom))`,
-          md: 0,
-        },
+        pb: isChats
+          ? 0
+          : {
+              xs: "calc(24px + env(safe-area-inset-bottom))",
+              md: 0,
+            },
       }}
     >
       <SkipLink />
       <Box
         className="mui-fixed"
-        sx={{ position: "fixed", left: 0, top: 0, width: "100%", zIndex: 1200 }}
+        sx={{
+          position: "fixed",
+          left: 0,
+          top: 0,
+          width: "100%",
+          zIndex: 1200,
+          display: isChatThread
+            ? {
+                xs: "none",
+                tablet: "block",
+              }
+            : undefined,
+        }}
       >
         <Suspense
           fallback={
@@ -168,20 +215,32 @@ export function SiteChrome({ children }: Props) {
           <CabinetChrome />
         </Suspense>
       </Box>
-      {/* На cabinet routes chrome фиксирован, поэтому нужен spacer. */}
+      {/* The mobile thread owns its header; the inbox keeps the cabinet navigation. */}
       <Box
         sx={{
-          height: {
-            xs: SITE_HEADER_SPACER_PX.xs,
-            sm: SITE_HEADER_SPACER_PX.sm,
-          },
+          flexShrink: 0,
+          height: isChats
+            ? {
+                xs: isChatThread ? 0 : 60,
+                tablet: SITE_HEADER_SPACER_PX.sm,
+              }
+            : {
+                xs: SITE_HEADER_SPACER_PX.xs,
+                sm: SITE_HEADER_SPACER_PX.sm,
+              },
         }}
       />
 
       <Box
         component="main"
         id="main-content"
-        sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+        }}
       >
         {children}
       </Box>
