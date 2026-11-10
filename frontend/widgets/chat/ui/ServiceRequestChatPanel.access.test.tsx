@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ServiceRequestChatPanel } from "./ServiceRequestChatPanel";
 
 const socket = vi.hoisted(() => ({ socket: null, socketConnected: false,
-  setOpenConversationId: vi.fn(), joinConversationRoom: vi.fn(), clearUnreadForRequest: vi.fn() }));
+  setOpenConversationId: vi.fn(), joinConversationRoom: vi.fn(), clearUnreadForConversation: vi.fn() }));
 vi.mock("next-auth/react", () => ({useSession: () => ({data: {user: {id: "actor"}}})}));
 vi.mock("@/widgets/chat/socket/ChatSocketContext", () => ({useChatSocket: () => socket}));
 vi.mock("./Chat", () => ({Chat: (props: {

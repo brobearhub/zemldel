@@ -210,6 +210,7 @@ describe("ProfileMenu", () => {
     await user.click(screen.getByRole("button", { name: "Профиль" }));
 
     expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+      "Чаты",
       "Заявки",
       "Документы",
       "История",

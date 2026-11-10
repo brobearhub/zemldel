@@ -61,6 +61,7 @@ export const productNames: Record<string, string> = {
   LITE_YEAR: "Лайт на год",
   BUSINESS_YEAR: "Бизнес на год",
   REPLIES_10: "10 откликов",
+  PROVIDER_SLUG_CHANGE: "Смена адреса профиля",
 };
 export const statusNames: Record<string, string> = {
   INITIALIZING: "Создание платежа",

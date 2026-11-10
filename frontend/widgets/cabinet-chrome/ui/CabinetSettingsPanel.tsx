@@ -5,8 +5,6 @@ import Link from "next/link";
 import { signOut } from "next-auth/react";
 import {
   Box,
-  Drawer,
-  IconButton,
   List,
   ListItemButton,
   ListItemIcon,
@@ -15,7 +13,6 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
-import CloseRounded from "@mui/icons-material/CloseRounded";
 import ChevronRightRounded from "@mui/icons-material/ChevronRightRounded";
 import PersonOutlineRounded from "@mui/icons-material/PersonOutlineRounded";
 import BadgeOutlined from "@mui/icons-material/BadgeOutlined";
@@ -37,24 +34,24 @@ import {
 } from "@/core/theme/ColorModeContext";
 
 type Props = {
-  open: boolean;
+  titleId: string;
   provider: boolean;
   authenticated: boolean;
-  onClose: () => void;
+  onBack: () => void;
   onNavigate: () => void;
 };
 
 const groupSx = {
-  bgcolor: "background.paper",
-  borderRadius: "24px",
+  bgcolor: { xs: "background.paper", tablet: "transparent" },
+  borderRadius: { xs: "24px", tablet: 0 },
   overflow: "hidden",
 };
 
-export function MobileSettingsSheet({
-  open,
+export function CabinetSettingsPanel({
+  titleId,
   provider,
   authenticated,
-  onClose,
+  onBack,
   onNavigate,
 }: Props) {
   const { preference, setPreference } = useColorMode();
@@ -65,107 +62,78 @@ export function MobileSettingsSheet({
       href={href}
       onClick={onNavigate}
       sx={{
-        minHeight: 58,
-        px: 2,
-        gap: 1.5,
+        minHeight: 50,
+        px: 1,
+        gap: "14px",
         color: "text.primary",
-        "&:not(:last-child)": { borderBottom: 1, borderColor: "divider" },
+        "&:not(:last-child)": {
+          borderBottom: { xs: 1, tablet: 0 },
+          borderColor: "divider",
+        },
       }}
     >
-      <ListItemIcon sx={{
-        minWidth: 24,
-        color: "text.secondary",
-      }}>
+      <ListItemIcon
+        sx={{
+          minWidth: 24,
+          color: "text.secondary",
+        }}
+      >
         {icon}
       </ListItemIcon>
       <ListItemText
         primary={label}
         slotProps={{ primary: { sx: { fontSize: "1rem" } } }}
       />
-      <ChevronRightRounded sx={{
-        color: "text.secondary",
-        fontSize: 20,
-      }} />
+      <ChevronRightRounded
+        sx={{
+          color: "text.secondary",
+          fontSize: 20,
+        }}
+      />
     </ListItemButton>
   );
 
   return (
-    <Drawer
-      anchor="bottom"
-      open={open}
-      onClose={onClose}
-      slotProps={{
-        paper: {
-          role: "dialog",
-          "aria-modal": true,
-          "aria-labelledby": "mobile-settings-title",
-          sx: {
-            height: "calc(100dvh - 16px)",
-            maxHeight: "calc(100dvh - env(safe-area-inset-top) - 16px)",
-            borderRadius: "32px",
-            bgcolor: (theme) =>
-              theme.palette.mode === "light" ? "#f5f6f2" : "background.default",
-            backgroundImage: "none",
-            overflow: "hidden",
-          },
-        },
+    <Box
+      component="section"
+      role="region"
+      aria-labelledby={titleId}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          onBack();
+        }
       }}
-      sx={{ zIndex: 1500 }}
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        flex: 1,
+        minHeight: 0,
+        minWidth: 0,
+        overflow: "hidden",
+      }}
     >
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: "44px 1fr 44px",
-          alignItems: "center",
-          gap: 1,
-          p: 2,
-          borderBottom: 1,
-          borderColor: "divider",
-          bgcolor: "background.paper",
-        }}
-      >
-        <IconButton
-          aria-label="Закрыть настройки"
-          onClick={onClose}
-          sx={{
-            width: 44,
-            height: 44,
-            borderRadius: "50%",
-            border: 1,
-            borderColor: "divider",
-          }}
-        >
-          <CloseRounded />
-        </IconButton>
-        <Typography
-          id="mobile-settings-title"
-          component="h2"
-          sx={{
-            fontSize: "1.25rem",
-            fontWeight: 700,
-            textAlign: "center",
-          }}
-        >
-          Настройки
-        </Typography>
-      </Box>
       <Box
         sx={{
           overflowY: "auto",
           overscrollBehavior: "contain",
           flex: 1,
-          px: 2,
-          pt: 2.5,
+          minHeight: 0,
+          px: 0,
+          pt: 0,
           pb: "max(24px, env(safe-area-inset-bottom))",
         }}
       >
         {authenticated ? (
           <>
-            <Typography sx={{
-              color: "text.secondary",
-              mb: 1,
-              px: 1,
-            }}>
+            <Typography
+              sx={{
+                color: "text.secondary",
+                mb: 1,
+                px: 1,
+              }}
+            >
               Мой профиль
             </Typography>
             <List disablePadding sx={groupSx} aria-label="Мой профиль">
@@ -200,17 +168,23 @@ export function MobileSettingsSheet({
         ) : null}
         {provider ? (
           <>
-            <Typography sx={{
-              color: "text.secondary",
-              mt: 3,
-              mb: 1,
-              px: 1,
-            }}>
+            <Typography
+              sx={{
+                color: "text.secondary",
+                mt: 3,
+                mb: 1,
+                px: 1,
+              }}
+            >
               Работа
             </Typography>
             <List disablePadding sx={groupSx} aria-label="Настройки работы">
               {row("/pro/services/create", "Добавить услугу", <AddRounded />)}
-              {row("/pro/team/add-manager", "Добавление менеджера", <PersonAddOutlined />)}
+              {row(
+                "/pro/team/add-manager",
+                "Добавление менеджера",
+                <PersonAddOutlined />,
+              )}
               {row("/pro/settings/messengers", "Мессенджеры", <ChatOutlined />)}
               {row("/pro/settings/tariff", "Тариф", <LocalOfferOutlined />)}
               {row(
@@ -219,12 +193,14 @@ export function MobileSettingsSheet({
                 <TrendingUpOutlined />,
               )}
             </List>
-            <Typography sx={{
-              color: "text.secondary",
-              mt: 3,
-              mb: 1,
-              px: 1,
-            }}>
+            <Typography
+              sx={{
+                color: "text.secondary",
+                mt: 3,
+                mb: 1,
+                px: 1,
+              }}
+            >
               Шаблоны
             </Typography>
             <List disablePadding sx={groupSx} aria-label="Шаблоны">
@@ -241,18 +217,22 @@ export function MobileSettingsSheet({
             </List>
           </>
         ) : null}
-        <Typography sx={{
-          color: "text.secondary",
-          mt: 3,
-          mb: 1,
-          px: 1,
-        }}>
+        <Typography
+          sx={{
+            color: "text.secondary",
+            mt: 3,
+            mb: 1,
+            px: 1,
+          }}
+        >
           Внешний вид
         </Typography>
-        <Box sx={{
-          ...groupSx,
-          p: 1.5,
-        }}>
+        <Box
+          sx={{
+            ...groupSx,
+            p: 1.5,
+          }}
+        >
           <ToggleButtonGroup
             exclusive
             fullWidth
@@ -306,10 +286,13 @@ export function MobileSettingsSheet({
           </ToggleButtonGroup>
         </Box>
         {authenticated ? (
-          <List disablePadding sx={{
-            ...groupSx,
-            mt: 3,
-          }}>
+          <List
+            disablePadding
+            sx={{
+              ...groupSx,
+              mt: 3,
+            }}
+          >
             <ListItemButton
               onClick={() => void signOut({ callbackUrl: "/" })}
               sx={{
@@ -324,6 +307,6 @@ export function MobileSettingsSheet({
           </List>
         ) : null}
       </Box>
-    </Drawer>
+    </Box>
   );
 }

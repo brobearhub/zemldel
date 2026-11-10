@@ -1,3 +1,5 @@
+import { providerRequestCategories } from '../requests/free-request-eligibility';
+import type { FreeRequestNotification } from './free-request-broadcast';
 import {
   BadRequestException,
   ConflictException,
@@ -80,6 +82,10 @@ export class ChatService {
     return this.internalAuth.getUserIdFromRequest(request);
   }
 
+  notifyFreeRequestCreated(payload: FreeRequestNotification) {
+    this.gateway.emitFreeRequestCreated(payload);
+  }
+
   private async loadUserChatActor(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -152,11 +158,9 @@ export class ChatService {
       throw new ForbiddenException('Forbidden');
 
     if (req.categoryId) {
-      const eligible = await this.prisma.service.findFirst({
-        where: { providerId, status: 'PUBLISHED', categoryId: req.categoryId },
-        select: { id: true },
-      });
-      if (!eligible) throw new ForbiddenException('Forbidden');
+      const eligible = await providerRequestCategories(this.prisma, providerId);
+      if (!eligible.has(req.categoryId))
+        throw new ForbiddenException('Forbidden');
     }
   }
 

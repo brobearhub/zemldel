@@ -3,7 +3,15 @@
 import { useEffect, useState } from "react";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { Box, ButtonBase, Collapse, IconButton, Paper, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  ButtonBase,
+  Collapse,
+  IconButton,
+  Paper,
+  Typography,
+} from "@mui/material";
 import type { RequestProDto } from "@/entities/request";
 import { useRequestList } from "../model/use-request-list";
 import { ProviderRequestReplyDialog } from "./ProviderRequestReplyDialog";
@@ -45,8 +53,15 @@ export function ServiceRequestsPanel({
   expanded: expandedProp = false,
   onExpandedChange,
 }: Props) {
-  const { requests, error, isLoading, markAwaitingCustomerReply } =
-    useRequestList(serviceId);
+  const {
+    requests,
+    error,
+    isLoading,
+    hasPendingRequests,
+    isRefreshing,
+    showNewRequests,
+    markAwaitingCustomerReply,
+  } = useRequestList(serviceId);
   const [replyItem, setReplyItem] = useState<RequestProDto | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [ownExpanded, setOwnExpanded] = useState(false);
@@ -62,13 +77,17 @@ export function ServiceRequestsPanel({
     if (serviceId && requests !== null)
       onSummary?.(serviceId, { count: requests.length, needsReply });
   }, [serviceId, requests, needsReply, onSummary]);
-  const ordered = requests
-    ? [...requests].sort(
-        (a, b) =>
-          Number(a.awaitingCustomerReply) - Number(b.awaitingCustomerReply) ||
-          Number(b.status === "NEW") - Number(a.status === "NEW"),
-      )
-    : null;
+  const ordered =
+    serviceId === null
+      ? requests
+      : requests
+        ? [...requests].sort(
+            (a, b) =>
+              Number(a.awaitingCustomerReply) -
+                Number(b.awaitingCustomerReply) ||
+              Number(b.status === "NEW") - Number(a.status === "NEW"),
+          )
+        : null;
   const canFold = (requests?.length ?? 0) > PREVIEW_COUNT;
   const previewRequests = canFold ? ordered?.slice(0, PREVIEW_COUNT) : ordered;
   const restRequests = canFold ? (ordered?.slice(PREVIEW_COUNT) ?? []) : [];
@@ -87,7 +106,7 @@ export function ServiceRequestsPanel({
           alignItems: "center",
           justifyContent: "space-between",
           gap: 1,
-          px: 2.5,
+          px: serviceId === null ? { xs: 1.5, sm: 2.5 } : 2.5,
           py: 1,
         }}
       >
@@ -111,24 +130,83 @@ export function ServiceRequestsPanel({
             </Typography>
           ) : null}
         </Box>
-        {canFold ? (
-          <IconButton
-            size="small"
-            aria-expanded={expanded}
-            aria-label={expanded ? "Свернуть заявки" : "Развернуть заявки"}
-            onClick={() => changeExpanded(!expanded)}
-            sx={{ color: "text.secondary" }}
-          >
-            {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-          </IconButton>
-        ) : null}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
+          }}
+        >
+          {serviceId === null ? (
+            <Button
+              size="small"
+              variant="text"
+              disabled={isRefreshing || (!hasPendingRequests && !error)}
+              onClick={() => void showNewRequests()}
+              sx={{
+                visibility:
+                  hasPendingRequests || error || isRefreshing
+                    ? "visible"
+                    : "hidden",
+                minWidth: 130,
+                color: "text.primary",
+                fontWeight: 700,
+                fontSize: 13,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {isRefreshing
+                ? "Обновление…"
+                : hasPendingRequests
+                  ? "Показать новые"
+                  : "Повторить"}
+            </Button>
+          ) : null}
+          {canFold ? (
+            <IconButton
+              size="small"
+              aria-expanded={expanded}
+              aria-label={expanded ? "Свернуть заявки" : "Развернуть заявки"}
+              onClick={() => changeExpanded(!expanded)}
+              sx={{ color: "text.secondary" }}
+            >
+              {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            </IconButton>
+          ) : null}
+        </Box>
+      </Box>
+      {error && requests !== null ? (
+        <Typography
+          role="alert"
+          sx={{
+            px: 2.5,
+            pb: 1,
+            color: "text.secondary",
+          }}
+        >
+          {error}
+        </Typography>
+      ) : null}
+      <Box
+        role="status"
+        sx={{
+          position: "absolute",
+          width: 1,
+          height: 1,
+          overflow: "hidden",
+          clipPath: "inset(50%)",
+        }}
+      >
+        {hasPendingRequests
+          ? "Есть новые заявки. Нажмите «Показать новые», чтобы обновить список."
+          : ""}
       </Box>
 
       {isLoading ? (
         <Typography sx={{ px: 2.5, pb: 2.5, color: "text.secondary" }}>
           Загрузка…
         </Typography>
-      ) : error ? (
+      ) : error && requests === null ? (
         <Typography sx={{ px: 2.5, pb: 2.5, color: "text.secondary" }}>
           {error}
         </Typography>

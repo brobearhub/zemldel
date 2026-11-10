@@ -8,7 +8,13 @@ const PROVIDER_ID = '33333333-3333-4333-8333-333333333333';
 
 function makeService(overrides?: { existingPersonal?: { id: string } | null }) {
   const tx = {
+    $queryRaw: vi.fn().mockResolvedValue([]),
+    providerSlugChange: {
+      updateMany: vi.fn(),
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
     provider: {
+      findUnique: vi.fn().mockResolvedValue(null),
       create: vi
         .fn()
         .mockImplementation(

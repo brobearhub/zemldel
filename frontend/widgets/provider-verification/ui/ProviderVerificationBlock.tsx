@@ -4,6 +4,7 @@ import { Button, Chip, Paper, Stack, Typography } from "@mui/material";
 import Link from "@/shared/ui/Link";
 import { VerifiedBadgeIcon } from "@/shared/ui/VerifiedBadgeIcon";
 import { UserLocalDate } from "@/shared/ui/UserLocalDate";
+import { ProviderVerificationBanner } from "./ProviderVerificationBanner";
 import {
   finishSentence,
   type ProviderVerificationView,
@@ -35,11 +36,15 @@ const VERIFICATION_PERKS = [
 
 type Props = {
   view: ProviderVerificationView;
-  /** В шапке профиля без отдельной карточки. */
-  layout?: "card" | "aside";
+  /** Карточка, блок справа или полоса под ссылкой профиля. */
+  layout?: "card" | "aside" | "banner";
 };
 
 export function ProviderVerificationBlock({ view, layout = "card" }: Props) {
+  if (layout === "banner") {
+    return <ProviderVerificationBanner view={view} />;
+  }
+
   const aside = layout === "aside";
   const frameSx = aside
     ? {

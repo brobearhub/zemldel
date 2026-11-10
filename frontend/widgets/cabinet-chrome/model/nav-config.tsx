@@ -11,7 +11,7 @@ import ViewKanbanOutlinedIcon from "@mui/icons-material/ViewKanbanOutlined";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import PeopleOutlineOutlinedIcon from "@mui/icons-material/PeopleOutlineOutlined";
 import Groups2OutlinedIcon from "@mui/icons-material/Groups2Outlined";
-import BuildOutlinedIcon from "@mui/icons-material/BuildOutlined";
+import FormatListBulletedOutlinedIcon from "@mui/icons-material/FormatListBulletedOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import AutoStoriesOutlinedIcon from "@mui/icons-material/AutoStoriesOutlined";
 import DataSaverOnIcon from "@mui/icons-material/DataSaverOn";
@@ -42,14 +42,23 @@ export const CUSTOMER_NAV: {
 } = {
   desktop: [
     {
+      key: "chat",
+      label: "Чаты",
+      href: "/profile/chats",
+      icon: <ChatOutlinedIcon />,
+      isActive: ({ pathname }) => pathname.startsWith("/profile/chats"),
+      badgeKind: "chatUnreadTotal",
+    },
+    {
       key: "requests",
       label: "Заявки",
       href: "/profile?section=requests",
       icon: <AssignmentTurnedInOutlinedIcon />,
       isActive: ({ pathname, searchParams }) =>
-        pathname.startsWith("/profile") &&
-        (isProfileSection(searchParams, "requests") ||
-          isProfileSection(searchParams, "orders")),
+        pathname.startsWith("/profile/requests/") ||
+        (pathname === "/profile" &&
+          (isProfileSection(searchParams, "requests") ||
+            isProfileSection(searchParams, "orders"))),
       badgeKind: "chatUnreadTotal",
     },
     {
@@ -58,7 +67,7 @@ export const CUSTOMER_NAV: {
       href: "/profile?section=documents",
       icon: <DescriptionOutlinedIcon />,
       isActive: ({ pathname, searchParams }) =>
-        pathname.startsWith("/profile") &&
+        pathname === "/profile" &&
         isProfileSection(searchParams, "documents"),
     },
     {
@@ -67,7 +76,7 @@ export const CUSTOMER_NAV: {
       href: "/profile?section=stories",
       icon: <AutoStoriesOutlinedIcon />,
       isActive: ({ pathname, searchParams }) =>
-        pathname.startsWith("/profile") &&
+        pathname === "/profile" &&
         isProfileSection(searchParams, "stories"),
     },
     {
@@ -76,7 +85,7 @@ export const CUSTOMER_NAV: {
       href: "/profile?section=profile",
       icon: <PersonOutlineOutlinedIcon />,
       isActive: ({ pathname, searchParams }) =>
-        pathname.startsWith("/profile") &&
+        pathname === "/profile" &&
         isProfileSection(searchParams, "profile"),
     },
   ],
@@ -87,9 +96,10 @@ export const CUSTOMER_NAV: {
       href: "/profile?section=requests",
       icon: <AssignmentTurnedInOutlinedIcon />,
       isActive: ({ pathname, searchParams }) =>
-        pathname.startsWith("/profile") &&
-        (isProfileSection(searchParams, "requests") ||
-          isProfileSection(searchParams, "orders")),
+        pathname.startsWith("/profile/requests/") ||
+        (pathname === "/profile" &&
+          (isProfileSection(searchParams, "requests") ||
+            isProfileSection(searchParams, "orders"))),
       badgeKind: "chatUnreadTotal",
     },
   ],
@@ -107,18 +117,18 @@ export const CUSTOMER_NAV: {
       href: "/profile?section=requests",
       icon: <AssignmentTurnedInOutlinedIcon />,
       isActive: ({ pathname, searchParams }) =>
-        pathname.startsWith("/profile") &&
-        (isProfileSection(searchParams, "requests") ||
-          isProfileSection(searchParams, "orders")),
+        pathname.startsWith("/profile/requests/") ||
+        (pathname === "/profile" &&
+          (isProfileSection(searchParams, "requests") ||
+            isProfileSection(searchParams, "orders"))),
       badgeKind: "chatUnreadTotal",
     },
     {
       key: "chat",
       label: "Чат",
-      href: "/profile?section=requests",
+      href: "/profile/chats",
       icon: <ChatOutlinedIcon />,
-      // Customer conversations open from requests; keep only the Requests tab selected.
-      isActive: () => false,
+      isActive: ({ pathname }) => pathname.startsWith("/profile/chats"),
       badgeKind: "chatUnreadTotal",
     },
     {
@@ -127,7 +137,7 @@ export const CUSTOMER_NAV: {
       href: "/profile?section=profile",
       icon: <PersonOutlineOutlinedIcon />,
       isActive: ({ pathname, searchParams }) =>
-        pathname.startsWith("/profile") &&
+        pathname === "/profile" &&
         isProfileSection(searchParams, "profile"),
     },
   ],
@@ -138,7 +148,7 @@ export const CUSTOMER_NAV: {
       href: "/profile?section=documents",
       icon: <DescriptionOutlinedIcon />,
       isActive: ({ pathname, searchParams }) =>
-        pathname.startsWith("/profile") &&
+        pathname === "/profile" &&
         isProfileSection(searchParams, "documents"),
     },
     {
@@ -147,7 +157,7 @@ export const CUSTOMER_NAV: {
       href: "/profile?section=stories",
       icon: <AutoStoriesOutlinedIcon />,
       isActive: ({ pathname, searchParams }) =>
-        pathname.startsWith("/profile") &&
+        pathname === "/profile" &&
         isProfileSection(searchParams, "stories"),
     },
   ],
@@ -173,7 +183,7 @@ const providerServices: CabinetNavItem = {
   key: "services",
   label: "Услуги",
   href: "/pro/services",
-  icon: <BuildOutlinedIcon />,
+  icon: <FormatListBulletedOutlinedIcon />,
   isActive: ({ pathname }) => pathname.startsWith("/pro/services"),
 };
 const providerSections: readonly CabinetNavItem[] = [
@@ -256,7 +266,7 @@ export const PROVIDER_HEADER_NAV: readonly CabinetNavItem[] = [
     key: "services",
     label: "Услуги",
     href: "/pro/services",
-    icon: <BuildOutlinedIcon />,
+    icon: <FormatListBulletedOutlinedIcon />,
     isActive: ({ pathname }) => pathname.startsWith("/pro/services"),
   },
   {

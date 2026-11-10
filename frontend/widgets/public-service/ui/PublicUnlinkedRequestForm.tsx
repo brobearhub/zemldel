@@ -5,6 +5,7 @@ import { fetchIdempotentWrite } from "@/shared/api/idempotent-write";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { resolveAccountKind } from "@/core/auth/authorization";
 import { useRequestFormDraft } from "../model/use-request-form-draft";
 import {
   Alert,
@@ -31,6 +32,9 @@ import { RequestFormLogo } from "@/widgets/public-service/ui/RequestFormLogo";
 
 type CategoryOption = { id: string; name: string };
 
+const PROVIDER_REQUEST_MESSAGE =
+  "Исполнитель не может отправить свободную заявку. Создать её можно из аккаунта клиента.";
+
 type Props = {
   isAuthenticated: boolean;
   categories?: CategoryOption[];
@@ -56,6 +60,7 @@ export function PublicUnlinkedRequestForm({
   const selectedCity = useSelectedCity("customer");
   const { data: session } = useSession();
   const actor = isAuthenticated ? (session?.user?.id ?? null) : "guest";
+  const isProvider = resolveAccountKind(session?.user) === "PROVIDER";
   const { form, setForm, cityOverride, setCityOverride, clearDraft } =
     useRequestFormDraft(
       actor,
@@ -66,6 +71,8 @@ export function PublicUnlinkedRequestForm({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const restored = useRef(false);
+  const formDisabled = busy || !actor || isProvider;
+  const displayedError = isProvider ? PROVIDER_REQUEST_MESSAGE : error;
 
   useEffect(() => {
     if (!actor || restored.current) return;
@@ -138,6 +145,7 @@ export function PublicUnlinkedRequestForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isProvider || busy || !actor) return;
     if (isBlocked) {
       setError(validationError);
       return;
@@ -258,10 +266,10 @@ export function PublicUnlinkedRequestForm({
           </Stack>
         )}
 
-        {validationError && city && !error ? (
+        {validationError && city && !displayedError ? (
           <Alert severity="warning">{validationError}</Alert>
         ) : null}
-        {error ? <Alert severity="warning">{error}</Alert> : null}
+        {displayedError ? <Alert severity="warning">{displayedError}</Alert> : null}
 
         <Stack spacing={2}>
           <TextField
@@ -270,7 +278,7 @@ export function PublicUnlinkedRequestForm({
             onChange={(event) =>
               setForm((prev) => ({ ...prev, message: event.target.value }))
             }
-            disabled={busy || !actor}
+            disabled={formDisabled}
             fullWidth
             multiline
             minRows={3}
@@ -296,7 +304,7 @@ export function PublicUnlinkedRequestForm({
               onChange={(next) => {
                 setCityOverride(next);
               }}
-              disabled={busy || !actor}
+              disabled={formDisabled}
               iconColor={city ? "primary" : "accent"}
             />
 
@@ -305,7 +313,7 @@ export function PublicUnlinkedRequestForm({
               onChange={(cadastralNumbers) =>
                 setForm((prev) => ({ ...prev, cadastralNumbers }))
               }
-              disabled={busy || !actor}
+              disabled={formDisabled}
             />
           </Stack>
         </Stack>
@@ -340,7 +348,7 @@ export function PublicUnlinkedRequestForm({
                     control={
                       <Radio
                         size="small"
-                        disabled={busy || !actor}
+                        disabled={formDisabled}
                         onClick={() => {
                           if (form.category?.id !== option.id) return;
                           setForm((prev) => ({ ...prev, category: null }));
@@ -373,7 +381,7 @@ export function PublicUnlinkedRequestForm({
           variant="contained"
           fullWidth
           loading={busy}
-          disabled={isBlocked || !actor}
+          disabled={isBlocked || formDisabled}
           sx={{
             fontWeight: 700,
             fontSize: "1rem",

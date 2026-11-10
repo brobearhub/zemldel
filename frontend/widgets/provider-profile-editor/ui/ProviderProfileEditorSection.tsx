@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { CdnFillImage } from "@/shared/ui/cdn-image";
-import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -10,7 +9,8 @@ import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
-import LinkIcon from "@mui/icons-material/Link";
+import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
+import { alpha } from "@mui/material/styles";
 import {
   Alert,
   Box,
@@ -26,6 +26,7 @@ import {
   Typography,
 } from "@mui/material";
 import Link from "@/shared/ui/Link";
+import { ProviderSlugEditor } from "./ProviderSlugEditor";
 import { normalizeContactEmailInput } from "@/shared/lib/contact-email";
 import { normalizeContactPhoneInput } from "@/shared/lib/contact-phone";
 import {
@@ -75,8 +76,8 @@ type Props = {
   imageSide?: "left" | "right";
   /** Значок рядом с именем: зелёный только у подтверждённого профиля. */
   verified?: boolean;
-  /** Правая часть шапки. Страница передаёт уже собранный блок, редактор его не знает. */
-  headerAside?: ReactNode;
+  /** Полоса подтверждения под ссылкой на публичный профиль. */
+  headerVerification?: ReactNode;
 };
 
 function ProviderImagePlaceholder({ type }: { type: ProviderType }) {
@@ -642,9 +643,8 @@ export function ProviderProfileEditorSection({
   canEditName,
   imageSide = "left",
   verified = false,
-  headerAside,
+  headerVerification,
 }: Props) {
-  const router = useRouter();
   /** Why: фото исполнителя показывается в аватаре хедера из сессии — после смены её надо перечитать. */
   const { update: updateSession } = useSession();
   const isRight = imageSide === "right";
@@ -658,12 +658,6 @@ export function ProviderProfileEditorSection({
   const [error, setError] = useState<string | null>(null);
 
   const [slug, setSlug] = useState(providerSlug);
-  const [slugEditing, setSlugEditing] = useState(false);
-  const [slugValue, setSlugValue] = useState("");
-  const [slugChecking, setSlugChecking] = useState(false);
-  const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
-  const [slugSaving, setSlugSaving] = useState(false);
-  const [slugError, setSlugError] = useState<string | null>(null);
 
   useEffect(() => {
     setProfile(initialProfile);
@@ -680,7 +674,6 @@ export function ProviderProfileEditorSection({
   }, []);
   const profileBaseUrl = `${origin}/providers/`;
   const publicUrl = `${profileBaseUrl}${slug}`;
-  const previewUrl = `${profileBaseUrl}${slugValue || slug}`;
 
   const stats3 = useMemo(() => getStats3(profile.stats), [profile.stats]);
   const hasProviderImage = Boolean(profile.providerImage);
@@ -812,342 +805,62 @@ export function ProviderProfileEditorSection({
     }
   }
 
-  function copyToClipboard(text: string) {
-    navigator.clipboard.writeText(text);
-  }
-
-  function handleSlugEditStart() {
-    setSlugEditing(true);
-    setSlugValue(slug);
-    setSlugAvailable(true);
-    setSlugError(null);
-  }
-
-  function handleSlugEditCancel() {
-    setSlugEditing(false);
-    setSlugValue("");
-    setSlugChecking(false);
-    setSlugAvailable(null);
-    setSlugError(null);
-    setSlugSaving(false);
-  }
-
-  function handleSlugInputChange(nextRaw: string) {
-    const next = nextRaw
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, "")
-      .replace(/-+/g, "-");
-    setSlugValue(next);
-    setSlugAvailable(null);
-    setSlugError(null);
-  }
-
-  useEffect(() => {
-    if (!slugEditing) return;
-
-    const value = slugValue.trim().toLowerCase();
-    if (!value) {
-      setSlugChecking(false);
-      setSlugAvailable(null);
-      return;
-    }
-
-    if (value === slug) {
-      setSlugChecking(false);
-      setSlugAvailable(true);
-      return;
-    }
-
-    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)) {
-      setSlugChecking(false);
-      setSlugAvailable(false);
-      return;
-    }
-
-    setSlugChecking(true);
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      void (async () => {
-        try {
-          const res = await fetch(
-            `/api/providers/slug-check?slug=${encodeURIComponent(value)}`,
-          );
-          const data = (await res.json().catch(() => null)) as {
-            available?: boolean;
-          } | null;
-          if (cancelled) return;
-          setSlugAvailable(Boolean(data?.available));
-        } catch {
-          if (cancelled) return;
-          setSlugAvailable(null);
-        } finally {
-          if (cancelled) return;
-          setSlugChecking(false);
-        }
-      })();
-    }, 450);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [slugEditing, slugValue, slug]);
-
-  async function handleSlugSave() {
-    if (!canEditName) return;
-    const value = slugValue.trim().toLowerCase();
-    if (!value) {
-      setSlugError("Укажите адрес профиля");
-      return;
-    }
-    if (value === slug) {
-      handleSlugEditCancel();
-      return;
-    }
-    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)) {
-      setSlugError("Адрес может содержать только латиницу, цифры и дефис");
-      return;
-    }
-    if (!slugAvailable) {
-      setSlugError("Этот адрес занят");
-      return;
-    }
-
-    setSlugSaving(true);
-    setSlugError(null);
-    try {
-      const res = await fetch(`/api/providers/${providerId}/slug`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ slug: value }),
-      });
-      const payload = (await res.json().catch(() => null)) as {
-        error?: string;
-      } | null;
-      if (!res.ok) {
-        setSlugError(payload?.error ?? "Не удалось обновить slug");
-        return;
-      }
-
-      setSlug(value);
-      handleSlugEditCancel();
-      router.refresh();
-    } catch {
-      setSlugError("Не удалось обновить slug");
-    } finally {
-      setSlugSaving(false);
-    }
-  }
 
   return (
     <Stack spacing={2.5}>
-      <Paper
-        variant="elevation"
-        sx={{ p: { xs: 2, md: 3 }, bgcolor: "background.paper" }}
+      <Stack
+        component="section"
+        aria-labelledby="provider-profile-heading"
+        spacing={3}
+        sx={{ minWidth: 0 }}
       >
         <Stack
-          direction={{ xs: "column", lg: "row" }}
-          spacing={2}
-          sx={{ justifyContent: "space-between", alignItems: { lg: "center" } }}
+          direction={{ xs: "column", tablet: "row" }}
+          spacing={{ xs: 0.5, tablet: 2 }}
+          sx={{
+            alignItems: { xs: "flex-start", tablet: "center" },
+            justifyContent: "space-between",
+          }}
         >
-          <Stack
-            spacing={2}
-            sx={{ width: "fit-content", maxWidth: "100%", minWidth: 0 }}
+          <Typography
+            id="provider-profile-heading"
+            component="h1"
+            sx={{
+              fontSize: "2rem",
+              fontWeight: 700,
+              lineHeight: 1.25,
+            }}
           >
-            <Typography component="h1" variant="h1">
-              Профиль исполнителя
-            </Typography>
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={2}
-              sx={{
-                bgcolor: "background.paper",
-                py: 1,
-                px: 2,
-                borderRadius: 10,
-                alignItems: "center",
-                justifyContent: "space-between",
-                width: "100%",
-                maxWidth: "100%",
-                minWidth: 0,
-              }}
-            >
-              {slugEditing ? (
-                <Stack spacing={0.5} sx={{ minWidth: 0, flex: "1 1 0" }}>
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    sx={{ alignItems: "center", minWidth: 0 }}
-                  >
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: "text.secondary",
-                        whiteSpace: "normal",
-                        fontFamily: "monospace",
-                      }}
-                    >
-                      {profileBaseUrl}
-                    </Typography>
-                    <TextField
-                      size="small"
-                      value={slugValue}
-                      onChange={(e) => handleSlugInputChange(e.target.value)}
-                      disabled={slugSaving}
-                      placeholder="some-slug-provider"
-                      sx={{ flex: "1 1 0", minWidth: 120 }}
-                    />
-                  </Stack>
-                  <Typography
-                    variant="caption"
-                    sx={{ color: slugError ? "error.main" : "text.secondary" }}
-                  >
-                    {slugError
-                      ? slugError
-                      : slugChecking
-                        ? "Проверяем доступность…"
-                        : slugValue.trim().toLowerCase() === slug
-                          ? "Это текущий URL"
-                          : slugAvailable === true
-                            ? "Адрес свободен"
-                            : slugAvailable === false
-                              ? "Адрес занят или некорректен"
-                              : " "}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    sx={{ color: "text.secondary" }}
-                  >
-                    Превью:{" "}
-                    <Box component="span" sx={{ fontFamily: "monospace" }}>
-                      {previewUrl}
-                    </Box>
-                  </Typography>
-                </Stack>
-              ) : (
-                <Typography
-                  variant="body2"
-                  title={publicUrl}
-                  sx={{
-                    color: "text.secondary",
-                    minWidth: 0,
-                    flex: "1 1 auto",
-                    overflow: "hidden",
-                    textOverflow: "clip",
-                    fontFamily: "monospace",
-                  }}
-                >
-                  {publicUrl}
-                </Typography>
-              )}
-
-              <Stack
-                direction="row"
-                spacing={0.5}
-                useFlexGap
-                sx={{
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                  minWidth: 0,
-                  maxWidth: "100%",
-                }}
-              >
-                {slugEditing ? (
-                  <>
-                    <Tooltip title="Сохранить">
-                      <span>
-                        <IconButton
-                          size="small"
-                          aria-label="Сохранить адрес профиля"
-                          onClick={() => void handleSlugSave()}
-                          loading={slugSaving}
-                          disabled={
-                            slugChecking ||
-                            !slugValue.trim() ||
-                            slugValue.trim().toLowerCase() === slug ||
-                            slugAvailable !== true
-                          }
-                        >
-                          <CheckRoundedIcon fontSize="small" />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                    <Tooltip title="Отмена">
-                      <span>
-                        <IconButton
-                          size="small"
-                          onClick={handleSlugEditCancel}
-                          disabled={slugSaving}
-                        >
-                          <CloseRoundedIcon fontSize="small" />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                  </>
-                ) : (
-                  <>
-                    <Tooltip title="Открыть профиль">
-                      <span>
-                        <IconButton
-                          size="small"
-                          component="a"
-                          href={publicUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <LinkIcon fontSize="small" />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => void copyToClipboard(publicUrl)}
-                      sx={{
-                        textTransform: "none",
-                        minHeight: 44,
-                        flexShrink: 0,
-                        color: "text.primary",
-                        borderColor: "text.primary",
-                      }}
-                    >
-                      Копировать
-                    </Button>
-                    <Button
-                      size="small"
-                      variant="contained"
-                      startIcon={<EditOutlinedIcon fontSize="small" />}
-                      onClick={handleSlugEditStart}
-                      disabled={!canEditName || busy}
-                      sx={{
-                        textTransform: "none",
-                        minHeight: 44,
-                        flexShrink: 0,
-                      }}
-                    >
-                      Редактировать
-                    </Button>
-                  </>
-                )}
-              </Stack>
-            </Stack>
-            {error ? <Alert severity="error">{error}</Alert> : null}
-          </Stack>
-          {headerAside ? (
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: { xs: "center", lg: "flex-end" },
-                flex: "1 1 320px",
-                minWidth: 0,
-                alignSelf: { xs: "stretch", lg: "center" },
-              }}
-            >
-              {headerAside}
-            </Box>
-          ) : null}
+            Профиль исполнителя
+          </Typography>
+          <Button
+            component="a"
+            href={publicUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            variant="text"
+            endIcon={<OpenInNewRoundedIcon />}
+            sx={{
+              minHeight: 48,
+              flexShrink: 0,
+              color: "text.primary",
+              px: 0,
+            }}
+          >
+            Открыть профиль
+          </Button>
         </Stack>
-      </Paper>
+
+        <ProviderSlugEditor
+          providerId={providerId}
+          slug={slug}
+          baseUrl={profileBaseUrl}
+          canEdit={canEditName && !busy}
+          onChanged={setSlug}
+        />
+        {error ? <Alert severity="error">{error}</Alert> : null}
+        {headerVerification}
+      </Stack>
 
       <Paper
         variant="elevation"

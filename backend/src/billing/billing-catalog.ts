@@ -53,6 +53,10 @@ export const PLAN_PRODUCTS = createPlanProducts();
 export type PlanProduct = keyof typeof PLAN_PRODUCTS;
 export const BILLING_PRODUCTS = {
   ...PLAN_PRODUCTS,
+  PROVIDER_SLUG_CHANGE: {
+    amount: 100000,
+    title: 'Земледел: смена адреса профиля',
+  },
   // Retained to reconcile historical orders; new purchases are disabled.
   REPLIES_10: { amount: 9900, title: 'Земледел: 10 дополнительных откликов' },
 } as const;

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Suspense } from "react";
 import { Box } from "@mui/material";
 import { usePathname } from "next/navigation";
+import { CabinetDesktopSidebar } from "@/widgets/cabinet-chrome/ui/CabinetDesktopSidebar";
 import { MobileNavigation } from "@/widgets/mobile-navigation/ui/MobileNavigation";
 import { ReminderCountProvider } from "@/widgets/cabinet-chrome/model/ReminderCountProvider";
 import { Header } from "@/widgets/header/ui";
@@ -14,10 +15,7 @@ import {
   SITE_HEADER_SPACER_PX,
 } from "@/shared/config/site-layout";
 import { rememberInternalNav } from "@/shared/lib/internal-nav-history";
-import {
-  CabinetChrome,
-  getCabinetZone,
-} from "@/widgets/cabinet-chrome";
+import { CabinetChrome, getCabinetZone } from "@/widgets/cabinet-chrome";
 
 type Props = {
   children: ReactNode;
@@ -62,9 +60,10 @@ export function SiteChrome({ children }: Props) {
 function SiteChromeContent({ children }: Props) {
   const pathname = usePathname();
   const zone = getCabinetZone(pathname);
+  const chatBasePath = zone === "profile" ? "/profile/chats" : "/pro/chats";
   const isChats =
-    pathname === "/pro/chats" || pathname.startsWith("/pro/chats/");
-  const isChatThread = pathname.startsWith("/pro/chats/");
+    pathname === chatBasePath || pathname.startsWith(`${chatBasePath}/`);
+  const isChatThread = pathname.startsWith(`${chatBasePath}/`);
   const fullBleedAuth = isFullBleedAuthPath(pathname);
 
   // Why: пишем синхронно в render, чтобы «Назад» на услуге успел прочитать prev
@@ -215,6 +214,9 @@ function SiteChromeContent({ children }: Props) {
           <CabinetChrome />
         </Suspense>
       </Box>
+      <Suspense fallback={null}>
+        <CabinetDesktopSidebar />
+      </Suspense>
       {/* The mobile thread owns its header; the inbox keeps the cabinet navigation. */}
       <Box
         sx={{
@@ -236,6 +238,7 @@ function SiteChromeContent({ children }: Props) {
         id="main-content"
         sx={{
           flex: 1,
+          ml: { tablet: "var(--cabinet-sidebar-width, 300px)" },
           minWidth: 0,
           minHeight: 0,
           display: "flex",

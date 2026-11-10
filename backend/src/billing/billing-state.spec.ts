@@ -1,3 +1,4 @@
+import { LegalDocsService } from '../legal-docs/legal-docs.service';
 import { describe, expect, it, vi } from 'vitest';
 import { BillingService } from './billing.service';
 import type { PrismaService } from '../prisma/prisma.service';
@@ -28,7 +29,11 @@ function setup(fulfilledAt: Date | null = null) {
       Promise.resolve(callback(tx)),
     ),
   } as unknown as PrismaService;
-  const service = new BillingService(prisma, {} as TbankClient);
+  const service = new BillingService(
+    prisma,
+    {} as TbankClient,
+    new LegalDocsService(),
+  );
   const payload = {
     TerminalKey: order.terminalKey,
     OrderId: order.id,

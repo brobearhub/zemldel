@@ -4,7 +4,8 @@ import { PublicUnlinkedRequestForm } from "./PublicUnlinkedRequestForm";
 import { readPendingRequestDraft } from "@/entities/request";
 
 const push = vi.fn();
-vi.mock("next-auth/react", () => ({ useSession: () => ({ data: { user: { id: "test-customer" } } }) }));
+const auth = vi.hoisted(() => ({ accountKind: "CUSTOMER" }));
+vi.mock("next-auth/react", () => ({ useSession: () => ({ data: { user: { id: "test-customer", accountKind: auth.accountKind } } }) }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
@@ -27,7 +28,7 @@ vi.mock("@/widgets/public-service/ui/RequestFormLogo", () => ({
 }));
 
 describe("PublicUnlinkedRequestForm", () => {
-  beforeEach(() => { vi.clearAllMocks(); window.sessionStorage.clear(); });
+  beforeEach(() => { vi.clearAllMocks(); window.sessionStorage.clear(); auth.accountKind = "CUSTOMER"; });
   afterEach(() => vi.unstubAllGlobals());
   it("объясняет сценарий выбора среди нескольких исполнителей", () => {
     render(<PublicUnlinkedRequestForm isAuthenticated variant="card" />);
@@ -35,6 +36,21 @@ describe("PublicUnlinkedRequestForm", () => {
     expect(
       screen.getByText("Заявку увидят несколько подходящих исполнителей. Сравните ответы в чатах и выберите одного.")
     ).toBeInTheDocument();
+  });
+
+  it("блокирует ввод и отправку свободной заявки для исполнителя с понятным сообщением", () => {
+    auth.accountKind = "PROVIDER";
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    render(<PublicUnlinkedRequestForm isAuthenticated />);
+    const message = screen.getByLabelText(/Что нужно сделать/);
+    expect(message).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Создать заявку" })).toBeDisabled();
+    expect(screen.getByRole("alert")).toHaveTextContent("Исполнитель не может отправить свободную заявку. Создать её можно из аккаунта клиента.");
+    fireEvent.submit(message.closest("form")!);
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.queryByText("Forbidden")).not.toBeInTheDocument();
   });
 
   it("opens the created FREEFORM request instead of the general list", async () => {

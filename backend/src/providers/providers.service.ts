@@ -10,6 +10,7 @@ import crypto from 'crypto';
 import { createHash } from 'node:crypto';
 import { DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { PrismaService } from '../prisma/prisma.service';
+import type { Prisma } from '@prisma/client';
 import { assertContactPhone } from '../common/contact-phone';
 import { assertContactEmail } from '../common/contact-email';
 import { assertActiveSelectableCity } from '../cities/city-validation';
@@ -32,6 +33,11 @@ import {
 } from './provider-display-name';
 import { collectProviderFieldErrors } from './provider-legal-details';
 import { slugify } from './provider-slug';
+import {
+  CUSTOM_SLUG_PATTERN,
+  lockProviderSlugs,
+  providerSlugTaken,
+} from './provider-slug-availability';
 import { LegalDocsService } from '../legal-docs/legal-docs.service';
 import { S3Service } from '../storage/s3.service';
 
@@ -264,14 +270,10 @@ export class ProvidersService {
 
   async checkSlugAvailability(slug: string) {
     const normalized = slug.trim().toLowerCase();
-    if (!normalized || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(normalized)) {
+    if (!CUSTOM_SLUG_PATTERN.test(normalized)) {
       return { available: false };
     }
-    const existing = await this.prisma.provider.findUnique({
-      where: { slug: normalized },
-      select: { id: true },
-    });
-    return { available: !existing };
+    return { available: !(await providerSlugTaken(this.prisma, normalized)) };
   }
 
   async getPublicProviderProfile(
@@ -591,44 +593,24 @@ export class ProvidersService {
 
   async updateProviderSlug(userId: string, providerId: string, slug: string) {
     await this.ensureProviderOwner(userId, providerId);
-
-    const normalized = slug.trim().toLowerCase();
-    if (!normalized || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(normalized)) {
-      throw new BadRequestException('Invalid slug format');
-    }
-
-    const existing = await this.prisma.provider.findUnique({
-      where: { slug: normalized },
-      select: { id: true },
-    });
-    if (existing && existing.id !== providerId) {
-      throw new ConflictException('Provider slug already exists');
-    }
-
-    const updated = await this.prisma.provider.update({
-      where: { id: providerId },
-      data: { slug: normalized },
-      select: { id: true, slug: true },
-    });
-
-    return updated;
+    void slug;
+    throw new BadRequestException(
+      'Смена адреса стоит 1 000 ₽ и выполняется после оплаты в настройках профиля',
+    );
   }
 
-  private async generateUniqueSlug(base: string): Promise<string> {
+  private async generateUniqueSlug(
+    base: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<string> {
     const baseSlug = slugify(base) || crypto.randomBytes(3).toString('hex');
 
-    const exists = await this.prisma.provider.findUnique({
-      where: { slug: baseSlug },
-      select: { id: true },
-    });
+    const exists = await providerSlugTaken(tx, baseSlug);
     if (!exists) return baseSlug;
 
     for (let i = 2; i <= 20; i++) {
       const candidate = `${baseSlug}-${i}`;
-      const taken = await this.prisma.provider.findUnique({
-        where: { slug: candidate },
-        select: { id: true },
-      });
+      const taken = await providerSlugTaken(tx, candidate);
       if (!taken) return candidate;
     }
 
@@ -676,20 +658,6 @@ export class ProvidersService {
     });
     const userName = formatUserName(person.firstName, person.lastName);
 
-    let slug: string;
-    if (body.slug) {
-      slug = body.slug.trim().toLowerCase();
-      const existingBySlug = await this.prisma.provider.findUnique({
-        where: { slug },
-        select: { id: true },
-      });
-      if (existingBySlug) {
-        throw new ConflictException('Provider slug already exists');
-      }
-    } else {
-      slug = await this.generateUniqueSlug(name);
-    }
-
     if (isPersonalProviderType(body.type)) {
       const existingPersonal = await this.prisma.provider.findFirst({
         where: {
@@ -712,6 +680,12 @@ export class ProvidersService {
 
     const provider = await this.prisma
       .$transaction(async (tx) => {
+        await lockProviderSlugs(tx);
+        const slug =
+          body.slug?.trim().toLowerCase() ||
+          (await this.generateUniqueSlug(name, tx));
+        if (await providerSlugTaken(tx, slug))
+          throw new ConflictException('Provider slug already exists');
         const createdProvider = await tx.provider.create({
           data: {
             name,

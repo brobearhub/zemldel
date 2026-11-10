@@ -190,7 +190,7 @@ function buildCustomerState(
             : [],
         autoAcceptAtLabel:
           request.status === "ACCEPTANCE_PENDING" && request.autoAcceptAt
-            ? `Проверьте результат до ${formatRequestDate(request.autoAcceptAt)}. Если не принять работу и не отправить замечания, она будет принята автоматически.`
+            ? `Проверьте результат до ${formatRequestDate(request.autoAcceptAt)}. Если не принять работу и не отправить замечания, заявка автоматически получит статус «Принято». Это не отменяет права по договору и закону.`
             : null,
       }),
     };
@@ -275,7 +275,7 @@ function buildProviderState(
               : [],
           autoAcceptAtLabel:
             request.status === "ACCEPTANCE_PENDING" && request.autoAcceptAt
-              ? `Ждём проверки заказчика до ${formatRequestDate(request.autoAcceptAt)}. Потом результат будет принят автоматически.`
+              ? `Ждём проверки заказчика до ${formatRequestDate(request.autoAcceptAt)}. Затем заявка автоматически получит статус «Принято». Обязательства сторон определяются договором и законом.`
               : null,
         };
       },

@@ -127,23 +127,33 @@ export function BillingDashboard({
   const [selected, setSelected] = useState<Product | null>(
     isProduct(initialProduct) ? initialProduct : null,
   );
-  const [autoRenew, setAutoRenew] = useState(true);
+  const [autoRenew, setAutoRenew] = useState(false);
+  const [offerAccepted, setOfferAccepted] = useState(false);
+  const [renewalSettings, setRenewalSettings] = useState<{
+    autoRenew?: boolean;
+    nextPlan?: string | null;
+    nextBillingPeriod?: BillingPeriod | null;
+  } | null>(null);
   const [period, setPeriod] = useState<BillingPeriod>(
     initialProduct?.endsWith("_YEAR") ? "YEAR" : "MONTH",
   );
   const [quote, setQuote] = useState<{
     amount: number;
     quoteAt: string;
+    offerVersion: string;
+    regularAmount: number;
     mode: "purchase" | "schedule" | "current";
   } | null>(null);
   useEffect(() => {
     if (!selected) {
       setQuote(null);
+      setRenewalSettings(null);
       return;
     }
     let cancelled = false;
     setQuote(null);
-    setAutoRenew(true);
+    setAutoRenew(false);
+    setOfferAccepted(false);
     fetch(`${endpoint}/quote`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -153,6 +163,8 @@ export function BillingDashboard({
         readResponse<{
           amount: number;
           quoteAt: string;
+          offerVersion: string;
+          regularAmount: number;
           mode: "purchase" | "schedule" | "current";
         }>,
       )
@@ -235,7 +247,8 @@ export function BillingDashboard({
   }, [returnOrder, refresh]);
 
   async function pay() {
-    if (!selected || busy || !quote || quote.mode !== "purchase") return;
+    if (!selected || busy || !quote || quote.mode !== "purchase" ||
+      !offerAccepted || !quote.offerVersion) return;
     setBusy(true);
     setError("");
     try {
@@ -248,6 +261,8 @@ export function BillingDashboard({
             autoRenew,
             quoteAt: quote.quoteAt,
             expectedAmount: quote.amount,
+            acceptedOfferVersion: quote.offerVersion,
+            expectedRenewalAmount: quote.regularAmount,
           }),
         }),
       );
@@ -276,7 +291,26 @@ export function BillingDashboard({
     autoRenew?: boolean;
     nextPlan?: string | null;
     nextBillingPeriod?: BillingPeriod | null;
+    acceptedOfferVersion?: string;
+    expectedRenewalAmount?: number;
   }) {
+    const enablesRenewal = input.autoRenew === true ||
+      (data?.autoRenew && input.autoRenew !== false && input.nextPlan !== "STANDARD" &&
+        (input.nextPlan !== undefined || input.nextBillingPeriod !== undefined));
+    if (enablesRenewal && !input.acceptedOfferVersion && data) {
+      const plan = input.nextPlan === undefined
+        ? (data.nextPlan === "STANDARD" ? data.plan : (data.nextPlan ?? data.plan))
+        : (input.nextPlan ?? data.plan);
+      if (plan !== "LITE" && plan !== "BUSINESS") return;
+      const nextPeriod = input.nextPlan === null || data.nextPlan === "STANDARD"
+        ? data.billingPeriod
+        : input.nextBillingPeriod === undefined
+          ? (data.nextBillingPeriod ?? data.billingPeriod)
+          : (input.nextBillingPeriod ?? data.billingPeriod);
+      setRenewalSettings(input);
+      setSelected(productFor(plan, nextPeriod));
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -659,6 +693,7 @@ export function BillingDashboard({
       </div>
       <footer className={paper.footer}>
         <Link href="/pricing">Сравнить тарифы →</Link>
+        <Link href="/offer">Оферта и возвраты</Link>
         <Link href="/pro/settings/promotion">
           Статистика, шаблоны и задачи команды →
         </Link>
@@ -675,15 +710,26 @@ export function BillingDashboard({
       >
         {selected && data && (
           <>
-            <h2 id="checkout-title">{productNames[selected]}</h2>
+            <h2 id="checkout-title">
+              {renewalSettings ? "Подтверждение автопродления" : productNames[selected]}
+            </h2>
             <p className={`${s.big} ${paper.dialogPrice}`}>
-              {money(quote?.amount ?? data.catalog[selected].amount)} ₽
+              {money(renewalSettings
+                ? (quote?.regularAmount ?? data.catalog[selected].amount)
+                : (quote?.amount ?? data.catalog[selected].amount))} ₽
               <span className={`${s.muted} ${paper.muted}`}>
                 {" "}
                 / {periodLabel(billingProducts[selected].period)}
               </span>
             </p>
-            {quote?.mode === "schedule" ? (
+            {renewalSettings ? (
+              <p>
+                Разрешаю автоматически оплачивать тариф «{productNames[selected]}»
+                за {money(quote?.regularAmount ?? data.catalog[selected].amount)} ₽ раз в{" "}
+                {periodLabel(billingProducts[selected].period)} после окончания оплаченного срока.
+                Отключить будущие списания можно здесь в любой момент.
+              </p>
+            ) : quote?.mode === "schedule" ? (
               <p>
                 Переход состоится после окончания оплаченного срока
                 {data?.planExpiresAt ? ` — ${date(data.planExpiresAt)}` : ""}.
@@ -708,7 +754,7 @@ export function BillingDashboard({
                 <p>
                   Вы перейдёте на защищённую страницу Т‑Банка.
                 </p>
-                <label>
+                <label className={s.consentLabel}>
                   <input
                     type="checkbox"
                     checked={autoRenew}
@@ -716,11 +762,28 @@ export function BillingDashboard({
                     disabled={busy}
                   />{" "}
                   Продлевать автоматически за{" "}
-                  {money(data.catalog[selected].amount)} ₽ раз в{" "}
+                  {money(quote?.regularAmount ?? data.catalog[selected].amount)} ₽ раз в{" "}
                   {periodLabel(billingProducts[selected].period)}. Отказаться от
                   продления можно в кабинете в любой момент.
                 </label>
               </>
+            )}
+            {(renewalSettings || quote?.mode === "purchase" ||
+              (quote?.mode === "schedule" && data.autoRenew)) && (
+              <label className={s.consentLabel}>
+                <input
+                  type="checkbox"
+                  checked={offerAccepted}
+                  onChange={(event) => setOfferAccepted(event.target.checked)}
+                  disabled={busy || !quote?.offerVersion}
+                />{" "}
+                Принимаю условия{" "}
+                <Link href="/offer" target="_blank" rel="noopener noreferrer">
+                  оферты
+                </Link>
+                {quote?.offerVersion ? ` от ${quote.offerVersion}` : ""},
+                выбранный тариф, срок и стоимость.
+              </label>
             )}
             <div className={s.actions}>
               <button
@@ -731,12 +794,24 @@ export function BillingDashboard({
                   !data?.canPay ||
                   data.needsReview ||
                   !quote ||
-                  quote.mode === "current" ||
-                  (quote.mode === "purchase" && !data.enabled)
+                  (quote.mode === "current" && !renewalSettings) ||
+                  ((renewalSettings || quote.mode === "purchase" || data.autoRenew) &&
+                    (!offerAccepted || !quote.offerVersion)) ||
+                  (quote.mode === "purchase" && !renewalSettings && !data.enabled)
                 }
                 onClick={() =>
-                  quote?.mode === "schedule"
+                  renewalSettings
                     ? saveSettings({
+                        ...renewalSettings,
+                        acceptedOfferVersion: quote?.offerVersion,
+                        expectedRenewalAmount: quote?.regularAmount,
+                      })
+                    : quote?.mode === "schedule"
+                    ? saveSettings({
+                        ...(data.autoRenew ? {
+                          acceptedOfferVersion: quote.offerVersion,
+                          expectedRenewalAmount: quote.regularAmount,
+                        } : {}),
                         nextPlan: billingProducts[selected].plan,
                         nextBillingPeriod: billingProducts[selected].period,
                       })
@@ -745,7 +820,9 @@ export function BillingDashboard({
               >
                 {busy
                   ? "Сохраняем…"
-                  : quote?.mode === "schedule"
+                  : renewalSettings
+                    ? "Подтвердить автопродление"
+                    : quote?.mode === "schedule"
                     ? "Запланировать переход"
                     : "Перейти к оплате"}
               </button>

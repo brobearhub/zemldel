@@ -321,7 +321,7 @@ export const Footer = () => {
                   "&:hover": { textDecoration: "underline", opacity: 1 },
                 }}
               >
-                Оферта (платные услуги)
+                Оферта
               </Link>
             </Stack>
           </Box>

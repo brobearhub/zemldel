@@ -63,6 +63,35 @@ function makeAcceptedRequest() {
 }
 
 describe('RequestsService completeByProvider', () => {
+  it('records expired acceptance as a system action without attributing it to the customer', async () => {
+    const current = {
+      ...makeAcceptedRequest(),
+      status: 'ACCEPTANCE_PENDING',
+      autoAcceptAt: new Date(0),
+      acceptedAt: null,
+    };
+    const update = vi
+      .fn()
+      .mockImplementation(({ data }) =>
+        Promise.resolve({ ...current, ...data }),
+      );
+    const createEvent = vi.fn();
+    const tx = { request: { update }, requestEvent: { create: createEvent } };
+    const prisma = {
+      request: { findFirst: vi.fn().mockResolvedValue(current) },
+      message: { findFirst: vi.fn().mockResolvedValue(null) },
+      $transaction: vi.fn((fn: (client: typeof tx) => unknown) => fn(tx)),
+    };
+    const result = await makeService(prisma).getMineById('customer-1', 'r1');
+    expect(result.status).toBe('ACCEPTED');
+    expect(update.mock.calls[0]?.[0]).toMatchObject({
+      data: { acceptedByUserId: null },
+    });
+    expect(createEvent.mock.calls[0]?.[0]).toMatchObject({
+      data: { type: 'AUTO_ACCEPT', actorUserId: null },
+    });
+  });
+
   it('completes accepted work with a non-zero remainder and preserves it', async () => {
     const current = makeAcceptedRequest();
     const completed = { ...current, status: 'COMPLETED' };

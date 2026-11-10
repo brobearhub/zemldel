@@ -41,7 +41,7 @@ export function MessengerComposer({
         variant="compact"
         features={{ attachments: false }}
         disabled={disabled}
-        aria-label="Ответ клиенту"
+        aria-label="Ответ в чат"
         onSubmit={(event) => {
           event.preventDefault();
           send();

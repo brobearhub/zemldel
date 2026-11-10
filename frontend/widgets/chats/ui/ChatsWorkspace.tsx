@@ -26,9 +26,10 @@ import {
   Typography,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
+import type { ChatInboxRole } from "@/entities/chat/api/chat-inbox";
 import { getActiveMembership } from "@/core/auth/authorization";
 import { ServiceRequestChatPanel } from "@/widgets/chat/ui/ServiceRequestChatPanel";
-import { useProviderChatInbox } from "../model/use-provider-chat-inbox";
+import { useChatInbox } from "../model/use-chat-inbox";
 import { useChatViewport } from "../model/use-chat-viewport";
 import {
   chatHref,
@@ -37,22 +38,31 @@ import {
   inboxTime,
 } from "../model/inbox-format";
 
-export function ProviderChatsWorkspace() {
+export function ChatsWorkspace({ role }: { role: ChatInboxRole }) {
   const { data: session } = useSession();
-  const scope = `${session?.user?.id ?? ""}:${getActiveMembership(session?.user ?? null)?.providerId ?? ""}`;
+  const providerId =
+    role === "provider"
+      ? (getActiveMembership(session?.user ?? null)?.providerId ?? "")
+      : "";
+  const scope = `${role}:${session?.user?.id ?? ""}:${providerId}`;
   return (
     <Workspace
       key={scope}
       scope={scope}
+      role={role}
     />
   );
 }
 
-function Workspace({ scope }: { scope: string }) {
+function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
+  const basePath = role === "provider" ? "/pro/chats" : "/profile/chats";
+  const requestBasePath =
+    role === "provider" ? "/pro/requests" : "/profile/requests";
+  const peerLabel = role === "provider" ? "Клиент" : "Исполнитель";
   const { requestId } = useParams<{ requestId?: string }>();
   const requestedConversation = useSearchParams().get("conversation");
-  const { items, error, refresh, onMessage, unreadByRequestId } =
-    useProviderChatInbox(scope);
+  const { items, error, refresh, onMessage, unreadByConversationId } =
+    useChatInbox(scope, role);
   const [query, setQuery] = useState("");
   const [onlyUnread, setOnlyUnread] = useState(false);
   const scrollRef = useRef<HTMLUListElement>(null);
@@ -72,17 +82,17 @@ function Workspace({ scope }: { scope: string }) {
     : own.length === 1
       ? own[0]
       : undefined;
-  const unread = (id: string) =>
-    unreadByRequestId[id] ??
-    rows.find((row) => row.serviceRequestId === id)?.unreadCount ??
+  const unread = (row: (typeof rows)[number]) =>
+    (row.conversationId
+      ? unreadByConversationId[row.conversationId]
+      : undefined) ??
+    row.unreadCount ??
     0;
-  const unreadDialogs = rows.filter(
-    (row) => unread(row.serviceRequestId) > 0,
-  ).length;
+  const unreadDialogs = rows.filter((row) => unread(row) > 0).length;
   const normalizedQuery = query.trim().toLocaleLowerCase("ru-RU");
   const filtered = rows.filter(
     (row) =>
-      (!onlyUnread || unread(row.serviceRequestId) > 0) &&
+      (!onlyUnread || unread(row) > 0) &&
       `${row.peerName ?? ""} ${row.title} ${row.serviceRequestId}`
         .toLocaleLowerCase("ru-RU")
         .includes(normalizedQuery),
@@ -90,7 +100,7 @@ function Workspace({ scope }: { scope: string }) {
 
   return (
     <Box
-      data-provider-messenger
+      data-chat-messenger={role}
       sx={{
         height: "100%",
         minHeight: 0,
@@ -329,7 +339,9 @@ function Workspace({ scope }: { scope: string }) {
                 color="text.secondary"
               >
                 {rows.length === 0
-                  ? "Здесь появятся переписки с клиентами по заявкам."
+                  ? role === "provider"
+                    ? "Здесь появятся переписки с клиентами по заявкам."
+                    : "Здесь появятся переписки с исполнителями по вашим заявкам."
                   : "Измените поиск или покажите все диалоги."}
               </Typography>
               {rows.length > 0 ? (
@@ -360,14 +372,14 @@ function Workspace({ scope }: { scope: string }) {
             }}
           >
             {filtered.map((row) => {
-              const count = unread(row.serviceRequestId);
+              const count = unread(row);
               const selected = active === row;
-              const name = row.peerName || "Клиент";
+              const name = row.peerName || peerLabel;
               return (
                 <ListItemButton
                   key={row.conversationId ?? row.serviceRequestId}
                   component={Link}
-                  href={chatHref(row)}
+                  href={chatHref(row, role)}
                   scroll={false}
                   selected={selected}
                   aria-current={selected ? "page" : undefined}
@@ -519,7 +531,7 @@ function Workspace({ scope }: { scope: string }) {
               >
                 <IconButton
                   component={Link}
-                  href="/pro/chats"
+                  href={basePath}
                   scroll={false}
                   aria-label="К чатам"
                   sx={{
@@ -544,7 +556,7 @@ function Workspace({ scope }: { scope: string }) {
                       fontSize: "0.875rem",
                     }}
                   >
-                    {chatInitials(active.peerName || "Клиент")}
+                    {chatInitials(active.peerName || peerLabel)}
                   </Avatar>
                 ) : null}
                 <Box
@@ -569,7 +581,7 @@ function Workspace({ scope }: { scope: string }) {
                         color: "text.secondary",
                       }}
                     >
-                      Клиент
+                      {peerLabel}
                     </Typography>
                   ) : null}
                 </Box>
@@ -617,7 +629,7 @@ function Workspace({ scope }: { scope: string }) {
                 </Box>
                 <Button
                   component={Link}
-                  href={`/pro/requests/${encodeURIComponent(requestId)}`}
+                  href={`${requestBasePath}/${encodeURIComponent(requestId)}`}
                   endIcon={<ChevronRightRoundedIcon />}
                   sx={{
                     flexShrink: 0,
@@ -662,7 +674,7 @@ function Workspace({ scope }: { scope: string }) {
                     <Button
                       key={row.conversationId ?? row.serviceRequestId}
                       component={Link}
-                      href={chatHref(row)}
+                      href={chatHref(row, role)}
                     >
                       {row.peerName || "Открыть переписку"}
                     </Button>
@@ -674,9 +686,9 @@ function Workspace({ scope }: { scope: string }) {
                   key={active.conversationId ?? active.serviceRequestId}
                   serviceRequestId={active.serviceRequestId}
                   conversationId={active.conversationId}
-                  title={active.peerName || "Клиент"}
+                  title={active.peerName || peerLabel}
                   appearance="messenger"
-                  initialUnreadCount={unread(active.serviceRequestId)}
+                  initialUnreadCount={unread(active)}
                   onMessage={onMessage}
                 />
               ) : null}

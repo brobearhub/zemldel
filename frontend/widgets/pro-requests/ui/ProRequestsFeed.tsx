@@ -7,7 +7,7 @@ import {
   Typography,
   useMediaQuery,
 } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import { useEffect, useMemo, useState } from "react";
 import { type RequestProDto, type RequestStatus } from "@/entities/request";
 import {
@@ -197,8 +197,8 @@ export function ProRequestsFeed({ initialItems, initialOrders }: Props) {
           tabIndex={0}
           sx={{
             display: "flex",
-            alignItems: "flex-start",
-            gap: 2,
+            alignItems: "stretch",
+            gap: 4,
             overflowX: "auto",
             pb: 2,
             minWidth: 0,
@@ -208,9 +208,20 @@ export function ProRequestsFeed({ initialItems, initialOrders }: Props) {
             <Box
               key={column.status}
               sx={{
+                position: "relative",
                 flex: `0 0 ${COLUMN_MIN_WIDTH}px`,
                 width: COLUMN_MIN_WIDTH,
                 minWidth: 0,
+                "&:not(:last-child)::after": {
+                  content: '""',
+                  position: "absolute",
+                  top: 8,
+                  bottom: 8,
+                  insetInlineEnd: (theme) => theme.spacing(-2),
+                  borderInlineEnd: "1px dashed",
+                  borderColor: (theme) => alpha(theme.palette.text.primary, 0.3),
+                  pointerEvents: "none",
+                },
                 '@media (min-width: 1440px)': {
                   flexBasis: 380,
                   width: 380,

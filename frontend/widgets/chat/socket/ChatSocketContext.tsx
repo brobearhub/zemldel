@@ -6,12 +6,18 @@ export type ChatSocketContextValue = {
   socket: Socket | null;
   socketConnected: boolean;
   unreadByRequestId: Record<string, number>;
+  unreadByConversationId: Record<string, number>;
+  clearUnreadForConversation: (conversationId: string) => void;
   setOpenConversationId: (conversationId: string | null) => void;
   clearUnreadForRequest: (requestId: string) => void;
-  joinConversationRoom: (conversationId: string) => Promise<import("@/entities/chat/dto/chat.dto").ChatJoinConversationAck>;
+  joinConversationRoom: (
+    conversationId: string,
+  ) => Promise<import("@/entities/chat/dto/chat.dto").ChatJoinConversationAck>;
 };
 
-export const ChatSocketContext = createContext<ChatSocketContextValue | null>(null);
+export const ChatSocketContext = createContext<ChatSocketContextValue | null>(
+  null,
+);
 
 export function useChatSocket(): ChatSocketContextValue {
   const ctx = useContext(ChatSocketContext);

@@ -301,3 +301,9 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+
+.consentLabel {
+  display: block;
+  margin-block: 12px;
+  line-height: 1.6;
+}
