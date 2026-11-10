@@ -162,6 +162,24 @@ async function main() {
         `${platform}: уже подключён к другому сервису. Автоматическая замена отключена.`,
       );
     }
+    if (telegramApi && config.telegramUpdatesMode === 'polling') {
+      console.log(
+        `TELEGRAM: режим polling; webhook ${urls.some(Boolean) ? 'нужно отключить' : 'отключён'}`,
+      );
+      if (apply && urls.some(Boolean)) {
+        await callTelegram('deleteWebhook', () =>
+          telegramApi.deleteWebhook({ drop_pending_updates: false }),
+        );
+        console.log(
+          'TELEGRAM: webhook отключён, накопленные события сохранены',
+        );
+      }
+      if (apply)
+        console.log(
+          'TELEGRAM: polling подготовлен; backend запустит получение событий при MESSENGER_WORKER_ENABLED=true',
+        );
+      continue;
+    }
     console.log(
       `${platform}: бот проверен; webhook ${urls.includes(target) ? 'уже настроен' : 'готов к настройке'}`,
     );

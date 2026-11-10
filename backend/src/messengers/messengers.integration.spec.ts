@@ -81,8 +81,10 @@ describe.skipIf(process.env.MESSENGER_DB_TESTS !== '1')(
     });
     afterAll(async () => {
       await db.request.deleteMany({ where: { customerUserId: { in: users } } });
-      await db.provider.deleteMany({ where: { id: providerId } });
-      await db.serviceCategory.deleteMany({ where: { id: categoryId } });
+      if (providerId)
+        await db.provider.deleteMany({ where: { id: providerId } });
+      if (categoryId)
+        await db.serviceCategory.deleteMany({ where: { id: categoryId } });
       await db.user.deleteMany({ where: { id: { in: users } } });
       await db.$disconnect();
       vi.restoreAllMocks();
@@ -238,6 +240,36 @@ describe.skipIf(process.env.MESSENGER_DB_TESTS !== '1')(
       });
       expect(await repository.connection('TELEGRAM', external)).toBeNull();
       const pending = (await service.status(users[1]))[0].pending!;
+      const capturedToken = await db.messengerLinkToken.findUniqueOrThrow({
+        where: { id: pending.id },
+      });
+      const replayedStart = {
+        kind: 'start' as const,
+        externalUserId: external,
+        chatId: external,
+        displayName: 'QA',
+      };
+      // Long polling may replay /start after a lost reply or process restart.
+      expect(
+        await repository.captureLink(
+          'TELEGRAM',
+          capturedToken.tokenHash,
+          replayedStart,
+        ),
+      ).toBe(true);
+      expect(
+        await repository.captureLink('TELEGRAM', capturedToken.tokenHash, {
+          ...replayedStart,
+          externalUserId: 'another-account',
+          chatId: 'another-account',
+        }),
+      ).toBe(false);
+      expect(
+        await repository.captureLink('TELEGRAM', capturedToken.tokenHash, {
+          ...replayedStart,
+          chatId: 'another-chat',
+        }),
+      ).toBe(false);
       await expect(
         service.confirm(users[2], 'TELEGRAM', pending.id),
       ).rejects.toThrow();

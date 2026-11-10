@@ -8,6 +8,7 @@ import { MessengerService } from './messenger.service';
 import { MessengerTransport } from './messenger-transport';
 import { MessengerQueueSignal } from './messenger-queue-signal';
 import { MessengerWorker } from './messenger-worker';
+import { TelegramPoller } from './telegram-poller';
 
 @Module({
   imports: [AuthModule, ChatModule],
@@ -19,6 +20,7 @@ import { MessengerWorker } from './messenger-worker';
     MessengerTransport,
     MessengerQueueSignal,
     MessengerWorker,
+    TelegramPoller,
   ],
 })
 export class MessengersModule {}
