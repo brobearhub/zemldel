@@ -22,6 +22,7 @@ import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
 import LocationCityIcon from "@mui/icons-material/LocationCity";
 import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
+import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import { useMemo, useState } from "react";
 
 const SERVICES_GROUP = {
@@ -370,6 +371,39 @@ export function AdminSidebar({ pendingVerifications = 0 }: Props) {
             })}
           </List>
         </Collapse>
+        <ListItemButton
+          component={Link}
+          href="/admin/favicon"
+          selected={pathname === "/admin/favicon"}
+          sx={{
+            px: 2,
+            py: 1.25,
+            "&.Mui-selected": {
+              bgcolor: "action.selected",
+              "&:hover": {
+                bgcolor: "action.selected",
+              },
+            },
+          }}
+        >
+          <ListItemIcon
+            sx={{
+              minWidth: 36,
+            }}
+          >
+            <ImageOutlinedIcon />
+          </ListItemIcon>
+          <ListItemText
+            primary="Иконки сайта"
+            slotProps={{
+              primary: {
+                sx: {
+                  fontWeight: pathname === "/admin/favicon" ? 800 : 700,
+                },
+              },
+            }}
+          />
+        </ListItemButton>
       </List>
     </Paper>
   );
