@@ -16,6 +16,7 @@ import {
 } from "@/shared/config/site-layout";
 import { rememberInternalNav } from "@/shared/lib/internal-nav-history";
 import { CabinetChrome, getCabinetZone } from "@/widgets/cabinet-chrome";
+import { CabinetSidebarProvider } from "@/shared/ui/CabinetSidebarContext";
 
 type Props = {
   children: ReactNode;
@@ -51,7 +52,9 @@ export function SiteChrome({ children }: Props) {
   return (
     <ReminderCountProvider>
       <MobileNavigation>
-        <SiteChromeContent>{children}</SiteChromeContent>
+        <CabinetSidebarProvider>
+          <SiteChromeContent>{children}</SiteChromeContent>
+        </CabinetSidebarProvider>
       </MobileNavigation>
     </ReminderCountProvider>
   );

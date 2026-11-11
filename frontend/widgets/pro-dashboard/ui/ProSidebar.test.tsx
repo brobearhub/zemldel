@@ -73,7 +73,7 @@ describe("Меню исполнителя", () => {
       within(menu)
         .getAllByRole("link")
         .map((link) => link.textContent),
-    ).toEqual(["Чаты", "Лента", "Доска", "Услуги", "Клиенты", "Сторисы", "Обзор"]);
+    ).toEqual(["Чаты", "Лента заявок", "Доска", "Услуги", "Клиенты", "Сторисы", "Обзор"]);
     const team = within(menu).getByRole("button", { name: "Команда" });
     expect(team).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(team);
@@ -88,7 +88,7 @@ describe("Меню исполнителя", () => {
     const settings = screen.getByRole("region", { name: "Настройки" });
     expect(menu).toContainElement(settings);
     expect(
-      screen.queryByRole("link", { name: "Лента" }),
+      screen.queryByRole("link", { name: "Лента заявок" }),
     ).not.toBeInTheDocument();
     expect(
       within(settings).queryByRole("button", { name: "Команда" }),

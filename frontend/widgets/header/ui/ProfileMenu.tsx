@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Box,
@@ -186,6 +186,10 @@ export const ProfileMenu = ({
   const searchParams = useSearchParams();
   const { status, user } = useAppSelector((state) => state.auth);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+  }, []);
   const open = Boolean(anchorEl);
   const isAuthenticated = status === "authenticated";
   const accountKind = resolveAccountKind(user);
@@ -277,7 +281,19 @@ export const ProfileMenu = ({
   };
 
   const handleClose = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = null;
     setAnchorEl(null);
+  };
+
+  const cancelClose = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = null;
+  };
+
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimer.current = setTimeout(handleClose, 180);
   };
 
   const closeAndGo = (go: () => void) => {
@@ -311,6 +327,10 @@ export const ProfileMenu = ({
 
   const handleProDashboard = () => {
     closeAndGo(() => router.push("/pro/requests/feed"));
+  };
+
+  const handleProviderProfile = () => {
+    closeAndGo(() => router.push("/pro/settings/profile"));
   };
 
   const handleAdmin = () => {
@@ -395,6 +415,110 @@ export const ProfileMenu = ({
       )}
     </Box>
   );
+
+  if (isProviderAccount && layout === "popover" && activeMembership) {
+    return (
+      <Box
+        onMouseEnter={cancelClose}
+        onMouseLeave={scheduleClose}
+        sx={{ position: "relative" }}
+      >
+        <Box
+          component="button"
+          type="button"
+          id="profile-button"
+          aria-label="Мой профиль"
+          aria-haspopup="menu"
+          aria-controls={open ? "profile-menu" : undefined}
+          aria-expanded={open ? "true" : undefined}
+          onMouseEnter={handleMouseEnter}
+          onClick={handleOpenOnClick}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            minWidth: 44,
+            minHeight: 44,
+            p: 0.75,
+            border: 0,
+            borderRadius: 2,
+            bgcolor: "transparent",
+            color: "text.primary",
+            cursor: "pointer",
+          }}
+        >
+          <CdnAvatar
+            src={avatarSrc}
+            sx={{
+              width: 32,
+              height: 32,
+              ...proAvatarRingSx,
+            }}
+          >
+            {initials}
+          </CdnAvatar>
+          {showLabel ? <Typography>{currentIdentity.title}</Typography> : null}
+        </Box>
+        <Menu
+          id="profile-menu"
+          anchorEl={anchorEl}
+          open={open}
+          onClose={handleClose}
+          disableScrollLock
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          transformOrigin={{ vertical: "top", horizontal: "right" }}
+          slotProps={{
+            paper: {
+              sx: {
+                mt: 0.5,
+                minWidth: 220,
+                borderRadius: 1,
+                boxShadow: 3,
+              },
+            },
+            list: {
+              onMouseEnter: cancelClose,
+              onMouseLeave: scheduleClose,
+              "aria-labelledby": "profile-button",
+              sx: {
+                "& .MuiMenuItem-root.Mui-focusVisible": {
+                  outline: "none",
+                  boxShadow: "none",
+                },
+              },
+            },
+          }}
+        >
+          <MenuItem
+            onClick={() => closeAndGo(() => router.push("/pro/settings/account"))}
+            aria-current={pathname === "/pro/settings/account" ? "page" : undefined}
+            sx={menuItemSx(pathname === "/pro/settings/account")}
+          >
+            <PersonOutlineRoundedIcon sx={menuIconSx} />
+            Мои данные
+          </MenuItem>
+          <MenuItem
+            onClick={handleProviderProfile}
+            aria-current={pathname === "/pro/settings/profile" ? "page" : undefined}
+            sx={menuItemSx(pathname === "/pro/settings/profile")}
+          >
+            <WorkOutlineOutlinedIcon sx={menuIconSx} />
+            Профиль исполнителя
+          </MenuItem>
+          <MenuItem
+            onClick={handleSignOut}
+            sx={{
+              ...menuItemSx(false),
+              color: "error.main",
+            }}
+          >
+            <LogoutIcon sx={menuIconSx} />
+            Выйти
+          </MenuItem>
+        </Menu>
+      </Box>
+    );
+  }
 
   if (isProviderAccount) {
     return (

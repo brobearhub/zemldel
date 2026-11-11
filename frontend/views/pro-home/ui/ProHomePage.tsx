@@ -37,6 +37,9 @@ export function ProHomePage({ services, reminders, firstSteps }: Props) {
         <CabinetNotices welcome="Аккаунт исполнителя создан. Добавьте первую услугу, чтобы заказчики нашли вас." />
         <HomeStoriesStrip scope="provider" />
         <ProHomeSectionSwitch
+          serviceIds={services
+            .filter((service) => service.status !== "ARCHIVED")
+            .map((service) => service.id)}
           services={<ProMyServicesSection services={services} />}
           freeRequests={<FreeRequestsSection />}
           reminders={

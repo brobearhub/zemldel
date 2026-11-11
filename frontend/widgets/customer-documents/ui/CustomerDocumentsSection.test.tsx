@@ -46,6 +46,7 @@ function setup(initialPassport: typeof passport | null = null) {
     if (path.startsWith("/api/documents/passport/access/")) return json({ ok: true });
     if (path === "/api/documents/passport/photos") return json([]);
     if (path === "/api/requests") return json([request]);
+    if (path === "/api/requests/with-documents") return json([request.id]);
     if (path.endsWith("/contract-files")) return json([contract]);
     if (path.endsWith("/contract-bundles")) return json([{ document: contract, signature: null }]);
     if (path.endsWith("/document-requests")) return json([{

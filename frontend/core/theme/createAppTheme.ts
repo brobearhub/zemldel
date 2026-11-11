@@ -183,17 +183,6 @@ export function createAppTheme(
       shape: { borderRadius: 8 },
       typography: readableTypography,
       components: {
-        MuiButtonBase: {
-          styleOverrides: {
-            root: ({ theme }) => ({
-              "&.Mui-focusVisible": {
-                outline: `2px solid ${theme.palette.text.primary}`,
-                outlineOffset: 3,
-                boxShadow: `0 0 0 2px ${theme.palette.background.paper}`,
-              },
-            }),
-          },
-        },
         MuiInputLabel: {
           defaultProps: {
             shrink: true,
@@ -274,13 +263,6 @@ export function createAppTheme(
               "button, input, textarea, select": {
                 fontFamily: "inherit",
               },
-              // MUI fields already show focus on their border or underline.
-              ":where(a, button, input, textarea, select, [contenteditable='true'], [role='button'], [role='tab'], [tabindex]):focus-visible:not(.MuiInputBase-input, .MuiPickersSectionList-root, .MuiPickersSectionList-sectionContent)":
-                {
-                  outline: `2px solid ${theme.palette.text.primary}`,
-                  outlineOffset: 3,
-                  boxShadow: `0 0 0 2px ${theme.palette.background.paper}`,
-                },
               // Prevent browser autofill from painting blue/yellow backgrounds.
               // Kept global and minimal to preserve default MUI label/padding behavior.
               "input:-webkit-autofill, textarea:-webkit-autofill, select:-webkit-autofill, .MuiInputBase-input:-webkit-autofill, .MuiOutlinedInput-input:-webkit-autofill":
@@ -311,11 +293,6 @@ export function createAppTheme(
               padding: "12px 20px",
               whiteSpace: "normal",
               overflowWrap: "anywhere",
-              "&.Mui-focusVisible": {
-                outline: `2px solid ${theme.palette.text.primary}`,
-                outlineOffset: 3,
-                boxShadow: `0 0 0 2px ${theme.palette.background.paper}`,
-              },
             }),
             outlined: {
               borderWidth: 1,

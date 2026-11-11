@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Box, Button, Paper, Stack, Typography } from "@mui/material";
+import { Box, Button, IconButton, Paper, Stack, Tooltip, Typography } from "@mui/material";
+import ChevronRightRounded from "@mui/icons-material/ChevronRightRounded";
 import { alpha } from "@mui/material/styles";
 import type {
   ChatConversationAccessDto,
@@ -67,6 +68,7 @@ type Props = {
   appearance?: "default" | "messenger";
   initialUnreadCount?: number;
   onMessage?: (message: ChatMessageDto) => void;
+  onCollapse?: () => void;
 };
 
 export function ServiceRequestChatPanel({
@@ -83,6 +85,7 @@ export function ServiceRequestChatPanel({
   appearance = "default",
   initialUnreadCount = 0,
   onMessage,
+  onCollapse,
 }: Props) {
   const openingUnreadCount = useRef(initialUnreadCount);
   const { data: session } = useSession();
@@ -752,6 +755,7 @@ export function ServiceRequestChatPanel({
         <Stack
           direction="row"
           spacing={1}
+          useFlexGap
           sx={{
             alignItems: "center",
           }}
@@ -775,11 +779,28 @@ export function ServiceRequestChatPanel({
           >
             {title}
           </Typography>
+          {onCollapse ? (
+            <Tooltip title="Свернуть чат">
+              <IconButton
+                aria-label="Свернуть чат"
+                aria-expanded={true}
+                onClick={onCollapse}
+                size="small"
+                sx={{
+                  ml: "auto",
+                  flexShrink: 0,
+                }}
+              >
+                <ChevronRightRounded />
+              </IconButton>
+            </Tooltip>
+          ) : null}
         </Stack>
         {subtitle ? (
           <Typography
             variant="body2"
             sx={{
+              mt: 1,
               color: "text.secondary",
             }}
           >

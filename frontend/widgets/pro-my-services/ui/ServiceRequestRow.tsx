@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppSelector } from "@/core/store/hooks";
 import CheckIcon from "@mui/icons-material/Check";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import {
   Box,
   Button,
   CircularProgress,
+  IconButton,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -15,7 +17,9 @@ import {
   getRequestDisplayStatusLabel,
   orderReplyPreview,
   ReplyPreviewLines,
+  resolveRequestPriceView,
   visibleReplyPreview,
+  type RequestCustomerDto,
   type RequestProDto,
 } from "@/entities/request";
 import { CdnAvatar, CdnImage } from "@/shared/ui/cdn-image";
@@ -27,12 +31,15 @@ import {
   serviceRequestRowBody,
 } from "../lib/format-service-request";
 
-type Props = {
-  request: RequestProDto;
+type Props<T extends RequestProDto | RequestCustomerDto> = {
+  request: T;
   title: string;
+  customerView?: boolean;
   showCustomerAvatar?: boolean;
   sending?: boolean;
-  onReply: (request: RequestProDto) => void;
+  deleting?: boolean;
+  onDelete?: (request: T) => void;
+  onReply: (request: T) => void;
 };
 
 function customerAvatarSrc(image: string | null): string | undefined {
@@ -40,7 +47,7 @@ function customerAvatarSrc(image: string | null): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-function requestCityName(request: RequestProDto): string {
+function requestCityName(request: RequestProDto | RequestCustomerDto): string {
   return request.requestCity?.name?.trim() ?? "";
 }
 
@@ -187,48 +194,74 @@ function CustomerAvatar({
   );
 }
 
-export function ServiceRequestRow({
+export function ServiceRequestRow<T extends RequestProDto | RequestCustomerDto>({
   request,
   title,
+  customerView = false,
   showCustomerAvatar = false,
   sending = false,
+  deleting = false,
+  onDelete,
   onReply,
-}: Props) {
+}: Props<T>) {
   const viewer = useAppSelector((state) => state.auth.user);
   const stamp = formatRequestOpenedStamp(request.createdAt);
-  const sentAt = request.awaitingCustomerReply ? request.lastMessageAt : null;
+  const awaitingReply = customerView
+    ? "awaitingProviderReply" in request && request.awaitingProviderReply
+    : "awaitingCustomerReply" in request && request.awaitingCustomerReply;
+  const lastMessageAt = "lastMessageAt" in request ? request.lastMessageAt : null;
+  const sentAt = awaitingReply ? lastMessageAt : null;
   const showSentMark = useReplySentMark(sentAt);
-  const age = getRequestOpenAge(request.lastMessageAt ?? request.createdAt);
+  const age = getRequestOpenAge(lastMessageAt ?? request.createdAt);
   const city = requestCityName(request);
   const body = serviceRequestRowBody({
     title,
-    customerName: request.customerName,
+    customerName:
+      customerView && "providerName" in request
+        ? request.providerName
+        : request.customerName,
     message: request.message,
   });
+  const priceView = customerView
+    ? resolveRequestPriceView({
+        totalAmountRubles: request.totalAmountRubles,
+        servicePriceRubles: request.servicePriceRubles,
+        priceProposal: request.priceProposal,
+      })
+    : null;
   const lines = visibleReplyPreview({
     lines: orderReplyPreview({
-      customerMessage: request.customerLastMessage,
-      providerMessage: request.providerLastMessage,
-      providerSpokeLast: request.awaitingCustomerReply,
+      customerMessage:
+        customerView && request.status !== "DISCUSSING"
+          ? null
+          : request.customerLastMessage,
+      providerMessage:
+        customerView && request.status !== "DISCUSSING"
+          ? null
+          : request.providerLastMessage,
+      providerSpokeLast: customerView ? !awaitingReply : awaitingReply,
     }),
-    waitingForReply: request.awaitingCustomerReply,
-    ownAuthor: "provider",
+    waitingForReply: awaitingReply,
+    ownAuthor: customerView ? "customer" : "provider",
   });
-  const customerReply = lines.some((line) => line.author === "customer");
+  const needsAction = lines.some(
+    (line) => line.author === (customerView ? "provider" : "customer"),
+  );
   const hasPreview = lines.length > 0;
   const lineColumn = stamp ? 2 : 1;
-  const avatarColumn = showCustomerAvatar ? lineColumn + 1 : null;
+  const showAvatar = customerView || showCustomerAvatar;
+  const avatarColumn = showAvatar ? lineColumn + 1 : null;
   const textColumn = (avatarColumn ?? lineColumn) + 1;
   const statusColumn = textColumn + 1;
-  const actionColumn = customerReply ? statusColumn + 1 : null;
-  const ageColumn = statusColumn + (customerReply ? 2 : 1);
+  const actionColumn = needsAction ? statusColumn + 1 : null;
+  const ageColumn = statusColumn + (needsAction ? 2 : 1);
   const gridTemplateColumns = [
     stamp ? "52px" : null,
     "1px",
-    showCustomerAvatar ? "auto" : null,
+    showAvatar ? "auto" : null,
     "minmax(0, 1fr)",
     "auto",
-    customerReply ? "auto" : null,
+    needsAction ? "auto" : null,
     "48px",
   ]
     .filter((column) => column != null)
@@ -257,7 +290,13 @@ export function ServiceRequestRow({
       }}
     >
       <Link
-        href={`/pro/requests/${request.id}`}
+        href={customerView ? `/profile/requests/${request.id}` : `/pro/requests/${request.id}`}
+        aria-disabled={customerView && request.status === "CLOSED" ? true : undefined}
+        onClick={
+          customerView && request.status === "CLOSED"
+            ? (event) => event.preventDefault()
+            : undefined
+        }
         sx={{
           gridColumn: "1 / -1",
           gridRow: "1 / -1",
@@ -324,7 +363,7 @@ export function ServiceRequestRow({
           }}
         />
 
-        {showCustomerAvatar ? (
+        {showAvatar ? (
           <Box
             sx={{
               display: { xs: "none", md: "block" },
@@ -334,8 +373,18 @@ export function ServiceRequestRow({
             }}
           >
             <CustomerAvatar
-              src={customerAvatarSrc(request.customerImage)}
-              name={request.customerName?.trim() || "Заказчик"}
+              src={customerAvatarSrc(
+                customerView && "providerImage" in request
+                  ? request.providerImage
+                  : "customerImage" in request
+                    ? request.customerImage
+                    : null,
+              )}
+              name={
+                customerView && "providerName" in request
+                  ? request.providerName?.trim() || "Исполнитель"
+                  : request.customerName?.trim() || "Заказчик"
+              }
             />
           </Box>
         ) : null}
@@ -371,7 +420,7 @@ export function ServiceRequestRow({
               >{` · ${city}`}</Box>
             ) : null}
           </Typography>
-          {body.length > 0 && !customerReply ? (
+          {body.length > 0 && !needsAction ? (
             <Typography
               sx={{
                 mt: 0.25,
@@ -385,6 +434,29 @@ export function ServiceRequestRow({
               }}
             >
               {body}
+            </Typography>
+          ) : null}
+          {priceView ? (
+            <Typography
+              variant="caption"
+              sx={{
+                color: "text.secondary",
+                display: "block",
+                mt: 0.25,
+              }}
+            >
+              {priceView.headline}
+            </Typography>
+          ) : null}
+          {priceView?.servicePriceLabel ? (
+            <Typography
+              variant="caption"
+              sx={{
+                color: "text.secondary",
+                display: "block",
+              }}
+            >
+              {priceView.servicePriceLabel}
             </Typography>
           ) : null}
         </Box>
@@ -470,7 +542,7 @@ export function ServiceRequestRow({
         >
           <ReplyPreviewLines
             lines={lines}
-            ownAuthor="provider"
+            ownAuthor={customerView ? "customer" : "provider"}
             ownAvatar={{
               src: viewer?.image ?? null,
               name: viewer?.name ?? null,
@@ -478,7 +550,7 @@ export function ServiceRequestRow({
           />
         </Box>
       ) : null}
-      {customerReply ? (
+      {needsAction ? (
         <Box
           sx={{
             gridColumn: { xs: "1 / -1", md: actionColumn ?? undefined },
@@ -493,10 +565,44 @@ export function ServiceRequestRow({
           }}
         >
           <ReplyAction
-            awaiting={request.awaitingCustomerReply}
+            awaiting={awaitingReply}
             onReply={() => onReply(request)}
           />
         </Box>
+      ) : null}
+      {customerView && "canDeleteByCustomer" in request && request.canDeleteByCustomer && onDelete ? (
+        <IconButton
+          size="small"
+          color="error"
+          aria-label="Удалить заявку"
+          loading={deleting}
+          onClick={() => onDelete(request)}
+          sx={{
+            gridColumn: { xs: 2, md: ageColumn },
+            gridRow: { xs: 4, md: 2 },
+            justifySelf: "center",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          <CloseRoundedIcon fontSize="small" />
+        </IconButton>
+      ) : null}
+      {customerView && request.serviceId ? (
+        <Link
+          href={`/services/${request.serviceId}`}
+          sx={{
+            gridColumn: "1 / -1",
+            gridRow: { xs: 5, md: hasPreview ? 3 : 2 },
+            justifySelf: "end",
+            position: "relative",
+            zIndex: 1,
+            fontSize: 14,
+            fontWeight: 700,
+          }}
+        >
+          Услуга
+        </Link>
       ) : null}
     </Box>
   );

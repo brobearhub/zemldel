@@ -7,6 +7,7 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import { resolveAccountKind } from "@/core/auth/authorization";
 import { useAppSelector } from "@/core/store/hooks";
 import { SITE_HEADER_HEIGHT_PX } from "@/shared/config/site-layout";
+import { useCabinetSidebar } from "@/shared/ui/CabinetSidebarContext";
 import { CabinetNavigationPanel } from "./CabinetNavigationPanel";
 import { CabinetSettingsPanel } from "./CabinetSettingsPanel";
 import { CabinetSidebarFooter } from "./CabinetSidebarFooter";
@@ -21,10 +22,34 @@ export function CabinetDesktopSidebar() {
   const storageKey = provider
     ? "ui.sidebar.pro.collapsed"
     : "ui.sidebar.profile.collapsed";
-  const [collapsed, setCollapsed] = useState(false);
+  const [savedCollapsed, setSavedCollapsed] = useState(false);
+  const [requestSidebar, setRequestSidebar] = useState<{
+    pathname: string;
+    collapsed: boolean;
+  } | null>(null);
+  const requestDetail =
+    wide && /^\/pro\/requests\/(?!feed\/?$|board\/?$)[^/]+\/?$/.test(pathname);
+  // Each request starts collapsed, independently of the saved menu preference.
+  const collapsed = requestDetail
+    ? requestSidebar?.pathname === pathname
+      ? requestSidebar.collapsed
+      : true
+    : savedCollapsed;
+  const { setExpanded, collapseRequest } = useCabinetSidebar();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsTrigger = useRef<HTMLElement | null>(null);
   const narrow = collapsed && !settingsOpen;
+
+  useLayoutEffect(() => {
+    if (!requestDetail || collapseRequest === 0) return;
+    setRequestSidebar({ pathname, collapsed: true });
+    setSettingsOpen(false);
+  }, [collapseRequest, pathname, requestDetail]);
+
+  useLayoutEffect(() => {
+    setExpanded(wide && !narrow);
+    return () => setExpanded(false);
+  }, [wide, narrow, setExpanded]);
 
   const openSettings = () => {
     settingsTrigger.current = document.activeElement as HTMLElement | null;
@@ -44,7 +69,7 @@ export function CabinetDesktopSidebar() {
   useEffect(() => {
     try {
       const value = localStorage.getItem(storageKey);
-      setCollapsed(value === "1" || value === "true");
+      setSavedCollapsed(value === "1" || value === "true");
     } catch {
       /* Storage may be unavailable. */
     }
@@ -52,6 +77,7 @@ export function CabinetDesktopSidebar() {
 
   useEffect(() => {
     setSettingsOpen(false);
+    setRequestSidebar(null);
   }, [pathname, wide]);
 
   useEffect(() => {
@@ -66,7 +92,11 @@ export function CabinetDesktopSidebar() {
 
   const toggle = () => {
     const next = !collapsed;
-    setCollapsed(next);
+    if (requestDetail) {
+      setRequestSidebar({ pathname, collapsed: next });
+      return;
+    }
+    setSavedCollapsed(next);
     try {
       localStorage.setItem(storageKey, next ? "1" : "0");
     } catch {

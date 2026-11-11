@@ -1,11 +1,18 @@
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render as testingRender, screen } from "@testing-library/react";
+import { ThemeProvider } from "@mui/material";
+import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createAppTheme } from "@/core/theme/createAppTheme";
 import type { RequestProDto } from "@/entities/request";
 import { ConfirmProvider } from "@/shared/ui/confirm";
 import { fetchProRequestContractBundles, fetchProRequestMiscFiles } from "@/entities/request/api/pro-contract-bundles";
 import { fetchProRequestDocumentRequests } from "@/entities/request/api/request-document-requests";
 import { ProRequestDetails } from "./ProRequestDetails";
 import { ProRequestWorkspace } from "./ProRequestWorkspace";
+
+const theme = createAppTheme("light");
+const render = (ui: ReactElement) => testingRender(<ThemeProvider theme={theme}>{ui}</ThemeProvider>);
+
 vi.mock("@/widgets/chat/ui/ServiceRequestChatPanel", () => ({
   ServiceRequestChatPanel: ({requestArchived}: {requestArchived: boolean}) => <div data-testid="chat-readonly">{String(requestArchived)}</div>,
 }));

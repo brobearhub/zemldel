@@ -25,7 +25,7 @@ export const CHAT_ITEM: SidebarNavItem = {
 export const REQUEST_ITEMS: readonly SidebarNavItem[] = [
   {
     href: "/pro/requests/feed",
-    label: "Лента",
+    label: "Лента заявок",
     icon: <DynamicFeedOutlinedIcon />,
     active: (pathname) => pathname === "/pro/requests/feed",
   },
