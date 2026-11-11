@@ -11,6 +11,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
+    "favicon:generate": "node scripts/generate-favicons.mjs",
     "typography:check": "node scripts/check-typography.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
