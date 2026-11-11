@@ -34,7 +34,7 @@ describe("Мобильное меню исполнителя", () => {
     fireEvent.click(screen.getByRole("button", { name: "Меню" }));
     const menu = screen.getByRole("navigation", { name: "Меню исполнителя" });
     expect(within(menu).getByRole("button", { name: "Заявки" })).toHaveAttribute("aria-expanded", "true");
-    expect(within(menu).getByRole("link", { name: "Лента" })).toBeInTheDocument();
+    expect(within(menu).getByRole("link", { name: "Лента заявок" })).toBeInTheDocument();
     expect(within(menu).getByRole("link", { name: "Доска" })).toBeInTheDocument();
     fireEvent.click(within(menu).getByRole("button", { name: "Команда" }));
     expect(within(menu).getByRole("link", { name: "Добавление менеджера" })).toHaveAttribute("href", "/pro/team/add-manager");

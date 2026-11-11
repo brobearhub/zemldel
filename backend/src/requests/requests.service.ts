@@ -16,6 +16,7 @@ import type { Request as ExpressRequest } from 'express';
 import { Prisma } from '@prisma/client';
 import { parseServicePriceRubles } from './lib/service-price-rubles';
 import { PrismaService } from '../prisma/prisma.service';
+import { READABLE_REQUEST_STATUSES } from '../request-work-stages/readable-request-statuses';
 import { AuthService } from '../auth/auth.service';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import type { OrderManagementAction } from '../auth/authorization';
@@ -920,6 +921,52 @@ export class RequestsService {
   }
 
   // --- Customer: read ---
+
+  async listMineWithDocuments(actorUserId: string): Promise<string[]> {
+    // Match the same 200 requests as listMine, then find only the request IDs
+    // referenced by customer-visible documents. No document content is loaded.
+    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      WITH customer_requests AS MATERIALIZED (
+        SELECT "id", "providerId", "lockedAt", "status"
+        FROM "Request"
+        WHERE "customerUserId" = ${actorUserId}::uuid
+        ORDER BY "createdAt" DESC
+        LIMIT 200
+      ), visible_stages AS MATERIALIZED (
+        SELECT stage."id", stage."requestId"
+        FROM "RequestWorkStage" stage
+        JOIN customer_requests request ON request."id" = stage."requestId"
+        WHERE stage."providerId" = request."providerId"
+          AND stage."lifecycle" = 'PUBLISHED'
+          AND request."status"::text IN (${Prisma.join([...READABLE_REQUEST_STATUSES])})
+      )
+      SELECT request."id"
+      FROM "RequestContractFile" file
+      JOIN customer_requests request ON request."id" = file."requestId"
+      WHERE file."providerId" = request."providerId"
+        AND request."lockedAt" IS NOT NULL
+        AND file."role" = 'CONTRACT_DOCUMENT'
+      UNION
+      SELECT request."id"
+      FROM "RequestDocumentRequest" document
+      JOIN customer_requests request ON request."id" = document."requestId"
+      WHERE document."providerId" = request."providerId"
+        AND request."lockedAt" IS NOT NULL
+        AND document."status" = 'UPLOADED'
+        AND NULLIF(document."originalName", '') IS NOT NULL
+      UNION
+      SELECT stage."requestId" AS "id"
+      FROM "RequestWorkStageFile" file
+      JOIN visible_stages stage ON stage."id" = file."stageId"
+      UNION
+      SELECT stage."requestId" AS "id"
+      FROM "RequestWorkStageDocSlot" slot
+      JOIN visible_stages stage ON stage."id" = slot."stageId"
+      WHERE slot."status" = 'UPLOADED'
+        AND NULLIF(slot."originalName", '') IS NOT NULL
+    `);
+    return rows.map((row) => row.id);
+  }
 
   async listMine(actorUserId: string): Promise<RequestCustomerDto[]> {
     const rows = await this.prisma.request.findMany({

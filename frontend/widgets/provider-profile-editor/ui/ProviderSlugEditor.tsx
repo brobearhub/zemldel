@@ -236,7 +236,10 @@ export function ProviderSlugEditor({
       );
       // Keep the operation ID on uncertain network outcomes to avoid a second charge.
       const next = await loadStatus().catch(() => null);
-      if (next?.order?.targetSlug === quote.slug && closedStatuses.has(next.order.status))
+      if (
+        next?.order?.targetSlug === quote.slug &&
+        closedStatuses.has(next.order.status)
+      )
         operation.current = null;
     } finally {
       setBusy(false);
@@ -285,10 +288,7 @@ export function ProviderSlugEditor({
     !pending;
 
   return (
-    <Stack
-      spacing={1.5}
-      sx={{ minWidth: 0 }}
-    >
+    <Stack spacing={1.5} sx={{ minWidth: 0 }}>
       <Typography
         component="label"
         htmlFor={editing ? "provider-profile-slug" : undefined}
@@ -373,10 +373,7 @@ export function ProviderSlugEditor({
                 }}
               >
                 Превью:{" "}
-                <Box
-                  component="span"
-                  sx={{ color: "text.primary" }}
-                >
+                <Box component="span" sx={{ color: "text.primary" }}>
                   {baseUrl}
                   {normalized || slug}
                 </Box>
@@ -477,10 +474,7 @@ export function ProviderSlugEditor({
         </Stack>
       </Stack>
       {canEdit && (
-        <Typography
-          variant="caption"
-          sx={{ color: "text.primary" }}
-        >
+        <Typography variant="caption" sx={{ color: "warning.main" }}>
           Смена адреса — {money(status?.amount ?? 100000)} ₽, отдельно от
           тарифа. Один раз в месяц.
           {cooldown && status?.nextChangeAt
@@ -502,7 +496,10 @@ export function ProviderSlugEditor({
         status?.order && (
           <Alert severity={pending ? "info" : "warning"}>
             Смена адреса на {status.order.targetSlug}:{" "}
-            {unsettled && !pending ? "Срок оплаты истёк. Проверьте статус платежа" : (statusNames[status.order.status] ?? status.order.status)}.
+            {unsettled && !pending
+              ? "Срок оплаты истёк. Проверьте статус платежа"
+              : (statusNames[status.order.status] ?? status.order.status)}
+            .
             {unsettled && (
               <Stack
                 direction="row"
@@ -513,17 +510,11 @@ export function ProviderSlugEditor({
                 }}
               >
                 {status.order.paymentUrl && (
-                  <Button
-                    component="a"
-                    href={status.order.paymentUrl}
-                  >
+                  <Button component="a" href={status.order.paymentUrl}>
                     Продолжить оплату
                   </Button>
                 )}
-                <Button
-                  disabled={busy}
-                  onClick={() => void refreshPayment()}
-                >
+                <Button disabled={busy} onClick={() => void refreshPayment()}>
                   Проверить оплату
                 </Button>
               </Stack>
@@ -554,7 +545,7 @@ export function ProviderSlugEditor({
               {quote?.slug}
             </Typography>
             <Alert severity="success">Адрес доступен</Alert>
-            <Typography>
+            <Typography variant="caption" sx={{ color: "warning.main" }}>
               Стоимость — <strong>{money(quote?.amount ?? 100000)} ₽</strong>.
               Разовая оплата, отдельно от тарифа.
             </Typography>

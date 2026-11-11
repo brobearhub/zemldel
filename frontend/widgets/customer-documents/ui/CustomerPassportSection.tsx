@@ -360,6 +360,7 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
             >
               <Button
                 variant={saved ? "outlined" : "contained"}
+                color={saved ? "primary" : "secondary"}
                 startIcon={<EditOutlinedIcon />}
                 disabled={busy}
                 onClick={() => {

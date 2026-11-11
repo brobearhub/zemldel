@@ -899,11 +899,10 @@ export function ProviderProfileEditorSection({
                   overflow: "hidden",
                   bgcolor: "action.hover",
                   width: "100%",
-                  height: profile.image ? { xs: 280, md: "auto" } : 96,
-                  aspectRatio: profile.image
-                    ? { xs: "280 / 280", md: "300 / 300" }
-                    : "auto",
-                  borderRadius: profile.image ? { xs: 2.5, md: 999 } : 2.5,
+                  maxWidth: 300,
+                  alignSelf: "center",
+                  aspectRatio: "1 / 1",
+                  borderRadius: "50%",
                 }}
               >
                 {profile.image ? (
@@ -1283,23 +1282,6 @@ export function ProviderProfileEditorSection({
                             );
                           })
                           .finally(() => setBusy(false));
-                      }}
-                      sx={{
-                        "& .MuiSwitch-switchBase": {
-                          color: "text.secondary",
-                        },
-                        "& .MuiSwitch-track": {
-                          backgroundColor: "rgba(255,255,255,0.35)",
-                          opacity: 1,
-                        },
-                        "& .MuiSwitch-switchBase.Mui-checked": {
-                          color: "primary.dark",
-                        },
-                        "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
-                          {
-                            backgroundColor: "common.white",
-                            opacity: 1,
-                          },
                       }}
                     />
                   }

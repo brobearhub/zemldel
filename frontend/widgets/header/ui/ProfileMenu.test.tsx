@@ -1,6 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider } from "@mui/material";
+import { signOut } from "next-auth/react";
 import { Provider } from "react-redux";
 import { createAppTheme } from "@/core/theme/createAppTheme";
 import type { AuthMembership, AuthPerson } from "@/core/auth/authorization";
@@ -199,7 +200,7 @@ describe("ProfileMenu", () => {
   it.each([
     ["Заявки", "requests"],
     ["Документы", "documents"],
-    ["История", "stories"],
+    ["Сторисы", "stories"],
     ["Мой профиль", "profile"],
   ])("открывает раздел клиента «%s» и закрывает меню", async (label: string, section: string) => {
     navigation.pathname = "/profile";
@@ -213,7 +214,7 @@ describe("ProfileMenu", () => {
       "Чаты",
       "Заявки",
       "Документы",
-      "История",
+      "Сторисы",
       "Мой профиль",
       "Выйти",
     ]);
@@ -238,7 +239,7 @@ describe("ProfileMenu", () => {
 
       expect(screen.getByRole("button", { name: "Заявки" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Документы" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "История" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Сторисы" })).toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: "Мой профиль" }));
 
       expect(navigation.push).toHaveBeenCalledWith("/profile?section=profile");
@@ -258,7 +259,7 @@ describe("ProfileMenu", () => {
     expect(navigation.push).toHaveBeenCalledWith("/admin");
   });
 
-  it("выделяет «Заявки» на странице заявки заказчика", async () => {
+  it("выделяет «Ленту» на странице заявки заказчика", async () => {
     navigation.pathname = "/profile/requests/1";
     const { user } = renderWithAuthState("customer", { withMembership: true });
 
@@ -273,20 +274,40 @@ describe("ProfileMenu", () => {
   });
 
   it.each(["/pro/services", "/pro/settings/account", "/profile", "/"])(
-    "сохраняет идентичность исполнителя на %s и ведёт в единый профиль",
+    "сохраняет идентичность исполнителя на %s и показывает меню по наведению",
     async (pathname) => {
       navigation.pathname = pathname;
       window.localStorage.setItem("ui.profileMenu.providerMode", "contact");
       const { user } = renderWithAuthState("provider", { withMembership: true });
-      const profile = screen.getByRole("link", { name: "Мой профиль" });
-      expect(profile).toHaveAttribute("href", "/pro/settings/profile");
+      const profile = screen.getByRole("button", { name: "Мой профиль" });
       expect(profile).toHaveTextContent("БМ");
       expect(avatarHasAccentRing(profile)).toBe(true);
       await user.hover(profile);
-      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+      expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+        "Мои данные",
+        "Профиль исполнителя",
+        "Выйти",
+      ]);
       expect(screen.queryByText("Контактное лицо")).not.toBeInTheDocument();
     },
   );
+
+  it("открывает данные и профиль исполнителя и выполняет выход", async () => {
+    const { user } = renderWithAuthState("provider", { withMembership: true });
+    const trigger = screen.getByRole("button", { name: "Мой профиль" });
+
+    await user.hover(trigger);
+    await user.click(screen.getByRole("menuitem", { name: "Мои данные" }));
+    expect(navigation.push).toHaveBeenCalledWith("/pro/settings/account");
+
+    await user.hover(trigger);
+    await user.click(screen.getByRole("menuitem", { name: "Профиль исполнителя" }));
+    expect(navigation.push).toHaveBeenCalledWith("/pro/settings/profile");
+
+    await user.hover(trigger);
+    await user.click(screen.getByRole("menuitem", { name: "Выйти" }));
+    expect(signOut).toHaveBeenCalledWith({ redirect: true, callbackUrl: "/" });
+  });
 
   it.each(["SELF_EMPLOYED", "SOLE_PROPRIETOR", "INDIVIDUAL"] as const)(
     "использует единый профиль для %s",
@@ -294,8 +315,7 @@ describe("ProfileMenu", () => {
       renderWithAuthState("provider", {
         membership: { ...membership, providerType, providerName: "Павел Усов", providerPerson: { lastName: "Усов", firstName: "Павел", middleName: "Николаевич" } },
       });
-      expect(screen.getByRole("link", { name: "Мой профиль" })).toHaveAttribute("href", "/pro/settings/profile");
-      expect(screen.getByRole("link", { name: "Мой профиль" })).toHaveTextContent("ПУ");
+      expect(screen.getByRole("button", { name: "Мой профиль" })).toHaveTextContent("ПУ");
     },
   );
 

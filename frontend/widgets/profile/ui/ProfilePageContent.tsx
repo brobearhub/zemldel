@@ -1274,12 +1274,12 @@ function ProfilePageContent({
           }}
         >
           {selectedSection === "stories"
-            ? "История"
+            ? "Сторисы"
             : selectedSection === "profile"
               ? user?.accountKind === "PROVIDER"
                 ? "Мои данные"
                 : "Профиль"
-              : "Заявки"}
+              : "Лента заявок"}
         </Typography>
       ) : null}
       <CabinetNotices welcome="Аккаунт создан. Здесь будут ваши заявки." />

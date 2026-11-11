@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
-import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
@@ -13,7 +12,6 @@ import PeopleOutlineOutlinedIcon from "@mui/icons-material/PeopleOutlineOutlined
 import Groups2OutlinedIcon from "@mui/icons-material/Groups2Outlined";
 import FormatListBulletedOutlinedIcon from "@mui/icons-material/FormatListBulletedOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
-import AutoStoriesOutlinedIcon from "@mui/icons-material/AutoStoriesOutlined";
 import DataSaverOnIcon from "@mui/icons-material/DataSaverOn";
 
 export type CabinetRole = "customer" | "provider";
@@ -53,7 +51,7 @@ export const CUSTOMER_NAV: {
       key: "requests",
       label: "Заявки",
       href: "/profile?section=requests",
-      icon: <AssignmentTurnedInOutlinedIcon />,
+      icon: <DynamicFeedOutlinedIcon />,
       isActive: ({ pathname, searchParams }) =>
         pathname.startsWith("/profile/requests/") ||
         (pathname === "/profile" &&
@@ -72,9 +70,9 @@ export const CUSTOMER_NAV: {
     },
     {
       key: "stories",
-      label: "История",
+      label: "Сторисы",
       href: "/profile?section=stories",
-      icon: <AutoStoriesOutlinedIcon />,
+      icon: <DataSaverOnIcon />,
       isActive: ({ pathname, searchParams }) =>
         pathname === "/profile" &&
         isProfileSection(searchParams, "stories"),
@@ -94,7 +92,7 @@ export const CUSTOMER_NAV: {
       key: "requests",
       label: "Заявки",
       href: "/profile?section=requests",
-      icon: <AssignmentTurnedInOutlinedIcon />,
+      icon: <DynamicFeedOutlinedIcon />,
       isActive: ({ pathname, searchParams }) =>
         pathname.startsWith("/profile/requests/") ||
         (pathname === "/profile" &&
@@ -115,7 +113,7 @@ export const CUSTOMER_NAV: {
       key: "requests",
       label: "Заявки",
       href: "/profile?section=requests",
-      icon: <AssignmentTurnedInOutlinedIcon />,
+      icon: <DynamicFeedOutlinedIcon />,
       isActive: ({ pathname, searchParams }) =>
         pathname.startsWith("/profile/requests/") ||
         (pathname === "/profile" &&
@@ -153,9 +151,9 @@ export const CUSTOMER_NAV: {
     },
     {
       key: "stories",
-      label: "История",
+      label: "Сторисы",
       href: "/profile?section=stories",
-      icon: <AutoStoriesOutlinedIcon />,
+      icon: <DataSaverOnIcon />,
       isActive: ({ pathname, searchParams }) =>
         pathname === "/profile" &&
         isProfileSection(searchParams, "stories"),
@@ -165,7 +163,7 @@ export const CUSTOMER_NAV: {
 
 const providerFeed: CabinetNavItem = {
   key: "feed",
-  label: "Лента",
+  label: "Лента заявок",
   href: "/pro/requests/feed",
   icon: <DynamicFeedOutlinedIcon />,
   isActive: ({ pathname }) => pathname === "/pro/requests/feed",

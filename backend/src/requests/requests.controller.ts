@@ -197,6 +197,12 @@ export class RequestsController {
     return this.requests.listMine(userId);
   }
 
+  @Get('requests/mine/with-documents')
+  async listMineWithDocuments(@Req() request: Request) {
+    const userId = this.requests.getRequiredActorUserId(request);
+    return this.requests.listMineWithDocuments(userId);
+  }
+
   @Get('requests/mine/:id')
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse({ type: RequestCustomerDto })

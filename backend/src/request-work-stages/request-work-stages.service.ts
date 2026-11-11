@@ -8,6 +8,7 @@ import {
 import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import type { RequestStatus } from '@prisma/client';
+import { READABLE_REQUEST_STATUSES } from './readable-request-statuses';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { DocumentStorageService } from '../storage/document-storage.service';
@@ -71,15 +72,6 @@ function decodePossiblyMisencodedFileName(value: string) {
   if (looksLikeMojibake && decodedCyrillic > originalCyrillic) return decoded;
   return value;
 }
-
-const READABLE_REQUEST_STATUSES = new Set([
-  'ACTIVE',
-  'ACCEPTANCE_PENDING',
-  'ACCEPTED',
-  'COMPLETED',
-  'CANCELLED',
-  'CLOSED',
-]);
 
 const ACTIVE_STATUS_USAGE: RequestStatus[] = ['ACTIVE', 'ACCEPTANCE_PENDING'];
 

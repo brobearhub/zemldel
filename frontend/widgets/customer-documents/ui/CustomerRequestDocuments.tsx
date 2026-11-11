@@ -89,6 +89,15 @@ function DocumentRow({ item, requestId }: { item: CustomerDocumentItem; requestI
         sx={{
           flexShrink: 0,
           alignSelf: { xs: "flex-start", sm: "center" },
+          ...(item.href && {
+            color: "text.primary",
+            minHeight: 0,
+            padding: "4px 12px",
+            "&:hover": {
+              bgcolor: "primary.main",
+              color: "primary.contrastText",
+            },
+          }),
         }}
       >
         {item.href ? "Скачать" : "Перейти к загрузке"}
@@ -187,6 +196,9 @@ function RequestGroup({ request }: { request: RequestCustomerDto }) {
             label={getRequestStatusLabel(request.status)}
             sx={{
               display: { xs: "none", sm: "inline-flex" },
+              "& .MuiChip-label": {
+                px: 1.5,
+              },
             }}
           />
         </Stack>
@@ -256,6 +268,37 @@ type Props = {
 };
 
 export function CustomerRequestDocuments({ requests, loading, error, onRetry }: Props) {
+  const [documentIds, setDocumentIds] = useState<Set<string> | null>(null);
+  const [documentError, setDocumentError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    if (loading || error || requests.length === 0) return;
+    const controller = new AbortController();
+    setDocumentIds(null);
+    setDocumentError(false);
+    void (async () => {
+      try {
+        const response = await fetch("/api/requests/with-documents", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const payload: unknown = await response.json();
+        if (!response.ok || !Array.isArray(payload) || !payload.every((id) => typeof id === "string")) {
+          throw new Error("Не удалось загрузить документы");
+        }
+        if (!controller.signal.aborted) setDocumentIds(new Set(payload));
+      } catch {
+        if (!controller.signal.aborted) setDocumentError(true);
+      }
+    })();
+    return () => controller.abort();
+  }, [requests, loading, error, attempt]);
+
+  const visibleRequests = documentIds
+    ? requests.filter((request) => documentIds.has(request.id))
+    : [];
+
   return (
     <Paper
       component="section"
@@ -293,14 +336,23 @@ export function CustomerRequestDocuments({ requests, loading, error, onRetry }: 
           >
             {error}
           </Alert>
-        ) : requests.length === 0 ? (
+        ) : requests.length > 0 && documentError ? (
+          <Alert
+            severity="error"
+            action={<Button onClick={() => setAttempt((value) => value + 1)}>Повторить</Button>}
+          >
+            Не удалось загрузить документы по заявкам. Попробуйте ещё раз.
+          </Alert>
+        ) : requests.length > 0 && documentIds === null ? (
+          <Skeleton height={72} />
+        ) : visibleRequests.length === 0 ? (
           <Typography
             sx={{
               color: "text.secondary",
               py: 2,
             }}
           >
-            У вас пока нет заявок. Документы появятся здесь после их добавления в заявку.
+            Документов по заявкам пока нет. Они появятся здесь после добавления в заявку.
           </Typography>
         ) : (
           <>
@@ -310,9 +362,9 @@ export function CustomerRequestDocuments({ requests, loading, error, onRetry }: 
                 color: "text.secondary",
               }}
             >
-              {requests.length} {pluralRu(requests.length, ["заявка", "заявки", "заявок"])}
+              {visibleRequests.length} {pluralRu(visibleRequests.length, ["заявка", "заявки", "заявок"])}
             </Typography>
-            {requests.map((request) => (
+            {visibleRequests.map((request) => (
               <RequestGroup
                 key={request.id}
                 request={request}

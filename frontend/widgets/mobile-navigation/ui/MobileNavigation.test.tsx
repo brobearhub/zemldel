@@ -155,7 +155,7 @@ describe("Единое мобильное меню", () => {
     expect(
       within(menu).queryByRole("link", { name: "Мой профиль" }),
     ).not.toBeInTheDocument();
-    await user.click(within(menu).getByRole("link", { name: "Лента" }));
+    await user.click(within(menu).getByRole("link", { name: "Лента заявок" }));
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
@@ -226,12 +226,15 @@ describe("Единое мобильное меню", () => {
       "href",
       "/profile?section=requests",
     );
+    expect(
+      within(screen.getByRole("link", { name: "Сторисы" })).getByTestId("DataSaverOnIcon"),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Чаты" })).toHaveAttribute(
       "href",
       "/profile/chats",
     );
     expect(
-      screen.queryByRole("link", { name: "Лента" }),
+      screen.queryByRole("link", { name: "Лента заявок" }),
     ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Свернуть меню" }),

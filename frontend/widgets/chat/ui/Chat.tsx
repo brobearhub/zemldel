@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { MessengerComposer } from "./MessengerComposer";
 import ReplyOutlinedIcon from "@mui/icons-material/ReplyOutlined";
 import CloseIcon from "@mui/icons-material/Close";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutlined";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import {
+  Avatar,
   Box,
   Button,
   CircularProgress,
@@ -98,7 +99,7 @@ function ReplyPreviewBlock({
           color: isOnColor ? "inherit" : "text.secondary",
           opacity: 1,
           whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
+          overflowWrap: "anywhere",
         }}
       >
         {snippet}
@@ -107,130 +108,176 @@ function ReplyPreviewBlock({
   );
 }
 
-function MessageBubble({
-  message,
+function MessageRowFrame({
+  senderLabel,
   mine,
+  createdAt,
   onReply,
-  readOnly,
-  messenger = false,
+  children,
 }: {
-  message: ChatMessageDto;
+  senderLabel: string;
   mine: boolean;
-  onReply: () => void;
-  readOnly?: boolean;
-  messenger?: boolean;
+  createdAt?: string;
+  onReply?: () => void;
+  children: ReactNode;
 }) {
-  const align = mine ? "flex-end" : "flex-start";
+  const initials = senderLabel
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toLocaleUpperCase("ru-RU");
 
   return (
     <Box
       sx={{
-        alignSelf: align,
-        display: "inline-flex",
-        flexDirection: "column",
-        maxWidth: messenger
-          ? {
-              xs: "88%",
-              tablet: "min(88%, 560px)",
-            }
-          : "min(100%, 560px)",
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 1,
+        minWidth: 0,
+        width: "100%",
+        py: 0.5,
       }}
     >
-      <Paper
-        elevation={0}
-        sx={(theme) => {
-          const isDark = theme.palette.mode === "dark";
-          const bg = messenger
-            ? mine
-              ? alpha(theme.palette.primary.main, isDark ? 0.22 : 0.1)
-              : theme.palette.background.paper
-            : mine
-              ? alpha(theme.palette.primary.main, isDark ? 0.22 : 0.1)
-              : theme.palette.primary.main;
-          const borderColor = mine
-            ? alpha(theme.palette.primary.main, isDark ? 0.28 : 0.18)
-            : alpha(theme.palette.primary.main, isDark ? 0.22 : 0.16);
-          const textColor = messenger
-            ? theme.palette.text.primary
-            : mine
-              ? theme.palette.text.primary
-              : theme.palette.primary.contrastText;
-
-          return {
-            px: 1.5,
-            py: 1,
-            bgcolor: bg,
-            color: textColor,
-            border: `1px solid ${borderColor}`,
-            borderTopLeftRadius: 14,
-            borderTopRightRadius: 14,
-            ...(mine
-              ? {
-                  borderBottomLeftRadius: 14,
-                  borderBottomRightRadius: 6,
-                }
-              : {
-                  borderBottomLeftRadius: 6,
-                  borderBottomRightRadius: 14,
-                }),
-          };
+      <Avatar
+        aria-hidden="true"
+        sx={(theme) => ({
+          width: 36,
+          height: 36,
+          flexShrink: 0,
+          fontSize: "0.75rem",
+          fontWeight: 700,
+          bgcolor: alpha(theme.palette.primary.main, mine ? 0.18 : 0.1),
+          color: "primary.main",
+        })}
+      >
+        {initials}
+      </Avatar>
+      <Box
+        sx={{
+          flex: 1,
+          minWidth: 0,
         }}
       >
-        {message.repliedTo ? (
-          <ReplyPreviewBlock
-            senderLabel={message.repliedTo.senderName ?? "Участник"}
-            snippet={message.repliedTo.bodySnippet}
-            tone={mine ? "default" : "onColor"}
-          />
-        ) : null}
-        <Typography
-          variant="body2"
-          sx={{
-            whiteSpace: "pre-wrap",
-            overflowWrap: "anywhere",
-            fontSize: messenger ? "0.9375rem" : undefined,
-            lineHeight: messenger ? 1.5 : undefined,
-          }}
-        >
-          {message.body}
-        </Typography>
         <Stack
           direction="row"
           spacing={1}
+          useFlexGap
           sx={{
+            alignItems: "baseline",
             justifyContent: "space-between",
-            alignItems: "center",
-            mt: 0.75,
           }}
         >
           <Typography
-            variant="caption"
+            variant="subtitle2"
             sx={{
-              fontSize: messenger ? "0.75rem" : undefined,
-              color: messenger ? "text.secondary" : undefined,
+              minWidth: 0,
+              fontWeight: 700,
+              fontSize: "0.875rem",
+              color: "primary.main",
+              overflowWrap: "anywhere",
             }}
           >
-            {!messenger ? `${message.senderName ?? "Без имени"} · ` : null}
-            {new Intl.DateTimeFormat("ru-RU", {
-              hour: "2-digit",
-              minute: "2-digit",
-            }).format(new Date(message.createdAt))}
+            {senderLabel}
           </Typography>
-          {!readOnly ? (
+          {createdAt ? (
+            <Typography
+              component="time"
+              dateTime={createdAt}
+              variant="caption"
+              sx={{
+                flexShrink: 0,
+                color: "text.secondary",
+                whiteSpace: "nowrap",
+                fontSize: "0.75rem",
+              }}
+            >
+              {new Intl.DateTimeFormat("ru-RU", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }).format(new Date(createdAt))}
+            </Typography>
+          ) : null}
+        </Stack>
+        <Stack
+          direction="row"
+          spacing={0.5}
+          useFlexGap
+          sx={{
+            alignItems: "flex-start",
+          }}
+        >
+          <Box
+            sx={{
+              flex: 1,
+              minWidth: 0,
+            }}
+          >
+            {children}
+          </Box>
+          {onReply ? (
             <IconButton
               size="small"
               onClick={onReply}
               aria-label="Ответить"
               sx={{
-                color: "inherit",
+                flexShrink: 0,
+                alignSelf: "flex-end",
+                color: "primary.main",
+                p: 0.5,
+                width: 28,
+                height: 28,
+                minWidth: 28,
+                minHeight: 28,
               }}
             >
-              <ReplyOutlinedIcon fontSize="inherit" />
+              <ReplyOutlinedIcon fontSize="small" />
             </IconButton>
           ) : null}
         </Stack>
-      </Paper>
+      </Box>
     </Box>
+  );
+}
+
+function MessageRow({
+  message,
+  mine,
+  onReply,
+  readOnly,
+}: {
+  message: ChatMessageDto;
+  mine: boolean;
+  onReply: () => void;
+  readOnly?: boolean;
+}) {
+  return (
+    <MessageRowFrame
+      senderLabel={message.senderName?.trim() || (mine ? "Вы" : "Без имени")}
+      mine={mine}
+      createdAt={message.createdAt}
+      onReply={readOnly ? undefined : onReply}
+    >
+      {message.repliedTo ? (
+        <ReplyPreviewBlock
+          senderLabel={message.repliedTo.senderName ?? "Участник"}
+          snippet={message.repliedTo.bodySnippet}
+        />
+      ) : null}
+      <Typography
+        variant="body2"
+        sx={{
+          whiteSpace: "pre-wrap",
+          overflowWrap: "anywhere",
+          color: "text.primary",
+          fontSize: "0.9375rem",
+          lineHeight: 1.5,
+        }}
+      >
+        {message.body}
+      </Typography>
+    </MessageRowFrame>
   );
 }
 
@@ -454,11 +501,10 @@ export function Chat({
                     />
                   </Box>
                 ) : null}
-                <MessageBubble
+                <MessageRow
                   message={row.message}
                   mine={mine}
                   readOnly={readOnly}
-                  messenger={messenger}
                   onReply={() => onReplyToMessage(row.message)}
                 />
               </Box>
@@ -466,101 +512,10 @@ export function Chat({
           }
           if (row.kind === "pending") {
             return (
-              <Box
+              <MessageRowFrame
                 key={`p-${row.clientMessageId}`}
-                sx={{
-                  alignSelf: "flex-end",
-                  display: "inline-flex",
-                  flexDirection: "column",
-                  maxWidth: "min(100%, 560px)",
-                }}
-              >
-                <Paper
-                  variant="outlined"
-                  sx={(theme) => ({
-                    px: 1.5,
-                    py: 1,
-                    borderStyle: "dashed",
-                    borderTopLeftRadius: 14,
-                    borderTopRightRadius: 14,
-                    borderBottomLeftRadius: 14,
-                    borderBottomRightRadius: 6,
-                    bgcolor: alpha(
-                      theme.palette.primary.main,
-                      theme.palette.mode === "dark" ? 0.12 : 0.06,
-                    ),
-                    borderColor: alpha(
-                      theme.palette.primary.main,
-                      theme.palette.mode === "dark" ? 0.22 : 0.16,
-                    ),
-                  })}
-                >
-                  {row.replyToPreview ? (
-                    <ReplyPreviewBlock
-                      senderLabel={row.replyToPreview.senderLabel}
-                      snippet={row.replyToPreview.snippet}
-                    />
-                  ) : null}
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      color: "text.secondary",
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    {row.body}
-                  </Typography>
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    sx={{
-                      alignItems: "center",
-                      mt: 1,
-                    }}
-                  >
-                    <CircularProgress size={16} />
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: "text.secondary",
-                      }}
-                    >
-                      Отправка…
-                    </Typography>
-                  </Stack>
-                </Paper>
-              </Box>
-            );
-          }
-          return (
-            <Box
-              key={`f-${row.clientMessageId}`}
-              sx={{
-                alignSelf: "flex-end",
-                display: "inline-flex",
-                flexDirection: "column",
-                maxWidth: "min(100%, 560px)",
-              }}
-            >
-              <Paper
-                variant="outlined"
-                sx={(theme) => ({
-                  px: 1.5,
-                  py: 1,
-                  borderColor: alpha(
-                    theme.palette.error.main,
-                    theme.palette.mode === "dark" ? 0.45 : 0.35,
-                  ),
-                  bgcolor: alpha(
-                    theme.palette.error.main,
-                    theme.palette.mode === "dark" ? 0.12 : 0.06,
-                  ),
-                  borderTopLeftRadius: 14,
-                  borderTopRightRadius: 14,
-                  borderBottomLeftRadius: 14,
-                  borderBottomRightRadius: 6,
-                })}
+                senderLabel="Вы"
+                mine
               >
                 {row.replyToPreview ? (
                   <ReplyPreviewBlock
@@ -571,8 +526,9 @@ export function Chat({
                 <Typography
                   variant="body2"
                   sx={{
+                    color: "text.secondary",
                     whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {row.body}
@@ -580,36 +536,77 @@ export function Chat({
                 <Stack
                   direction="row"
                   spacing={1}
-                  useFlexGap
                   sx={{
                     alignItems: "center",
-                    flexWrap: "wrap",
                     mt: 1,
                   }}
                 >
-                  <ErrorOutlineIcon
-                    color="error"
-                    fontSize="small"
-                  />
+                  <CircularProgress size={16} />
                   <Typography
                     variant="caption"
-                    color="error"
+                    sx={{
+                      color: "text.secondary",
+                    }}
                   >
-                    {row.error ?? "Не удалось отправить"}
+                    Отправка…
                   </Typography>
-                  {row.retryable !== false ? (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      color="inherit"
-                      onClick={() => onRetry(row.clientMessageId)}
-                    >
-                      Повторить
-                    </Button>
-                  ) : null}
                 </Stack>
-              </Paper>
-            </Box>
+              </MessageRowFrame>
+            );
+          }
+          return (
+            <MessageRowFrame
+              key={`f-${row.clientMessageId}`}
+              senderLabel="Вы"
+              mine
+            >
+              {row.replyToPreview ? (
+                <ReplyPreviewBlock
+                  senderLabel={row.replyToPreview.senderLabel}
+                  snippet={row.replyToPreview.snippet}
+                />
+              ) : null}
+              <Typography
+                variant="body2"
+                sx={{
+                  whiteSpace: "pre-wrap",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {row.body}
+              </Typography>
+              <Stack
+                direction="row"
+                spacing={1}
+                useFlexGap
+                sx={{
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  mt: 1,
+                }}
+              >
+                <ErrorOutlineIcon
+                  color="error"
+                  fontSize="small"
+                />
+                <Typography
+                  variant="caption"
+                  color="error"
+                >
+                  {row.error ?? "Не удалось отправить"}
+                </Typography>
+                {row.retryable !== false ? (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="inherit"
+                    onClick={() => onRetry(row.clientMessageId)}
+                  >
+                    Повторить
+                  </Button>
+                ) : null}
+              </Stack>
+            </MessageRowFrame>
           );
         })}
       </Box>
@@ -696,7 +693,7 @@ export function Chat({
                     sx={{
                       color: "text.secondary",
                       display: "block",
-                      wordBreak: "break-word",
+                      overflowWrap: "anywhere",
                     }}
                   >
                     {pendingReply.bodySnippet}

@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Alert, Button, Paper, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
 import {
   clearPendingRequestDraft,
   buildRequestAuthHref,
   readPendingRequestDraft,
   formatReplyPreview,
   type RequestCustomerDto,
+  type RequestStatus,
 } from "@/entities/request";
 import {
   PendingRequestAuthRequiredError,
@@ -18,7 +19,8 @@ import {
 import { deleteCustomerRequest } from "@/entities/request/api/customer-requests";
 import { useConfirm } from "@/shared/ui/confirm";
 import { CustomerRequestReplyDialog } from "./CustomerRequestReplyDialog";
-import { CustomerRequestsBoard } from "./CustomerRequestsBoard";
+import { CustomerRequestsFeed } from "./CustomerRequestsFeed";
+import { CUSTOMER_REQUEST_BOARD_COLUMNS } from "../lib/customer-request-board";
 
 type Props = {
   autoResumeEnabled?: boolean;
@@ -42,6 +44,14 @@ export function CustomerRequestsSection({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [replyItem, setReplyItem] = useState<RequestCustomerDto | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<RequestStatus | null>(null);
+
+  const availableStatuses = CUSTOMER_REQUEST_BOARD_COLUMNS.filter((column) =>
+    items.some((item) => item.status === column.status),
+  );
+  const visibleItems = selectedStatus
+    ? items.filter((item) => item.status === selectedStatus)
+    : items;
 
   async function load(signal?: AbortSignal) {
     setError(null);
@@ -78,6 +88,16 @@ export function CustomerRequestsSection({
     void load(controller.signal);
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (
+      !loading &&
+      selectedStatus &&
+      !items.some((item) => item.status === selectedStatus)
+    ) {
+      setSelectedStatus(null);
+    }
+  }, [items, loading, selectedStatus]);
 
   useEffect(() => {
     if (!autoResumeEnabled) return;
@@ -129,11 +149,6 @@ export function CustomerRequestsSection({
     }
   }
 
-  function openRequest(item: RequestCustomerDto) {
-    if (item.status === "CLOSED") return;
-    router.push(`/profile/requests/${item.id}`);
-  }
-
   async function deleteRequest(item: RequestCustomerDto) {
     const confirmed = await confirm({
       title: "Удалить заявку?",
@@ -181,6 +196,42 @@ export function CustomerRequestsSection({
           Обновить
         </Button>
       </Stack>
+
+      {items.length > 0 ? (
+        <Box
+          role="group"
+          aria-label="Фильтр заявок по статусу"
+          sx={{
+            display: "flex",
+            gap: 1,
+            overflowX: "auto",
+            maxWidth: "100%",
+            pb: 0.5,
+          }}
+        >
+          <Chip
+            label="Все"
+            clickable
+            aria-pressed={selectedStatus === null}
+            onClick={() => setSelectedStatus(null)}
+            variant={selectedStatus === null ? "filled" : "outlined"}
+            color={selectedStatus === null ? "primary" : "default"}
+            sx={{ flexShrink: 0, minHeight: 36 }}
+          />
+          {availableStatuses.map(({ status, label }) => (
+            <Chip
+              key={status}
+              label={label}
+              clickable
+              aria-pressed={selectedStatus === status}
+              onClick={() => setSelectedStatus(status)}
+              variant={selectedStatus === status ? "filled" : "outlined"}
+              color={selectedStatus === status ? "primary" : "default"}
+              sx={{ flexShrink: 0, minHeight: 36 }}
+            />
+          ))}
+        </Box>
+      ) : null}
 
       {resuming ? (
         <Alert severity="info" role="status">
@@ -239,11 +290,10 @@ export function CustomerRequestsSection({
           </Button>
         </Paper>
       ) : (
-        <CustomerRequestsBoard
-          items={items}
+        <CustomerRequestsFeed
+          items={visibleItems}
           deletingId={deletingId}
           sendingId={sendingId}
-          onOpen={openRequest}
           onDelete={(item) => void deleteRequest(item)}
           onReply={setReplyItem}
         />
