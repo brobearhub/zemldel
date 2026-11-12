@@ -245,24 +245,20 @@ describe("Единое мобильное меню", () => {
     expect(
       screen.queryByRole("link", { name: "Мои заявки" }),
     ).not.toBeInTheDocument();
-    await user.click(
-      screen.getByRole("button", { name: "Настройки: Иван Иванов" }),
-    );
-    const settings = screen.getByRole("dialog", { name: "Настройки" });
+    const menu = screen.getByRole("dialog", { name: "Иван Иванов" });
+    const cabinet = within(menu).getByRole("list", { name: "Личный кабинет" });
     expect(
-      within(settings).getByRole("link", { name: "Мои данные" }),
+      within(cabinet).getByRole("link", { name: "Мой профиль" }),
     ).toHaveAttribute("href", "/profile?section=profile");
+    expect(within(menu).queryByRole("list", { name: "Мой профиль" })).not.toBeInTheDocument();
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
     expect(
-      within(settings).getByRole("region", { name: "Настройки" }),
-    ).toBeInTheDocument();
-    expect(
-      within(settings).queryByRole("link", { name: "Профиль исполнителя" }),
+      within(menu).queryByRole("region", { name: "Настройки" }),
     ).not.toBeInTheDocument();
-    await user.click(
-      within(settings).getByRole("button", { name: "Назад в меню" }),
-    );
-    expect(screen.getByRole("link", { name: "Заявки" })).toBeInTheDocument();
+    expect(
+      within(menu).queryByRole("link", { name: "Профиль исполнителя" }),
+    ).not.toBeInTheDocument();
+    expect(within(menu).getAllByRole("link", { name: "Профиль: Иван Иванов" })).toHaveLength(2);
   });
 
   it("даёт гостю вход и регистрацию без разделов исполнителя", async () => {
@@ -360,8 +356,11 @@ describe("Общий десктопный сайдбар", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Доска" })).toBeInTheDocument();
   });
-  it("использует клиентские ссылки и настройки для клиента", async () => {
+  it("показывает настройки клиента в основном меню и ведёт из блока аватара в профиль", async () => {
     const user = setup("CUSTOMER", true);
+    const sidebar = screen.getByRole("complementary", {
+      name: "Разделы кабинета клиента",
+    });
     expect(screen.getByRole("link", { name: "Чаты" })).toHaveAttribute(
       "href",
       "/profile/chats",
@@ -373,34 +372,53 @@ describe("Общий десктопный сайдбар", () => {
     expect(
       screen.queryByRole("link", { name: "Клиенты" }),
     ).not.toBeInTheDocument();
-    await user.click(
-      screen.getByRole("button", { name: "Настройки: Иван Иванов" }),
-    );
-    const sidebar = screen.getByRole("complementary", {
-      name: "Разделы кабинета клиента",
-    });
-    const settings = within(sidebar).getByRole("region", { name: "Настройки" });
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(
-      within(settings).getByRole("link", { name: "Мои данные" }),
+      within(within(sidebar).getByRole("list", { name: "Личный кабинет" })).getByRole("link", { name: "Мой профиль" }),
     ).toHaveAttribute("href", "/profile?section=profile");
     expect(
-      within(settings).queryByRole("link", { name: "Тариф" }),
+      within(sidebar).queryByRole("link", { name: "Вход и безопасность" }),
     ).not.toBeInTheDocument();
-    await user.click(
-      within(sidebar).getByRole("button", { name: "Назад в меню" }),
-    );
+    expect(within(sidebar).queryByRole("list", { name: "Мой профиль" })).not.toBeInTheDocument();
+    expect(
+      within(sidebar).queryByRole("link", { name: "Тариф" }),
+    ).not.toBeInTheDocument();
+    expect(within(sidebar).queryByRole("region", { name: "Настройки" })).not.toBeInTheDocument();
+    expect(within(sidebar).getAllByRole("link", { name: "Профиль: Иван Иванов" })).toHaveLength(2);
+    for (const link of within(sidebar).getAllByRole("link", { name: "Профиль: Иван Иванов" })) {
+      expect(link).toHaveAttribute("href", "/profile?section=profile");
+    }
+    const themeChoices = within(sidebar).getByRole("group", {
+      name: "Тема оформления",
+    });
+    expect(getComputedStyle(themeChoices).flexDirection).toBe("row");
+    expect(
+      within(themeChoices)
+        .getAllByRole("button")
+        .map((button) => button.getAttribute("aria-label")),
+    ).toEqual(["Светлая", "Тёмная", "Системная"]);
+    await user.click(within(themeChoices).getByRole("button", { name: "Тёмная" }));
+    expect(
+      within(themeChoices).getByRole("button", { name: "Тёмная" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(within(sidebar).getByRole("button", { name: "Выйти" })).toBeInTheDocument();
     expect(
       within(sidebar).getByRole("link", { name: "Заявки" }),
     ).toBeInTheDocument();
   });
+
+  it("закрывает мобильное меню клиента при переходе из блока профиля", async () => {
+    const user = setup("CUSTOMER");
+    await user.click(screen.getByRole("button", { name: "Открыть меню" }));
+    const menu = screen.getByRole("dialog");
+    expect(within(menu).getByRole("link", { name: "Мой профиль" })).toHaveAttribute("href", "/profile?section=profile");
+    await user.click(within(menu).getAllByRole("link", { name: "Профиль: Иван Иванов" })[0]);
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
 });
 
 describe("Закреплённая панель профиля", () => {
-  it.each(["PROVIDER", "CUSTOMER"] as const)(
-    "%s сохраняет аватар и показывает название настроек со стрелкой внизу",
-    async (kind) => {
-      const user = setup(kind, true);
+  it("сохраняет аватар исполнителя и показывает название настроек со стрелкой внизу", async () => {
+      const user = setup("PROVIDER", true);
       const avatar = screen.getByRole("button", { name: "Настройки" });
       await user.click(avatar);
       const footer = screen.getByRole("group", { name: "Панель настроек" });
@@ -416,15 +434,9 @@ describe("Закреплённая панель профиля", () => {
         within(footer).getByRole("heading", { name: "Настройки" }),
       ).toBeInTheDocument();
       const settings = screen.getByRole("region", { name: "Настройки" });
-      if (kind === "PROVIDER") {
-        expect(
-          within(settings).getByRole("heading", { name: "Настройки" }),
-        ).toBeInTheDocument();
-      } else {
-        expect(
-          within(settings).queryByRole("heading", { name: "Настройки" }),
-        ).not.toBeInTheDocument();
-      }
+      expect(
+        within(settings).getByRole("heading", { name: "Настройки" }),
+      ).toBeInTheDocument();
       expect(
         within(settings).getByRole("link", { name: "Мои данные" }),
       ).toBeInTheDocument();
@@ -438,6 +450,5 @@ describe("Закреплённая панель профиля", () => {
         screen.queryByRole("region", { name: "Настройки" }),
       ).not.toBeInTheDocument();
       expect(avatar).toHaveFocus();
-    },
-  );
+    });
 });

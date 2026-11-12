@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { signOut } from "next-auth/react";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   Box,
@@ -10,6 +11,8 @@ import {
   ListItemIcon,
   ListItemText,
   Tooltip,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import AddRounded from "@mui/icons-material/AddRounded";
@@ -19,6 +22,14 @@ import ChatOutlined from "@mui/icons-material/ChatOutlined";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import AdminPanelSettingsOutlined from "@mui/icons-material/AdminPanelSettingsOutlined";
 import AssignmentOutlined from "@mui/icons-material/AssignmentOutlined";
+import LightModeOutlined from "@mui/icons-material/LightModeOutlined";
+import DarkModeOutlined from "@mui/icons-material/DarkModeOutlined";
+import SettingsBrightnessOutlined from "@mui/icons-material/SettingsBrightnessOutlined";
+import LogoutRounded from "@mui/icons-material/LogoutRounded";
+import {
+  useColorMode,
+  type ColorPreference,
+} from "@/core/theme/ColorModeContext";
 import { resolveAccountKind } from "@/core/auth/authorization";
 import { useAppSelector } from "@/core/store/hooks";
 import { UnreadCountBadge } from "@/shared/ui/UnreadCountBadge";
@@ -47,6 +58,7 @@ export function CabinetNavigationPanel({
   const pathname = usePathname();
   const query = useSearchParams()?.toString() ?? "";
   const { status, user } = useAppSelector((state) => state.auth);
+  const { preference, setPreference } = useColorMode();
   const authenticated = status === "authenticated";
   const { unreadByRequestId } = useChatSocket();
   const unreadTotal = Object.values(unreadByRequestId).reduce(
@@ -87,7 +99,9 @@ export function CabinetNavigationPanel({
           borderRadius: "14px",
           mb: 0.25,
           color: "text.primary",
-          "&.Mui-selected": { bgcolor: "action.selected" },
+          "&.Mui-selected": {
+            bgcolor: "action.selected",
+          },
         }}
       >
         <ListItemIcon
@@ -110,6 +124,55 @@ export function CabinetNavigationPanel({
               primary: {
                 noWrap: true,
                 sx: { fontSize: "1rem", fontWeight: selected ? 700 : 500 },
+              },
+            }}
+          />
+        )}
+      </ListItemButton>
+    </Tooltip>
+  );
+  const actionRow = (
+    key: string,
+    label: string,
+    icon: ReactNode,
+    onClick: () => void,
+    selected = false,
+  ) => (
+    <Tooltip key={key} title={collapsed ? label : ""} placement="right">
+      <ListItemButton
+        onClick={onClick}
+        selected={selected}
+        aria-label={label}
+        aria-pressed={key.startsWith("theme-") ? selected : undefined}
+        sx={{
+          minHeight: 50,
+          px: 1.25,
+          py: 1,
+          gap: collapsed ? 0 : 1.5,
+          justifyContent: collapsed ? "center" : "flex-start",
+          borderRadius: "14px",
+          mb: 0.25,
+          color: key === "sign-out" ? "error.main" : "text.primary",
+          "&.Mui-selected": { bgcolor: "action.selected" },
+        }}
+      >
+        <ListItemIcon
+          sx={{
+            minWidth: 24,
+            color: "inherit",
+          }}
+        >
+          {icon}
+        </ListItemIcon>
+        {collapsed ? null : (
+          <ListItemText
+            primary={label}
+            slotProps={{
+              primary: {
+                sx: {
+                  fontSize: "1rem",
+                  fontWeight: selected ? 700 : 500,
+                },
               },
             }}
           />
@@ -249,19 +312,110 @@ export function CabinetNavigationPanel({
             )}
           </>
         ) : authenticated ? (
-          group(
-            "Личный кабинет",
-            CUSTOMER_NAV.desktop
-              .filter((item) => item.key !== "profile" && item.key !== "chat")
-              .map((item) =>
-                row(
-                  item.href,
-                  item.label,
-                  item.icon,
-                  item.isActive(routeContext),
+          <>
+            {group(
+              "Личный кабинет",
+              CUSTOMER_NAV.desktop
+                .filter((item) => item.key !== "chat")
+                .map((item) =>
+                  row(
+                    item.href,
+                    item.key === "profile" ? "Мой профиль" : item.label,
+                    item.icon,
+                    item.isActive(routeContext),
+                  ),
                 ),
-              ),
-          )
+            )}
+            {group(
+              "Внешний вид",
+              <Box
+                component="li"
+                sx={{
+                  display: "block",
+                  px: collapsed ? 0 : 0.5,
+                  listStyle: "none",
+                }}
+              >
+                <ToggleButtonGroup
+                  exclusive
+                  value={preference}
+                  onChange={(_, value: ColorPreference | null) => {
+                    if (value) setPreference(value);
+                  }}
+                  role="group"
+                  aria-label="Тема оформления"
+                  sx={{
+                    display: "flex",
+                    flexDirection: collapsed ? "column" : "row",
+                    alignItems: "center",
+                    gap: 0.5,
+                    width: "100%",
+                    "& .MuiToggleButtonGroup-grouped": {
+                      m: 0,
+                      border: 0,
+                      borderRadius: "12px !important",
+                    },
+                  }}
+                >
+                  {([
+                    {
+                      value: "light",
+                      label: "Светлая",
+                      icon: <LightModeOutlined />,
+                    },
+                    {
+                      value: "dark",
+                      label: "Тёмная",
+                      icon: <DarkModeOutlined />,
+                    },
+                    {
+                      value: "system",
+                      label: "Системная",
+                      icon: <SettingsBrightnessOutlined />,
+                    },
+                  ] as const).map(({ value, label, icon }) => (
+                    <Tooltip
+                      key={value}
+                      title={collapsed ? label : ""}
+                      placement="right"
+                    >
+                      <ToggleButton
+                        value={value}
+                        aria-label={label}
+                        sx={{
+                          flex: collapsed ? "none" : 1,
+                          width: collapsed ? 48 : "auto",
+                          minWidth: 0,
+                          minHeight: collapsed ? 44 : 68,
+                          px: 0.25,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 0.5,
+                          color: "text.primary",
+                          textTransform: "none",
+                          fontSize: "0.75rem",
+                          lineHeight: 1.2,
+                          "&.Mui-selected": {
+                            bgcolor: "action.selected",
+                            color: "text.primary",
+                          },
+                        }}
+                      >
+                        {icon}
+                        {collapsed ? null : label}
+                      </ToggleButton>
+                    </Tooltip>
+                  ))}
+                </ToggleButtonGroup>
+              </Box>,
+            )}
+            <List disablePadding>
+              {actionRow("sign-out", "Выйти", <LogoutRounded />, () => {
+                close();
+                void signOut({ callbackUrl: "/" });
+              })}
+            </List>
+          </>
         ) : (
           group(
             "Вход",

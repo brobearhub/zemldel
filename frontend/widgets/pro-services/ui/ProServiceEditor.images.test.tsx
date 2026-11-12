@@ -1,7 +1,9 @@
+import { StrictMode } from "react";
 import { ThemeProvider } from "@mui/material";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createAppTheme } from "@/core/theme/createAppTheme";
+import { createSessionRecoveryFetch } from "@/core/auth/session-recovery";
 import { mainService } from "@/tests/fixtures/services";
 import { ProServiceEditor } from "./ProServiceEditor";
 
@@ -17,25 +19,32 @@ const billing = {
 const readResponse = (url: unknown) => Response.json(String(url).includes("/api/billing/") ? billing : []);
 const pictures = (count: number) => Array.from({ length: count }, (_, i) => `https://example.com/photo-${i}.png`);
 const files = (count: number) => Array.from({ length: count }, (_, i) => new File([`photo${i}`], `photo-${i}.png`, { type: "image/png" }));
-function mount(images: string[] = [], mode: "create" | "edit" = "edit") {
+function mount(
+  images: string[] = [],
+  mode: "create" | "edit" = "edit",
+  empty = false,
+  overrides: Partial<typeof mainService> = {},
+) {
   return render(
-    <ThemeProvider theme={createAppTheme("light")}>
-      <ProServiceEditor
-        mode={mode}
-        initialService={{ ...mainService, image: images[0] ?? null, images }}
-        initialProviderCity={mainService.provider.city}
-        categories={[
-          {
-            id: "root-1",
-            name: "Земельные работы",
-            slug: "zemelnye-raboty",
-            parentId: null,
-            sortOrder: 1,
-          },
-          mainService.category,
-        ]}
-      />
-    </ThemeProvider>,
+    <StrictMode>
+      <ThemeProvider theme={createAppTheme("light")}>
+        <ProServiceEditor
+          mode={mode}
+          initialService={empty ? undefined : { ...mainService, image: images[0] ?? null, images, ...overrides }}
+          initialProviderCity={mainService.provider.city}
+          categories={[
+            {
+              id: "root-1",
+              name: "Земельные работы",
+              slug: "zemelnye-raboty",
+              parentId: null,
+              sortOrder: 1,
+            },
+            mainService.category,
+          ]}
+        />
+      </ThemeProvider>
+    </StrictMode>,
   );
 }
 
@@ -47,6 +56,191 @@ describe("service photo gallery", () => {
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
   });
   afterEach(() => vi.unstubAllGlobals());
+
+  it("publishes a new service after selecting a photo and filling the empty form", async () => {
+    const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
+      if (String(url).endsWith("/image")) {
+        return Response.json({ image: pictures(1)[0], images: pictures(1) });
+      }
+      if (init?.method === "POST") {
+        return Response.json({ ...mainService, id: "created-service" });
+      }
+      return readResponse(url);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mount([], "create", true);
+    await userEvent.upload(screen.getByLabelText("Фотографии услуги"), files(1));
+    expect(screen.getByText("Обложка · Загрузится при сохранении")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("combobox", { name: /Категория/ }));
+    await userEvent.click(screen.getByRole("option", { name: new RegExp(mainService.category.name) }));
+    await userEvent.type(screen.getByRole("textbox", { name: "Цена" }), "15000");
+    await userEvent.type(screen.getByRole("textbox", { name: /Описание/ }), "Описание услуги");
+    expect(screen.getByRole("textbox", { name: "Название" })).toHaveValue(mainService.category.name);
+    expect(screen.getByRole("textbox", { name: "Цена" })).toHaveValue("15 000");
+    expect(screen.getByRole("textbox", { name: /Описание/ })).toHaveValue("Описание услуги");
+    const publish = screen.getAllByRole("button", { name: "Опубликовать" })[0];
+    expect(publish).toBeEnabled();
+    await userEvent.click(publish);
+    await waitFor(() => expect(navigation.push).toHaveBeenCalledWith("/pro/services?notice=published&serviceId=created-service"));
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(2);
+    const writes = fetchMock.mock.calls.filter(([, init]) => init?.method);
+    expect(writes.map(([url, init]) => [url, init?.method])).toEqual([
+      ["/api/pro/services", "POST"],
+      ["/api/pro/services/created-service/image", "POST"],
+      ["/api/pro/services/created-service", "PATCH"],
+    ]);
+    expect(JSON.parse(String(writes[0][1]?.body))).toMatchObject({ status: "DRAFT" });
+    expect(JSON.parse(String(writes[2][1]?.body))).toEqual({ status: "PUBLISHED" });
+  });
+
+  it("explains incomplete fields on publish without treating a selected photo as missing", async () => {
+    const fetchMock = vi.fn(async (url: unknown) => readResponse(url));
+    vi.stubGlobal("fetch", fetchMock);
+    mount([], "create", true);
+    await userEvent.upload(screen.getByLabelText("Фотографии услуги"), files(1));
+    await userEvent.type(screen.getByRole("textbox", { name: /Описание/ }), "Описание услуги");
+    const publish = screen.getAllByRole("button", { name: "Опубликовать" })[0];
+    expect(publish).toBeEnabled();
+    await userEvent.click(publish);
+    expect(screen.getByRole("alert")).toHaveTextContent("Укажите название услуги. Укажите цену. Выберите категорию.");
+    expect(screen.getByRole("alert")).not.toHaveTextContent("Добавьте фото.");
+    expect(screen.queryByText(/Для публикации:.*Добавьте фото/)).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(navigation.push).not.toHaveBeenCalled();
+    await userEvent.type(screen.getByRole("textbox", { name: "Название" }), "Межевание");
+    expect(screen.getByRole("alert")).not.toHaveTextContent("Укажите название услуги.");
+    await userEvent.type(screen.getByRole("textbox", { name: "Цена" }), "15000");
+    await userEvent.click(screen.getByRole("combobox", { name: /Категория/ }));
+    await userEvent.click(screen.getByRole("option", { name: new RegExp(mainService.category.name) }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("keeps a new service in draft on upload failure and publishes it after retry without duplicates", async () => {
+    let uploads = 0;
+    const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
+      if (String(url).endsWith("/image")) {
+        uploads++;
+        if (uploads === 1) return Response.json({ error: "Не удалось загрузить фото" }, { status: 502 });
+        return Response.json({ image: pictures(1)[0], images: pictures(1) });
+      }
+      if (init?.method) return Response.json({ ...mainService, id: "created-service" });
+      return readResponse(url);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mount([], "create");
+    await userEvent.upload(screen.getByLabelText("Фотографии услуги"), files(1));
+    await userEvent.click(screen.getAllByRole("button", { name: "Опубликовать" })[0]);
+    await screen.findByText("Не удалось загрузить фото");
+    expect(screen.getByText("Обложка · Не загружено")).toBeInTheDocument();
+    expect(navigation.push).not.toHaveBeenCalled();
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(0);
+    const creates = fetchMock.mock.calls.filter(([url]) => url === "/api/pro/services");
+    expect(creates).toHaveLength(1);
+    expect(JSON.parse(String(creates[0][1]?.body))).toMatchObject({ status: "DRAFT" });
+
+    await userEvent.click(screen.getAllByRole("button", { name: "Опубликовать" })[0]);
+    await waitFor(() => expect(navigation.push).toHaveBeenCalledWith("/pro/services?notice=published&serviceId=created-service"));
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/pro/services")).toHaveLength(1);
+    expect(uploads).toBe(2);
+    const patches = fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH");
+    expect(patches).toHaveLength(1);
+    expect(JSON.parse(String(patches[0][1]?.body))).toMatchObject({ status: "PUBLISHED", images: pictures(1) });
+  });
+
+  it("retries publication without reuploading a successfully saved photo", async () => {
+    let publications = 0;
+    const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
+      if (String(url).endsWith("/image")) {
+        return Response.json({ image: pictures(1)[0], images: pictures(1) });
+      }
+      if (init?.method === "PATCH") {
+        publications++;
+        if (publications === 1) return Response.json({ error: "Не удалось опубликовать" }, { status: 502 });
+      }
+      if (init?.method) return Response.json({ ...mainService, id: "created-service" });
+      return readResponse(url);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mount([], "create");
+    await userEvent.upload(screen.getByLabelText("Фотографии услуги"), files(1));
+    await userEvent.click(screen.getAllByRole("button", { name: "Опубликовать" })[0]);
+    await screen.findByText("Не удалось опубликовать");
+    expect(screen.getByText("Обложка")).toBeInTheDocument();
+    expect(navigation.push).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getAllByRole("button", { name: "Опубликовать" })[0]);
+    await waitFor(() => expect(navigation.push).toHaveBeenCalledWith("/pro/services?notice=published&serviceId=created-service"));
+    expect(publications).toBe(2);
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(2);
+  });
+
+  it("uses saved gallery photos for both the preview and publication when the legacy cover is empty", async () => {
+    const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
+      if (init?.method === "PATCH") return Response.json(mainService);
+      return readResponse(url);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mount(pictures(1), "edit", false, { image: null });
+    expect(screen.queryByRole("button", { name: "Загрузите фото" })).not.toBeInTheDocument();
+    expect(screen.getByAltText("Фото услуги 1")).toHaveAttribute("src", pictures(1)[0]);
+    await userEvent.click(screen.getAllByRole("button", { name: "Опубликовать" })[0]);
+    await waitFor(() => expect(navigation.push).toHaveBeenCalledWith(`/pro/services?notice=published&serviceId=${mainService.id}`));
+    const patches = fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH");
+    expect(patches).toHaveLength(1);
+    expect(JSON.parse(String(patches[0][1]?.body))).toMatchObject({ status: "PUBLISHED", images: pictures(1) });
+  });
+
+  it("recovers a 401 during photo upload without losing the file or creating another service", async () => {
+    let uploads = 0;
+    const fetchMock = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      if (String(url).endsWith("/image")) {
+        expect((init?.body as FormData).get("file")).toMatchObject({ name: "photo-0.png", size: 6 });
+        uploads++;
+        if (uploads === 1) return Response.json({ error: "Unauthorized" }, { status: 401 });
+        return Response.json({ image: pictures(1)[0], images: pictures(1) });
+      }
+      if (init?.method) return Response.json({ ...mainService, id: "created-service" });
+      return readResponse(url);
+    });
+    const getSession = vi.fn(async () => ({ user: { id: "provider-user" } }));
+    const redirect = vi.fn();
+    vi.stubGlobal("fetch", createSessionRecoveryFetch({
+      fetch: fetchMock,
+      getSession,
+      pathname: () => "/pro/services/create",
+      returnTo: () => "/pro/services/create",
+      origin: () => "http://localhost:4000",
+      redirect,
+    }));
+    mount([], "create");
+    await userEvent.upload(screen.getByLabelText("Фотографии услуги"), files(1));
+    await userEvent.click(screen.getAllByRole("button", { name: "Опубликовать" })[0]);
+    await waitFor(() => expect(navigation.push).toHaveBeenCalledWith("/pro/services?notice=published&serviceId=created-service"));
+    expect(getSession).toHaveBeenCalledTimes(1);
+    expect(redirect).not.toHaveBeenCalled();
+    expect(uploads).toBe(2);
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/pro/services")).toHaveLength(1);
+  });
+
+  it.each([
+    [401, { error: "Unauthorized" }, "Сессия завершена."],
+    [403, { error: "Forbidden" }, "Нет доступа к изменению услуги."],
+    [400, { error: "Bad Request", message: "Превышен лимит фотографий" }, "Превышен лимит фотографий"],
+    [200, {}, "Сервер не подтвердил загрузку фотографии."],
+  ])("preserves the selected file and explains upload response %s", async (status, body, message) => {
+    vi.stubGlobal("fetch", vi.fn(async (url: unknown, init?: RequestInit) => {
+      if (String(url).endsWith("/image")) return Response.json(body, { status });
+      if (init?.method) return Response.json({ ...mainService, id: "created-service" });
+      return readResponse(url);
+    }));
+    mount([], "create");
+    await userEvent.upload(screen.getByLabelText("Фотографии услуги"), files(1));
+    await userEvent.click(screen.getAllByRole("button", { name: "Опубликовать" })[0]);
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(message));
+    expect(screen.getByAltText("Фото услуги 1")).toHaveAttribute("src", "blob:photo-0");
+    expect(screen.getByRole("button", { name: "Повторить загрузку" })).toBeEnabled();
+    expect(navigation.push).not.toHaveBeenCalled();
+  });
 
   it("accepts ten selected images in a new service and disables additional selection", async () => {
     vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: unknown) => readResponse(url)));

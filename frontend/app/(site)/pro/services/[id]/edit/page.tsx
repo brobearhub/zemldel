@@ -4,6 +4,7 @@ import { BackendApiError, fetchBackendJson, fetchBackendJsonAsUser } from "@/sha
 import { getServerAuthSession } from "@/core/auth";
 import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import { ProServiceEditor } from "@/widgets/pro-services/ui/ProServiceEditor";
+import { serviceDraftStorageKey } from "@/widgets/pro-services/lib/new-service-draft";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -33,6 +34,7 @@ export default async function ProServicesEditPage({ params }: Props) {
   return (
     <ProServiceEditor
       mode="edit"
+      draftStorageKey={serviceDraftStorageKey(session.user.id, service.provider.id)}
       initialService={service}
       categories={categories}
     />

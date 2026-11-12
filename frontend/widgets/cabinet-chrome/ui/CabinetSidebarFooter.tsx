@@ -36,6 +36,8 @@ export function CabinetSidebarFooter({
   const { status, user } = useAppSelector((state) => state.auth);
   const authenticated = status === "authenticated";
   const provider = authenticated && resolveAccountKind(user) === "PROVIDER";
+  const customer = authenticated && !provider;
+  const customerProfileHref = "/profile?section=profile";
   const membership = provider ? getActiveMembership(user) : null;
   const identity = membership ? formatProviderIdentity(membership) : null;
   const title = identity?.title || user?.name || "Мой профиль";
@@ -88,9 +90,11 @@ export function CabinetSidebarFooter({
       }}
     >
       <IconButton
-        aria-label={settingsOpen ? "Аватар профиля" : "Настройки"}
-        onClick={settingsOpen ? onBack : onOpenSettings}
-        title={authenticated ? title : "Настройки"}
+        component={customer ? Link : "button"}
+        href={customer ? customerProfileHref : undefined}
+        aria-label={customer ? `Профиль: ${title}` : settingsOpen ? "Аватар профиля" : "Настройки"}
+        onClick={customer ? close : settingsOpen ? onBack : onOpenSettings}
+        title={customer ? `Профиль: ${title}` : authenticated ? title : "Настройки"}
         sx={{
           width: 48,
           height: 48,
@@ -122,10 +126,11 @@ export function CabinetSidebarFooter({
       </IconButton>
       {(authenticated || settingsOpen) && !collapsed ? (
         <Box
-          component="button"
-          type="button"
-          aria-label={settingsOpen ? "Настройки" : `Настройки: ${title}`}
-          onClick={settingsOpen ? onBack : onOpenSettings}
+          component={customer ? Link : "button"}
+          type={customer ? undefined : "button"}
+          href={customer ? customerProfileHref : undefined}
+          aria-label={customer ? `Профиль: ${title}` : settingsOpen ? "Настройки" : `Настройки: ${title}`}
+          onClick={customer ? close : settingsOpen ? onBack : onOpenSettings}
           sx={{
             flex: 1,
             minWidth: 0,

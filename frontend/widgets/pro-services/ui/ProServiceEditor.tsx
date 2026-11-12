@@ -34,7 +34,6 @@ import { ServiceCard, toPlaceInput } from "@/entities/service";
 import type {
   ServiceDto,
   ServiceCategory,
-  ServicePaletteColor,
   ServicePlace,
   ServiceStatus,
 } from "@/entities/service";
@@ -58,6 +57,8 @@ import {
 } from "@/shared/lib/money/service-price";
 import type { AuthCity } from "@/core/auth/authorization";
 import { useAppSelector } from "@/core/store/hooks";
+import { useNewServiceDraft } from "../model/useNewServiceDraft";
+import { draftPhotoKey, type ServiceFormState } from "../lib/new-service-draft";
 
 type Props = {
   mode: "create" | "edit";
@@ -65,24 +66,30 @@ type Props = {
   categories: ServiceCategory[];
   /** Город исполнителя с сервера: клиентская сессия после онбординга ещё без него. */
   initialProviderCity?: AuthCity | null;
-};
-
-type EditableServiceStatus = ServiceStatus;
-
-type ServiceFormState = {
-  categoryId: string;
-  status: EditableServiceStatus;
-  title: string;
-  price: string;
-  image: string;
-  stockBadge: string;
-  description: string;
-  paletteColor: ServicePaletteColor | "";
+  draftStorageKey?: string;
 };
 
 function normalizeNullableString(value: string): string | null {
   const normalized = value.trim();
   return normalized.length ? normalized : null;
+}
+
+function serviceRequestError(status: number, body: unknown, fallback: string): string {
+  if (status === 401) return "Сессия завершена. Войдите снова, чтобы сохранить услугу.";
+  const details = body && typeof body === "object"
+    ? body as { message?: unknown; error?: unknown }
+    : null;
+  const message = Array.isArray(details?.message)
+    ? details.message.filter((item): item is string => typeof item === "string").join(" ")
+    : typeof details?.message === "string"
+      ? details.message
+      : typeof details?.error === "string"
+        ? details.error
+        : "";
+  if (status === 403 && (!message || message === "Forbidden")) {
+    return "Нет доступа к изменению услуги. Проверьте выбранный профиль исполнителя.";
+  }
+  return message || fallback;
 }
 
 const CategoryMenuCloseContext = createContext<(() => void) | null>(null);
@@ -148,6 +155,7 @@ const CategoryMenuPaper = forwardRef<HTMLDivElement, PaperProps>(
 
 function ServiceEditorActions({
   publishDisabled,
+  publishValidationIssues,
   needsPhoto,
   draftDisabled,
   pending,
@@ -156,6 +164,7 @@ function ServiceEditorActions({
   onDraft,
 }: {
   publishDisabled: boolean;
+  publishValidationIssues: string[];
   needsPhoto: boolean;
   draftDisabled: boolean;
   pending: ServiceStatus | null;
@@ -164,48 +173,58 @@ function ServiceEditorActions({
   onDraft: () => void;
 }) {
   return (
-    <Stack
-      direction={{ xs: "row", md: "column" }}
-      spacing={2}
-      useFlexGap
-    >
-      <Button
-        type="button"
-        variant="contained"
-        loading={pending === "PUBLISHED"}
-        // Why: когда для публикации не хватает только фото, кнопка сама открывает выбор фото.
-        disabled={publishDisabled && !needsPhoto && pending !== "PUBLISHED"}
-        onClick={needsPhoto ? onPickPhoto : onPublish}
-        sx={{
-          order: { xs: 2, md: 1 },
-          flex: { xs: 1, md: "unset" },
-          bgcolor: "text.primary",
-          color: "background.default",
-          "&:hover": { bgcolor: "text.primary", filter: "brightness(1.08)" },
-          "&.Mui-disabled": {
-            bgcolor: "action.disabledBackground",
-            color: "text.disabled",
-          },
-        }}
+    <Stack spacing={1}>
+      <Stack
+        direction={{ xs: "row", md: "column" }}
+        spacing={2}
+        useFlexGap
       >
-        {needsPhoto ? "Загрузите фото" : "Опубликовать"}
-      </Button>
-      <Button
-        type="button"
-        variant="outlined"
-        loading={pending === "DRAFT"}
-        disabled={draftDisabled && pending !== "DRAFT"}
-        onClick={onDraft}
-        sx={{
-          order: { xs: 1, md: 2 },
-          flex: { xs: 1, md: "unset" },
-          color: "text.primary",
-          borderColor: "text.primary",
-          "&:hover": { borderColor: "text.primary", bgcolor: "action.hover" },
-        }}
-      >
-        Черновик
-      </Button>
+        <Button
+          type="button"
+          variant="contained"
+          loading={pending === "PUBLISHED"}
+          disabled={publishDisabled}
+          onClick={needsPhoto ? onPickPhoto : onPublish}
+          sx={{
+            order: { xs: 2, md: 1 },
+            flex: { xs: 1, md: "unset" },
+            bgcolor: "text.primary",
+            color: "background.default",
+            "&:hover": { bgcolor: "text.primary", filter: "brightness(1.08)" },
+            "&.Mui-disabled": {
+              bgcolor: "action.disabledBackground",
+              color: "text.disabled",
+            },
+          }}
+        >
+          {needsPhoto ? "Загрузите фото" : "Опубликовать"}
+        </Button>
+        <Button
+          type="button"
+          variant="outlined"
+          loading={pending === "DRAFT"}
+          disabled={draftDisabled && pending !== "DRAFT"}
+          onClick={onDraft}
+          sx={{
+            order: { xs: 1, md: 2 },
+            flex: { xs: 1, md: "unset" },
+            color: "text.primary",
+            borderColor: "text.primary",
+            "&:hover": { borderColor: "text.primary", bgcolor: "action.hover" },
+          }}
+        >
+          Черновик
+        </Button>
+      </Stack>
+      {publishValidationIssues.length > 0 ? (
+        <Typography
+          role="status"
+          variant="body2"
+          sx={{ color: "text.secondary" }}
+        >
+          Для публикации: {publishValidationIssues.join(" ")}
+        </Typography>
+      ) : null}
     </Stack>
   );
 }
@@ -226,7 +245,6 @@ function createInitialState(service?: ServiceDto): ServiceFormState {
     status: service?.status ?? "DRAFT",
     title: service?.title ?? "",
     price: parseServicePriceAmount(service?.price ?? ""),
-    image: service?.image ?? "",
     stockBadge: (service?.stockBadge ?? "").slice(0, STOCK_BADGE_MAX_LENGTH),
     description: service?.description ?? "",
     paletteColor: service?.paletteColor ?? "primary",
@@ -266,6 +284,7 @@ export function ProServiceEditor({
   initialService,
   categories,
   initialProviderCity = null,
+  draftStorageKey,
 }: Props) {
   const router = useRouter();
   const categoryMenuFullscreen = useMediaQuery((theme) =>
@@ -326,7 +345,8 @@ export function ProServiceEditor({
     return providerCity ? [providerCityPlace(providerCity)] : [];
   });
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [validationStatus, setValidationStatus] = useState<ServiceStatus | null>(null);
+  const [saving, setBusy] = useState(false);
   // Why: busy общий для сохранения и работы с фото — спиннер только на нажатой кнопке.
   const [pendingAction, setPendingAction] = useState<
     ServiceStatus | "upload:icon" | "upload:add" | "deleteImage" | null
@@ -350,6 +370,42 @@ export function ProServiceEditor({
     mode === "edit" ? (initialService?.id ?? null) : null,
   );
   const imageCount = images.length + pendingImages.length;
+  const hasImage = imageCount > 0;
+  const draftFiles = useMemo(() => pendingImages.map((image) => image.file), [pendingImages]);
+  const draftServiceId = savedServiceId.current;
+  const draftPlacesEdited = placesTouched.current;
+  const draftSnapshot = useMemo(() => ({
+    version: 1 as const,
+    form,
+    places,
+    placesEdited: draftPlacesEdited,
+    allRussia,
+    images,
+    savedServiceId: draftServiceId,
+    photos: draftFiles.map(draftPhotoKey),
+  }), [form, places, draftPlacesEdited, allRussia, images, draftServiceId, draftFiles]);
+  const localDraft = useNewServiceDraft({
+    storageKey: draftStorageKey,
+    enabled: mode === "create",
+    draft: draftSnapshot,
+    files: draftFiles,
+    onRestore: (draft, files) => {
+      placesTouched.current = true;
+      savedServiceId.current = draft.savedServiceId;
+      setForm({
+        ...draft.form,
+        status: "DRAFT",
+        categoryId: categories.some((category) => category.id === draft.form.categoryId)
+          ? draft.form.categoryId
+          : "",
+      });
+      setPlaces(draft.places);
+      setAllRussia(draft.allRussia);
+      setImages(draft.images);
+      setPendingImages(files.map((file) => ({ file, previewUrl: URL.createObjectURL(file) })));
+    },
+  });
+  const busy = saving || localDraft.loading;
 
   useEffect(() => {
     if (placesTouched.current) return;
@@ -426,7 +482,7 @@ export function ProServiceEditor({
   const publishValidationIssues = useMemo(() => {
     const issues = [...validationIssues];
 
-    if (!pendingImage && !form.image.trim()) {
+    if (!hasImage) {
       issues.push("Добавьте фото.");
     }
     if (!form.description.trim()) {
@@ -434,11 +490,11 @@ export function ProServiceEditor({
     }
 
     return issues;
-  }, [form.description, form.image, pendingImage, validationIssues]);
+  }, [form.description, hasImage, validationIssues]);
 
   const previewItem = useMemo(() => {
     const previewImage =
-      normalizeNullableString(form.image) ?? pendingImage?.previewUrl ?? null;
+      images[0] ?? pendingImage?.previewUrl ?? null;
 
     const visiblePlaces: ServicePlace[] = allRussia
       ? [
@@ -478,7 +534,7 @@ export function ProServiceEditor({
     activeMembership?.providerCity,
     activeMembership?.providerId,
     activeMembership?.providerName,
-    form.image,
+    images,
     form.paletteColor,
     form.price,
     form.stockBadge,
@@ -491,22 +547,32 @@ export function ProServiceEditor({
   ]);
 
   async function submitForm(nextStatus: ServiceStatus) {
+    if (busy) return;
     const issues =
       nextStatus === "PUBLISHED" ? publishValidationIssues : validationIssues;
     if (issues.length > 0) {
-      setError(issues[0]);
+      setValidationStatus(nextStatus);
+      setError(null);
       return;
     }
 
+    setValidationStatus(null);
     setBusy(true);
     setPendingAction(nextStatus);
     setError(null);
 
     try {
+      await localDraft.flush();
+      const existingId = savedServiceId.current;
+      // Existing services can upload first. A new service needs a draft ID
+      // before its photos can be stored; publish only after every upload succeeds.
+      const gallery = existingId
+        ? await uploadPendingImages(existingId, pendingImages)
+        : images;
       const requestPayload = {
         ...payload,
-        status: nextStatus,
-        ...(savedServiceId.current ? { images } : {}),
+        status: !existingId && pendingImages.length > 0 ? "DRAFT" : nextStatus,
+        ...(existingId ? { images: gallery } : {}),
       };
 
       const response = await fetch(
@@ -528,11 +594,7 @@ export function ProServiceEditor({
 
       if (!response.ok) {
         throw new Error(
-          responseBody &&
-            typeof responseBody === "object" &&
-            "error" in responseBody
-            ? (responseBody.error ?? "Не удалось сохранить услугу")
-            : "Не удалось сохранить услугу",
+          serviceRequestError(response.status, responseBody, "Не удалось сохранить услугу"),
         );
       }
 
@@ -544,11 +606,31 @@ export function ProServiceEditor({
           "Не удалось определить услугу для загрузки фотографий.",
         );
       savedServiceId.current = savedId;
-      await uploadPendingImages(savedId, pendingImages);
+      localDraft.saveProgress(savedId);
+      if (!existingId) {
+        await uploadPendingImages(savedId, pendingImages);
+        if (requestPayload.status !== nextStatus) {
+          const publishResponse = await fetch(`/api/pro/services/${savedId}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ status: nextStatus }),
+          });
+          if (!publishResponse.ok) {
+            const result = await publishResponse.json().catch(() => null);
+            throw new Error(
+              serviceRequestError(
+                publishResponse.status,
+                result,
+                "Не удалось опубликовать услугу. Повторите попытку.",
+              ),
+            );
+          }
+        }
+      }
 
-      const savedStatus = requestPayload.status;
+      if (nextStatus === "PUBLISHED") await localDraft.clearPublished(savedId);
       router.push(
-        savedStatus === "PUBLISHED" && savedId
+        nextStatus === "PUBLISHED" && savedId
           ? `/pro/services?notice=published&serviceId=${savedId}`
           : `/pro/services?notice=${mode === "create" ? "created" : "updated"}`,
       );
@@ -566,34 +648,50 @@ export function ProServiceEditor({
   }
 
   function applyGallery(payload: { image?: string | null; images?: string[] }) {
-    const gallery = payload.images ?? (payload.image ? [payload.image] : []);
+    const gallery = payload.images?.length
+      ? payload.images
+      : payload.image
+        ? [payload.image]
+        : [];
     setImages(gallery);
-    setForm((current) => ({ ...current, image: gallery[0] ?? "" }));
+    return gallery;
   }
 
   async function uploadPendingImages(
     serviceId: string,
     selected: typeof pendingImages,
   ) {
-    for (const image of selected) {
+    let gallery = images;
+    for (const [index, image] of selected.entries()) {
       const body = new FormData();
       body.append("file", image.file);
       const response = await fetch(`/api/pro/services/${serviceId}/image`, {
         method: "POST",
         body,
       });
-      const result = await response.json();
+      const result = await response.json().catch(() => null);
       if (!response.ok)
         throw new Error(
-          result?.error ||
+          serviceRequestError(
+            response.status,
+            result,
             "Не удалось загрузить фотографию. Повторите загрузку.",
+          ),
         );
-      applyGallery(result);
+      if (!result || (!result.images?.length && !result.image)) {
+        throw new Error("Сервер не подтвердил загрузку фотографии. Повторите загрузку.");
+      }
+      gallery = applyGallery(result);
+      localDraft.saveProgress(serviceId, {
+        images: gallery,
+        photos: selected.slice(index + 1).map((item) => draftPhotoKey(item.file)),
+      });
       setPendingImages((current) =>
         current.filter((item) => item.previewUrl !== image.previewUrl),
       );
       URL.revokeObjectURL(image.previewUrl);
     }
+    return gallery;
   }
 
   async function retryImages(selected = pendingImages) {
@@ -604,6 +702,7 @@ export function ProServiceEditor({
       imagePickerSource.current === "icon" ? "upload:icon" : "upload:add",
     );
     try {
+      await localDraft.flush();
       await uploadPendingImages(savedServiceId.current, selected);
     } catch (error) {
       setError(
@@ -628,9 +727,10 @@ export function ProServiceEditor({
         `/api/pro/services/${savedServiceId.current}/image?${query}`,
         { method: "DELETE" },
       );
-      const result = await response.json();
+      const result = await response.json().catch(() => null);
       if (!response.ok)
-        throw new Error(result?.error || "Не удалось удалить изображение");
+        throw new Error(serviceRequestError(response.status, result, "Не удалось удалить изображение"));
+      if (!result) throw new Error("Сервер не подтвердил удаление фотографии. Повторите попытку.");
       applyGallery(result);
     } catch (error) {
       setError(
@@ -670,7 +770,6 @@ export function ProServiceEditor({
     setPlaces(next);
   }
 
-  const hasImage = imageCount > 0;
   const canRemoveImage = hasImage;
 
   function onSelectImages(files: File[]) {
@@ -705,7 +804,7 @@ export function ProServiceEditor({
       ...added.map((file) => ({ file, previewUrl: URL.createObjectURL(file) })),
     ];
     setPendingImages(selected);
-    if (savedServiceId.current) void retryImages(selected);
+    if (savedServiceId.current && mode === "edit") void retryImages(selected);
   }
 
   function removePendingImage(previewUrl: string) {
@@ -722,12 +821,20 @@ export function ProServiceEditor({
 
   const priceLabel = formatServicePriceAmount(form.price);
   const draftDisabled = busy || validationIssues.length > 0;
-  const publishDisabled = busy || publishValidationIssues.length > 0;
+  // Keep validation actionable: a click explains missing fields instead of
+  // leaving the provider with a disabled button and no way to continue.
+  const publishDisabled = busy;
   const needsPhoto =
     !busy &&
     publishValidationIssues.length === 1 &&
-    !pendingImage &&
-    !form.image.trim();
+    !hasImage;
+  const validationError =
+    validationStatus === "PUBLISHED"
+      ? publishValidationIssues.join(" ")
+      : validationStatus
+        ? validationIssues.join(" ")
+        : "";
+  const formError = error || validationError;
 
   return (
     <Stack
@@ -758,6 +865,19 @@ export function ProServiceEditor({
           {mode === "create" ? "Новая услуга" : "Редактировать услугу"}
         </Typography>
       </Stack>
+      {mode === "create" && (localDraft.loading || localDraft.saved || localDraft.restored) ? (
+        <Alert
+          severity="info"
+          role="status"
+        >
+          {localDraft.loading
+            ? "Восстанавливаем черновик…"
+            : localDraft.restored
+              ? "Черновик восстановлен. Изменения сохраняются в этом браузере автоматически."
+              : "Черновик сохраняется в этом браузере автоматически."}
+        </Alert>
+      ) : null}
+      {localDraft.warning ? <Alert severity="warning">{localDraft.warning}</Alert> : null}
       <Stack
         spacing={1.5}
         sx={{
@@ -887,13 +1007,13 @@ export function ProServiceEditor({
             onSelectImages(files);
           }}
         />
-        {error ? (
+        {formError ? (
           <Alert
             severity="error"
             sx={{ borderRadius: 0 }}
           >
-            {error}
-            {error.startsWith("Тариф позволяет") ? (
+            {formError}
+            {formError.startsWith("Тариф позволяет") ? (
               <a href="/pro/settings/tariff"> Перейти к тарифам</a>
             ) : null}
           </Alert>
@@ -972,7 +1092,6 @@ export function ProServiceEditor({
                         image.url,
                         ...current.filter((url) => url !== image.url),
                       ]);
-                      setForm((current) => ({ ...current, image: image.url }));
                     }}
                   >
                     Сделать первым
@@ -988,7 +1107,13 @@ export function ProServiceEditor({
                     </PlanFeatureGate>
                   ) : null}
                   {index === 0 ? "Обложка" : `Фото ${index + 1}`}
-                  {!image.saved ? " · Не загружено" : ""}
+                  {!image.saved
+                    ? busy
+                      ? " · Загрузка…"
+                      : savedServiceId.current
+                        ? " · Не загружено"
+                        : " · Загрузится при сохранении"
+                    : ""}
                 </Typography>
               </Box>
             ))}
@@ -1256,6 +1381,8 @@ export function ProServiceEditor({
                   }))
                 }
                 disabled={busy}
+                required
+                helperText="Обязательно для публикации. Черновик можно сохранить без описания."
                 fullWidth
                 multiline
                 minRows={4}
@@ -1420,6 +1547,7 @@ export function ProServiceEditor({
             <Box sx={{ display: { xs: "none", md: "block" }, mt: "auto" }}>
               <ServiceEditorActions
                 publishDisabled={publishDisabled}
+                publishValidationIssues={publishValidationIssues}
                 needsPhoto={needsPhoto}
                 onPickPhoto={() => openImagePicker()}
                 draftDisabled={draftDisabled}
@@ -1456,6 +1584,7 @@ export function ProServiceEditor({
         />
         <ServiceEditorActions
           publishDisabled={publishDisabled}
+          publishValidationIssues={publishValidationIssues}
           needsPhoto={needsPhoto}
           onPickPhoto={() => openImagePicker()}
           draftDisabled={draftDisabled}
