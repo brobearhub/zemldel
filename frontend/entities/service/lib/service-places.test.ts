@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { placeChipLabel, splitServicesByCity, type ServicePlace } from "./service-places";
+import { placeChipLabel, placeSelectionKey, uniqueServicePlaces, splitServicesByCity, type ServicePlace } from "./service-places";
 
 const kazan: ServicePlace = {
   kind: "city",
@@ -15,6 +15,26 @@ const tatarstan: ServicePlace = {
   regionCode: "16",
   regionName: "респ. Татарстан",
 };
+
+describe("city selection identity", () => {
+  it("matches the same name and region across IDs, case and whitespace", () => {
+    const alias = { ...kazan, cityId: "another-id", name: "  КАЗАНЬ  " };
+    expect(placeSelectionKey(alias)).toBe(placeSelectionKey(kazan));
+    expect(uniqueServicePlaces([kazan, alias])).toEqual([kazan]);
+  });
+
+  it("keeps the same name in a different region and different names in the same region", () => {
+    const otherRegion = { ...kazan, cityId: "other-region", regionCode: "43", regionName: "Кировская область" };
+    const otherCity = { ...kazan, cityId: "other-city", name: "Елабуга" };
+    expect(uniqueServicePlaces([kazan, otherRegion, otherCity, tatarstan])).toEqual([kazan, otherRegion, otherCity, tatarstan]);
+  });
+
+  it("does not duplicate a renamed city ID and handles public hero-city names", () => {
+    expect(uniqueServicePlaces([kazan, { ...kazan, name: "Другое имя" }])).toEqual([kazan]);
+    const hero = { ...kazan, cityId: "hero", name: "город-герой Волгоград", regionCode: "34" };
+    expect(placeSelectionKey(hero)).toBe(placeSelectionKey({ ...hero, cityId: "plain", name: "Волгоград" }));
+  });
+});
 
 describe("splitServicesByCity", () => {
   it("находит услугу по городу и по области без дублей, явный город выше", () => {

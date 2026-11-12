@@ -13,6 +13,8 @@ import {
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useRouter } from "next/navigation";
 import CloseIcon from "@mui/icons-material/Close";
+import AddIcon from "@mui/icons-material/Add";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
 import {
@@ -21,6 +23,8 @@ import {
   FormControlLabel,
   Box,
   Button,
+  ButtonBase,
+  Chip,
   IconButton,
   ListSubheader,
   MenuItem,
@@ -363,7 +367,22 @@ export function ProServiceEditor({
   const [pendingImages, setPendingImages] = useState<
     Array<{ file: File; previewUrl: string }>
   >([]);
-  const pendingImage = pendingImages[0] ?? null;
+  const [mainPhotoKey, setMainPhotoKey] = useState<string | null>(null);
+  const galleryPhotos = useMemo(() => {
+    const photos = [
+      ...images.map((url) => ({ key: url, url, saved: true })),
+      ...pendingImages.map((image) => ({
+        key: draftPhotoKey(image.file),
+        url: image.previewUrl,
+        saved: false,
+      })),
+    ];
+    const mainPhoto = photos.find((image) => image.key === mainPhotoKey);
+    return mainPhoto
+      ? [mainPhoto, ...photos.filter((image) => image !== mainPhoto)]
+      : photos;
+  }, [images, pendingImages, mainPhotoKey]);
+  const mainPhotoUrl = galleryPhotos[0]?.url ?? null;
   const pendingImagesRef = useRef(pendingImages);
   pendingImagesRef.current = pendingImages;
   const savedServiceId = useRef(
@@ -381,9 +400,10 @@ export function ProServiceEditor({
     placesEdited: draftPlacesEdited,
     allRussia,
     images,
+    mainPhotoKey,
     savedServiceId: draftServiceId,
     photos: draftFiles.map(draftPhotoKey),
-  }), [form, places, draftPlacesEdited, allRussia, images, draftServiceId, draftFiles]);
+  }), [form, places, draftPlacesEdited, allRussia, images, mainPhotoKey, draftServiceId, draftFiles]);
   const localDraft = useNewServiceDraft({
     storageKey: draftStorageKey,
     enabled: mode === "create",
@@ -402,6 +422,7 @@ export function ProServiceEditor({
       setPlaces(draft.places);
       setAllRussia(draft.allRussia);
       setImages(draft.images);
+      setMainPhotoKey(draft.mainPhotoKey ?? null);
       setPendingImages(files.map((file) => ({ file, previewUrl: URL.createObjectURL(file) })));
     },
   });
@@ -493,9 +514,6 @@ export function ProServiceEditor({
   }, [form.description, hasImage, validationIssues]);
 
   const previewItem = useMemo(() => {
-    const previewImage =
-      images[0] ?? pendingImage?.previewUrl ?? null;
-
     const visiblePlaces: ServicePlace[] = allRussia
       ? [
           {
@@ -509,7 +527,7 @@ export function ProServiceEditor({
     return {
       id: initialService?.id ?? "preview-service",
       title: form.title.trim() || "Название услуги появится здесь",
-      image: previewImage,
+      image: mainPhotoUrl,
       stockBadge:
         plan === "STANDARD" ? null : normalizeNullableString(form.stockBadge),
       paletteColor:
@@ -534,7 +552,7 @@ export function ProServiceEditor({
     activeMembership?.providerCity,
     activeMembership?.providerId,
     activeMembership?.providerName,
-    images,
+    mainPhotoUrl,
     form.paletteColor,
     form.price,
     form.stockBadge,
@@ -542,7 +560,6 @@ export function ProServiceEditor({
     initialService?.id,
     initialService?.rating,
     initialService?.reviewCount,
-    pendingImage?.previewUrl,
     places,
   ]);
 
@@ -647,14 +664,20 @@ export function ProServiceEditor({
     }
   }
 
-  function applyGallery(payload: { image?: string | null; images?: string[] }) {
+  function applyGallery(
+    payload: { image?: string | null; images?: string[] },
+    preferredMainPhoto = mainPhotoKey,
+  ) {
     const gallery = payload.images?.length
       ? payload.images
       : payload.image
         ? [payload.image]
         : [];
-    setImages(gallery);
-    return gallery;
+    const ordered = preferredMainPhoto && gallery.includes(preferredMainPhoto)
+      ? [preferredMainPhoto, ...gallery.filter((url) => url !== preferredMainPhoto)]
+      : gallery;
+    setImages(ordered);
+    return ordered;
   }
 
   async function uploadPendingImages(
@@ -662,6 +685,7 @@ export function ProServiceEditor({
     selected: typeof pendingImages,
   ) {
     let gallery = images;
+    let preferredMainPhoto = mainPhotoKey;
     for (const [index, image] of selected.entries()) {
       const body = new FormData();
       body.append("file", image.file);
@@ -681,10 +705,23 @@ export function ProServiceEditor({
       if (!result || (!result.images?.length && !result.image)) {
         throw new Error("Сервер не подтвердил загрузку фотографии. Повторите загрузку.");
       }
-      gallery = applyGallery(result);
+      if (draftPhotoKey(image.file) === preferredMainPhoto) {
+        const uploadedUrls: string[] = result.images?.length ? result.images : [result.image];
+        let uploadedUrl = uploadedUrls.find((url) => !gallery.includes(url));
+        // A repeated file is returned in the existing gallery without a new URL.
+        if (!uploadedUrl && globalThis.crypto?.subtle) {
+          const digest = await crypto.subtle.digest("SHA-256", await image.file.arrayBuffer());
+          const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+          uploadedUrl = uploadedUrls.find((url) => new RegExp(`/${hash}\\.(jpg|jpeg|png|webp)$`).test(url));
+        }
+        preferredMainPhoto = uploadedUrl ?? null;
+        setMainPhotoKey(preferredMainPhoto);
+      }
+      gallery = applyGallery(result, preferredMainPhoto);
       localDraft.saveProgress(serviceId, {
         images: gallery,
         photos: selected.slice(index + 1).map((item) => draftPhotoKey(item.file)),
+        mainPhotoKey: preferredMainPhoto,
       });
       setPendingImages((current) =>
         current.filter((item) => item.previewUrl !== image.previewUrl),
@@ -732,6 +769,7 @@ export function ProServiceEditor({
         throw new Error(serviceRequestError(response.status, result, "Не удалось удалить изображение"));
       if (!result) throw new Error("Сервер не подтвердил удаление фотографии. Повторите попытку.");
       applyGallery(result);
+      if (mainPhotoKey === imageUrl) setMainPhotoKey(null);
     } catch (error) {
       setError(
         error instanceof Error
@@ -808,6 +846,8 @@ export function ProServiceEditor({
   }
 
   function removePendingImage(previewUrl: string) {
+    const removed = pendingImages.find((image) => image.previewUrl === previewUrl);
+    if (removed && draftPhotoKey(removed.file) === mainPhotoKey) setMainPhotoKey(null);
     URL.revokeObjectURL(previewUrl);
     setPendingImages((current) =>
       current.filter((image) => image.previewUrl !== previewUrl),
@@ -815,8 +855,25 @@ export function ProServiceEditor({
   }
 
   function onRemoveImage() {
-    if (images[0]) void deleteImage(images[0]);
-    else if (pendingImage) removePendingImage(pendingImage.previewUrl);
+    const mainPhoto = galleryPhotos[0];
+    if (!mainPhoto) return;
+    if (mainPhoto.saved) void deleteImage(mainPhoto.url);
+    else removePendingImage(mainPhoto.url);
+  }
+
+  function makeMainPhoto(photo: (typeof galleryPhotos)[number]) {
+    if (busy) return;
+    setMainPhotoKey(photo.key);
+    if (photo.saved) {
+      setImages((current) => [photo.url, ...current.filter((url) => url !== photo.url)]);
+    } else {
+      setPendingImages((current) => {
+        const selected = current.find((image) => image.previewUrl === photo.url);
+        return selected
+          ? [selected, ...current.filter((image) => image !== selected)]
+          : current;
+      });
+    }
   }
 
   const priceLabel = formatServicePriceAmount(form.price);
@@ -1023,14 +1080,41 @@ export function ProServiceEditor({
           spacing={1.5}
           sx={{ p: 2 }}
         >
-          <Typography variant="subtitle1">
-            Фотографии услуги · {imageCount} из {photoLimit}
-          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0,
+            }}
+          >
+            <Typography variant="subtitle1">
+              Фотографии услуги · {imageCount} из {photoLimit}
+            </Typography>
+            {photoLimit < 10 && (plan === "STANDARD" || plan === "LITE") ? (
+              <PlanFeatureGate
+                message="До 10 фотографий доступно на тарифе Бизнес."
+                label="Информация о количестве фотографий"
+              >
+                <IconButton
+                  type="button"
+                  size="small"
+                  aria-label="Информация о количестве фотографий"
+                  sx={{
+                    color: "text.primary",
+                    ml: -0.5,
+                    transform: "translateY(-2px)",
+                  }}
+                >
+                  <InfoOutlinedIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </PlanFeatureGate>
+            ) : null}
+          </Box>
           <Typography
             variant="body2"
             sx={{ color: "text.secondary" }}
           >
-            JPG, PNG или WebP, до 10 МБ каждое. Первое фото — обложка карточки.
+            JPG, PNG или WebP, до 10 МБ каждое. Главная фотография — обложка карточки.
           </Typography>
           <Box
             sx={{
@@ -1039,62 +1123,98 @@ export function ProServiceEditor({
               gap: 1,
             }}
           >
-            {[
-              ...images.map((url) => ({ url, saved: true })),
-              ...pendingImages.map((image) => ({
-                url: image.previewUrl,
-                saved: false,
-              })),
-            ].map((image, index) => (
+            {galleryPhotos.map((image, index) => (
               <Box
-                key={image.url}
+                key={image.key}
                 sx={{
-                  position: "relative",
                   width: 112,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 0.5,
                 }}
               >
                 <Box
-                  component="img"
-                  src={image.url}
-                  alt={`Фото услуги ${index + 1}`}
-                  sx={{
-                    width: 112,
-                    height: 84,
-                    objectFit: "cover",
-                    borderRadius: 1,
-                    display: "block",
-                  }}
-                />
-                <IconButton
-                  aria-label={`Удалить фото услуги ${index + 1}`}
-                  size="small"
-                  disabled={busy}
-                  onClick={() =>
-                    image.saved
-                      ? void deleteImage(image.url)
-                      : removePendingImage(image.url)
-                  }
-                  sx={{
-                    position: "absolute",
-                    top: 2,
-                    right: 2,
-                    bgcolor: "background.paper",
-                  }}
+                  sx={{ position: "relative" }}
                 >
-                  <CloseIcon fontSize="small" />
-                </IconButton>
-                {image.saved && index > 0 && (
-                  <Button
+                  <Box
+                    component="img"
+                    src={image.url}
+                    alt={`Фото услуги ${index + 1}`}
+                    sx={{
+                      width: 112,
+                      height: 84,
+                      objectFit: "cover",
+                      borderRadius: 1,
+                      display: "block",
+                      outline: index === 0 ? "2px solid" : undefined,
+                      outlineColor: "primary.main",
+                      outlineOffset: -2,
+                    }}
+                  />
+                  {index === 0 ? (
+                    <Chip
+                      label="Главная"
+                      color="primary"
+                      size="small"
+                      sx={{
+                        position: "absolute",
+                        bottom: 4,
+                        left: 4,
+                        height: 22,
+                        minHeight: 22,
+                        bgcolor: "text.primary",
+                        color: "background.paper",
+                        borderRadius: 1,
+                        fontWeight: 700,
+                        pointerEvents: "none",
+                        "& .MuiChip-label": {
+                          px: 0.75,
+                          py: 0,
+                          fontSize: 12,
+                        },
+                      }}
+                    />
+                  ) : null}
+                  <IconButton
+                    aria-label={`Удалить фото услуги ${index + 1}`}
                     size="small"
                     disabled={busy}
-                    onClick={() => {
-                      setImages((current) => [
-                        image.url,
-                        ...current.filter((url) => url !== image.url),
-                      ]);
+                    onClick={() =>
+                      image.saved
+                        ? void deleteImage(image.url)
+                        : removePendingImage(image.url)
+                    }
+                    sx={{
+                      position: "absolute",
+                      top: 2,
+                      right: 2,
+                      bgcolor: "background.paper",
                     }}
                   >
-                    Сделать первым
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+                {index > 0 && (
+                  <Button
+                    type="button"
+                    variant="outlined"
+                    size="small"
+                    fullWidth
+                    aria-label={`Сделать главной фото ${index + 1}`}
+                    disabled={busy}
+                    onClick={() => makeMainPhoto(image)}
+                    sx={{
+                      px: 0.5,
+                      py: 0.5,
+                      minHeight: 36,
+                      fontSize: 12,
+                      letterSpacing: 0,
+                      whiteSpace: "nowrap",
+                      color: "text.primary",
+                      borderColor: "text.primary",
+                    }}
+                  >
+                    Сделать главной
                   </Button>
                 )}
                 <Typography variant="caption">
@@ -1112,29 +1232,49 @@ export function ProServiceEditor({
                       ? " · Загрузка…"
                       : savedServiceId.current
                         ? " · Не загружено"
-                        : " · Загрузится при сохранении"
+                        : ""
                     : ""}
                 </Typography>
               </Box>
             ))}
-          </Box>
-          <Stack
-            direction="row"
-            spacing={1}
-          >
             <PlanFeatureGate
               message={photoRestriction}
               label="Добавить фотографии"
             >
-              <Button
+              <ButtonBase
                 type="button"
+                aria-label="Добавить фотографии"
                 onClick={() => openImagePicker("add")}
                 disabled={busy}
+                sx={{
+                  width: 112,
+                  height: 112,
+                  flexShrink: 0,
+                  border: "1px dashed",
+                  borderColor: "divider",
+                  borderRadius: 1,
+                  color: "text.secondary",
+                  "&:hover": {
+                    borderColor: "primary.main",
+                    bgcolor: "action.hover",
+                    color: "primary.main",
+                  },
+                  "&.Mui-focusVisible": {
+                    outline: "2px solid",
+                    outlineColor: "primary.main",
+                    outlineOffset: 2,
+                  },
+                  "&.Mui-disabled": {
+                    opacity: 0.5,
+                  },
+                }}
               >
-                Добавить фотографии
-              </Button>
+                <AddIcon sx={{ fontSize: 32 }} />
+              </ButtonBase>
             </PlanFeatureGate>
-            {savedServiceId.current && pendingImages.length > 0 ? (
+          </Box>
+          {savedServiceId.current && pendingImages.length > 0 ? (
+            <Box>
               <Button
                 type="button"
                 onClick={() => void retryImages()}
@@ -1142,8 +1282,8 @@ export function ProServiceEditor({
               >
                 Повторить загрузку
               </Button>
-            ) : null}
-          </Stack>
+            </Box>
+          ) : null}
         </Stack>
 
         {/* На мобиле колонки распадаются в один поток: display:contents отдаёт детей внешнему flex, порядок задаёт order. */}
@@ -1470,43 +1610,35 @@ export function ProServiceEditor({
               </Box>
               <Stack spacing={0.75}>
                 <Box sx={{ display: { xs: "none", md: "block" } }}>
-                  <PlanFeatureGate
-                    message={plan === "STANDARD" ? LITE_AND_BUSINESS : null}
-                    label="Метка и цвет метки"
-                    fullWidth
-                  >
-                    <StockBadgeField
-                      value={form.stockBadge}
-                      disabled={busy}
-                      onChange={(stockBadge) =>
-                        setForm((current) => ({
-                          ...current,
-                          stockBadge,
-                          paletteColor:
-                            plan === "LITE" ? "primary" : current.paletteColor,
-                        }))
-                      }
-                      endAdornment={
-                        <PlanFeatureGate
-                          message={plan !== "BUSINESS" ? BUSINESS_ONLY : null}
-                          label="Цвет метки"
-                        >
-                          <DesktopLabelColor
-                            value={
-                              plan === "LITE" ? "primary" : form.paletteColor
-                            }
-                            disabled={busy}
-                            onChange={(color) =>
-                              setForm((current) => ({
-                                ...current,
-                                paletteColor: color,
-                              }))
-                            }
-                          />
-                        </PlanFeatureGate>
-                      }
-                    />
-                  </PlanFeatureGate>
+                  <StockBadgeField
+                    value={form.stockBadge}
+                    disabled={busy}
+                    badgeLocked={plan === "STANDARD"}
+                    onChange={(stockBadge) =>
+                      setForm((current) => ({
+                        ...current,
+                        stockBadge,
+                        paletteColor:
+                          plan === "LITE" ? "primary" : current.paletteColor,
+                      }))
+                    }
+                    endAdornment={
+                      <DesktopLabelColor
+                        value={
+                          plan === "LITE" ? "primary" : form.paletteColor
+                        }
+                        disabled={busy}
+                        colorLocked={plan !== "BUSINESS"}
+                        badgeLocked={plan === "STANDARD"}
+                        onChange={(color) =>
+                          setForm((current) => ({
+                            ...current,
+                            paletteColor: color,
+                          }))
+                        }
+                      />
+                    }
+                  />
                 </Box>
                 <Box sx={{ display: { md: "none" } }}>
                   <MobileLabelColor

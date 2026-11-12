@@ -1,4 +1,6 @@
 export function isAllowedLocationRow(row: { typeName: string; level: number }) {
+  if (row.typeName.trim().toLowerCase() === 'автодорога') return false;
+
   // City records: GAR typically uses level=5, typeName="г".
   // Federal cities are subjects (level=1) but are still "г" in GAR exports.
   if (row.typeName === 'г' && (row.level === 5 || row.level === 1)) return true;

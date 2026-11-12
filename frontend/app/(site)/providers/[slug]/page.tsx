@@ -1,3 +1,5 @@
+
+import { FavoriteButton } from "@/features/favorites/FavoriteButton";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
@@ -148,7 +150,7 @@ export default async function ProviderPublicPage({ params }: Props) {
                 }}
               >
                 {services.map((service) => (
-                  <ServiceCard key={service.id} item={service} />
+                  <ServiceCard key={service.id} item={service} favoriteAction={<FavoriteButton kind="services" id={service.id} />} />
                 ))}
               </Box>
             )}

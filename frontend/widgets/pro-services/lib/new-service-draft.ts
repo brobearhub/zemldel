@@ -17,6 +17,7 @@ export type NewServiceDraft = {
   placesEdited?: boolean;
   allRussia: boolean;
   images: string[];
+  mainPhotoKey?: string | null;
   savedServiceId: string | null;
   photos: string[];
 };
@@ -49,6 +50,7 @@ export function readNewServiceDraft(key: string): NewServiceDraft | null {
     typeof value.allRussia !== "boolean" ||
     !Array.isArray(value.images) ||
     !value.images.every((url) => typeof url === "string" && /^https?:\/\//.test(url)) ||
+    !(value.mainPhotoKey == null || typeof value.mainPhotoKey === "string") ||
     !(value.savedServiceId === null || typeof value.savedServiceId === "string") ||
     !Array.isArray(value.photos) ||
     !value.photos.every((id) => typeof id === "string")

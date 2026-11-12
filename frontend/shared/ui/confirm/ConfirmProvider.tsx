@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { ConfirmDialog } from "./ConfirmDialog";
+import type { ButtonProps } from "@mui/material";
 
 export type ConfirmOptions = {
   title: ReactNode;
@@ -16,6 +17,7 @@ export type ConfirmOptions = {
   confirmText: string;
   cancelText?: string;
   confirmColor?: "primary" | "secondary" | "info" | "success" | "warning" | "error" | "inherit";
+  buttonSize?: ButtonProps["size"];
   actions?: ReactNode;
 };
 
@@ -89,6 +91,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         confirmText={current?.options.confirmText ?? "OK"}
         cancelText={current?.options.cancelText}
         confirmColor={current?.options.confirmColor}
+        buttonSize={current?.options.buttonSize}
         actions={current?.options.actions}
         reasonField={
           isReasonMode

@@ -42,7 +42,8 @@
     "test:ui": "vitest --ui",
     "passports:check-access": "tsx scripts/check-passport-access.ts",
     "private-documents:check-health": "tsx scripts/check-private-document-health.ts",
-    "private-documents:publish-health": "tsx scripts/publish-private-document-health.ts"
+    "private-documents:publish-health": "tsx scripts/publish-private-document-health.ts",
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.build.json"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1068.0",

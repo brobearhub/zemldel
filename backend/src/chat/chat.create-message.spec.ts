@@ -45,7 +45,7 @@ describe('ChatService.createMessage', () => {
     const service = makeService(prisma, gateway);
     (service as any).assertConversationAccess = vi
       .fn()
-      .mockResolvedValue(undefined);
+      .mockResolvedValue({ kind: 'REQUEST' });
     (service as any).getParticipantUserIds = vi.fn().mockResolvedValue([]);
 
     const result = await service.createMessage('u1', 'c1', {
@@ -61,7 +61,15 @@ describe('ChatService.createMessage', () => {
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
         include: expect.objectContaining({
-          sender: { select: { id: true, name: true, image: true } },
+          sender: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
         }),
       }),
     );
@@ -75,7 +83,7 @@ describe('ChatService.createMessage', () => {
     const svc = makeService(prisma);
     (svc as any).assertConversationAccess = vi
       .fn()
-      .mockResolvedValue(undefined);
+      .mockResolvedValue({ kind: 'REQUEST' });
     (svc as any).broadcastMessageCreated = vi.fn();
     await expect(
       svc.createMessage('u1', 'c1', { body: 'hello', clientMessageId: 'cm1' }),
@@ -91,7 +99,7 @@ describe('ChatService.createMessage', () => {
     const svc = makeService(prisma);
     (svc as any).assertConversationAccess = vi
       .fn()
-      .mockResolvedValue(undefined);
+      .mockResolvedValue({ kind: 'REQUEST' });
     await expect(
       svc.createMessage('u1', 'c1', {
         body: 'changed',
@@ -125,8 +133,10 @@ describe('ChatService.createMessage', () => {
     const svc = makeService(prisma);
     (svc as any).assertConversationAccess = vi
       .fn()
-      .mockResolvedValue(undefined);
-    (svc as any).broadcastMessageCreated = vi.fn().mockResolvedValue(undefined);
+      .mockResolvedValue({ kind: 'REQUEST' });
+    (svc as any).broadcastMessageCreated = vi
+      .fn()
+      .mockResolvedValue({ kind: 'REQUEST' });
 
     await svc.createMessage('cu1', 'c1', {
       body: 'hello',
@@ -161,8 +171,10 @@ describe('ChatService.createMessage', () => {
     const svc = makeService(prisma);
     (svc as any).assertConversationAccess = vi
       .fn()
-      .mockResolvedValue(undefined);
-    (svc as any).broadcastMessageCreated = vi.fn().mockResolvedValue(undefined);
+      .mockResolvedValue({ kind: 'REQUEST' });
+    (svc as any).broadcastMessageCreated = vi
+      .fn()
+      .mockResolvedValue({ kind: 'REQUEST' });
 
     await svc.createMessage('pu1', 'c1', {
       body: 'hello',
@@ -200,8 +212,10 @@ describe('ChatService.createMessage', () => {
     const svc = makeService(prisma);
     (svc as any).assertConversationAccess = vi
       .fn()
-      .mockResolvedValue(undefined);
-    (svc as any).broadcastMessageCreated = vi.fn().mockResolvedValue(undefined);
+      .mockResolvedValue({ kind: 'REQUEST' });
+    (svc as any).broadcastMessageCreated = vi
+      .fn()
+      .mockResolvedValue({ kind: 'REQUEST' });
 
     await svc.createMessage('cu1', 'c1', {
       body: 'hello',

@@ -14,6 +14,7 @@ function makeCustomer(
 ): RequestCustomerDto {
   return {
     id: "r1",
+    number: null,
     subjectType: "FREEFORM" satisfies RequestSubjectType,
     status: "NEW" satisfies RequestStatus,
     serviceId: null,
@@ -70,6 +71,7 @@ function makeCustomer(
 function makeProvider(overrides: Partial<RequestProDto> = {}): RequestProDto {
   return {
     id: "r1",
+    number: null,
     subjectType: "FREEFORM" satisfies RequestSubjectType,
     serviceId: null,
     serviceTitle: null,

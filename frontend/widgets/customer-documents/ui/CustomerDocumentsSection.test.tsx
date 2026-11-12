@@ -102,7 +102,7 @@ describe("CustomerDocumentsSection", () => {
 
     await user.click(screen.getByRole("button", { name: "Заполнить паспортные данные" }));
     expect(screen.getByRole("dialog", { name: "Заполнить паспортные данные" })).toBeInTheDocument();
-    expect(screen.getByText(/152-ФЗ/)).toBeInTheDocument();
+    expect(within(screen.getByRole("dialog", { name: "Заполнить паспортные данные" })).getByText(/152-ФЗ/)).toBeInTheDocument();
     await user.type(screen.getByRole("textbox", { name: /Серия/ }), "1234");
     await user.type(screen.getByRole("textbox", { name: /Номер/ }), "567890");
     await user.type(screen.getByRole("textbox", { name: "ФИО" }), "Тестовый Пользователь");
@@ -155,7 +155,7 @@ describe("CustomerDocumentsSection", () => {
     await user.upload(screen.getByLabelText("Выбрать фото паспорта"), file);
 
     expect(await screen.findByAltText("Предпросмотр: example.png")).toHaveAttribute("src", "blob:passport-preview");
-    expect(screen.getByText(/Не загружено/)).toBeInTheDocument();
+    expect(screen.getByText("В очереди — нажмите «Загрузить фото»")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Загрузить фото" })).toBeEnabled();
     expect(fetchMock).toHaveBeenCalledTimes(before);
     await user.click(screen.getByRole("button", { name: "Убрать фото example.png" }));
@@ -168,14 +168,14 @@ describe("CustomerDocumentsSection", () => {
     await screen.findByRole("button", { name: "Редактировать" });
     await user.click(within(screen.getByRole("region", { name: "Данные паспорта" })).getByRole("button", { name: "Поделиться" }));
     const dialog = screen.getByRole("dialog", { name: "Поделиться паспортом" });
-    await waitFor(() => expect(within(dialog).getByRole("checkbox", { name: "Данные анкеты" })).toBeChecked());
-    expect(within(dialog).getByRole("checkbox", { name: /Фото паспорта/ })).toBeDisabled();
+    await waitFor(() => expect(within(dialog).getByRole("checkbox", { name: "Данные паспорта" })).toBeChecked());
+    expect(within(dialog).getByRole("checkbox", { name: /Фотографии паспорта/ })).toBeDisabled();
     await user.click(within(dialog).getByRole("combobox", { name: "Заявка и исполнитель" }));
     await user.click(screen.getByRole("option", { name: /Межевание участка/ }));
     await user.click(within(dialog).getByRole("button", { name: "Сохранить разрешения" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     const write = fetchMock.mock.calls.find(([url, init]: [RequestInfo | URL, RequestInit?]) => String(url).includes("/access/") && init?.method === "PUT");
-    expect(JSON.parse(String(write?.[1]?.body))).toEqual({ form: true, photo: false, durationDays: 7 });
+    expect(JSON.parse(String(write?.[1]?.body))).toEqual({ form: true, photo: false, durationDays: 7, providerId: "provider-1" });
   });
 
   it("loads documents on expansion, deduplicates contracts and links to the correct request", async () => {

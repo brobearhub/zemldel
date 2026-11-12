@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import { DirectChatActions } from "@/widgets/favorites/DirectChatActions";
 import ChatBubbleOutlineRoundedIcon from "@mui/icons-material/ChatBubbleOutlineRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import {
@@ -28,6 +29,7 @@ import {
 import { alpha } from "@mui/material/styles";
 import type { ChatInboxRole } from "@/entities/chat/api/chat-inbox";
 import { getActiveMembership } from "@/core/auth/authorization";
+import { formatRequestNumber } from "@/entities/request/lib/request-reference";
 import { ServiceRequestChatPanel } from "@/widgets/chat/ui/ServiceRequestChatPanel";
 import { useChatInbox } from "../model/use-chat-inbox";
 import { useChatViewport } from "../model/use-chat-viewport";
@@ -59,7 +61,8 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
   const requestBasePath =
     role === "provider" ? "/pro/requests" : "/profile/requests";
   const peerLabel = role === "provider" ? "Клиент" : "Исполнитель";
-  const { requestId } = useParams<{ requestId?: string }>();
+  const { requestId, conversationId: directId } = useParams<{ requestId?: string; conversationId?: string }>();
+  const threadId = directId ?? requestId;
   const requestedConversation = useSearchParams().get("conversation");
   const { items, error, refresh, onMessage, unreadByConversationId } =
     useChatInbox(scope, role);
@@ -71,12 +74,12 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
 
   // The route layout remains mounted: filters and scroll survive list ↔ thread navigation.
   useLayoutEffect(() => {
-    if (!requestId && scrollRef.current)
+    if (!threadId && scrollRef.current)
       scrollRef.current.scrollTop = savedScroll.current;
-  }, [requestId]);
+  }, [threadId]);
 
   const rows = items ?? [];
-  const own = rows.filter((row) => row.serviceRequestId === requestId);
+  const own = rows.filter((row) => directId ? row.kind === "DIRECT" && row.conversationId === directId : row.serviceRequestId === requestId);
   const active = requestedConversation
     ? own.find((row) => row.conversationId === requestedConversation)
     : own.length === 1
@@ -93,7 +96,7 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
   const filtered = rows.filter(
     (row) =>
       (!onlyUnread || unread(row) > 0) &&
-      `${row.peerName ?? ""} ${row.title} ${row.serviceRequestId}`
+      `${row.peerName ?? ""} ${row.title} ${row.requestNumber ?? ""} ${row.serviceRequestId}`
         .toLocaleLowerCase("ru-RU")
         .includes(normalizedQuery),
   );
@@ -116,7 +119,7 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
         direction="row"
         sx={{
           display: {
-            xs: requestId ? "none" : "flex",
+            xs: threadId ? "none" : "flex",
             md: "flex",
           },
           alignItems: "center",
@@ -194,7 +197,7 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
           aria-label="Список чатов"
           sx={{
             display: {
-              xs: requestId ? "none" : "flex",
+              xs: threadId ? "none" : "flex",
               md: "flex",
             },
             flexDirection: "column",
@@ -454,6 +457,9 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
                         mt: 0.25,
                       }}
                     >
+                      {row.requestNumber != null
+                        ? `${formatRequestNumber({ id: row.serviceRequestId ?? "", number: row.requestNumber })} · `
+                        : ""}
                       {row.title}
                     </Typography>
                     <Stack
@@ -506,7 +512,7 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
           aria-label="Переписка"
           sx={{
             display: {
-              xs: requestId ? "flex" : "none",
+              xs: threadId ? "flex" : "none",
               md: "flex",
             },
             flexDirection: "column",
@@ -515,7 +521,7 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
             minHeight: 0,
           }}
         >
-          {requestId ? (
+          {threadId ? (
             <>
               <Stack
                 direction="row"
@@ -621,15 +627,15 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
                       color: "text.secondary",
                     }}
                   >
-                    № {requestId.slice(0, 8)}
+                    {directId ? "Без заявки" : formatRequestNumber({ id: requestId ?? "", number: active?.requestNumber ?? own[0]?.requestNumber })}
                     {active && chatStatus(active)
                       ? ` · ${chatStatus(active)}`
                       : ""}
                   </Typography>
                 </Box>
-                <Button
+                {!directId ? <Button
                   component={Link}
-                  href={`${requestBasePath}/${encodeURIComponent(requestId)}`}
+                  href={`${requestBasePath}/${encodeURIComponent(requestId ?? "")}`}
                   endIcon={<ChevronRightRoundedIcon />}
                   sx={{
                     flexShrink: 0,
@@ -640,7 +646,7 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
                   }}
                 >
                   К заявке
-                </Button>
+                </Button> : null}
               </Stack>
               {!items && !error ? (
                 <Skeleton
@@ -681,10 +687,11 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
                   ))}
                 </Stack>
               ) : null}
+              {active?.kind === "DIRECT" && role === "customer" && active.conversationId ? <DirectChatActions conversationId={active.conversationId} state={active.directState} onChange={refresh} /> : null}
               {active ? (
                 <ServiceRequestChatPanel
                   key={active.conversationId ?? active.serviceRequestId}
-                  serviceRequestId={active.serviceRequestId}
+                  serviceRequestId={active.serviceRequestId ?? undefined}
                   conversationId={active.conversationId}
                   title={active.peerName || peerLabel}
                   appearance="messenger"

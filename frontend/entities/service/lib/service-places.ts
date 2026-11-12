@@ -23,6 +23,27 @@ export function placeKey(place: Pick<ServicePlace, "kind" | "cityId" | "regionCo
   return place.kind === "city" ? `city:${place.cityId ?? ""}` : `region:${place.regionCode}`;
 }
 
+export function placeSelectionKey(place: ServicePlace) {
+  const fold = (value: string) => value.trim().replace(/\s+/g, " ").toLowerCase();
+  const region = fold(place.regionCode || shortRegionLabel(place.regionName));
+  if (place.kind === "region") return `region:${region}`;
+  const name = fold(displayCityName(place.name));
+  return name ? `city:${JSON.stringify([name, region])}` : placeKey(place);
+}
+
+export function uniqueServicePlaces(places: readonly ServicePlace[]): ServicePlace[] {
+  const identities = new Set<string>();
+  const locations = new Set<string>();
+  return places.filter(place => {
+    const identity = placeKey(place);
+    const location = placeSelectionKey(place);
+    if (identities.has(identity) || locations.has(location)) return false;
+    identities.add(identity);
+    locations.add(location);
+    return true;
+  });
+}
+
 export function toPlaceInput(place: ServicePlace): ServicePlaceInput {
   if (place.kind === "city") return { kind: "city", cityId: place.cityId };
   return { kind: "region", regionCode: place.regionCode };

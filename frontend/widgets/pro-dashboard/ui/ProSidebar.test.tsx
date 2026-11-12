@@ -73,7 +73,7 @@ describe("Меню исполнителя", () => {
       within(menu)
         .getAllByRole("link")
         .map((link) => link.textContent),
-    ).toEqual(["Чаты", "Лента заявок", "Доска", "Услуги", "Клиенты", "Сторисы", "Обзор"]);
+    ).toEqual(["Чаты", "Лента заявок", "Доска", "Интерес клиентов", "Услуги", "Клиенты", "Сторисы", "Обзор"]);
     const team = within(menu).getByRole("button", { name: "Команда" });
     expect(team).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(team);

@@ -17,6 +17,7 @@ describe('WorkspaceService task entities', () => {
       },
       {
         id: 'registered',
+        number: 17,
         customerName: null,
         customerUser: { name: 'Имя профиля' },
         message: '',
@@ -57,12 +58,14 @@ describe('WorkspaceService task entities', () => {
     expect(result.requests).toEqual([
       {
         id: 'guest',
+        number: null,
         title: 'Свободная заявка',
         status: 'NEW',
         customerName: 'Имя из заявки',
       },
       {
         id: 'registered',
+        number: 17,
         title: 'Межевание',
         status: 'ACTIVE',
         customerName: 'Имя профиля',

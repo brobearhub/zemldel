@@ -5,16 +5,17 @@ import { StoryInboxSection } from "@/widgets/story-inbox";
 
 type Props = {
   scope: StoryScope;
+  saved?: boolean;
   providerName?: string | null;
   authorName?: string | null;
 };
 
-export function StoriesPage({ scope, providerName, authorName }: Props) {
+export function StoriesPage({ scope, providerName, authorName, saved }: Props) {
   return (
     <Container maxWidth="xl" disableGutters>
       <Stack spacing={4}>
-        <StoryEditorSection scope={scope} providerName={providerName} authorName={authorName} />
-        <StoryInboxSection scope={scope} />
+        <StoryEditorSection initialLane={saved ? "saved" : "live"} scope={scope} providerName={providerName} authorName={authorName} />
+        {!saved ? <StoryInboxSection scope={scope} /> : null}
       </Stack>
     </Container>
   );

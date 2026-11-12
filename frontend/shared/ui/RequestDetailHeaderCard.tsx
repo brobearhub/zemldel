@@ -6,6 +6,7 @@ import { alpha } from "@mui/material/styles";
 
 export type RequestDetailHeaderCardProps = {
   subtitle: string;
+  reference?: string;
   statusLabel: string;
   /** Текст заявки в белой карточке; если null — карточка скрыта */
   body: string | null;
@@ -26,6 +27,7 @@ export type RequestDetailHeaderCardProps = {
  */
 export function RequestDetailHeaderCard({
   subtitle,
+  reference,
   statusLabel,
   body,
   details,
@@ -70,6 +72,17 @@ export function RequestDetailHeaderCard({
             >
               {title}
             </Typography>
+            {reference ? (
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.secondary",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {reference}
+              </Typography>
+            ) : null}
             <Typography
               variant="body2"
               sx={{

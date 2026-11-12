@@ -1,5 +1,6 @@
 "use client";
 
+import FavoriteBorderRoundedIcon from "@mui/icons-material/FavoriteBorderRounded";
 import type { ReactNode } from "react";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
@@ -75,7 +76,7 @@ export const CUSTOMER_NAV: {
       icon: <DataSaverOnIcon />,
       isActive: ({ pathname, searchParams }) =>
         pathname === "/profile" &&
-        isProfileSection(searchParams, "stories"),
+        isProfileSection(searchParams, "stories") && searchParams.get("view") !== "saved",
     },
     {
       key: "profile",
@@ -156,7 +157,7 @@ export const CUSTOMER_NAV: {
       icon: <DataSaverOnIcon />,
       isActive: ({ pathname, searchParams }) =>
         pathname === "/profile" &&
-        isProfileSection(searchParams, "stories"),
+        isProfileSection(searchParams, "stories") && searchParams.get("view") !== "saved",
     },
   ],
 };
@@ -279,4 +280,10 @@ export const PROVIDER_HEADER_NAV: readonly CabinetNavItem[] = [
     badgeKind: "chatUnreadTotal",
   },
   ...PROVIDER_NAV.desktop.filter((item) => item.key === "stories"),
+];
+
+export const CUSTOMER_FAVORITES_NAV: readonly CabinetNavItem[] = [
+  { key: "favorite-services", label: "Услуги", href: "/profile/favorites/services", icon: <FavoriteBorderRoundedIcon />, isActive: ({ pathname }) => pathname === "/profile/favorites/services" },
+  { key: "favorite-providers", label: "Исполнители", href: "/profile/favorites/providers", icon: <PersonOutlineOutlinedIcon />, isActive: ({ pathname }) => pathname === "/profile/favorites/providers" },
+  { key: "favorite-stories", label: "Сторис", href: "/profile?section=stories&view=saved", icon: <DataSaverOnIcon />, isActive: ({ pathname, searchParams }) => pathname === "/profile" && searchParams.get("section") === "stories" && searchParams.get("view") === "saved" },
 ];

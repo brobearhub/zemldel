@@ -21,7 +21,7 @@ export type ChatMessageDto = {
 
 export type ChatUnreadHintPayload = {
   conversationId: string;
-  subjectType: "request";
+  subjectType: "request" | "direct";
   subjectId: string;
   serviceRequestId?: string;
   lastMessageAt: string;
@@ -53,7 +53,10 @@ export type ChatInboxItemDto = {
   peerName?: string;
   requestStatus?: string;
   contractPhase?: boolean;
-  serviceRequestId: string;
+  serviceRequestId: string | null;
+  kind?: "REQUEST" | "DIRECT";
+  directState?: string | null;
+  requestNumber?: number | null;
   title: string;
   lastMessageAt: string | null;
   lastSnippet: string | null;

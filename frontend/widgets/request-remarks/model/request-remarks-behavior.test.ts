@@ -8,6 +8,7 @@ import { vi } from "vitest";
 function makeCustomer(overrides: Partial<RequestCustomerDto> = {}): RequestCustomerDto {
   return {
     id: "r1",
+    number: null,
     subjectType: "FREEFORM" satisfies RequestSubjectType,
     status: "NEW" satisfies RequestStatus,
     serviceId: null,
@@ -64,6 +65,7 @@ function makeCustomer(overrides: Partial<RequestCustomerDto> = {}): RequestCusto
 function makeProvider(overrides: Partial<RequestProDto> = {}): RequestProDto {
   return {
     id: "r1",
+    number: null,
     subjectType: "FREEFORM" satisfies RequestSubjectType,
     serviceId: null,
     serviceTitle: null,

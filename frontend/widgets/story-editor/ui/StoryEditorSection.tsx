@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Box, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Stack, Typography } from "@mui/material";
 import {
   createStory,
   deleteStory,
@@ -10,6 +10,7 @@ import {
   type StoryLimits,
   STORY_VIDEO_MAX_BYTES,
   fetchSavedStories,
+  unsaveStory,
   fetchStoryAudience,
   fetchStoryInsights,
   fetchStoryReplyMessages,
@@ -31,14 +32,19 @@ import { StoryMetricCards } from "./StoryMetricCard";
 
 type Props = {
   scope: StoryScope;
+  initialLane?: StoriesLane;
   providerName?: string | null;
   authorName?: string | null;
 };
 
-export function StoryEditorSection({ scope, providerName, authorName }: Props) {
+export function StoryEditorSection({ scope, providerName, authorName, initialLane = "live" }: Props) {
   const [items, setItems] = useState<StoryDto[]>([]);
   const [saved, setSaved] = useState<StoryDto[]>([]);
-  const [lane, setLane] = useState<StoriesLane>("live");
+  const [savedLoading, setSavedLoading] = useState(true);
+  const [savedError, setSavedError] = useState<string | null>(null);
+  const [savedAttempt, setSavedAttempt] = useState(0);
+  const [lane, setLane] = useState<StoriesLane>(initialLane);
+  useEffect(() => setLane(initialLane), [initialLane]);
   const [composing, setComposing] = useState(false);
   const [preview, setPreview] = useState<{ items: StoryDto[]; startId: string } | null>(null);
   const [audience, setAudience] = useState<StoryAudienceDto | null>(null);
@@ -94,11 +100,6 @@ export function StoryEditorSection({ scope, providerName, authorName }: Props) {
       .catch((e) => {
         if (alive) setError(e instanceof Error ? e.message : "Не удалось загрузить истории");
       });
-    void fetchSavedStories(scope)
-      .then((payload) => {
-        if (alive) setSaved(payload.items);
-      })
-      .catch(() => undefined);
     void fetchStoryAudience(scope)
       .then((payload) => {
         if (alive) setAudience(payload);
@@ -108,6 +109,36 @@ export function StoryEditorSection({ scope, providerName, authorName }: Props) {
       alive = false;
     };
   }, [scope]);
+
+  useEffect(() => {
+    let alive = true;
+    setSavedLoading(true);
+    setSavedError(null);
+    void fetchSavedStories(scope)
+      .then((payload) => {
+        if (alive) setSaved(payload.items);
+      })
+      .catch((cause: unknown) => {
+        if (alive) setSavedError(cause instanceof Error ? cause.message : "Не удалось загрузить сохранённые истории");
+      })
+      .finally(() => {
+        if (alive) setSavedLoading(false);
+      });
+    return () => { alive = false; };
+  }, [scope, savedAttempt]);
+
+  async function removeSaved(storyId: string) {
+    setBusy(true);
+    setSavedError(null);
+    try {
+      await unsaveStory(storyId, scope);
+      setSaved((current) => current.filter((story) => story.id !== storyId));
+    } catch (cause) {
+      setSavedError(cause instanceof Error ? cause.message : "Не удалось убрать историю из сохранённых");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   function cancelCompose() {
     setComposing(false);
@@ -176,7 +207,7 @@ export function StoryEditorSection({ scope, providerName, authorName }: Props) {
   const previewAuthor = scope === "provider" && providerName ? providerName : authorName?.trim() || "";
 
   useEffect(() => {
-    if (!selectedId) {
+    if (!selectedId || lane === "saved") {
       setInsights(null);
       return;
     }
@@ -194,7 +225,7 @@ export function StoryEditorSection({ scope, providerName, authorName }: Props) {
     return () => {
       alive = false;
     };
-  }, [selectedId]);
+  }, [selectedId, lane]);
 
   useEffect(() => {
     if (!selectedId || !openReplyId) return;
@@ -225,6 +256,54 @@ export function StoryEditorSection({ scope, providerName, authorName }: Props) {
     } finally {
       setReplySending(false);
     }
+  }
+
+  if (initialLane === "saved") {
+    return (
+      <Stack spacing={3}>
+        <Typography
+          variant="h4"
+          component="h1"
+        >
+          Сохранённые истории
+        </Typography>
+        {savedError ? (
+          <Alert
+            severity="error"
+            action={<Button onClick={() => setSavedAttempt((value) => value + 1)}>Повторить</Button>}
+          >
+            {savedError}
+          </Alert>
+        ) : null}
+        {savedLoading ? (
+          <CircularProgress aria-label="Загрузка сохранённых историй" />
+        ) : saved.length ? (
+          <StoryTileRow
+            stories={saved}
+            selectedId={null}
+            busy={busy}
+            saved
+            onSelect={(storyId) => setPreview({ items: saved, startId: storyId })}
+            onOpen={(storyId) => setPreview({ items: saved, startId: storyId })}
+            onRemove={(storyId) => void removeSaved(storyId)}
+          />
+        ) : !savedError ? (
+          <Typography color="text.secondary">
+            Сохранённых историй пока нет. Добавляйте понравившиеся истории в закладки при просмотре.
+          </Typography>
+        ) : null}
+        {preview ? (
+          <StoriesViewerModal
+            items={preview.items}
+            startId={preview.startId}
+            onClose={() => {
+              setPreview(null);
+              setSavedAttempt((value) => value + 1);
+            }}
+          />
+        ) : null}
+      </Stack>
+    );
   }
 
   return (
@@ -323,7 +402,18 @@ export function StoryEditorSection({ scope, providerName, authorName }: Props) {
         ))}
       </Stack>
 
-      {!composing && visibleStories.length > 0 ? (
+      {lane === "saved" && savedError ? <Alert severity="error">{savedError}</Alert> : null}
+      {!composing && visibleStories.length > 0 ? lane === "saved" ? (
+        <StoryTileRow
+          stories={saved}
+          selectedId={selectedId}
+          busy={busy}
+          saved
+          onSelect={setPickedId}
+          onOpen={(storyId) => setPreview({ items: saved, startId: storyId })}
+          onRemove={(storyId) => void removeSaved(storyId)}
+        />
+      ) : (
         <StoryInsightsPanel
           insights={insights}
           storyText={selectedStory?.text ?? ""}

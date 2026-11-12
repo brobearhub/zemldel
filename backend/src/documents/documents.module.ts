@@ -1,4 +1,5 @@
 import { PassportAccessController } from './passport-access.controller';
+import { PassportAccessRequestsController } from './passport-access-requests.controller';
 import { PassportAccessService } from './passport-access.service';
 import { PassportProviderPhotosController } from './passport-provider-photos.controller';
 import { Module } from '@nestjs/common';
@@ -21,6 +22,7 @@ import { PrismaModule } from '../prisma/prisma.module';
     DocumentsController,
     PassportPhotosController,
     PassportAccessController,
+    PassportAccessRequestsController,
     PassportProviderPhotosController,
   ],
   providers: [

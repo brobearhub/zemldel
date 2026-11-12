@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Alert, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, MenuItem, Stack, TextField, Typography } from "@mui/material";
-import type { RequestCustomerDto } from "@/entities/request";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import { Alert, Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, IconButton, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { formatRequestCreatedAt, formatRequestNumber, type RequestCustomerDto } from "@/entities/request";
 import { passportAccessError, passportAccessUrl, type PassportAccessState } from "../model/passport-access";
 
 type Props = {
   initialKind: "form" | "photo";
+  initialRequestId?: string;
   requests: RequestCustomerDto[];
   loading: boolean;
   error: string | null;
@@ -15,8 +17,8 @@ type Props = {
   onClose: () => void;
 };
 
-export function PassportAccessDialog({ initialKind, requests, loading, error, hasPassport, onSaved, onClose }: Props) {
-  const [requestId, setRequestId] = useState("");
+export function PassportAccessDialog({ initialKind, initialRequestId, requests, loading, error, hasPassport, onSaved, onClose }: Props) {
+  const [requestId, setRequestId] = useState(initialRequestId ?? "");
   const [shareForm, setShareForm] = useState(initialKind === "form" && hasPassport);
   const [sharePhoto, setSharePhoto] = useState(initialKind === "photo");
   const [duration, setDuration] = useState("7");
@@ -33,19 +35,20 @@ export function PassportAccessDialog({ initialKind, requests, loading, error, ha
       const data = await response.json() as PassportAccessState;
       if (!controller.signal.aborted) {
         setState(data);
-        setShareForm(initialKind === "form" && data.hasForm);
-        setSharePhoto(initialKind === "photo" && data.photoCount > 0);
+        const existing = initialRequestId ? data.grants.filter((grant) => grant.requestId === initialRequestId && grant.active) : [];
+        setShareForm((initialKind === "form" || existing.some((grant) => grant.kind === "FORM")) && data.hasForm);
+        setSharePhoto((initialKind === "photo" || existing.some((grant) => grant.kind === "PHOTO")) && data.photoCount > 0);
       }
     }).catch(() => { if (!controller.signal.aborted) setAccessError("Не удалось загрузить разрешения"); });
     return () => controller.abort();
-  }, [initialKind, attempt]);
+  }, [initialKind, initialRequestId, attempt]);
 
   function selectRequest(id: string) {
     setRequestId(id);
     const existing = state?.grants.filter((grant) => grant.requestId === id && grant.active) ?? [];
     if (existing.length) {
-      setShareForm(existing.some((grant) => grant.kind === "FORM") && Boolean(state?.hasForm));
-      setSharePhoto(existing.some((grant) => grant.kind === "PHOTO") && Boolean(state?.photoCount));
+      setShareForm((existing.some((grant) => grant.kind === "FORM") || (id === initialRequestId && initialKind === "form")) && Boolean(state?.hasForm));
+      setSharePhoto((existing.some((grant) => grant.kind === "PHOTO") || (id === initialRequestId && initialKind === "photo")) && Boolean(state?.photoCount));
     } else {
       setShareForm(initialKind === "form" && Boolean(state?.hasForm));
       setSharePhoto(initialKind === "photo" && Boolean(state?.photoCount));
@@ -60,7 +63,7 @@ export function PassportAccessDialog({ initialKind, requests, loading, error, ha
       const response = await fetch(`${passportAccessUrl}/${encodeURIComponent(requestId)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ form: shareForm, photo: sharePhoto, durationDays: Number(duration) }),
+        body: JSON.stringify({ form: shareForm, photo: sharePhoto, durationDays: Number(duration), providerId: eligibleRequests.find((request) => request.id === requestId)?.providerId }),
       });
       if (!response.ok) throw new Error(passportAccessError(await response.json(), "Не удалось сохранить разрешения"));
       onSaved();
@@ -77,7 +80,27 @@ export function PassportAccessDialog({ initialKind, requests, loading, error, ha
       maxWidth="sm"
       aria-labelledby="passport-access-title"
     >
-      <DialogTitle id="passport-access-title">Поделиться паспортом</DialogTitle>
+      <DialogTitle
+        id="passport-access-title"
+        sx={{
+          pr: 6,
+        }}
+      >
+        Поделиться паспортом
+      </DialogTitle>
+      <IconButton
+        aria-label="Закрыть окно доступа к паспорту"
+        color="error"
+        disabled={busy}
+        onClick={onClose}
+        sx={{
+          position: "absolute",
+          right: 8,
+          top: 8,
+        }}
+      >
+        <CloseRoundedIcon />
+      </IconButton>
       <DialogContent>
         <Stack spacing={2}>
           <Typography variant="body2">Выберите заявку и данные, которые сможет читать её исполнитель.</Typography>
@@ -98,13 +121,58 @@ export function PassportAccessDialog({ initialKind, requests, loading, error, ha
                 value={request.id}
                 sx={{ whiteSpace: "normal" }}
               >
-                {request.serviceTitle || request.categoryName || "Заявка"} · {request.providerName || "Исполнитель"}
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "minmax(0, 1fr) auto",
+                    columnGap: 1,
+                    rowGap: 0.25,
+                    alignItems: "baseline",
+                    width: "100%",
+                    minWidth: 0,
+                    overflowWrap: "anywhere",
+                    whiteSpace: "normal",
+                  }}
+                >
+                  <Typography
+                    variant="body2"
+                    sx={{ fontWeight: 600 }}
+                  >
+                    {request.serviceTitle || request.categoryName || "Заявка"}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 600,
+                      textAlign: "right",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {formatRequestNumber(request)}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: "text.secondary" }}
+                  >
+                    {request.providerName || "Исполнитель"}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "text.secondary",
+                      textAlign: "right",
+                      maxWidth: { xs: 96, sm: "none" },
+                    }}
+                  >
+                    {formatRequestCreatedAt(request.createdAt) || "—"}
+                  </Typography>
+                </Box>
               </MenuItem>
             ))}
           </TextField>
           <Stack>
             <FormControlLabel
-              label={state?.hasForm ? "Данные анкеты" : "Данные анкеты — сначала сохраните анкету"}
+              label={state?.hasForm ? "Данные паспорта" : "Данные паспорта — сначала заполните данные"}
               control={(
                 <Checkbox
                   checked={shareForm}
@@ -114,7 +182,7 @@ export function PassportAccessDialog({ initialKind, requests, loading, error, ha
               )}
             />
             <FormControlLabel
-              label={state?.photoCount ? "Фото паспорта" : "Фото паспорта — сначала загрузите фотографии"}
+              label={state?.photoCount ? "Фотографии паспорта" : "Фотографии паспорта — сначала загрузите фотографии"}
               control={(
                 <Checkbox
                   checked={sharePhoto}
@@ -146,7 +214,16 @@ export function PassportAccessDialog({ initialKind, requests, loading, error, ha
           </Typography>
         </Stack>
       </DialogContent>
-      <DialogActions>
+      <DialogActions
+        sx={{
+          flexDirection: { xs: "column-reverse", sm: "row" },
+          alignItems: { xs: "stretch", sm: "center" },
+          gap: { xs: 1, sm: 0 },
+          "& > :not(style) ~ :not(style)": {
+            ml: { xs: 0, sm: 1 },
+          },
+        }}
+      >
         <Button
           onClick={onClose}
           disabled={busy}

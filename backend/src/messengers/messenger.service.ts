@@ -287,9 +287,20 @@ export class MessengerService {
       connection.platform,
       connection.chatId,
       selected && target
-        ? `Напишите ответ для ${(target.message.sender.name ?? 'собеседника').slice(0, 100)} по заявке №${target.message.conversation.requestId.slice(0, 8)}. Следующее текстовое сообщение отправится в этот чат на сайте. Выбор действует 10 минут. Отмена: /cancel.`
+        ? `Напишите ответ для ${(target.message.sender.name ?? 'собеседника').slice(0, 100)} по заявке ${this.requestReference(target.message.conversation)}. Следующее текстовое сообщение отправится в этот чат на сайте. Выбор действует 10 минут. Отмена: /cancel.`
         : 'Не удалось выбрать заявку: чат недоступен или это нажатие уже обработано. Нажмите «Ответить здесь» ещё раз или откройте чат на сайте.',
     );
+  }
+
+  private requestReference(conversation: {
+    requestId: string | null;
+    request?: { number: number | null } | null;
+  }) {
+    if (!conversation.requestId)
+      throw new Error('Direct chats are available on the site only');
+    return conversation.request?.number != null
+      ? `№ ${conversation.request.number}`
+      : `ID ${conversation.requestId.slice(0, 8)}`;
   }
 
   private notification(
@@ -303,7 +314,7 @@ export class MessengerService {
     const parts = splitMessage(message.body);
     const suffix =
       parts.length > 1 ? ` · ${delivery.part + 1}/${parts.length}` : '';
-    const text = `Заявка №${message.conversation.requestId.slice(0, 8)}${suffix}\n${(message.sender.name ?? 'Собеседник').slice(0, 100)}:\n\n${parts[delivery.part]}\n\nНажмите «Ответить здесь» или используйте «Ответить» на этом сообщении.`;
+    const text = `Заявка ${this.requestReference(message.conversation)}${suffix}\n${(message.sender.name ?? 'Собеседник').slice(0, 100)}:\n\n${parts[delivery.part]}\n\nНажмите «Ответить здесь» или используйте «Ответить» на этом сообщении.`;
     const customer = userId === message.conversation.customerUserId;
     const link = `${this.config.siteUrl}/${customer ? 'profile' : 'pro'}/requests/${message.conversation.requestId}?conversationId=${message.conversationId}`;
     return { text, link, replyPayload: `reply:${delivery.id}` };

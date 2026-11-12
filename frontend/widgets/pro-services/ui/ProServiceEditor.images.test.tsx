@@ -70,7 +70,7 @@ describe("service photo gallery", () => {
     vi.stubGlobal("fetch", fetchMock);
     mount([], "create", true);
     await userEvent.upload(screen.getByLabelText("Фотографии услуги"), files(1));
-    expect(screen.getByText("Обложка · Загрузится при сохранении")).toBeInTheDocument();
+    expect(screen.getByText("Обложка")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("combobox", { name: /Категория/ }));
     await userEvent.click(screen.getByRole("option", { name: new RegExp(mainService.category.name) }));
     await userEvent.type(screen.getByRole("textbox", { name: "Цена" }), "15000");
@@ -188,6 +188,104 @@ describe("service photo gallery", () => {
     const patches = fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH");
     expect(patches).toHaveLength(1);
     expect(JSON.parse(String(patches[0][1]?.body))).toMatchObject({ status: "PUBLISHED", images: pictures(1) });
+  });
+
+  it("marks the selected saved photo as main and publishes it as the cover", async () => {
+    const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
+      if (init?.method) return Response.json(mainService);
+      return readResponse(url);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const gallery = pictures(3);
+    mount(gallery);
+    expect(screen.getAllByText("Главная")).toHaveLength(1);
+    await userEvent.click(screen.getByRole("button", { name: "Сделать главной фото 3" }));
+    expect(screen.getByAltText("Фото услуги 1")).toHaveAttribute("src", gallery[2]);
+    expect(screen.getAllByText("Главная")).toHaveLength(1);
+    await userEvent.click(screen.getAllByRole("button", { name: "Опубликовать" })[0]);
+    await waitFor(() => expect(navigation.push).toHaveBeenCalled());
+    const patch = fetchMock.mock.calls.find(([, init]) => init?.method === "PATCH");
+    expect(JSON.parse(String(patch?.[1]?.body))).toMatchObject({ images: [gallery[2], gallery[0], gallery[1]] });
+  });
+
+  it("uploads the chosen new cover first and keeps it main after later uploads", async () => {
+    const uploaded: string[] = [];
+    const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
+      if (String(url).endsWith("/image")) {
+        const file = (init?.body as FormData).get("file") as File;
+        uploaded.push(file.name);
+        const gallery = uploaded.map((name) => `https://example.com/${name}`);
+        return Response.json({ image: gallery[0], images: gallery });
+      }
+      if (init?.method) return Response.json({ ...mainService, id: "created-service" });
+      return readResponse(url);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mount([], "create");
+    await userEvent.upload(screen.getByLabelText("Фотографии услуги"), files(3));
+    const chosen = screen.getByAltText("Фото услуги 3").getAttribute("src");
+    await userEvent.click(screen.getByRole("button", { name: "Сделать главной фото 3" }));
+    expect(screen.getByAltText("Фото услуги 1")).toHaveAttribute("src", chosen);
+    await userEvent.click(screen.getAllByRole("button", { name: "Опубликовать" })[0]);
+    await waitFor(() => expect(navigation.push).toHaveBeenCalled());
+    expect(uploaded).toEqual(["photo-2.png", "photo-0.png", "photo-1.png"]);
+    expect(screen.getByAltText("Фото услуги 1")).toHaveAttribute("src", "https://example.com/photo-2.png");
+  });
+
+  it("keeps a newly selected cover when an earlier photo has already uploaded before a failure", async () => {
+    const gallery: string[] = [];
+    let uploads = 0;
+    const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
+      if (String(url).endsWith("/image")) {
+        if (++uploads === 2) return Response.json({ error: "Сбой второго фото" }, { status: 502 });
+        const file = (init?.body as FormData).get("file") as File;
+        gallery.push(`https://example.com/${file.name}`);
+        return Response.json({ image: gallery[0], images: gallery });
+      }
+      if (init?.method) return Response.json({ ...mainService, id: "created-service" });
+      return readResponse(url);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mount([], "create");
+    await userEvent.upload(screen.getByLabelText("Фотографии услуги"), files(3));
+    await userEvent.click(screen.getAllByRole("button", { name: "Опубликовать" })[0]);
+    await screen.findByText("Сбой второго фото");
+    const chosen = screen.getByAltText("Фото услуги 3").getAttribute("src");
+    await userEvent.click(screen.getByRole("button", { name: "Сделать главной фото 3" }));
+    expect(screen.getByAltText("Фото услуги 1")).toHaveAttribute("src", chosen);
+    await userEvent.click(screen.getAllByRole("button", { name: "Опубликовать" })[0]);
+    await waitFor(() => expect(navigation.push).toHaveBeenCalled());
+    const patch = fetchMock.mock.calls.find(([, init]) => init?.method === "PATCH");
+    expect(JSON.parse(String(patch?.[1]?.body))).toMatchObject({
+      images: ["https://example.com/photo-2.png", "https://example.com/photo-0.png", "https://example.com/photo-1.png"],
+    });
+  });
+
+  it("selects the existing photo when the chosen file was already stored during an earlier attempt", async () => {
+    const hash = "ab".repeat(32);
+    const gallery = [`https://example.com/first.png`, `https://example.com/${hash}.png`];
+    vi.stubGlobal("crypto", { subtle: { digest: vi.fn().mockResolvedValue(new Uint8Array(32).fill(0xab).buffer) } });
+    const selected = files(3);
+    Object.defineProperty(selected[2], "arrayBuffer", { value: async () => new ArrayBuffer(1) });
+    let uploads = 0;
+    const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
+      if (String(url).endsWith("/image")) {
+        if (++uploads === 3) return Response.json({ error: "Сбой третьего фото" }, { status: 502 });
+        return Response.json({ image: gallery[0], images: gallery.slice(0, Math.min(uploads, 2)) });
+      }
+      if (init?.method) return Response.json({ ...mainService, id: "created-service" });
+      return readResponse(url);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mount([], "create");
+    await userEvent.upload(screen.getByLabelText("Фотографии услуги"), selected);
+    await userEvent.click(screen.getAllByRole("button", { name: "Опубликовать" })[0]);
+    await screen.findByText("Сбой третьего фото");
+    await userEvent.click(screen.getByRole("button", { name: "Сделать главной фото 3" }));
+    await userEvent.click(screen.getAllByRole("button", { name: "Опубликовать" })[0]);
+    await waitFor(() => expect(navigation.push).toHaveBeenCalled());
+    const patch = fetchMock.mock.calls.find(([, init]) => init?.method === "PATCH");
+    expect(JSON.parse(String(patch?.[1]?.body))).toMatchObject({ images: [gallery[1], gallery[0]] });
   });
 
   it("recovers a 401 during photo upload without losing the file or creating another service", async () => {

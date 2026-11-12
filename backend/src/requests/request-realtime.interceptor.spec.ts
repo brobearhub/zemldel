@@ -53,6 +53,9 @@ describe('request realtime invalidation', () => {
     '/requests/:requestId/reviews',
     '/reviews/:reviewId/reply',
     '/pro/contract-files/:fileId',
+    '/pro/requests/:requestId/passport/access-requests/:kind',
+    '/documents/passport/access/:id',
+    '/documents/passport/access/requests/:id/:kind',
   ])('notifies participants after successful %s', async (path) => {
     const { interceptor, context, prisma, gateway } = setup('POST', path);
     let committed = false;

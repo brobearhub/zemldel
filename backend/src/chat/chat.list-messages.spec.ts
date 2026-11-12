@@ -65,7 +65,15 @@ describe('message cursor recovery', () => {
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         include: expect.objectContaining({
-          sender: { select: { id: true, name: true, image: true } },
+          sender: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
         }),
       }),
     );

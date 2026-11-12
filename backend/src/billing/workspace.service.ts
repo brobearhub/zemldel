@@ -51,6 +51,7 @@ export class WorkspaceService {
         },
         select: {
           id: true,
+          number: true,
           createdAt: true,
           message: true,
           customerName: true,
@@ -113,6 +114,7 @@ export class WorkspaceService {
       })),
       requests: requests.map((r) => ({
         id: r.id,
+        number: r.number ?? null,
         title:
           r.service?.title ?? r.message?.slice(0, 80) ?? 'Свободная заявка',
         status: r.status,

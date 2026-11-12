@@ -1,3 +1,5 @@
+import { uniqueCityLocations } from '../cities/city-suggest.lib';
+
 export const SERVICE_PLACES_REQUIRED = 'Выберите город или область';
 
 export type ServicePlaceInput = {
@@ -9,6 +11,22 @@ export type ServicePlaceInput = {
 export type NormalizedServicePlace =
   | { kind: 'city'; cityId: string }
   | { kind: 'region'; regionCode: string };
+
+export function uniqueServiceCityIds(
+  selectedIds: readonly string[],
+  cities: readonly {
+    id: string;
+    name: string;
+    regionCode: string;
+    typeName: string;
+    level: number;
+  }[],
+): string[] {
+  const canonicalIds = new Set(
+    uniqueCityLocations(cities).map((city) => city.id),
+  );
+  return [...new Set(selectedIds)].filter((id) => canonicalIds.has(id));
+}
 
 export function normalizeServicePlaces(
   inputs: readonly ServicePlaceInput[] | null | undefined,

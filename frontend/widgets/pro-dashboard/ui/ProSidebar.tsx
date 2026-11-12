@@ -83,7 +83,8 @@ export function ProSidebar({
     (state) => getActiveMembership(state.auth.user)?.providerName,
   );
   const displayName = activeProviderName ?? providerName;
-  const { unreadByRequestId } = useChatSocket();
+  const chatUnread = useChatSocket();
+  const unreadByRequestId = chatUnread.unreadByConversationId ?? chatUnread.unreadByRequestId;
   const unreadTotal = useMemo(
     () =>
       Object.values(unreadByRequestId).reduce(

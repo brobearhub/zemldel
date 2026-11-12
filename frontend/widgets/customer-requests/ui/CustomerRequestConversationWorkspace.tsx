@@ -37,6 +37,7 @@ import {
 } from "@/entities/chat";
 import {
   getRequestDisplayStatusLabel,
+  formatRequestReference,
   hasRequestLock,
   isOrderExecutionStatus,
   mergeWorkStageStatusOptions,
@@ -1093,6 +1094,7 @@ export function CustomerRequestConversationWorkspace({
             ) : null}
             <RequestDetailHeaderCard
               title={headerTitle}
+              reference={formatRequestReference(req)}
               subtitle={pickTitle(req)}
               statusLabel={getRequestDisplayStatusLabel(req)}
               body={requestBody}

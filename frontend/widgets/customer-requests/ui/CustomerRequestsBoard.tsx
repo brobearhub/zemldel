@@ -15,6 +15,7 @@ import {
 import { alpha } from "@mui/material/styles";
 import {
   formatRequestDate,
+  formatRequestNumber,
   orderReplyPreview,
   ReplyPreviewLines,
   visibleReplyPreview,
@@ -185,6 +186,7 @@ function BoardCard({
                   lineHeight: 26 / 18,
                 }}
               >
+                {item.number != null ? `${formatRequestNumber(item)} · ` : ""}
                 {title}
               </Typography>
               <Box

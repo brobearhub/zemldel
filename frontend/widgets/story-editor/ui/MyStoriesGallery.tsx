@@ -51,6 +51,7 @@ type StoryTileRowProps = {
   onSelect: (storyId: string) => void;
   onOpen: (storyId: string) => void;
   onRemove: (storyId: string) => void;
+  saved?: boolean;
 };
 
 export function isLiveStory(story: StoryDto): boolean {
@@ -125,6 +126,7 @@ export function StoryTileRow({
   onSelect,
   onOpen,
   onRemove,
+  saved = false,
 }: StoryTileRowProps) {
   const [menu, setMenu] = useState<{
     story: StoryDto;
@@ -166,7 +168,7 @@ export function StoryTileRow({
         >
           Открыть
         </MenuItem>
-        {menu && isLiveStory(menu.story) ? (
+        {menu && (saved || isLiveStory(menu.story)) ? (
           <MenuItem
             disabled={busy}
             onClick={() => {
@@ -175,7 +177,7 @@ export function StoryTileRow({
               onRemove(storyId);
             }}
           >
-            Убрать из показа
+            {saved ? "Убрать из сохранённых" : "Убрать из показа"}
           </MenuItem>
         ) : null}
       </Menu>

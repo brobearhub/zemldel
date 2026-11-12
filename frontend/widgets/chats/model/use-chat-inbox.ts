@@ -115,10 +115,12 @@ export function useChatInbox(scope: string, role: ChatInboxRole) {
     socket?.on("chat.unreadHint", onHint);
     socket?.on("message.created", onMessage);
     socket?.on("request.changed", refresh);
+    socket?.on("conversation.changed", refresh);
     return () => {
       socket?.off("chat.unreadHint", onHint);
       socket?.off("message.created", onMessage);
       socket?.off("request.changed", refresh);
+      socket?.off("conversation.changed", refresh);
     };
   }, [socket, refresh, updatePreview, onMessage]);
 

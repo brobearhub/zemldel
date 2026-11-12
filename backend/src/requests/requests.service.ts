@@ -69,6 +69,7 @@ import { foldProRequestStats, type ProRequestStats } from './pro-request-stats';
 
 const select = {
   id: true,
+  number: true,
   status: true,
   serviceId: true,
   categoryId: true,
@@ -284,6 +285,7 @@ export class RequestsService {
     });
 
     for (const row of rows) {
+      if (!row.requestId) continue;
       map.set(row.requestId, (map.get(row.requestId) ?? 0) + 1);
     }
     return map;
@@ -311,7 +313,10 @@ export class RequestsService {
 
     const responded = new Set<string>();
     for (const message of messages) {
-      if (message.senderUserId !== message.conversation.customerUserId) {
+      if (
+        message.conversation.requestId &&
+        message.senderUserId !== message.conversation.customerUserId
+      ) {
         responded.add(message.conversation.requestId);
       }
     }
@@ -356,17 +361,23 @@ export class RequestsService {
     });
 
     return pickLatestProviderMessage(
-      messages.map((message) => ({
-        body: message.body,
-        createdAt: message.createdAt,
-        senderUserId: message.senderUserId,
-        requestId: message.conversation.requestId,
-        conversationId: message.conversation.id,
-        customerUserId: message.conversation.customerUserId,
-        conversationProviderId: message.conversation.providerId,
-        requestProviderId:
-          providerByRequest.get(message.conversation.requestId) ?? null,
-      })),
+      messages.flatMap((message) =>
+        message.conversation.requestId
+          ? [
+              {
+                body: message.body,
+                createdAt: message.createdAt,
+                senderUserId: message.senderUserId,
+                requestId: message.conversation.requestId,
+                conversationId: message.conversation.id,
+                customerUserId: message.conversation.customerUserId,
+                conversationProviderId: message.conversation.providerId,
+                requestProviderId:
+                  providerByRequest.get(message.conversation.requestId) ?? null,
+              },
+            ]
+          : [],
+      ),
     );
   }
 
@@ -402,16 +413,22 @@ export class RequestsService {
     });
 
     return pickLatestCustomerMessage(
-      messages.map((message) => ({
-        body: message.body,
-        createdAt: message.createdAt,
-        senderUserId: message.senderUserId,
-        requestId: message.conversation.requestId,
-        conversationId: message.conversation.id,
-        customerUserId: message.conversation.customerUserId,
-        conversationProviderId: message.conversation.providerId,
-        actorProviderId,
-      })),
+      messages.flatMap((message) =>
+        message.conversation.requestId
+          ? [
+              {
+                body: message.body,
+                createdAt: message.createdAt,
+                senderUserId: message.senderUserId,
+                requestId: message.conversation.requestId,
+                conversationId: message.conversation.id,
+                customerUserId: message.conversation.customerUserId,
+                conversationProviderId: message.conversation.providerId,
+                actorProviderId,
+              },
+            ]
+          : [],
+      ),
     );
   }
 

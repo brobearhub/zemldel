@@ -19,7 +19,7 @@ import { ServiceRequestChatPanel } from "@/widgets/chat/ui/ServiceRequestChatPan
 import { fetchChatInbox } from "@/entities/chat/api/chat-inbox";
 import type { ChatInboxItemDto } from "@/entities/chat/dto/chat.dto";
 import { getLastCabinetRole } from "@/widgets/cabinet-chrome/lib/cabinet-role-storage";
-import { getRequestStatusLabel, type RequestStatus } from "@/entities/request";
+import { formatRequestReference, getRequestStatusLabel, type RequestStatus } from "@/entities/request";
 import type { CabinetRole } from "@/widgets/cabinet-chrome/model/nav-config";
 
 export function ChatRequestPage({ requestId, cabinetRole }: { requestId: string; cabinetRole?: CabinetRole }) {
@@ -116,7 +116,7 @@ export function ChatRequestPage({ requestId, cabinetRole }: { requestId: string;
                   {items[0].title}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Заявка № {requestId.slice(0, 8)}
+                  {formatRequestReference({ id: requestId, number: items[0].requestNumber })}
                   {items[0].requestStatus
                     ? ` · ${items[0].contractPhase ? "Договор" : getRequestStatusLabel(items[0].requestStatus as RequestStatus)}`
                     : ""}

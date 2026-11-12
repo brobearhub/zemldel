@@ -1,3 +1,4 @@
+import { FavoritesModule } from './favorites/favorites.module';
 import { PlanModule } from './billing/plan.module';
 import { Module } from '@nestjs/common';
 import { BillingModule } from './billing/billing.module';
@@ -28,6 +29,7 @@ import { StoriesModule } from './stories/stories.module';
 
 @Module({
   imports: [
+    FavoritesModule,
     PlanModule,
     BillingModule,
     MessengersModule,

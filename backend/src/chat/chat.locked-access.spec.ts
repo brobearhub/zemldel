@@ -65,7 +65,7 @@ describe('ChatService locked FREEFORM access', () => {
 
     await expect(
       service.assertConversationAccess('customer-1', 'conversation-a', 'read'),
-    ).resolves.toBeUndefined();
+    ).resolves.toMatchObject({ id: 'conversation-a' });
 
     await service
       .assertConversationAccess('customer-1', 'conversation-a', 'write')
@@ -91,7 +91,7 @@ describe('ChatService locked FREEFORM access', () => {
         'conversation-a',
         'read',
       ),
-    ).resolves.toBeUndefined();
+    ).resolves.toMatchObject({ id: 'conversation-a' });
 
     await service
       .assertConversationAccess('provider-user-a', 'conversation-a', 'write')

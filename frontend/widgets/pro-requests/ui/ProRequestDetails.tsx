@@ -23,6 +23,7 @@ import {
 import { RequestCityInactiveWarning } from "@/shared/ui/RequestCityInactiveWarning";
 import {
   canProviderManageDealDocuments,
+  formatRequestReference,
   mergeWorkStageStatusOptions,
   RequestPriceBlock,
   resolvePaymentTriggerLabel,
@@ -781,6 +782,7 @@ export function ProRequestDetails({
       >
         <RequestDetailHeaderCard
           title={headerTitle}
+          reference={formatRequestReference(req)}
           subtitle={subtitle}
           statusLabel={screenModel.statusLabel}
           body={messageBody}

@@ -45,6 +45,7 @@ vi.mock("next/link", () => ({
 function request(overrides: Partial<RequestProDto> = {}): RequestProDto {
   return {
     id: "r1",
+    number: null,
     subjectType: "SERVICE" satisfies RequestSubjectType,
     serviceId: "svc",
     serviceTitle: "Подключение",
@@ -103,6 +104,28 @@ describe("ServiceRequestsPanel", () => {
     replyToRequestCustomer.mockReset();
     readRequestListCache.mockReturnValue(null);
     replyToRequestCustomer.mockResolvedValue(undefined);
+  });
+
+  it("показывает порядковый номер в общей строке заявки клиента и исполнителя", () => {
+    const item = request({ id: "request-uuid", number: 27 });
+    const view = render(
+      <ServiceRequestRow
+        request={item}
+        title="Подключение"
+        onReply={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("link")).toHaveTextContent("№ 27 · Подключение");
+    expect(screen.getByRole("link")).toHaveAttribute("href", "/pro/requests/request-uuid");
+    view.rerender(
+      <ServiceRequestRow
+        request={item}
+        title="Подключение"
+        customerView
+        onReply={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("link", { name: /№ 27 · Подключение/ })).toHaveAttribute("href", "/profile/requests/request-uuid");
   });
 
   it("запрашивает заявки услуги и не показывает завершённые", async () => {

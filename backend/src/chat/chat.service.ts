@@ -1,3 +1,5 @@
+import { DirectChatService, chatMessageInclude } from './direct-chat.service';
+import { shortCustomerName } from '../favorites/favorite-policy';
 import { providerRequestCategories } from '../requests/free-request-eligibility';
 import type { FreeRequestNotification } from './free-request-broadcast';
 import {
@@ -10,7 +12,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PlanService } from '../billing/plan.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -62,7 +64,10 @@ export type ChatInboxItemDto = {
   peerName?: string;
   requestStatus?: string;
   contractPhase?: boolean;
-  serviceRequestId: string;
+  serviceRequestId: string | null;
+  kind?: 'REQUEST' | 'DIRECT';
+  directState?: string | null;
+  requestNumber: number | null;
   title: string;
   lastMessageAt: string | null;
   lastSnippet: string | null;
@@ -71,13 +76,16 @@ export type ChatInboxItemDto = {
 
 @Injectable()
 export class ChatService {
+  private readonly direct: DirectChatService;
   constructor(
     private readonly prisma: PrismaService,
     private readonly internalAuth: InternalAuthService,
     @Inject(forwardRef(() => ChatGateway))
     private readonly gateway: ChatGateway,
     private readonly plans: PlanService = new PlanService(prisma),
-  ) {}
+  ) {
+    this.direct = new DirectChatService(prisma, plans);
+  }
 
   getRequiredActorUserId(request: Request) {
     return this.internalAuth.getUserIdFromRequest(request);
@@ -280,6 +288,8 @@ export class ChatService {
       where: { id: conversationId },
       select: {
         id: true,
+        kind: true,
+        directState: true,
         requestId: true,
         providerId: true,
         customerUserId: true,
@@ -290,6 +300,13 @@ export class ChatService {
       throw new NotFoundException('Conversation not found');
     }
 
+    if (conv.kind === 'DIRECT') {
+      const side = await this.direct.authorize(this.prisma, userId, conv);
+      if (action === 'write')
+        this.direct.assertWritable(conv.directState, side);
+      return conv;
+    }
+    if (!conv.requestId) throw new ForbiddenException('Invalid conversation');
     const user = await this.loadUserChatActor(userId);
     const memberIds = user.providerMemberships.map((m) => m.providerId);
 
@@ -303,6 +320,7 @@ export class ChatService {
       user.systemRole,
       memberIds,
     );
+    return conv;
   }
 
   private pickActorProviderId(user: {
@@ -323,6 +341,27 @@ export class ChatService {
       'code' in error &&
       (error as { code?: unknown }).code === 'P2002'
     );
+  }
+
+  private async inboxWithUnread(userId: string, items: ChatInboxItemDto[]) {
+    if (!items.some((item) => item.kind === 'DIRECT')) return items;
+    const ids = items.flatMap((item) =>
+      item.conversationId ? [item.conversationId] : [],
+    );
+    const rows = await this.prisma.$queryRaw<
+      Array<{ conversationId: string; count: bigint }>
+    >(Prisma.sql`
+      SELECT m."conversationId", COUNT(*) AS count FROM "Message" m
+      LEFT JOIN "ConversationReadState" r ON r."conversationId" = m."conversationId" AND r."userId" = ${userId}::uuid
+      WHERE m."conversationId"::text IN (${Prisma.join(ids)}) AND m."senderUserId" <> ${userId}::uuid
+      AND (r."lastReadAt" IS NULL OR m."createdAt" > r."lastReadAt") GROUP BY m."conversationId"`);
+    const counts = new Map(
+      rows.map((row) => [row.conversationId, Number(row.count)]),
+    );
+    return items.map((item) => ({
+      ...item,
+      unreadCount: counts.get(item.conversationId ?? '') ?? 0,
+    }));
   }
 
   async listInbox(
@@ -361,11 +400,15 @@ export class ChatService {
         where: {
           providerId,
           messages: { some: {} },
-          request: { status: { not: 'CLOSED' } },
+          OR: [{ kind: 'DIRECT' }, { request: { status: { not: 'CLOSED' } } }],
         },
         select: {
           id: true,
-          customerUser: { select: { name: true } },
+          kind: true,
+          directState: true,
+          customerUser: {
+            select: { name: true, firstName: true, lastName: true },
+          },
           requestId: true,
           providerId: true,
           lastMessageAt: true,
@@ -373,6 +416,7 @@ export class ChatService {
           request: {
             select: {
               id: true,
+              number: true,
               totalAmountRubles: true,
               message: true,
               status: true,
@@ -395,6 +439,23 @@ export class ChatService {
       const seen = new Set<string>();
       const result: ChatInboxItemDto[] = [];
       for (const c of rows) {
+        if (c.kind === 'DIRECT') {
+          result.push({
+            conversationId: c.id,
+            kind: 'DIRECT',
+            directState: c.directState,
+            peerName: shortCustomerName(c.customerUser),
+            serviceRequestId: null,
+            requestNumber: null,
+            title: 'Без заявки',
+            lastMessageAt:
+              (c.lastMessageAt ?? c.messages[0]?.createdAt)?.toISOString() ??
+              null,
+            lastSnippet: c.messages[0]?.body.slice(0, SNIPPET_LEN) ?? null,
+          });
+          continue;
+        }
+        if (!c.request || !c.requestId) continue;
         if (seen.has(c.requestId)) continue;
         seen.add(c.requestId);
 
@@ -416,13 +477,14 @@ export class ChatService {
                 c.request.status === 'DISCUSSING') &&
                 c.request.totalAmountRubles != null)),
           serviceRequestId: c.requestId,
+          requestNumber: c.request.number ?? null,
           title: titleFromRequest(c.request),
           lastMessageAt: lastAt ? lastAt.toISOString() : null,
           lastSnippet: snippet,
         });
       }
 
-      return result;
+      return this.inboxWithUnread(actorUserId, result);
     }
 
     // customer
@@ -430,10 +492,12 @@ export class ChatService {
       where: {
         customerUserId: actorUserId,
         messages: { some: {} },
-        request: { status: { not: 'CLOSED' } },
+        OR: [{ kind: 'DIRECT' }, { request: { status: { not: 'CLOSED' } } }],
       },
       select: {
         id: true,
+        kind: true,
+        directState: true,
         provider: { select: { name: true } },
         requestId: true,
         providerId: true,
@@ -442,6 +506,7 @@ export class ChatService {
         request: {
           select: {
             id: true,
+            number: true,
             totalAmountRubles: true,
             message: true,
             status: true,
@@ -463,6 +528,23 @@ export class ChatService {
 
     const result: ChatInboxItemDto[] = [];
     for (const c of rows) {
+      if (c.kind === 'DIRECT') {
+        result.push({
+          conversationId: c.id,
+          kind: 'DIRECT',
+          directState: c.directState,
+          peerName: c.provider.name,
+          serviceRequestId: null,
+          requestNumber: null,
+          title: 'Без заявки',
+          lastMessageAt:
+            (c.lastMessageAt ?? c.messages[0]?.createdAt)?.toISOString() ??
+            null,
+          lastSnippet: c.messages[0]?.body.slice(0, SNIPPET_LEN) ?? null,
+        });
+        continue;
+      }
+      if (!c.request || !c.requestId) continue;
       // customer cannot see threads if request is locked to another provider
       if (isLockedToOtherProvider(c.request, c.providerId)) continue;
 
@@ -484,13 +566,14 @@ export class ChatService {
               c.request.status === 'DISCUSSING') &&
               c.request.totalAmountRubles != null)),
         serviceRequestId: c.requestId,
+        requestNumber: c.request.number ?? null,
         title: titleFromRequest(c.request),
         lastMessageAt: lastAt ? lastAt.toISOString() : null,
         lastSnippet: snippet,
       });
     }
 
-    return result;
+    return this.inboxWithUnread(actorUserId, result);
   }
 
   async ensureServiceRequestConversation(
@@ -782,26 +865,22 @@ export class ChatService {
   }
 
   private mapMessageRow(
-    row: Prisma.MessageGetPayload<{
-      include: {
-        sender: { select: { id: true; name: true; image: true } };
-        replyTo: {
-          select: {
-            id: true;
-            senderUserId: true;
-            body: true;
-            sender: { select: { name: true } };
-          };
-        };
-      };
-    }>,
+    row: Prisma.MessageGetPayload<{ include: typeof chatMessageInclude }>,
   ): ChatMessageDto {
     const dto: ChatMessageDto = {
       id: row.id,
       conversationId: row.conversationId,
       senderUserId: row.senderUserId,
-      senderName: row.sender.name ?? null,
-      senderImage: row.sender.image ?? null,
+      senderName:
+        row.conversation?.kind === 'DIRECT' &&
+        row.senderUserId === row.conversation.customerUserId
+          ? shortCustomerName(row.sender)
+          : (row.sender.name ?? null),
+      senderImage:
+        row.conversation?.kind === 'DIRECT' &&
+        row.senderUserId === row.conversation.customerUserId
+          ? null
+          : (row.sender.image ?? null),
       body: row.body,
       kind: row.kind === 'SYSTEM' ? 'SYSTEM' : 'USER',
       clientMessageId: row.clientMessageId,
@@ -812,7 +891,11 @@ export class ChatService {
       dto.repliedTo = {
         id: row.replyTo.id,
         senderUserId: row.replyTo.senderUserId,
-        senderName: row.replyTo.sender?.name ?? null,
+        senderName:
+          row.conversation?.kind === 'DIRECT' &&
+          row.replyTo.senderUserId === row.conversation.customerUserId
+            ? shortCustomerName(row.replyTo.sender)
+            : (row.replyTo.sender?.name ?? null),
         bodySnippet:
           row.replyTo.body.length > SNIPPET_LEN
             ? `${row.replyTo.body.slice(0, SNIPPET_LEN)}…`
@@ -823,17 +906,7 @@ export class ChatService {
     return dto;
   }
 
-  private messageInclude = {
-    sender: { select: { id: true, name: true, image: true } },
-    replyTo: {
-      select: {
-        id: true,
-        senderUserId: true,
-        body: true,
-        sender: { select: { name: true } },
-      },
-    },
-  } satisfies Prisma.MessageInclude;
+  private messageInclude = chatMessageInclude;
 
   async listMessages(
     actorUserId: string,
@@ -1083,8 +1156,6 @@ export class ChatService {
     body: string;
     createdAt: Date;
   }): Promise<void> {
-    this.gateway.emitMessageCreated(input.conversationId, input.dto);
-
     const participants = await this.getParticipantUserIds(input.conversationId);
     const convRow = await this.prisma.conversation.findUnique({
       where: { id: input.conversationId },
@@ -1092,8 +1163,11 @@ export class ChatService {
     });
 
     if (!convRow?.requestId) {
-      return;
-    }
+      if (convRow)
+        this.gateway.emitDirectMessageCreated(participants, input.dto);
+      else this.gateway.emitMessageCreated(input.conversationId, input.dto);
+    } else this.gateway.emitMessageCreated(input.conversationId, input.dto);
+    if (!convRow) return;
 
     const bodySnippet =
       input.body.length > SNIPPET_LEN
@@ -1101,8 +1175,10 @@ export class ChatService {
         : input.body;
     const fullHint = {
       conversationId: input.conversationId,
-      subjectType: 'request' as const,
-      subjectId: convRow.requestId,
+      subjectType: convRow.requestId
+        ? ('request' as const)
+        : ('direct' as const),
+      subjectId: convRow.requestId ?? input.conversationId,
       requestId: convRow.requestId,
       lastMessageAt: input.createdAt.toISOString(),
       senderUserId: input.senderUserId,
@@ -1196,6 +1272,53 @@ export class ChatService {
     }
   }
 
+  async startDirect(
+    actorUserId: string,
+    customerUserId: string,
+    input: { body: string; clientMessageId: string },
+  ) {
+    const user = await this.loadUserChatActor(actorUserId);
+    const providerId = this.pickActorProviderId(user);
+    if (!providerId) throw new ForbiddenException('Нет доступа к профилю');
+    const result = await this.direct.start(
+      actorUserId,
+      providerId,
+      customerUserId,
+      input,
+    );
+    if (result.message) {
+      await this.broadcastMessageCreated({
+        conversationId: result.conversationId,
+        dto: this.mapMessageRow(result.message),
+        senderUserId: actorUserId,
+        body: result.message.body,
+        createdAt: result.message.createdAt,
+      });
+      await this.notifyDirectChanged(result.conversationId);
+    }
+    return { conversationId: result.conversationId };
+  }
+
+  private async notifyDirectChanged(conversationId: string) {
+    const participants = await this.getParticipantUserIds(conversationId);
+    for (const userId of participants)
+      this.gateway.emitConversationChanged(userId, conversationId);
+  }
+
+  async changeDirectState(
+    actorUserId: string,
+    conversationId: string,
+    action: 'decline' | 'block' | 'resume',
+  ) {
+    const result = await this.direct.changeState(
+      actorUserId,
+      conversationId,
+      action,
+    );
+    await this.notifyDirectChanged(conversationId);
+    return result;
+  }
+
   async createMessage(
     actorUserId: string,
     conversationId: string,
@@ -1205,6 +1328,26 @@ export class ChatService {
       replyToMessageId?: string | null;
     },
   ): Promise<{ message: ChatMessageDto; alreadyExisted: boolean }> {
+    const conversation = await this.assertConversationAccess(
+      actorUserId,
+      conversationId,
+      'read',
+    );
+    if (conversation.kind === 'DIRECT') {
+      const result = await this.direct.send(actorUserId, conversationId, input);
+      const dto = this.mapMessageRow(result.message);
+      if (!result.alreadyExisted) {
+        await this.broadcastMessageCreated({
+          conversationId,
+          dto,
+          senderUserId: actorUserId,
+          body: result.message.body,
+          createdAt: result.message.createdAt,
+        });
+        await this.notifyDirectChanged(conversationId);
+      }
+      return { message: dto, alreadyExisted: result.alreadyExisted };
+    }
     await this.assertConversationAccess(actorUserId, conversationId, 'write');
 
     const body = input.body.trim();

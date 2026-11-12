@@ -94,6 +94,7 @@ export type RequestDeliverySubmissionDto = {
 
 export type RequestCustomerDto = {
   id: string;
+  number: number | null;
   subjectType: RequestSubjectType;
   status: RequestStatus;
   serviceId: string | null;
@@ -150,6 +151,7 @@ export type RequestCustomerDto = {
 
 export type RequestProDto = {
   id: string;
+  number: number | null;
   subjectType: RequestSubjectType;
   serviceId: string | null;
   serviceTitle: string | null;

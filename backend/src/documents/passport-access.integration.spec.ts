@@ -144,6 +144,124 @@ describe.skipIf(!process.env.DATABASE_URL)(
         ]),
       );
     });
+    it('keeps concurrent repeated requests idempotent and never grants access', async () => {
+      await Promise.all(
+        Array.from({ length: 3 }, () =>
+          access.requestAccess(actor, requestId, 'FORM'),
+        ),
+      );
+      await access.requestAccess(actor, requestId, 'PHOTO');
+      const pending = await access.pendingRequests(userId);
+      expect(pending.map((row) => row.kind).sort()).toEqual(['FORM', 'PHOTO']);
+      expect(pending[0]).toMatchObject({
+        requestId,
+        providerId,
+        providerName: 'Grant QA',
+      });
+      expect(pending[0]).not.toHaveProperty('series');
+      expect(await access.pendingRequests(actor)).toEqual([]);
+      expect(
+        (
+          await access.requestedForProvider(actor, requestId)
+        ).pendingKinds.sort(),
+      ).toEqual(['FORM', 'PHOTO']);
+      expect(
+        (await access.mine(userId)).audit.filter(
+          (row) => row.action === 'REQUEST_FORM',
+        ),
+      ).toHaveLength(1);
+      await expect(readForm()).rejects.toMatchObject({ status: 403 });
+      await expect(readPhoto()).rejects.toMatchObject({ status: 403 });
+    });
+    it('resolves only the granted kind and rejects unrelated actors', async () => {
+      await expect(
+        access.requestAccess('stranger', requestId, 'FORM'),
+      ).rejects.toMatchObject({ status: 404 });
+      await expect(
+        access.requestAccess('admin', requestId, 'FORM'),
+      ).rejects.toMatchObject({ status: 403 });
+      await expect(
+        access.requestedForProvider('stranger', requestId),
+      ).rejects.toMatchObject({ status: 404 });
+      await access.requestAccess(actor, requestId, 'FORM');
+      await access.requestAccess(actor, requestId, 'PHOTO');
+      await access.declineRequest(actor, requestId, 'FORM');
+      expect(await access.pendingRequests(userId)).toHaveLength(2);
+      await grant(true, false);
+      expect(
+        (await access.pendingRequests(userId)).map((row) => row.kind),
+      ).toEqual(['PHOTO']);
+      expect(await access.requestAccess(actor, requestId, 'FORM')).toEqual({
+        requested: false,
+        hasAccess: true,
+      });
+      await access.declineRequest(userId, requestId, 'PHOTO');
+      expect(await access.pendingRequests(userId)).toEqual([]);
+      await expect(readPhoto()).rejects.toMatchObject({ status: 403 });
+      expect(
+        (await access.mine(userId)).audit.some(
+          (row) => row.action === 'DECLINE_PHOTO',
+        ),
+      ).toBe(true);
+      await access.requestAccess(actor, requestId, 'PHOTO');
+      expect(await access.pendingRequests(userId)).toHaveLength(1);
+    });
+    it('permits requests before documents exist and removes them on reassignment or closing', async () => {
+      await db.passportDocument.deleteMany({ where: { userId } });
+      await access.requestAccess(actor, requestId, 'FORM');
+      expect(await access.pendingRequests(userId)).toHaveLength(1);
+      await db.request.update({
+        where: { id: requestId },
+        data: { providerId: otherProvider },
+      });
+      await db.request.update({
+        where: { id: requestId },
+        data: { providerId },
+      });
+      expect(await access.pendingRequests(userId)).toEqual([]);
+      await access.requestAccess(actor, requestId, 'PHOTO');
+      await db.request.update({
+        where: { id: requestId },
+        data: { status: 'COMPLETED' },
+      });
+      await expect(
+        access.requestAccess(actor, requestId, 'PHOTO'),
+      ).rejects.toMatchObject({ status: 400 });
+      await db.request.update({
+        where: { id: requestId },
+        data: { status: 'ACTIVE' },
+      });
+      expect(await access.pendingRequests(userId)).toEqual([]);
+      await access.requestAccess(actor, requestId, 'PHOTO');
+      await db.request.update({
+        where: { id: requestId },
+        data: { customerUserId: actor },
+      });
+      expect(await access.pendingRequests(userId)).toEqual([]);
+      expect(await access.pendingRequests(actor)).toEqual([]);
+      await db.request.update({
+        where: { id: requestId },
+        data: { customerUserId: userId },
+      });
+    });
+    it('does not grant a new provider access from a stale request response', async () => {
+      await access.requestAccess(actor, requestId, 'FORM');
+      await db.request.update({
+        where: { id: requestId },
+        data: { providerId: otherProvider },
+      });
+      await expect(
+        access.save(userId, requestId, {
+          form: true,
+          photo: false,
+          durationDays: 7,
+          providerId,
+        }),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(await db.passportAccessGrant.count({ where: { requestId } })).toBe(
+        0,
+      );
+    });
     it('rejects other customers, providers, admins, requests and photo IDs', async () => {
       await grant(true, true);
       await expect(

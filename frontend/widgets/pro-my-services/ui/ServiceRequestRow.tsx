@@ -14,6 +14,7 @@ import {
 } from "@mui/material";
 import Link from "@/shared/ui/Link";
 import {
+  formatRequestNumber,
   getRequestDisplayStatusLabel,
   orderReplyPreview,
   ReplyPreviewLines,
@@ -411,6 +412,7 @@ export function ServiceRequestRow<T extends RequestProDto | RequestCustomerDto>(
               component="span"
               sx={{ fontWeight: 700, color: "text.primary" }}
             >
+              {request.number != null ? `${formatRequestNumber(request)} · ` : ""}
               {title}
             </Box>
             {city.length > 0 ? (

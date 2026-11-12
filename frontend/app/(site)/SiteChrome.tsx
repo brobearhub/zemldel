@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { CabinetDesktopSidebar } from "@/widgets/cabinet-chrome/ui/CabinetDesktopSidebar";
 import { MobileNavigation } from "@/widgets/mobile-navigation/ui/MobileNavigation";
 import { ReminderCountProvider } from "@/widgets/cabinet-chrome/model/ReminderCountProvider";
+import { PassportRequestsProvider } from "@/widgets/customer-documents/model/PassportRequestsProvider";
 import { Header } from "@/widgets/header/ui";
 import { AuthFooter } from "@/widgets/footer/ui/AuthFooter";
 import { Footer } from "@/widgets/footer/ui/Footer";
@@ -51,11 +52,13 @@ function SkipLink() {
 export function SiteChrome({ children }: Props) {
   return (
     <ReminderCountProvider>
-      <MobileNavigation>
-        <CabinetSidebarProvider>
-          <SiteChromeContent>{children}</SiteChromeContent>
-        </CabinetSidebarProvider>
-      </MobileNavigation>
+      <PassportRequestsProvider>
+        <MobileNavigation>
+          <CabinetSidebarProvider>
+            <SiteChromeContent>{children}</SiteChromeContent>
+          </CabinetSidebarProvider>
+        </MobileNavigation>
+      </PassportRequestsProvider>
     </ReminderCountProvider>
   );
 }

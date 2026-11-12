@@ -6,6 +6,7 @@ import { signOut } from "next-auth/react";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   Box,
+  Badge,
   List,
   ListItemButton,
   ListItemIcon,
@@ -35,13 +36,16 @@ import { useAppSelector } from "@/core/store/hooks";
 import { UnreadCountBadge } from "@/shared/ui/UnreadCountBadge";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import { HeaderCity } from "@/widgets/header/ui/HeaderCity";
-import { CUSTOMER_NAV } from "@/widgets/cabinet-chrome/model/nav-config";
+import { CUSTOMER_NAV, CUSTOMER_FAVORITES_NAV } from "@/widgets/cabinet-chrome/model/nav-config";
 import {
   NAV_ITEMS,
   REQUEST_ITEMS,
   TEAM_ITEMS,
 } from "@/widgets/pro-dashboard/model/navigation";
 import { ProviderNotificationsButton } from "@/widgets/cabinet-chrome/ui/ProviderHeaderStatus";
+import { CustomerNotificationsButton } from "./CustomerNotificationsButton";
+import { attentionDotSx, attentionTextSx } from "@/shared/ui/attention-gradient";
+import { usePassportRequestsPending } from "@/widgets/customer-documents/model/PassportRequestsProvider";
 
 type Props = {
   collapsed?: boolean;
@@ -60,12 +64,14 @@ export function CabinetNavigationPanel({
   const { status, user } = useAppSelector((state) => state.auth);
   const { preference, setPreference } = useColorMode();
   const authenticated = status === "authenticated";
-  const { unreadByRequestId } = useChatSocket();
+  const chatUnread = useChatSocket();
+  const unreadByRequestId = chatUnread.unreadByConversationId ?? chatUnread.unreadByRequestId;
   const unreadTotal = Object.values(unreadByRequestId).reduce(
     (total, count) => total + count,
     0,
   );
   const provider = authenticated && resolveAccountKind(user) === "PROVIDER";
+  const passportRequested = usePassportRequestsPending();
   const routeContext = {
     pathname,
     searchParams: new URLSearchParams(query),
@@ -76,6 +82,7 @@ export function CabinetNavigationPanel({
     icon: ReactNode,
     selected = pathname === href,
     unreadCount = 0,
+    needsAttention = false,
   ) => (
     <Tooltip key={href} title={collapsed ? label : ""} placement="right">
       <ListItemButton
@@ -86,7 +93,7 @@ export function CabinetNavigationPanel({
         selected={selected}
         aria-current={selected ? "page" : undefined}
         aria-label={
-          unreadCount > 0
+          needsAttention ? `${label}, запрошен доступ к паспорту` : unreadCount > 0
             ? `${label}, непрочитанных сообщений: ${unreadCount}`
             : label
         }
@@ -111,7 +118,17 @@ export function CabinetNavigationPanel({
             "& .MuiSvgIcon-root": { fontSize: 24 },
           }}
         >
-          {unreadCount > 0 ? (
+          {collapsed && needsAttention ? (
+            <Badge
+              variant="dot"
+              color="error"
+              sx={{
+                "& .MuiBadge-badge": attentionDotSx,
+              }}
+            >
+              {icon}
+            </Badge>
+          ) : unreadCount > 0 ? (
             <UnreadCountBadge count={unreadCount}>{icon}</UnreadCountBadge>
           ) : (
             icon
@@ -119,7 +136,27 @@ export function CabinetNavigationPanel({
         </ListItemIcon>
         {collapsed ? null : (
           <ListItemText
-            primary={label}
+            primary={(
+              <Badge
+                variant="dot"
+                color="error"
+                invisible={!needsAttention}
+                sx={{
+                  "& .MuiBadge-badge": {
+                    ...attentionDotSx,
+                    top: 5,
+                    right: -7,
+                  },
+                }}
+              >
+                <Box
+                  component="span"
+                  sx={needsAttention ? attentionTextSx : undefined}
+                >
+                  {label}
+                </Box>
+              </Badge>
+            )}
             slotProps={{
               primary: {
                 noWrap: true,
@@ -261,7 +298,7 @@ export function CabinetNavigationPanel({
               buttonSize={44}
               onNavigate={close}
             />
-          ) : null}
+          ) : authenticated ? <CustomerNotificationsButton onNavigate={close} /> : null}
         </Box>
       </Box>
       <Box
@@ -323,9 +360,12 @@ export function CabinetNavigationPanel({
                     item.key === "profile" ? "Мой профиль" : item.label,
                     item.icon,
                     item.isActive(routeContext),
+                    0,
+                    item.key === "documents" && passportRequested,
                   ),
                 ),
             )}
+            {group("Избранное", CUSTOMER_FAVORITES_NAV.map(item => row(item.href, item.label, item.icon, item.isActive(routeContext))))}
             {group(
               "Внешний вид",
               <Box

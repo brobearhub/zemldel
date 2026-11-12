@@ -36,6 +36,8 @@ export class RequestRealtimeInterceptor implements NestInterceptor {
       /(?:^|\/)requests\/(?:mine\/)?:(requestId|id)(?:\/|$)/,
     );
     if (match) requestId = params[match[1]];
+    if (/^documents\/passport\/access\/(?:requests\/)?:id(?:\/|$)/.test(route))
+      requestId = params.id;
     // A deleted row cannot identify its recipients after commit.
     let deletedRecipients: string[] | undefined;
     if (

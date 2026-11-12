@@ -65,6 +65,7 @@ describe('RequestsService acceptContractByCustomer', () => {
           findUnique: vi.fn().mockResolvedValue(current),
           update: vi.fn().mockResolvedValue({
             ...current,
+            number: 12,
             status: 'ACTIVE',
             contractAcceptedAt: now,
           }),
@@ -87,6 +88,7 @@ describe('RequestsService acceptContractByCustomer', () => {
         { termsVersion: '2026-08-04' },
       );
       expect(result.status).toBe('ACTIVE');
+      expect(result.number).toBe(12);
       expect(tx.legalAcceptance.create).toHaveBeenCalledOnce();
       expect(findMany).not.toHaveBeenCalledWith(
         expect.objectContaining({

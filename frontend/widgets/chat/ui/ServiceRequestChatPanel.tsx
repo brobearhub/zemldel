@@ -34,6 +34,7 @@ class ChatPostError extends Error {
   constructor(
     message: string,
     readonly retryable: boolean,
+    readonly reasonCode?: string,
   ) {
     super(message);
   }
@@ -55,7 +56,7 @@ function mergeServerMessages(
 }
 
 type Props = {
-  serviceRequestId: string;
+  serviceRequestId?: string;
   conversationId?: string;
   title?: string;
   subtitle?: string;
@@ -71,7 +72,7 @@ type Props = {
 };
 
 export function ServiceRequestChatPanel({
-  serviceRequestId,
+  serviceRequestId = "direct",
   conversationId: forcedConversationId,
   title = "Чат",
   subtitle,
@@ -437,11 +438,14 @@ export function ServiceRequestChatPanel({
         prev.filter((o) => o.clientMessageId !== msg.clientMessageId),
       );
     };
+    const changed = (event: { conversationId: string }) => { if (event.conversationId === conversationId) refreshAccess(); };
+    socket?.on("conversation.changed", changed);
     socket?.on("message.created", handler);
     return () => {
+      socket?.off("conversation.changed", changed);
       socket?.off("message.created", handler);
     };
-  }, [conversationId, socket, setOutbound, markRead]);
+  }, [conversationId, socket, setOutbound, markRead, refreshAccess]);
 
   useEffect(() => {
     if (!conversationId || !viewerSide) {
@@ -532,22 +536,24 @@ export function ServiceRequestChatPanel({
         | null;
       if (!response.ok) {
         const error = resolveChatError(payload);
-        throw new ChatPostError(error.message, error.retryable);
+        throw new ChatPostError(error.message, error.retryable, error.reasonCode);
       }
       const data = payload as ChatPostMessageResponse;
       setServerMessages((prev) => mergeServerMessages(prev, data.message));
       onMessage?.(data.message);
+      refreshAccess();
       setOutbound((prev) =>
         prev.filter((o) => o.clientMessageId !== clientMessageId),
       );
     },
-    [conversationId, onMessage, setOutbound],
+    [conversationId, onMessage, setOutbound, refreshAccess],
   );
 
   const applyPostFailure = useCallback((error: unknown) => {
     const failure = resolveChatPostFailure({
       message: error instanceof Error ? error.message : "Ошибка отправки",
       retryable: error instanceof ChatPostError ? error.retryable : true,
+      reasonCode: error instanceof ChatPostError ? error.reasonCode : undefined,
     });
     if (failure.access) {
       setAccess(failure.access);

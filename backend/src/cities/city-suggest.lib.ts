@@ -1,5 +1,5 @@
 export function normalizeCityNameForKey(name: string) {
-  return name.trim().toLowerCase();
+  return name.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 /** ГАР пишет Волгоград как «город-герой Волгоград». В ответах API остаётся обиходное имя. */
@@ -15,14 +15,10 @@ export function publicCityNameOrNull(name: string | null | undefined) {
 export function locationRowRank(row: { typeName: string; level: number }) {
   const t = row.typeName.trim().toLowerCase();
 
-  // Some GAR types are technically "locations" but are rarely useful for users in UI.
-  // Keep them searchable, but push them down in suggestions.
-  const lowPriorityTypePenalty = t === 'автодорога' ? 50 : 0;
-
   // Prefer concrete city records over administrative shells.
   let base = 99;
-  if (row.typeName === 'г' && row.level === 5) base = 0;
-  else if (row.typeName === 'г' && row.level === 1)
+  if (t === 'г' && row.level === 5) base = 0;
+  else if (t === 'г' && row.level === 1)
     base = 1; // federal cities (subjects)
   else if (row.level === 6)
     base = 2; // locality / населённый пункт
@@ -32,7 +28,39 @@ export function locationRowRank(row: { typeName: string; level: number }) {
     base = 4; // municipal area / city district
   else if (row.level === 2) base = 5; // admin area
 
-  return base + lowPriorityTypePenalty;
+  return base;
+}
+
+export function cityLocationKey(row: { name: string; regionCode: string }) {
+  return JSON.stringify([
+    normalizeCityNameForKey(publicCityName(row.name)),
+    row.regionCode.trim().toLowerCase(),
+  ]);
+}
+
+export function uniqueCityLocations<
+  T extends {
+    id: string;
+    name: string;
+    regionCode: string;
+    typeName: string;
+    level: number;
+  },
+>(rows: readonly T[]): T[] {
+  const locations = new Map<string, T>();
+  for (const row of rows) {
+    const key = cityLocationKey(row);
+    const previous = locations.get(key);
+    if (
+      !previous ||
+      locationRowRank(row) < locationRowRank(previous) ||
+      (locationRowRank(row) === locationRowRank(previous) &&
+        row.id < previous.id)
+    ) {
+      locations.set(key, row);
+    }
+  }
+  return [...locations.values()];
 }
 
 const PLACE_NAME_HERO_PREFIX = 'город-герой ';

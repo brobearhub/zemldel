@@ -1,3 +1,4 @@
+import { FavoriteButton } from "@/features/favorites/FavoriteButton";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import {
   Box,
@@ -326,22 +327,36 @@ export function ServiceProviderSection({
                 }}
               />
 
-              <Button
-                variant="text"
+              <Stack
+                direction="row"
+                spacing={1}
                 sx={{
-                  color: "text.primary",
-                  textTransform: "uppercase",
-                  fontWeight: 600,
-                  letterSpacing: "0.46px",
-                  py: { xs: "6px", md: "8px" },
-                  px: { xs: "8px", md: "11px" },
-                  minWidth: { xs: "100%", md: "auto" },
+                  alignItems: "center",
+                  minWidth: 0,
                 }}
-                component="a"
-                href={`/providers/${provider.slug}`}
               >
-                профиль и отзывы
-              </Button>
+                <Button
+                  variant="text"
+                  sx={{
+                    color: "text.primary",
+                    textTransform: "uppercase",
+                    fontWeight: 600,
+                    letterSpacing: "0.46px",
+                    py: { xs: "6px", md: "8px" },
+                    px: { xs: "8px", md: "11px" },
+                    minWidth: 0,
+                    flexGrow: { xs: 1, md: 0 },
+                  }}
+                  component="a"
+                  href={`/providers/${provider.slug}`}
+                >
+                  профиль и отзывы
+                </Button>
+                <FavoriteButton
+                  kind="providers"
+                  id={provider.id}
+                />
+              </Stack>
             </Stack>
           </Stack>
         </Box>
