@@ -14,7 +14,16 @@ export class ChatInboxItemDto {
   contractPhase?: boolean;
 
   @ApiProperty({ format: 'uuid' })
-  serviceRequestId!: string;
+  serviceRequestId!: string | null;
+
+  @ApiPropertyOptional({ enum: ['REQUEST', 'DIRECT'] })
+  kind?: 'REQUEST' | 'DIRECT';
+
+  @ApiPropertyOptional()
+  directState?: string | null;
+
+  @ApiProperty({ type: Number, nullable: true, example: 1 })
+  requestNumber!: number | null;
 
   @ApiProperty()
   title!: string;

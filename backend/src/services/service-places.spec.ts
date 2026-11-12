@@ -2,8 +2,36 @@ import { describe, expect, it } from 'vitest';
 import {
   normalizeServicePlaces,
   orderByExplicitCity,
+  uniqueServiceCityIds,
   SERVICE_PLACES_REQUIRED,
 } from './service-places';
+
+describe('uniqueServiceCityIds', () => {
+  it('unifies matching name and region and preserves homonyms in other regions', () => {
+    const city = {
+      id: 'actual',
+      name: 'Екатеринбург',
+      regionCode: '66',
+      typeName: 'г',
+      level: 5,
+    };
+    const alias = {
+      ...city,
+      id: 'municipality',
+      name: '  ЕКАТЕРИНБУРГ ',
+      typeName: 'г.о.',
+      level: 3,
+    };
+    const otherRegion = { ...city, id: 'other-region', regionCode: '74' };
+    const otherCity = { ...city, id: 'other-city', name: 'Нижний Тагил' };
+    expect(
+      uniqueServiceCityIds(
+        ['municipality', 'actual', 'other-region', 'other-city', 'actual'],
+        [alias, city, otherRegion, otherCity],
+      ),
+    ).toEqual(['actual', 'other-region', 'other-city']);
+  });
+});
 
 describe('normalizeServicePlaces', () => {
   it('отклоняет пустой список', () => {

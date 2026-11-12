@@ -9,11 +9,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   buildDisplayName,
   locationRowRank,
-  normalizeCityNameForKey,
   placeNameLikePatterns,
   publicCityName,
   regionMatchesQuery,
+  uniqueCityLocations,
 } from './city-suggest.lib';
+import { isAllowedLocationRow } from './location';
 import { compareRegionalCapitals } from './regional-capital-order';
 import type {
   RegionalCapitalAdminItemDto,
@@ -183,6 +184,7 @@ export class CitiesService {
       where: {
         status: 'ACTIVE',
         level: { in: [1, 2, 3, 4, 5, 6] },
+        NOT: { typeName: { equals: 'автодорога', mode: 'insensitive' } },
         OR: cityNameQuery(q),
       },
       select: {
@@ -198,20 +200,13 @@ export class CitiesService {
       take,
     });
 
-    const byKey = new Map<string, (typeof rows)[number]>();
-    for (const row of rows) {
-      const key = `${normalizeCityNameForKey(row.name)}|${row.regionCode}|${row.typeName}|${row.level}`;
-      const prev = byKey.get(key);
-      if (!prev || locationRowRank(row) < locationRowRank(prev)) {
-        byKey.set(key, row);
-      }
-    }
-
-    return [...byKey.values()].sort((a, b) => {
-      const r = locationRowRank(a) - locationRowRank(b);
-      if (r !== 0) return r;
-      return a.name.localeCompare(b.name, 'ru');
-    });
+    return uniqueCityLocations(rows.filter(isAllowedLocationRow)).sort(
+      (a, b) => {
+        const r = locationRowRank(a) - locationRowRank(b);
+        if (r !== 0) return r;
+        return a.name.localeCompare(b.name, 'ru');
+      },
+    );
   }
 
   /**
@@ -220,6 +215,10 @@ export class CitiesService {
    */
   private pagePlaceCities(q: string, limit: number, offset: number) {
     const { prefix, heroPrefix } = placeNameLikePatterns(q);
+    const locationName = Prisma.sql`lower(regexp_replace(
+      regexp_replace(btrim(name), '^город-герой[[:space:]]+', '', 'i'),
+      '[[:space:]]+', ' ', 'g'
+    ))`;
     const nameMatch = heroPrefix
       ? Prisma.sql`(
           lower(name) LIKE lower(${prefix}) ESCAPE '\\'
@@ -237,7 +236,7 @@ export class CitiesService {
     >`
       SELECT id::text AS id, name, "regionCode", "regionName"
       FROM (
-        SELECT DISTINCT ON (lower(btrim(name)), "regionCode", "typeName", level)
+        SELECT DISTINCT ON (${locationName}, lower(btrim("regionCode")))
           id,
           name,
           "regionCode",
@@ -245,23 +244,21 @@ export class CitiesService {
           "typeName",
           level,
           CASE
-            WHEN "typeName" = 'г' AND level = 5 THEN 0
-            WHEN "typeName" = 'г' AND level = 1 THEN 1
+            WHEN lower(btrim("typeName")) = 'г' AND level = 5 THEN 0
+            WHEN lower(btrim("typeName")) = 'г' AND level = 1 THEN 1
             WHEN level = 6 THEN 2
             WHEN level = 4 THEN 3
             WHEN level = 3 THEN 4
             WHEN level = 2 THEN 5
             ELSE 99
           END
-          + CASE
-              WHEN lower(btrim("typeName")) = 'автодорога' THEN 50
-              ELSE 0
-            END AS rank
+          AS rank
         FROM "City"
         WHERE status = 'ACTIVE'::"CityStatus"
           AND level IN (1, 2, 3, 4, 5, 6)
+          AND lower(btrim("typeName")) <> 'автодорога'
           AND ${nameMatch}
-        ORDER BY lower(btrim(name)), "regionCode", "typeName", level, id
+        ORDER BY ${locationName}, lower(btrim("regionCode")), rank, id
       ) AS places
       ORDER BY rank, name, id
       LIMIT ${limit + 1}

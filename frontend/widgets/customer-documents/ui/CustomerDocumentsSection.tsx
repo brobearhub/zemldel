@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Box, Paper, Stack, Typography } from "@mui/material";
+import { Box, Link, Paper, Stack, Typography } from "@mui/material";
 import type { RequestCustomerDto } from "@/entities/request";
 import { CustomerPassportSection } from "./CustomerPassportSection";
 import { PassportPhotoCard } from "./PassportPhotoCard";
 import { PassportAccessPanel } from "./PassportAccessPanel";
 import { PassportAccessDialog } from "./PassportAccessDialog";
 import { CustomerRequestDocuments } from "./CustomerRequestDocuments";
+import { refreshPassportRequests } from "../model/passport-access";
 
 export function CustomerDocumentsSection() {
   const [requests, setRequests] = useState<RequestCustomerDto[]>([]);
@@ -18,6 +19,7 @@ export function CustomerDocumentsSection() {
   const [hasPhotos, setHasPhotos] = useState(false);
   const [accessVersion, setAccessVersion] = useState(0);
   const [shareKind, setShareKind] = useState<"form" | "photo" | null>(null);
+  const [shareRequestId, setShareRequestId] = useState<string | undefined>();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -66,10 +68,24 @@ export function CustomerDocumentsSection() {
             </Typography>
             <Typography
               sx={{
-                color: "text.secondary",
+                color: hasPassport || hasPhotos ? "text.secondary" : "info.main",
+                fontStyle: "italic",
               }}
             >
-              Паспортные данные и файлы по вашим заявкам — в одном месте.
+              Паспортные данные конфиденциальны. Доступ исполнителям открывается
+              только с вашего разрешения. Документы сохраняются в зашифрованном
+              виде в защищённом хранилище на территории России. Облачная
+              инфраструктура хранилища аттестована на соответствие требованиям{" "}
+              <Link
+                href="https://mintrud.gov.ru/docs/laws/130"
+                target="_blank"
+                rel="noopener noreferrer"
+                color="inherit"
+                underline="always"
+              >
+                Федерального закона № 152-ФЗ «О персональных данных»
+              </Link>
+              .
             </Typography>
           </Box>
           <Box
@@ -85,16 +101,20 @@ export function CustomerDocumentsSection() {
           >
             <CustomerPassportSection
               onSavedChange={setHasPassport}
-              onShare={() => setShareKind("form")}
+              onShare={() => { setShareRequestId(undefined); setShareKind("form"); }}
             />
             <PassportPhotoCard
-              onShare={() => setShareKind("photo")}
+              onShare={() => { setShareRequestId(undefined); setShareKind("photo"); }}
               onSavedChange={setHasPhotos}
             />
           </Box>
           <PassportAccessPanel
             refreshKey={`${hasPassport}-${hasPhotos}-${accessVersion}`}
             requests={requests}
+            onShare={(request) => {
+              setShareRequestId(request.requestId);
+              setShareKind(request.kind === "FORM" ? "form" : "photo");
+            }}
           />
         </Stack>
       </Paper>
@@ -107,11 +127,12 @@ export function CustomerDocumentsSection() {
       {shareKind ? (
         <PassportAccessDialog
           initialKind={shareKind}
+          initialRequestId={shareRequestId}
           requests={requests}
           loading={loading}
           error={error}
           hasPassport={hasPassport}
-          onSaved={() => setAccessVersion((value) => value + 1)}
+          onSaved={() => { setAccessVersion((value) => value + 1); refreshPassportRequests(); }}
           onClose={() => setShareKind(null)}
         />
       ) : null}

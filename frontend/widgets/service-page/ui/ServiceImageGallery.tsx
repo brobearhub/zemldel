@@ -29,7 +29,7 @@ export function ServiceImageGallery({ images, title }: { images: string[]; title
           spacing={0.5}
           sx={{
             position: "absolute",
-            top: 12,
+            bottom: 12,
             right: 12,
             alignItems: "center",
             bgcolor: "background.paper",

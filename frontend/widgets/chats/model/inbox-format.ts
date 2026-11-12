@@ -14,6 +14,7 @@ export function chatInitials(name: string) {
 }
 
 export function chatStatus(row: ChatInboxItemDto) {
+  if (row.kind === "DIRECT") return row.directState === "WAITING" ? "Ожидаем ответ" : row.directState === "BLOCKED" ? "Заблокирован" : row.directState === "DECLINED" ? "Отклонён" : "Без заявки";
   return row.contractPhase
     ? "Договор"
     : row.requestStatus
@@ -23,7 +24,8 @@ export function chatStatus(row: ChatInboxItemDto) {
 
 export function chatHref(row: ChatInboxItemDto, role: "provider" | "customer") {
   const basePath = role === "provider" ? "/pro/chats" : "/profile/chats";
-  return `${basePath}/${encodeURIComponent(row.serviceRequestId)}${row.conversationId ? `?conversation=${encodeURIComponent(row.conversationId)}` : ""}`;
+  if (row.kind === "DIRECT") return `${basePath}/direct/${encodeURIComponent(row.conversationId ?? "")}`;
+  return `${basePath}/${encodeURIComponent(row.serviceRequestId ?? "")}${row.conversationId ? `?conversation=${encodeURIComponent(row.conversationId)}` : ""}`;
 }
 
 export function inboxTime(iso: string | null, now = new Date()) {

@@ -43,6 +43,24 @@ describe("StoryEditorSection", () => {
     vi.restoreAllMocks();
   });
 
+  it("opens saved stories without author actions and retries failed loading", async () => {
+    let fail = true;
+    const fetcher = vi.spyOn(global, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url.includes("/limits")) return json(limitsFixture);
+      if (url.includes("/audience")) return json({ followers: [], unfollows: [] });
+      if (url.includes("/saved") && fail) return Promise.resolve(new Response(JSON.stringify({ message: "Сеть недоступна" }), { status: 503 }));
+      return json({ items: [] });
+    });
+    render(<StoryEditorSection scope="user" initialLane="saved" />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Сеть недоступна");
+    expect(screen.queryByRole("button", { name: "Новая" })).toBeNull();
+    fail = false;
+    await userEvent.setup().click(screen.getByRole("button", { name: "Повторить" }));
+    expect(await screen.findByText(/Сохранённых историй пока нет/)).toBeVisible();
+    expect(fetcher.mock.calls.some(([url]) => String(url).includes("/insights"))).toBe(false);
+  });
+
   it("публикует текст и выбранный срок", async () => {
     const created = {
       id: "story-1",

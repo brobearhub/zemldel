@@ -22,7 +22,8 @@ type Props = {
 export function CabinetBottomNav({ items, moreItems, providerMenu = false }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { unreadByRequestId } = useChatSocket();
+  const chatUnread = useChatSocket();
+  const unreadByRequestId = chatUnread.unreadByConversationId ?? chatUnread.unreadByRequestId;
   const [moreOpen, setMoreOpen] = useState(false);
 
   const unreadTotal = useMemo(

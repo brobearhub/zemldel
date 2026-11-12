@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatsWorkspace } from "./ChatsWorkspace";
 const state = vi.hoisted(() => ({
   requestId: undefined as string | undefined,
+  conversationId: undefined as string | undefined,
+  direct: false,
   query: "",
   sharedRequest: false,
   unread: { b: 2 } as Record<string, number>,
 }));
 vi.mock("next/navigation", () => ({
-  useParams: () => ({ requestId: state.requestId }),
+  useParams: () => ({ requestId: state.requestId, conversationId: state.conversationId }),
   useSearchParams: () => new URLSearchParams(state.query),
 }));
 vi.mock("next-auth/react", () => ({
@@ -23,7 +25,10 @@ vi.mock("../model/use-chat-inbox", () => ({
     items: [
       {
         conversationId: "a",
-        serviceRequestId: "r-a",
+        serviceRequestId: state.direct ? null : "r-a",
+        kind: state.direct ? "DIRECT" : "REQUEST",
+        directState: state.direct ? "WAITING" : null,
+        requestNumber: 118,
         title: "Межевание",
         peerName: "Анна",
         lastSnippet: "Привет",
@@ -51,11 +56,35 @@ vi.mock("@/widgets/chat/ui/ServiceRequestChatPanel", () => ({
 }));
 beforeEach(() => {
   state.requestId = undefined;
+  state.conversationId = undefined;
+  state.direct = false;
   state.query = "";
   state.sharedRequest = false;
   state.unread = { b: 2 };
 });
 describe("provider messenger navigation", () => {
+  it("opens a direct contact without a request link and exposes customer controls", () => {
+    state.direct = true;
+    state.conversationId = "a";
+    render(<ChatsWorkspace role="customer" />);
+    expect(screen.getByTestId("active-thread")).toHaveTextContent("a");
+    expect(screen.queryByRole("link", { name: "К заявке" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Отклонить обращение" })).toBeVisible();
+    const links = within(screen.getByRole("list", { name: "Диалоги" })).getAllByRole("link");
+    expect(links[0]).toHaveAttribute("href", "/profile/chats/direct/a");
+  });
+
+  it("shows and searches the assigned request number while keeping UUID routes", () => {
+    render(<ChatsWorkspace role="provider" />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Поиск чатов" }), {
+      target: { value: "118" },
+    });
+    const links = within(screen.getByRole("list", { name: "Диалоги" })).getAllByRole("link");
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveTextContent("№ 118 · Межевание");
+    expect(links[0]).toHaveAttribute("href", "/pro/chats/r-a?conversation=a");
+  });
+
   it("uses customer chat and request routes with provider identity", () => {
     state.requestId = "r-a";
     state.query = "conversation=a";

@@ -1,3 +1,4 @@
+import FavoriteBorderRoundedIcon from "@mui/icons-material/FavoriteBorderRounded";
 import type { ReactNode } from "react";
 import ViewKanbanOutlinedIcon from "@mui/icons-material/ViewKanbanOutlined";
 import DynamicFeedOutlinedIcon from "@mui/icons-material/DynamicFeedOutlined";
@@ -54,6 +55,7 @@ export const TEAM_ITEMS: readonly SidebarNavItem[] = [
 ];
 
 export const NAV_ITEMS: readonly SidebarNavItem[] = [
+  { href: "/pro/interest", label: "Интерес клиентов", icon: <FavoriteBorderRoundedIcon />, active: path => path.startsWith("/pro/interest") },
   {
     href: "/pro/services",
     label: "Услуги",

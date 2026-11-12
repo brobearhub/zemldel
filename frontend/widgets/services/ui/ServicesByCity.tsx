@@ -1,5 +1,7 @@
 "use client";
 
+import { FavoriteButton } from "@/features/favorites/FavoriteButton";
+
 import { useMemo } from "react";
 import { Box, Stack } from "@mui/material";
 import { ServiceCard, splitServicesByCity, type ServiceCardItem } from "@/entities/service";
@@ -31,7 +33,7 @@ function ServiceGrid({
       }}
     >
       {items.map((item) => (
-        <ServiceCard key={item.id} item={item} variant={variant} />
+        <ServiceCard key={item.id} item={item} favoriteAction={<FavoriteButton kind="services" id={item.id} />} variant={variant} />
       ))}
     </Box>
   );

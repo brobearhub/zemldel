@@ -29,10 +29,11 @@ import { assertActiveSelectableCity } from '../cities/city-validation';
 import {
   normalizeServicePlaces,
   orderByExplicitCity,
+  uniqueServiceCityIds,
   type NormalizedServicePlace,
 } from './service-places';
 
-const serviceSelect = {
+export const serviceSelect = {
   allRussia: true,
   regionOrder: true,
   id: true,
@@ -524,7 +525,13 @@ export class ServicesService {
     const cityRows = cityIds.length
       ? await this.prisma.city.findMany({
           where: { id: { in: cityIds } },
-          select: { id: true, regionCode: true },
+          select: {
+            id: true,
+            name: true,
+            regionCode: true,
+            typeName: true,
+            level: true,
+          },
         })
       : [];
     const regionCodes = [
@@ -536,7 +543,11 @@ export class ServicesService {
         ),
       ),
     ];
-    return { cityIds, regions, regionCodes };
+    return {
+      cityIds: uniqueServiceCityIds(cityIds, cityRows),
+      regions,
+      regionCodes,
+    };
   }
 
   private async replaceServicePlaces(

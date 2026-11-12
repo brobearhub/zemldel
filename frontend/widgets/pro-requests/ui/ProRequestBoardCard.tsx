@@ -14,7 +14,7 @@ import { alpha } from "@mui/material/styles";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import { resolveRequestPriceView, type RequestProDto } from "@/entities/request";
+import { formatRequestNumber, resolveRequestPriceView, type RequestProDto } from "@/entities/request";
 import { getServiceRequestTitle } from "@/widgets/pro-requests/lib/serviceRequestView";
 
 const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
@@ -117,6 +117,7 @@ export function ProRequestBoardCard({ item }: { item: RequestProDto }) {
             },
           }}
         >
+          {item.number != null ? `${formatRequestNumber(item)} · ` : ""}
           {title}
         </Typography>
 

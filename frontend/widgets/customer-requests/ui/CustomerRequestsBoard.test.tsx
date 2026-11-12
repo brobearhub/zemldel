@@ -11,6 +11,7 @@ vi.mock("@/core/store/hooks", () => ({
 
 function request(overrides: Partial<RequestCustomerDto> & Pick<RequestCustomerDto, "id" | "status">): RequestCustomerDto {
   return {
+    number: null,
     subjectType: "FREEFORM",
     serviceId: null,
     categoryId: null,

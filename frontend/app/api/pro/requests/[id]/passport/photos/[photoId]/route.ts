@@ -15,6 +15,7 @@ export async function GET(_: Request, { params }: Context) {
     if (!response.ok) return json({ error: "Фотография недоступна" }, response.status);
     const mime = response.headers.get("content-type")?.split(";")[0];
     if (!mime || !["image/jpeg", "image/png", "image/webp"].includes(mime)) return json({ error: "Некорректный формат фотографии" }, 502);
-    return new Response(response.body, { headers: { ...headers, "Content-Type": mime, "Content-Disposition": "inline; filename=passport-photo", "X-Content-Type-Options": "nosniff" } });
+    const extension = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" }[mime];
+    return new Response(response.body, { headers: { ...headers, "Content-Type": mime, "Content-Disposition": `attachment; filename="passport-photo.${extension}"`, "X-Content-Type-Options": "nosniff" } });
   } catch { return json({ error: "Не удалось прочитать фотографию" }, 502); }
 }

@@ -5,6 +5,7 @@ import { HeaderCity } from "@/widgets/header/ui/HeaderCity";
 import { HeaderLogo } from "@/widgets/header/ui/HeaderLogo";
 import { MobileMenuButton } from "@/widgets/mobile-navigation/ui/MobileNavigation";
 import { ProviderNotificationsButton } from "./ProviderHeaderStatus";
+import { CustomerNotificationsButton } from "./CustomerNotificationsButton";
 
 type Props = {
   showProviderCity?: boolean;
@@ -37,7 +38,7 @@ export function CabinetMobileHeader({ showProviderCity = false }: Props) {
           ) : null}
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
-          {showProviderCity ? <ProviderNotificationsButton /> : null}
+          {showProviderCity ? <ProviderNotificationsButton /> : <CustomerNotificationsButton />}
           <MobileMenuButton />
         </Box>
       </Toolbar>

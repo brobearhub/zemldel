@@ -1,4 +1,4 @@
-import { formatRequestDate, getRequestDisplayStatusLabel, type RequestProDto } from "@/entities/request";
+import { formatRequestDate, formatRequestNumber, getRequestDisplayStatusLabel, type RequestProDto } from "@/entities/request";
 import { FeedList } from "@/widgets/pro-requests/ui/FeedList";
 import { FeedListItem } from "@/widgets/pro-requests/ui/FeedListItem";
 
@@ -16,7 +16,7 @@ export function OrderList({ items, minRows = 6 }: Props) {
       renderRow={(order, { isLast }) => {
         const href = `/pro/requests/${order.id}`;
         const ratingLabel = order.customerRating != null ? ` · ${order.customerRating.toFixed(1)}` : "";
-        const meta = `${formatRequestDate(order.createdAt)} · ${getRequestDisplayStatusLabel(order)}${ratingLabel}`;
+        const meta = `${formatRequestNumber(order)} · ${formatRequestDate(order.createdAt)} · ${getRequestDisplayStatusLabel(order)}${ratingLabel}`;
         const preview = order.customerName
           ? order.customerEmail
             ? `${order.customerName} · ${order.customerEmail}`

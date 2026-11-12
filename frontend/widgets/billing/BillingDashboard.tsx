@@ -692,6 +692,7 @@ export function BillingDashboard({
         )}
       </div>
       <footer className={paper.footer}>
+        <p>Счётчики сохранений услуг и профиля доступны на всех тарифах. На «Бизнесе» открываются имена заинтересованных клиентов и первое обращение без заявки: одно сообщение до ответа. Начатые диалоги продолжаются после окончания тарифа.</p>
         <Link href="/pricing">Сравнить тарифы →</Link>
         <Link href="/offer">Оферта и возвраты</Link>
         <Link href="/pro/settings/promotion">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
-import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import ShareOutlinedIcon from "@mui/icons-material/ShareOutlined";
 import {
@@ -12,6 +12,7 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
+  IconButton,
   Paper,
   Skeleton,
   Stack,
@@ -19,6 +20,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useConfirm } from "@/shared/ui/confirm";
+import { PASSPORT_ICON_COLOR, PassportIcon } from "@/shared/ui/PassportIcon";
 
 type PassportDto = {
   series: string;
@@ -238,7 +240,7 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
             alignItems: "center",
           }}
         >
-          <BadgeOutlinedIcon color="action" />
+          <PassportIcon sx={{ color: PASSPORT_ICON_COLOR }} />
           <Typography
             id="passport-form-heading"
             component="h2"
@@ -255,6 +257,11 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
               size="small"
               label={saved ? "Сохранено" : "Не заполнено"}
               variant="outlined"
+              sx={{
+                "& .MuiChip-label": {
+                  px: 1.5,
+                },
+              }}
             />
           ) : null}
         </Stack>
@@ -377,6 +384,9 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
                   startIcon={<ShareOutlinedIcon />}
                   onClick={onShare}
                   disabled={busy}
+                  sx={{
+                    color: "text.primary",
+                  }}
                 >
                   Поделиться
                 </Button>
@@ -413,11 +423,29 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
         maxWidth="sm"
         aria-labelledby="passport-editor-title"
       >
-        <DialogTitle id="passport-editor-title">
+        <DialogTitle
+          id="passport-editor-title"
+          sx={{
+            pr: 6,
+          }}
+        >
           {saved
             ? "Редактировать паспортные данные"
             : "Заполнить паспортные данные"}
         </DialogTitle>
+        <IconButton
+          aria-label="Закрыть анкету"
+          color="error"
+          disabled={busy}
+          onClick={closeEditor}
+          sx={{
+            position: "absolute",
+            right: 8,
+            top: 8,
+          }}
+        >
+          <CloseRoundedIcon />
+        </IconButton>
         <DialogContent>
           <Stack
             component="form"

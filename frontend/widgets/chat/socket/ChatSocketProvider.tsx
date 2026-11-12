@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { io, type Socket } from "socket.io-client";
 import type {
   ChatJoinConversationAck,
+  ChatInboxItemDto,
   ChatUnreadHintPayload,
 } from "@/entities/chat/dto/chat.dto";
 import { getChatSocketUrl } from "@/shared/config/chat-socket";
@@ -41,14 +42,14 @@ export function ChatSocketProvider({ children }: Props) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [socketConnected, setSocketConnected] = useState(false);
   const [unreadConversations, setUnreadConversations] = useState<
-    Record<string, { requestId: string; count: number }>
+    Record<string, { requestId: string | null; count: number }>
   >({});
   const { unreadByRequestId, unreadByConversationId } = useMemo(() => {
     const requests: Record<string, number> = {};
     const conversations: Record<string, number> = {};
     for (const [id, entry] of Object.entries(unreadConversations)) {
       conversations[id] = entry.count;
-      requests[entry.requestId] =
+      if (entry.requestId) requests[entry.requestId] =
         (requests[entry.requestId] ?? 0) + entry.count;
     }
     return {
@@ -69,7 +70,10 @@ export function ChatSocketProvider({ children }: Props) {
     openConversationIdRef.current = conversationId;
   }, []);
 
+  const unreadRevision = useRef(0);
+
   const clearUnreadForRequest = useCallback((requestId: string) => {
+    unreadRevision.current += 1;
     setUnreadConversations((prev) =>
       Object.fromEntries(
         Object.entries(prev).map(([id, entry]) => [
@@ -81,6 +85,7 @@ export function ChatSocketProvider({ children }: Props) {
   }, []);
 
   const clearUnreadForConversation = useCallback((conversationId: string) => {
+    unreadRevision.current += 1;
     setUnreadConversations((prev) =>
       prev[conversationId]
         ? { ...prev, [conversationId]: { ...prev[conversationId], count: 0 } }
@@ -92,16 +97,39 @@ export function ChatSocketProvider({ children }: Props) {
     if (hint.conversationId === openConversationIdRef.current) {
       return;
     }
+    unreadRevision.current += 1;
     const id = hint.serviceRequestId ?? hint.subjectId;
     if (!id) return;
     setUnreadConversations((prev) => ({
       ...prev,
       [hint.conversationId]: {
-        requestId: id,
+        requestId: hint.subjectType === "direct" ? null : id,
         count: (prev[hint.conversationId]?.count ?? 0) + 1,
       },
     }));
   }, []);
+
+  const inboxRole = session?.user?.accountKind === "PROVIDER" ? "provider" : "customer";
+  useEffect(() => {
+    if (!userId || !socketConnected) return;
+    const controller = new AbortController();
+    const restore = async () => {
+      const revision = unreadRevision.current;
+      try {
+        const response = await fetch(`/api/chat/inbox?role=${inboxRole}`, { cache: "no-store", signal: controller.signal });
+        if (!response.ok) return;
+        const items = await response.json() as ChatInboxItemDto[];
+        if (controller.signal.aborted || revision !== unreadRevision.current || !Array.isArray(items)) return;
+        setUnreadConversations(current => {
+          const next = { ...current };
+          for (const item of items) if (item.conversationId && item.unreadCount != null) next[item.conversationId] = { requestId: item.serviceRequestId, count: item.conversationId === openConversationIdRef.current ? 0 : item.unreadCount };
+          return next;
+        });
+      } catch { /* Reconnect and focus retry the snapshot. */ }
+    };
+    void restore(); window.addEventListener("focus", restore);
+    return () => { controller.abort(); window.removeEventListener("focus", restore); };
+  }, [userId, inboxRole, socketConnected]);
 
   const joinConversationRoom = useCallback(async (conversationId: string) => {
     const s = socketRef.current;

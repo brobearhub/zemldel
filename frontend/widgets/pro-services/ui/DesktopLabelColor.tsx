@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Menu, MenuItem } from "@mui/material";
+import NextLink from "next/link";
+import { Box, Link, Menu, MenuItem, Tooltip } from "@mui/material";
 import type { ServicePaletteColor } from "@/entities/service";
+import { BUSINESS_ONLY, LITE_AND_BUSINESS } from "@/shared/ui/PlanFeatureGate";
 import { LABEL_COLORS, LABEL_DOT_SIZE } from "./label-colors";
 
 const MENU_PAD = 6;
@@ -12,11 +14,20 @@ const FIRST_DOT_CENTER = MENU_PAD + LABEL_DOT_SIZE / 2;
 type Props = {
   value: ServicePaletteColor | "";
   disabled: boolean;
+  colorLocked?: boolean;
+  badgeLocked?: boolean;
   onChange: (color: ServicePaletteColor) => void;
 };
 
-export function DesktopLabelColor({ value, disabled, onChange }: Props) {
+export function DesktopLabelColor({
+  value,
+  disabled,
+  onChange,
+  colorLocked = false,
+  badgeLocked = false,
+}: Props) {
   const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
+  const [restrictedColor, setRestrictedColor] = useState<ServicePaletteColor | null>(null);
   const shown = value || "primary";
 
   return (
@@ -50,7 +61,10 @@ export function DesktopLabelColor({ value, disabled, onChange }: Props) {
       <Menu
         anchorEl={anchor}
         open={Boolean(anchor)}
-        onClose={() => setAnchor(null)}
+        onClose={() => {
+          setAnchor(null);
+          setRestrictedColor(null);
+        }}
         marginThreshold={0}
         anchorOrigin={{ vertical: "center", horizontal: "center" }}
         transformOrigin={{ vertical: FIRST_DOT_CENTER, horizontal: "center" }}
@@ -68,30 +82,72 @@ export function DesktopLabelColor({ value, disabled, onChange }: Props) {
           },
         }}
       >
-        {LABEL_COLORS.map((color) => (
-          <MenuItem
-            key={color}
-            aria-label={color}
-            selected={color === shown}
-            onClick={() => {
-              onChange(color);
-              setAnchor(null);
-            }}
-            sx={{ minHeight: 0, width: LABEL_DOT_SIZE, justifyContent: "center", p: 0 }}
-          >
-            <Box
-              aria-hidden
-              sx={{
-                width: LABEL_DOT_SIZE,
-                height: LABEL_DOT_SIZE,
-                borderRadius: "50%",
-                bgcolor: `${color}.main`,
-                border: "2px solid",
-                borderColor: color === shown ? "text.primary" : "transparent",
-              }}
-            />
-          </MenuItem>
-        ))}
+        {LABEL_COLORS.map((color) => {
+          const message = colorLocked && color !== "primary"
+            ? BUSINESS_ONLY
+            : badgeLocked ? LITE_AND_BUSINESS : null;
+          return (
+            <Tooltip
+              key={color}
+              arrow
+              placement="left"
+              open={restrictedColor === color}
+              disableHoverListener
+              disableFocusListener
+              disableTouchListener
+              title={
+                <Box sx={{ p: 0.5 }}>
+                  {message}
+                  <Link
+                    component={NextLink}
+                    href="/pro/settings/tariff"
+                    color="inherit"
+                    underline="always"
+                    sx={{
+                      display: "block",
+                      mt: 0.5,
+                    }}
+                  >
+                    Перейти к тарифам
+                  </Link>
+                </Box>
+              }
+            >
+              <MenuItem
+                aria-label={color}
+                selected={color === shown}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (message) {
+                    setRestrictedColor(color);
+                    return;
+                  }
+                  onChange(color);
+                  setAnchor(null);
+                  setRestrictedColor(null);
+                }}
+                sx={{
+                  minHeight: 0,
+                  width: LABEL_DOT_SIZE,
+                  justifyContent: "center",
+                  p: 0,
+                }}
+              >
+                <Box
+                  aria-hidden
+                  sx={{
+                    width: LABEL_DOT_SIZE,
+                    height: LABEL_DOT_SIZE,
+                    borderRadius: "50%",
+                    bgcolor: `${color}.main`,
+                    border: "2px solid",
+                    borderColor: color === shown ? "text.primary" : "transparent",
+                  }}
+                />
+              </MenuItem>
+            </Tooltip>
+          );
+        })}
       </Menu>
     </>
   );

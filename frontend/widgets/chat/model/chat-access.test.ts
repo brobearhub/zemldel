@@ -7,6 +7,13 @@ import {
 } from "./chat-access";
 
 describe("chat access model", () => {
+  it.each(["DIRECT_WAITING", "DIRECT_BLOCKED", "DIRECT_DECLINED"])("handles %s during a send without treating it as an archived request", (code) => {
+    const failure = resolveChatPostFailure(resolveChatError({ code }));
+    expect(failure.retryable).toBe(false);
+    expect(failure.access).toMatchObject({ canWrite: false, reasonCode: code });
+    expect(failure.message).not.toContain("выбрал другого исполнителя");
+  });
+
   it("до успешной загрузки и при ошибке access запрещает запись", () => {
     expect(createClosedChatAccess()).toMatchObject({
       status: "loading",

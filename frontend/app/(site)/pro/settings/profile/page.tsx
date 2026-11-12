@@ -1,3 +1,4 @@
+import { InterestCounter } from "@/widgets/favorites/InterestCounter";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Stack } from "@mui/material";
@@ -52,6 +53,7 @@ export default async function ProProfilePage() {
     return (
       <>
         <ProviderProfileTabs />
+        <InterestCounter />
         <ProviderProfileEditorSection
           providerId={activeMembership.providerId}
           providerSlug={activeMembership.providerSlug}

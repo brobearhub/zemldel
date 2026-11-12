@@ -106,7 +106,7 @@ export function useNewServiceDraft(options: Options) {
     await photoWrites.current.catch(() => undefined);
   }
 
-  function saveProgress(savedServiceId: string, gallery?: Pick<NewServiceDraft, "images" | "photos">) {
+  function saveProgress(savedServiceId: string, gallery?: Pick<NewServiceDraft, "images" | "photos" | "mainPhotoKey">) {
     persist({ ...latest.current.draft, savedServiceId, ...gallery });
   }
 

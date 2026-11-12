@@ -21,3 +21,11 @@ it('preserves server denials without claiming success',async()=>{
  const response=await DELETE(new Request('http://localhost/api',{method:'DELETE'}),{params:Promise.resolve({path:['request-1','PHOTO']})});
  expect(response.status).toBe(403);expect(await response.json()).toEqual({message:'Denied'});
 });
+it('forwards the owner pending list and declines only the specified request kind',async()=>{
+ vi.mocked(fetchBackendAsUser).mockResolvedValue(Response.json({requests:[]}));
+ expect((await GET(new Request('http://localhost/api'),{params:Promise.resolve({path:['requests']})})).status).toBe(200);
+ expect(fetchBackendAsUser).toHaveBeenLastCalledWith('/documents/passport/access/requests','owner',expect.objectContaining({method:'GET',cache:'no-store'}));
+ vi.mocked(fetchBackendAsUser).mockResolvedValue(Response.json({ok:true}));
+ expect((await DELETE(new Request('http://localhost/api',{method:'DELETE'}),{params:Promise.resolve({path:['requests','request-1','FORM']})})).status).toBe(200);
+ expect(fetchBackendAsUser).toHaveBeenLastCalledWith('/documents/passport/access/requests/request-1/FORM','owner',expect.objectContaining({method:'DELETE'}));
+});

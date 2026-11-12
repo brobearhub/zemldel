@@ -4,6 +4,8 @@ import {
   Get,
   Param,
   Post,
+  ParseUUIDPipe,
+  ValidationPipe,
   Query,
   Req,
   UnprocessableEntityException,
@@ -22,6 +24,8 @@ import { validateSync } from 'class-validator';
 import { ChatService } from './chat.service';
 import {
   ChatEnsureBodyDto,
+  ChatDirectStartDto,
+  ChatDirectStateDto,
   ChatInboxQueryDto,
   ChatPostMessageBodyDto,
 } from './dto/chat-http.dto';
@@ -42,6 +46,45 @@ import { ApiStandardErrors } from '../common/swagger/api-standard-errors.decorat
 @Controller()
 export class ChatController {
   constructor(private readonly chat: ChatService) {}
+
+  @Post('chat/direct')
+  startDirect(
+    @Req() request: Request,
+    @Body(
+      new ValidationPipe({
+        transform: true,
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      }),
+    )
+    dto: ChatDirectStartDto,
+  ) {
+    return this.chat.startDirect(
+      this.chat.getRequiredActorUserId(request),
+      dto.customerId,
+      dto,
+    );
+  }
+
+  @Post('chat/conversations/:conversationId/state')
+  changeState(
+    @Req() request: Request,
+    @Param('conversationId', ParseUUIDPipe) conversationId: string,
+    @Body(
+      new ValidationPipe({
+        transform: true,
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      }),
+    )
+    dto: ChatDirectStateDto,
+  ) {
+    return this.chat.changeDirectState(
+      this.chat.getRequiredActorUserId(request),
+      conversationId,
+      dto.action,
+    );
+  }
 
   @Get('chat/inbox')
   @ApiQuery({ name: 'role', required: false, enum: ['customer', 'provider'] })

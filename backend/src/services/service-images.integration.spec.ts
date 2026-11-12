@@ -203,6 +203,44 @@ describe.skipIf(!process.env.DATABASE_URL)(
       ).toHaveLength(3);
       expect(JSON.stringify(publicRow)).not.toContain('billingAccount');
     });
+    it('saves one city per name and region even when several IDs are submitted', async () => {
+      const cityIds = [randomUUID(), randomUUID(), randomUUID()];
+      const cityName = `QA duplicate city ${serviceId}`;
+      try {
+        for (const [index, id] of cityIds.entries()) {
+          await db.city.create({
+            data: {
+              id,
+              garObjectId: BigInt('0x' + id.replaceAll('-', '').slice(0, 12)),
+              objectGuid: id,
+              name: index === 0 ? `  ${cityName.toUpperCase()}  ` : cityName,
+              typeName: index === 0 ? 'г.о.' : 'г',
+              level: index === 0 ? 3 : 5,
+              regionCode: index === 2 ? '74' : '66',
+              regionName:
+                index === 2 ? 'Челябинская область' : 'Свердловская область',
+            },
+          });
+        }
+        await service.updateService(
+          serviceId,
+          {
+            places: cityIds.map((cityId) => ({ kind: 'city', cityId })),
+          },
+          { providerId },
+        );
+        const links = await db.serviceCity.findMany({ where: { serviceId } });
+        expect(links.map((link) => link.cityId).sort()).toEqual(
+          cityIds.slice(1).sort(),
+        );
+        expect((await service.getServiceById(serviceId)).places).toHaveLength(
+          2,
+        );
+      } finally {
+        await db.serviceCity.deleteMany({ where: { serviceId } });
+        await db.city.deleteMany({ where: { id: { in: cityIds } } });
+      }
+    });
     it('preserves unrestricted geography after downgrade while enforcing badge gates', async () => {
       const cityIds = [randomUUID(), randomUUID()];
       const codes = cityIds.map((id) => id.slice(0, 8));

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Box, Paper, Typography } from "@mui/material";
 import { brown } from "@mui/material/colors";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
@@ -19,6 +20,7 @@ type Props = {
   /** Тег заголовка: в списках, где карточки — разделы страницы, передают "h2". */
   titleComponent?: "p" | "h2" | "h3";
   compact?: boolean;
+  favoriteAction?: ReactNode;
 };
 
 function ServiceCardImage({
@@ -211,6 +213,7 @@ export function ServiceCard({
   linked = true,
   titleComponent,
   compact = false,
+  favoriteAction,
 }: Props) {
   const imageHeight = variant === "myCity" ? 178 : 210;
   const places = item.places ?? [];
@@ -219,6 +222,7 @@ export function ServiceCard({
     <Paper
       elevation={0}
       sx={{
+        position: "relative",
         height: "100%",
         display: "flex",
         flexDirection: "column",
@@ -238,6 +242,18 @@ export function ServiceCard({
           : null),
       }}
     >
+      {favoriteAction ? (
+        <Box
+          sx={{
+            position: "absolute",
+            left: 8,
+            top: imageHeight - 44 - 8,
+            zIndex: 2,
+          }}
+        >
+          {favoriteAction}
+        </Box>
+      ) : null}
       <Box
         {...(linked
           ? { component: Link, href: `/services/${item.id}` }

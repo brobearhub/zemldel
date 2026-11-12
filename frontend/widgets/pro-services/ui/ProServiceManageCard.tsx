@@ -1,5 +1,6 @@
 "use client";
 
+import { InterestCounter } from "@/widgets/favorites/InterestCounter";
 import Link from "next/link";
 import { Box } from "@mui/material";
 import { ServiceCard, type ServiceDto, type ServiceStatus } from "@/entities/service";
@@ -59,6 +60,7 @@ export function ProServiceManageCard({ service, highlighted = false, ...actions 
           compact
         />
       </Box>
+      <InterestCounter serviceId={service.id} />
       <ProServiceCardActions service={service} {...actions} />
     </Box>
   );

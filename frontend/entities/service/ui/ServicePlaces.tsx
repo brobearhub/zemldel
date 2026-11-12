@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
-import { placeChipLabel, type ServicePlace } from "../lib/service-places";
+import { placeChipLabel, uniqueServicePlaces, type ServicePlace } from "../lib/service-places";
 
 const PREVIEW_COUNT = 3;
 
@@ -13,7 +13,7 @@ type Props = {
 
 export function ServicePlaces({ places, compact = false }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const labels = places.map(placeChipLabel).filter((label) => label.length > 0);
+  const labels = uniqueServicePlaces(places).map(placeChipLabel).filter((label) => label.length > 0);
   if (!labels.length) return null;
 
   const hidden = Math.max(0, labels.length - PREVIEW_COUNT);

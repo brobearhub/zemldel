@@ -51,6 +51,9 @@ export function resolveChatAccess(
     message:
       reasonCode === CHAT_ARCHIVED_REASON_CODE
         ? ARCHIVED_MESSAGE
+        : reasonCode === "DIRECT_WAITING" ? "Ожидаем ответ клиента. До ответа можно отправить только одно сообщение."
+        : reasonCode === "DIRECT_BLOCKED" ? "Клиент заблокировал прямые обращения."
+        : reasonCode === "DIRECT_DECLINED" ? "Клиент отклонил обращение."
         : "Этот диалог доступен только для просмотра.",
     retryable: reasonCode !== CHAT_ARCHIVED_REASON_CODE,
   };
@@ -59,6 +62,7 @@ export function resolveChatAccess(
 export function resolveChatError(payload: unknown): {
   readonly message: string;
   readonly retryable: boolean;
+  readonly reasonCode?: string;
 } {
   if (!payload || typeof payload !== "object") {
     return { message: "Ошибка отправки", retryable: true };
@@ -67,6 +71,13 @@ export function resolveChatError(payload: unknown): {
   const record = payload as { code?: unknown; message?: unknown; error?: unknown };
   if (record.code === CHAT_ARCHIVED_REASON_CODE) {
     return { message: ARCHIVED_MESSAGE, retryable: false };
+  }
+  if (typeof record.code === "string" && ["DIRECT_WAITING", "DIRECT_BLOCKED", "DIRECT_DECLINED"].includes(record.code)) {
+    return {
+      message: resolveChatAccess({ canRead: true, canWrite: false, reasonCode: record.code }).message!,
+      retryable: false,
+      reasonCode: record.code,
+    };
   }
 
   const message =
@@ -81,6 +92,7 @@ export function resolveChatError(payload: unknown): {
 export function resolveChatPostFailure(error: {
   readonly message: string;
   readonly retryable: boolean;
+  readonly reasonCode?: string;
 }): {
   readonly message: string;
   readonly retryable: boolean;
@@ -94,7 +106,7 @@ export function resolveChatPostFailure(error: {
       : resolveChatAccess({
           canRead: true,
           canWrite: false,
-          reasonCode: CHAT_ARCHIVED_REASON_CODE,
+          reasonCode: error.reasonCode ?? CHAT_ARCHIVED_REASON_CODE,
         }),
   };
 }

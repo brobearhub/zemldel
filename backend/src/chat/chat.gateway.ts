@@ -174,6 +174,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(`${USER_PREFIX}${userId}`).emit('chat.unreadHint', payload);
   }
 
+  emitDirectMessageCreated(userIds: string[], payload: unknown) {
+    for (const userId of userIds)
+      this.server
+        .to(`${USER_PREFIX}${userId}`)
+        .emit('message.created', payload);
+  }
+
+  emitConversationChanged(userId: string, conversationId: string) {
+    this.server
+      .to(`${USER_PREFIX}${userId}`)
+      .emit('conversation.changed', { conversationId });
+  }
+
   emitRequestChanged(userId: string, requestId: string) {
     this.server
       .to(`${USER_PREFIX}${userId}`)

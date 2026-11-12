@@ -20,7 +20,7 @@ export function StandardServiceTemplate({ service, session }: Props) {
 
   return (
     <Box component="main">
-      <ServiceHeroSection vm={heroVm} />
+      <ServiceHeroSection vm={heroVm} serviceId={service.id} />
 
       {/* Provider section (public profile). */}
       {providerId ? (

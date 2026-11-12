@@ -10,6 +10,7 @@ import {
 
 function request(overrides: Partial<RequestProDto> & Pick<RequestProDto, "id" | "status">): RequestProDto {
   return {
+    number: null,
     subjectType: "FREEFORM",
     serviceId: null,
     serviceTitle: null,

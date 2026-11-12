@@ -5,7 +5,7 @@ import { CustomerRequestDocuments } from "./CustomerRequestDocuments";
 
 const requests = [
   { id: "empty", serviceTitle: "Без документов", status: "ACTIVE" },
-  { id: "with-files", serviceTitle: "С документами", status: "ACTIVE" },
+  { id: "with-files", number: 2, serviceTitle: "С документами", status: "ACTIVE", createdAt: "2026-11-12T11:45:00Z" },
 ] as RequestCustomerDto[];
 
 function json(value: unknown, status = 200) {
@@ -23,6 +23,7 @@ describe("CustomerRequestDocuments", () => {
     expect(await screen.findByRole("button", { name: /С документами/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Без документов/ })).not.toBeInTheDocument();
     expect(screen.getByText("1 заявка")).toBeInTheDocument();
+    expect(screen.getByText(/Заявка № 2 · 12\.11\.2026, \d{2}:\d{2}/)).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 

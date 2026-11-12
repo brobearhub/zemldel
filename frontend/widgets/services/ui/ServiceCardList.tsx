@@ -1,5 +1,7 @@
 "use client";
 
+import { FavoriteButton } from "@/features/favorites/FavoriteButton";
+
 import { Box, Stack, Typography } from "@mui/material";
 import { ServiceCard, type ServiceCardItem } from "@/entities/service";
 
@@ -56,7 +58,7 @@ export function ServiceCardList({ title, subtitle, items, columns }: Props) {
         }}
       >
         {items.map((item) => (
-          <ServiceCard key={item.id} item={item} />
+          <ServiceCard key={item.id} item={item} favoriteAction={<FavoriteButton kind="services" id={item.id} />} />
         ))}
       </Box>
     </Stack>

@@ -26,6 +26,8 @@ import { fetchCityJson } from "@/shared/lib/fetch-city-json";
 import {
   placeChipLabel,
   placeKey,
+  placeSelectionKey,
+  uniqueServicePlaces,
   type ServicePlace,
 } from "@/entities/service";
 import {
@@ -264,7 +266,8 @@ export function ServicePlaceChips({
 
   function removePlace(place: ServicePlace) {
     const key = placeKey(place);
-    onChange(value.filter((item) => placeKey(item) !== key));
+    const location = placeSelectionKey(place);
+    onChange(value.filter((item) => placeKey(item) !== key && placeSelectionKey(item) !== location));
   }
 
   return (
@@ -273,7 +276,7 @@ export function ServicePlaceChips({
         <Typography sx={{ fontWeight: 700 }}>География</Typography>
       )}
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, minWidth: 0 }}>
-        {value.map((place) => (
+        {uniqueServicePlaces(value).map((place) => (
           <Chip
             key={placeKey(place)}
             label={placeChipLabel(place)}
@@ -324,6 +327,7 @@ export function ServiceGeographyField({
   const loadingMoreRef = useRef(false);
   const listScrollTop = useRef(0);
   const selectedKeys = useMemo(() => new Set(value.map(placeKey)), [value]);
+  const selectedLocations = useMemo(() => new Set(value.map(placeSelectionKey)), [value]);
 
   const loadMore = useCallback(() => {
     const q = debounced.trim();
@@ -397,16 +401,24 @@ export function ServiceGeographyField({
   }, [debounced, retry]);
 
   const visibleOptions = useMemo(() => {
+    const identities = new Set(selectedKeys);
+    const locations = new Set(selectedLocations);
     return options
       .filter((item) => {
         const place = toPlace(item);
-        return place ? !selectedKeys.has(placeKey(place)) : false;
+        if (!place) return false;
+        const identity = placeKey(place);
+        const location = placeSelectionKey(place);
+        if (identities.has(identity) || locations.has(location)) return false;
+        identities.add(identity);
+        locations.add(location);
+        return true;
       })
       .sort(
         (left, right) =>
           Number(left.kind === "city") - Number(right.kind === "city"),
       );
-  }, [options, selectedKeys]);
+  }, [options, selectedKeys, selectedLocations]);
   const hasRegionOptions = visibleOptions.some(
     (item) => item.kind === "region",
   );
@@ -414,12 +426,14 @@ export function ServiceGeographyField({
   const noOptionsText =
     query.length < 2
       ? "Начните вводить (минимум 2 символа)"
-      : "Ничего не найдено";
+      : options.length > 0 && visibleOptions.length === 0 && !hasMoreRef.current
+        ? "Все найденные места уже добавлены"
+        : "Ничего не найдено";
 
   function addPlace(item: SuggestItem | null) {
     if (!item) return;
     const place = toPlace(item);
-    if (!place || selectedKeys.has(placeKey(place))) return;
+    if (!place || selectedKeys.has(placeKey(place)) || selectedLocations.has(placeSelectionKey(place))) return;
     onChange([...value, place]);
     setInputValue("");
     setOpen(false);
@@ -455,6 +469,7 @@ export function ServiceGeographyField({
         }
         noOptionsText={loadError ? "" : noOptionsText}
         getOptionLabel={(item) => suggestLabel(item)}
+        getOptionKey={(item) => item.kind === "city" ? `city:${item.id}` : `region:${item.regionCode}`}
         isOptionEqualToValue={() => false}
         onInputChange={(_, next, reason) => {
           if (reason === "reset") return;

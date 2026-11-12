@@ -325,6 +325,9 @@ model CityImportEvent {
 }
 
 model User {
+  favoriteServices ServiceFavorite[]
+  favoriteProviders ProviderFavorite[]
+  passportRequests PassportAccessRequest[]
   passportGrants PassportAccessGrant[]
   messengerConnections MessengerConnection[]
   messengerLinkTokens MessengerLinkToken[]
@@ -468,6 +471,8 @@ model PasswordResetToken {
 }
 
 model Provider {
+  favorites ProviderFavorite[]
+  passportRequests PassportAccessRequest[]
   replyDebits ReplyDebit[]
   replyTemplates ReplyTemplate[]
   teamTasks ProviderTeamTask[]
@@ -757,8 +762,12 @@ model ServiceCategory {
 }
 
 model Request {
+  passportRequests PassportAccessRequest[]
   passportGrants PassportAccessGrant[]
   id     String        @id @default(uuid()) @db.Uuid
+  /// Global, immutable number. Service requests are numbered on creation;
+  /// free/category requests are numbered when the customer accepts the contract.
+  number Int? @unique
   status RequestStatus @default(NEW)
 
   serviceId      String? @db.Uuid
@@ -815,6 +824,12 @@ model Request {
   @@index([categoryId, status])
   @@index([serviceId, status])
   @@index([requestCityId, status])
+}
+
+/// Singleton updated transactionally by the request-number database trigger.
+model RequestNumberCounter {
+  id         Int @id @default(1)
+  lastNumber Int @default(0)
 }
 
 model RequestWorkStage {
@@ -1024,6 +1039,7 @@ model RequestProviderOffer {
 }
 
 model Service {
+  favorites ServiceFavorite[]
   allRussia Boolean @default(false)
   regionOrder String[] @default([])
   views ServiceView[]
@@ -1307,14 +1323,53 @@ model StoryAuthorUnfollow {
   @@index([targetProviderId, unfollowedAt])
 }
 
+model ServiceFavorite {
+  userId String @db.Uuid
+  serviceId String @db.Uuid
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([userId, serviceId])
+  @@index([serviceId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model ProviderFavorite {
+  userId String @db.Uuid
+  providerId String @db.Uuid
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@id([userId, providerId])
+  @@index([providerId, createdAt])
+  @@index([userId, createdAt])
+}
+
+enum ConversationKind {
+  REQUEST
+  DIRECT
+}
+
+enum DirectConversationState {
+  WAITING
+  ACTIVE
+  DECLINED
+  BLOCKED
+}
+
 model Conversation {
   id             String                  @id @default(uuid()) @db.Uuid
-  requestId      String                  @db.Uuid
+  requestId      String?                 @db.Uuid
+  kind           ConversationKind        @default(REQUEST)
+  directState    DirectConversationState?
+  interestContext Json?
   providerId     String                  @db.Uuid
   customerUserId String                  @db.Uuid
   status         ConversationStatus      @default(OPEN)
   lastMessageAt  DateTime?
-  request        Request                 @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  request        Request?                @relation(fields: [requestId], references: [id], onDelete: Cascade)
   provider       Provider                @relation(fields: [providerId], references: [id], onDelete: Cascade)
   customerUser   User                    @relation("ConversationCustomer", fields: [customerUserId], references: [id], onDelete: Cascade)
   messages       Message[]
@@ -1420,6 +1475,22 @@ model PassportAccessGrant {
 
   @@id([requestId, kind])
   @@index([passportUserId, expiresAt])
+}
+
+// Pending requests only. A request never grants access to the passport.
+model PassportAccessRequest {
+  requestId      String @db.Uuid
+  kind           PassportAccessKind
+  passportUserId String @db.Uuid
+  providerId     String @db.Uuid
+  actorUserId    String @db.Uuid
+  createdAt      DateTime @default(now())
+  passportUser   User @relation(fields: [passportUserId], references: [id], onDelete: Cascade)
+  provider       Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  request        Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@id([requestId, kind])
+  @@index([passportUserId, createdAt])
 }
 
 model PassportAccessAudit {

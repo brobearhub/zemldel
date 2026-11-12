@@ -20,6 +20,7 @@ export type ConfirmDialogProps = {
   confirmText: string;
   cancelText?: string;
   confirmColor?: ButtonProps["color"];
+  buttonSize?: ButtonProps["size"];
   actions?: ReactNode;
   reasonField?: {
     label: string;
@@ -38,6 +39,7 @@ export function ConfirmDialog({
   confirmText,
   cancelText = "Отмена",
   confirmColor = "primary",
+  buttonSize,
   actions,
   reasonField,
   confirmDisabled = false,
@@ -48,6 +50,12 @@ export function ConfirmDialog({
   const titleId = `${dialogId}-title`;
   const descriptionId = `${dialogId}-description`;
   const reasonId = `${dialogId}-reason`;
+  const buttonSx = buttonSize === "small" ? {
+    minHeight: 32,
+    px: 1.5,
+    py: 0.5,
+    fontSize: "0.875rem",
+  } : undefined;
 
   return (
     <Dialog
@@ -91,8 +99,16 @@ export function ConfirmDialog({
       ) : null}
       <DialogActions>
         {actions}
-        <Button onClick={onCancel}>{cancelText}</Button>
         <Button
+          size={buttonSize}
+          sx={buttonSx}
+          onClick={onCancel}
+        >
+          {cancelText}
+        </Button>
+        <Button
+          size={buttonSize}
+          sx={buttonSx}
           variant="contained"
           color={confirmColor}
           onClick={onConfirm}

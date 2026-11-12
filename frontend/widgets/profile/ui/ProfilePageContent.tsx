@@ -1320,7 +1320,7 @@ function ProfilePageContent({
       disableGutters={providerSettings}
       sx={providerSettings ? { pb: 4 } : sitePageContainerSx}
     >
-      {selectedSection !== "documents" ? (
+      {selectedSection !== "documents" && !(selectedSection === "stories" && searchParams.get("view") === "saved") ? (
         <Typography
           component="h1"
           variant="h1"
@@ -1350,7 +1350,7 @@ function ProfilePageContent({
           }}
         />
       ) : selectedSection === "stories" ? (
-        <StoriesPage scope="user" authorName={user?.name} />
+        <StoriesPage scope="user" authorName={user?.name} saved={searchParams.get("view") === "saved"} />
       ) : selectedSection === "profile" ? (
         <ProfileOverview
           name={user?.name}

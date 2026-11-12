@@ -1,5 +1,5 @@
 import type { RequestProDto } from "@/entities/request";
-import { resolveRequestPriceView } from "@/entities/request";
+import { formatRequestNumber, resolveRequestPriceView } from "@/entities/request";
 import { formatServiceRequestDate, getServiceRequestTitle } from "@/widgets/pro-requests/lib/serviceRequestView";
 import { FeedList } from "@/widgets/pro-requests/ui/FeedList";
 import { FeedListItem } from "@/widgets/pro-requests/ui/FeedListItem";
@@ -21,7 +21,7 @@ export function ServiceRequestList({ items, minRows = 6, allowLockedClick }: Pro
         const disabled = allowLockedClick ? false : item.isLocked;
         const ratingLabel =
           item.customerRating != null ? ` · заказчик ${item.customerRating.toFixed(1)}` : "";
-        const meta = `${formatServiceRequestDate(item.createdAt)}${ratingLabel}`;
+        const meta = `${formatRequestNumber(item)} · ${formatServiceRequestDate(item.createdAt)}${ratingLabel}`;
         const preview = item.message
           ? item.message
           : item.customerName

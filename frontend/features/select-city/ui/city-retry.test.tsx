@@ -87,3 +87,40 @@ it("retries geography search and a failed next page without losing previous citi
   expect(screen.getByText("Казань")).toBeInTheDocument();
   expect(String(fetchMock.mock.calls.at(-1)?.[0])).toContain("offset=1");
 });
+
+it("hides matching name and region even when the selected city has another ID", async () => {
+  vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+    regions: [],
+    cities: [{ ...city, kind: "city" }],
+    hasMore: false,
+  })));
+  render(<ServiceGeographyField
+    value={[{ kind: "city", cityId: "another-id", name: " КАЗАНЬ ", regionCode: city.regionCode, regionName: city.regionName }]}
+    onChange={vi.fn()}
+  />);
+  fireEvent.change(screen.getByRole("combobox"), { target: { value: "Казань" } });
+  expect(await screen.findByText("Все найденные места уже добавлены")).toBeInTheDocument();
+  expect(screen.queryByRole("option")).not.toBeInTheDocument();
+});
+
+it("deduplicates lookup results by name and region but permits a different region", async () => {
+  const onChange = vi.fn();
+  const other = { ...city, id: "other-region", regionCode: "43", regionName: "Кировская область", kind: "city" };
+  vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+    regions: [],
+    cities: [{ ...city, kind: "city" }, { ...city, id: "duplicate", name: "КАЗАНЬ", kind: "city" }, other],
+    hasMore: false,
+  })));
+  const view = render(<ServiceGeographyField value={[]} onChange={onChange} />);
+  fireEvent.change(screen.getByRole("combobox"), { target: { value: "Казань" } });
+  expect(await screen.findAllByRole("option")).toHaveLength(2);
+  view.rerender(<ServiceGeographyField
+    value={[{ kind: "city", cityId: "selected-alias", name: city.name, regionCode: city.regionCode, regionName: city.regionName }]}
+    onChange={onChange}
+  />);
+  expect(await screen.findAllByRole("option")).toHaveLength(1);
+  fireEvent.click(screen.getByRole("option"));
+  expect(onChange).toHaveBeenCalledOnce();
+  expect(onChange.mock.calls[0][0]).toHaveLength(2);
+  expect(onChange.mock.calls[0][0][1].regionCode).toBe("43");
+});

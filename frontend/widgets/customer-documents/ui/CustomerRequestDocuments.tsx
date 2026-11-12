@@ -21,7 +21,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { getRequestStatusLabel, type RequestCustomerDto } from "@/entities/request";
+import { formatRequestReference, getRequestStatusLabel, type RequestCustomerDto } from "@/entities/request";
 import { pluralRu } from "@/shared/lib/plural-ru";
 import { loadRequestDocuments, type CustomerDocumentItem } from "../model/request-documents";
 
@@ -184,9 +184,10 @@ function RequestGroup({ request }: { request: RequestCustomerDto }) {
               variant="caption"
               sx={{
                 color: "text.secondary",
+                overflowWrap: "anywhere",
               }}
             >
-              Заявка № {request.id.slice(0, 8)}
+              {formatRequestReference(request)}
               {request.providerName ? ` · ${request.providerName}` : ""}
             </Typography>
           </Box>

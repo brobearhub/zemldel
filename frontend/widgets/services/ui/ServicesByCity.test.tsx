@@ -7,6 +7,10 @@ import type { ServiceRecord } from "@/entities/service";
 import type { AuthState } from "@/core/store/authSlice";
 import { CitySelectProvider } from "@/features/select-city";
 
+vi.mock("@/features/favorites/FavoriteButton", () => ({
+  FavoriteButton: () => null,
+}));
+
 function createTestStore(auth: AuthState) {
   return configureStore({
     reducer: {

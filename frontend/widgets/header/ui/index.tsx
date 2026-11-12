@@ -13,6 +13,7 @@ import { HeaderLogo } from "./HeaderLogo";
 import { HeaderNav } from "./HeaderNav";
 import { HeaderCity } from "./HeaderCity";
 import { MobileMenuButton } from "@/widgets/mobile-navigation/ui/MobileNavigation";
+import { CustomerNotificationsButton } from "@/widgets/cabinet-chrome/ui/CustomerNotificationsButton";
 
 export const Header = () => {
   const pathname = usePathname();
@@ -85,6 +86,7 @@ export const Header = () => {
             flex: "0 0 auto",
           }}
         >
+          {isAuthenticated && !isProviderAccount ? <CustomerNotificationsButton /> : null}
           <HeaderNav />
         </Box>
 
@@ -96,6 +98,7 @@ export const Header = () => {
             ml: "auto",
           }}
         >
+          {isAuthenticated && !isProviderAccount ? <CustomerNotificationsButton /> : null}
           <MobileMenuButton />
         </Box>
       </Toolbar>

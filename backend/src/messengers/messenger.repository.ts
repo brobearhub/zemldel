@@ -250,7 +250,16 @@ export class MessengerRepository {
         externalMessageId,
         status: 'SENT',
       },
-      include: { message: { include: { conversation: true, sender: true } } },
+      include: {
+        message: {
+          include: {
+            conversation: {
+              include: { request: { select: { number: true } } },
+            },
+            sender: true,
+          },
+        },
+      },
     });
   }
 
@@ -366,6 +375,11 @@ export class MessengerRepository {
         where: { id: messageId },
         include: { conversation: true },
       });
+      if (
+        message.conversation.kind === 'DIRECT' ||
+        !message.conversation.requestId
+      )
+        return;
       const members = await tx.providerMember.findMany({
         where: {
           providerId: message.conversation.providerId,
@@ -451,7 +465,13 @@ export class MessengerRepository {
         message: {
           include: {
             sender: { select: { name: true } },
-            conversation: { select: { requestId: true, customerUserId: true } },
+            conversation: {
+              select: {
+                requestId: true,
+                customerUserId: true,
+                request: { select: { number: true } },
+              },
+            },
           },
         },
       },

@@ -70,10 +70,10 @@ export function MobileLabelColor({
           <PlanFeatureGate
             key={item}
             message={
-              badgeLocked
-                ? LITE_AND_BUSINESS
-                : colorLocked && item !== "primary"
-                  ? BUSINESS_ONLY
+              colorLocked && item !== "primary"
+                ? BUSINESS_ONLY
+                : badgeLocked
+                  ? LITE_AND_BUSINESS
                   : null
             }
             label={`Цвет метки: ${item}`}

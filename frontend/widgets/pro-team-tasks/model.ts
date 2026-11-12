@@ -1,6 +1,7 @@
 import dayjs, { type Dayjs } from "dayjs";
 import "dayjs/locale/ru";
 import type { RequestStatus } from "@/entities/request/dto/request.dto";
+import { formatRequestNumber } from "@/entities/request/lib/request-reference";
 
 export type TeamTask = {
   id: string;
@@ -20,6 +21,7 @@ export type TaskHistory = Omit<TeamTask, "id" | "history"> & {
 
 export type TaskRequest = {
   id: string;
+  number?: number | null;
   title: string;
   status: RequestStatus;
   customerName?: string | null;
@@ -99,7 +101,7 @@ export function assigneeName(id: string | null, members: TaskMember[]) {
 }
 
 export function requestLabel(request: TaskRequest) {
-  return `№${request.id.slice(0, 8)} · ${request.title}`;
+  return `${formatRequestNumber(request)} · ${request.title}`;
 }
 
 export function filterTasks(

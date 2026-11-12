@@ -12,6 +12,7 @@ import { HeaderLogo } from "@/widgets/header/ui/HeaderLogo";
 import { ProfileMenu } from "@/widgets/header/ui/ProfileMenu";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import { ProviderHeaderStatus } from "@/widgets/cabinet-chrome/ui/ProviderHeaderStatus";
+import { CustomerNotificationsButton } from "./CustomerNotificationsButton";
 
 type Props = {
   items: readonly NavItem[];
@@ -105,7 +106,8 @@ export function CabinetDesktopBar({
 }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { unreadByRequestId } = useChatSocket();
+  const chatUnread = useChatSocket();
+  const unreadByRequestId = chatUnread.unreadByConversationId ?? chatUnread.unreadByRequestId;
 
   const unreadTotal = useMemo(
     () => Object.values(unreadByRequestId).reduce((acc, v) => acc + v, 0),
@@ -214,6 +216,7 @@ export function CabinetDesktopBar({
           }}
         >
           {showProviderStatus ? <ProviderHeaderStatus /> : null}
+          {!showProviderStatus && alignWithWorkspace ? <CustomerNotificationsButton /> : null}
           <ProfileMenu />
         </Box>
       </Toolbar>

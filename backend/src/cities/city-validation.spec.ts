@@ -3,6 +3,22 @@ import { describe, expect, it, vi } from 'vitest';
 import { assertActiveSelectableCity } from './city-validation';
 
 describe('assertActiveSelectableCity', () => {
+  it('rejects roads imported at the locality level', async () => {
+    const prisma = {
+      city: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: '00000000-0000-0000-0000-000000000001',
+          typeName: ' Автодорога ',
+          level: 6,
+          status: 'ACTIVE',
+        }),
+      },
+    };
+    await expect(
+      assertActiveSelectableCity(prisma as never, 'road-id'),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it('throws NotFoundException when city is missing', async () => {
     const prisma = {
       city: {

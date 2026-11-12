@@ -16,6 +16,7 @@ import { describe, expect, it, vi } from "vitest";
 function makeProvider(overrides: Partial<RequestProDto> = {}): RequestProDto {
   return {
     id: "r1",
+    number: null,
     subjectType: "FREEFORM" satisfies RequestSubjectType,
     serviceId: null,
     serviceTitle: null,
@@ -71,6 +72,7 @@ function makeCustomer(
 ): RequestCustomerDto {
   return {
     id: "r1",
+    number: null,
     subjectType: "FREEFORM" satisfies RequestSubjectType,
     status: "ACCEPTANCE_PENDING" satisfies RequestStatus,
     serviceId: null,

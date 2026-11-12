@@ -1,3 +1,4 @@
+import { FavoriteButton } from "@/features/favorites/FavoriteButton";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import LocationOnRoundedIcon from "@mui/icons-material/LocationOnRounded";
 import VerifiedUserRoundedIcon from "@mui/icons-material/VerifiedUserRounded";
@@ -18,9 +19,10 @@ import { ServiceBackButton } from "./ServiceBackButton";
 
 type Props = {
   vm: ServiceHeroVm;
+  serviceId?: string;
 };
 
-export function ServiceHeroSection({ vm }: Props) {
+export function ServiceHeroSection({ vm, serviceId }: Props) {
   return (
     <Box
       component="section"
@@ -88,12 +90,27 @@ export function ServiceHeroSection({ vm }: Props) {
                 </Box>
               )}
 
+              {serviceId ? (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    left: 8,
+                    bottom: 8,
+                    zIndex: 2,
+                  }}
+                >
+                  <FavoriteButton
+                    kind="services"
+                    id={serviceId}
+                  />
+                </Box>
+              ) : null}
               {vm.imageBadgeLabel ? (
                 <Box
                   sx={{
                     position: "absolute",
-                    left: { xs: "16px", md: "28px" },
-                    bottom: { xs: "16px", md: "28px" },
+                    right: { xs: "16px", md: "28px" },
+                    top: { xs: "16px", md: "28px" },
                     display: "inline-flex",
                     alignItems: "center",
                     gap: { xs: "6px", md: "10px" },

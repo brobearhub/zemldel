@@ -1,4 +1,11 @@
-import { IsIn, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+import {
+  IsIn,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MinLength,
+  MaxLength,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ChatEnsureBodyDto {
@@ -29,4 +36,13 @@ export class ChatInboxQueryDto {
   @IsOptional()
   @IsIn(['customer', 'provider'])
   role?: 'customer' | 'provider';
+}
+
+export class ChatDirectStartDto {
+  @IsUUID() customerId!: string;
+  @IsUUID() clientMessageId!: string;
+  @IsString() @MinLength(1) @MaxLength(5000) body!: string;
+}
+export class ChatDirectStateDto {
+  @IsIn(['decline', 'block', 'resume']) action!: 'decline' | 'block' | 'resume';
 }

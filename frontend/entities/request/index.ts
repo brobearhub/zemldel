@@ -8,6 +8,7 @@ export * from "./lib/reply-preview";
 export * from "./lib/work-stage-statuses";
 export * from "./lib/cadastral-number";
 export * from "./lib/request-finance";
+export * from "./lib/request-reference";
 export * from "./pending-request";
 export * from "./ui/CadastralNumberMapLink";
 export * from "./ui/ReplyPreviewLines";

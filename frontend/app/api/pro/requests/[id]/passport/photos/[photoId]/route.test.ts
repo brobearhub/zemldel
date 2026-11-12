@@ -11,6 +11,7 @@ it('streams authorized bytes without caching or exposing the S3 URL',async()=>{
  expect(Array.from(new Uint8Array(await response.arrayBuffer()))).toEqual([1,2,3]);
  expect(response.headers.get('cache-control')).toBe('private, no-store');
  expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+ expect(response.headers.get('content-disposition')).toBe('attachment; filename="passport-photo.png"');
  expect(fetchBackendAsUser).toHaveBeenCalledWith('/pro/requests/request-1/passport/photos/photo-1','provider-user',{cache:'no-store'});
 });
 it('does not stream bytes after access is revoked',async()=>{

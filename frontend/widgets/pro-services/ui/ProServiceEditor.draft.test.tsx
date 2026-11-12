@@ -83,8 +83,10 @@ it("automatically restores incomplete fields and original selected photos after 
   const first = mount();
   await userEvent.type(screen.getByRole("textbox", { name: "Название" }), "Незавершённая услуга");
   await userEvent.type(screen.getByRole("textbox", { name: /Описание/ }), "Текст после повторного входа");
-  await userEvent.upload(screen.getByLabelText("Фотографии услуги"), photo());
-  await waitFor(() => expect(state.photos.get(key)).toHaveLength(1));
+  const cover = new File(["cover bytes"], "cover.png", { type: "image/png", lastModified: 1234 });
+  await userEvent.upload(screen.getByLabelText("Фотографии услуги"), [photo(), cover]);
+  await userEvent.click(screen.getByRole("button", { name: "Сделать главной фото 2" }));
+  await waitFor(() => expect(state.photos.get(key)?.map((file) => file.name)).toEqual(["cover.png", "service.png"]));
   expect(readNewServiceDraft(key)?.form.title).toBe("Незавершённая услуга");
   first.unmount();
   mount();
@@ -93,7 +95,9 @@ it("automatically restores incomplete fields and original selected photos after 
   expect(screen.getByRole("textbox", { name: /Описание/ })).toHaveValue("Текст после повторного входа");
   expect(screen.getByRole("textbox", { name: "Цена" })).toHaveValue("");
   expect(screen.getByAltText("Фото услуги 1")).toHaveAttribute("src", expect.stringMatching(/^blob:restored-/));
-  expect(readNewServiceDraft(key)?.photos).toEqual([draftPhotoKey(photo())]);
+  expect(readNewServiceDraft(key)?.photos).toEqual([draftPhotoKey(cover), draftPhotoKey(photo())]);
+  expect(readNewServiceDraft(key)?.mainPhotoKey).toBe(draftPhotoKey(cover));
+  expect(screen.getAllByText("Главная")).toHaveLength(1);
 });
 
 it("clears both stores only after successful publication and does not recreate the draft", async () => {

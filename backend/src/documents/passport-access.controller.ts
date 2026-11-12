@@ -27,6 +27,32 @@ export class PassportAccessController {
     return this.access.mine(this.auth.getUserIdFromRequest(request));
   }
 
+  @Get('requests')
+  @Header('Cache-Control', 'private, no-store')
+  async requests(@Req() request: Request) {
+    return {
+      requests: await this.access.pendingRequests(
+        this.auth.getUserIdFromRequest(request),
+      ),
+    };
+  }
+
+  @Delete('requests/:id/:kind')
+  @Header('Cache-Control', 'private, no-store')
+  decline(
+    @Req() request: Request,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('kind') kind: string,
+  ) {
+    if (kind !== 'FORM' && kind !== 'PHOTO')
+      throw new BadRequestException('Неизвестный вид доступа');
+    return this.access.declineRequest(
+      this.auth.getUserIdFromRequest(request),
+      id,
+      kind,
+    );
+  }
+
   @Put(':id')
   @Header('Cache-Control', 'private, no-store')
   save(
@@ -49,10 +75,14 @@ export class PassportAccessController {
       throw new BadRequestException(
         'Выберите данные и срок доступа: 1, 7 или 30 дней',
       );
+    if ('providerId' in body && typeof body.providerId !== 'string')
+      throw new BadRequestException('Укажите выбранного исполнителя');
     return this.access.save(userId, id, {
       form: body.form,
       photo: body.photo,
       durationDays: body.durationDays,
+      providerId:
+        'providerId' in body ? (body.providerId as string) : undefined,
     });
   }
 

@@ -34,6 +34,7 @@ describe.skipIf(process.env.MESSENGER_DB_TESTS !== '1')(
     let providerId: string;
     let categoryId: string;
     let requestId: string;
+    let requestNumber: number;
     let conversationId: string;
     let deliveredId: string;
     const external = String(
@@ -76,6 +77,7 @@ describe.skipIf(process.env.MESSENGER_DB_TESTS !== '1')(
         data: { customerUserId: users[0], providerId, serviceId: offering.id },
       });
       requestId = request.id;
+      requestNumber = request.number!;
       conversationId = (
         await db.conversation.create({
           data: { requestId, providerId, customerUserId: users[0] },
@@ -172,6 +174,13 @@ describe.skipIf(process.env.MESSENGER_DB_TESTS !== '1')(
         where: { messageId: original.message.id, connectionId: connection.id },
       });
       expect(delivery.status).toBe('SENT');
+      expect(send).toHaveBeenCalledWith(
+        'MAX',
+        external,
+        expect.stringContaining(`Заявка № ${requestNumber}\n`),
+        expect.any(String),
+        `reply:${delivery.id}`,
+      );
       expect(send).toHaveBeenCalledWith(
         'MAX',
         external,

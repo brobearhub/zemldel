@@ -1,3 +1,4 @@
+import { FavoriteButton } from "@/features/favorites/FavoriteButton";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import { Box, Rating, Stack, Typography } from "@mui/material";
 import type { PublicProviderProfileDto } from "@/entities/provider";
@@ -120,6 +121,7 @@ export function ProviderPublicHero({ provider }: Props) {
           >
             {caption}
           </Typography>
+          <FavoriteButton kind="providers" id={provider.id} />
           {provider.subtitle?.trim() ? (
             <Typography
               variant="body2"

@@ -527,6 +527,12 @@ export class RequestCustomerDto {
   @IsUUID()
   id!: string;
 
+  @ApiProperty({ type: Number, nullable: true, example: 1 })
+  @Expose()
+  @IsOptional()
+  @IsInt()
+  number!: number | null;
+
   @ApiProperty({ enum: ['FREEFORM', 'CATEGORY', 'SERVICE'] })
   @Expose()
   @IsEnum(['FREEFORM', 'CATEGORY', 'SERVICE'])
@@ -824,6 +830,12 @@ export class RequestProDto {
   @Expose()
   @IsUUID()
   id!: string;
+
+  @ApiProperty({ type: Number, nullable: true, example: 1 })
+  @Expose()
+  @IsOptional()
+  @IsInt()
+  number!: number | null;
 
   @ApiProperty({ enum: ['FREEFORM', 'CATEGORY', 'SERVICE'] })
   @Expose()
@@ -1140,6 +1152,7 @@ export function canCustomerDeleteRequest(
 
 export type RequestDbRow = {
   id: string;
+  number?: number | null;
   status: RequestStatus;
   serviceId: string | null;
   categoryId: string | null;
@@ -1385,6 +1398,7 @@ export function requestRowToCustomerDtoPlain(
     RequestCustomerDto,
     {
       id: row.id,
+      number: row.number ?? null,
       subjectType: toSubjectType(row),
       status: row.status,
       serviceId: row.serviceId,
@@ -1495,6 +1509,7 @@ export function requestRowToProDtoPlain(
     RequestProDto,
     {
       id: row.id,
+      number: row.number ?? null,
       subjectType,
       status: row.status,
       serviceId: locked ? null : row.serviceId,

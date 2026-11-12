@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { chatHref } from "../model/inbox-format";
 import Link from "next/link";
 import {
   Alert,
@@ -114,13 +115,13 @@ export function ChatsInboxPage({ cabinetRole }: { cabinetRole?: CabinetRole }) {
             ) : (
               <List disablePadding>
                 {items.map((row) => {
-                  const unread = unreadByRequestId[row.serviceRequestId] ?? 0;
+                  const unread = unreadByRequestId[row.serviceRequestId ?? ""] ?? 0;
                   const secondary = row.lastSnippet ?? "";
                   return (
                     <ListItemButton
                       key={row.conversationId ?? row.serviceRequestId}
                       component={Link}
-                      href={`/pro/chats/${row.serviceRequestId}${row.conversationId ? `?conversation=${encodeURIComponent(row.conversationId)}` : ""}`}
+                      href={chatHref(row, "provider")}
                       sx={{
                         borderRadius: 1,
                         mb: 0.5,
@@ -130,7 +131,7 @@ export function ChatsInboxPage({ cabinetRole }: { cabinetRole?: CabinetRole }) {
                     >
                       <Typography variant="caption" color="text.secondary">
                         {row.peerName ?? "Переписка"} · №{" "}
-                        {row.serviceRequestId.slice(0, 8)}
+                        {row.kind === "DIRECT" ? "Без заявки" : row.serviceRequestId?.slice(0, 8)}
                         {row.requestStatus
                           ? ` · ${row.contractPhase ? "Договор" : getRequestStatusLabel(row.requestStatus as RequestStatus)}`
                           : ""}

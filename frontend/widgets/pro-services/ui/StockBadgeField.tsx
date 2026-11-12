@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { forwardRef, useState, type InputHTMLAttributes, type ReactNode } from "react";
 import { Autocomplete, Box, TextField } from "@mui/material";
+import { LITE_AND_BUSINESS, PlanFeatureGate } from "@/shared/ui/PlanFeatureGate";
 import {
   STOCK_BADGE_MAX_LENGTH,
   filterStockBadgeSuggestions,
@@ -11,6 +12,7 @@ type Props = {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  badgeLocked?: boolean;
   /** Кружок цвета справа от черты. */
   endAdornment?: ReactNode;
 };
@@ -19,7 +21,27 @@ function clampBadge(value: string): string {
   return value.slice(0, STOCK_BADGE_MAX_LENGTH);
 }
 
-export function StockBadgeField({ value, onChange, disabled = false, endAdornment }: Props) {
+const LockedBadgeInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
+  function LockedBadgeInput(props, ref) {
+    return (
+      <PlanFeatureGate
+        message={LITE_AND_BUSINESS}
+        label="Метка"
+        fullWidth
+      >
+        <input {...props} ref={ref} />
+      </PlanFeatureGate>
+    );
+  },
+);
+
+export function StockBadgeField({
+  value,
+  onChange,
+  disabled = false,
+  badgeLocked = false,
+  endAdornment,
+}: Props) {
   const [open, setOpen] = useState(false);
   const options = filterStockBadgeSuggestions(value);
 
@@ -30,12 +52,13 @@ export function StockBadgeField({ value, onChange, disabled = false, endAdornmen
       forcePopupIcon={false}
       size="small"
       disabled={disabled}
+      readOnly={badgeLocked}
       fullWidth
       options={options}
       filterOptions={(items) => items}
       inputValue={value}
       value={value}
-      open={open && options.length > 0}
+      open={!badgeLocked && open && options.length > 0}
       onOpen={() => setOpen(true)}
       onClose={() => setOpen(false)}
       onChange={(_, next) => {
@@ -82,6 +105,7 @@ export function StockBadgeField({ value, onChange, disabled = false, endAdornmen
             },
             input: {
               ...params.slotProps.input,
+              inputComponent: badgeLocked ? LockedBadgeInput : "input",
               endAdornment: (
                 <>
                   {endAdornment ? (

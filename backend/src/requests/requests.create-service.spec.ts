@@ -15,6 +15,7 @@ function makeCreatedRow(overrides: Record<string, unknown> = {}) {
   const now = new Date('2026-08-06T00:00:00.000Z');
   return {
     id: 'r1',
+    number: 1,
     status: 'NEW',
     serviceId: 's1',
     categoryId: null,
@@ -113,6 +114,7 @@ describe('RequestsService.createForService', () => {
     const dto = await svc.createForService('s1', 'u1', {
       message: 'Нужна консультация',
     });
+    expect(dto.number).toBe(1);
 
     expect(tx.request.create).toHaveBeenCalledWith(
       expect.objectContaining({
