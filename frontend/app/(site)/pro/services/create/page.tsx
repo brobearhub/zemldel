@@ -5,6 +5,7 @@ import { getServiceManagementContext } from "@/core/auth/server-authorization";
 import type { ServiceCategory } from "@/entities/service";
 import { fetchBackendJson } from "@/shared/api/backend/server";
 import { ProServiceEditor } from "@/widgets/pro-services/ui/ProServiceEditor";
+import { serviceDraftStorageKey } from "@/widgets/pro-services/lib/new-service-draft";
 
 export default async function ProServicesCreatePage() {
   const auth = await getServiceManagementContext("create");
@@ -22,6 +23,7 @@ export default async function ProServicesCreatePage() {
   return (
     <ProServiceEditor
       mode="create"
+      draftStorageKey={serviceDraftStorageKey(auth.context.actorUserId, auth.context.providerId)}
       initialProviderCity={providerCity}
       categories={categories}
     />

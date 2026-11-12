@@ -25,6 +25,7 @@ import type { ServiceDto, ServiceStatus } from "@/entities/service";
 import { useConfirm } from "@/shared/ui/confirm";
 import { serviceAttention } from "../lib/service-attention";
 import { ProServiceManageCard } from "./ProServiceManageCard";
+import { clearMatchingServiceDraft, serviceDraftStorageKey } from "../lib/new-service-draft";
 
 type Props = {
   initialServices: ServiceDto[];
@@ -214,6 +215,10 @@ export function ProServicesListClient({ initialServices }: Props) {
         ),
       );
       if (status === "PUBLISHED") {
+        const providerId = services.find((service) => service.id === id)?.provider.id;
+        if (user?.id && providerId) {
+          await clearMatchingServiceDraft(serviceDraftStorageKey(user.id, providerId), id).catch(() => undefined);
+        }
         setPublishedServiceId(id);
         setLinkCopied(false);
         setNotice(null);
