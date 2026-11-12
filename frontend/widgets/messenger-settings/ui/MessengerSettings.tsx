@@ -50,9 +50,27 @@ export function MessengerSettings({
         {error && (
           <Alert
             severity="error"
+            sx={{
+              flexWrap: { xs: "wrap", sm: "nowrap" },
+              "& .MuiAlert-message": {
+                flex: 1,
+                minWidth: 0,
+                overflowWrap: "anywhere",
+              },
+              "& .MuiAlert-action": {
+                width: { xs: "100%", sm: "auto" },
+                ml: { xs: 0, sm: 2 },
+                p: 0,
+                flexShrink: 0,
+                justifyContent: "flex-end",
+              },
+            }}
             action={
               <Button
                 color="inherit"
+                sx={{
+                  whiteSpace: "nowrap",
+                }}
                 onClick={() => void refresh()}
                 loading={refreshing}
               >

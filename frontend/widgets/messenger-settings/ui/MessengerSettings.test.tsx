@@ -6,11 +6,15 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { messengerApi } from "@/entities/messenger/api/messengers";
+import {
+  messengerApi,
+  MessengerRequestError,
+} from "@/entities/messenger/api/messengers";
 import { MessengerSettings } from "./MessengerSettings";
 import type { MessengerStatus } from "@/entities/messenger/model/types";
 
-vi.mock("@/entities/messenger/api/messengers", () => ({
+vi.mock("@/entities/messenger/api/messengers", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/entities/messenger/api/messengers")>(),
   messengerApi: {
     status: vi.fn(),
     link: vi.fn(),
@@ -142,6 +146,61 @@ describe("MessengerSettings", () => {
     expect(
       screen.queryByRole("switch", { name: "Отключить Telegram" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("recovers a stale disconnected toggle after a conflict by reading the saved connection", async () => {
+    const reload = deferred<MessengerStatus[]>();
+    vi.mocked(messengerApi.status)
+      .mockResolvedValueOnce([{
+        ...status,
+        pending: {
+          id: "token",
+          displayName: "Pavel",
+          expiresAt: new Date(Date.now() + 600000).toISOString(),
+        },
+      }])
+      .mockReturnValueOnce(reload.promise);
+    // Older backend versions returned the same generic 409 for both unique keys.
+    vi.mocked(messengerApi.confirm).mockRejectedValue(
+      new MessengerRequestError("Этот аккаунт уже подключён. Отключите его в прежнем профиле.", 409),
+    );
+    render(<MessengerSettings />);
+    fireEvent.click(await screen.findByRole("button", { name: "Подтвердить подключение" }));
+    await waitFor(() => expect(messengerApi.status).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("status")).toHaveTextContent("Подтверждаем подключение Telegram…");
+    expect(screen.queryByRole("alert")).not.toHaveTextContent("в прежнем профиле");
+    await act(async () => reload.resolve([{ ...connected, displayName: "Pavel" }]));
+    expect(screen.getByRole("switch", { name: "Отключить Telegram" })).toBeChecked();
+    expect(screen.getByText("Pavel")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Подтвердить подключение" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("keeps a real other-user conflict and does not falsely turn the connection on", async () => {
+    const pending = {
+      ...status,
+      pending: {
+        id: "token",
+        displayName: "Pavel",
+        expiresAt: new Date(Date.now() + 600000).toISOString(),
+      },
+    };
+    vi.mocked(messengerApi.status).mockResolvedValue([pending]);
+    vi.mocked(messengerApi.confirm).mockRejectedValue(new MessengerRequestError(
+      "Ваш аккаунт Telegram привязан к другому аккаунту на Земледеле: br***@gmail.com. Войдите в тот аккаунт и отключите мессенджер, затем подключите его здесь.",
+      409,
+      "MESSENGER_ACCOUNT_IN_USE",
+    ));
+    render(<MessengerSettings />);
+    fireEvent.click(await screen.findByRole("button", { name: "Подтвердить подключение" }));
+    expect(await screen.findByText(/привязан к другому аккаунту на Земледеле: br\*\*\*@gmail.com/)).toBeInTheDocument();
+    expect(messengerApi.status).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("switch", { name: "Подключить Telegram" })).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "Подтвердить подключение" })).toBeInTheDocument();
+    // Background refresh of an unchanged pending link must not erase the conflict.
+    fireEvent(window, new Event("focus"));
+    await waitFor(() => expect(messengerApi.status).toHaveBeenCalledTimes(3));
+    expect(screen.getByText(/привязан к другому аккаунту на Земледеле: br\*\*\*@gmail.com/)).toBeInTheDocument();
   });
 
   it("has one connection toggle and keeps the account name with the messenger name", async () => {

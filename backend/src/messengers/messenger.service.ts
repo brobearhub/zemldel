@@ -18,6 +18,7 @@ import {
 } from './messenger-events';
 import { MessengerRepository } from './messenger.repository';
 import { MessengerApiError, MessengerTransport } from './messenger-transport';
+import { messengerWelcomeMessage } from './messenger-welcome';
 
 const PLATFORMS: MessengerPlatform[] = ['TELEGRAM', 'MAX'];
 const hash = (value: string) =>
@@ -37,7 +38,9 @@ export class MessengerService {
     const { connections, tokens } = await this.repository.status(userId);
     return PLATFORMS.map((platform) => {
       const connection = connections.find((c) => c.platform === platform);
-      const pending = tokens.find((t) => t.platform === platform);
+      const pending = connection
+        ? undefined
+        : tokens.find((t) => t.platform === platform);
       return {
         platform,
         configured: this.config.configured(platform),
@@ -111,7 +114,7 @@ export class MessengerService {
           platform,
           event.chatId,
           captured
-            ? 'Вернитесь на сайт и подтвердите подключение этого аккаунта в разделе «Мессенджеры».'
+            ? messengerWelcomeMessage(this.config.siteUrl, 'pending')
             : 'Ссылка уже использована или истекла. Проверьте подключение на сайте или создайте новую ссылку.',
         );
       } else {
@@ -124,9 +127,10 @@ export class MessengerService {
         await this.transport.send(
           platform,
           event.chatId,
-          connection
-            ? 'Вы подключены. Для ответа клиенту или исполнителю нажмите «Ответить здесь» под нужным уведомлением. Сообщения также доступны на сайте.'
-            : 'Подключите мессенджер в личном кабинете сайта: «Мессенджеры» → «Подключить».',
+          messengerWelcomeMessage(
+            this.config.siteUrl,
+            connection?.chatId === event.chatId ? 'connected' : 'unlinked',
+          ),
         );
       }
       return;

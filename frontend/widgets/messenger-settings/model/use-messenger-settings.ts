@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { messengerApi } from "@/entities/messenger/api/messengers";
+import {
+  messengerApi,
+  MessengerRequestError,
+} from "@/entities/messenger/api/messengers";
 import type {
   MessengerLink,
   MessengerPlatform,
@@ -20,16 +23,23 @@ export function useMessengerSettings() {
   const mounted = useRef(false);
   const revision = useRef(0);
   const busyRef = useRef<string | null>(null);
-  const fetching = useRef<{ revision: number; promise: Promise<void> } | null>(
-    null,
-  );
+  const actionError = useRef<{
+    platform: MessengerPlatform;
+    message: string;
+    connected: boolean | undefined;
+    pendingId: string | undefined;
+  } | null>(null);
+  const fetching = useRef<{
+    revision: number;
+    promise: Promise<MessengerStatus[] | null>;
+  } | null>(null);
 
   const refresh = useCallback(
     (options?: {
       afterAction?: boolean;
       errorMessage?: string;
-    }): Promise<void> => {
-      if (busyRef.current && !options?.afterAction) return Promise.resolve();
+    }): Promise<MessengerStatus[] | null> => {
+      if (busyRef.current && !options?.afterAction) return Promise.resolve(null);
       if (fetching.current?.revision === revision.current)
         return fetching.current.promise;
       const currentRevision = revision.current;
@@ -41,7 +51,19 @@ export function useMessengerSettings() {
           const result = await messengerApi.status();
           if (isCurrent()) {
             setItems(result);
-            setError(null);
+            const failed = actionError.current;
+            if (failed) {
+              const current = result.find(
+                (item) => item.platform === failed.platform,
+              );
+              if (
+                current?.connected !== failed.connected ||
+                current?.pending?.id !== failed.pendingId
+              )
+                actionError.current = null;
+            }
+            setError(actionError.current?.message ?? null);
+            return result;
           }
         } catch (e) {
           if (isCurrent())
@@ -57,6 +79,7 @@ export function useMessengerSettings() {
             setRefreshing(false);
           }
         }
+        return null;
       })();
       fetching.current = { revision: currentRevision, promise: pending };
       void pending.then(() => {
@@ -100,6 +123,7 @@ export function useMessengerSettings() {
     revision.current += 1;
     setBusy(busyRef.current);
     setRefreshing(false);
+    actionError.current = null;
     setError(null);
     try {
       if (kind === "link") {
@@ -150,10 +174,38 @@ export function useMessengerSettings() {
           "Изменение сохранено, но не удалось обновить статус. Нажмите «Повторить».",
       });
     } catch (e) {
-      if (mounted.current)
-        setError(
-          e instanceof Error ? e.message : "Не удалось обновить подключение",
+      if (!mounted.current) return;
+      const message =
+        e instanceof Error ? e.message : "Не удалось обновить подключение";
+      // A failed response can follow a committed mutation or a change in another
+      // tab. Read canonical state before keeping a stale connection toggle.
+      const latest = await refresh({
+        afterAction: true,
+        errorMessage: "Не удалось обновить статус подключения. Нажмите «Повторить».",
+      });
+      if (!mounted.current) return;
+      const alreadyConnected =
+        e instanceof MessengerRequestError &&
+        e.status === 409 &&
+        (!e.code ||
+          (kind === "link" && e.code === "MESSENGER_ALREADY_CONNECTED")) &&
+        ["link", "confirm"].includes(kind) &&
+        latest?.some((item) => item.platform === platform && item.connected);
+      if (alreadyConnected) {
+        setLinks((previous) => ({ ...previous, [platform]: undefined }));
+        setError(null);
+      } else {
+        const current = (latest ?? items).find(
+          (item) => item.platform === platform,
         );
+        actionError.current = {
+          platform,
+          message,
+          connected: current?.connected,
+          pendingId: current?.pending?.id,
+        };
+        setError(message);
+      }
     } finally {
       busyRef.current = null;
       if (mounted.current) setBusy(null);
