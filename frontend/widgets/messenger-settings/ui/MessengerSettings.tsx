@@ -44,7 +44,8 @@ export function MessengerSettings({
           color="text.secondary"
         >
           Отвечайте на заявки в Telegram и MAX — вся переписка останется на
-          сайте.
+          сайте. При подключении вы также будете получать уведомления в
+          мессенджерах.
         </Typography>
         {error && (
           <Alert

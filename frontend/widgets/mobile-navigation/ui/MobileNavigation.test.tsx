@@ -298,6 +298,12 @@ describe("Общий десктопный сайдбар", () => {
       "region",
       { name: "Настройки" },
     );
+    expect(
+      within(settings).getByRole("heading", { name: "Настройки" }),
+    ).toBeInTheDocument();
+    expect(
+      within(settings).getByRole("button", { name: "Закрыть настройки" }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(
       within(sidebar).queryByRole("link", { name: "Доска" }),
@@ -341,6 +347,18 @@ describe("Общий десктопный сайдбар", () => {
     );
     await user.click(screen.getByRole("button", { name: "Развернуть меню" }));
     expect(localStorage.getItem("ui.sidebar.pro.collapsed")).toBe("0");
+  });
+  it("закрывает настройки исполнителя крестиком", async () => {
+    const user = setup("PROVIDER", true);
+    await user.click(screen.getByRole("button", { name: "Настройки: Компания" }));
+    const settings = screen.getByRole("region", { name: "Настройки" });
+    await user.click(
+      within(settings).getByRole("button", { name: "Закрыть настройки" }),
+    );
+    expect(
+      screen.queryByRole("region", { name: "Настройки" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Доска" })).toBeInTheDocument();
   });
   it("использует клиентские ссылки и настройки для клиента", async () => {
     const user = setup("CUSTOMER", true);
@@ -398,9 +416,15 @@ describe("Закреплённая панель профиля", () => {
         within(footer).getByRole("heading", { name: "Настройки" }),
       ).toBeInTheDocument();
       const settings = screen.getByRole("region", { name: "Настройки" });
-      expect(
-        within(settings).queryByRole("heading", { name: "Настройки" }),
-      ).not.toBeInTheDocument();
+      if (kind === "PROVIDER") {
+        expect(
+          within(settings).getByRole("heading", { name: "Настройки" }),
+        ).toBeInTheDocument();
+      } else {
+        expect(
+          within(settings).queryByRole("heading", { name: "Настройки" }),
+        ).not.toBeInTheDocument();
+      }
       expect(
         within(settings).getByRole("link", { name: "Мои данные" }),
       ).toBeInTheDocument();

@@ -9,11 +9,13 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  IconButton,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import ChevronRightRounded from "@mui/icons-material/ChevronRightRounded";
+import CloseRounded from "@mui/icons-material/CloseRounded";
 import PersonOutlineRounded from "@mui/icons-material/PersonOutlineRounded";
 import BadgeOutlined from "@mui/icons-material/BadgeOutlined";
 import VerifiedOutlined from "@mui/icons-material/VerifiedOutlined";
@@ -97,7 +99,7 @@ export function CabinetSettingsPanel({
     <Box
       component="section"
       role="region"
-      aria-labelledby={titleId}
+      aria-labelledby={provider ? `${titleId}-heading` : titleId}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -114,6 +116,38 @@ export function CabinetSettingsPanel({
         overflow: "hidden",
       }}
     >
+      {provider ? (
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            px: 1,
+            pb: 1.5,
+          }}
+        >
+          <Typography
+            id={`${titleId}-heading`}
+            component="h2"
+            sx={{
+              color: "text.primary",
+              fontSize: "1.25rem",
+              fontWeight: 700,
+            }}
+          >
+            Настройки
+          </Typography>
+          <IconButton
+            aria-label="Закрыть настройки"
+            onClick={onBack}
+            sx={{
+              color: "text.primary",
+            }}
+          >
+            <CloseRounded />
+          </IconButton>
+        </Box>
+      ) : null}
       <Box
         sx={{
           overflowY: "auto",
