@@ -11,7 +11,7 @@ function setup() {
     senderUserId: 'u',
     clientMessageId: `client-${i}`,
     body: `Message ${i}`,
-    sender: { id: 'u', name: 'QA' },
+    sender: { id: 'u', name: 'QA', image: null as string | null },
     replyTo: null,
   }));
   const findMany = vi.fn(({ where, orderBy, take }) => {
@@ -52,6 +52,25 @@ function setup() {
   return { service, rows, access, findMany };
 }
 describe('message cursor recovery', () => {
+  it('returns current sender photos with message history', async () => {
+    const { service, rows, findMany } = setup();
+    rows[101].sender.image = 'https://example.test/avatar.png';
+
+    const messages = await service.listMessages('u', 'c', { limit: 2 });
+
+    expect(messages.map((message) => message.senderImage)).toEqual([
+      'https://example.test/avatar.png',
+      null,
+    ]);
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          sender: { select: { id: true, name: true, image: true } },
+        }),
+      }),
+    );
+  });
+
   it('returns every missed message across pages without timestamp-tie gaps or duplicates', async () => {
     const { service, access } = setup();
     const got: string[] = [];

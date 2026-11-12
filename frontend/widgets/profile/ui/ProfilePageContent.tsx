@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useId, useMemo, useState } from "react";
 import { MessengerSettings } from "@/widgets/messenger-settings/ui/MessengerSettings";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -12,8 +12,12 @@ import {
   Chip,
   CircularProgress,
   Container,
+  FormControl,
+  FormHelperText,
   IconButton,
   InputAdornment,
+  InputLabel,
+  OutlinedInput,
   Paper,
   Skeleton,
   Stack,
@@ -142,6 +146,8 @@ function ProfileOverview({
   const [phoneDraft, setPhoneDraft] = useState(savedPhone);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [phoneSaving, setPhoneSaving] = useState(false);
+  const phoneInputId = useId();
+  const phoneErrorId = `${phoneInputId}-error`;
   const [providerCityError, setProviderCityError] = useState<string | null>(
     null,
   );
@@ -196,7 +202,7 @@ function ProfileOverview({
   }, [providerSettings]);
 
   async function updatePhone() {
-    if (!phoneDirty) return;
+    if (!phoneDirty || busy || phoneSaving) return;
     if (phoneDraftDigits && phoneDraftDigits.length !== 10) {
       setPhoneError("Введите 10 цифр после +7");
       return;
@@ -741,82 +747,134 @@ function ProfileOverview({
 
             {cityError ? <Alert severity="error">{cityError}</Alert> : null}
 
-            <TextField
-              label="Телефон"
+            <FormControl
+              variant="outlined"
               size="small"
-              value={phoneDraft}
-              onChange={(event) => {
-                setPhoneDraft(formatRuPhoneInput(event.target.value));
-                if (phoneError) setPhoneError(null);
-              }}
-              onPaste={(event) => {
-                // Why: вставленный номер заменяет поле целиком, иначе его «8…» склеится с префиксом.
-                event.preventDefault();
-                setPhoneDraft(
-                  formatRuPhoneInput(event.clipboardData.getData("text")),
-                );
-                if (phoneError) setPhoneError(null);
-              }}
-              onFocus={() => {
-                if (!phoneDraft) setPhoneDraft(RU_PHONE_PREFIX);
-              }}
-              onBlur={() => {
-                if (!phoneDraftDigits) setPhoneDraft("");
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void updatePhone();
-              }}
               error={Boolean(phoneError)}
-              helperText={phoneError}
               disabled={busy || phoneSaving}
-              placeholder="+7 900 000-00-00"
-              autoComplete="tel"
-              type="tel"
               fullWidth
-              slotProps={{
-                input: {
-                  startAdornment: (
+              onKeyDown={(event) => {
+                if (event.nativeEvent.isComposing) return;
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  if (event.target instanceof HTMLElement) event.target.blur();
+                  setPhoneDraft(savedPhone);
+                  setPhoneError(null);
+                } else if (event.key === "Enter") {
+                  event.preventDefault();
+                  void updatePhone();
+                }
+              }}
+            >
+              <InputLabel htmlFor={phoneInputId}>Телефон</InputLabel>
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                  alignItems: "center",
+                  minWidth: 0,
+                }}
+              >
+                <OutlinedInput
+                  id={phoneInputId}
+                  value={phoneDraft}
+                  onChange={(event) => {
+                    setPhoneDraft(formatRuPhoneInput(event.target.value));
+                    if (phoneError) setPhoneError(null);
+                  }}
+                  onPaste={(event) => {
+                    // Why: вставленный номер заменяет поле целиком, иначе его «8…» склеится с префиксом.
+                    event.preventDefault();
+                    setPhoneDraft(
+                      formatRuPhoneInput(event.clipboardData.getData("text")),
+                    );
+                    if (phoneError) setPhoneError(null);
+                  }}
+                  onFocus={() => {
+                    if (!phoneDraft) setPhoneDraft(RU_PHONE_PREFIX);
+                  }}
+                  onBlur={() => {
+                    if (!phoneDraftDigits) setPhoneDraft("");
+                  }}
+                  placeholder="+7 900 000-00-00"
+                  autoComplete="tel"
+                  type="tel"
+                  fullWidth
+                  startAdornment={
                     <InputAdornment position="start">
                       <PhoneOutlinedIcon fontSize="small" />
                     </InputAdornment>
-                  ),
-                  endAdornment: phoneDirty ? (
-                    <InputAdornment position="end">
-                      <Button
-                        variant="contained"
-                        size="small"
-                        loading={phoneSaving}
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => void updatePhone()}
-                        sx={{ display: { xs: "none", sm: "inline-flex" } }}
-                      >
-                        Сохранить
-                      </Button>
-                      <IconButton
-                        aria-label="Сохранить телефон"
-                        edge="end"
-                        disabled={phoneSaving}
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => void updatePhone()}
-                        sx={{
-                          display: { xs: "inline-flex", sm: "none" },
-                          bgcolor: "primary.main",
-                          color: "primary.contrastText",
-                          "&:hover": { bgcolor: "primary.dark" },
-                        }}
-                      >
-                        {phoneSaving ? (
-                          <CircularProgress size={18} color="inherit" />
-                        ) : (
-                          <CheckIcon fontSize="small" />
-                        )}
-                      </IconButton>
-                    </InputAdornment>
-                  ) : undefined,
-                },
-                htmlInput: { inputMode: "tel" },
-              }}
-            />
+                  }
+                  slotProps={{
+                    input: {
+                      inputMode: "tel",
+                      "aria-describedby": phoneError ? phoneErrorId : undefined,
+                    },
+                  }}
+                  sx={{
+                    flex: 1,
+                    minWidth: 0,
+                    "& .MuiOutlinedInput-notchedOutline": {
+                      top: 0,
+                    },
+                  }}
+                />
+                <Button
+                  variant="contained"
+                  size="small"
+                  disabled={!phoneDirty || busy || phoneSaving}
+                  loading={phoneSaving}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => void updatePhone()}
+                  sx={{
+                    display: { xs: "none", sm: "inline-flex" },
+                    alignSelf: "stretch",
+                    flexShrink: 0,
+                    minHeight: 0,
+                    px: 1.5,
+                    py: 0,
+                    fontSize: "0.875rem",
+                    whiteSpace: "nowrap",
+                    overflowWrap: "normal",
+                  }}
+                >
+                  Сохранить
+                </Button>
+                <IconButton
+                  aria-label="Сохранить телефон"
+                  size="small"
+                  disabled={!phoneDirty || busy || phoneSaving}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => void updatePhone()}
+                  sx={{
+                    display: { xs: "inline-flex", sm: "none" },
+                    alignSelf: "stretch",
+                    flexShrink: 0,
+                    minWidth: 40,
+                    minHeight: 0,
+                    px: 1,
+                    py: 0,
+                    bgcolor: "primary.main",
+                    color: "primary.contrastText",
+                    "&:hover": { bgcolor: "primary.dark" },
+                    "&.Mui-disabled": {
+                      bgcolor: "action.disabledBackground",
+                      color: "action.disabled",
+                    },
+                  }}
+                >
+                  {phoneSaving ? (
+                    <CircularProgress size={18} color="inherit" />
+                  ) : (
+                    <CheckIcon fontSize="small" />
+                  )}
+                </IconButton>
+              </Stack>
+              {phoneError ? (
+                <FormHelperText id={phoneErrorId}>{phoneError}</FormHelperText>
+              ) : null}
+            </FormControl>
 
             {activeMembership && providerCityError ? (
               <Alert severity="error">{providerCityError}</Alert>

@@ -61,7 +61,6 @@ import {
 import { fetchCustomerWorkStages } from "@/entities/request/api/request-work-stages";
 import { ChatBodyWithSidePanelLayout } from "@/widgets/chat/ui/ChatBodyWithSidePanelLayout";
 import { ServiceRequestChatPanel } from "@/widgets/chat/ui/ServiceRequestChatPanel";
-import { DEFAULT_SERVICE_QUESTION } from "@/features/create-service-request-lead";
 import Link from "@/shared/ui/Link";
 import { RequestDetailHeaderCard } from "@/shared/ui/RequestDetailHeaderCard";
 import {
@@ -1636,11 +1635,6 @@ export function CustomerRequestConversationWorkspace({
               });
               setSelectedConversationId(nextConversationId);
             }}
-            inputPlaceholder={
-              req.subjectType === "SERVICE"
-                ? DEFAULT_SERVICE_QUESTION
-                : undefined
-            }
             autoFocusInput={justCreated}
           />
         ) : chatRecovery ? (

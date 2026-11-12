@@ -14,6 +14,7 @@ import {
 import { alpha } from "@mui/material/styles";
 import { breakpointValues, media } from "./breakpoints";
 import { readableTypography } from "./typography";
+import { SECONDARY_BACKGROUND } from "./background";
 import type {} from "@mui/x-date-pickers/themeAugmentation";
 
 export { breakpointValues, media };
@@ -137,6 +138,7 @@ export function createAppTheme(
         background: {
           default: t.bg,
           paper: t.paper,
+          secondary: SECONDARY_BACKGROUND,
         },
         divider: t.divider,
         text: {

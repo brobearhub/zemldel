@@ -100,6 +100,7 @@ function getPaletteSwatches(theme: Theme) {
       items: [
         ["background.default", theme.palette.background.default],
         ["background.paper", theme.palette.background.paper],
+        ["background.secondary", theme.palette.background.secondary],
         ["text.primary", theme.palette.text.primary],
         ["text.secondary", theme.palette.text.secondary],
         ["divider", theme.palette.divider],

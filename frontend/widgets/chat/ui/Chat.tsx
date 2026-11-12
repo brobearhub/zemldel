@@ -1,24 +1,41 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import { MessengerComposer } from "./MessengerComposer";
 import ReplyOutlinedIcon from "@mui/icons-material/ReplyOutlined";
 import CloseIcon from "@mui/icons-material/Close";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutlined";
-import SendRoundedIcon from "@mui/icons-material/SendRounded";
+import ArrowUpwardRoundedIcon from "@mui/icons-material/ArrowUpwardRounded";
+import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import {
-  Avatar,
+  Alert,
   Box,
   Button,
   CircularProgress,
   IconButton,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
   Paper,
   Stack,
+  Snackbar,
   TextField,
   Typography,
+  Tooltip,
+  useMediaQuery,
 } from "@mui/material";
-import { alpha, lighten } from "@mui/material/styles";
+import { alpha, darken, lighten } from "@mui/material/styles";
 import type { ChatMessageDto } from "@/entities/chat/dto/chat.dto";
+import { CdnAvatar } from "@/shared/ui/cdn-image";
+import { breakpointValues } from "@/core/theme/breakpoints";
 
 export type ChatReplyTarget = {
   messageId: string;
@@ -46,6 +63,7 @@ export type ChatRenderableRow =
 type Props = {
   rows: ChatRenderableRow[];
   currentUserId: string;
+  currentUserImage?: string | null;
   draft: string;
   onDraftChange: (value: string) => void;
   pendingReply: ChatReplyTarget | null;
@@ -57,7 +75,6 @@ type Props = {
   sending?: boolean;
   loading?: boolean;
   readOnly?: boolean;
-  inputPlaceholder?: string;
   autoFocusInput?: boolean;
   appearance?: "default" | "messenger";
   initialUnreadCount?: number;
@@ -110,15 +127,23 @@ function ReplyPreviewBlock({
 
 function MessageRowFrame({
   senderLabel,
+  senderImage,
   mine,
   createdAt,
-  onReply,
+  actions,
+  onOpenActions,
+  menuId,
+  menuOpen,
   children,
 }: {
   senderLabel: string;
+  senderImage?: string | null;
   mine: boolean;
   createdAt?: string;
-  onReply?: () => void;
+  actions?: ReactNode;
+  onOpenActions?: (event: MouseEvent<HTMLElement>) => void;
+  menuId?: string;
+  menuOpen?: boolean;
   children: ReactNode;
 }) {
   const initials = senderLabel
@@ -131,17 +156,43 @@ function MessageRowFrame({
 
   return (
     <Box
+      role={onOpenActions ? "button" : undefined}
+      tabIndex={onOpenActions ? 0 : undefined}
+      aria-label={
+        onOpenActions ? `Действия сообщения от ${senderLabel}` : undefined
+      }
+      aria-haspopup={onOpenActions ? "menu" : undefined}
+      aria-expanded={onOpenActions ? menuOpen : undefined}
+      aria-controls={menuOpen ? menuId : undefined}
+      onClick={onOpenActions}
+      onKeyDown={(event) => {
+        if (onOpenActions && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault();
+          event.currentTarget.click();
+        }
+      }}
       sx={{
         display: "flex",
         alignItems: "flex-start",
         gap: 1,
         minWidth: 0,
+        minHeight: actions ? 64 : undefined,
         width: "100%",
         py: 0.5,
+        cursor: onOpenActions ? "pointer" : undefined,
+        "&:hover .chat-message-actions, &:focus-within .chat-message-actions": {
+          opacity: 1,
+          pointerEvents: "auto",
+        },
+        "&:focus-visible": {
+          bgcolor: "action.focus",
+          borderRadius: 1,
+        },
       }}
     >
-      <Avatar
+      <CdnAvatar
         aria-hidden="true"
+        src={senderImage || undefined}
         sx={(theme) => ({
           width: 36,
           height: 36,
@@ -153,7 +204,7 @@ function MessageRowFrame({
         })}
       >
         {initials}
-      </Avatar>
+      </CdnAvatar>
       <Box
         sx={{
           flex: 1,
@@ -175,67 +226,49 @@ function MessageRowFrame({
               minWidth: 0,
               fontWeight: 700,
               fontSize: "0.875rem",
-              color: "primary.main",
+              color: mine ? "text.primary" : "accent.main",
               overflowWrap: "anywhere",
             }}
           >
             {senderLabel}
           </Typography>
           {createdAt ? (
-            <Typography
-              component="time"
-              dateTime={createdAt}
-              variant="caption"
+            <Box
               sx={{
+                position: "relative",
                 flexShrink: 0,
-                color: "text.secondary",
-                whiteSpace: "nowrap",
-                fontSize: "0.75rem",
+                minWidth: actions ? 64 : undefined,
+                textAlign: "right",
               }}
             >
-              {new Intl.DateTimeFormat("ru-RU", {
-                hour: "2-digit",
-                minute: "2-digit",
-              }).format(new Date(createdAt))}
-            </Typography>
+              <Typography
+                component="time"
+                dateTime={createdAt}
+                variant="caption"
+                sx={{
+                  flexShrink: 0,
+                  color: "text.secondary",
+                  whiteSpace: "nowrap",
+                  fontSize: "0.75rem",
+                }}
+              >
+                {new Intl.DateTimeFormat("ru-RU", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }).format(new Date(createdAt))}
+              </Typography>
+              {actions}
+            </Box>
           ) : null}
         </Stack>
-        <Stack
-          direction="row"
-          spacing={0.5}
-          useFlexGap
+        <Box
           sx={{
-            alignItems: "flex-start",
+            minWidth: 0,
+            pr: actions ? 9 : undefined,
           }}
         >
-          <Box
-            sx={{
-              flex: 1,
-              minWidth: 0,
-            }}
-          >
-            {children}
-          </Box>
-          {onReply ? (
-            <IconButton
-              size="small"
-              onClick={onReply}
-              aria-label="Ответить"
-              sx={{
-                flexShrink: 0,
-                alignSelf: "flex-end",
-                color: "primary.main",
-                p: 0.5,
-                width: 28,
-                height: 28,
-                minWidth: 28,
-                minHeight: 28,
-              }}
-            >
-              <ReplyOutlinedIcon fontSize="small" />
-            </IconButton>
-          ) : null}
-        </Stack>
+          {children}
+        </Box>
       </Box>
     </Box>
   );
@@ -244,20 +277,78 @@ function MessageRowFrame({
 function MessageRow({
   message,
   mine,
+  currentUserImage,
   onReply,
-  readOnly,
+  onCopy,
+  onOpenActions,
+  menuId,
+  menuOpen,
 }: {
   message: ChatMessageDto;
   mine: boolean;
-  onReply: () => void;
-  readOnly?: boolean;
+  currentUserImage?: string | null;
+  onReply?: () => void;
+  onCopy: () => void;
+  onOpenActions?: (event: MouseEvent<HTMLElement>) => void;
+  menuId: string;
+  menuOpen: boolean;
 }) {
   return (
     <MessageRowFrame
       senderLabel={message.senderName?.trim() || (mine ? "Вы" : "Без имени")}
+      senderImage={
+        mine ? currentUserImage ?? message.senderImage : message.senderImage
+      }
       mine={mine}
       createdAt={message.createdAt}
-      onReply={readOnly ? undefined : onReply}
+      onOpenActions={onOpenActions}
+      menuId={menuId}
+      menuOpen={menuOpen}
+      actions={onOpenActions ? undefined : (
+        <Stack
+          className="chat-message-actions"
+          direction="row"
+          sx={{
+            position: "absolute",
+            top: "100%",
+            right: 0,
+            opacity: 0,
+            pointerEvents: "none",
+            "& .MuiIconButton-root": {
+              width: 32,
+              height: 32,
+              minWidth: 32,
+              minHeight: 32,
+              p: 0.5,
+              color: "text.primary",
+            },
+            "& .MuiSvgIcon-root": {
+              fontSize: 16,
+            },
+          }}
+        >
+          {onReply ? (
+            <Tooltip title="Ответить">
+              <IconButton
+                size="small"
+                aria-label="Ответить"
+                onClick={onReply}
+              >
+                <ReplyOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          ) : null}
+          <Tooltip title="Копировать">
+            <IconButton
+              size="small"
+              aria-label="Копировать"
+              onClick={onCopy}
+            >
+              <ContentCopyOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      )}
     >
       {message.repliedTo ? (
         <ReplyPreviewBlock
@@ -284,6 +375,7 @@ function MessageRow({
 export function Chat({
   rows,
   currentUserId,
+  currentUserImage,
   draft,
   onDraftChange,
   pendingReply,
@@ -295,12 +387,74 @@ export function Chat({
   sending,
   loading,
   readOnly,
-  inputPlaceholder,
   autoFocusInput,
   appearance = "default",
   initialUnreadCount = 0,
 }: Props) {
   const messenger = appearance === "messenger";
+  const mobileActions = useMediaQuery(
+    `(max-width: ${breakpointValues.tablet - 0.05}px), (hover: none)`,
+    { noSsr: true },
+  );
+  const menuId = useId();
+  const [messageMenu, setMessageMenu] = useState<{
+    message: ChatMessageDto;
+    position: { top: number; left: number };
+  } | null>(null);
+  const [copyNotice, setCopyNotice] = useState<{
+    message: string;
+    error: boolean;
+    key: number;
+  } | null>(null);
+
+  async function copyMessage(message: ChatMessageDto) {
+    try {
+      await navigator.clipboard.writeText(message.body);
+      setCopyNotice((previous) => ({
+        message: "Текст скопирован",
+        error: false,
+        key: (previous?.key ?? 0) + 1,
+      }));
+    } catch {
+      setCopyNotice((previous) => ({
+        message: "Не удалось скопировать текст. Попробуйте ещё раз.",
+        error: true,
+        key: (previous?.key ?? 0) + 1,
+      }));
+    }
+  }
+
+  function openMessageMenu(
+    message: ChatMessageDto,
+    event: MouseEvent<HTMLElement>,
+  ) {
+    const selection = window.getSelection();
+    if (
+      selection &&
+      !selection.isCollapsed &&
+      event.currentTarget.contains(selection.anchorNode)
+    ) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    setMessageMenu({
+      message,
+      position: {
+        top: event.clientY || rect.top + rect.height / 2,
+        left: event.clientX || rect.left + rect.width / 2,
+      },
+    });
+  }
+
+  useEffect(() => {
+    if (
+      messageMenu &&
+      (!mobileActions || !rows.some((row) =>
+        row.kind === "message" &&
+        row.message.id === messageMenu.message.id &&
+        row.message.conversationId === messageMenu.message.conversationId,
+      ))
+    ) setMessageMenu(null);
+  }, [rows, mobileActions, messageMenu]);
+
   const scroller = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
   const unreadResolved = useRef(false);
@@ -371,7 +525,7 @@ export function Chat({
                 theme.palette.mode === "light"
                   ? lighten(theme.palette.background.default, 0.55)
                   : theme.palette.background.default
-            : undefined,
+            : "background.default",
           overscrollBehavior: "contain",
           flex: 1,
           minHeight: 0,
@@ -504,8 +658,20 @@ export function Chat({
                 <MessageRow
                   message={row.message}
                   mine={mine}
-                  readOnly={readOnly}
-                  onReply={() => onReplyToMessage(row.message)}
+                  currentUserImage={currentUserImage}
+                  onReply={
+                    readOnly || disabled
+                      ? undefined
+                      : () => onReplyToMessage(row.message)
+                  }
+                  onCopy={() => void copyMessage(row.message)}
+                  onOpenActions={
+                    mobileActions
+                      ? (event) => openMessageMenu(row.message, event)
+                      : undefined
+                  }
+                  menuId={menuId}
+                  menuOpen={messageMenu?.message.id === row.message.id}
                 />
               </Box>
             );
@@ -515,6 +681,7 @@ export function Chat({
               <MessageRowFrame
                 key={`p-${row.clientMessageId}`}
                 senderLabel="Вы"
+                senderImage={currentUserImage}
                 mine
               >
                 {row.replyToPreview ? (
@@ -558,6 +725,7 @@ export function Chat({
             <MessageRowFrame
               key={`f-${row.clientMessageId}`}
               senderLabel="Вы"
+              senderImage={currentUserImage}
               mine
             >
               {row.replyToPreview ? (
@@ -629,8 +797,7 @@ export function Chat({
           borderTop: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
           bgcolor: messenger
             ? theme.palette.background.paper
-            : alpha("#FFFFFF", 0.72),
-          backdropFilter: "blur(8px)",
+            : theme.palette.background.secondary,
         })}
       >
         {pendingReply ? (
@@ -655,7 +822,7 @@ export function Chat({
               sx={{
                 px: 1.5,
                 py: 1,
-                bgcolor: "transparent",
+                bgcolor: messenger ? "transparent" : "background.paper",
                 borderColor: "divider",
               }}
             >
@@ -723,27 +890,22 @@ export function Chat({
         ) : (
           <Stack
             direction="row"
-            spacing={1.5}
+            spacing={1}
             sx={{
               alignItems: "center",
-              px: {
-                xs: 1.5,
-                sm: 2,
-              },
-              py: {
-                xs: 1.25,
-                sm: 1.5,
-              },
+              px: 2,
+              py: 1.5,
             }}
           >
             <TextField
               value={draft}
               onChange={(e) => onDraftChange(e.target.value)}
+              size="small"
               fullWidth
               multiline
               minRows={1}
               maxRows={4}
-              placeholder={inputPlaceholder ?? "Введите сообщение…"}
+              placeholder="Сообщение..."
               autoFocus={autoFocusInput}
               disabled={disabled}
               onKeyDown={(e) => {
@@ -753,37 +915,22 @@ export function Chat({
                 }
               }}
               sx={(theme) => ({
+                minWidth: 0,
                 "& .MuiOutlinedInput-root": {
-                  borderRadius: 1,
+                  minHeight: 44,
+                  borderRadius: 1.5,
                   bgcolor: "background.paper",
                   color: theme.palette.text.primary,
                   "& fieldset": {
+                    top: 0,
                     borderColor: theme.palette.divider,
-                    borderWidth: "1.5px",
-                    transition: "border-color 160ms ease",
                   },
                   "&:hover fieldset": {
-                    borderColor: theme.palette.text.primary,
+                    borderColor: theme.palette.divider,
                   },
                   "&.Mui-focused fieldset": {
                     borderColor: theme.palette.primary.main,
-                    borderWidth: "1.5px",
                   },
-                },
-                "& .MuiOutlinedInput-input": {
-                  py: {
-                    xs: 0.75,
-                    sm: 0.875,
-                  },
-                  pl: {
-                    xs: 1.75,
-                    sm: 2,
-                  },
-                  pr: {
-                    xs: 1.75,
-                    sm: 2,
-                  },
-                  minHeight: 22,
                 },
                 "& .MuiInputBase-inputMultiline": {
                   scrollbarWidth: "none",
@@ -804,38 +951,96 @@ export function Chat({
               onClick={onSend}
               disabled={disabled || sending || draft.trim().length === 0}
               sx={(theme) => ({
-                width: {
-                  xs: 52,
-                  sm: 56,
-                },
-                height: {
-                  xs: 52,
-                  sm: 56,
-                },
+                width: 44,
+                height: 44,
                 flexShrink: 0,
-                borderRadius: 1,
-                bgcolor: theme.palette.primary.main,
+                borderRadius: "50%",
+                bgcolor: theme.palette.primary.dark,
                 color: theme.palette.primary.contrastText,
-                boxShadow: `0 10px 22px ${alpha(theme.palette.primary.main, 0.26)}`,
                 "&:hover": {
-                  bgcolor: theme.palette.primary.dark,
+                  bgcolor: darken(theme.palette.primary.dark, 0.12),
                 },
                 "&.Mui-disabled": {
-                  bgcolor: alpha(theme.palette.primary.main, 0.35),
-                  color: alpha("#FFFFFF", 0.7),
+                  bgcolor:
+                    theme.palette.mode === "light"
+                      ? alpha(theme.palette.common.black, 0.12)
+                      : theme.palette.action.disabledBackground,
+                  color: "text.disabled",
                 },
               })}
             >
-              <SendRoundedIcon
-                sx={{
-                  fontSize: 22,
-                  transform: "translateX(1px) rotate(-18deg)",
-                }}
-              />
+              <ArrowUpwardRoundedIcon />
             </IconButton>
           </Stack>
         )}
       </Box>
+      {messageMenu ? (
+        <Menu
+          id={menuId}
+          open
+          anchorReference="anchorPosition"
+          anchorPosition={messageMenu.position}
+          onClose={() => setMessageMenu(null)}
+          disableScrollLock
+          slotProps={{
+            paper: {
+              sx: (theme) => ({
+                bgcolor: "background.paper",
+                backgroundImage: `linear-gradient(${theme.palette.background.secondary}, ${theme.palette.background.secondary})`,
+              }),
+            },
+            list: { "aria-label": "Действия с сообщением" },
+          }}
+        >
+          {!readOnly && !disabled ? (
+            <MenuItem
+              onClick={() => {
+                onReplyToMessage(messageMenu.message);
+                setMessageMenu(null);
+              }}
+            >
+              <ListItemText>Ответить</ListItemText>
+              <ListItemIcon
+                sx={{
+                  justifyContent: "flex-end",
+                }}
+              >
+                <ReplyOutlinedIcon fontSize="small" />
+              </ListItemIcon>
+            </MenuItem>
+          ) : null}
+          <MenuItem
+            onClick={() => {
+              void copyMessage(messageMenu.message);
+              setMessageMenu(null);
+            }}
+          >
+            <ListItemText>Копировать</ListItemText>
+            <ListItemIcon
+              sx={{
+                justifyContent: "flex-end",
+              }}
+            >
+              <ContentCopyOutlinedIcon fontSize="small" />
+            </ListItemIcon>
+          </MenuItem>
+        </Menu>
+      ) : null}
+      <Snackbar
+        key={copyNotice?.key}
+        open={!!copyNotice}
+        autoHideDuration={2500}
+        onClose={() => setCopyNotice(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          severity={copyNotice?.error ? "error" : "success"}
+          role={copyNotice?.error ? "alert" : "status"}
+          onClose={() => setCopyNotice(null)}
+        >
+          {copyNotice?.message}
+        </Alert>
+      </Snackbar>
     </Stack>
   );
 }

@@ -1,5 +1,6 @@
 import { alpha } from "@mui/material/styles";
 import { createAppTheme } from "./createAppTheme";
+import { createLegacyAuthTheme } from "./legacyAuthTheme";
 
 describe.each(["light", "dark"] as const)(
   "createAppTheme %s readability",
@@ -35,6 +36,20 @@ describe.each(["light", "dark"] as const)(
       ).toBe("Нет доступных вариантов");
       expect(theme.components?.MuiAutocomplete?.defaultProps?.loadingText).toBe(
         "Загрузка…",
+      );
+    });
+
+    it("exposes the secondary background as a theme value and CSS variable", () => {
+      expect(theme.palette.background.secondary).toBe("#a0b4a00f");
+      expect(theme.vars.palette.background.secondary).toContain(
+        "--mui-palette-background-secondary",
+      );
+      expect(
+        createAppTheme(mode, { cssVariables: false }).palette.background
+          .secondary,
+      ).toBe("#a0b4a00f");
+      expect(createLegacyAuthTheme(mode).palette.background.secondary).toBe(
+        "#a0b4a00f",
       );
     });
   },

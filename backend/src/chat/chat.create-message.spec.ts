@@ -1,9 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ChatService } from './chat.service';
 
-function makeService(prisma: any) {
+function makeService(prisma: any, gateway: any = {}) {
   const internalAuth = {} as any;
-  const gateway = {} as any;
   return new ChatService(prisma, internalAuth, gateway, {
     consumeReply: vi.fn().mockResolvedValue(undefined),
   } as never);
@@ -25,6 +24,49 @@ function makeCreatedMessage(overrides: Partial<any> = {}) {
 }
 
 describe('ChatService.createMessage', () => {
+  it('includes the sender photo in the response and realtime event', async () => {
+    const image = 'https://example.test/avatar.png';
+    const create = vi
+      .fn()
+      .mockResolvedValue(
+        makeCreatedMessage({ sender: { id: 'u1', name: 'User 1', image } }),
+      );
+    const prisma = {
+      $transaction: vi.fn(
+        async (fn: any) =>
+          await fn({
+            message: { create },
+            conversation: { update: vi.fn() },
+          }),
+      ),
+      conversation: { findUnique: vi.fn().mockResolvedValue(null) },
+    };
+    const gateway = { emitMessageCreated: vi.fn() };
+    const service = makeService(prisma, gateway);
+    (service as any).assertConversationAccess = vi
+      .fn()
+      .mockResolvedValue(undefined);
+    (service as any).getParticipantUserIds = vi.fn().mockResolvedValue([]);
+
+    const result = await service.createMessage('u1', 'c1', {
+      body: 'hello',
+      clientMessageId: 'cm1',
+    });
+
+    expect(result.message.senderImage).toBe(image);
+    expect(gateway.emitMessageCreated).toHaveBeenCalledWith(
+      'c1',
+      expect.objectContaining({ senderImage: image }),
+    );
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          sender: { select: { id: true, name: true, image: true } },
+        }),
+      }),
+    );
+  });
+
   it('replays the same message without broadcasting it again', async () => {
     const prisma = {
       $transaction: vi.fn().mockRejectedValue({ code: 'P2002' }),

@@ -26,6 +26,11 @@ declare module "@mui/material/styles" {
     secondaryLight: string;
   }
 
+  interface TypeBackground {
+    /** Subtle secondary surface. */
+    secondary: string;
+  }
+
   interface Palette {
     /** Brand accent, separate from semantic `info`. */
     accent: {
