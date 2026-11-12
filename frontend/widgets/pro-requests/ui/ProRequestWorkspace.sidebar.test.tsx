@@ -128,11 +128,15 @@ it("resets the menu on entering another request and restores the preference outs
   navigation.pathname = "/pro/requests/second-request";
   view.rerender(<Workspace />);
   expect(sidebarWidth()).toBe("80px");
-  for (const path of ["/pro/requests/feed", "/pro/requests/board"]) {
-    navigation.pathname = path;
-    view.rerender(<Workspace />);
-    expect(sidebarWidth()).toBe("300px");
-  }
+  navigation.pathname = "/pro/requests/feed";
+  view.rerender(<Workspace />);
+  expect(sidebarWidth()).toBe("300px");
+  navigation.pathname = "/pro/requests/board";
+  view.rerender(<Workspace />);
+  expect(sidebarWidth()).toBe("80px");
+  await user.click(screen.getByRole("button", { name: "Развернуть меню" }));
+  expect(sidebarWidth()).toBe("300px");
+  expect(localStorage.getItem("ui.sidebar.pro.collapsed")).toBe("0");
   navigation.pathname = "/pro/requests/first-request";
   view.rerender(<Workspace />);
   expect(sidebarWidth()).toBe("80px");

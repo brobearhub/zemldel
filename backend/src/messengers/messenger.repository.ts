@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import type { MessengerEvent } from './messenger-events';
 import { splitMessage } from './messenger-events';
+import { messengerEmailHint } from './messenger-email-hint';
 
 @Injectable()
 export class MessengerRepository {
@@ -35,7 +36,11 @@ export class MessengerRepository {
           where: { userId_platform: { userId, platform } },
         });
         if (connection)
-          throw new ConflictException('Сначала отключите текущий аккаунт');
+          throw new ConflictException({
+            code: 'MESSENGER_ALREADY_CONNECTED',
+            message:
+              'Мессенджер уже подключён к вашему аккаунту сайта. Обновите статус подключения.',
+          });
         return tx.messengerLinkToken.upsert({
           where: { userId_platform: { userId, platform } },
           create: { userId, platform, tokenHash, expiresAt },
@@ -80,49 +85,91 @@ export class MessengerRepository {
   }
 
   async confirm(userId: string, platform: MessengerPlatform, tokenId: string) {
-    try {
-      return await this.prisma.$transaction(
-        async (tx) => {
-          const token = await tx.messengerLinkToken.findFirst({
-            where: {
-              id: tokenId,
-              userId,
-              platform,
-              expiresAt: { gt: new Date() },
-            },
-          });
-          if (!token?.externalUserId || !token.chatId || !token.displayName)
-            throw new NotFoundException(
-              'Ссылка истекла или бот ещё не запущен',
-            );
-          if (token.confirmedAt) return;
-          const claimed = await tx.messengerLinkToken.updateMany({
-            where: { id: token.id, confirmedAt: null },
-            data: { confirmedAt: new Date() },
-          });
-          if (!claimed.count) return;
-          await tx.messengerConnection.create({
-            data: {
-              userId,
-              platform,
-              externalUserId: token.externalUserId,
-              chatId: token.chatId,
-              displayName: token.displayName,
-            },
-          });
-        },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-      );
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException(
-          'Этот аккаунт уже подключён. Отключите его в прежнем профиле.',
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.prisma.$transaction(
+          async (tx) => {
+            const token = await tx.messengerLinkToken.findFirst({
+              where: {
+                id: tokenId,
+                userId,
+                platform,
+                expiresAt: { gt: new Date() },
+              },
+            });
+            if (!token?.externalUserId || !token.chatId || !token.displayName)
+              throw new NotFoundException(
+                'Ссылка истекла или бот ещё не запущен',
+              );
+
+            const external = await tx.messengerConnection.findUnique({
+              where: {
+                platform_externalUserId: {
+                  platform,
+                  externalUserId: token.externalUserId,
+                },
+              },
+              include: { user: { select: { email: true } } },
+            });
+            if (external && external.userId !== userId) {
+              const name = platform === 'TELEGRAM' ? 'Telegram' : 'MAX';
+              const emailHint = messengerEmailHint(external.user.email);
+              throw new ConflictException({
+                code: 'MESSENGER_ACCOUNT_IN_USE',
+                emailHint,
+                message: `Ваш аккаунт ${name} привязан к другому аккаунту на Земледеле${emailHint ? `: ${emailHint}` : ''}. Войдите в тот аккаунт и отключите мессенджер, затем подключите его здесь.`,
+              });
+            }
+            const current = await tx.messengerConnection.findUnique({
+              where: { userId_platform: { userId, platform } },
+            });
+            if (
+              current &&
+              (current.externalUserId !== token.externalUserId ||
+                current.chatId !== token.chatId)
+            )
+              throw new ConflictException({
+                code: 'MESSENGER_ALREADY_CONNECTED',
+                message:
+                  'К вашему аккаунту сайта уже подключён другой аккаунт этого мессенджера. Сначала отключите его.',
+              });
+
+            // Reconfirming the same owned connection must preserve its ID,
+            // notifications and delivery history instead of raising a duplicate error.
+            if (!current)
+              await tx.messengerConnection.create({
+                data: {
+                  userId,
+                  platform,
+                  externalUserId: token.externalUserId,
+                  chatId: token.chatId,
+                  displayName: token.displayName,
+                },
+              });
+            if (!token.confirmedAt)
+              await tx.messengerLinkToken.update({
+                where: { id: token.id },
+                data: { confirmedAt: new Date() },
+              });
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
         );
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          ['P2002', 'P2034'].includes(error.code)
+        ) {
+          // Concurrent confirmations can race on either unique key. Re-read
+          // the committed owner rather than calling every collision another user.
+          if (attempt < 2) continue;
+          throw new ConflictException({
+            code: 'MESSENGER_CONNECTION_CHANGED',
+            message:
+              'Подключение изменилось. Обновите статус и попробуйте ещё раз.',
+          });
+        }
+        throw error;
       }
-      throw error;
     }
   }
 

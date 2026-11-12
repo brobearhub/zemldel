@@ -78,13 +78,22 @@ export const HeaderNav = ({
           onClick={onNavigate}
           sx={navItemSx(showLabels)}
         >
-          <Icon
+          <Box
             sx={{
-              fontSize: { xs: 22, sm: 24 },
-              color: "common.gray",
-              "&:hover": { color: "info.main" },
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: { xs: 28, sm: 32 },
             }}
-          />
+          >
+            <Icon
+              sx={{
+                fontSize: { xs: 22, sm: 24 },
+                color: "common.gray",
+                "&:hover": { color: "info.main" },
+              }}
+            />
+          </Box>
           <Typography
             className="nav-label"
             variant="body2"

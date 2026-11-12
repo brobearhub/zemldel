@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChatService } from '../chat/chat.service';
 import { InternalAuthService } from '../auth/internal-auth.service';
@@ -9,6 +10,7 @@ import { MessengerRepository } from './messenger.repository';
 import { MessengerService } from './messenger.service';
 import { MessengerApiError, MessengerTransport } from './messenger-transport';
 import { MessengerQueueSignal } from './messenger-queue-signal';
+import { record } from './messenger-events';
 
 // Явный opt-in: создаёт изолированные fixtures и удаляет только их.
 describe.skipIf(process.env.MESSENGER_DB_TESTS !== '1')(
@@ -469,6 +471,157 @@ describe.skipIf(process.env.MESSENGER_DB_TESTS !== '1')(
       },
     );
 
+    it.each(['TELEGRAM', 'MAX'] as const)(
+      'reconciles a saved %s connection with a pending confirmation without losing its settings',
+      async (platform) => {
+        const link = await repository.createLink(
+          users[0],
+          platform,
+          randomUUID(),
+          new Date(Date.now() + 60000),
+        );
+        await repository.captureLink(platform, link.tokenHash, {
+          kind: 'start',
+          externalUserId: external,
+          chatId: external,
+          displayName: 'Saved account',
+        });
+        const saved = await db.messengerConnection.create({
+          data: {
+            userId: users[0],
+            platform,
+            externalUserId: external,
+            chatId: external,
+            displayName: 'Saved account',
+            notificationsEnabled: false,
+          },
+        });
+        try {
+          // A connected account takes precedence over a leftover pending token.
+          const before = (await service.status(users[0])).find(
+            (item) => item.platform === platform,
+          )!;
+          expect(before.connected).toBe(true);
+          expect(before.pending).toBeNull();
+          await Promise.all(
+            Array.from({ length: 3 }, () =>
+              repository.confirm(users[0], platform, link.id),
+            ),
+          );
+          const current = await db.messengerConnection.findUniqueOrThrow({
+            where: { id: saved.id },
+          });
+          expect(current).toEqual(saved);
+          expect(
+            (
+              await db.messengerLinkToken.findUniqueOrThrow({
+                where: { id: link.id },
+              })
+            ).confirmedAt,
+          ).not.toBeNull();
+          expect(
+            await db.messengerConnection.count({
+              where: { userId: users[0], platform },
+            }),
+          ).toBe(1);
+        } finally {
+          await repository.disconnect(users[0], platform);
+        }
+      },
+    );
+
+    it.each(['TELEGRAM', 'MAX'] as const)(
+      'distinguishes a %s account owned by another site user from an already connected own account',
+      async (platform) => {
+        const link = await repository.createLink(
+          users[0],
+          platform,
+          randomUUID(),
+          new Date(Date.now() + 60000),
+        );
+        await repository.captureLink(platform, link.tokenHash, {
+          kind: 'start',
+          externalUserId: external,
+          chatId: external,
+          displayName: 'Candidate',
+        });
+        const other = await db.messengerConnection.create({
+          data: {
+            userId: users[2],
+            platform,
+            externalUserId: external,
+            chatId: external,
+            displayName: 'Other account',
+          },
+        });
+        try {
+          const inaccessible = await repository
+            .confirm(users[1], platform, link.id)
+            .catch((error: unknown) => error);
+          expect(inaccessible).toMatchObject({ status: 404 });
+          expect(JSON.stringify(inaccessible)).not.toContain('emailHint');
+          const conflict = await repository
+            .confirm(users[0], platform, link.id)
+            .catch((error: unknown) => error);
+          if (!(conflict instanceof ConflictException)) throw conflict;
+          const body = record(conflict.getResponse());
+          expect(body.code).toBe('MESSENGER_ACCOUNT_IN_USE');
+          expect(body.emailHint).toBe('qa***@example.com');
+          expect(body.message).toContain(
+            `Ваш аккаунт ${platform === 'TELEGRAM' ? 'Telegram' : 'MAX'} привязан к другому аккаунту на Земледеле: qa***@example.com.`,
+          );
+          const publicBody = JSON.stringify(body);
+          expect(publicBody).not.toContain(
+            `qa-messenger-${users[2]}@example.com`,
+          );
+          expect(publicBody).not.toContain(users[2]);
+          expect((await repository.connection(platform, external))?.id).toBe(
+            other.id,
+          );
+          expect(
+            (await repository.connection(platform, external))?.userId,
+          ).toBe(users[2]);
+          expect(
+            (await service.status(users[0])).find(
+              (item) => item.platform === platform,
+            )?.connected,
+          ).toBe(false);
+          expect(
+            (
+              await db.messengerLinkToken.findUniqueOrThrow({
+                where: { id: link.id },
+              })
+            ).confirmedAt,
+          ).toBeNull();
+          await repository.disconnect(users[2], platform);
+          const own = await db.messengerConnection.create({
+            data: {
+              userId: users[0],
+              platform,
+              externalUserId: `${external}9`,
+              chatId: `${external}9`,
+              displayName: 'Own account',
+            },
+          });
+          await expect(
+            repository.confirm(users[0], platform, link.id),
+          ).rejects.toMatchObject({
+            response: { code: 'MESSENGER_ALREADY_CONNECTED' },
+          });
+          expect(
+            (
+              await db.messengerConnection.findUniqueOrThrow({
+                where: { id: own.id },
+              })
+            ).externalUserId,
+          ).toBe(`${external}9`);
+        } finally {
+          await repository.disconnect(users[0], platform);
+          await repository.disconnect(users[2], platform);
+        }
+      },
+    );
+
     it('does not accept an expired link', async () => {
       const token = await repository.createLink(
         users[2],
@@ -565,7 +718,9 @@ describe.skipIf(process.env.MESSENGER_DB_TESTS !== '1')(
       });
       await expect(
         service.confirm(users[2], 'TELEGRAM', other.id),
-      ).rejects.toThrow('уже подключён');
+      ).rejects.toMatchObject({
+        response: { code: 'MESSENGER_ACCOUNT_IN_USE' },
+      });
     });
 
     it('stores a message and outbox atomically, expands once and claims delivery once across workers', async () => {

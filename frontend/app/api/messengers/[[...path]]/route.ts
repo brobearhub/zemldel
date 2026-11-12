@@ -3,7 +3,10 @@ import { getServerAuthSession } from "@/core/auth";
 import { fetchBackendAsUser } from "@/shared/api/backend/server";
 import { isAllowedMessengerRoute } from "./is-allowed-messenger-route";
 
+export const dynamic = "force-dynamic";
+
 type Context = { params: Promise<{ path?: string[] }> };
+const privateHeaders = { "Cache-Control": "private, no-store" };
 
 function hasAllowedOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
@@ -46,9 +49,11 @@ async function proxy(request: Request, context: Context) {
           : undefined,
       },
     );
-    if (response.status === 204) return new NextResponse(null, { status: 204 });
+    if (response.status === 204)
+      return new NextResponse(null, { status: 204, headers: privateHeaders });
     return NextResponse.json(await response.json(), {
       status: response.status,
+      headers: privateHeaders,
     });
   } catch {
     return NextResponse.json(

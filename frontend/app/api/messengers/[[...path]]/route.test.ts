@@ -24,6 +24,22 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("messenger BFF boundaries", () => {
+  it("reads each session's own status and forbids caching private connection state", async () => {
+    const saved = [{ platform: "MAX", connected: true, displayName: "Pavel" }];
+    getSession.mockResolvedValueOnce({ user: { id: "user-1" } })
+      .mockResolvedValueOnce({ user: { id: "user-2" } });
+    fetchBackend.mockResolvedValueOnce(Response.json(saved))
+      .mockResolvedValueOnce(Response.json([]));
+    const first = await GET(new Request("http://localhost/api/messengers"), context());
+    const second = await GET(new Request("http://localhost/api/messengers"), context());
+    expect(await first.json()).toEqual(saved);
+    expect(await second.json()).toEqual([]);
+    expect(first.headers.get("cache-control")).toBe("private, no-store");
+    expect(second.headers.get("cache-control")).toBe("private, no-store");
+    expect(fetchBackend).toHaveBeenNthCalledWith(1, "/messengers", "user-1", expect.any(Object));
+    expect(fetchBackend).toHaveBeenNthCalledWith(2, "/messengers", "user-2", expect.any(Object));
+  });
+
   it("does not expose bot webhooks through the authenticated proxy", async () => {
     const response = await POST(
       new Request("http://localhost/api/messengers/TELEGRAM/webhook", {

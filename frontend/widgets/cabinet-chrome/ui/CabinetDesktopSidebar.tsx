@@ -29,8 +29,10 @@ export function CabinetDesktopSidebar() {
   } | null>(null);
   const requestDetail =
     wide && /^\/pro\/requests\/(?!feed\/?$|board\/?$)[^/]+\/?$/.test(pathname);
-  // Each request starts collapsed, independently of the saved menu preference.
-  const collapsed = requestDetail
+  const board = wide && /^\/pro\/requests\/board\/?$/.test(pathname);
+  // Requests and the board start collapsed, independently of the saved preference.
+  const collapseByDefault = requestDetail || board;
+  const collapsed = collapseByDefault
     ? requestSidebar?.pathname === pathname
       ? requestSidebar.collapsed
       : true
@@ -92,7 +94,7 @@ export function CabinetDesktopSidebar() {
 
   const toggle = () => {
     const next = !collapsed;
-    if (requestDetail) {
+    if (collapseByDefault) {
       setRequestSidebar({ pathname, collapsed: next });
       return;
     }

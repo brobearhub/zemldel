@@ -431,9 +431,7 @@ function ProfileOverview({
           display: "grid",
           gridTemplateColumns: {
             xs: "minmax(0, 1fr)",
-            md: providerSettings
-              ? "minmax(0, 1fr)"
-              : "minmax(0, 1fr) minmax(0, 1fr)",
+            md: "minmax(0, 1fr) minmax(0, 1fr)",
           },
           gap: 3,
           alignItems: "stretch",
@@ -711,7 +709,7 @@ function ProfileOverview({
             ) : null}
           </Box>
         </Paper>
-        {!providerSettings ? <MessengerSettings singleColumn /> : null}
+        <MessengerSettings singleColumn />
       </Box>
 
       {imageError ? <Alert severity="error">{imageError}</Alert> : null}
@@ -721,7 +719,7 @@ function ProfileOverview({
         sx={{
           display: "grid",
           gap: 3,
-          alignItems: "start",
+          alignItems: "stretch",
           gridTemplateColumns: {
             xs: "minmax(0, 1fr)",
             md: "minmax(0, 1fr) minmax(0, 1fr)",

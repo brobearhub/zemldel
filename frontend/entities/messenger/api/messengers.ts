@@ -4,6 +4,17 @@ import type {
   MessengerStatus,
 } from "../model/types";
 
+export class MessengerRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code?: string,
+  ) {
+    super(message);
+    this.name = "MessengerRequestError";
+  }
+}
+
 async function request<T>(
   path = "",
   method = "GET",
@@ -19,10 +30,12 @@ async function request<T>(
   if (response.status === 204) return undefined as T;
   const payload = await response.json();
   if (!response.ok) {
-    throw new Error(
+    throw new MessengerRequestError(
       typeof payload.message === "string"
         ? payload.message
         : "Не удалось обновить подключение. Попробуйте ещё раз.",
+      response.status,
+      typeof payload.code === "string" ? payload.code : undefined,
     );
   }
   return payload as T;

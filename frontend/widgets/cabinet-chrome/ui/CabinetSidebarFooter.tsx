@@ -171,7 +171,7 @@ export function CabinetSidebarFooter({
               title={settingsOpen ? "Настройки" : title}
               sx={{
                 minWidth: 0,
-                fontSize: "0.875rem",
+                fontSize: settingsOpen && provider ? "1.125rem" : "0.875rem",
                 fontWeight: 700,
                 lineHeight: 1.35,
                 color: "text.primary",
