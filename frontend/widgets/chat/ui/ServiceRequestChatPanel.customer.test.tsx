@@ -23,7 +23,7 @@ const socket = vi.hoisted(() => ({
   clearUnreadForConversation: vi.fn(),
 }));
 vi.mock("next-auth/react", () => ({
-  useSession: () => ({ data: { user: { id: "customer" } } }),
+  useSession: () => ({ data: { user: { id: "customer", image: "/avatars/customer.png" } } }),
 }));
 vi.mock("@/widgets/chat/socket/ChatSocketContext", () => ({
   useChatSocket: () => socket,
@@ -40,6 +40,7 @@ describe("customer messenger transport", () => {
     conversationId: "provider-conversation",
     senderUserId: "provider",
     senderName: "Исполнитель",
+    senderImage: "/avatars/provider.png",
     body: "Когда удобно приехать?",
     createdAt: "2026-11-10T09:00:00Z",
     clientMessageId: "incoming-client-id",
@@ -102,6 +103,7 @@ describe("customer messenger transport", () => {
       </ThemeProvider>,
     );
     await screen.findByText(incoming.body);
+    expect(document.querySelector('img[src="/avatars/provider.png"]')).toBeInTheDocument();
     await waitFor(() =>
       expect(socket.clearUnreadForConversation).toHaveBeenCalledWith(
         "provider-conversation",
@@ -118,6 +120,7 @@ describe("customer messenger transport", () => {
       screen.getByRole("button", { name: "Отправить" }),
     );
     const retry = await screen.findByRole("button", { name: /Повторить/ });
+    expect(document.querySelector('img[src="/avatars/customer.png"]')).toBeInTheDocument();
     fireEvent.click(retry);
     await waitFor(() => expect(onMessage).toHaveBeenCalledTimes(1));
     expect(sent).toHaveLength(2);

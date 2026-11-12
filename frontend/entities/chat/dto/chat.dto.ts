@@ -10,6 +10,8 @@ export type ChatMessageDto = {
   conversationId: string;
   senderUserId: string;
   senderName: string | null;
+  /** Older servers may not include the sender's photo. */
+  senderImage?: string | null;
   body: string;
   kind?: "USER" | "SYSTEM";
   clientMessageId: string;

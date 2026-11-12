@@ -59,7 +59,6 @@ type Props = {
   conversationId?: string;
   title?: string;
   subtitle?: string;
-  inputPlaceholder?: string;
   autoFocusInput?: boolean;
   requestLockedAt?: string | null;
   selectedProviderId?: string | null;
@@ -76,7 +75,6 @@ export function ServiceRequestChatPanel({
   conversationId: forcedConversationId,
   title = "Чат",
   subtitle,
-  inputPlaceholder,
   autoFocusInput,
   requestLockedAt,
   selectedProviderId,
@@ -693,10 +691,26 @@ export function ServiceRequestChatPanel({
     <Paper
       variant="outlined"
       sx={{
-        height: "100%",
-        minHeight: appearance === "messenger" ? 0 : 420,
+        height:
+          appearance === "messenger"
+            ? "100%"
+            : {
+                xs: "auto",
+                tablet: "100%",
+              },
+        minHeight:
+          appearance === "messenger"
+            ? 0
+            : {
+                xs: 0,
+                tablet: 420,
+              },
         flex: appearance === "messenger" ? 1 : undefined,
-        border: appearance === "messenger" ? 0 : undefined,
+        border: 0,
+        outline:
+          appearance === "messenger"
+            ? "none"
+            : (theme) => `1px solid ${alpha(theme.palette.text.primary, 0.1)}`,
         borderRadius: appearance === "messenger" ? 0 : undefined,
         display: "flex",
         flexDirection: "column",
@@ -708,6 +722,8 @@ export function ServiceRequestChatPanel({
           display: appearance === "messenger" ? "none" : undefined,
           px: 2,
           py: 1.5,
+          bgcolor: "background.secondary",
+          color: "text.primary",
           borderBottom: "1px solid",
           borderBottomColor: "divider",
           position: "relative",
@@ -789,6 +805,7 @@ export function ServiceRequestChatPanel({
                 sx={{
                   ml: "auto",
                   flexShrink: 0,
+                  color: "inherit",
                 }}
               >
                 <ChevronRightRounded />
@@ -855,6 +872,7 @@ export function ServiceRequestChatPanel({
           <Chat
             rows={rows}
             currentUserId={currentUserId}
+            currentUserImage={session?.user?.image}
             draft={draft}
             onDraftChange={setDraft}
             pendingReply={pendingReply}
@@ -866,7 +884,6 @@ export function ServiceRequestChatPanel({
             sending={sending}
             loading={loading}
             readOnly={!access.canWrite}
-            inputPlaceholder={inputPlaceholder}
             autoFocusInput={autoFocusInput}
             appearance={appearance}
             initialUnreadCount={openingUnreadCount.current}

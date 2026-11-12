@@ -14,6 +14,7 @@ import {
 } from "@mui/material/colors";
 import { alpha } from "@mui/material/styles";
 import { breakpointValues, media } from "./breakpoints";
+import { SECONDARY_BACKGROUND } from "./background";
 
 export { breakpointValues, media };
 
@@ -134,6 +135,7 @@ export function createLegacyAuthTheme(mode: PaletteMode) {
         background: {
           default: t.bg,
           paper: t.paper,
+          secondary: SECONDARY_BACKGROUND,
         },
         divider: t.divider,
         text: {

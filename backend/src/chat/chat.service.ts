@@ -36,6 +36,7 @@ export type ChatMessageDto = {
   conversationId: string;
   senderUserId: string;
   senderName: string | null;
+  senderImage: string | null;
   body: string;
   kind: 'USER' | 'SYSTEM';
   clientMessageId: string;
@@ -783,7 +784,7 @@ export class ChatService {
   private mapMessageRow(
     row: Prisma.MessageGetPayload<{
       include: {
-        sender: { select: { id: true; name: true } };
+        sender: { select: { id: true; name: true; image: true } };
         replyTo: {
           select: {
             id: true;
@@ -800,6 +801,7 @@ export class ChatService {
       conversationId: row.conversationId,
       senderUserId: row.senderUserId,
       senderName: row.sender.name ?? null,
+      senderImage: row.sender.image ?? null,
       body: row.body,
       kind: row.kind === 'SYSTEM' ? 'SYSTEM' : 'USER',
       clientMessageId: row.clientMessageId,
@@ -822,7 +824,7 @@ export class ChatService {
   }
 
   private messageInclude = {
-    sender: { select: { id: true, name: true } },
+    sender: { select: { id: true, name: true, image: true } },
     replyTo: {
       select: {
         id: true,

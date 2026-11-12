@@ -76,6 +76,9 @@ export class ChatMessageDto {
   @ApiProperty({ nullable: true, example: null })
   senderName!: string | null;
 
+  @ApiProperty({ nullable: true, example: null })
+  senderImage!: string | null;
+
   @ApiProperty()
   body!: string;
 
