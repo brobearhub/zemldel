@@ -58,7 +58,14 @@ export function ServiceCardList({ title, subtitle, items, columns }: Props) {
         }}
       >
         {items.map((item) => (
-          <ServiceCard key={item.id} item={item} favoriteAction={<FavoriteButton kind="services" id={item.id} />} />
+          <ServiceCard
+            key={item.id}
+            item={item}
+            favoriteAction={<FavoriteButton kind="services" id={item.id} />}
+            imageSizes={columns === 3
+              ? "(min-width: 900px) 33vw, (min-width: 600px) 50vw, 100vw"
+              : "(min-width: 900px) 25vw, (min-width: 600px) 50vw, 100vw"}
+          />
         ))}
       </Box>
     </Stack>

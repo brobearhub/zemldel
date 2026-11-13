@@ -11,6 +11,16 @@ import { ServiceSectionHeader } from "@/widgets/services/ui/ServiceSectionHeader
 const SERVICES_FETCH_USER_MESSAGE =
   "Не удалось загрузить список услуг. Попробуйте позже.";
 
+// Сетка: одна, две, три или четыре колонки; с md справа находится форма заявки.
+const HOME_SERVICE_IMAGE_SIZES = [
+  "(orientation: landscape) and (max-height: 500px) and (min-width: 600px) 50vw",
+  "(min-width: 1536px) 262px",
+  "(min-width: 1200px) calc(33.333vw - 156px)",
+  "(min-width: 900px) calc(50vw - 224px)",
+  "(min-width: 600px) calc(50vw - 34px)",
+  "calc(100vw - 32px)",
+].join(", ");
+
 function ServiceGrid({
   items,
   variant,
@@ -37,7 +47,13 @@ function ServiceGrid({
       }}
     >
       {items.map((item) => (
-        <ServiceCard key={item.id} item={item} favoriteAction={<FavoriteButton kind="services" id={item.id} />} variant={variant} />
+        <ServiceCard
+          key={item.id}
+          item={item}
+          favoriteAction={<FavoriteButton kind="services" id={item.id} />}
+          variant={variant}
+          imageSizes={HOME_SERVICE_IMAGE_SIZES}
+        />
       ))}
     </Box>
   );

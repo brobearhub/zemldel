@@ -10,31 +10,40 @@ import {
   Typography,
 } from "@mui/material";
 import AddAPhotoOutlinedIcon from "@mui/icons-material/AddAPhotoOutlined";
-
-export const AVATAR_ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-
-export function validateAvatarFile(
-  file: File,
-  maxMegabytes: number,
-): string | null {
-  if (!AVATAR_ALLOWED_TYPES.includes(file.type))
-    return "Поддерживаются только JPG, PNG или WebP.";
-  if (file.size > maxMegabytes * 1024 * 1024)
-    return `Максимальный размер изображения — ${maxMegabytes} МБ.`;
-  return null;
-}
+import { convertImageToWebp, IMAGE_INPUT_ACCEPT, validateImageInput } from "@/shared/lib/image/convert-to-webp";
 
 export function AvatarPickerField(props: {
   label: string;
   file: File | null;
-  // Why: лимит повторяет бэкенд: аватар исполнителя до 10 МБ, фото пользователя до 5 МБ.
+  // Лимит применяется к обработанному файлу перед отправкой на сервер.
   maxMegabytes: number;
   disabled: boolean;
   onChange: (file: File | null) => void;
+  onProcessingChange: (processing: boolean) => void;
 }) {
   const helperId = useId();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
+
+  async function selectImage(file: File) {
+    const message = validateImageInput(file);
+    if (message) { setError(message); return; }
+    setError(null);
+    setProcessing(true);
+    props.onProcessingChange(true);
+    try {
+      props.onChange(await convertImageToWebp(file, {
+        maxBytes: props.maxMegabytes * 1024 * 1024,
+        maxDimension: 2048,
+      }));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Не удалось обработать фото.");
+    } finally {
+      setProcessing(false);
+      props.onProcessingChange(false);
+    }
+  }
 
   useEffect(() => {
     if (!props.file) {
@@ -76,6 +85,7 @@ export function AvatarPickerField(props: {
               size="small"
               component="label"
               disabled={props.disabled}
+              loading={processing}
               aria-label={`${props.label}: ${props.file ? "заменить" : "загрузить фото"}`}
               aria-describedby={helperId}
               sx={{ whiteSpace: "normal" }}
@@ -84,14 +94,13 @@ export function AvatarPickerField(props: {
               <input
                 type="file"
                 hidden
-                accept={AVATAR_ALLOWED_TYPES.join(",")}
+                disabled={props.disabled || processing}
+                accept={IMAGE_INPUT_ACCEPT}
                 onChange={(event) => {
                   const next = event.target.files?.[0] ?? null;
                   event.currentTarget.value = "";
                   if (!next) return;
-                  const message = validateAvatarFile(next, props.maxMegabytes);
-                  setError(message);
-                  if (!message) props.onChange(next);
+                  void selectImage(next);
                 }}
               />
             </Button>
@@ -120,7 +129,7 @@ export function AvatarPickerField(props: {
         sx={{ mx: 1.75 }}
       >
         {error ??
-          `Необязательно · JPG, PNG или WebP до ${props.maxMegabytes} МБ`}
+          "Необязательно · изображение до 50 МБ"}
       </FormHelperText>
     </Stack>
   );

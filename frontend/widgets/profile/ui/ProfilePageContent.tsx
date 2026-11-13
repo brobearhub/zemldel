@@ -39,7 +39,8 @@ import {
   RU_PHONE_PREFIX,
   ruPhoneDigits,
 } from "@/shared/lib/contact-phone";
-import { CdnAvatar } from "@/shared/ui/cdn-image";
+import { CdnOptimizedAvatar } from "@/shared/ui/cdn-image";
+import { convertImageToWebp, IMAGE_INPUT_ACCEPT } from "@/shared/lib/image/convert-to-webp";
 import { useAppSelector } from "@/core/store/hooks";
 import { type AuthMembership } from "@/core/auth/authorization";
 import { CustomerRequestsSection } from "@/widgets/customer-requests/ui/CustomerRequestsSection";
@@ -263,23 +264,13 @@ function ProfileOverview({
     file: File,
     source: "upload-icon" | "upload-button",
   ) {
-    const allowed = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowed.includes(file.type)) {
-      setImageError("Поддерживаются только JPG, PNG или WebP.");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setImageError("Максимальный размер изображения — 5 МБ.");
-      return;
-    }
-
     setImageBusy(true);
     setImageAction(source);
     setImageError(null);
     setImageSuccess(null);
     try {
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", await convertImageToWebp(file, { maxBytes: 5 * 1024 * 1024, maxDimension: 2048 }));
       const res = await fetch("/api/users/me/image", {
         method: "POST",
         body: formData,
@@ -474,7 +465,8 @@ function ProfileOverview({
                 }}
               >
                 <Box sx={{ position: "relative" }}>
-                  <CdnAvatar
+                  <CdnOptimizedAvatar
+                    sizes="(min-width: 900px) 104px, 76px"
                     src={image || undefined}
                     sx={{
                       width: { xs: 76, md: 104 },
@@ -488,7 +480,7 @@ function ProfileOverview({
                     {getInitials(name) ||
                       email?.charAt(0)?.toUpperCase() ||
                       "U"}
-                  </CdnAvatar>
+                  </CdnOptimizedAvatar>
                   <IconButton
                     component="label"
                     aria-label="Загрузить фото"
@@ -518,7 +510,8 @@ function ProfileOverview({
                     <input
                       type="file"
                       hidden
-                      accept="image/jpeg,image/png,image/webp"
+                      disabled={imageBusy}
+                      accept={IMAGE_INPUT_ACCEPT}
                       onChange={(e) => {
                         const f = e.target.files?.[0] ?? null;
                         e.currentTarget.value = "";
@@ -546,7 +539,8 @@ function ProfileOverview({
                     <input
                       type="file"
                       hidden
-                      accept="image/jpeg,image/png,image/webp"
+                      disabled={imageBusy}
+                      accept={IMAGE_INPUT_ACCEPT}
                       onChange={(e) => {
                         const f = e.target.files?.[0] ?? null;
                         e.currentTarget.value = "";
@@ -1074,7 +1068,8 @@ function ProfileOverview({
                             },
                           }}
                         >
-                          <CdnAvatar
+                          <CdnOptimizedAvatar
+                            sizes="44px"
                             variant="rounded"
                             src={membership.providerImage || undefined}
                             sx={{
@@ -1091,7 +1086,7 @@ function ProfileOverview({
                             }}
                           >
                             {getInitials(membership.providerName)}
-                          </CdnAvatar>
+                          </CdnOptimizedAvatar>
                           <Box
                             sx={{
                               display: { xs: "contents", sm: "block" },

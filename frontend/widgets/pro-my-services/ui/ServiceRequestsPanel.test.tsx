@@ -496,20 +496,20 @@ describe("ProMyServicesSection", () => {
     const photo = await screen.findByRole("img", {
       name: "Фото услуги «Межевание участка»",
     });
-    expect(photo).toHaveAttribute("src", "/images/first.jpg");
+    expect(new URL(photo.getAttribute("src") ?? "", window.location.origin).pathname).toBe("/images/first.jpg");
     expect(screen.getAllByRole("img")).toHaveLength(1);
 
     fireEvent.error(photo);
     const secondPhoto = screen.getByRole("img", {
       name: "Фото услуги «Межевание участка»",
     });
-    expect(secondPhoto).toHaveAttribute("src", "/images/second.jpg");
+    expect(new URL(secondPhoto.getAttribute("src") ?? "", window.location.origin).pathname).toBe("/images/second.jpg");
 
     fireEvent.error(secondPhoto);
     const legacyPhoto = screen.getByRole("img", {
       name: "Фото услуги «Межевание участка»",
     });
-    expect(legacyPhoto).toHaveAttribute("src", "/images/legacy.jpg");
+    expect(new URL(legacyPhoto.getAttribute("src") ?? "", window.location.origin).pathname).toBe("/images/legacy.jpg");
 
     fireEvent.error(legacyPhoto);
     expect(screen.getByText("Фото недоступно")).toBeVisible();

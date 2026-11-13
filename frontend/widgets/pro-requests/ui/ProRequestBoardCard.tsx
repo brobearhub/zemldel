@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import {
-  Avatar,
   Box,
   Button,
   Chip,
@@ -16,6 +15,7 @@ import StarRoundedIcon from "@mui/icons-material/StarRounded";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import { formatRequestNumber, resolveRequestPriceView, type RequestProDto } from "@/entities/request";
 import { getServiceRequestTitle } from "@/widgets/pro-requests/lib/serviceRequestView";
+import { CdnOptimizedAvatar } from "@/shared/ui/cdn-image";
 
 const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
   day: "2-digit",
@@ -129,7 +129,8 @@ export function ProRequestBoardCard({ item }: { item: RequestProDto }) {
             minWidth: 0,
           }}
         >
-          <Avatar
+          <CdnOptimizedAvatar
+            sizes="28px"
             src={item.customerImage ?? undefined}
             alt={customerName}
             sx={{
@@ -141,7 +142,7 @@ export function ProRequestBoardCard({ item }: { item: RequestProDto }) {
             }}
           >
             {initials}
-          </Avatar>
+          </CdnOptimizedAvatar>
           <Typography
             variant="body2"
             sx={{

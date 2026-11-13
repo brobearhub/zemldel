@@ -50,6 +50,7 @@ export function ProviderOnboardingForm() {
   const [city, setCity] = useState<CitySuggestItemDto | null>(null);
   const [providerAvatar, setProviderAvatar] = useState<File | null>(null);
   const [contactAvatar, setContactAvatar] = useState<File | null>(null);
+  const [avatarProcessing, setAvatarProcessing] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<ProviderOnboardingFieldErrors>(
     {},
   );
@@ -131,6 +132,7 @@ export function ProviderOnboardingForm() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (loading || avatarProcessing) return;
     setError(null);
 
     const nextErrors = validateProviderOnboarding({
@@ -315,8 +317,9 @@ export function ProviderOnboardingForm() {
                           label="Аватар исполнителя"
                           file={providerAvatar}
                           maxMegabytes={10}
-                          disabled={loading}
+                          disabled={loading || avatarProcessing}
                           onChange={setProviderAvatar}
+                          onProcessingChange={setAvatarProcessing}
                         />
                       </Stack>
                     ) : (
@@ -342,8 +345,9 @@ export function ProviderOnboardingForm() {
                           label="Аватар исполнителя"
                           file={providerAvatar}
                           maxMegabytes={10}
-                          disabled={loading}
+                          disabled={loading || avatarProcessing}
                           onChange={setProviderAvatar}
+                          onProcessingChange={setAvatarProcessing}
                         />
                       </Stack>
                     )}
@@ -374,8 +378,9 @@ export function ProviderOnboardingForm() {
                           label="Фото контактного лица"
                           file={contactAvatar}
                           maxMegabytes={5}
-                          disabled={loading}
+                          disabled={loading || avatarProcessing}
                           onChange={setContactAvatar}
+                          onProcessingChange={setAvatarProcessing}
                         />
                       </Stack>
                     ) : null}
@@ -435,7 +440,7 @@ export function ProviderOnboardingForm() {
                   type="submit"
                   variant="contained"
                   loading={loading}
-                  disabled={!offerAcknowledged || !offerVersion}
+                  disabled={!offerAcknowledged || !offerVersion || avatarProcessing}
                   sx={{ minHeight: 44, alignSelf: "flex-start" }}
                 >
                   Создать профиль

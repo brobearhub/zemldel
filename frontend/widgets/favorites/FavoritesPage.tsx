@@ -15,7 +15,7 @@ import { ServiceCard, type ServiceCardItem } from "@/entities/service";
 import { FavoriteButton } from "@/features/favorites/FavoriteButton";
 import { favoritesJson } from "@/features/favorites/api";
 import type { FavoriteKind } from "@/features/favorites/store";
-import { CdnAvatar } from "@/shared/ui/cdn-image";
+import { CdnOptimizedAvatar } from "@/shared/ui/cdn-image";
 type FavoriteItem = {
   id: string;
   service?: ServiceCardItem | null;
@@ -137,6 +137,7 @@ export function FavoritesPage({ kind }: { kind: FavoriteKind }) {
                 <ServiceCard
                   key={item.id}
                   item={item.service}
+                  imageSizes="(min-width: 1200px) 33vw, (min-width: 600px) 50vw, 100vw"
                   favoriteAction={
                     <FavoriteButton
                       kind={kind}
@@ -157,7 +158,8 @@ export function FavoritesPage({ kind }: { kind: FavoriteKind }) {
                 >
                   {item.provider ? (
                     <>
-                      <CdnAvatar
+                      <CdnOptimizedAvatar
+                        sizes="40px"
                         src={item.provider.image ?? undefined}
                         alt=""
                       />

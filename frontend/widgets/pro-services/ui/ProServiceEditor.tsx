@@ -20,6 +20,7 @@ import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
 import {
   Alert,
   Checkbox,
+  CircularProgress,
   FormControlLabel,
   Box,
   Button,
@@ -63,6 +64,7 @@ import type { AuthCity } from "@/core/auth/authorization";
 import { useAppSelector } from "@/core/store/hooks";
 import { useNewServiceDraft } from "../model/useNewServiceDraft";
 import { draftPhotoKey, type ServiceFormState } from "../lib/new-service-draft";
+import { convertImageToWebp, IMAGE_INPUT_ACCEPT, validateImageInput } from "@/shared/lib/image/convert-to-webp";
 
 type Props = {
   mode: "create" | "edit";
@@ -687,8 +689,12 @@ export function ProServiceEditor({
     let gallery = images;
     let preferredMainPhoto = mainPhotoKey;
     for (const [index, image] of selected.entries()) {
+      // Older saved drafts can still contain files selected before WebP conversion was introduced.
+      const uploadFile = image.file.type === "image/webp"
+        ? image.file
+        : await convertImageToWebp(image.file, { maxBytes: 10 * 1024 * 1024 });
       const body = new FormData();
-      body.append("file", image.file);
+      body.append("file", uploadFile);
       const response = await fetch(`/api/pro/services/${serviceId}/image`, {
         method: "POST",
         body,
@@ -710,7 +716,7 @@ export function ProServiceEditor({
         let uploadedUrl = uploadedUrls.find((url) => !gallery.includes(url));
         // A repeated file is returned in the existing gallery without a new URL.
         if (!uploadedUrl && globalThis.crypto?.subtle) {
-          const digest = await crypto.subtle.digest("SHA-256", await image.file.arrayBuffer());
+          const digest = await crypto.subtle.digest("SHA-256", await uploadFile.arrayBuffer());
           const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
           uploadedUrl = uploadedUrls.find((url) => new RegExp(`/${hash}\\.(jpg|jpeg|png|webp)$`).test(url));
         }
@@ -810,18 +816,12 @@ export function ProServiceEditor({
 
   const canRemoveImage = hasImage;
 
-  function onSelectImages(files: File[]) {
+  async function onSelectImages(files: File[]) {
     if (busy || !files.length) return;
     setError(null);
-    if (
-      files.some(
-        (file) =>
-          !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
-          !file.size ||
-          file.size > 10 * 1024 * 1024,
-      )
-    ) {
-      setError("Выберите JPG, PNG или WebP размером до 10 МБ каждое.");
+    const invalid = files.map(validateImageInput).find(Boolean);
+    if (invalid) {
+      setError(invalid);
       return;
     }
     const added = files.filter(
@@ -837,12 +837,27 @@ export function ProServiceEditor({
       setError(`Тариф позволяет загрузить не более ${photoLimit} фотографий.`);
       return;
     }
-    const selected = [
-      ...pendingImages,
-      ...added.map((file) => ({ file, previewUrl: URL.createObjectURL(file) })),
-    ];
-    setPendingImages(selected);
-    if (savedServiceId.current && mode === "edit") void retryImages(selected);
+    if (!added.length) return;
+    setBusy(true);
+    setPendingAction(imagePickerSource.current === "icon" ? "upload:icon" : "upload:add");
+    try {
+      const converted: File[] = [];
+      for (const file of added) converted.push(await convertImageToWebp(file, { maxBytes: 10 * 1024 * 1024 }));
+      const selected = [
+        ...pendingImages,
+        ...converted.map((file) => ({ file, previewUrl: URL.createObjectURL(file) })),
+      ];
+      setPendingImages(selected);
+      if (savedServiceId.current && mode === "edit") {
+        await localDraft.flush();
+        await uploadPendingImages(savedServiceId.current, selected);
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Не удалось обработать фотографии.");
+    } finally {
+      setBusy(false);
+      setPendingAction(null);
+    }
   }
 
   function removePendingImage(previewUrl: string) {
@@ -1057,13 +1072,28 @@ export function ProServiceEditor({
           aria-label="Фотографии услуги"
           disabled={busy || imageCount >= photoLimit}
           hidden
-          accept="image/jpeg,image/png,image/webp"
+          accept={IMAGE_INPUT_ACCEPT}
           onChange={(event) => {
             const files = Array.from(event.target.files ?? []);
             event.currentTarget.value = "";
-            onSelectImages(files);
+            void onSelectImages(files);
           }}
         />
+        {pendingAction === "upload:icon" || pendingAction === "upload:add" ? (
+          <Stack
+            direction="row"
+            role="status"
+            spacing={1}
+            sx={{ alignItems: "center", px: 2, pt: 1.5 }}
+          >
+            <CircularProgress size={16} />
+            <Typography variant="body2">
+              {savedServiceId.current && mode === "edit"
+                ? "Обрабатываем и загружаем фото…"
+                : "Обрабатываем фото…"}
+            </Typography>
+          </Stack>
+        ) : null}
         {formError ? (
           <Alert
             severity="error"

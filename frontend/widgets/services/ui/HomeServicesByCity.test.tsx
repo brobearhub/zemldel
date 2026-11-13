@@ -45,6 +45,34 @@ describe("HomeServicesByCity", () => {
     window.localStorage.removeItem("zemledel:selected-city:v1");
   });
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("renders optimized responsive service images on the home page", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const store = createTestStore({ status: "unauthenticated", user: null, error: null });
+    const initialItems = [{
+      ...baseService,
+      id: "service-with-image",
+      title: "Услуга с фото",
+      image: "https://cdn.zemledel.ru/public/services/1/photo.jpg",
+      provider: { id: "p1", name: "Исполнитель", city: null },
+    }];
+
+    render(
+      <Provider store={store}>
+        <CitySelectProvider>
+          <HomeServicesByCity initialItems={initialItems} />
+        </CitySelectProvider>
+      </Provider>,
+    );
+
+    const image = screen.getByRole("presentation");
+    expect(image.getAttribute("srcset")).toContain("/_next/image?");
+    expect(image.getAttribute("sizes")).toContain("(min-width: 1536px) 262px");
+  });
+
   it("includes the server catalog in HTML and does not refetch it before a city is selected", () => {
     const store = createTestStore({ status: "unauthenticated", user: null, error: null });
     const fetchMock = vi.spyOn(global, "fetch");

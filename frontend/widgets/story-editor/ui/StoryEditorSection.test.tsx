@@ -1,5 +1,10 @@
 import { ThemeProvider } from "@mui/material";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import { convertImageToWebp } from "@/shared/lib/image/convert-to-webp";
+vi.mock("@/shared/lib/image/convert-to-webp", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/shared/lib/image/convert-to-webp")>(),
+  convertImageToWebp: vi.fn(async (file: File) => file),
+}));
 import userEvent from "@testing-library/user-event";
 import { createAppTheme } from "@/core/theme/createAppTheme";
 const STORY_TEXT_MAX_LENGTH = 500;
@@ -497,6 +502,32 @@ describe("StoryEditorSection", () => {
     expect(preview).toHaveAttribute("src", "blob:preview");
     expect(preview.parentElement).toHaveTextContent("Анна");
     expect(preview.parentElement).toHaveTextContent("Продам за бесценок");
+  });
+
+  it("shows image processing and publishes the converted WebP", async () => {
+    URL.createObjectURL = vi.fn(() => "blob:preview");
+    URL.revokeObjectURL = vi.fn();
+    let complete!: (file: File) => void;
+    vi.mocked(convertImageToWebp).mockImplementationOnce(() => new Promise((resolve) => { complete = resolve; }));
+    const fetchMock = vi.spyOn(global, "fetch").mockImplementation((input, init) => {
+      if (init?.method === "POST") return json({ id: "story-1" });
+      return json(String(input).includes("/limits") ? limitsFixture : { items: [] });
+    });
+    render(<StoryEditorSection scope="user" />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Новая" }));
+    await user.type(screen.getByLabelText("Текст"), "История с фото");
+    await user.upload(screen.getByLabelText("Добавить фото"), new File(["image"], "story.png", { type: "image/png" }));
+    expect(screen.getByRole("progressbar")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Опубликовать" })).toBeDisabled();
+
+    const converted = new File(["webp"], "story.webp", { type: "image/webp" });
+    await act(async () => complete(converted));
+    await user.click(screen.getByRole("button", { name: "Опубликовать" }));
+    await waitFor(() => {
+      const request = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
+      expect((request?.[1]?.body as FormData).get("file")).toBe(converted);
+    });
   });
   it("shows video on Standard and explains the Business requirement", async () => {
     vi.spyOn(global, "fetch").mockImplementation((input) => json(String(input).includes("/limits") ? limitsFixture : { items: [] }));

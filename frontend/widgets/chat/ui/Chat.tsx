@@ -34,7 +34,7 @@ import {
 } from "@mui/material";
 import { alpha, darken, lighten } from "@mui/material/styles";
 import type { ChatMessageDto } from "@/entities/chat/dto/chat.dto";
-import { CdnAvatar } from "@/shared/ui/cdn-image";
+import { CdnOptimizedAvatar } from "@/shared/ui/cdn-image";
 import { breakpointValues } from "@/core/theme/breakpoints";
 
 export type ChatReplyTarget = {
@@ -190,7 +190,8 @@ function MessageRowFrame({
         },
       }}
     >
-      <CdnAvatar
+      <CdnOptimizedAvatar
+        sizes="36px"
         aria-hidden="true"
         src={senderImage || undefined}
         sx={(theme) => ({
@@ -204,7 +205,7 @@ function MessageRowFrame({
         })}
       >
         {initials}
-      </CdnAvatar>
+      </CdnOptimizedAvatar>
       <Box
         sx={{
           flex: 1,

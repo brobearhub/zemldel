@@ -6,7 +6,7 @@ import {
   getCounterpartyInitials,
   hasAnyCounterpartyValue,
 } from "../model/counterparty-card";
-import { CdnAvatar } from "@/shared/ui/cdn-image";
+import { CdnOptimizedAvatar } from "@/shared/ui/cdn-image";
 
 type Props = {
   fields: readonly CounterpartyField[];
@@ -72,7 +72,8 @@ export function RequestCounterpartyPanel({
           </Typography>
         )}
       </Box>
-      <CdnAvatar
+      <CdnOptimizedAvatar
+        sizes="96px"
         src={avatarSrc?.trim() || undefined}
         alt={avatarName?.trim() || "Контрагент"}
         sx={{
@@ -86,7 +87,7 @@ export function RequestCounterpartyPanel({
         }}
       >
         {initials}
-      </CdnAvatar>
+      </CdnOptimizedAvatar>
     </Stack>
   );
 }

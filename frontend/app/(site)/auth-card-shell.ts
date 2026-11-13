@@ -1,4 +1,5 @@
 import { SITE_HEADER_HEIGHT_PX } from "@/shared/config/site-layout";
+import { authBackground } from "./auth-background";
 
 export const authCardShellSx = {
   flex: "1 0 auto",
@@ -13,7 +14,7 @@ export const authCardShellSx = {
     sm: `${SITE_HEADER_HEIGHT_PX.sm + 24}px`,
     md: 10,
   },
-  backgroundImage: "url('/hero-bg-house_static_day.jpg')",
+  backgroundImage: authBackground("/hero-bg-house_static_day.jpg"),
   backgroundSize: "cover",
   backgroundPosition: "center",
   backgroundRepeat: "no-repeat",

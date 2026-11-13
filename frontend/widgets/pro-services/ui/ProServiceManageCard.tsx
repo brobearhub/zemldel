@@ -58,6 +58,7 @@ export function ProServiceManageCard({ service, highlighted = false, ...actions 
           linked={false}
           titleComponent="h2"
           compact
+          imageSizes="(min-width: 600px) 280px, 100vw"
         />
       </Box>
       <InterestCounter serviceId={service.id} />

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ServiceCard } from "./ServiceCard";
 
@@ -12,6 +12,39 @@ vi.mock("next/link", () => ({
 }));
 
 describe("ServiceCard", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("optimizes card images and retries through storage on CDN failure", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_S3_ENDPOINT", "https://storage.example.com");
+    vi.stubEnv("NEXT_PUBLIC_S3_PUBLIC_BUCKET", "assets");
+    vi.stubEnv("NEXT_PUBLIC_S3_FORCE_PATH_STYLE", "true");
+
+    render(
+      <ServiceCard
+        item={{
+          id: "svc-image",
+          title: "Услуга с фото",
+          price: "1000 ₽",
+          provider: { id: "prov-1", name: "Исполнитель", city: null },
+          image: "https://cdn.zemledel.ru/public/services/1/photo.jpg",
+        }}
+        imageSizes="(min-width: 900px) 300px, 100vw"
+      />,
+    );
+
+    const image = screen.getByRole("presentation");
+    expect(image.getAttribute("srcset")).toContain("/_next/image?");
+    expect(image.getAttribute("srcset")).toContain("cdn.zemledel.ru");
+    expect(image).toHaveAttribute("sizes", "(min-width: 900px) 300px, 100vw");
+
+    fireEvent.error(image);
+    expect(image.getAttribute("srcset")).toContain("/_next/image?");
+    expect(image.getAttribute("srcset")).toContain("storage.example.com");
+  });
+
   it("builds correct link and shows price, title, rating for myCity variant", () => {
     render(
       <ServiceCard

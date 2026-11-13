@@ -76,24 +76,34 @@ type FillImageProps = {
   sizes: string;
   style?: ImageProps["style"];
   unoptimized?: boolean;
+  onError?: ImageProps["onError"];
+  onLoad?: ImageProps["onLoad"];
 };
 
 /** next/image на всю область: при ошибке CDN src становится адресом Storage. */
-export function CdnFillImage({ src, alt = "", sizes, style, unoptimized }: FillImageProps) {
+export const CdnFillImage = forwardRef<HTMLImageElement, FillImageProps>(function CdnFillImage(
+  { src, alt = "", sizes, style, unoptimized, onError, onLoad },
+  ref,
+) {
   const image = useStorageImageSrc(src);
   if (!image.src) return null;
   return (
     <Image
       src={image.src}
+      ref={ref}
       alt={alt}
       fill
       unoptimized={unoptimized}
       sizes={sizes}
       style={style}
-      onError={() => image.onError()}
+      onLoad={onLoad}
+      onError={(event) => {
+        if (!image.exhausted) image.onError();
+        else onError?.(event);
+      }}
     />
   );
-}
+});
 
 export const CdnAvatar = forwardRef<HTMLDivElement, AvatarProps>(function CdnAvatar({ src, slotProps, ...rest }, ref) {
   const image = useStorageImageSrc(typeof src === "string" ? src : undefined);

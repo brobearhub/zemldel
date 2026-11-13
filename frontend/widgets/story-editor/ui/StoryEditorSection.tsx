@@ -29,6 +29,7 @@ import { isLiveStory, MyStoriesGallery, StoryTileRow, type StoriesLane } from ".
 import { NewStoryComposer } from "./NewStoryComposer";
 import { StoryInsightsPanel } from "./StoryInsightsPanel";
 import { StoryMetricCards } from "./StoryMetricCard";
+import { convertImageToWebp } from "@/shared/lib/image/convert-to-webp";
 
 type Props = {
   scope: StoryScope;
@@ -61,6 +62,7 @@ export function StoryEditorSection({ scope, providerName, authorName, initialLan
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [imageProcessing, setImageProcessing] = useState(false);
   const [limits, setLimits] = useState<StoryLimits | null>(null);
   const refreshLimits = useCallback(async () => {
     const value = await fetchStoryLimits(scope);
@@ -146,6 +148,24 @@ export function StoryEditorSection({ scope, providerName, authorName, initialLan
     setFile(null);
     setDurationHours(24);
     setError(null);
+  }
+
+  async function selectStoryFile(selected: File | null) {
+    if (!selected || selected.type.startsWith("video/")) {
+      setFile(selected);
+      return;
+    }
+    setError(null);
+    setBusy(true);
+    setImageProcessing(true);
+    try {
+      setFile(await convertImageToWebp(selected, { maxBytes: STORY_IMAGE_MAX_BYTES }));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Не удалось обработать фото.");
+    } finally {
+      setImageProcessing(false);
+      setBusy(false);
+    }
   }
 
   async function publish() {
@@ -331,6 +351,7 @@ export function StoryEditorSection({ scope, providerName, authorName, initialLan
           completed={completed}
           lane={lane}
           busy={busy}
+          imageProcessing={imageProcessing}
           previewUrl={previewUrl}
           previewVideo={!!file?.type.startsWith("video/")}
           allowVideo={limits?.video ?? false}
@@ -338,7 +359,7 @@ export function StoryEditorSection({ scope, providerName, authorName, initialLan
           previewAuthor={previewAuthor}
           previewText={text}
           onToggleCompose={() => setComposing(true)}
-          onFile={setFile}
+          onFile={(selected) => void selectStoryFile(selected)}
           onLane={(next) => setLane((current) => (current === next ? "live" : next))}
           metrics={
             live.length === 0 && completed.length === 0 && saved.length === 0 ? undefined : (

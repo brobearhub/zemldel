@@ -1,7 +1,7 @@
 "use client";
 
 import { Stack, Typography } from "@mui/material";
-import { CdnAvatar } from "@/shared/ui/cdn-image";
+import { CdnOptimizedAvatar } from "@/shared/ui/cdn-image";
 import type { ReplyPreviewLine } from "../lib/reply-preview";
 
 export type ReplyPreviewAvatar = {
@@ -56,7 +56,8 @@ export function ReplyPreviewLines({
             }}
           >
             {own ? (
-              <CdnAvatar
+              <CdnOptimizedAvatar
+                sizes="32px"
                 src={ownAvatar?.src || undefined}
                 alt={avatarName}
                 sx={{
@@ -70,7 +71,7 @@ export function ReplyPreviewLines({
                 }}
               >
                 {avatarInitials(ownAvatar?.name)}
-              </CdnAvatar>
+              </CdnOptimizedAvatar>
             ) : null}
             <Typography
               title={text}

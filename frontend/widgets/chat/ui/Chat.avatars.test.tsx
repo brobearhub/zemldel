@@ -74,7 +74,7 @@ describe("chat message avatars", () => {
 
     const images = () =>
       [...container.querySelectorAll(".MuiAvatar-img")].map((image) =>
-        image.getAttribute("src"),
+        new URL(image.getAttribute("src") ?? "", window.location.origin).pathname,
       );
     expect(images()).toEqual([
       "/avatars/me.png",

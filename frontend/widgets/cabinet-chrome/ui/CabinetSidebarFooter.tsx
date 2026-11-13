@@ -12,7 +12,7 @@ import {
 } from "@/core/auth/authorization";
 import { useAppSelector } from "@/core/store/hooks";
 import { formatProviderIdentity } from "@/entities/provider/lib/provider-identity";
-import { CdnAvatar } from "@/shared/ui/cdn-image";
+import { CdnOptimizedAvatar } from "@/shared/ui/cdn-image";
 
 type Props = {
   titleId: string;
@@ -106,7 +106,8 @@ export function CabinetSidebarFooter({
         }}
       >
         {authenticated ? (
-          <CdnAvatar
+          <CdnOptimizedAvatar
+            sizes="40px"
             src={avatar || undefined}
             sx={{
               width: 40,
@@ -119,7 +120,7 @@ export function CabinetSidebarFooter({
             }}
           >
             {initials}
-          </CdnAvatar>
+          </CdnOptimizedAvatar>
         ) : (
           <SettingsOutlined />
         )}

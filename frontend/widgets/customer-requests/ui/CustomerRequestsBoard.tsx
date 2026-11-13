@@ -23,7 +23,7 @@ import {
   type RequestCustomerDto,
 } from "@/entities/request";
 import { useAppSelector } from "@/core/store/hooks";
-import { CdnImage } from "@/shared/ui/cdn-image";
+import { CdnFillImage } from "@/shared/ui/cdn-image";
 import {
   getCustomerRequestCardContent,
   getCustomerRequestCardTone,
@@ -119,6 +119,7 @@ function BoardCard({
       <Stack direction="row" sx={{ alignItems: "stretch", minHeight: 88 }}>
         <Box
           sx={{
+            position: "relative",
             width: 72,
             display: { xs: "none", sm: "grid" },
             flexShrink: 0,
@@ -128,14 +129,13 @@ function BoardCard({
           }}
         >
           {photo ? (
-            <CdnImage
+            <CdnFillImage
               src={photo}
               alt=""
-              sx={{
-                width: "100%",
-                height: "100%",
+              sizes="72px"
+              unoptimized={process.env.NODE_ENV !== "production"}
+              style={{
                 objectFit: "cover",
-                display: "block",
               }}
             />
           ) : (

@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import Link from "@/shared/ui/Link";
 import { Box, Button, Stack, Typography } from "@mui/material";
 import type { ServiceDto } from "@/entities/service";
-import { CdnImage } from "@/shared/ui/cdn-image";
+import { CdnFillImage } from "@/shared/ui/cdn-image";
 import { serviceRequestRowTitle } from "../lib/format-service-request";
 import { ServiceRequestsPanel } from "./ServiceRequestsPanel";
 
@@ -20,6 +20,7 @@ function ServicePhoto({ service }: { service: ServiceDto }) {
   return (
     <Box
       sx={{
+        position: "relative",
         width: "100%",
         height: 178,
         overflow: "hidden",
@@ -28,14 +29,14 @@ function ServicePhoto({ service }: { service: ServiceDto }) {
       }}
     >
       {image ? (
-        <CdnImage
+        <CdnFillImage
+          key={image}
           src={image}
           alt={`Фото услуги «${service.title}»`}
+          sizes="(min-width: 1200px) 33vw, (min-width: 600px) 50vw, 100vw"
+          unoptimized={process.env.NODE_ENV !== "production"}
           onError={() => setFailedImages((current) => [...current, image])}
-          sx={{
-            display: "block",
-            width: "100%",
-            height: "100%",
+          style={{
             objectFit: "cover",
           }}
         />

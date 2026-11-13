@@ -22,7 +22,7 @@ import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { buildSignInHref } from "@/core/auth/session-recovery";
 import { useAppSelector } from "@/core/store/hooks";
-import { CdnAvatar } from "@/shared/ui/cdn-image";
+import { ProfileAvatar } from "./ProfileAvatar";
 import { CUSTOMER_NAV } from "@/widgets/cabinet-chrome/model/nav-config";
 import {
   getActiveMembership,
@@ -447,8 +447,9 @@ export const ProfileMenu = ({
             cursor: "pointer",
           }}
         >
-          <CdnAvatar
+          <ProfileAvatar
             src={avatarSrc}
+            sizes="32px"
             sx={{
               width: 32,
               height: 32,
@@ -456,7 +457,7 @@ export const ProfileMenu = ({
             }}
           >
             {initials}
-          </CdnAvatar>
+          </ProfileAvatar>
           {showLabel ? <Typography>{currentIdentity.title}</Typography> : null}
         </Box>
         <Menu
@@ -540,12 +541,13 @@ export const ProfileMenu = ({
             textDecoration: "none",
           }}
         >
-          <CdnAvatar
+          <ProfileAvatar
             src={avatarSrc}
+            sizes="32px"
             sx={{ width: 32, height: 32, ...proAvatarRingSx }}
           >
             {initials}
-          </CdnAvatar>
+          </ProfileAvatar>
           {showLabel ? <Typography>{currentIdentity.title}</Typography> : null}
         </Box>
       </Tooltip>
@@ -595,8 +597,9 @@ export const ProfileMenu = ({
       >
         {isAuthenticated ? (
           <Tooltip title={avatarTooltip}>
-            <CdnAvatar
+            <ProfileAvatar
               src={avatarSrc}
+              sizes="(min-width: 600px) 32px, 28px"
               sx={{
                 width: { xs: 28, sm: 32 },
                 height: { xs: 28, sm: 32 },
@@ -608,7 +611,7 @@ export const ProfileMenu = ({
               }}
             >
               {initials}
-            </CdnAvatar>
+            </ProfileAvatar>
           </Tooltip>
         ) : (
           <PersonOutlineRoundedIcon
@@ -680,8 +683,9 @@ export const ProfileMenu = ({
                     mb: 1,
                   }}
                 >
-                  <CdnAvatar
+                  <ProfileAvatar
                     src={avatarSrc}
+                    sizes="40px"
                     sx={{
                       width: 40,
                       height: 40,
@@ -692,7 +696,7 @@ export const ProfileMenu = ({
                     }}
                   >
                     {initials}
-                  </CdnAvatar>
+                  </ProfileAvatar>
                   <Box sx={{ minWidth: 0 }}>
                     {currentIdentity.kindLabel ? (
                       <Typography

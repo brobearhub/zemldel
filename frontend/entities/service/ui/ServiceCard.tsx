@@ -7,7 +7,7 @@ import StarRoundedIcon from "@mui/icons-material/StarRounded";
 import Link from "next/link";
 import type { ServiceCardItem, ServicePaletteColor } from "../types";
 import { formatRubPriceLabel } from "@/shared/lib/money/format-rub-price-label";
-import { CdnImage } from "@/shared/ui/cdn-image";
+import { CdnFillImage, CdnImage } from "@/shared/ui/cdn-image";
 import { ServicePlaces } from "./ServicePlaces";
 
 export type ServiceCardVariant = "myCity" | "otherCities";
@@ -21,16 +21,20 @@ type Props = {
   titleComponent?: "p" | "h2" | "h3";
   compact?: boolean;
   favoriteAction?: ReactNode;
+  /** Ширина изображения в сетке, если карточка использует оптимизацию Next.js. */
+  imageSizes?: string;
 };
 
 function ServiceCardImage({
   item,
   imageHeight,
   compact,
+  imageSizes,
 }: {
   item: ServiceCardItem;
   imageHeight: number;
   compact: boolean;
+  imageSizes?: string;
 }) {
   return (
     <Box
@@ -44,7 +48,19 @@ function ServiceCardImage({
           theme.custom?.gradients?.glass ?? theme.palette.action.hover,
       }}
     >
-      {item.image ? (
+      {item.image && imageSizes ? (
+        <CdnFillImage
+          key={item.image}
+          src={item.image}
+          alt=""
+          sizes={imageSizes}
+          unoptimized={process.env.NODE_ENV !== "production"}
+          style={{
+            objectFit: "cover",
+            objectPosition: "center",
+          }}
+        />
+      ) : item.image ? (
         <CdnImage
           src={item.image}
           alt=""
@@ -214,6 +230,7 @@ export function ServiceCard({
   titleComponent,
   compact = false,
   favoriteAction,
+  imageSizes,
 }: Props) {
   const imageHeight = variant === "myCity" ? 178 : 210;
   const places = item.places ?? [];
@@ -271,6 +288,7 @@ export function ServiceCard({
           item={item}
           imageHeight={imageHeight}
           compact={compact}
+          imageSizes={imageSizes}
         />
 
         {variant === "myCity" ? (
