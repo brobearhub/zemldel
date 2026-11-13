@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 type SitemapCategory = {
   id: string;
+  slug: string;
   parentId: string | null;
 };
 
@@ -30,8 +31,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     ...PUBLIC_PAGES.map((path) => ({ url: path === "/" ? origin : `${origin}${path}` })),
     ...categories
-      .filter((category) => category.id.trim() !== "")
-      .map((category) => ({ url: `${origin}/service-categories/${encodeURIComponent(category.id.trim())}` })),
+      .filter((category) => category.slug.trim() !== "")
+      .map((category) => ({ url: `${origin}/service-categories/${encodeURIComponent(category.slug.trim())}` })),
     ...[...providers.values()].map((url) => ({ url })),
     ...services.map((service) => ({ url: `${origin}/services/${service.id}` })),
   ];

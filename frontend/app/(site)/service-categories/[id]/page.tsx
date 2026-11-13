@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound, permanentRedirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { Box, Container, Paper, Stack, Typography } from "@mui/material";
 import { BackendApiError, fetchBackendJson } from "@/shared/api/backend/server";
 import { SITE_HEADER_HEIGHT_PX } from "@/shared/config/site-layout";
@@ -52,7 +52,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     `${category.name} — Земледел`,
     guide?.description ??
       `Услуги в категории «${category.name}». Выберите предложение или опишите свою задачу исполнителю.`,
-    `/service-categories/${category.id}`,
+    `/service-categories/${encodeURIComponent(category.slug)}`,
   );
   const image = getCategoryGuideImage(category.slug);
   if (!image) return metadata;
@@ -92,9 +92,6 @@ export default async function ServiceCategoryPage({ params }: Props) {
     throw e;
   }
 
-  // The API accepts both IDs and slugs. Keep one public URL for the same category.
-  if (id !== category.id)
-    permanentRedirect(`/service-categories/${category.id}`);
   const guide = getCategoryGuide(category.slug);
   const parent = categories.find((item) => item.id === category.parentId);
 
@@ -124,7 +121,7 @@ export default async function ServiceCategoryPage({ params }: Props) {
       id: t.id,
       name: t.name,
       shortName: t.shortName,
-      href: `/service-categories/${t.id}`,
+      href: `/service-categories/${encodeURIComponent(t.slug)}`,
     })),
   ];
   const templateSelfBarItems = category.parentId
@@ -132,15 +129,13 @@ export default async function ServiceCategoryPage({ params }: Props) {
         {
           id: "__back__",
           name: "←",
-          href: category.parentId
-            ? `/service-categories/${category.parentId}`
-            : "/",
+          href: parent ? `/service-categories/${encodeURIComponent(parent.slug)}` : "/",
         },
         ...siblings.map((s) => ({
           id: s.id,
           name: s.name,
           shortName: s.shortName,
-          href: `/service-categories/${s.id}`,
+          href: `/service-categories/${encodeURIComponent(s.slug)}`,
         })),
       ]
     : [];
@@ -175,13 +170,13 @@ export default async function ServiceCategoryPage({ params }: Props) {
                 ? [
                     {
                       name: parent.name,
-                      item: `${siteOrigin()}/service-categories/${parent.id}`,
+                      item: `${siteOrigin()}/service-categories/${encodeURIComponent(parent.slug)}`,
                     },
                   ]
                 : []),
               {
                 name: category.name,
-                item: `${siteOrigin()}/service-categories/${category.id}`,
+                item: `${siteOrigin()}/service-categories/${encodeURIComponent(category.slug)}`,
               },
             ].map((item, index) => ({
               "@type": "ListItem",
@@ -205,9 +200,10 @@ export default async function ServiceCategoryPage({ params }: Props) {
             <CategoryBreadcrumbs
               categoryId={category.id}
               categories={categories.map(
-                ({ id, name, parentId, sortOrder }) => ({
+                ({ id, name, slug, parentId, sortOrder }) => ({
                   id,
                   name,
+                  slug,
                   parentId,
                   sortOrder,
                 }),

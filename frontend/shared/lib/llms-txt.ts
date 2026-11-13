@@ -4,6 +4,7 @@ const LLMS_TXT_HOSTS = new Set(["zemledel.ru", "www.zemledel.ru"]);
 export type LlmsCategory = {
   readonly id: string;
   readonly name: string;
+  readonly slug: string;
   readonly parentId: string | null;
 };
 
@@ -31,7 +32,7 @@ function pageLink(origin: string, path: string, label: string, description: stri
 export function buildLlmsTxt(origin: string, categories: readonly LlmsCategory[]): string {
   const base = origin.replace(/\/$/, "");
   const roots = categories.filter(
-    (category) => category.parentId == null && category.id.trim() !== "" && category.name.trim() !== "",
+    (category) => category.parentId == null && category.slug.trim() !== "" && category.name.trim() !== "",
   );
 
   const categoryLines =
@@ -39,7 +40,7 @@ export function buildLlmsTxt(origin: string, categories: readonly LlmsCategory[]
       ? roots
           .map(
             (category) =>
-              `- [${linkLabel(category.name)}](${base}/service-categories/${encodeURIComponent(category.id.trim())}): услуги и исполнители в этой категории`,
+              `- [${linkLabel(category.name)}](${base}/service-categories/${encodeURIComponent(category.slug.trim())}): услуги и исполнители в этой категории`,
           )
           .join("\n")
       : "- Актуальный список открывается на главной странице.";
