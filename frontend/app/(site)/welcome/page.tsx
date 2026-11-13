@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Box, Button, Stack, Typography } from "@mui/material";
 import { SITE_HEADER_HEIGHT_PX } from "@/shared/config/site-layout";
+import { authBackground } from "@/app/(site)/auth-background";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import { RainGlassPaper } from "@/shared/ui/RainGlassPaper";
 import { LogoIcon } from "@/shared/ui/LogoIcon";
@@ -23,7 +24,7 @@ export default function WelcomePage() {
           sm: `${SITE_HEADER_HEIGHT_PX.sm + 24}px`,
           md: 10,
         },
-        backgroundImage: "url('/hero-bg-house_static_welcome.jpg?v=4')",
+        backgroundImage: authBackground("/hero-bg-house_static_welcome.jpg"),
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",

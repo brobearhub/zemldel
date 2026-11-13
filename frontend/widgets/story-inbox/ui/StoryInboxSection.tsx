@@ -25,7 +25,7 @@ import type {
   ChatMessage,
   ConversationListItemProps,
 } from "@mui/x-chat/headless";
-import { CdnAvatar, CdnImg } from "@/shared/ui/cdn-image";
+import { CdnOptimizedAvatar, CdnOptimizedImg } from "@/shared/ui/cdn-image";
 import { displayCityName } from "@/shared/lib/format-city-label";
 import {
   fetchStoryConversationMessages,
@@ -156,7 +156,8 @@ const InboxRow = forwardRef<HTMLDivElement, ConversationListItemProps>(
           },
         }}
       >
-        <CdnAvatar
+        <CdnOptimizedAvatar
+          sizes="40px"
           src={item?.imageUrl || undefined}
           sx={{
             width: 40,
@@ -171,7 +172,7 @@ const InboxRow = forwardRef<HTMLDivElement, ConversationListItemProps>(
             .trim()
             .charAt(0)
             .toLocaleUpperCase("ru-RU") || "?"}
-        </CdnAvatar>
+        </CdnOptimizedAvatar>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Stack direction="row" spacing={1} sx={{ alignItems: "baseline" }}>
             <Typography
@@ -414,7 +415,7 @@ export function StoryInboxSection({ scope }: Props) {
             }}
             slots={{ composerSendButton: SendButton, messageAuthorName: null }}
             slotProps={{
-              messageAvatar: { slots: { image: CdnImg } },
+              messageAvatar: { slots: { image: CdnOptimizedImg } },
               conversationList: { slots: { item: InboxRow } },
               messageList: { sx: { bgcolor: "primary.light" } },
               composerRoot: {

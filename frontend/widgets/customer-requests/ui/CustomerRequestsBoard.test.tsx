@@ -103,7 +103,7 @@ describe("CustomerRequestsBoard", () => {
     expect(screen.getAllByText(/день|дня|дней/).length).toBeGreaterThan(0);
     expect(document.querySelector('img[src="https://cdn.example/service.jpg"]')).not.toBeNull();
     expect(document.querySelector('img[src="https://cdn.example/ignored.jpg"]')).toBeNull();
-    expect(document.querySelector('img[src="/hero-bg-house_static_day.jpg"]')).not.toBeNull();
+    expect(document.querySelector('img[src$="/hero-bg-house_static_day.jpg"]')).not.toBeNull();
 
     await user.click(screen.getByRole("link", { name: /Межевание участка/i }));
     expect(onOpen).toHaveBeenCalledWith(openItem);

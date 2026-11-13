@@ -7,7 +7,7 @@ import {
   fetchBackendJsonAsUser,
 } from "@/shared/api/backend/server";
 import { Container, Rating, Stack, Typography } from "@mui/material";
-import { CdnAvatar } from "@/shared/ui/cdn-image";
+import { CdnOptimizedAvatar } from "@/shared/ui/cdn-image";
 import { displayCityName } from "@/shared/lib/format-city-label";
 
 type PublicUser = {
@@ -59,7 +59,8 @@ export default async function PublicUserPage({
       {profile ? (
         <Stack spacing={3}>
           <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-            <CdnAvatar
+            <CdnOptimizedAvatar
+              sizes="96px"
               src={profile.image ?? undefined}
               sx={{ width: 96, height: 96 }}
             />

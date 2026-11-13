@@ -165,7 +165,7 @@ export function ServiceProviderSection({
             {provider.image ? (
               <CdnFillImage
                 src={provider.image}
-                sizes="(max-width: 900px) 100vw, 534px"
+                sizes="(min-width: 900px) 300px, 100vw"
                 unoptimized={process.env.NODE_ENV !== "production"}
                 style={{ objectFit: "cover", objectPosition: "center" }}
               />

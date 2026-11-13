@@ -33,7 +33,13 @@ function ServiceGrid({
       }}
     >
       {items.map((item) => (
-        <ServiceCard key={item.id} item={item} favoriteAction={<FavoriteButton kind="services" id={item.id} />} variant={variant} />
+        <ServiceCard
+          key={item.id}
+          item={item}
+          favoriteAction={<FavoriteButton kind="services" id={item.id} />}
+          variant={variant}
+          imageSizes="(min-width: 1536px) 360px, (min-width: 1200px) 33vw, 50vw"
+        />
       ))}
     </Box>
   );

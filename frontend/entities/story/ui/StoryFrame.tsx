@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { Box } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
-import { CdnImage } from "@/shared/ui/cdn-image";
+import { CdnFillImage } from "@/shared/ui/cdn-image";
 
 type Props = {
   imageUrl: string | null;
@@ -65,20 +65,20 @@ export function StoryFrame({
           onError={onImageError}
         />
       ) : imageUrl ? (
-        <CdnImage
+        <CdnFillImage
+          key={imageUrl}
           src={imageUrl}
           alt={imageAlt}
+          sizes="(min-width: 900px) 500px, 100vw"
+          unoptimized={process.env.NODE_ENV !== "production" ||
+            (!imageUrl.startsWith("https://cdn.zemledel.ru/") && !imageUrl.startsWith("/"))}
           onLoad={notifyLoaded}
           onError={notifyError}
           ref={(node) => {
             // Уже закэшированное фото не шлёт load повторно, если src успел выставиться до подписки.
             if (node?.complete && node.naturalWidth > 0) notifyLoaded();
           }}
-          sx={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
+          style={{
             objectFit: "cover",
           }}
         />

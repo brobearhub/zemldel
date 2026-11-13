@@ -39,7 +39,7 @@ import {
   RU_PHONE_PREFIX,
   ruPhoneDigits,
 } from "@/shared/lib/contact-phone";
-import { CdnAvatar } from "@/shared/ui/cdn-image";
+import { CdnOptimizedAvatar } from "@/shared/ui/cdn-image";
 import { useAppSelector } from "@/core/store/hooks";
 import { type AuthMembership } from "@/core/auth/authorization";
 import { CustomerRequestsSection } from "@/widgets/customer-requests/ui/CustomerRequestsSection";
@@ -474,7 +474,8 @@ function ProfileOverview({
                 }}
               >
                 <Box sx={{ position: "relative" }}>
-                  <CdnAvatar
+                  <CdnOptimizedAvatar
+                    sizes="(min-width: 900px) 104px, 76px"
                     src={image || undefined}
                     sx={{
                       width: { xs: 76, md: 104 },
@@ -488,7 +489,7 @@ function ProfileOverview({
                     {getInitials(name) ||
                       email?.charAt(0)?.toUpperCase() ||
                       "U"}
-                  </CdnAvatar>
+                  </CdnOptimizedAvatar>
                   <IconButton
                     component="label"
                     aria-label="Загрузить фото"
@@ -1074,7 +1075,8 @@ function ProfileOverview({
                             },
                           }}
                         >
-                          <CdnAvatar
+                          <CdnOptimizedAvatar
+                            sizes="44px"
                             variant="rounded"
                             src={membership.providerImage || undefined}
                             sx={{
@@ -1091,7 +1093,7 @@ function ProfileOverview({
                             }}
                           >
                             {getInitials(membership.providerName)}
-                          </CdnAvatar>
+                          </CdnOptimizedAvatar>
                           <Box
                             sx={{
                               display: { xs: "contents", sm: "block" },

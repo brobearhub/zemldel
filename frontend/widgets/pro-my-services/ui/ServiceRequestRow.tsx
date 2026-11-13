@@ -23,7 +23,7 @@ import {
   type RequestCustomerDto,
   type RequestProDto,
 } from "@/entities/request";
-import { CdnAvatar, CdnImage } from "@/shared/ui/cdn-image";
+import { CdnOptimizedAvatar, CdnFillImage } from "@/shared/ui/cdn-image";
 import {
   formatRequestOpenedStamp,
   getRequestOpenAge,
@@ -139,7 +139,8 @@ function CustomerAvatar({
   }, [src]);
 
   const avatar = (
-    <CdnAvatar
+    <CdnOptimizedAvatar
+      sizes="40px"
       ref={avatarRef}
       src={src}
       alt={name}
@@ -155,7 +156,7 @@ function CustomerAvatar({
       }}
     >
       {requestCustomerInitials(name)}
-    </CdnAvatar>
+    </CdnOptimizedAvatar>
   );
 
   if (!src) return avatar;
@@ -167,17 +168,23 @@ function CustomerAvatar({
       onClose={() => setOpen(false)}
       placement="right"
       title={
-        <CdnImage
-          src={src}
-          alt={name}
+        <Box
           sx={{
+            position: "relative",
             width: 250,
             height: 250,
-            objectFit: "cover",
-            display: "block",
             borderRadius: 1,
+            overflow: "hidden",
           }}
-        />
+        >
+          <CdnFillImage
+            src={src}
+            alt={name}
+            sizes="250px"
+            unoptimized={process.env.NODE_ENV !== "production"}
+            style={{ objectFit: "cover" }}
+          />
+        </Box>
       }
       slotProps={{
         tooltip: {

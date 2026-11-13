@@ -30,6 +30,7 @@ import type { CitySuggestItemDto } from "@/entities/city";
 import { LocationField } from "@/features/select-city";
 import { Markdown } from "@/shared/ui/Markdown";
 import { SITE_HEADER_HEIGHT_PX } from "@/shared/config/site-layout";
+import { authBackground } from "@/app/(site)/auth-background";
 import { LogoIcon } from "@/shared/ui/LogoIcon";
 import { RainGlassPaper } from "@/shared/ui/RainGlassPaper";
 import { PasswordVisibilityButton } from "@/shared/ui/PasswordVisibilityButton";
@@ -73,7 +74,7 @@ const signUpShellSx = {
     sm: `${SITE_HEADER_HEIGHT_PX.sm + 24}px`,
     md: 10,
   },
-  backgroundImage: "url('/hero-bg-house_static.jpg')",
+  backgroundImage: authBackground("/hero-bg-house_static.jpg"),
   backgroundSize: "cover",
   backgroundPosition: "center",
   backgroundRepeat: "no-repeat",

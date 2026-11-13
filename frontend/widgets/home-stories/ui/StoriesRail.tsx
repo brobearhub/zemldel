@@ -3,7 +3,7 @@
 import { Box, Stack, Typography } from "@mui/material";
 import type { StoryDto } from "@/entities/story";
 import { resolveStoryCover, storyAuthorInitials } from "@/entities/story";
-import { CdnAvatar } from "@/shared/ui/cdn-image";
+import { CdnOptimizedAvatar } from "@/shared/ui/cdn-image";
 
 type Props = {
   items: StoryDto[];
@@ -61,7 +61,8 @@ export function StoriesRail({ items, onOpen }: Props) {
                 bgcolor: story.viewed ? "transparent" : "primary.main",
               }}
             >
-              <CdnAvatar
+              <CdnOptimizedAvatar
+                sizes="66px"
                 src={cover.kind === "image" ? cover.src : undefined}
                 alt={story.authorName}
                 sx={{
@@ -78,7 +79,7 @@ export function StoriesRail({ items, onOpen }: Props) {
                 {cover.kind === "initials"
                   ? storyAuthorInitials(story.authorName)
                   : null}
-              </CdnAvatar>
+              </CdnOptimizedAvatar>
             </Box>
             <Typography
               variant="caption"

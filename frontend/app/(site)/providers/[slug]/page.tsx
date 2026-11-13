@@ -150,7 +150,12 @@ export default async function ProviderPublicPage({ params }: Props) {
                 }}
               >
                 {services.map((service) => (
-                  <ServiceCard key={service.id} item={service} favoriteAction={<FavoriteButton kind="services" id={service.id} />} />
+                  <ServiceCard
+                    key={service.id}
+                    item={service}
+                    favoriteAction={<FavoriteButton kind="services" id={service.id} />}
+                    imageSizes="(min-width: 1536px) 360px, (min-width: 1200px) 25vw, (min-width: 900px) 33vw, (min-width: 600px) 50vw, 100vw"
+                  />
                 ))}
               </Box>
             )}
