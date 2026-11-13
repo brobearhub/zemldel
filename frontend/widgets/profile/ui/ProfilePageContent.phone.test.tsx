@@ -7,6 +7,7 @@ import ProfilePage from "./ProfilePageContent";
 const mocks = vi.hoisted(() => ({
   updateSession: vi.fn(),
   save: vi.fn(),
+  convertImage: vi.fn(),
   router: { push: vi.fn(), replace: vi.fn(), refresh: vi.fn() },
   user: {
     id: "user",
@@ -16,6 +17,11 @@ const mocks = vi.hoisted(() => ({
     phone: "+7 922 124-59-19" as string | null,
     memberships: [],
   },
+}));
+
+vi.mock("@/shared/lib/image/convert-to-webp", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/shared/lib/image/convert-to-webp")>(),
+  convertImageToWebp: mocks.convertImage,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -157,4 +163,31 @@ it("preserves the saved phone when Escape blurs a cleared field", () => {
   expect(input).toHaveValue("+7 922 124-59-19");
   expect(input).not.toHaveFocus();
   expect(mocks.save).not.toHaveBeenCalled();
+});
+
+it("shows progress until the converted profile image is uploaded", async () => {
+  let complete!: (file: File) => void;
+  let finishUpload!: (response: Response) => void;
+  mocks.convertImage.mockReturnValueOnce(new Promise((resolve) => { complete = resolve; }));
+  vi.mocked(fetch).mockImplementation((input) => String(input) === "/api/users/me/image"
+    ? new Promise((resolve) => { finishUpload = resolve; })
+    : Promise.resolve(Response.json({})));
+  setup(false);
+  const button = screen.getAllByRole("button", { name: "Загрузить фото" })[0];
+  const input = button.querySelector('input[type="file"]')!;
+  fireEvent.change(input, { target: { files: [new File(["image"], "avatar.jpg", { type: "image/jpeg" })] } });
+  expect(button).toHaveAttribute("aria-disabled", "true");
+  expect(screen.getByRole("progressbar")).toBeInTheDocument();
+  expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url) === "/api/users/me/image")).toBe(false);
+
+  const converted = new File(["webp"], "avatar.webp", { type: "image/webp" });
+  await act(async () => complete(converted));
+  await waitFor(() => {
+    const call = vi.mocked(fetch).mock.calls.find(([url]) => String(url) === "/api/users/me/image");
+    expect((call?.[1]?.body as FormData).get("file")).toBe(converted);
+  });
+  expect(button).toHaveAttribute("aria-disabled", "true");
+  expect(screen.getByRole("progressbar")).toBeInTheDocument();
+  await act(async () => finishUpload(Response.json({})));
+  await waitFor(() => expect(button).not.toHaveAttribute("aria-disabled", "true"));
 });

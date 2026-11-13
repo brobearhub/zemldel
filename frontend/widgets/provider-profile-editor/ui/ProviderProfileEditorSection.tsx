@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { CdnFillImage } from "@/shared/ui/cdn-image";
+import { convertImageToWebp, IMAGE_INPUT_ACCEPT } from "@/shared/lib/image/convert-to-webp";
 import { useSession } from "next-auth/react";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -719,22 +720,12 @@ export function ProviderProfileEditorSection({
   }
 
   async function uploadImage(file: File) {
-    const allowed = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowed.includes(file.type)) {
-      setError("Поддерживаются только JPG, PNG или WebP.");
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setError("Максимальный размер изображения — 10 МБ.");
-      return;
-    }
-
     setBusy(true);
     setImageAction("upload");
     setError(null);
     try {
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", await convertImageToWebp(file, { maxBytes: 10 * 1024 * 1024, maxDimension: 2048 }));
       const res = await fetch(`/api/providers/${providerId}/image`, {
         method: "POST",
         body: formData,
@@ -975,7 +966,8 @@ export function ProviderProfileEditorSection({
                   <input
                     type="file"
                     hidden
-                    accept="image/jpeg,image/png,image/webp"
+                    disabled={busy}
+                    accept={IMAGE_INPUT_ACCEPT}
                     onChange={(e) => {
                       const f = e.target.files?.[0] ?? null;
                       e.currentTarget.value = "";

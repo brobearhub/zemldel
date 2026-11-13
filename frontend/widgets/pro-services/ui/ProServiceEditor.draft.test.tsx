@@ -1,6 +1,10 @@
 import { StrictMode } from "react";
 import { ThemeProvider } from "@mui/material";
 import { render, screen, waitFor } from "@testing-library/react";
+vi.mock("@/shared/lib/image/convert-to-webp", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/shared/lib/image/convert-to-webp")>(),
+  convertImageToWebp: async (file: File) => file,
+}));
 import userEvent from "@testing-library/user-event";
 import { createAppTheme } from "@/core/theme/createAppTheme";
 import { mainService } from "@/tests/fixtures/services";

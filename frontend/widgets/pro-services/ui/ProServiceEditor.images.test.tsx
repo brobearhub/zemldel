@@ -1,6 +1,11 @@
 import { StrictMode } from "react";
 import { ThemeProvider } from "@mui/material";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import { convertImageToWebp } from "@/shared/lib/image/convert-to-webp";
+vi.mock("@/shared/lib/image/convert-to-webp", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/shared/lib/image/convert-to-webp")>(),
+  convertImageToWebp: vi.fn(async (file: File) => file),
+}));
 import userEvent from "@testing-library/user-event";
 import { createAppTheme } from "@/core/theme/createAppTheme";
 import { createSessionRecoveryFetch } from "@/core/auth/session-recovery";
@@ -56,6 +61,29 @@ describe("service photo gallery", () => {
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
   });
   afterEach(() => vi.unstubAllGlobals());
+
+  it("shows progress while converting and uploads the resulting WebP", async () => {
+    let complete!: (file: File) => void;
+    vi.mocked(convertImageToWebp).mockImplementationOnce(() => new Promise((resolve) => { complete = resolve; }));
+    const fetchMock = vi.fn(async (url: unknown, _init?: RequestInit) =>
+      String(url).endsWith("/image")
+        ? Response.json({ image: pictures(1)[0], images: pictures(1) })
+        : readResponse(url),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    mount();
+
+    await userEvent.upload(screen.getByLabelText("Фотографии услуги"), files(1));
+    expect(screen.getByText("Обрабатываем и загружаем фото…")).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/image"))).toBe(false);
+    const converted = new File(["webp"], "photo-0.webp", { type: "image/webp" });
+    await act(async () => complete(converted));
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/image"));
+      expect(call).toBeDefined();
+      expect((call?.[1]?.body as FormData).get("file")).toBe(converted);
+    });
+  });
 
   it("publishes a new service after selecting a photo and filling the empty form", async () => {
     const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {

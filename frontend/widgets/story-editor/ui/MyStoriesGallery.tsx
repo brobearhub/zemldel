@@ -20,6 +20,7 @@ import {
 } from "@/entities/story";
 
 import { PlanFeatureGate, BUSINESS_ONLY } from "@/shared/ui/PlanFeatureGate";
+import { IMAGE_INPUT_ACCEPT } from "@/shared/lib/image/convert-to-webp";
 
 const TILE_W = 200;
 export const STORY_TILE_HEIGHT = 340;
@@ -32,6 +33,7 @@ type Props = {
   completed: StoryDto[];
   lane: StoriesLane;
   busy: boolean;
+  imageProcessing?: boolean;
   previewUrl: string | null;
   previewVideo?: boolean;
   allowVideo?: boolean;
@@ -63,6 +65,7 @@ export function MyStoriesGallery({
   completed,
   lane,
   busy,
+  imageProcessing,
   previewUrl,
   previewVideo,
   allowVideo,
@@ -88,6 +91,7 @@ export function MyStoriesGallery({
       <NewStoryTile
         composing={composing}
         busy={busy}
+        imageProcessing={imageProcessing}
         previewUrl={previewUrl}
         previewVideo={previewVideo}
         allowVideo={allowVideo}
@@ -188,6 +192,7 @@ export function StoryTileRow({
 function NewStoryTile({
   composing,
   busy,
+  imageProcessing,
   previewUrl,
   previewVideo,
   allowVideo,
@@ -199,6 +204,7 @@ function NewStoryTile({
 }: {
   composing: boolean;
   busy: boolean;
+  imageProcessing?: boolean;
   previewUrl: string | null;
   previewVideo?: boolean;
   allowVideo?: boolean;
@@ -358,6 +364,7 @@ function NewStoryTile({
         <Button
           size="small"
           disabled={busy}
+          loading={imageProcessing}
           onClick={() => photoInput.current?.click()}
         >
           Фото
@@ -379,7 +386,7 @@ function NewStoryTile({
         component="input"
         ref={photoInput}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept={IMAGE_INPUT_ACCEPT}
         aria-label="Добавить фото"
         disabled={busy}
         onChange={(event) => {
