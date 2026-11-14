@@ -126,7 +126,18 @@ export class RequestRealtimeInterceptor implements NestInterceptor {
       ),
     ];
     const members = await this.prisma.providerMember.findMany({
-      where: { providerId: { in: providerIds }, status: 'ACTIVE' },
+      where: {
+        providerId: { in: providerIds },
+        status: 'ACTIVE',
+        OR: [
+          { role: { in: ['OWNER', 'MANAGER'] } },
+          {
+            assignedRequests: {
+              some: { id: requestId, providerId: request.providerId },
+            },
+          },
+        ],
+      },
       select: { userId: true },
     });
     const users = new Set(members.map((m) => m.userId));

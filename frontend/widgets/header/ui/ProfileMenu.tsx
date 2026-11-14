@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Box,
@@ -23,7 +23,11 @@ import { signOut } from "next-auth/react";
 import { buildSignInHref } from "@/core/auth/session-recovery";
 import { useAppSelector } from "@/core/store/hooks";
 import { ProfileAvatar } from "./ProfileAvatar";
-import { CUSTOMER_NAV } from "@/widgets/cabinet-chrome/model/nav-config";
+import {
+  CUSTOMER_FAVORITES_NAV,
+  CUSTOMER_HOME_NAV,
+  CUSTOMER_NAV,
+} from "@/widgets/cabinet-chrome/model/nav-config";
 import {
   getActiveMembership,
   resolveAccountKind,
@@ -74,6 +78,12 @@ function buildReturnTo(
 }
 
 const menuIconSx = { mr: 1.5, fontSize: 20 } as const;
+
+const customerMenuGroups = [
+  { key: "home", label: null, items: [CUSTOMER_HOME_NAV] },
+  { key: "cabinet", label: null, items: CUSTOMER_NAV.desktop },
+  { key: "favorites", label: "Избранное", items: CUSTOMER_FAVORITES_NAV },
+] as const;
 
 /** Why: outline не входит в размер аватара и не сдвигает шапку. */
 const proAvatarRingSx = {
@@ -201,6 +211,7 @@ export const ProfileMenu = ({
     searchParams: new URLSearchParams(searchParams.toString()),
   };
   const activeMembership = isProviderAccount ? getActiveMembership(user) : null;
+  const isEmployee = activeMembership?.role === "EMPLOYEE";
   const providerIdentity = activeMembership
     ? formatProviderIdentity(activeMembership)
     : null;
@@ -326,11 +337,11 @@ export const ProfileMenu = ({
   };
 
   const handleProDashboard = () => {
-    closeAndGo(() => router.push("/pro/requests/feed"));
+    closeAndGo(() => router.push(isEmployee ? "/pro/assigned" : "/pro/requests/feed"));
   };
 
   const handleProviderProfile = () => {
-    closeAndGo(() => router.push("/pro/settings/profile"));
+    closeAndGo(() => router.push(isEmployee ? "/pro/assigned" : "/pro/settings/profile"));
   };
 
   const handleAdmin = () => {
@@ -349,20 +360,37 @@ export const ProfileMenu = ({
   const inlineActions = isAuthenticated ? (
     <Box sx={actionsListSx}>
       {showCustomerCabinet
-        ? CUSTOMER_NAV.desktop.map((item) => (
-            <Box
-              key={item.key}
-              component="button"
-              type="button"
-              onClick={() => closeAndGo(() => router.push(item.href))}
-              aria-current={
-                item.isActive(customerNavContext) ? "page" : undefined
-              }
-              sx={rowSx}
-            >
-              {item.icon}
-              {item.key === "profile" ? "Мой профиль" : item.label}
-            </Box>
+        ? customerMenuGroups.map((group) => (
+            <Fragment key={group.key}>
+              {group.label ? (
+                <Typography
+                  component="div"
+                  sx={{
+                    px: 1,
+                    pt: 1,
+                    color: "text.secondary",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  {group.label}
+                </Typography>
+              ) : null}
+              {group.items.map((item) => (
+                <Box
+                  key={item.key}
+                  component="button"
+                  type="button"
+                  onClick={() => closeAndGo(() => router.push(item.href))}
+                  aria-current={
+                    item.isActive(customerNavContext) ? "page" : undefined
+                  }
+                  sx={rowSx}
+                >
+                  {item.icon}
+                  {item.key === "profile" ? "Мой профиль" : item.label}
+                </Box>
+              ))}
+            </Fragment>
           ))
         : null}
       {showProviderCabinet ? (
@@ -504,7 +532,7 @@ export const ProfileMenu = ({
             sx={menuItemSx(pathname === "/pro/settings/profile")}
           >
             <WorkOutlineOutlinedIcon sx={menuIconSx} />
-            Профиль исполнителя
+            {isEmployee ? "Назначенные заявки" : "Профиль исполнителя"}
           </MenuItem>
           <MenuItem
             onClick={handleSignOut}
@@ -526,7 +554,7 @@ export const ProfileMenu = ({
       <Tooltip title={`Мой профиль · ${currentIdentity.title}`}>
         <Box
           component={Link}
-          href={activeMembership ? "/pro/settings/profile" : "/providers/new"}
+          href={isEmployee ? "/pro/settings/account" : activeMembership ? "/pro/settings/profile" : "/providers/new"}
           aria-label="Мой профиль"
           onClick={onNavigate}
           sx={{
@@ -595,29 +623,41 @@ export const ProfileMenu = ({
           },
         }}
       >
-        {isAuthenticated ? (
-          <Tooltip title={avatarTooltip}>
-            <ProfileAvatar
-              src={avatarSrc}
-              sizes="(min-width: 600px) 32px, 28px"
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            height: { xs: 28, sm: 32 },
+          }}
+        >
+          {isAuthenticated ? (
+            <Tooltip title={avatarTooltip}>
+              <ProfileAvatar
+                src={avatarSrc}
+                sizes="(min-width: 600px) 32px, 28px"
+                sx={{
+                  width: { xs: 28, sm: 32 },
+                  height: { xs: 28, sm: 32 },
+                  bgcolor: "primary.main",
+                  color: "primary.contrastText",
+                  fontSize: { xs: "1rem", sm: "1rem" },
+                  fontWeight: 600,
+                  ...(showProRing ? proAvatarRingSx : null),
+                }}
+              >
+                {initials}
+              </ProfileAvatar>
+            </Tooltip>
+          ) : (
+            <PersonOutlineRoundedIcon
               sx={{
-                width: { xs: 28, sm: 32 },
-                height: { xs: 28, sm: 32 },
-                bgcolor: "primary.main",
-                color: "primary.contrastText",
-                fontSize: { xs: "1rem", sm: "1rem" },
-                fontWeight: 600,
-                ...(showProRing ? proAvatarRingSx : null),
+                fontSize: { xs: 22, sm: 24 },
+                color: "info.main",
               }}
-            >
-              {initials}
-            </ProfileAvatar>
-          </Tooltip>
-        ) : (
-          <PersonOutlineRoundedIcon
-            sx={{ fontSize: { xs: 22, sm: 24 }, color: "info.main" }}
-          />
-        )}
+            />
+          )}
+        </Box>
         {showLabel ? (
           <Typography
             className="nav-label"
@@ -734,29 +774,46 @@ export const ProfileMenu = ({
               </Box>
               <Divider />
               {showCustomerCabinet
-                ? CUSTOMER_NAV.desktop.map((item) => (
-                    <MenuItem
-                      key={item.key}
-                      onClick={() => closeAndGo(() => router.push(item.href))}
-                      aria-current={
-                        item.isActive(customerNavContext) ? "page" : undefined
-                      }
-                      sx={menuItemSx(item.isActive(customerNavContext))}
-                    >
-                      <Box
-                        component="span"
-                        sx={{
-                          ...menuIconSx,
-                          display: "inline-flex",
-                          "& .MuiSvgIcon-root": {
-                            fontSize: "inherit",
-                          },
-                        }}
-                      >
-                        {item.icon}
-                      </Box>
-                      {item.key === "profile" ? "Мой профиль" : item.label}
-                    </MenuItem>
+                ? customerMenuGroups.map((group) => (
+                    <Fragment key={group.key}>
+                      {group.label ? (
+                        <Typography
+                          component="div"
+                          sx={{
+                            px: 2,
+                            pt: 1,
+                            color: "text.secondary",
+                            fontSize: "0.875rem",
+                          }}
+                        >
+                          {group.label}
+                        </Typography>
+                      ) : null}
+                      {group.items.map((item) => (
+                        <MenuItem
+                          key={item.key}
+                          onClick={() => closeAndGo(() => router.push(item.href))}
+                          aria-current={
+                            item.isActive(customerNavContext) ? "page" : undefined
+                          }
+                          sx={menuItemSx(item.isActive(customerNavContext))}
+                        >
+                          <Box
+                            component="span"
+                            sx={{
+                              ...menuIconSx,
+                              display: "inline-flex",
+                              "& .MuiSvgIcon-root": {
+                                fontSize: "inherit",
+                              },
+                            }}
+                          >
+                            {item.icon}
+                          </Box>
+                          {item.key === "profile" ? "Мой профиль" : item.label}
+                        </MenuItem>
+                      ))}
+                    </Fragment>
                   ))
                 : null}
               {showProviderCabinet ? (

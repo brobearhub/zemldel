@@ -16,6 +16,20 @@ describe.each([
 ] as const)("public provider lookup by %s", (_, lookup) => {
   beforeEach(() => vi.resetAllMocks());
 
+  it("preserves the provider work geography from the API", async () => {
+    const serviceGeography = [
+      { id: "local", title: "Межевание", places: [{ kind: "city", cityId: "ekb", name: "Екатеринбург", regionCode: "66", regionName: "Свердловская область" }] },
+      { id: "national", title: "Консультация", places: [{ kind: "region", name: "Вся Россия", regionCode: "RU", regionName: "Вся Россия" }] },
+    ];
+    vi.mocked(fetchBackendJson).mockResolvedValue({
+      id: "11111111-1111-4111-8111-111111111111",
+      name: "Иван П.", slug: "ivan-p", type: "INDIVIDUAL", rating: null,
+      reviewCount: 0, city: null, subtitle: "", verified: false,
+      availabilityLabel: "", stats: [], serviceGeography,
+    });
+    expect((await lookup("ivan-p"))?.serviceGeography).toEqual(serviceGeography);
+  });
+
   it("returns null only when the provider does not exist", async () => {
     vi.mocked(fetchBackendJson).mockRejectedValue(new BackendApiError("Missing", 404, null));
     await expect(lookup("missing")).resolves.toBeNull();

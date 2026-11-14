@@ -164,9 +164,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     };
   }
 
-  emitMessageCreated(conversationId: string, payload: unknown) {
+  emitMessageCreated(
+    conversationId: string,
+    payload: unknown,
+    participantIds?: string[],
+  ) {
     this.server
-      .to(`${CONVERSATION_PREFIX}${conversationId}`)
+      .to(
+        participantIds
+          ? participantIds.map((id) => `${USER_PREFIX}${id}`)
+          : `${CONVERSATION_PREFIX}${conversationId}`,
+      )
       .emit('message.created', payload);
   }
 

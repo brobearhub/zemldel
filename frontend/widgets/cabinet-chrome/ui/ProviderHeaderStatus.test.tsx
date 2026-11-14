@@ -1,6 +1,8 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProviderHeaderStatus } from "./ProviderHeaderStatus";
+import { CabinetHeaderStatus } from "./CabinetHeaderStatus";
+import { CustomerNotificationsButton } from "./CustomerNotificationsButton";
 
 describe("provider header status", () => {
   beforeEach(() => {
@@ -53,4 +55,24 @@ describe("provider header status", () => {
     expect(screen.getByText("12:01")).toBeInTheDocument();
     unmount();
   });
+
+  it("shows the same updating time and date with customer notifications", () => {
+    vi.setSystemTime(new Date(2026, 10, 8, 23, 59, 59, 500));
+    render(<CabinetHeaderStatus notification={<CustomerNotificationsButton />} />);
+
+    expect(screen.getByText("23:59")).toBeInTheDocument();
+    expect(screen.getByText("8 ноября 2026")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Документы и доступ к паспорту" }))
+      .toHaveAttribute("href", "/profile?section=documents#passport-access");
+    expect(screen.queryByRole("link", { name: "Открыть напоминания" })).not.toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(550);
+    });
+
+    expect(screen.getByText("00:00")).toBeInTheDocument();
+    expect(screen.getByText("9 ноября 2026")).toBeInTheDocument();
+  });
 });
+
+vi.mock("@/core/store/hooks", () => ({ useAppSelector: (selector: (state: unknown) => unknown) => selector({ auth: { user: null } }) }));

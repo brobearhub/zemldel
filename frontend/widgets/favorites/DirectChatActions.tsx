@@ -13,7 +13,7 @@ export function DirectChatActions({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  async function act(action: "decline" | "block" | "resume") {
+  async function act(action: "accept" | "decline" | "block" | "resume") {
     setBusy(true);
     setError("");
     try {
@@ -42,7 +42,7 @@ export function DirectChatActions({
       <Alert severity="info">
         Исполнитель написал, потому что вы сохранили его профиль или услугу.{" "}
         {state === "WAITING"
-          ? "Ответ откроет двустороннюю переписку."
+          ? "Ответьте или нажмите «Вступить в переписку», чтобы начать диалог."
           : state === "BLOCKED"
             ? "Вы заблокировали прямые обращения этого исполнителя."
             : state === "DECLINED"
@@ -57,13 +57,24 @@ export function DirectChatActions({
         sx={{ flexWrap: "wrap" }}
       >
         {state === "WAITING" ? (
-          <Button
-            size="small"
-            disabled={busy}
-            onClick={() => void act("decline")}
-          >
-            Отклонить обращение
-          </Button>
+          <>
+            <Button
+              size="small"
+              disabled={busy}
+              onClick={() => void act("accept")}
+              sx={{ color: "text.secondary" }}
+            >
+              Вступить в переписку
+            </Button>
+            <Button
+              size="small"
+              disabled={busy}
+              onClick={() => void act("decline")}
+              sx={{ color: "text.secondary" }}
+            >
+              Отклонить обращение
+            </Button>
+          </>
         ) : null}
         {state !== "BLOCKED" ? (
           <Button

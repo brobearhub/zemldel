@@ -33,6 +33,14 @@ function isProfileSection(searchParams: URLSearchParams, section: string) {
   return (searchParams.get("section") ?? "requests") === section;
 }
 
+export const CUSTOMER_HOME_NAV: CabinetNavItem = {
+  key: "home",
+  label: "Главная",
+  href: "/",
+  icon: <HomeOutlinedIcon />,
+  isActive: ({ pathname }) => pathname === "/",
+};
+
 export const CUSTOMER_NAV: {
   desktop: readonly CabinetNavItem[];
   mobileTop: readonly CabinetNavItem[];
@@ -286,4 +294,11 @@ export const CUSTOMER_FAVORITES_NAV: readonly CabinetNavItem[] = [
   { key: "favorite-services", label: "Услуги", href: "/profile/favorites/services", icon: <FavoriteBorderRoundedIcon />, isActive: ({ pathname }) => pathname === "/profile/favorites/services" },
   { key: "favorite-providers", label: "Исполнители", href: "/profile/favorites/providers", icon: <PersonOutlineOutlinedIcon />, isActive: ({ pathname }) => pathname === "/profile/favorites/providers" },
   { key: "favorite-stories", label: "Сторис", href: "/profile?section=stories&view=saved", icon: <DataSaverOnIcon />, isActive: ({ pathname, searchParams }) => pathname === "/profile" && searchParams.get("section") === "stories" && searchParams.get("view") === "saved" },
+];
+
+export const EMPLOYEE_HEADER_NAV: readonly CabinetNavItem[] = [
+  {
+    key: "assigned", label: "Мои заявки", href: "/pro/assigned", icon: <DynamicFeedOutlinedIcon />,
+    isActive: ({ pathname }) => pathname.startsWith("/pro/assigned"),
+  },
 ];

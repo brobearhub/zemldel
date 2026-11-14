@@ -1,5 +1,6 @@
 "use client";
 
+import { RequestAssignment } from "@/widgets/provider-team/RequestAssignee";
 import { OrderPassportPanel } from "./OrderPassportPanel";
 import {
   RequestUnavailableNotice,
@@ -773,6 +774,16 @@ export function ProRequestDetails({
 
   return (
     <Stack spacing={2}>
+      {req.status !== "CLOSED" && req.status !== "CANCELLED" ? (
+        <RequestAssignment
+          key={req.id}
+          requestId={req.id}
+          providerId={req.providerId}
+          providerName={req.providerName}
+          member={req.assignedMember}
+          onChange={(assignedMember) => setReq((current) => ({ ...current, assignedMember }))}
+        />
+      ) : null}
       <RequestDetailPanelLayer
         open={isPanelOpen}
         title={panelTitle}

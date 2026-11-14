@@ -211,11 +211,15 @@ describe("ProfileMenu", () => {
     await user.click(screen.getByRole("button", { name: "Профиль" }));
 
     expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+      "Главная",
       "Чаты",
       "Заявки",
       "Документы",
       "Сторисы",
       "Мой профиль",
+      "Услуги",
+      "Исполнители",
+      "Сторис",
       "Выйти",
     ]);
     expect(screen.getAllByRole("menuitem").filter((item) => item.getAttribute("aria-current") === "page"))
@@ -226,6 +230,27 @@ describe("ProfileMenu", () => {
     expect(navigation.push).toHaveBeenCalledWith(`/profile?section=${section}`);
     expect(onNavigate).toHaveBeenCalledOnce();
     expect(screen.getByRole("button", { name: "Профиль" })).not.toHaveAttribute("aria-expanded");
+  });
+
+  it.each([
+    ["Главная", "/"],
+    ["Чаты", "/profile/chats"],
+    ["Заявки", "/profile?section=requests"],
+    ["Документы", "/profile?section=documents"],
+    ["Сторисы", "/profile?section=stories"],
+    ["Мой профиль", "/profile?section=profile"],
+    ["Услуги", "/profile/favorites/services"],
+    ["Исполнители", "/profile/favorites/providers"],
+    ["Сторис", "/profile?section=stories&view=saved"],
+  ])("открывает ссылку из сайдбара «%s»", async (label, href) => {
+    const onNavigate = vi.fn();
+    const { user } = renderWithAuthState("customer", { onNavigate });
+
+    await user.click(screen.getByRole("button", { name: "Профиль" }));
+    await user.click(screen.getByRole("menuitem", { name: label }));
+
+    expect(navigation.push).toHaveBeenCalledWith(href);
+    expect(onNavigate).toHaveBeenCalledOnce();
   });
 
   it.each(["inline", "sheet"] as const)(
@@ -240,6 +265,11 @@ describe("ProfileMenu", () => {
       expect(screen.getByRole("button", { name: "Заявки" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Документы" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Сторисы" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Главная" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Услуги" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Исполнители" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Сторис" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "О проекте и контакты" })).not.toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: "Мой профиль" }));
 
       expect(navigation.push).toHaveBeenCalledWith("/profile?section=profile");

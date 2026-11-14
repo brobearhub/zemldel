@@ -23,6 +23,8 @@ import { siteOrigin } from "@/shared/lib/site-origin";
 import { publicPageMetadata, serializeJsonLd } from "@/shared/lib/seo";
 import { ProviderPublicHero } from "@/views/provider-page";
 import { HomeStoriesStrip } from "@/widgets/home-stories";
+import { ProviderTeam } from "@/widgets/provider-team/ProviderTeam";
+import { ProviderWorkPlaces } from "@/widgets/provider-work-places/ui/ProviderWorkPlaces";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -132,6 +134,8 @@ export default async function ProviderPublicPage({ params }: Props) {
       <Container maxWidth="lg" sx={{ pt: { xs: 4, md: 6 }, pb: SITE_PAGE_PB }}>
         <HomeStoriesStrip providerId={provider.id} />
         <Stack spacing={4}>
+          <ProviderTeam members={provider.team} />
+          <ProviderWorkPlaces services={provider.serviceGeography} />
           <Stack spacing={2}>
             <Typography component="h2" variant="h5">
               Услуги

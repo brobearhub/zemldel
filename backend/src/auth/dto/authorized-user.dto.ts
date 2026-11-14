@@ -27,6 +27,9 @@ export class AuthPersonDto {
 }
 
 export class AuthMembershipDto {
+  @ApiProperty({ nullable: true })
+  jobTitle!: string | null;
+
   @ApiProperty({ format: 'uuid' })
   providerId!: string;
 
@@ -48,8 +51,8 @@ export class AuthMembershipDto {
   @ApiProperty({ type: () => AuthPersonDto, nullable: true })
   providerPerson!: AuthPersonDto | null;
 
-  @ApiProperty({ enum: ['OWNER', 'MANAGER'] })
-  role!: 'OWNER' | 'MANAGER';
+  @ApiProperty({ enum: ['OWNER', 'MANAGER', 'EMPLOYEE'] })
+  role!: 'OWNER' | 'MANAGER' | 'EMPLOYEE';
 
   @ApiProperty({ enum: ['INVITED', 'ACTIVE', 'SUSPENDED'] })
   status!: 'INVITED' | 'ACTIVE' | 'SUSPENDED';

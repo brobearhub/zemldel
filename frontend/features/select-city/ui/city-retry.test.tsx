@@ -1,13 +1,48 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { LocationPicker } from "./LocationPicker";
 import { CityAutocomplete } from "@/shared/ui/CityAutocomplete";
-import { ServiceGeographyField } from "@/features/select-service-places/ui/ServiceGeographyField";
+import { ServiceGeographyField, ServicePlaceChips } from "@/features/select-service-places/ui/ServiceGeographyField";
 
 const city = { id: "kazan", name: "Казань", regionCode: "16", regionName: "Татарстан", displayName: "Казань", featured: false };
 const retryName = "Попробуйте еще раз";
+const selectedCity = { kind: "city" as const, cityId: city.id, name: city.name, regionCode: city.regionCode, regionName: city.regionName };
+const selectedRegion = { kind: "region" as const, name: "Республика Татарстан", regionCode: "16", regionName: "Республика Татарстан" };
 
 beforeEach(() => {
   Element.prototype.scrollTo = vi.fn();
+});
+
+it("replaces a selected city when its entire region is added", async () => {
+  const onChange = vi.fn();
+  vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+    regions: [selectedRegion],
+    cities: [{ ...city, kind: "city" }],
+    hasMore: false,
+  })));
+  render(<ServiceGeographyField value={[selectedCity]} onChange={onChange} />);
+  fireEvent.change(screen.getByRole("combobox"), { target: { value: "Татарстан" } });
+  fireEvent.click(await screen.findByRole("option"));
+  expect(onChange).toHaveBeenCalledWith([selectedRegion]);
+});
+
+it("does not offer cities already covered by a selected region", async () => {
+  const other = { ...city, id: "kirov", name: "Киров", regionCode: "43", regionName: "Кировская область", kind: "city" };
+  vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+    regions: [], cities: [{ ...city, kind: "city" }, other], hasMore: false,
+  })));
+  render(<ServiceGeographyField value={[selectedRegion]} onChange={vi.fn()} />);
+  fireEvent.change(screen.getByRole("combobox"), { target: { value: "Ка" } });
+  const option = await screen.findByRole("option");
+  expect(option).toHaveTextContent("Киров");
+  expect(screen.queryByText("Казань")).not.toBeInTheDocument();
+});
+
+it("does not restore hidden legacy cities after removing their region", () => {
+  const onChange = vi.fn();
+  render(<ServicePlaceChips value={[selectedCity, selectedRegion]} onChange={onChange} />);
+  expect(screen.queryByText("Казань")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByTestId("CancelIcon"));
+  expect(onChange).toHaveBeenCalledWith([]);
 });
 afterEach(() => {
   cleanup();

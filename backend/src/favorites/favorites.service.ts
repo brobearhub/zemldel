@@ -268,6 +268,7 @@ export class FavoritesService {
         firstName: true,
         lastName: true,
         name: true,
+        customerCity: { select: { name: true } },
         favoriteProviders: {
           where: { providerId },
           select: { providerId: true },
@@ -289,6 +290,7 @@ export class FavoritesService {
       return {
         customerId: user.id,
         name: shortCustomerName(user),
+        city: user.customerCity,
         savedAt: row.savedAt.toISOString(),
         profile: user.favoriteProviders.length > 0,
         services: user.favoriteServices.map((f) => ({

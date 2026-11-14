@@ -61,7 +61,7 @@ export class DirectChatService {
         providerId_userId: { providerId: conversation.providerId, userId },
       },
     });
-    if (member?.status !== 'ACTIVE')
+    if (member?.status !== 'ACTIVE' || member.role === 'EMPLOYEE')
       throw new ForbiddenException('Нет доступа к диалогу');
     return 'provider' as const;
   }
@@ -226,7 +226,7 @@ export class DirectChatService {
   async changeState(
     userId: string,
     conversationId: string,
-    action: 'decline' | 'block' | 'resume',
+    action: 'accept' | 'decline' | 'block' | 'resume',
   ) {
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "Conversation" WHERE id = ${conversationId}::uuid FOR UPDATE`;
@@ -238,6 +238,13 @@ export class DirectChatService {
       const side = await this.authorize(tx, userId, conversation);
       if (side !== 'customer')
         throw new ForbiddenException('Действие доступно только клиенту');
+      if (
+        action === 'accept' &&
+        !['WAITING', 'ACTIVE'].includes(conversation.directState ?? '')
+      )
+        throw new BadRequestException(
+          'Сначала возобновите отклонённую или заблокированную переписку',
+        );
       if (
         action === 'decline' &&
         !['WAITING', 'DECLINED'].includes(conversation.directState ?? '')
@@ -262,7 +269,7 @@ export class DirectChatService {
           ? 'BLOCKED'
           : action === 'decline'
             ? 'DECLINED'
-            : customerHasReplied
+            : action === 'accept' || customerHasReplied
               ? 'ACTIVE'
               : 'WAITING';
       await tx.conversation.update({

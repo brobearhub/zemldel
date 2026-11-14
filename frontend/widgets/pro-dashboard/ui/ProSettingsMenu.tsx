@@ -1,5 +1,7 @@
 "use client";
 
+import { getActiveMembership } from "@/core/auth/authorization";
+import { useAppSelector } from "@/core/store/hooks";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
@@ -42,6 +44,7 @@ const rowSx = {
 
 export function ProSettingsMenu({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const isEmployee = useAppSelector((state) => getActiveMembership(state.auth.user)?.role === "EMPLOYEE");
   const id = useId();
   const { mode, toggleMode } = useColorMode();
   const [templatesOpen, setTemplatesOpen] = useState(false);
@@ -71,8 +74,9 @@ export function ProSettingsMenu({ onNavigate }: { onNavigate?: () => void }) {
   );
   return (
     <List disablePadding aria-label="Разделы настроек">
-      {link("/pro/settings/profile", "Мой профиль", <PersonOutlineIcon />)}
+      {!isEmployee ? link("/pro/settings/profile", "Мой профиль", <PersonOutlineIcon />) : null}
       {link("/pro/settings/account", "Мои данные", <PersonOutlineIcon />)}
+      {!isEmployee ? <>
       {link("/pro/settings/promotion", "Продвижение", <TrendingUpIcon />)}
       <ListItemButton
         onClick={() => setTemplatesOpen(!templatesOpen)}
@@ -92,8 +96,9 @@ export function ProSettingsMenu({ onNavigate }: { onNavigate?: () => void }) {
           {link("/pro/settings/templates/stage-statuses", "Статусы этапов")}
         </Box>
       </Collapse>
+      </> : null}
       {link("/pro/settings/messengers", "Мессенджеры", <ChatOutlinedIcon />)}
-      {link("/pro/settings/tariff", "Тариф", <LocalOfferOutlinedIcon />)}
+      {!isEmployee ? link("/pro/settings/tariff", "Тариф", <LocalOfferOutlinedIcon />) : null}
       <ListItemButton
         role="switch"
         aria-label="Тема"

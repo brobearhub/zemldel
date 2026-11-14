@@ -46,6 +46,7 @@ const userAuthSelect = {
     where: { status: 'ACTIVE' as const },
     select: {
       role: true,
+      jobTitle: true,
       status: true,
       provider: {
         select: {
@@ -92,6 +93,7 @@ export class AuthService {
 
   private normalizeMemberships(
     memberships: Array<{
+      jobTitle?: string | null;
       role: AuthMembership['role'];
       status: AuthMembership['status'];
       provider: {
@@ -117,6 +119,7 @@ export class AuthService {
       providerCity: membership.provider.city,
       providerImage: membership.provider.image,
       providerPerson: toAuthPerson(membership.provider.legalProfile),
+      jobTitle: membership.jobTitle ?? null,
       role: membership.role,
       status: membership.status,
     }));

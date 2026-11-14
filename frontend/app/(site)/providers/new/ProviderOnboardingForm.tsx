@@ -27,6 +27,7 @@ import {
   type ProviderOnboardingFieldErrors,
   type ProviderOnboardingType,
 } from "./validate-provider-onboarding";
+import { JobTitleField } from "@/shared/ui/JobTitleField";
 import { AvatarPickerField } from "./AvatarPickerField";
 
 const TYPE_OPTIONS: Array<{ value: ProviderOnboardingType; label: string }> = [
@@ -40,6 +41,7 @@ export function ProviderOnboardingForm() {
   const router = useRouter();
   const { update: updateSession } = useSession();
   const [type, setType] = useState<ProviderOnboardingType | null>(null);
+  const [jobTitle, setJobTitle] = useState("");
   const [lastName, setLastName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [middleName, setMiddleName] = useState("");
@@ -137,6 +139,7 @@ export function ProviderOnboardingForm() {
 
     const nextErrors = validateProviderOnboarding({
       type,
+      jobTitle,
       cityId: city?.id ?? null,
       lastName,
       firstName,
@@ -161,6 +164,7 @@ export function ProviderOnboardingForm() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           type,
+          jobTitle: jobTitle.trim(),
           cityId: city.id,
           offerVersion,
           legal: isCompany
@@ -385,6 +389,15 @@ export function ProviderOnboardingForm() {
                       </Stack>
                     ) : null}
 
+                    <JobTitleField
+                      value={jobTitle}
+                      onChange={(value) => {
+                        setJobTitle(value);
+                        clearField("jobTitle");
+                      }}
+                      error={fieldErrors.jobTitle}
+                      disabled={loading}
+                    />
                     <LocationField
                       label="Город"
                       emptyLabel="Выберите город"

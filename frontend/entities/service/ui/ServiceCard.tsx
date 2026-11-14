@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { Box, Paper, Typography } from "@mui/material";
 import { brown } from "@mui/material/colors";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
@@ -113,13 +113,56 @@ function ServiceCardBadge({
   color: ServicePaletteColor | null;
   compact: boolean;
 }) {
+  const badgeRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    const badge = badgeRef.current;
+    const text = textRef.current;
+    const image = badge?.parentElement;
+    if (!badge || !text || !image) return;
+
+    let active = true;
+    const fitToText = () => {
+      if (!active) return;
+      badge.style.width = "max-content";
+      const range = document.createRange();
+      range.selectNodeContents(text);
+      if (typeof range.getClientRects !== "function") return;
+      const lines = Array.from(range.getClientRects());
+      if (lines.length < 2) return;
+
+      const styles = getComputedStyle(badge);
+      const padding =
+        parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
+      badge.style.width = `${Math.ceil(
+        Math.max(...lines.map((line) => line.width)) + padding,
+      )}px`;
+    };
+
+    fitToText();
+    const observer =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(fitToText);
+    if (observer) observer.observe(image);
+    else window.addEventListener("resize", fitToText);
+    void document.fonts?.ready.then(fitToText);
+
+    return () => {
+      active = false;
+      observer?.disconnect();
+      window.removeEventListener("resize", fitToText);
+    };
+  }, [label]);
+
   return (
     <Box
+      ref={badgeRef}
       sx={{
         position: "absolute",
         right: 0,
         top: 12,
         minHeight: compact ? 28 : 36,
+        boxSizing: "border-box",
         maxWidth: "calc(100% - 16px)",
         py: compact ? 0 : 0.75,
         pl: 1.5,
@@ -138,7 +181,7 @@ function ServiceCardBadge({
         overflowWrap: "anywhere",
       }}
     >
-      {label}
+      <span ref={textRef}>{label}</span>
     </Box>
   );
 }

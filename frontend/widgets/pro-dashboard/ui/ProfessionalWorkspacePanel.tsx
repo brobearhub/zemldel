@@ -7,7 +7,6 @@ import {
   useRef,
   useState,
   type ChangeEvent,
-  type FormEvent,
 } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -25,31 +24,9 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import HighlightOffIcon from "@mui/icons-material/HighlightOff";
 import BusinessCenterOutlinedIcon from "@mui/icons-material/BusinessCenterOutlined";
-import PeopleOutlineOutlinedIcon from "@mui/icons-material/PeopleOutlineOutlined";
+import { ProviderTeamManagement, providerRoleLabel, type ProviderMembersResponse } from "@/widgets/provider-team/ProviderTeamManagement";
 import { useAppSelector } from "@/core/store/hooks";
 import type { AuthMembership } from "@/core/auth/authorization";
-
-type ProviderMemberRecord = {
-  id: string;
-  role: "OWNER" | "MANAGER";
-  status: "INVITED" | "ACTIVE" | "SUSPENDED";
-  createdAt: string;
-  updatedAt: string;
-  user: {
-    id: string;
-    email: string;
-    name: string | null;
-    image: string | null;
-  };
-};
-
-type ProviderMembersResponse = {
-  id: string;
-  name: string;
-  slug: string;
-  type: "INDIVIDUAL" | "SELF_EMPLOYED" | "SOLE_PROPRIETOR" | "COMPANY";
-  members: ProviderMemberRecord[];
-};
 
 function providerTypeLabel(type: AuthMembership["providerType"]) {
   switch (type) {
@@ -64,12 +41,6 @@ function providerTypeLabel(type: AuthMembership["providerType"]) {
   }
 }
 
-function providerRoleLabel(
-  role: AuthMembership["role"] | ProviderMemberRecord["role"],
-) {
-  return role === "OWNER" ? "владелец" : "менеджер";
-}
-
 export function ProfessionalWorkspacePanel() {
   const router = useRouter();
   const { user } = useAppSelector((state) => state.auth);
@@ -80,11 +51,6 @@ export function ProfessionalWorkspacePanel() {
   const [switchingProviderId, setSwitchingProviderId] = useState<string | null>(
     null,
   );
-  const [managerEmail, setManagerEmail] = useState("");
-  const [managerError, setManagerError] = useState<string | null>(null);
-  const [managerSuccess, setManagerSuccess] = useState<string | null>(null);
-  const [managerLoading, setManagerLoading] = useState(false);
-
   const [slugEditing, setSlugEditing] = useState(false);
   const [slugValue, setSlugValue] = useState("");
   const [slugChecking, setSlugChecking] = useState(false);
@@ -140,7 +106,7 @@ export function ProfessionalWorkspacePanel() {
               "error" in payload &&
               typeof payload.error === "string"
               ? payload.error
-              : "Не удалось загрузить участников provider",
+              : "Не удалось загрузить команду исполнителя",
           );
         }
 
@@ -152,7 +118,7 @@ export function ProfessionalWorkspacePanel() {
           setMembersError(
             error instanceof Error
               ? error.message
-              : "Не удалось загрузить участников provider",
+              : "Не удалось загрузить команду исполнителя",
           );
           setProviderMembers(null);
         }
@@ -183,7 +149,7 @@ export function ProfessionalWorkspacePanel() {
       } | null;
 
       if (!response.ok) {
-        throw new Error(payload?.error ?? "Не удалось переключить provider");
+        throw new Error(payload?.error ?? "Не удалось переключить профиль");
       }
 
       router.refresh();
@@ -191,7 +157,7 @@ export function ProfessionalWorkspacePanel() {
       setMembersError(
         error instanceof Error
           ? error.message
-          : "Не удалось переключить provider",
+          : "Не удалось переключить профиль",
       );
     } finally {
       setSwitchingProviderId(null);
@@ -284,65 +250,6 @@ export function ProfessionalWorkspacePanel() {
       setSlugError("Не удалось обновить slug");
     } finally {
       setSlugSaving(false);
-    }
-  }
-
-  async function handleAddManager(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!activeMembership?.providerId) return;
-
-    setManagerLoading(true);
-    setManagerError(null);
-    setManagerSuccess(null);
-
-    try {
-      const response = await fetch(
-        `/api/providers/${activeMembership.providerId}/members`,
-        {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({ email: managerEmail }),
-        },
-      );
-      const payload = (await response.json().catch(() => null)) as
-        | { error?: string }
-        | ProviderMemberRecord
-        | null;
-
-      if (!response.ok) {
-        throw new Error(
-          payload &&
-            typeof payload === "object" &&
-            "error" in payload &&
-            typeof payload.error === "string"
-            ? payload.error
-            : "Не удалось добавить менеджера",
-        );
-      }
-
-      setManagerEmail("");
-      setManagerSuccess("Менеджер добавлен в профиль исполнителя");
-
-      const membersResponse = await fetch(
-        `/api/providers/${activeMembership.providerId}/members`,
-        {
-          cache: "no-store",
-        },
-      );
-      const membersPayload =
-        (await membersResponse.json()) as ProviderMembersResponse;
-      setProviderMembers(membersPayload);
-    } catch (error) {
-      setManagerError(
-        error instanceof Error
-          ? error.message
-          : "Не удалось добавить менеджера",
-      );
-    } finally {
-      setManagerLoading(false);
     }
   }
 
@@ -458,10 +365,10 @@ export function ProfessionalWorkspacePanel() {
                   </Stack>
                 ) : (
                   <Stack
-                    direction="row"
+                    direction={{ xs: "column", sm: "row" }}
                     spacing={0.5}
                     sx={{
-                      alignItems: "center",
+                      alignItems: { xs: "flex-start", sm: "center" },
                       mt: 0.25,
                     }}
                   >
@@ -469,6 +376,7 @@ export function ProfessionalWorkspacePanel() {
                       variant="body2"
                       sx={{
                         color: "text.secondary",
+                        overflowWrap: "anywhere",
                       }}
                     >
                       Адрес профиля: <b>{providerMembers.slug}</b>
@@ -478,7 +386,13 @@ export function ProfessionalWorkspacePanel() {
                         size="small"
                         startIcon={<EditOutlinedIcon fontSize="small" />}
                         onClick={handleSlugEditStart}
-                        sx={{ minWidth: 0, p: 0.25, fontSize: "1rem" }}
+                        sx={{
+                          minWidth: 0,
+                          p: 0.25,
+                          fontSize: "1rem",
+                          flexShrink: 0,
+                          whiteSpace: "nowrap",
+                        }}
                       >
                         Изменить
                       </Button>
@@ -562,112 +476,15 @@ export function ProfessionalWorkspacePanel() {
 
         <Divider />
 
-        <Stack spacing={1.25}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <PeopleOutlineOutlinedIcon fontSize="small" color="action" />
-            <Typography
-              variant="subtitle2"
-              sx={{
-                fontWeight: 700,
-              }}
-            >
-              Команда профиля исполнителя
-            </Typography>
-          </Box>
-
-          {membersError ? <Alert severity="error">{membersError}</Alert> : null}
-
-          {membersLoading ? (
-            <Typography
-              variant="body2"
-              sx={{
-                color: "text.secondary",
-              }}
-            >
-              Загрузка участников...
-            </Typography>
-          ) : providerMembers?.members?.length ? (
-            <Stack spacing={1}>
-              {providerMembers.members.map((member) => (
-                <Paper key={member.id} variant="outlined" sx={{ p: 1.5 }}>
-                  <Stack spacing={0.5}>
-                    <Typography
-                      sx={{
-                        fontWeight: 600,
-                      }}
-                    >
-                      {member.user.name || member.user.email}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: "text.secondary",
-                      }}
-                    >
-                      {member.user.email}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: "text.secondary",
-                      }}
-                    >
-                      {providerRoleLabel(member.role)}
-                    </Typography>
-                  </Stack>
-                </Paper>
-              ))}
-            </Stack>
-          ) : (
-            <Typography
-              variant="body2"
-              sx={{
-                color: "text.secondary",
-              }}
-            >
-              В этом профиле исполнителя пока нет участников.
-            </Typography>
-          )}
-
-          {isActiveOwner ? (
-            <Paper variant="outlined" sx={{ p: 1.5 }}>
-              <Stack component="form" spacing={1.5} onSubmit={handleAddManager}>
-                <Typography
-                  sx={{
-                    fontWeight: 700,
-                  }}
-                >
-                  Добавить менеджера
-                </Typography>
-                {managerError ? (
-                  <Alert severity="error">{managerError}</Alert>
-                ) : null}
-                {managerSuccess ? (
-                  <Alert severity="success">{managerSuccess}</Alert>
-                ) : null}
-                <TextField
-                  label="Email пользователя"
-                  type="email"
-                  value={managerEmail}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                    setManagerEmail(event.target.value)
-                  }
-                  disabled={managerLoading}
-                  required
-                  fullWidth
-                  size="small"
-                />
-                <Button
-                  type="submit"
-                  variant="contained"
-                  loading={managerLoading}
-                >
-                  Добавить менеджера
-                </Button>
-              </Stack>
-            </Paper>
-          ) : null}
-        </Stack>
+        {membersError ? <Alert severity="error">{membersError}</Alert> : null}
+        {membersLoading ? <Typography>Загрузка команды…</Typography> : null}
+        <ProviderTeamManagement
+          key={activeMembership.providerId}
+          providerId={activeMembership.providerId}
+          isOwner={isActiveOwner}
+          data={providerMembers}
+          onChange={setProviderMembers}
+        />
       </Stack>
     </Paper>
   );

@@ -21,9 +21,11 @@ import {
 } from "@mui/material";
 import { favoritesJson } from "@/features/favorites/api";
 import { useAppSelector } from "@/core/store/hooks";
+import { displayCityName } from "@/shared/lib/format-city-label";
 export type InterestedCustomer = {
   customerId: string;
   name: string;
+  city?: { name: string } | null;
   profile: boolean;
   services: { id: string; title: string; available: boolean }[];
   conversationId: string | null;
@@ -153,27 +155,37 @@ export function InterestPage() {
                 gap: 2,
               }}
             >
-              <Paper sx={{ p: 2 }}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  bgcolor: "background.secondary",
+                }}
+              >
                 <Typography color="text.secondary">
-                  Заинтересованные клиенты
+                  Ваши услуги в избранном у клиентов
                 </Typography>
                 <Typography variant="h4">{data.interestedCount}</Typography>
               </Paper>
               <Paper
                 component="button"
+                elevation={0}
                 onClick={() => {
                   setFilter("profile");
                   setPage(0);
                 }}
                 sx={{
                   p: 2,
+                  bgcolor: "background.secondary",
                   textAlign: "left",
                   border: 0,
                   cursor: "pointer",
                   color: "text.primary",
                 }}
               >
-                <Typography color="text.secondary">Вы в избранном</Typography>
+                <Typography color="text.secondary">
+                  Вас добавили в избранное
+                </Typography>
                 <Typography variant="h4">{data.profileCount}</Typography>
               </Paper>
             </Box>
@@ -281,15 +293,31 @@ export function InterestPage() {
                           alignItems: "center",
                         }}
                       >
-                        <Box>
+                        <Box sx={{ minWidth: 0 }}>
                           <Typography
                             variant="caption"
                             color="text.secondary"
                           >
                             Клиент
                           </Typography>
-                          <Typography sx={{ fontWeight: 700 }}>
+                          <Typography
+                            sx={{
+                              fontWeight: 700,
+                              overflowWrap: "anywhere",
+                            }}
+                          >
                             {customer.name}
+                            {customer.city?.name.trim() ? (
+                              <Box
+                                component="span"
+                                sx={{
+                                  fontWeight: 400,
+                                  color: "text.secondary",
+                                }}
+                              >
+                                {" · "}{displayCityName(customer.city.name)}
+                              </Box>
+                            ) : null}
                           </Typography>
                         </Box>
                         <Box>
@@ -297,7 +325,7 @@ export function InterestPage() {
                             variant="caption"
                             color="text.secondary"
                           >
-                            Услуги
+                            Услуги в избранном
                           </Typography>
                           {customer.services.length ? (
                             <Box component="details">
@@ -329,7 +357,7 @@ export function InterestPage() {
                             variant="caption"
                             color="text.secondary"
                           >
-                            Профиль сохранён
+                            Профиль в избранном
                           </Typography>
                           <Typography>
                             {customer.profile ? "Да" : "—"}
@@ -354,6 +382,13 @@ export function InterestPage() {
                             <Button
                               size="small"
                               variant="outlined"
+                              sx={{
+                                color: "text.primary",
+                                borderColor: "text.primary",
+                                "&:hover": {
+                                  borderColor: "text.primary",
+                                },
+                              }}
                               onClick={() => {
                                 setSelected(customer);
                                 setBody("");

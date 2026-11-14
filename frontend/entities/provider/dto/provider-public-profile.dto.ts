@@ -1,8 +1,15 @@
 import "@/core/server/reflect-metadata";
 import { Expose, instanceToPlain, plainToInstance, Transform } from "class-transformer";
 import { IsArray, IsBoolean, IsEnum, IsInt, IsNumber, IsOptional, IsString, IsUUID, ValidateIf, validateSync, type ValidationError } from "class-validator";
+import type { ServicePlace } from "@/entities/service/lib/service-places";
 
 export type ProviderType = "INDIVIDUAL" | "SELF_EMPLOYED" | "SOLE_PROPRIETOR" | "COMPANY";
+
+export type ProviderServiceGeography = {
+  id: string;
+  title: string;
+  places: ServicePlace[];
+};
 
 export class ProviderPublicCityDto {
   @Expose()
@@ -41,6 +48,16 @@ function trimOrNull(v: unknown): string | null {
 
 export class PublicProviderProfileDto {
   @Expose()
+  @IsOptional()
+  @IsString()
+  jobTitle?: string | null;
+
+  @Expose()
+  @IsOptional()
+  @IsArray()
+  team?: Array<{ id: string; name: string; image: string | null; jobTitle: string | null }>;
+
+  @Expose()
   @IsUUID()
   id!: string;
 
@@ -69,6 +86,11 @@ export class PublicProviderProfileDto {
   @Expose()
   @ValidateIf((_, v) => v !== null && v !== undefined)
   city!: ProviderPublicCityDto | null;
+
+  @Expose()
+  @IsOptional()
+  @IsArray()
+  serviceGeography?: ProviderServiceGeography[];
 
   @Expose()
   @Transform(({ value }) => trimOrNull(value), { toClassOnly: true })

@@ -1,11 +1,15 @@
 "use client";
 
+import { getActiveMembership } from "@/core/auth/authorization";
+import { useAppSelector } from "@/core/store/hooks";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Tabs, Tab } from "@mui/material";
 
 export function ProviderProfileTabs() {
   const pathname = usePathname();
+  const isEmployee = useAppSelector((state) => getActiveMembership(state.auth.user)?.role === "EMPLOYEE");
+  if (isEmployee) return null;
   return (
     <Tabs
       value={

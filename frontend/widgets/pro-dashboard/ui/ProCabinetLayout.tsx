@@ -1,5 +1,7 @@
 "use client";
 
+import { useAppSelector } from "@/core/store/hooks";
+import { getActiveMembership } from "@/core/auth/authorization";
 import { usePathname } from "next/navigation";
 import { PlanStatusBanner } from "@/widgets/billing/PlanStatusBanner";
 import type { ReactNode } from "react";
@@ -13,6 +15,7 @@ type Props = {
 
 export function ProCabinetLayout({ children }: Props) {
   const pathname = usePathname();
+  const isEmployee = useAppSelector((state) => getActiveMembership(state.auth.user)?.role === "EMPLOYEE");
   const isChats =
     pathname === "/pro/chats" || pathname.startsWith("/pro/chats/");
   return (
@@ -48,7 +51,7 @@ export function ProCabinetLayout({ children }: Props) {
             },
           }}
         >
-          <PlanStatusBanner />
+          {!isEmployee ? <PlanStatusBanner /> : null}
           {children}
         </Box>
       </Container>

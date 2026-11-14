@@ -2,6 +2,7 @@ export type ProviderOnboardingType = "INDIVIDUAL" | "SELF_EMPLOYED" | "SOLE_PROP
 
 export type ProviderOnboardingFieldErrors = Partial<
   Record<
+    | "jobTitle"
     | "type"
     | "cityId"
     | "lastName"
@@ -14,6 +15,7 @@ export type ProviderOnboardingFieldErrors = Partial<
 >;
 
 export function validateProviderOnboarding(input: {
+  jobTitle: string;
   type: ProviderOnboardingType | null;
   cityId: string | null;
   lastName: string;
@@ -27,6 +29,8 @@ export function validateProviderOnboarding(input: {
     errors.type = "Выберите тип профиля";
     return errors;
   }
+  if (!input.jobTitle.trim()) errors.jobTitle = "Укажите должность";
+  else if (input.jobTitle.trim().length > 120) errors.jobTitle = "Должность должна быть не длиннее 120 символов";
   if (!input.cityId) errors.cityId = "Выберите город";
 
   if (input.type === "COMPANY") {

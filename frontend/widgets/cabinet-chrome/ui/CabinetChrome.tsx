@@ -3,11 +3,12 @@
 import { useEffect, useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { resolveAccountKind } from "@/core/auth/authorization";
+import { getActiveMembership, resolveAccountKind } from "@/core/auth/authorization";
 import { useAppSelector } from "@/core/store/hooks";
 import {
   CUSTOMER_NAV,
   PROVIDER_HEADER_NAV,
+  EMPLOYEE_HEADER_NAV,
   PROVIDER_NAV,
   type CabinetRole,
 } from "@/widgets/cabinet-chrome/model/nav-config";
@@ -29,6 +30,8 @@ export function CabinetChrome() {
   const isProviderAccount = useAppSelector(
     (state) => resolveAccountKind(state.auth.user) === "PROVIDER",
   );
+
+  const isEmployee = useAppSelector((state) => getActiveMembership(state.auth.user)?.role === "EMPLOYEE");
 
   const zone = useMemo(() => getCabinetZone(pathname), [pathname]);
   const role: CabinetRole = useMemo(() => {
@@ -56,7 +59,7 @@ export function CabinetChrome() {
   if (isWide) {
     return (
       <CabinetDesktopBar
-        items={zone === "pro" ? PROVIDER_HEADER_NAV : nav.desktop}
+        items={isEmployee ? EMPLOYEE_HEADER_NAV : zone === "pro" ? PROVIDER_HEADER_NAV : nav.desktop}
         showProviderCity={showProviderCity}
         showProviderStatus={role === "provider"}
         alignWithWorkspace={zone === "pro" || zone === "profile"}

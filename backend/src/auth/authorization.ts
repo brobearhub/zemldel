@@ -1,5 +1,5 @@
 export const SYSTEM_ROLES = ['PLATFORM_ADMIN', 'CUSTOMER'] as const;
-export const PROVIDER_MEMBER_ROLES = ['OWNER', 'MANAGER'] as const;
+export const PROVIDER_MEMBER_ROLES = ['OWNER', 'MANAGER', 'EMPLOYEE'] as const;
 export const PROVIDER_MEMBER_STATUSES = [
   'INVITED',
   'ACTIVE',
@@ -48,6 +48,7 @@ export type AuthMembership = {
   providerCity: AuthCity | null;
   providerImage: string | null;
   providerPerson: AuthPerson | null;
+  jobTitle?: string | null;
   role: ProviderMemberRole;
   status: ProviderMemberStatus;
 };

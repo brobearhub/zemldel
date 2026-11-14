@@ -8,7 +8,18 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/pro/requests/feed",
   useSearchParams: () => new URLSearchParams(),
 }));
-vi.mock("@/core/store/hooks", () => ({ useAppSelector: () => "Компания" }));
+vi.mock("@/core/store/hooks", () => ({
+  useAppSelector: (selector: (state: unknown) => unknown) => selector({
+    auth: {
+      status: "authenticated",
+      user: {
+        activeProviderId: "provider-1",
+        accountKind: "PROVIDER",
+        memberships: [{ providerId: "provider-1", role: "OWNER", status: "ACTIVE", providerName: "Компания" }],
+      },
+    },
+  }),
+}));
 vi.mock("@/widgets/chat/socket/ChatSocketContext", () => ({
   useChatSocket: () => ({ unreadByRequestId: {} }),
 }));
@@ -37,7 +48,7 @@ describe("Мобильное меню исполнителя", () => {
     expect(within(menu).getByRole("link", { name: "Лента заявок" })).toBeInTheDocument();
     expect(within(menu).getByRole("link", { name: "Доска" })).toBeInTheDocument();
     fireEvent.click(within(menu).getByRole("button", { name: "Команда" }));
-    expect(within(menu).getByRole("link", { name: "Добавление менеджера" })).toHaveAttribute("href", "/pro/team/add-manager");
+    expect(within(menu).getByRole("link", { name: "Команда" })).toHaveAttribute("href", "/pro/team/add-manager");
     expect(within(menu).getByRole("link", { name: "Задачи команды" })).toHaveAttribute("href", "/pro/team/tasks");
     fireEvent.click(within(menu).getByRole("button", { name: "Настройки" }));
     const settings = within(menu).getByRole("region", { name: "Настройки" });

@@ -13,6 +13,7 @@ import { ProfileMenu } from "@/widgets/header/ui/ProfileMenu";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import { ProviderHeaderStatus } from "@/widgets/cabinet-chrome/ui/ProviderHeaderStatus";
 import { CustomerNotificationsButton } from "./CustomerNotificationsButton";
+import { CabinetHeaderStatus } from "./CabinetHeaderStatus";
 
 type Props = {
   items: readonly NavItem[];
@@ -216,7 +217,9 @@ export function CabinetDesktopBar({
           }}
         >
           {showProviderStatus ? <ProviderHeaderStatus /> : null}
-          {!showProviderStatus && alignWithWorkspace ? <CustomerNotificationsButton /> : null}
+          {!showProviderStatus && alignWithWorkspace ? (
+            <CabinetHeaderStatus notification={<CustomerNotificationsButton />} />
+          ) : null}
           <ProfileMenu />
         </Box>
       </Toolbar>

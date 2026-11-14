@@ -6,9 +6,11 @@ import {
   IsString,
   IsUUID,
   Matches,
+  MaxLength,
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { normalizeJobTitle } from '../provider-job-title';
 import { PROVIDER_TYPES, type ProviderType } from '../../auth/authorization';
 
 function trimString({ value }: { value: unknown }) {
@@ -76,6 +78,13 @@ export class ProviderContactDto {
 }
 
 export class CreateProviderDto {
+  @ApiProperty({ example: 'Кадастровый инженер', maxLength: 120 })
+  @Transform(({ value }) => normalizeJobTitle(value))
+  @IsString()
+  @MinLength(1)
+  @MaxLength(120)
+  jobTitle!: string;
+
   @ApiPropertyOptional({
     minLength: 2,
     pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$',

@@ -6,6 +6,7 @@ const cityId = "11111111-1111-4111-8111-111111111111";
 describe("validateProviderOnboarding", () => {
   it("требует выбрать тип", () => {
     const errors = validateProviderOnboarding({
+      jobTitle: "Кадастровый инженер",
       type: null,
       cityId,
       lastName: "",
@@ -19,6 +20,7 @@ describe("validateProviderOnboarding", () => {
 
   it("для самозанятого достаточно фамилии, имени и города", () => {
     const valid = validateProviderOnboarding({
+      jobTitle: "Кадастровый инженер",
       type: "SELF_EMPLOYED",
       cityId,
       lastName: "Петров",
@@ -34,6 +36,7 @@ describe("validateProviderOnboarding", () => {
 
   it("для организации требует наименование и контакт, но не реквизиты", () => {
     const errors = validateProviderOnboarding({
+      jobTitle: "Кадастровый инженер",
       type: "COMPANY",
       cityId,
       lastName: "",

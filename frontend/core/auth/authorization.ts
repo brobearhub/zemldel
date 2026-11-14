@@ -1,7 +1,7 @@
 import { AbilityBuilder, createMongoAbility, subject, type AnyMongoAbility } from "@casl/ability";
 
 export const SYSTEM_ROLES = ["PLATFORM_ADMIN", "CUSTOMER"] as const;
-export const PROVIDER_MEMBER_ROLES = ["OWNER", "MANAGER"] as const;
+export const PROVIDER_MEMBER_ROLES = ["OWNER", "MANAGER", "EMPLOYEE"] as const;
 export const PROVIDER_MEMBER_STATUSES = ["INVITED", "ACTIVE", "SUSPENDED"] as const;
 export const PROVIDER_TYPES = ["INDIVIDUAL", "SELF_EMPLOYED", "SOLE_PROPRIETOR", "COMPANY"] as const;
 
@@ -37,6 +37,7 @@ export type AuthMembership = {
   providerImage?: string | null;
   /** Why: в сессиях, выданных до появления поля, его нет. */
   providerPerson?: AuthPerson | null;
+  jobTitle?: string | null;
   role: ProviderMemberRole;
   status: ProviderMemberStatus;
 };
@@ -105,6 +106,8 @@ export function defineAbilityFor(user: AuthorizedUser | null): AppAbility {
     can("manage", "Service", { providerId: activeMembership.providerId });
     return build();
   }
+
+  if (activeMembership.role === "EMPLOYEE") return build();
 
   can("read", "Provider", { id: activeMembership.providerId });
   can("read", "ProviderMember", { providerId: activeMembership.providerId });

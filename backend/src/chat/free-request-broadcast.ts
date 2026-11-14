@@ -20,7 +20,7 @@ const audienceSelect = {
   id: true,
   activeProviderId: true,
   providerMemberships: {
-    where: { status: 'ACTIVE' },
+    where: { status: 'ACTIVE', role: { in: ['OWNER', 'MANAGER'] } },
     orderBy: { providerId: 'asc' },
     select: {
       providerId: true,

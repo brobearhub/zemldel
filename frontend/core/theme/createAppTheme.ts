@@ -414,6 +414,10 @@ export function createAppTheme(
             root: ({ theme }) => ({
               borderRadius: theme.shape.borderRadius,
               backgroundColor: theme.palette.background.paper,
+              // The label sits above the field. Override MUI's floating-label offset.
+              "& .MuiOutlinedInput-notchedOutline": {
+                top: 0,
+              },
               "&:hover .MuiOutlinedInput-notchedOutline": {
                 borderColor: theme.palette.text.primary,
               },
@@ -530,13 +534,19 @@ export function createAppTheme(
           styleOverrides: {
             root: ({ theme }) => ({
               backgroundColor: theme.palette.background.paper,
+              "& .MuiPickersOutlinedInput-notchedOutline": {
+                top: 0,
+              },
               "&.Mui-focused:not(.Mui-error) .MuiPickersOutlinedInput-notchedOutline": {
                 borderColor: theme.palette.text.primary,
               },
             }),
             notchedOutline: ({ theme }) => ({
               borderColor: theme.palette.divider,
-              "& legend": { fontSize: "1rem", display: "none" },
+              "& legend": {
+                fontSize: "1rem",
+                display: "none",
+              },
             }),
           },
         },

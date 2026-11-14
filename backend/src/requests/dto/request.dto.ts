@@ -1,4 +1,6 @@
 import 'reflect-metadata';
+import { assignedMemberDto, assignedMemberSelect } from '../request-assignment';
+import type { Prisma } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   Expose,
@@ -521,7 +523,27 @@ export class RequestDeliverySubmissionDto {
   remarks!: RequestRemarkDto[];
 }
 
+export class RequestAssignedMemberDto {
+  @ApiProperty()
+  @Expose()
+  id!: string;
+  @ApiProperty()
+  @Expose()
+  name!: string;
+  @ApiProperty({ nullable: true })
+  @Expose()
+  jobTitle!: string | null;
+  @ApiProperty({ nullable: true })
+  @Expose()
+  image!: string | null;
+}
+
 export class RequestCustomerDto {
+  @ApiProperty({ type: RequestAssignedMemberDto, nullable: true })
+  @Expose()
+  @Type(() => RequestAssignedMemberDto)
+  assignedMember!: RequestAssignedMemberDto | null;
+
   @ApiProperty({ format: 'uuid' })
   @Expose()
   @IsUUID()
@@ -826,6 +848,15 @@ export class RequestCustomerDto {
 }
 
 export class RequestProDto {
+  @ApiProperty({ nullable: true })
+  @Expose()
+  providerName!: string | null;
+
+  @ApiProperty({ type: RequestAssignedMemberDto, nullable: true })
+  @Expose()
+  @Type(() => RequestAssignedMemberDto)
+  assignedMember!: RequestAssignedMemberDto | null;
+
   @ApiProperty({ format: 'uuid' })
   @Expose()
   @IsUUID()
@@ -1151,6 +1182,9 @@ export function canCustomerDeleteRequest(
 }
 
 export type RequestDbRow = {
+  assignedMember?: Prisma.ProviderMemberGetPayload<{
+    select: typeof assignedMemberSelect;
+  }> | null;
   id: string;
   number?: number | null;
   status: RequestStatus;
@@ -1433,6 +1467,7 @@ export function requestRowToCustomerDtoPlain(
       serviceTitle: row.service?.title ?? null,
       serviceImage: nonemptyOrNull(row.service?.image),
       categoryName: nonemptyOrNull(row.category?.name),
+      assignedMember: assignedMemberDto(row.assignedMember, row.providerId),
       providerName: row.provider?.name ?? null,
       providerPhone: hasRequestLock(row)
         ? resolveProviderContactPhone(row.provider)
@@ -1517,6 +1552,14 @@ export function requestRowToProDtoPlain(
       categoryId: row.categoryId,
       categoryName: row.category?.name ?? null,
       providerId: locked ? null : row.providerId,
+      providerName:
+        !locked && row.providerId === actorProviderId
+          ? (row.provider?.name ?? null)
+          : null,
+      assignedMember:
+        !locked && row.providerId === actorProviderId
+          ? assignedMemberDto(row.assignedMember, row.providerId)
+          : null,
       offerStatus: myOffer?.status ?? null,
       offerSelectedAt: myOffer?.selectedAt
         ? myOffer.selectedAt.toISOString()

@@ -17,7 +17,6 @@ import {
   Typography,
 } from "@mui/material";
 import AddRounded from "@mui/icons-material/AddRounded";
-import HomeOutlined from "@mui/icons-material/HomeOutlined";
 import PersonOutlineRounded from "@mui/icons-material/PersonOutlineRounded";
 import ChatOutlined from "@mui/icons-material/ChatOutlined";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
@@ -31,19 +30,22 @@ import {
   useColorMode,
   type ColorPreference,
 } from "@/core/theme/ColorModeContext";
-import { resolveAccountKind } from "@/core/auth/authorization";
+import { getActiveMembership, resolveAccountKind } from "@/core/auth/authorization";
 import { useAppSelector } from "@/core/store/hooks";
 import { UnreadCountBadge } from "@/shared/ui/UnreadCountBadge";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import { HeaderCity } from "@/widgets/header/ui/HeaderCity";
-import { CUSTOMER_NAV, CUSTOMER_FAVORITES_NAV } from "@/widgets/cabinet-chrome/model/nav-config";
 import {
+  CUSTOMER_FAVORITES_NAV,
+  CUSTOMER_HOME_NAV,
+  CUSTOMER_NAV,
+} from "@/widgets/cabinet-chrome/model/nav-config";
+import {
+  INTEREST_ITEM,
   NAV_ITEMS,
   REQUEST_ITEMS,
   TEAM_ITEMS,
 } from "@/widgets/pro-dashboard/model/navigation";
-import { ProviderNotificationsButton } from "@/widgets/cabinet-chrome/ui/ProviderHeaderStatus";
-import { CustomerNotificationsButton } from "./CustomerNotificationsButton";
 import { attentionDotSx, attentionTextSx } from "@/shared/ui/attention-gradient";
 import { usePassportRequestsPending } from "@/widgets/customer-documents/model/PassportRequestsProvider";
 
@@ -70,6 +72,7 @@ export function CabinetNavigationPanel({
     (total, count) => total + count,
     0,
   );
+  const isEmployee = getActiveMembership(user)?.role === "EMPLOYEE";
   const provider = authenticated && resolveAccountKind(user) === "PROVIDER";
   const passportRequested = usePassportRequestsPending();
   const routeContext = {
@@ -292,13 +295,6 @@ export function CabinetNavigationPanel({
           >
             <HeaderCity showLabel scope={provider ? "provider" : undefined} />
           </Box>
-          {provider ? (
-            <ProviderNotificationsButton
-              label="Напоминания"
-              buttonSize={44}
-              onNavigate={close}
-            />
-          ) : authenticated ? <CustomerNotificationsButton onNavigate={close} /> : null}
         </Box>
       </Box>
       <Box
@@ -314,10 +310,10 @@ export function CabinetNavigationPanel({
         }}
       >
         <List disablePadding>
-          {row("/", "Главная", <HomeOutlined />)}
-          {authenticated
+          {row(CUSTOMER_HOME_NAV.href, CUSTOMER_HOME_NAV.label, CUSTOMER_HOME_NAV.icon)}
+          {authenticated && !isEmployee
             ? row(
-                provider ? "/pro/chats" : "/profile/chats",
+                isEmployee ? "/pro/assigned" : provider ? "/pro/chats" : "/profile/chats",
                 "Чаты",
                 <ChatOutlined />,
                 pathname.startsWith(provider ? "/pro/chats" : "/profile/chats"),
@@ -325,7 +321,7 @@ export function CabinetNavigationPanel({
               )
             : null}
         </List>
-        {provider ? (
+        {isEmployee ? group("Работа", row("/pro/assigned", "Назначенные заявки", <AssignmentOutlined />, pathname.startsWith("/pro/assigned"))) : provider ? (
           <>
             {group(
               "Заявки",
@@ -338,6 +334,7 @@ export function CabinetNavigationPanel({
               [
                 ...NAV_ITEMS,
                 ...TEAM_ITEMS.filter((item) => item.href === "/pro/team/tasks"),
+                INTEREST_ITEM,
               ].map((item) =>
                 row(
                   item.href,
@@ -476,20 +473,22 @@ export function CabinetNavigationPanel({
             </>,
           )
         )}
-        {group(
-          "Земледел",
-          <>
-            {row("/about", "О проекте и контакты", <InfoOutlined />)}
-            {user?.systemRole === "PLATFORM_ADMIN"
-              ? row(
-                  "/admin",
-                  "Админка",
-                  <AdminPanelSettingsOutlined />,
-                  pathname.startsWith("/admin"),
-                )
-              : null}
-          </>,
-        )}
+        {provider || !authenticated || user?.systemRole === "PLATFORM_ADMIN"
+          ? group(
+              "Земледел",
+              <>
+                {row("/about", "О проекте и контакты", <InfoOutlined />)}
+                {user?.systemRole === "PLATFORM_ADMIN"
+                  ? row(
+                      "/admin",
+                      "Админка",
+                      <AdminPanelSettingsOutlined />,
+                      pathname.startsWith("/admin"),
+                    )
+                  : null}
+              </>,
+            )
+          : null}
       </Box>
     </>
   );

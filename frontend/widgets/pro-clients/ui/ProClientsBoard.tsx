@@ -341,6 +341,9 @@ export function ProClientsBoard({ initialOrders }: Props) {
                 p: 2.5,
                 borderLeft: 4,
                 borderLeftColor: "primary.main",
+                "& .MuiChip-root": {
+                  px: 1,
+                },
               }}
             >
               <Stack
@@ -398,27 +401,34 @@ export function ProClientsBoard({ initialOrders }: Props) {
 
                   <Stack
                     direction="row"
-                    spacing={1}
+                    spacing={2}
                     useFlexGap
                     sx={{
                       flexWrap: "wrap",
+                      alignItems: "center",
                     }}
                   >
                     {openCount > 0 ? (
-                      <Chip
-                        size="small"
-                        color="info"
-                        variant="filled"
-                        label={`В работе: ${openCount}`}
-                      />
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: "info.main",
+                          fontWeight: 600,
+                        }}
+                      >
+                        В работе: {openCount}
+                      </Typography>
                     ) : null}
                     {completedCount > 0 ? (
-                      <Chip
-                        size="small"
-                        color="success"
-                        variant="filled"
-                        label={`Завершенных: ${completedCount}`}
-                      />
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: "success.main",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Завершенных: {completedCount}
+                      </Typography>
                     ) : null}
                     {cancelledCount > 0 ? (
                       <Chip
@@ -447,7 +457,7 @@ export function ProClientsBoard({ initialOrders }: Props) {
                     px: 1.5,
                     py: 1.25,
                     bgcolor: "action.hover",
-                    width: { xs: "100%", md: 320 },
+                    width: { xs: "100%", md: "calc(50% - 8px)" },
                     flexShrink: 0,
                   }}
                 >

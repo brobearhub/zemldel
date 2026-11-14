@@ -3,10 +3,32 @@ import {
   normalizeServicePlaces,
   orderByExplicitCity,
   uniqueServiceCityIds,
+  servicePlacesFromRow,
   SERVICE_PLACES_REQUIRED,
 } from './service-places';
 
 describe('uniqueServiceCityIds', () => {
+  it('does not store cities covered by a selected region', () => {
+    const cities = [
+      {
+        id: 'ekb',
+        name: 'Екатеринбург',
+        regionCode: '66',
+        typeName: 'г',
+        level: 5,
+      },
+      {
+        id: 'chelyabinsk',
+        name: 'Челябинск',
+        regionCode: '74',
+        typeName: 'г',
+        level: 5,
+      },
+    ];
+    expect(
+      uniqueServiceCityIds(['ekb', 'chelyabinsk'], cities, ['66']),
+    ).toEqual(['chelyabinsk']);
+  });
   it('unifies matching name and region and preserves homonyms in other regions', () => {
     const city = {
       id: 'actual',
@@ -30,6 +52,41 @@ describe('uniqueServiceCityIds', () => {
         [alias, city, otherRegion, otherCity],
       ),
     ).toEqual(['actual', 'other-region', 'other-city']);
+  });
+});
+
+describe('servicePlacesFromRow', () => {
+  it('normalizes old city and region links while preserving region order', () => {
+    const places = servicePlacesFromRow({
+      cities: [
+        {
+          city: {
+            id: 'ekb',
+            name: 'Екатеринбург',
+            regionCode: '66',
+            regionName: 'Свердловская область',
+          },
+        },
+        {
+          city: {
+            id: 'moscow',
+            name: 'Москва',
+            regionCode: '77',
+            regionName: 'г. Москва',
+          },
+        },
+      ],
+      regions: [
+        { regionCode: '50', regionName: 'Московская область' },
+        { regionCode: '66', regionName: 'Свердловская область' },
+      ],
+      regionOrder: ['66', '77', '50'],
+    });
+    expect(places.map((place) => place.name)).toEqual([
+      'Свердловская область',
+      'Москва',
+      'Московская область',
+    ]);
   });
 });
 

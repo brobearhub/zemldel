@@ -93,6 +93,7 @@ export type RequestDeliverySubmissionDto = {
 };
 
 export type RequestCustomerDto = {
+  assignedMember?: RequestAssignedMemberDto | null;
   id: string;
   number: number | null;
   subjectType: RequestSubjectType;
@@ -150,6 +151,8 @@ export type RequestCustomerDto = {
 };
 
 export type RequestProDto = {
+  providerName?: string | null;
+  assignedMember?: RequestAssignedMemberDto | null;
   id: string;
   number: number | null;
   subjectType: RequestSubjectType;
@@ -265,3 +268,10 @@ export function resolveProviderTriggerLabel(
   const name = providerName?.trim();
   return name || "Исполнитель";
 }
+
+export type RequestAssignedMemberDto = {
+  id: string;
+  name: string;
+  jobTitle: string | null;
+  image: string | null;
+};

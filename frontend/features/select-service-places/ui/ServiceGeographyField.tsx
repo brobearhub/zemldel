@@ -267,7 +267,7 @@ export function ServicePlaceChips({
   function removePlace(place: ServicePlace) {
     const key = placeKey(place);
     const location = placeSelectionKey(place);
-    onChange(value.filter((item) => placeKey(item) !== key && placeSelectionKey(item) !== location));
+    onChange(uniqueServicePlaces(value).filter((item) => placeKey(item) !== key && placeSelectionKey(item) !== location));
   }
 
   return (
@@ -328,6 +328,10 @@ export function ServiceGeographyField({
   const listScrollTop = useRef(0);
   const selectedKeys = useMemo(() => new Set(value.map(placeKey)), [value]);
   const selectedLocations = useMemo(() => new Set(value.map(placeSelectionKey)), [value]);
+  const selectedRegions = useMemo(
+    () => new Set(value.filter((place) => place.kind === "region").map((place) => place.regionCode)),
+    [value],
+  );
 
   const loadMore = useCallback(() => {
     const q = debounced.trim();
@@ -407,6 +411,7 @@ export function ServiceGeographyField({
       .filter((item) => {
         const place = toPlace(item);
         if (!place) return false;
+        if (selectedRegions.has("RU") || (place.kind === "city" && selectedRegions.has(place.regionCode))) return false;
         const identity = placeKey(place);
         const location = placeSelectionKey(place);
         if (identities.has(identity) || locations.has(location)) return false;
@@ -418,7 +423,7 @@ export function ServiceGeographyField({
         (left, right) =>
           Number(left.kind === "city") - Number(right.kind === "city"),
       );
-  }, [options, selectedKeys, selectedLocations]);
+  }, [options, selectedKeys, selectedLocations, selectedRegions]);
   const hasRegionOptions = visibleOptions.some(
     (item) => item.kind === "region",
   );
@@ -434,7 +439,7 @@ export function ServiceGeographyField({
     if (!item) return;
     const place = toPlace(item);
     if (!place || selectedKeys.has(placeKey(place)) || selectedLocations.has(placeSelectionKey(place))) return;
-    onChange([...value, place]);
+    onChange(uniqueServicePlaces([...value, place]));
     setInputValue("");
     setOpen(false);
   }
@@ -575,7 +580,7 @@ export function ServiceGeographyField({
                 value.length > 0
               ) {
                 event.preventDefault();
-                onChange(value.slice(0, -1));
+                onChange(uniqueServicePlaces(value).slice(0, -1));
               }
             }}
             slotProps={{

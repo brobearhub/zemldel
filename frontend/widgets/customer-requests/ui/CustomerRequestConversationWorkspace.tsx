@@ -1,4 +1,5 @@
 "use client";
+import { RequestAssignee } from "@/widgets/provider-team/RequestAssignee";
 import {
   RequestUnavailableNotice,
   isRequestAccessFailure,
@@ -1074,6 +1075,14 @@ export function CustomerRequestConversationWorkspace({
     <ChatBodyWithSidePanelLayout
       middle={
         <Stack spacing={2}>
+          {req.assignedMember ? (
+            <Paper sx={{ p: 2 }}>
+              <RequestAssignee
+                providerName={req.providerName}
+                member={req.assignedMember}
+              />
+            </Paper>
+          ) : null}
           {req.fiasInactiveWarning ? (
             <RequestCityInactiveWarning
               show={req.fiasInactiveWarning}

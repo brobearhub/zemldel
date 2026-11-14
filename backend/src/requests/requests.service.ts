@@ -67,6 +67,8 @@ import { formatCustomerSelectProviderChatMessage } from './dto/select-provider.d
 import { randomUUID } from 'node:crypto';
 import { foldProRequestStats, type ProRequestStats } from './pro-request-stats';
 
+import { assignedMemberSelect } from './request-assignment';
+
 const select = {
   id: true,
   number: true,
@@ -74,6 +76,7 @@ const select = {
   serviceId: true,
   categoryId: true,
   providerId: true,
+  assignedMember: { select: assignedMemberSelect },
   customerUserId: true,
   requestCityId: true,
   requestCity: {
@@ -2562,6 +2565,7 @@ export class RequestsService {
               status:
                 req.status === 'TERMS_AGREED' ? 'TERMS_AGREED' : 'DISCUSSING',
               providerId: null,
+              assignedMemberId: null,
               lockedAt: null,
               offerVersion: null,
               contractAcceptedAt: null,
@@ -2851,6 +2855,9 @@ export class RequestsService {
         where: { id: req.id },
         data: {
           providerId: input.providerId,
+          ...(req.providerId !== input.providerId
+            ? { assignedMemberId: null }
+            : {}),
           lockedAt: req.lockedAt ?? now,
           totalAmountRubles: selectedAcceptedProposal?.amountRubles ?? null,
         },
@@ -2955,6 +2962,7 @@ export class RequestsService {
         where: { id: requestId },
         data: {
           providerId: null,
+          assignedMemberId: null,
           lockedAt: null,
           status: 'DISCUSSING',
           totalAmountRubles: null,

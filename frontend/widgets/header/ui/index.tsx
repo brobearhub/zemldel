@@ -14,6 +14,7 @@ import { HeaderNav } from "./HeaderNav";
 import { HeaderCity } from "./HeaderCity";
 import { MobileMenuButton } from "@/widgets/mobile-navigation/ui/MobileNavigation";
 import { CustomerNotificationsButton } from "@/widgets/cabinet-chrome/ui/CustomerNotificationsButton";
+import { CabinetHeaderStatus } from "@/widgets/cabinet-chrome/ui/CabinetHeaderStatus";
 
 export const Header = () => {
   const pathname = usePathname();
@@ -86,7 +87,9 @@ export const Header = () => {
             flex: "0 0 auto",
           }}
         >
-          {isAuthenticated && !isProviderAccount ? <CustomerNotificationsButton /> : null}
+          {isAuthenticated && !isProviderAccount ? (
+            <CabinetHeaderStatus notification={<CustomerNotificationsButton />} />
+          ) : null}
           <HeaderNav />
         </Box>
 

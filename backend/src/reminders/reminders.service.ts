@@ -45,10 +45,9 @@ export class RemindersService {
       select: {
         activeProviderId: true,
         providerMemberships: {
-          where: { status: 'ACTIVE' },
+          where: { status: 'ACTIVE', role: { in: ['OWNER', 'MANAGER'] } },
           select: { providerId: true },
           orderBy: { createdAt: 'asc' },
-          take: 1,
         },
       },
     });
@@ -56,7 +55,10 @@ export class RemindersService {
     if (!user) throw new ForbiddenException('User not found');
 
     const providerId =
-      user.activeProviderId ?? user.providerMemberships[0]?.providerId ?? null;
+      user.providerMemberships.find(
+        (member) => member.providerId === user.activeProviderId,
+      )?.providerId ??
+      (!user.activeProviderId ? user.providerMemberships[0]?.providerId : null);
 
     if (!providerId) throw new ForbiddenException('No active provider');
 
