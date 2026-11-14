@@ -13,6 +13,11 @@ export function DirectChatActions({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [acceptedConversationId, setAcceptedConversationId] = useState<
+    string | null
+  >(null);
+  const isWaiting =
+    state === "WAITING" && acceptedConversationId !== conversationId;
   async function act(action: "accept" | "decline" | "block" | "resume") {
     setBusy(true);
     setError("");
@@ -22,6 +27,7 @@ export function DirectChatActions({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       });
+      setAcceptedConversationId(action === "accept" ? conversationId : null);
       onChange();
     } catch (reason) {
       setError(
@@ -39,16 +45,12 @@ export function DirectChatActions({
         flexShrink: 0,
       }}
     >
-      <Alert severity="info">
-        Исполнитель написал, потому что вы сохранили его профиль или услугу.{" "}
-        {state === "WAITING"
-          ? "Ответьте или нажмите «Вступить в переписку», чтобы начать диалог."
-          : state === "BLOCKED"
-            ? "Вы заблокировали прямые обращения этого исполнителя."
-            : state === "DECLINED"
-              ? "Вы отклонили обращение."
-              : "Вы можете заблокировать дальнейшие прямые обращения."}
-      </Alert>
+      {isWaiting ? (
+        <Alert severity="warning">
+          Исполнитель написал, потому что вы сохранили его профиль или услугу.{" "}
+          Ответьте или нажмите «Вступить в переписку», чтобы начать диалог.
+        </Alert>
+      ) : null}
       {error ? <Alert severity="error">{error}</Alert> : null}
       <Stack
         direction="row"
@@ -56,7 +58,7 @@ export function DirectChatActions({
         useFlexGap
         sx={{ flexWrap: "wrap" }}
       >
-        {state === "WAITING" ? (
+        {isWaiting ? (
           <>
             <Button
               size="small"

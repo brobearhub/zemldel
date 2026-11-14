@@ -1,7 +1,7 @@
 "use client";
 
 import type { Socket } from "socket.io-client";
-import { createContext, useContext } from "react";
+import { createContext, useContext, useMemo } from "react";
 export type ChatSocketContextValue = {
   socket: Socket | null;
   socketConnected: boolean;
@@ -25,4 +25,17 @@ export function useChatSocket(): ChatSocketContextValue {
     throw new Error("useChatSocket must be used within ChatSocketProvider");
   }
   return ctx;
+}
+
+export function useChatUnreadCount(): number {
+  const ctx = useContext(ChatSocketContext);
+  return useMemo(() => {
+    if (!ctx) return 0;
+    const unreadByConversationId =
+      ctx.unreadByConversationId ?? ctx.unreadByRequestId;
+    return Object.values(unreadByConversationId).reduce(
+      (total, count) => total + count,
+      0,
+    );
+  }, [ctx]);
 }

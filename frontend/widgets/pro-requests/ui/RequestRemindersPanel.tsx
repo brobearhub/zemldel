@@ -247,12 +247,15 @@ export function RequestRemindersPanel({ requestId }: Props) {
             />
           </AppDateLocalization>
           <Button
-            variant="outlined"
+            variant="contained"
             size="small"
             loading={adding}
             disabled={!text.trim() || !remindAt || !remindAt.isValid()}
             onClick={() => void handleAdd()}
-            sx={{ height: 40 }}
+            sx={{
+              height: 40,
+              minHeight: 40,
+            }}
           >
             Добавить
           </Button>

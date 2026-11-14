@@ -74,10 +74,10 @@ function CustomerDocumentsBanners(props: {
         <Typography
           variant="body2"
           sx={{
-            color: "text.secondary",
+            color: "warning.main",
           }}
         >
-          Договор готовит компания.
+          Исполнитель готовит договор
         </Typography>
       ) : null}
 
@@ -270,6 +270,7 @@ export function CustomerRequestDocumentsSection(props: Props) {
       }
       headerRight={null}
       spacing={1}
+      paper={false}
       collapsible={collapseByDefault}
       defaultExpanded={!collapseByDefault}
       expandedResetKey={`${props.request.id}:${props.request.status}`}

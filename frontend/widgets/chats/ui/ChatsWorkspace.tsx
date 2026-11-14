@@ -1,8 +1,8 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
@@ -30,6 +30,7 @@ import { alpha } from "@mui/material/styles";
 import type { ChatInboxRole } from "@/entities/chat/api/chat-inbox";
 import { getActiveMembership } from "@/core/auth/authorization";
 import { formatRequestNumber } from "@/entities/request/lib/request-reference";
+import { DownloadChatPdfButton } from "@/widgets/chat/ui/DownloadChatPdfButton";
 import { ServiceRequestChatPanel } from "@/widgets/chat/ui/ServiceRequestChatPanel";
 import { useChatInbox } from "../model/use-chat-inbox";
 import { useChatViewport } from "../model/use-chat-viewport";
@@ -61,16 +62,37 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
   const requestBasePath =
     role === "provider" ? "/pro/requests" : "/profile/requests";
   const peerLabel = role === "provider" ? "Клиент" : "Исполнитель";
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchParamsString = searchParams.toString();
   const { requestId, conversationId: directId } = useParams<{ requestId?: string; conversationId?: string }>();
   const threadId = directId ?? requestId;
-  const requestedConversation = useSearchParams().get("conversation");
+  const requestedConversation = searchParams.get("conversation");
   const { items, error, refresh, onMessage, unreadByConversationId } =
     useChatInbox(scope, role);
   const [query, setQuery] = useState("");
-  const [onlyUnread, setOnlyUnread] = useState(false);
+  const [onlyUnread, setOnlyUnread] = useState(
+    () => searchParams.get("unread") === "1",
+  );
   const scrollRef = useRef<HTMLUListElement>(null);
   const savedScroll = useRef(0);
   useChatViewport();
+
+  useEffect(() => {
+    setOnlyUnread(new URLSearchParams(searchParamsString).get("unread") === "1");
+  }, [searchParamsString]);
+
+  function setUnreadFilter(enabled: boolean) {
+    setOnlyUnread(enabled);
+    const params = new URLSearchParams(searchParamsString);
+    if (enabled) params.set("unread", "1");
+    else params.delete("unread");
+    const queryString = params.toString();
+    router.replace(`${pathname}${queryString ? `?${queryString}` : ""}`, {
+      scroll: false,
+    });
+  }
 
   // The route layout remains mounted: filters and scroll survive list ↔ thread navigation.
   useLayoutEffect(() => {
@@ -260,7 +282,7 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
             >
               <Chip
                 label={`Все · ${rows.length}`}
-                onClick={() => setOnlyUnread(false)}
+                onClick={() => setUnreadFilter(false)}
                 aria-pressed={!onlyUnread}
                 sx={
                   !onlyUnread
@@ -278,7 +300,7 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
               />
               <Chip
                 label={`Непрочитанные · ${unreadDialogs}`}
-                onClick={() => setOnlyUnread(true)}
+                onClick={() => setUnreadFilter(true)}
                 aria-pressed={onlyUnread}
                 sx={
                   onlyUnread
@@ -351,7 +373,7 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
                 <Button
                   onClick={() => {
                     setQuery("");
-                    setOnlyUnread(false);
+                    setUnreadFilter(false);
                   }}
                 >
                   Показать все
@@ -382,7 +404,7 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
                 <ListItemButton
                   key={row.conversationId ?? row.serviceRequestId}
                   component={Link}
-                  href={chatHref(row, role)}
+                  href={chatHref(row, role, onlyUnread)}
                   scroll={false}
                   selected={selected}
                   aria-current={selected ? "page" : undefined}
@@ -591,6 +613,11 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
                     </Typography>
                   ) : null}
                 </Box>
+                {active && active.kind !== "DIRECT" ? (
+                  <Box sx={{ ml: "auto" }}>
+                    <DownloadChatPdfButton conversationId={active.conversationId} serviceRequestId={active.serviceRequestId ?? undefined} title={active.peerName || "Чат по заявке"} viewerRole={role === "provider" ? "PROVIDER" : "CUSTOMER"} counterpartyName={active.peerName} />
+                  </Box>
+                ) : null}
               </Stack>
               <Stack
                 direction="row"
@@ -620,18 +647,20 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
                   >
                     {active?.title ?? own[0]?.title ?? "Заявка"}
                   </Typography>
-                  <Typography
-                    noWrap
-                    sx={{
-                      fontSize: "0.75rem",
-                      color: "text.secondary",
-                    }}
-                  >
-                    {directId ? "Без заявки" : formatRequestNumber({ id: requestId ?? "", number: active?.requestNumber ?? own[0]?.requestNumber })}
-                    {active && chatStatus(active)
-                      ? ` · ${chatStatus(active)}`
-                      : ""}
-                  </Typography>
+                  {!directId ? (
+                    <Typography
+                      noWrap
+                      sx={{
+                        fontSize: "0.75rem",
+                        color: "text.secondary",
+                      }}
+                    >
+                      {formatRequestNumber({ id: requestId ?? "", number: active?.requestNumber ?? own[0]?.requestNumber })}
+                      {active && chatStatus(active)
+                        ? ` · ${chatStatus(active)}`
+                        : ""}
+                    </Typography>
+                  ) : null}
                 </Box>
                 {!directId ? <Button
                   component={Link}
@@ -680,7 +709,7 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
                     <Button
                       key={row.conversationId ?? row.serviceRequestId}
                       component={Link}
-                      href={chatHref(row, role)}
+                      href={chatHref(row, role, onlyUnread)}
                     >
                       {row.peerName || "Открыть переписку"}
                     </Button>

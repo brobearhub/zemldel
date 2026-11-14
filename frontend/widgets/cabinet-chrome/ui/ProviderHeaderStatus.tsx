@@ -4,9 +4,12 @@ import { getActiveMembership } from "@/core/auth/authorization";
 import { useAppSelector } from "@/core/store/hooks";
 import Link from "next/link";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
-import { Badge, IconButton } from "@mui/material";
+import { IconButton } from "@mui/material";
 import { useReminderCount } from "../model/ReminderCountProvider";
 import { CabinetHeaderStatus } from "./CabinetHeaderStatus";
+import { useChatUnreadCount } from "@/widgets/chat/socket/ChatSocketContext";
+import { useFreeRequestNotifications } from "@/widgets/pro-my-services/model/FreeRequestNotificationsProvider";
+import { UnreadCountBadge } from "@/shared/ui/UnreadCountBadge";
 
 export function ProviderHeaderStatus() {
   return <CabinetHeaderStatus notification={<ProviderNotificationsButton />} />;
@@ -22,14 +25,17 @@ export function ProviderNotificationsButton({
   buttonSize?: number;
 } = {}) {
   const count = useReminderCount();
+  const unreadCount = useChatUnreadCount();
+  const { hasNew } = useFreeRequestNotifications();
+  const notificationCount = count + unreadCount + (hasNew ? 1 : 0);
   const isEmployee = useAppSelector((state) => getActiveMembership(state.auth.user)?.role === "EMPLOYEE");
   if (isEmployee) return null;
   return (
     <IconButton
       component={Link}
       href="/pro/reminders"
-      aria-label={count > 0 ? `${label}: ${count} в ближайший час` : label}
-      title={count > 0 ? `В ближайший час: ${count}` : label}
+      aria-label={notificationCount > 0 ? `${label}: ${notificationCount}` : label}
+      title={notificationCount > 0 ? `Оповещения и напоминания: ${notificationCount}` : label}
       onClick={onNavigate}
       size="small"
       sx={{
@@ -39,28 +45,16 @@ export function ProviderNotificationsButton({
         flexShrink: 0,
       }}
     >
-      <Badge
-        badgeContent={count}
-        max={99}
-        sx={{
-          "& .MuiBadge-badge": {
-            bgcolor: "#ed6c02",
-            color: "#1f160d",
-            fontSize: "0.6875rem",
-            fontWeight: 800,
-            height: 18,
-            minWidth: 18,
-            px: 0.5,
-            borderRadius: "9px",
-          },
-        }}
+      <UnreadCountBadge
+        count={notificationCount}
+        horizontalOffset={3}
       >
         <NotificationsNoneOutlinedIcon
           sx={{
             fontSize: 23,
           }}
         />
-      </Badge>
+      </UnreadCountBadge>
     </IconButton>
   );
 }

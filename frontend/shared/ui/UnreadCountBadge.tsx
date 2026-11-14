@@ -4,9 +4,11 @@ import { Badge } from "@mui/material";
 export function UnreadCountBadge({
   count = 0,
   children,
+  horizontalOffset = 0,
 }: {
   count?: number;
   children: ReactNode;
+  horizontalOffset?: number;
 }) {
   const diameter = count > 99 ? 26 : 22;
   return (
@@ -26,6 +28,7 @@ export function UnreadCountBadge({
           lineHeight: 1,
           fontWeight: 700,
           boxSizing: "border-box",
+          right: horizontalOffset,
         },
       }}
     >

@@ -61,6 +61,9 @@ export function ProRequestWorkspace({
         ) : (
           <ServiceRequestChatPanel
             serviceRequestId={request.id}
+            viewerRole="PROVIDER"
+            counterpartyName={request.customerName}
+            requestInfo={request}
             title="Чат"
             subtitle={subtitle}
             requestLockedAt={request.lockedAt}

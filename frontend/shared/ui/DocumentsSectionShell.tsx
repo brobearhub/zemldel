@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import type { SxProps, Theme } from "@mui/material";
-import { Collapse, IconButton, Paper, Stack } from "@mui/material";
+import { Box, Collapse, IconButton, Paper, Stack } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 export type DocumentsSectionShellProps = {
@@ -10,6 +10,7 @@ export type DocumentsSectionShellProps = {
   headerLeft: ReactNode;
   headerRight?: ReactNode;
   children: ReactNode;
+  paper?: boolean;
   paperSx?: SxProps<Theme>;
   spacing?: number;
   /** Если true — контент можно свернуть/развернуть. */
@@ -27,6 +28,7 @@ export function DocumentsSectionShell({
   headerLeft,
   headerRight,
   children,
+  paper = true,
   paperSx,
   spacing = 1.5,
   collapsible = false,
@@ -40,52 +42,78 @@ export function DocumentsSectionShell({
     setExpanded(defaultExpanded);
   }, [defaultExpanded, expandedResetKey]);
 
-  return (
-    <Paper id={id} variant="outlined" sx={{ p: 2.5, ...paperSx }}>
-      <Stack spacing={spacing}>
+  const content = (
+    <Stack spacing={spacing}>
+      <Stack
+        direction="row"
+        spacing={1}
+        useFlexGap
+        sx={{
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+        }}
+      >
+        {headerLeft}
         <Stack
           direction="row"
           spacing={1}
           useFlexGap
           sx={{
             alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap"
-          }}>
-          {headerLeft}
-          <Stack direction="row" spacing={1} useFlexGap sx={{
-            alignItems: "center"
-          }}>
-            {headerRight ? headerRight : null}
-            {collapsible ? (
-              <IconButton
-                size="small"
-                onClick={() => setExpanded((v) => !v)}
-                aria-expanded={expanded}
-                aria-label={
-                  expanded
-                    ? (collapseAriaLabel?.expanded ?? "Свернуть документы")
-                    : (collapseAriaLabel?.collapsed ?? "Развернуть документы")
-                }
-              >
-                <ExpandMoreIcon
-                  sx={{
-                    transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
-                    transition: (theme) => theme.transitions.create("transform", { duration: theme.transitions.duration.shorter }),
-                  }}
-                />
-              </IconButton>
-            ) : null}
-          </Stack>
+          }}
+        >
+          {headerRight ? headerRight : null}
+          {collapsible ? (
+            <IconButton
+              size="small"
+              onClick={() => setExpanded((v) => !v)}
+              aria-expanded={expanded}
+              aria-label={
+                expanded
+                  ? (collapseAriaLabel?.expanded ?? "Свернуть документы")
+                  : (collapseAriaLabel?.collapsed ?? "Развернуть документы")
+              }
+            >
+              <ExpandMoreIcon
+                sx={{
+                  transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+                  transition: (theme) =>
+                    theme.transitions.create("transform", {
+                      duration: theme.transitions.duration.shorter,
+                    }),
+                }}
+              />
+            </IconButton>
+          ) : null}
         </Stack>
-        {collapsible ? (
-          <Collapse in={expanded}>
-            <Stack spacing={spacing}>{children}</Stack>
-          </Collapse>
-        ) : (
-          children
-        )}
       </Stack>
+      {collapsible ? (
+        <Collapse in={expanded}>
+          <Stack spacing={spacing}>{children}</Stack>
+        </Collapse>
+      ) : (
+        children
+      )}
+    </Stack>
+  );
+
+  if (!paper) {
+    return (
+      <Box
+        id={id}
+        sx={{
+          py: 2.5,
+        }}
+      >
+        {content}
+      </Box>
+    );
+  }
+
+  return (
+    <Paper id={id} variant="outlined" sx={{ p: 2.5, ...paperSx }}>
+      {content}
     </Paper>
   );
 }

@@ -4,6 +4,8 @@ import { getServerAuthSession } from "@/core/auth";
 import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import type { RequestReminderDto } from "@/entities/request";
 import { RemindersListView } from "@/widgets/pro-requests/ui/RemindersListView";
+import { CabinetNotificationsBlock } from "@/widgets/cabinet-chrome/ui/CabinetNotificationsBlock";
+import { Box } from "@mui/material";
 
 export const metadata: Metadata = { title: "Напоминания — Земледел" };
 
@@ -20,7 +22,12 @@ export default async function ProRemindersPage() {
       session.user.id,
     );
 
-    return <RemindersListView initialReminders={reminders} />;
+    return (
+      <Box>
+        <CabinetNotificationsBlock role="provider" />
+        <RemindersListView initialReminders={reminders} />
+      </Box>
+    );
   } catch (error) {
     if (error instanceof BackendApiError && (error.status === 401 || error.status === 403)) {
       signInRedirect("/pro/reminders");

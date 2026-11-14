@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { Box, IconButton, Paper, Tooltip, Typography } from "@mui/material";
 import ChevronLeftRounded from "@mui/icons-material/ChevronLeftRounded";
-import ChatBubbleOutlineRounded from "@mui/icons-material/ChatBubbleOutlineRounded";
 import { SITE_STICKY_TOP_PX } from "@/shared/config/site-layout";
 
 type Props = {
@@ -84,7 +83,6 @@ export function ChatBodyWithSidePanelLayout({
                 <ChevronLeftRounded />
               </IconButton>
             </Tooltip>
-            <ChatBubbleOutlineRounded color="action" fontSize="small" />
             <Typography
               variant="caption"
               sx={{
