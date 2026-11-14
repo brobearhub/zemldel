@@ -17,15 +17,15 @@ type Props = {
 export function CategoryGuideSection({ guide, childrenCategories, navigation, requestAction }: Props) {
   const navigationLinks = [
     ...navigation.situations.map(({ category, situation }) => ({
-      href: `/service-categories/${category.id}`,
+      href: `/service-categories/${encodeURIComponent(category.slug)}`,
       title: situation,
     })),
     ...navigation.reading.map(({ category, anchor, title }) => ({
-      href: `/service-categories/${category.id}#${anchor}`,
+      href: `/service-categories/${encodeURIComponent(category.slug)}#${anchor}`,
       title,
     })),
     ...(navigation.parent ? [{
-      href: `/service-categories/${navigation.parent.id}`,
+      href: `/service-categories/${encodeURIComponent(navigation.parent.slug)}`,
       title: navigation.parentSituation ?? navigation.parent.name,
     }] : []),
   ];
@@ -93,7 +93,7 @@ export function CategoryGuideSection({ guide, childrenCategories, navigation, re
               return (
                 <li key={category.id}>
                   <Link
-                    href={`/service-categories/${category.id}`}
+                    href={`/service-categories/${encodeURIComponent(category.slug)}`}
                     className={styles.card}
                   >
                     {image ? (

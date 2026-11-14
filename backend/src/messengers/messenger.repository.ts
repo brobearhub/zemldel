@@ -384,6 +384,17 @@ export class MessengerRepository {
         where: {
           providerId: message.conversation.providerId,
           status: 'ACTIVE',
+          OR: [
+            { role: { in: ['OWNER', 'MANAGER'] } },
+            {
+              assignedRequests: {
+                some: {
+                  id: message.conversation.requestId,
+                  providerId: message.conversation.providerId,
+                },
+              },
+            },
+          ],
         },
         select: { userId: true },
       });

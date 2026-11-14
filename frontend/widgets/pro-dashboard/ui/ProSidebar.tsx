@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   REQUEST_ITEMS,
   CHAT_ITEM,
+  INTEREST_ITEM,
   TEAM_ITEMS,
   NAV_ITEMS,
   type SidebarNavItem,
@@ -82,6 +83,7 @@ export function ProSidebar({
   const activeProviderName = useAppSelector(
     (state) => getActiveMembership(state.auth.user)?.providerName,
   );
+  const isEmployee = useAppSelector((state) => getActiveMembership(state.auth.user)?.role === "EMPLOYEE");
   const displayName = activeProviderName ?? providerName;
   const chatUnread = useChatSocket();
   const unreadByRequestId = chatUnread.unreadByConversationId ?? chatUnread.unreadByRequestId;
@@ -361,6 +363,8 @@ export function ProSidebar({
       ) : (
         <>
           <List disablePadding sx={{ pt: 1.75, overflowY: "auto", flex: 1 }}>
+            {isEmployee ? renderItem({ href: "/pro/assigned", label: "Назначенные заявки", icon: <InboxOutlinedIcon />, active: (path) => path.startsWith("/pro/assigned") }) : (
+              <>
             {renderItem(CHAT_ITEM)}
             <Tooltip title={collapsed ? "Заявки" : ""} placement="right">
               <ListItemButton
@@ -418,7 +422,7 @@ export function ProSidebar({
                 {REQUEST_ITEMS.map((item) => renderItem(item, true))}
               </List>
             </Collapse>
-            {NAV_ITEMS.slice(0, 2).map((item) => renderItem(item))}
+            {NAV_ITEMS.slice(0, 1).map((item) => renderItem(item))}
             <Tooltip title={collapsed ? "Команда" : ""} placement="right">
               <ListItemButton
                 onClick={() => {
@@ -468,7 +472,10 @@ export function ProSidebar({
                 {TEAM_ITEMS.map((item) => renderItem(item, true))}
               </List>
             </Collapse>
-            {NAV_ITEMS.slice(2).map((item) => renderItem(item))}
+            {renderItem(INTEREST_ITEM)}
+            {NAV_ITEMS.slice(1).map((item) => renderItem(item))}
+              </>
+            )}
           </List>
         </>
       )}

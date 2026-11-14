@@ -35,7 +35,7 @@ import {
   Typography,
   type PaperProps,
 } from "@mui/material";
-import { ServiceCard, toPlaceInput } from "@/entities/service";
+import { ServiceCard, toPlaceInput, uniqueServicePlaces } from "@/entities/service";
 import type {
   ServiceDto,
   ServiceCategory,
@@ -74,6 +74,8 @@ type Props = {
   initialProviderCity?: AuthCity | null;
   draftStorageKey?: string;
 };
+
+const PHOTO_TILE_SIZE = 112;
 
 function normalizeNullableString(value: string): string | null {
   const normalized = value.trim();
@@ -347,7 +349,7 @@ export function ProServiceEditor({
     createInitialState(initialService),
   );
   const [places, setPlaces] = useState<ServicePlace[]>(() => {
-    if (mode === "edit") return initialService?.places ?? [];
+    if (mode === "edit") return uniqueServicePlaces(initialService?.places ?? []);
     return providerCity ? [providerCityPlace(providerCity)] : [];
   });
   const [error, setError] = useState<string | null>(null);
@@ -421,7 +423,7 @@ export function ProServiceEditor({
           ? draft.form.categoryId
           : "",
       });
-      setPlaces(draft.places);
+      setPlaces(uniqueServicePlaces(draft.places));
       setAllRussia(draft.allRussia);
       setImages(draft.images);
       setMainPhotoKey(draft.mainPhotoKey ?? null);
@@ -478,7 +480,7 @@ export function ProServiceEditor({
         ? normalizeNullableString(form.paletteColor)
         : null,
       allRussia,
-      places: allRussia ? [] : places.map(toPlaceInput),
+      places: allRussia ? [] : uniqueServicePlaces(places).map(toPlaceInput),
     };
   }, [form, places, allRussia]);
 
@@ -808,7 +810,7 @@ export function ProServiceEditor({
   }
 
   function onPlacesChange(input: ServicePlace[]) {
-    const next = input.filter((place) => place.regionCode !== "RU");
+    const next = uniqueServicePlaces(input.filter((place) => place.regionCode !== "RU"));
     setAllRussia(false);
     placesTouched.current = true;
     setPlaces(next);
@@ -1153,120 +1155,126 @@ export function ProServiceEditor({
               gap: 1,
             }}
           >
-            {galleryPhotos.map((image, index) => (
-              <Box
-                key={image.key}
-                sx={{
-                  width: 112,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 0.5,
-                }}
-              >
+            {galleryPhotos.map((image, index) => {
+              const hiddenByPlan = index >= photoLimit;
+              const caption = !image.saved
+                ? busy
+                  ? "Загрузка…"
+                  : savedServiceId.current
+                    ? "Не загружено"
+                    : ""
+                : "";
+
+              return (
                 <Box
-                  sx={{ position: "relative" }}
+                  key={image.key}
+                  sx={{
+                    width: PHOTO_TILE_SIZE,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0.5,
+                  }}
                 >
                   <Box
-                    component="img"
-                    src={image.url}
-                    alt={`Фото услуги ${index + 1}`}
-                    sx={{
-                      width: 112,
-                      height: 84,
-                      objectFit: "cover",
-                      borderRadius: 1,
-                      display: "block",
-                      outline: index === 0 ? "2px solid" : undefined,
-                      outlineColor: "primary.main",
-                      outlineOffset: -2,
-                    }}
-                  />
-                  {index === 0 ? (
-                    <Chip
-                      label="Главная"
-                      color="primary"
-                      size="small"
+                    sx={{ position: "relative" }}
+                  >
+                    <Box
+                      component="img"
+                      src={image.url}
+                      alt={`Фото услуги ${index + 1}`}
                       sx={{
-                        position: "absolute",
-                        bottom: 4,
-                        left: 4,
-                        height: 22,
-                        minHeight: 22,
-                        bgcolor: "text.primary",
-                        color: "background.paper",
+                        width: PHOTO_TILE_SIZE,
+                        height: PHOTO_TILE_SIZE,
+                        objectFit: "cover",
                         borderRadius: 1,
-                        fontWeight: 700,
-                        pointerEvents: "none",
-                        "& .MuiChip-label": {
-                          px: 0.75,
-                          py: 0,
-                          fontSize: 12,
-                        },
+                        display: "block",
+                        outline: index === 0 ? "2px solid" : undefined,
+                        outlineColor: "primary.main",
+                        outlineOffset: -2,
                       }}
                     />
-                  ) : null}
-                  <IconButton
-                    aria-label={`Удалить фото услуги ${index + 1}`}
-                    size="small"
-                    disabled={busy}
-                    onClick={() =>
-                      image.saved
-                        ? void deleteImage(image.url)
-                        : removePendingImage(image.url)
-                    }
-                    sx={{
-                      position: "absolute",
-                      top: 2,
-                      right: 2,
-                      bgcolor: "background.paper",
-                    }}
-                  >
-                    <CloseIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-                {index > 0 && (
-                  <Button
-                    type="button"
-                    variant="outlined"
-                    size="small"
-                    fullWidth
-                    aria-label={`Сделать главной фото ${index + 1}`}
-                    disabled={busy}
-                    onClick={() => makeMainPhoto(image)}
-                    sx={{
-                      px: 0.5,
-                      py: 0.5,
-                      minHeight: 36,
-                      fontSize: 12,
-                      letterSpacing: 0,
-                      whiteSpace: "nowrap",
-                      color: "text.primary",
-                      borderColor: "text.primary",
-                    }}
-                  >
-                    Сделать главной
-                  </Button>
-                )}
-                <Typography variant="caption">
-                  {index >= photoLimit ? (
-                    <PlanFeatureGate
-                      message={index < 3 ? LITE_AND_BUSINESS : BUSINESS_ONLY}
-                      label={`Фото ${index + 1}: скрыто тарифом`}
+                    {index === 0 ? (
+                      <Chip
+                        label="Главная"
+                        color="primary"
+                        size="small"
+                        sx={{
+                          position: "absolute",
+                          bottom: 4,
+                          left: 4,
+                          height: 22,
+                          minHeight: 22,
+                          bgcolor: "text.primary",
+                          color: "background.paper",
+                          borderRadius: 1,
+                          fontWeight: 700,
+                          pointerEvents: "none",
+                          "& .MuiChip-label": {
+                            px: 0.75,
+                            py: 0,
+                            fontSize: 12,
+                          },
+                        }}
+                      />
+                    ) : null}
+                    <IconButton
+                      aria-label={`Удалить фото услуги ${index + 1}`}
+                      size="small"
+                      disabled={busy}
+                      onClick={() =>
+                        image.saved
+                          ? void deleteImage(image.url)
+                          : removePendingImage(image.url)
+                      }
+                      sx={{
+                        position: "absolute",
+                        top: 2,
+                        right: 2,
+                        bgcolor: "background.paper",
+                      }}
                     >
-                      <span>Скрыто тарифом · </span>
-                    </PlanFeatureGate>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                  {index > 0 && (
+                    <Button
+                      type="button"
+                      variant="text"
+                      size="small"
+                      fullWidth
+                      aria-label={`Сделать главной фото ${index + 1}`}
+                      disabled={busy}
+                      onClick={() => makeMainPhoto(image)}
+                      sx={{
+                        px: 0.5,
+                        py: 0.5,
+                        minHeight: 36,
+                        fontSize: 12,
+                        letterSpacing: 0,
+                        whiteSpace: "nowrap",
+                        color: "text.primary",
+                      }}
+                    >
+                      Сделать главной
+                    </Button>
+                  )}
+                  {caption || hiddenByPlan ? (
+                    <Typography variant="caption">
+                      {hiddenByPlan ? (
+                        <PlanFeatureGate
+                          message={index < 3 ? LITE_AND_BUSINESS : BUSINESS_ONLY}
+                          label={`Фото ${index + 1}: скрыто тарифом`}
+                        >
+                          <span>Скрыто тарифом</span>
+                        </PlanFeatureGate>
+                      ) : null}
+                      {hiddenByPlan && caption ? " · " : null}
+                      {caption}
+                    </Typography>
                   ) : null}
-                  {index === 0 ? "Обложка" : `Фото ${index + 1}`}
-                  {!image.saved
-                    ? busy
-                      ? " · Загрузка…"
-                      : savedServiceId.current
-                        ? " · Не загружено"
-                        : ""
-                    : ""}
-                </Typography>
-              </Box>
-            ))}
+                </Box>
+              );
+            })}
             <PlanFeatureGate
               message={photoRestriction}
               label="Добавить фотографии"
@@ -1277,17 +1285,17 @@ export function ProServiceEditor({
                 onClick={() => openImagePicker("add")}
                 disabled={busy}
                 sx={{
-                  width: 112,
-                  height: 112,
+                  width: PHOTO_TILE_SIZE,
+                  height: PHOTO_TILE_SIZE,
                   flexShrink: 0,
-                  border: "1px dashed",
-                  borderColor: "divider",
+                  border: "2px dashed",
+                  borderColor: "primary.dark",
                   borderRadius: 1,
-                  color: "text.secondary",
+                  bgcolor: "background.secondary",
+                  color: "text.primary",
                   "&:hover": {
-                    borderColor: "primary.main",
+                    borderColor: "text.primary",
                     bgcolor: "action.hover",
-                    color: "primary.main",
                   },
                   "&.Mui-focusVisible": {
                     outline: "2px solid",
@@ -1406,7 +1414,7 @@ export function ProServiceEditor({
                 }}
               >
                 <ServicePlaceChips
-                  value={places}
+                  value={allRussia ? [] : places}
                   onChange={onPlacesChange}
                   disabled={busy}
                 />
@@ -1617,7 +1625,7 @@ export function ProServiceEditor({
                 }
               />
               <ServiceGeographyField
-                value={places}
+                value={allRussia ? [] : places}
                 onChange={onPlacesChange}
                 disabled={busy}
                 size="small"
@@ -1627,12 +1635,12 @@ export function ProServiceEditor({
                 helperText={
                   places.length === 0 && !allRussia
                     ? "Выберите город или область"
-                    : "Город или целая область. Можно несколько."
+                    : "Можно выбрать несколько городов и регионов. Область включает все её города."
                 }
               />
               <Box sx={{ display: { md: "none" } }}>
                 <ServicePlaceChips
-                  value={places}
+                  value={allRussia ? [] : places}
                   onChange={onPlacesChange}
                   disabled={busy}
                   hideHeading

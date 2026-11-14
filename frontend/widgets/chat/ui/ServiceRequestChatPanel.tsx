@@ -13,6 +13,7 @@ import type {
   ChatPresenceUpdatedPayload,
   ChatViewerSide,
 } from "@/entities/chat/dto/chat.dto";
+import type { RequestCustomerDto, RequestProDto } from "@/entities/request";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import { Chat, type ChatRenderableRow, type ChatReplyTarget } from "./Chat";
 import {
@@ -28,6 +29,7 @@ import {
   useChatOutbox,
   type OutboundRow,
 } from "@/widgets/chat/model/use-chat-outbox";
+import { DownloadChatPdfButton } from "./DownloadChatPdfButton";
 import { useChatDraft } from "@/widgets/chat/model/use-chat-draft";
 
 class ChatPostError extends Error {
@@ -69,6 +71,9 @@ type Props = {
   initialUnreadCount?: number;
   onMessage?: (message: ChatMessageDto) => void;
   onCollapse?: () => void;
+  viewerRole?: "CUSTOMER" | "PROVIDER";
+  counterpartyName?: string | null;
+  requestInfo?: RequestCustomerDto | RequestProDto;
 };
 
 export function ServiceRequestChatPanel({
@@ -85,6 +90,9 @@ export function ServiceRequestChatPanel({
   initialUnreadCount = 0,
   onMessage,
   onCollapse,
+  viewerRole,
+  counterpartyName,
+  requestInfo,
 }: Props) {
   const openingUnreadCount = useRef(initialUnreadCount);
   const { data: session } = useSession();
@@ -801,6 +809,9 @@ export function ServiceRequestChatPanel({
           >
             {title}
           </Typography>
+          <Box sx={{ ml: "auto" }}>
+            <DownloadChatPdfButton conversationId={conversationId} serviceRequestId={serviceRequestId} title={subtitle || title} viewerRole={viewerRole} counterpartyName={counterpartyName} requestInfo={requestInfo} />
+          </Box>
           {onCollapse ? (
             <Tooltip title="Свернуть чат">
               <IconButton
@@ -809,7 +820,6 @@ export function ServiceRequestChatPanel({
                 onClick={onCollapse}
                 size="small"
                 sx={{
-                  ml: "auto",
                   flexShrink: 0,
                   color: "inherit",
                 }}

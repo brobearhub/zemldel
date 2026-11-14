@@ -10,7 +10,11 @@ export function mapServiceToHeroVm(service: ServiceDto): ServiceHeroVm {
   const description = normalizeText(service.description) ?? null;
 
   return {
-    backHref: service.categoryId ? `/service-categories/${service.categoryId}` : "/",
+    backHref: service.category?.slug
+      ? `/service-categories/${encodeURIComponent(service.category.slug)}`
+      : service.categoryId
+        ? `/service-categories/${encodeURIComponent(service.categoryId)}`
+        : "/",
     categoryLabel: service.category?.name ?? "Услуга",
     title: service.title,
     description,

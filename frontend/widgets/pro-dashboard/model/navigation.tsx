@@ -42,7 +42,7 @@ export const REQUEST_ITEMS: readonly SidebarNavItem[] = [
 export const TEAM_ITEMS: readonly SidebarNavItem[] = [
   {
     href: "/pro/team/add-manager",
-    label: "Добавление менеджера",
+    label: "Команда",
     icon: null,
     active: (pathname) => pathname === "/pro/team/add-manager",
   },
@@ -54,8 +54,14 @@ export const TEAM_ITEMS: readonly SidebarNavItem[] = [
   },
 ];
 
+export const INTEREST_ITEM: SidebarNavItem = {
+  href: "/pro/interest",
+  label: "Интерес клиентов",
+  icon: <FavoriteBorderRoundedIcon />,
+  active: (path) => path.startsWith("/pro/interest"),
+};
+
 export const NAV_ITEMS: readonly SidebarNavItem[] = [
-  { href: "/pro/interest", label: "Интерес клиентов", icon: <FavoriteBorderRoundedIcon />, active: path => path.startsWith("/pro/interest") },
   {
     href: "/pro/services",
     label: "Услуги",

@@ -136,6 +136,7 @@ enum FnsCheckStatus {
 enum ProviderMemberRole {
   OWNER
   MANAGER
+  EMPLOYEE
 }
 
 enum ProviderMemberStatus {
@@ -356,6 +357,8 @@ model User {
   decidedRequestContractFiles  RequestContractFile[] @relation("RequestContractFileDecidedBy")
   uploadedRequestDocumentRequests RequestDocumentRequest[] @relation("RequestDocumentRequestUploadedBy")
   providerMemberships       ProviderMember[]
+  sentTeamInvitations       ProviderTeamInvitation[] @relation("ProviderTeamInviter")
+  acceptedTeamInvitations   ProviderTeamInvitation[] @relation("ProviderTeamAcceptor")
   providerUserSettings      ProviderUserSettings[]
   customerLegalProfile      CustomerLegalProfile?
   ownedProviders            Provider[]               @relation("ProviderOwner")
@@ -497,6 +500,7 @@ model Provider {
   stats             Json?
   ownerUser         User?                  @relation("ProviderOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
   members           ProviderMember[]
+  teamInvitations   ProviderTeamInvitation[]
   userSettings      ProviderUserSettings[]
   legalProfile      ProviderLegalProfile?
   requestContractFiles RequestContractFile[]
@@ -713,15 +717,41 @@ model ProviderMember {
   providerId String               @db.Uuid
   userId     String               @db.Uuid
   role       ProviderMemberRole
+  jobTitle   String?              @db.VarChar(120)
   status     ProviderMemberStatus @default(ACTIVE)
   provider   Provider             @relation(fields: [providerId], references: [id], onDelete: Cascade)
   user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedRequests Request[]
   createdAt  DateTime             @default(now())
   updatedAt  DateTime             @updatedAt
 
   @@unique([providerId, userId])
   @@index([userId])
   @@index([providerId, role, status])
+}
+
+model ProviderTeamInvitation {
+  id               String    @id @default(uuid()) @db.Uuid
+  providerId       String    @db.Uuid
+  invitedById      String    @db.Uuid
+  acceptedById     String?   @db.Uuid
+  email            String
+  jobTitle         String    @db.VarChar(120)
+  role             ProviderMemberRole @default(EMPLOYEE)
+  tokenHash        String    @unique
+  expiresAt        DateTime
+  acceptedAt       DateTime?
+  revokedAt        DateTime?
+  sentAt           DateTime
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  provider         Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  invitedBy        User      @relation("ProviderTeamInviter", fields: [invitedById], references: [id], onDelete: Cascade)
+  acceptedBy       User?     @relation("ProviderTeamAcceptor", fields: [acceptedById], references: [id], onDelete: SetNull)
+
+  @@unique([providerId, email])
+  @@index([invitedById])
+  @@index([acceptedById])
 }
 
 model ProviderUserSettings {
@@ -773,6 +803,7 @@ model Request {
   serviceId      String? @db.Uuid
   categoryId     String? @db.Uuid
   providerId     String? @db.Uuid
+  assignedMemberId String? @db.Uuid
   customerUserId String? @db.Uuid
   requestCityId  String? @db.Uuid
 
@@ -800,6 +831,7 @@ model Request {
   service           Service?               @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   category          ServiceCategory?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   provider          Provider?              @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  assignedMember    ProviderMember?        @relation(fields: [assignedMemberId], references: [id], onDelete: SetNull)
   customerUser      User?                  @relation(fields: [customerUserId], references: [id], onDelete: SetNull)
   requestCity       City?                  @relation("RequestCity", fields: [requestCityId], references: [id], onDelete: SetNull)
   conversations     Conversation[]
@@ -821,6 +853,7 @@ model Request {
 
   @@index([customerUserId, status])
   @@index([providerId, status])
+  @@index([assignedMemberId, status])
   @@index([categoryId, status])
   @@index([serviceId, status])
   @@index([requestCityId, status])

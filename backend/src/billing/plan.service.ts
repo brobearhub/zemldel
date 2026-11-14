@@ -19,7 +19,12 @@ export class PlanService {
     const row = await this.prisma.providerMember.findUnique({
       where: { providerId_userId: { providerId, userId } },
     });
-    if (!row || row.status !== 'ACTIVE' || (owner && row.role !== 'OWNER'))
+    if (
+      !row ||
+      row.status !== 'ACTIVE' ||
+      row.role === 'EMPLOYEE' ||
+      (owner && row.role !== 'OWNER')
+    )
       throw new ForbiddenException('Нет доступа к профилю');
     return row;
   }

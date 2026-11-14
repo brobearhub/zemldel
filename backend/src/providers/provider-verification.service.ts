@@ -181,7 +181,9 @@ export class ProviderVerificationService {
         where: { providerId_userId: { providerId, userId } },
         select: { role: true, status: true },
       })
-      .then((row) => (row?.status === 'ACTIVE' ? row : null));
+      .then((row) =>
+        row?.status === 'ACTIVE' && row.role !== 'EMPLOYEE' ? row : null,
+      );
   }
 
   private async loadProvider(providerId: string) {

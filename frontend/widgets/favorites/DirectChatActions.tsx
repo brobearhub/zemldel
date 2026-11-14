@@ -13,7 +13,12 @@ export function DirectChatActions({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  async function act(action: "decline" | "block" | "resume") {
+  const [acceptedConversationId, setAcceptedConversationId] = useState<
+    string | null
+  >(null);
+  const isWaiting =
+    state === "WAITING" && acceptedConversationId !== conversationId;
+  async function act(action: "accept" | "decline" | "block" | "resume") {
     setBusy(true);
     setError("");
     try {
@@ -22,6 +27,7 @@ export function DirectChatActions({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       });
+      setAcceptedConversationId(action === "accept" ? conversationId : null);
       onChange();
     } catch (reason) {
       setError(
@@ -39,16 +45,12 @@ export function DirectChatActions({
         flexShrink: 0,
       }}
     >
-      <Alert severity="info">
-        Исполнитель написал, потому что вы сохранили его профиль или услугу.{" "}
-        {state === "WAITING"
-          ? "Ответ откроет двустороннюю переписку."
-          : state === "BLOCKED"
-            ? "Вы заблокировали прямые обращения этого исполнителя."
-            : state === "DECLINED"
-              ? "Вы отклонили обращение."
-              : "Вы можете заблокировать дальнейшие прямые обращения."}
-      </Alert>
+      {isWaiting ? (
+        <Alert severity="warning">
+          Исполнитель написал, потому что вы сохранили его профиль или услугу.{" "}
+          Ответьте или нажмите «Вступить в переписку», чтобы начать диалог.
+        </Alert>
+      ) : null}
       {error ? <Alert severity="error">{error}</Alert> : null}
       <Stack
         direction="row"
@@ -56,14 +58,25 @@ export function DirectChatActions({
         useFlexGap
         sx={{ flexWrap: "wrap" }}
       >
-        {state === "WAITING" ? (
-          <Button
-            size="small"
-            disabled={busy}
-            onClick={() => void act("decline")}
-          >
-            Отклонить обращение
-          </Button>
+        {isWaiting ? (
+          <>
+            <Button
+              size="small"
+              disabled={busy}
+              onClick={() => void act("accept")}
+              sx={{ color: "text.secondary" }}
+            >
+              Вступить в переписку
+            </Button>
+            <Button
+              size="small"
+              disabled={busy}
+              onClick={() => void act("decline")}
+              sx={{ color: "text.secondary" }}
+            >
+              Отклонить обращение
+            </Button>
+          </>
         ) : null}
         {state !== "BLOCKED" ? (
           <Button

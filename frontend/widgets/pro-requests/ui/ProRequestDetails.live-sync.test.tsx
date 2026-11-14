@@ -97,3 +97,5 @@ describe("provider request sections follow live updates", () => {
   });
 
 });
+
+vi.mock("@/widgets/provider-team/RequestAssignee", () => ({ RequestAssignment: () => null }));

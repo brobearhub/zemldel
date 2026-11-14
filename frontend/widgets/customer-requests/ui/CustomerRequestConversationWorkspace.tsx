@@ -1,4 +1,5 @@
 "use client";
+import { RequestAssignee } from "@/widgets/provider-team/RequestAssignee";
 import {
   RequestUnavailableNotice,
   isRequestAccessFailure,
@@ -8,6 +9,8 @@ import { extractAcceptContractError } from "../lib/contract-acceptance-error";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useCabinetSidebar } from "@/shared/ui/CabinetSidebarContext";
 import {
   Alert,
   Box,
@@ -152,6 +155,10 @@ export function CustomerRequestConversationWorkspace({
   initialConversationId,
 }: Props) {
   const router = useRouter();
+  const { expanded: sidebarExpanded, collapseSidebar } = useCabinetSidebar();
+  const wide = useMediaQuery((theme) => theme.breakpoints.up("tablet"));
+  const [chatCollapsed, setChatCollapsed] = useState(false);
+  useEffect(() => { setChatCollapsed(sidebarExpanded); }, [sidebarExpanded]);
   const [unavailable, setUnavailable] = useState<RequestAccessFailure | null>(
     null,
   );
@@ -1072,8 +1079,18 @@ export function CustomerRequestConversationWorkspace({
 
   return (
     <ChatBodyWithSidePanelLayout
+      rightCollapsed={wide && chatCollapsed}
+      onExpandRight={() => { collapseSidebar(); setChatCollapsed(false); }}
       middle={
         <Stack spacing={2}>
+          {req.assignedMember ? (
+            <Paper sx={{ p: 2 }}>
+              <RequestAssignee
+                providerName={req.providerName}
+                member={req.assignedMember}
+              />
+            </Paper>
+          ) : null}
           {req.fiasInactiveWarning ? (
             <RequestCityInactiveWarning
               show={req.fiasInactiveWarning}
@@ -1618,6 +1635,9 @@ export function CustomerRequestConversationWorkspace({
         selectedConversationId ? (
           <ServiceRequestChatPanel
             serviceRequestId={req.id}
+            viewerRole="CUSTOMER"
+            counterpartyName={selectedConversation?.providerName ?? req.providerName}
+            requestInfo={req}
             conversationId={selectedConversationId}
             title="Чат"
             subtitle={selectedConversation?.providerName ?? pickTitle(req)}
@@ -1637,6 +1657,7 @@ export function CustomerRequestConversationWorkspace({
               });
               setSelectedConversationId(nextConversationId);
             }}
+            onCollapse={wide ? () => setChatCollapsed(true) : undefined}
             autoFocusInput={justCreated}
           />
         ) : chatRecovery ? (

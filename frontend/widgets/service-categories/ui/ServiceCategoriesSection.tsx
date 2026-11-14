@@ -62,7 +62,7 @@ export function ServiceCategoriesSection({ categories, embedded }: Props) {
           const children = categories
             .filter((child) => child.parentId === category.id)
             .sort(compareCategories);
-          const href = `/service-categories/${category.id}`;
+          const href = `/service-categories/${encodeURIComponent(category.slug)}`;
 
           return (
             <Box
@@ -148,7 +148,7 @@ export function ServiceCategoriesSection({ categories, embedded }: Props) {
                       >
                         <Box
                           component={Link}
-                          href={`/service-categories/${child.id}`}
+                          href={`/service-categories/${encodeURIComponent(child.slug)}`}
                           sx={{
                             display: "flex",
                             alignItems: "center",

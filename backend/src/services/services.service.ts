@@ -27,6 +27,7 @@ import {
 import type { ServiceManagementAction } from '../auth/authorization';
 import { assertActiveSelectableCity } from '../cities/city-validation';
 import {
+  serviceGeographySelect,
   normalizeServicePlaces,
   orderByExplicitCity,
   uniqueServiceCityIds,
@@ -34,8 +35,7 @@ import {
 } from './service-places';
 
 export const serviceSelect = {
-  allRussia: true,
-  regionOrder: true,
+  ...serviceGeographySelect,
   id: true,
   categoryId: true,
   status: true,
@@ -82,26 +82,6 @@ export const serviceSelect = {
       parentId: true,
       sortOrder: true,
     },
-  },
-  cities: {
-    select: {
-      city: {
-        select: {
-          id: true,
-          name: true,
-          regionCode: true,
-          regionName: true,
-        },
-      },
-    },
-    orderBy: { city: { name: 'asc' } },
-  },
-  regions: {
-    select: {
-      regionCode: true,
-      regionName: true,
-    },
-    orderBy: { regionName: 'asc' },
   },
 } satisfies Prisma.ServiceSelect;
 
@@ -544,7 +524,11 @@ export class ServicesService {
       ),
     ];
     return {
-      cityIds: uniqueServiceCityIds(cityIds, cityRows),
+      cityIds: uniqueServiceCityIds(
+        cityIds,
+        cityRows,
+        regions.map((region) => region.regionCode),
+      ),
       regions,
       regionCodes,
     };

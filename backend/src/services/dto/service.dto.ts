@@ -25,6 +25,7 @@ import {
 import type { ServicePaletteColor } from '../service.types';
 import { formatPublicProviderName } from '../../providers/provider-display-name';
 import type { ProviderType } from '../../auth/authorization';
+import { servicePlacesFromRow } from '../service-places';
 
 export type ServiceStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 
@@ -347,45 +348,13 @@ export type ServiceDbRow = {
   }>;
 };
 
-function placesFromRow(row: ServiceDbRow): ServicePlaceDto[] {
-  if (row.allRussia)
-    return [
-      {
-        kind: 'region',
-        name: 'Вся Россия',
-        regionCode: 'RU',
-        regionName: 'Вся Россия',
-      },
-    ];
-  return [
-    ...row.cities.map((link) => ({
-      kind: 'city' as const,
-      cityId: link.city.id,
-      name: link.city.name,
-      regionCode: link.city.regionCode,
-      regionName: link.city.regionName,
-    })),
-    ...row.regions.map((region) => ({
-      kind: 'region' as const,
-      name: region.regionName,
-      regionCode: region.regionCode,
-      regionName: region.regionName,
-    })),
-  ].sort((left, right) => {
-    const order = row.regionOrder ?? [];
-    const index = (code: string) =>
-      order.includes(code) ? order.indexOf(code) : order.length;
-    return index(left.regionCode) - index(right.regionCode);
-  });
-}
-
 export function serviceDbRowToDtoPlain(row: ServiceDbRow): ServiceDto {
   const instance = plainToInstance(
     ServiceDto,
     {
       ...row,
       images: row.images?.length ? row.images : row.image ? [row.image] : [],
-      places: placesFromRow(row),
+      places: servicePlacesFromRow(row),
       provider: {
         ...row.provider,
         name: formatPublicProviderName({

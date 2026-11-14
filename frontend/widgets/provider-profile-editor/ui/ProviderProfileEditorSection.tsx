@@ -1,5 +1,7 @@
 "use client";
 
+import { ProviderTeam, type PublicTeamMember } from "@/widgets/provider-team/ProviderTeam";
+import { ProviderJobTitle } from "@/widgets/provider-team/ProviderJobTitle";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { CdnFillImage } from "@/shared/ui/cdn-image";
 import { convertImageToWebp, IMAGE_INPUT_ACCEPT } from "@/shared/lib/image/convert-to-webp";
@@ -28,6 +30,8 @@ import {
 } from "@mui/material";
 import Link from "@/shared/ui/Link";
 import { ProviderSlugEditor } from "./ProviderSlugEditor";
+import type { ProviderServiceGeography } from "@/entities/provider/dto/provider-public-profile.dto";
+import { ProviderWorkPlaces } from "@/widgets/provider-work-places/ui/ProviderWorkPlaces";
 import { normalizeContactEmailInput } from "@/shared/lib/contact-email";
 import { normalizeContactPhoneInput } from "@/shared/lib/contact-phone";
 import {
@@ -51,10 +55,13 @@ type ProviderPublicCity = {
 type PublicProviderStat = { value: string; label: string };
 
 export type PublicProviderProfile = {
+  jobTitle?: string | null;
+  team?: PublicTeamMember[];
   id: string;
   name: string;
   type: ProviderType;
   city: ProviderPublicCity;
+  serviceGeography?: ProviderServiceGeography[];
   /** Фото, загруженное именно у провайдера (без фолбэка на owner user image). */
   providerImage: string | null;
   image: string | null;
@@ -680,6 +687,7 @@ export function ProviderProfileEditorSection({
   const hasProviderImage = Boolean(profile.providerImage);
 
   type PatchProfilePayload = Partial<{
+    jobTitle: string;
     name: string;
     subtitle: string | null;
     about: string | null;
@@ -1109,6 +1117,11 @@ export function ProviderProfileEditorSection({
                   }}
                 />
 
+                <ProviderJobTitle
+                  value={profile.jobTitle}
+                  editable={canEditName}
+                  onSave={(jobTitle) => patchProfile({ jobTitle })}
+                />
                 <InlineEditableText
                   id="subtitle"
                   editId={editId}
@@ -1301,6 +1314,11 @@ export function ProviderProfileEditorSection({
           </Box>
         </Container>
       </Paper>
+      <ProviderTeam members={profile.team} />
+      <ProviderWorkPlaces
+        services={profile.serviceGeography}
+        editableProfile
+      />
     </Stack>
   );
 }

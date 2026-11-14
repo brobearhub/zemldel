@@ -44,5 +44,6 @@ export class ChatDirectStartDto {
   @IsString() @MinLength(1) @MaxLength(5000) body!: string;
 }
 export class ChatDirectStateDto {
-  @IsIn(['decline', 'block', 'resume']) action!: 'decline' | 'block' | 'resume';
+  @IsIn(['accept', 'decline', 'block', 'resume'])
+  action!: 'accept' | 'decline' | 'block' | 'resume';
 }

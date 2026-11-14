@@ -26,13 +26,32 @@ describe("city selection identity", () => {
   it("keeps the same name in a different region and different names in the same region", () => {
     const otherRegion = { ...kazan, cityId: "other-region", regionCode: "43", regionName: "Кировская область" };
     const otherCity = { ...kazan, cityId: "other-city", name: "Елабуга" };
-    expect(uniqueServicePlaces([kazan, otherRegion, otherCity, tatarstan])).toEqual([kazan, otherRegion, otherCity, tatarstan]);
+    expect(uniqueServicePlaces([kazan, otherRegion, otherCity])).toEqual([kazan, otherRegion, otherCity]);
+    expect(uniqueServicePlaces([kazan, otherRegion, otherCity, tatarstan])).toEqual([otherRegion, tatarstan]);
   });
 
   it("does not duplicate a renamed city ID and handles public hero-city names", () => {
     expect(uniqueServicePlaces([kazan, { ...kazan, name: "Другое имя" }])).toEqual([kazan]);
     const hero = { ...kazan, cityId: "hero", name: "город-герой Волгоград", regionCode: "34" };
     expect(placeSelectionKey(hero)).toBe(placeSelectionKey({ ...hero, cityId: "plain", name: "Волгоград" }));
+  });
+});
+
+describe("service coverage", () => {
+  it("replaces cities with their selected region regardless of selection order", () => {
+    expect(uniqueServicePlaces([kazan, tatarstan])).toEqual([tatarstan]);
+    expect(uniqueServicePlaces([tatarstan, kazan])).toEqual([tatarstan]);
+  });
+
+  it("keeps federal cities separate from the neighboring region", () => {
+    const moscow = { ...kazan, cityId: "moscow", name: "Москва", regionCode: "77" };
+    const region = { ...tatarstan, regionCode: "50", regionName: "Московская область" };
+    expect(uniqueServicePlaces([moscow, region])).toEqual([moscow, region]);
+  });
+
+  it("replaces all selected places with nationwide coverage", () => {
+    const national = { ...tatarstan, name: "Вся Россия", regionName: "Вся Россия", regionCode: "RU" };
+    expect(uniqueServicePlaces([kazan, tatarstan, national, national])).toEqual([national]);
   });
 });
 

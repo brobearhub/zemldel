@@ -15,13 +15,9 @@ import { assertContactPhone } from '../common/contact-phone';
 import { assertContactEmail } from '../common/contact-email';
 import { assertActiveSelectableCity } from '../cities/city-validation';
 import { CreateProviderDto } from './dto/create-provider.dto';
-import { AddProviderManagerDto } from './dto/add-provider-manager.dto';
 import { UpdateProviderPublicProfileDto } from './dto/update-provider-public-profile.dto';
 import { AuthService } from '../auth/auth.service';
-import {
-  assertCanCreateProviderProfile,
-  assertCanJoinProviderTeam,
-} from '../auth/account-kind';
+import { assertCanCreateProviderProfile } from '../auth/account-kind';
 import {
   isPersonalProviderType,
   type ProviderType,
@@ -40,6 +36,23 @@ import {
 } from './provider-slug-availability';
 import { LegalDocsService } from '../legal-docs/legal-docs.service';
 import { S3Service } from '../storage/s3.service';
+import {
+  serviceGeographySelect,
+  servicePlacesFromRow,
+  type ServiceGeographyRow,
+} from '../services/service-places';
+
+import { requireJobTitle } from './provider-job-title';
+import { privateInvitationSelect } from './provider-team-select';
+
+const publicTeamSelect = {
+  id: true,
+  role: true,
+  jobTitle: true,
+  user: {
+    select: { firstName: true, lastName: true, name: true, image: true },
+  },
+} satisfies Prisma.ProviderMemberSelect;
 
 const publicProviderSelect = {
   id: true,
@@ -64,13 +77,23 @@ const publicProviderSelect = {
   useOwnEmail: true,
   verificationStatus: true,
   stats: true,
+  services: {
+    where: { status: 'PUBLISHED' },
+    select: { id: true, title: true, ...serviceGeographySelect },
+    orderBy: [{ publishedAt: 'asc' }, { id: 'asc' }],
+  },
+  members: {
+    where: { status: 'ACTIVE' },
+    orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
+    select: publicTeamSelect,
+  },
   ownerUser: {
     select: {
       image: true,
       email: true,
     },
   },
-} as const;
+} as const satisfies Prisma.ProviderSelect;
 
 const providerSelect = {
   id: true,
@@ -85,6 +108,7 @@ const providerSelect = {
 
 const providerMemberSelect = {
   id: true,
+  jobTitle: true,
   role: true,
   status: true,
   createdAt: true,
@@ -197,6 +221,10 @@ type PublicProviderRow = {
   useOwnEmail: boolean;
   verificationStatus: string;
   stats: unknown;
+  services: Array<ServiceGeographyRow & { id: string; title: string }>;
+  members?: Array<
+    Prisma.ProviderMemberGetPayload<{ select: typeof publicTeamSelect }>
+  >;
   ownerUser: { image: string | null; email: string | null } | null;
 };
 
@@ -233,7 +261,12 @@ export class ProvidersService {
 
   private async hasActiveMembership(userId: string, providerId: string) {
     const membership = await this.prisma.providerMember.findFirst({
-      where: { userId, providerId, status: 'ACTIVE' },
+      where: {
+        userId,
+        providerId,
+        status: 'ACTIVE',
+        role: { in: ['OWNER', 'MANAGER'] },
+      },
       select: { id: true },
     });
     return Boolean(membership);
@@ -330,6 +363,7 @@ export class ProvidersService {
 
     const hasAnyField =
       input.name !== undefined ||
+      input.jobTitle !== undefined ||
       input.subtitle !== undefined ||
       input.about !== undefined ||
       input.phone !== undefined ||
@@ -351,7 +385,7 @@ export class ProvidersService {
       throw new BadRequestException('Invalid name');
     }
 
-    if (nextName !== undefined) {
+    if (nextName !== undefined || input.jobTitle !== undefined) {
       // Why: provider name is a public identifier in UI; only owner can change it.
       await this.ensureProviderOwner(actorUserId, id);
     } else {
@@ -380,19 +414,37 @@ export class ProvidersService {
           ? null
           : assertContactEmail(input.email);
 
-    const updated = await this.prisma.provider.update({
-      where: { id },
-      data: {
-        name: nextName,
-        subtitle: input.subtitle,
-        about: input.about,
-        phone: nextPhone,
-        email: nextEmail,
-        useOwnEmail: input.useOwnEmail,
-        stats: nextStats,
-      },
-      select: publicProviderSelect,
-    });
+    const nextJobTitle =
+      input.jobTitle === undefined
+        ? undefined
+        : requireJobTitle(input.jobTitle);
+    const updateProvider = (db: Prisma.TransactionClient) =>
+      db.provider.update({
+        where: { id },
+        data: {
+          name: nextName,
+          subtitle: input.subtitle,
+          about: input.about,
+          phone: nextPhone,
+          email: nextEmail,
+          useOwnEmail: input.useOwnEmail,
+          stats: nextStats,
+        },
+        select: publicProviderSelect,
+      });
+
+    const updated =
+      nextJobTitle === undefined
+        ? await updateProvider(this.prisma)
+        : await this.prisma.$transaction(async (tx) => {
+            await tx.providerMember.update({
+              where: {
+                providerId_userId: { providerId: id, userId: actorUserId },
+              },
+              data: { jobTitle: nextJobTitle },
+            });
+            return updateProvider(tx);
+          });
 
     return this.toPublicProviderProfile(
       updated as unknown as PublicProviderRow,
@@ -440,8 +492,27 @@ export class ProvidersService {
       rating: provider.rating,
       reviewCount: provider.reviewCount,
       city: provider.city,
+      serviceGeography: (provider.services ?? []).map((service) => ({
+        id: service.id,
+        title: service.title,
+        places: servicePlacesFromRow(service),
+      })),
       providerImage: provider.image ?? null,
       image: provider.image ?? provider.ownerUser?.image ?? null,
+      jobTitle:
+        provider.members?.find((member) => member.role === 'OWNER')?.jobTitle ??
+        null,
+      team: (provider.members ?? []).map((member) => ({
+        id: member.id,
+        name:
+          [member.user.firstName, member.user.lastName]
+            .filter(Boolean)
+            .join(' ') ||
+          member.user.name ||
+          'Сотрудник',
+        image: member.user.image,
+        jobTitle: member.jobTitle,
+      })),
       subtitle,
       about,
       phone: provider.phone?.trim() ? provider.phone.trim() : null,
@@ -632,6 +703,7 @@ export class ProvidersService {
       throw new BadRequestException({ fieldErrors });
     }
 
+    const jobTitle = requireJobTitle(body.jobTitle);
     const cityId = body.cityId.trim();
     await assertActiveSelectableCity(this.prisma, cityId);
 
@@ -703,6 +775,7 @@ export class ProvidersService {
             providerId: createdProvider.id,
             userId,
             role: 'OWNER',
+            jobTitle,
             status: 'ACTIVE',
           },
         });
@@ -863,7 +936,10 @@ export class ProvidersService {
   }
 
   async getProviderMembers(userId: string, providerId: string) {
-    await this.getActiveMembership(userId, providerId);
+    const membership = await this.ensureProviderManagerOrOwner(
+      userId,
+      providerId,
+    );
 
     const provider = await this.prisma.provider.findUnique({
       where: { id: providerId },
@@ -872,6 +948,14 @@ export class ProvidersService {
         name: true,
         slug: true,
         type: true,
+        teamInvitations:
+          membership.role === 'OWNER'
+            ? {
+                where: { acceptedAt: null, revokedAt: null },
+                orderBy: { createdAt: 'desc' },
+                select: privateInvitationSelect,
+              }
+            : false,
         members: {
           orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
           select: providerMemberSelect,
@@ -884,91 +968,5 @@ export class ProvidersService {
     }
 
     return provider;
-  }
-
-  async addProviderManager(
-    actorUserId: string,
-    providerId: string,
-    body: AddProviderManagerDto,
-  ) {
-    await this.ensureProviderOwner(actorUserId, providerId);
-
-    const provider = await this.prisma.provider.findUnique({
-      where: { id: providerId },
-      select: {
-        id: true,
-        type: true,
-      },
-    });
-
-    if (!provider) {
-      throw new NotFoundException('Provider not found');
-    }
-
-    if (isPersonalProviderType(provider.type)) {
-      throw new ConflictException(
-        'Personal provider profile cannot have managers',
-      );
-    }
-
-    const user = await this.prisma.user.findUnique({
-      where: { email: body.email },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        image: true,
-        accountKind: true,
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User with this email was not found');
-    }
-
-    assertCanJoinProviderTeam(user);
-
-    if (user.id === actorUserId) {
-      throw new ConflictException('Owner already has access to this provider');
-    }
-
-    const existingMembership = await this.prisma.providerMember.findUnique({
-      where: {
-        providerId_userId: {
-          providerId,
-          userId: user.id,
-        },
-      },
-      select: {
-        role: true,
-        status: true,
-      },
-    });
-
-    if (existingMembership?.role === 'OWNER') {
-      throw new ConflictException('User is already owner of this provider');
-    }
-
-    const membership = await this.prisma.providerMember.upsert({
-      where: {
-        providerId_userId: {
-          providerId,
-          userId: user.id,
-        },
-      },
-      update: {
-        role: 'MANAGER',
-        status: 'ACTIVE',
-      },
-      create: {
-        providerId,
-        userId: user.id,
-        role: 'MANAGER',
-        status: 'ACTIVE',
-      },
-      select: providerMemberSelect,
-    });
-
-    return membership;
   }
 }

@@ -131,7 +131,7 @@ export const Footer = () => {
                     <ListItem key={item.id} disableGutters sx={{ py: 0.25 }}>
                       <Link
                         component={NextLink}
-                        href={`/service-categories/${item.id}`}
+                        href={`/service-categories/${encodeURIComponent(item.slug)}`}
                         sx={{
                           fontSize: "1rem",
                           minHeight: 44,
@@ -192,7 +192,7 @@ export const Footer = () => {
                     >
                       <Link
                         component={NextLink}
-                        href={`/service-categories/${item.id}`}
+                        href={`/service-categories/${encodeURIComponent(item.slug)}`}
                         sx={{
                           fontSize: "1rem",
                           minHeight: 44,

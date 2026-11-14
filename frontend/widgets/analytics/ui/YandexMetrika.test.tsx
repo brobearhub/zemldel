@@ -90,3 +90,14 @@ it("does not send authentication tokens or arbitrary query data to the counter",
   expect(JSON.stringify(window.ym?.a)).not.toContain("secret-value");
   expect(JSON.stringify(window.ym?.a)).not.toContain("private");
 });
+
+it("не отправляет токен приглашения в аналитику", () => {
+  route.pathname = `/team-invitations/${"a".repeat(43)}`;
+  window.history.replaceState({}, "", route.pathname);
+  const { rerender } = render(<YandexMetrika />);
+  expect(window.ym).toBeUndefined();
+  route.pathname = "/about";
+  window.history.replaceState({}, "", "/about");
+  rerender(<YandexMetrika />);
+  expect(JSON.stringify(window.ym?.a)).not.toContain("a".repeat(43));
+});

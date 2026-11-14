@@ -7,6 +7,7 @@ import { ColorModeProvider } from "@/core/theme/ColorModeContext";
 import { makeStore } from "@/core/store/store";
 import { setAuthenticated, setUnauthenticated } from "@/core/store/authSlice";
 import {
+  INTEREST_ITEM,
   NAV_ITEMS,
   REQUEST_ITEMS,
 } from "@/widgets/pro-dashboard/model/navigation";
@@ -47,6 +48,7 @@ function preventNavigation(event: MouseEvent) {
 function setup(
   kind: "PROVIDER" | "CUSTOMER" | "guest" = "PROVIDER",
   desktop = false,
+  role: "OWNER" | "EMPLOYEE" = "OWNER",
 ) {
   const store = makeStore();
   if (kind === "guest") store.dispatch(setUnauthenticated());
@@ -70,7 +72,7 @@ function setup(
                   providerName: "Компания",
                   providerSlug: "company",
                   providerType: "COMPANY",
-                  role: "OWNER",
+                  role,
                   status: "ACTIVE",
                   providerCity: null,
                 },
@@ -106,7 +108,7 @@ describe("Единое мобильное меню", () => {
       name: "Чаты, непрочитанных сообщений: 3",
     });
     expect(chat).toHaveAttribute("href", "/pro/chats");
-    expect(within(chat).getByText("3")).toHaveClass("MuiBadge-colorError");
+    expect(within(chat).getByText("3")).toHaveClass("MuiBadge-badge");
   });
 
   it("открывает подтверждение профиля из настроек", async () => {
@@ -131,7 +133,8 @@ describe("Единое мобильное меню", () => {
     const user = setup();
     await user.click(screen.getByRole("button", { name: "Открыть меню" }));
     const menu = screen.getByRole("dialog", { name: "Компания" });
-    for (const item of [...REQUEST_ITEMS, ...NAV_ITEMS]) {
+    expect(within(menu).getByRole("link", { name: "О проекте и контакты" })).toHaveAttribute("href", "/about");
+    for (const item of [...REQUEST_ITEMS, ...NAV_ITEMS, INTEREST_ITEM]) {
       expect(
         within(menu).getByRole("link", { name: item.label }),
       ).toHaveAttribute("href", item.href);
@@ -143,7 +146,19 @@ describe("Единое мобильное меню", () => {
       ),
     ).toHaveAttribute("href", "/pro/team/tasks");
     expect(
-      within(menu).queryByRole("link", { name: "Добавление менеджера" }),
+      within(within(menu).getByRole("list", { name: "Работа" }))
+        .getAllByRole("link")
+        .map((link) => link.textContent),
+    ).toEqual([
+      "Услуги",
+      "Клиенты",
+      "Сторисы",
+      "Обзор",
+      "Задачи команды",
+      "Интерес клиентов",
+    ]);
+    expect(
+      within(menu).queryByRole("link", { name: "Команда" }),
     ).not.toBeInTheDocument();
     expect(
       within(menu).queryByRole("link", { name: "Добавить услугу" }),
@@ -177,7 +192,7 @@ describe("Единое мобильное меню", () => {
       within(settings).getByRole("link", { name: "Добавить услугу" }),
     ).toHaveAttribute("href", "/pro/services/create");
     expect(
-      within(settings).getByRole("link", { name: "Добавление менеджера" }),
+      within(settings).getByRole("link", { name: "Команда" }),
     ).toHaveAttribute("href", "/pro/team/add-manager");
     expect(
       within(settings).getByRole("link", { name: "Мои данные" }),
@@ -246,6 +261,7 @@ describe("Единое мобильное меню", () => {
       screen.queryByRole("link", { name: "Мои заявки" }),
     ).not.toBeInTheDocument();
     const menu = screen.getByRole("dialog", { name: "Иван Иванов" });
+    expect(within(menu).queryByRole("link", { name: "О проекте и контакты" })).not.toBeInTheDocument();
     const cabinet = within(menu).getByRole("list", { name: "Личный кабинет" });
     expect(
       within(cabinet).getByRole("link", { name: "Мой профиль" }),
@@ -271,6 +287,7 @@ describe("Единое мобильное меню", () => {
       "href",
       "/signup",
     );
+    expect(screen.getByRole("link", { name: "О проекте и контакты" })).toHaveAttribute("href", "/about");
     expect(
       screen.queryByRole("link", { name: "Мой профиль" }),
     ).not.toBeInTheDocument();
@@ -285,7 +302,7 @@ describe("Общий десктопный сайдбар", () => {
       within(sidebar).getByRole("link", { name: "Задачи команды" }),
     ).toHaveAttribute("href", "/pro/team/tasks");
     expect(
-      within(sidebar).queryByRole("link", { name: "Добавление менеджера" }),
+      within(sidebar).queryByRole("link", { name: "Команда" }),
     ).not.toBeInTheDocument();
     await user.click(
       within(sidebar).getByRole("button", { name: "Настройки: Компания" }),
@@ -308,7 +325,7 @@ describe("Общий десктопный сайдбар", () => {
       within(settings).getByRole("link", { name: "Добавить услугу" }),
     ).toBeInTheDocument();
     await user.click(
-      within(settings).getByRole("link", { name: "Добавление менеджера" }),
+      within(settings).getByRole("link", { name: "Команда" }),
     );
     await waitFor(() =>
       expect(
@@ -361,6 +378,7 @@ describe("Общий десктопный сайдбар", () => {
     const sidebar = screen.getByRole("complementary", {
       name: "Разделы кабинета клиента",
     });
+    expect(within(sidebar).queryByRole("link", { name: "О проекте и контакты" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Чаты" })).toHaveAttribute(
       "href",
       "/profile/chats",
@@ -451,4 +469,18 @@ describe("Закреплённая панель профиля", () => {
       ).not.toBeInTheDocument();
       expect(avatar).toHaveFocus();
     });
+});
+
+
+it("shows only assigned requests and personal settings for an employee", async () => {
+  const user = setup("PROVIDER", false, "EMPLOYEE");
+  await user.click(screen.getByRole("button", { name: "Открыть меню" }));
+  expect(screen.getByRole("link", { name: "Назначенные заявки" })).toHaveAttribute("href", "/pro/assigned");
+  expect(screen.queryByRole("link", { name: "Услуги" })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Настройки" }));
+  const settings = screen.getByRole("region", { name: "Настройки" });
+  expect(within(settings).getByRole("link", { name: "Мои данные" })).toBeInTheDocument();
+  expect(within(settings).getByRole("link", { name: "Мессенджеры" })).toBeInTheDocument();
+  for (const name of ["Команда", "Добавить услугу", "Тариф", "Профиль исполнителя", "Подтверждение профиля"])
+    expect(within(settings).queryByRole("link", { name })).not.toBeInTheDocument();
 });

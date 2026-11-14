@@ -95,7 +95,10 @@ export class ChatService {
     this.gateway.emitFreeRequestCreated(payload);
   }
 
-  private async loadUserChatActor(userId: string) {
+  private async loadUserChatActor(
+    userId: string,
+    requestScope?: { id: string; providerId: string | null },
+  ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -103,9 +106,31 @@ export class ChatService {
         systemRole: true,
         activeProviderId: true,
         providerMemberships: {
-          where: { status: 'ACTIVE' },
+          where: {
+            status: 'ACTIVE',
+            ...(requestScope
+              ? {
+                  OR: [
+                    { role: { in: ['OWNER', 'MANAGER'] as const } },
+                    ...(requestScope.providerId
+                      ? [
+                          {
+                            providerId: requestScope.providerId,
+                            assignedRequests: {
+                              some: {
+                                id: requestScope.id,
+                                providerId: requestScope.providerId,
+                              },
+                            },
+                          },
+                        ]
+                      : []),
+                  ],
+                }
+              : {}),
+          },
           orderBy: { providerId: 'asc' },
-          select: { providerId: true },
+          select: { providerId: true, role: true },
         },
       },
     });
@@ -307,7 +332,8 @@ export class ChatService {
       return conv;
     }
     if (!conv.requestId) throw new ForbiddenException('Invalid conversation');
-    const user = await this.loadUserChatActor(userId);
+    const requestScope = await this.getRequestForChat(conv.requestId);
+    const user = await this.loadUserChatActor(userId, requestScope);
     const memberIds = user.providerMemberships.map((m) => m.providerId);
 
     await this.assertCanAccessRequestConversation(
@@ -400,7 +426,22 @@ export class ChatService {
         where: {
           providerId,
           messages: { some: {} },
-          OR: [{ kind: 'DIRECT' }, { request: { status: { not: 'CLOSED' } } }],
+          ...(user.providerMemberships.find(
+            (member) => member.providerId === providerId,
+          )?.role === 'EMPLOYEE'
+            ? {
+                request: {
+                  providerId,
+                  assignedMember: { userId: actorUserId, status: 'ACTIVE' },
+                  status: { not: 'CLOSED' },
+                },
+              }
+            : {
+                OR: [
+                  { kind: 'DIRECT' as const },
+                  { request: { status: { not: 'CLOSED' as const } } },
+                ],
+              }),
         },
         select: {
           id: true,
@@ -587,7 +628,7 @@ export class ChatService {
       throw new ForbiddenException('Request is closed');
     }
 
-    const user = await this.loadUserChatActor(actorUserId);
+    const user = await this.loadUserChatActor(actorUserId, req);
     const memberIds = user.providerMemberships.map((m) => m.providerId);
 
     if (user.systemRole === 'PLATFORM_ADMIN') {
@@ -1027,7 +1068,21 @@ export class ChatService {
     }
 
     const members = await this.prisma.providerMember.findMany({
-      where: { providerId: conv.providerId, status: 'ACTIVE' },
+      where: {
+        providerId: conv.providerId,
+        status: 'ACTIVE',
+        OR: [
+          { role: { in: ['OWNER', 'MANAGER'] } },
+          {
+            assignedRequests: {
+              some: {
+                providerId: conv.providerId,
+                conversations: { some: { id: conversationId } },
+              },
+            },
+          },
+        ],
+      },
       select: { userId: true },
     });
 
@@ -1054,7 +1109,21 @@ export class ChatService {
     }
 
     const members = await this.prisma.providerMember.findMany({
-      where: { providerId: conv.providerId, status: 'ACTIVE' },
+      where: {
+        providerId: conv.providerId,
+        status: 'ACTIVE',
+        OR: [
+          { role: { in: ['OWNER', 'MANAGER'] } },
+          {
+            assignedRequests: {
+              some: {
+                providerId: conv.providerId,
+                conversations: { some: { id: conversationId } },
+              },
+            },
+          },
+        ],
+      },
       select: { userId: true },
     });
 
@@ -1090,6 +1159,22 @@ export class ChatService {
   }
 
   async notifyPresenceChanged(userId: string): Promise<void> {
+    const conversationSelect = {
+      id: true,
+      customerUserId: true,
+      providerId: true,
+      request: {
+        select: {
+          providerId: true,
+          assignedMember: {
+            select: { userId: true, providerId: true, status: true },
+          },
+        },
+      },
+    } as const;
+    type PresenceConversation = Prisma.ConversationGetPayload<{
+      select: typeof conversationSelect;
+    }>;
     const memberships = await this.prisma.providerMember.findMany({
       where: { userId, status: 'ACTIVE' },
       select: { providerId: true },
@@ -1099,26 +1184,17 @@ export class ChatService {
     const [customerConvs, providerConvs] = await Promise.all([
       this.prisma.conversation.findMany({
         where: { customerUserId: userId, status: 'OPEN' },
-        select: { id: true, customerUserId: true, providerId: true },
+        select: conversationSelect,
       }),
       providerIds.length
         ? this.prisma.conversation.findMany({
             where: { providerId: { in: providerIds }, status: 'OPEN' },
-            select: { id: true, customerUserId: true, providerId: true },
+            select: conversationSelect,
           })
-        : Promise.resolve(
-            [] as Array<{
-              id: string;
-              customerUserId: string;
-              providerId: string;
-            }>,
-          ),
+        : Promise.resolve([] as PresenceConversation[]),
     ]);
 
-    const convById = new Map<
-      string,
-      { id: string; customerUserId: string; providerId: string }
-    >();
+    const convById = new Map<string, PresenceConversation>();
     for (const c of customerConvs) convById.set(c.id, c);
     for (const c of providerConvs) convById.set(c.id, c);
     const conversations = [...convById.values()];
@@ -1128,7 +1204,11 @@ export class ChatService {
       ...new Set(conversations.map((c) => c.providerId)),
     ];
     const allMembers = await this.prisma.providerMember.findMany({
-      where: { providerId: { in: uniqProviderIds }, status: 'ACTIVE' },
+      where: {
+        providerId: { in: uniqProviderIds },
+        status: 'ACTIVE',
+        role: { in: ['OWNER', 'MANAGER'] },
+      },
       select: { providerId: true, userId: true },
     });
     const memberIdsByProviderId = new Map<string, string[]>();
@@ -1139,7 +1219,15 @@ export class ChatService {
     }
 
     for (const conv of conversations) {
-      const memberIds = memberIdsByProviderId.get(conv.providerId) ?? [];
+      const memberIds = [...(memberIdsByProviderId.get(conv.providerId) ?? [])];
+      const assigned = conv.request?.assignedMember;
+      if (
+        assigned?.status === 'ACTIVE' &&
+        assigned.providerId === conv.providerId &&
+        conv.request?.providerId === conv.providerId
+      ) {
+        memberIds.push(assigned.userId);
+      }
       const payload: ChatPresenceUpdatedPayload = {
         conversationId: conv.id,
         customerOnline: this.gateway.isUserOnline(conv.customerUserId),
@@ -1165,8 +1253,18 @@ export class ChatService {
     if (!convRow?.requestId) {
       if (convRow)
         this.gateway.emitDirectMessageCreated(participants, input.dto);
-      else this.gateway.emitMessageCreated(input.conversationId, input.dto);
-    } else this.gateway.emitMessageCreated(input.conversationId, input.dto);
+      else
+        this.gateway.emitMessageCreated(
+          input.conversationId,
+          input.dto,
+          participants,
+        );
+    } else
+      this.gateway.emitMessageCreated(
+        input.conversationId,
+        input.dto,
+        participants,
+      );
     if (!convRow) return;
 
     const bodySnippet =
@@ -1308,7 +1406,7 @@ export class ChatService {
   async changeDirectState(
     actorUserId: string,
     conversationId: string,
-    action: 'decline' | 'block' | 'resume',
+    action: 'accept' | 'decline' | 'block' | 'resume',
   ) {
     const result = await this.direct.changeState(
       actorUserId,

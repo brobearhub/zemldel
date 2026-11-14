@@ -11,6 +11,7 @@ const navigation = vi.hoisted(() => ({
   pathname: "/pro/requests/first-request",
   wide: true,
 }));
+vi.mock("@/widgets/chat/ui/DownloadChatPdfButton", () => ({ DownloadChatPdfButton: () => null }));
 vi.mock("next/navigation", () => ({
   usePathname: () => navigation.pathname,
 }));

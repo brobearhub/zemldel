@@ -30,6 +30,8 @@ import DarkModeOutlined from "@mui/icons-material/DarkModeOutlined";
 import SettingsBrightnessOutlined from "@mui/icons-material/SettingsBrightnessOutlined";
 import AddRounded from "@mui/icons-material/AddRounded";
 import PersonAddOutlined from "@mui/icons-material/PersonAddOutlined";
+import { useAppSelector } from "@/core/store/hooks";
+import { getActiveMembership } from "@/core/auth/authorization";
 import {
   useColorMode,
   type ColorPreference,
@@ -57,6 +59,10 @@ export function CabinetSettingsPanel({
   onNavigate,
 }: Props) {
   const { preference, setPreference } = useColorMode();
+  const isEmployee = useAppSelector(
+    (state) => getActiveMembership(state.auth.user)?.role === "EMPLOYEE",
+  );
+  const managesProvider = provider && !isEmployee;
   const row = (href: string, label: string, icon: ReactNode) => (
     <ListItemButton
       key={href}
@@ -171,14 +177,14 @@ export function CabinetSettingsPanel({
               Мой профиль
             </Typography>
             <List disablePadding sx={groupSx} aria-label="Мой профиль">
-              {provider
+              {managesProvider
                 ? row(
                     "/pro/settings/profile/verification",
                     "Подтверждение профиля",
                     <VerifiedOutlined />,
                   )
                 : null}
-              {provider
+              {managesProvider
                 ? row(
                     "/pro/settings/profile",
                     "Профиль исполнителя",
@@ -200,7 +206,12 @@ export function CabinetSettingsPanel({
             </List>
           </>
         ) : null}
-        {provider ? (
+        {provider && isEmployee ? (
+          <List disablePadding sx={groupSx} aria-label="Настройки работы">
+            {row("/pro/settings/messengers", "Мессенджеры", <ChatOutlined />)}
+          </List>
+        ) : null}
+        {managesProvider ? (
           <>
             <Typography
               sx={{
@@ -216,7 +227,7 @@ export function CabinetSettingsPanel({
               {row("/pro/services/create", "Добавить услугу", <AddRounded />)}
               {row(
                 "/pro/team/add-manager",
-                "Добавление менеджера",
+                "Команда",
                 <PersonAddOutlined />,
               )}
               {row("/pro/settings/messengers", "Мессенджеры", <ChatOutlined />)}

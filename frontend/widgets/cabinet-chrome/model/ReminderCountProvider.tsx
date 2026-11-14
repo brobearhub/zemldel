@@ -28,7 +28,8 @@ export function ReminderCountProvider({ children }: { children: ReactNode }) {
   const scope =
     status === "authenticated" &&
     resolveAccountKind(user) === "PROVIDER" &&
-    providerId
+    providerId &&
+    getActiveMembership(user)?.role !== "EMPLOYEE"
       ? `${user?.id}:${providerId}`
       : null;
   const [result, setResult] = useState<{ scope: string; count: number } | null>(

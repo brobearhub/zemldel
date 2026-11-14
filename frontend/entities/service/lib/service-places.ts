@@ -32,9 +32,15 @@ export function placeSelectionKey(place: ServicePlace) {
 }
 
 export function uniqueServicePlaces(places: readonly ServicePlace[]): ServicePlace[] {
+  const nationwide = places.find((place) => place.kind === "region" && place.regionCode === "RU");
+  if (nationwide) return [nationwide];
+  const regions = new Set(
+    places.filter((place) => place.kind === "region").map((place) => place.regionCode),
+  );
   const identities = new Set<string>();
   const locations = new Set<string>();
   return places.filter(place => {
+    if (place.kind === "city" && regions.has(place.regionCode)) return false;
     const identity = placeKey(place);
     const location = placeSelectionKey(place);
     if (identities.has(identity) || locations.has(location)) return false;

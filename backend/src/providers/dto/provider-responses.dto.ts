@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { PROVIDER_TYPES, type ProviderType } from '../../auth/authorization';
 import { AuthorizedUserDto } from '../../auth/dto/authorized-user.dto';
 import { AuthCityDto } from '../../auth/dto/authorized-user.dto';
+import { ServicePlaceDto } from '../../services/dto/service.dto';
 
 export class ProviderDto {
   @ApiProperty({ format: 'uuid' })
@@ -35,8 +36,8 @@ export class ProviderSlugCheckDto {
 }
 
 export class ProviderMembershipListItemDto {
-  @ApiProperty({ enum: ['OWNER', 'MANAGER'] })
-  role!: 'OWNER' | 'MANAGER';
+  @ApiProperty({ enum: ['OWNER', 'MANAGER', 'EMPLOYEE'] })
+  role!: 'OWNER' | 'MANAGER' | 'EMPLOYEE';
 
   @ApiProperty({ enum: ['INVITED', 'ACTIVE', 'SUSPENDED'] })
   status!: 'INVITED' | 'ACTIVE' | 'SUSPENDED';
@@ -84,11 +85,13 @@ export class ProviderMemberUserDto {
 }
 
 export class ProviderMemberDto {
+  @ApiProperty({ nullable: true })
+  jobTitle!: string | null;
   @ApiProperty({ format: 'uuid' })
   id!: string;
 
-  @ApiProperty({ enum: ['OWNER', 'MANAGER'] })
-  role!: 'OWNER' | 'MANAGER';
+  @ApiProperty({ enum: ['OWNER', 'MANAGER', 'EMPLOYEE'] })
+  role!: 'OWNER' | 'MANAGER' | 'EMPLOYEE';
 
   @ApiProperty({ enum: ['INVITED', 'ACTIVE', 'SUSPENDED'] })
   status!: 'INVITED' | 'ACTIVE' | 'SUSPENDED';
@@ -103,7 +106,24 @@ export class ProviderMemberDto {
   user!: ProviderMemberUserDto;
 }
 
+export class ProviderTeamInvitationDto {
+  @ApiProperty()
+  id!: string;
+  @ApiProperty()
+  email!: string;
+  @ApiProperty()
+  jobTitle!: string;
+  @ApiProperty({ enum: ['MANAGER', 'EMPLOYEE'] })
+  role!: 'MANAGER' | 'EMPLOYEE';
+  @ApiProperty()
+  expiresAt!: string;
+  @ApiProperty()
+  sentAt!: string;
+}
+
 export class ProviderMembersResponseDto {
+  @ApiProperty({ type: [ProviderTeamInvitationDto], required: false })
+  teamInvitations?: ProviderTeamInvitationDto[];
   @ApiProperty({ format: 'uuid' })
   id!: string;
 
@@ -128,7 +148,34 @@ export class PublicProviderStatDto {
   label!: string;
 }
 
+export class ProviderServiceGeographyDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  title!: string;
+
+  @ApiProperty({ type: [ServicePlaceDto] })
+  places!: ServicePlaceDto[];
+}
+
+export class PublicTeamMemberDto {
+  @ApiProperty()
+  id!: string;
+  @ApiProperty()
+  name!: string;
+  @ApiProperty({ nullable: true })
+  image!: string | null;
+  @ApiProperty({ nullable: true })
+  jobTitle!: string | null;
+}
+
 export class PublicProviderProfileDto {
+  @ApiProperty({ nullable: true })
+  jobTitle!: string | null;
+
+  @ApiProperty({ type: [PublicTeamMemberDto] })
+  team!: PublicTeamMemberDto[];
   @ApiProperty({ format: 'uuid' })
   id!: string;
 
@@ -149,6 +196,12 @@ export class PublicProviderProfileDto {
 
   @ApiProperty({ type: AuthCityDto, nullable: true })
   city!: AuthCityDto | null;
+
+  @ApiProperty({
+    type: [ProviderServiceGeographyDto],
+    description: 'География отдельно для каждой опубликованной услуги',
+  })
+  serviceGeography!: ProviderServiceGeographyDto[];
 
   @ApiProperty({ nullable: true, example: null })
   image!: string | null;

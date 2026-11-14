@@ -60,6 +60,7 @@ export class BillingService {
     if (
       !member ||
       member.status !== 'ACTIVE' ||
+      member.role === 'EMPLOYEE' ||
       (owner && member.role !== 'OWNER')
     ) {
       throw new ForbiddenException(

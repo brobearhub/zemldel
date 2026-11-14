@@ -180,6 +180,7 @@ function SignUpPageContent() {
   });
   const accountParam = searchParams.get("account");
   const accountKind = isRequestIntent ? "CUSTOMER" : accountParam === "provider" ? "PROVIDER" : accountParam === "customer" ? "CUSTOMER" : null;
+  const invitationPath = /^\/team-invitations\/[A-Za-z0-9_-]{43}$/.test(searchParams.get("returnTo") ?? "") ? searchParams.get("returnTo") : null;
   const signInHref = searchParams.toString() ? `/signin?${searchParams.toString()}` : "/signin";
 
   const chooseAccount = (account: SignupAccount) => {
@@ -209,7 +210,7 @@ function SignUpPageContent() {
     }
     const hasProviderMembership = session.user.memberships.some((membership) => membership.status === "ACTIVE");
     router.replace(
-      isRequestIntent
+      invitationPath ?? (isRequestIntent
         ? resolvePostSignInPath({
             accountKind: session.user.accountKind === "PROVIDER" ? "PROVIDER" : "CUSTOMER",
             hasProviderMembership,
@@ -219,9 +220,9 @@ function SignUpPageContent() {
         ? hasProviderMembership
           ? "/pro/requests/feed"
           : "/providers/new"
-        : "/profile",
+        : "/profile"),
     );
-  }, [status, session, router, isRequestIntent, pending.loaded, pending.draft, signInHref]);
+  }, [status, session, router, isRequestIntent, pending.loaded, pending.draft, signInHref, invitationPath]);
 
   useEffect(() => {
     let cancelled = false;
@@ -421,12 +422,12 @@ function SignUpPageContent() {
         return;
       }
 
-      const nextPath =
+      const nextPath = invitationPath ?? (
         accountKind === "PROVIDER"
           ? "/providers/new?welcome=1"
           : isRequestIntent
             ? pending.draft ? REQUESTS_PROFILE_RESUME_URL : REQUESTS_PROFILE_URL
-            : "/profile?welcome=1";
+            : "/profile?welcome=1");
 
       submitted.current = true;
       navigated = true;

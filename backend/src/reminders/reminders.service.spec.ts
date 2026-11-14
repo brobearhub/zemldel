@@ -16,7 +16,7 @@ describe('upcoming reminder count', () => {
     vi.resetAllMocks();
     prisma.user.findUnique.mockResolvedValue({
       activeProviderId: 'provider-1',
-      providerMemberships: [],
+      providerMemberships: [{ providerId: 'provider-1' }],
     });
     prisma.requestReminder.count.mockResolvedValue(3);
   });
@@ -57,5 +57,19 @@ describe('upcoming reminder count', () => {
       ForbiddenException,
     );
     expect(prisma.requestReminder.count).not.toHaveBeenCalled();
+  });
+
+  it('does not use a selected provider without management membership', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      activeProviderId: 'provider-1',
+      providerMemberships: [{ providerId: 'provider-2' }],
+    });
+    await expect(service.upcomingCount('user-1')).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(prisma.requestReminder.count).not.toHaveBeenCalled();
+    expect(
+      prisma.user.findUnique.mock.calls[0][0].select.providerMemberships.where,
+    ).toEqual({ status: 'ACTIVE', role: { in: ['OWNER', 'MANAGER'] } });
   });
 });

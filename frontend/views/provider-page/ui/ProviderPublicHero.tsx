@@ -121,6 +121,11 @@ export function ProviderPublicHero({ provider }: Props) {
           >
             {caption}
           </Typography>
+          {provider.jobTitle ? (
+            <Typography sx={{ textAlign: "center", mt: 1 }}>
+              {provider.jobTitle}
+            </Typography>
+          ) : null}
           <FavoriteButton kind="providers" id={provider.id} />
           {provider.subtitle?.trim() ? (
             <Typography

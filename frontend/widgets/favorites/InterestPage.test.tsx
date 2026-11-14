@@ -30,7 +30,7 @@ describe("provider interest", () => {
     render(<InterestPage />);
     expect(await screen.findByText("Имена клиентов и первое обращение доступны на тарифе Бизнес.")).toBeVisible();
     expect(screen.getByRole("link", { name: "Тарифы" })).toHaveAttribute("href", "/pro/settings/tariff");
-    expect(screen.getByText("Вы в избранном")).toBeVisible();
+    expect(screen.getByText("Вас добавили в избранное")).toBeVisible();
     expect(screen.queryByText("Анна П.")).toBeNull();
     expect(screen.queryByRole("button", { name: "Написать" })).toBeNull();
   });

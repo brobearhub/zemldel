@@ -57,6 +57,7 @@ describe('ChatService.createMessage', () => {
     expect(gateway.emitMessageCreated).toHaveBeenCalledWith(
       'c1',
       expect.objectContaining({ senderImage: image }),
+      [],
     );
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({

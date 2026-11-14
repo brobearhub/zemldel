@@ -6,12 +6,19 @@ import { ProviderVerificationAdminService } from './provider-verification-admin.
 import { ProvidersController } from './providers.controller';
 import { ProviderVerificationService } from './provider-verification.service';
 import { ProvidersService } from './providers.service';
+import { ProviderTeamService } from './provider-team.service';
+import { ProviderTeamInvitationsController } from './provider-team-invitations.controller';
 
 @Module({
   imports: [AuthModule, StorageModule],
-  controllers: [ProvidersController, ProviderVerificationAdminController],
+  controllers: [
+    ProvidersController,
+    ProviderVerificationAdminController,
+    ProviderTeamInvitationsController,
+  ],
   providers: [
     ProvidersService,
+    ProviderTeamService,
     ProviderVerificationService,
     ProviderVerificationAdminService,
   ],

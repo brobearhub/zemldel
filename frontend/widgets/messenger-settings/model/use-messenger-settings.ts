@@ -65,13 +65,11 @@ export function useMessengerSettings() {
             setError(actionError.current?.message ?? null);
             return result;
           }
-        } catch (e) {
+        } catch {
           if (isCurrent())
             setError(
               options?.errorMessage ??
-                (e instanceof Error
-                  ? e.message
-                  : "Не удалось загрузить подключения"),
+                "Не удалось загрузить данные о подключении мессенджеров. Попробуйте ещё раз.",
             );
         } finally {
           if (isCurrent()) {
@@ -176,7 +174,12 @@ export function useMessengerSettings() {
     } catch (e) {
       if (!mounted.current) return;
       const message =
-        e instanceof Error ? e.message : "Не удалось обновить подключение";
+        e instanceof MessengerRequestError &&
+        e.status >= 400 &&
+        e.status < 500 &&
+        /[а-яё]/i.test(e.message)
+          ? e.message
+          : "Не удалось обновить подключение. Попробуйте ещё раз.";
       // A failed response can follow a committed mutation or a change in another
       // tab. Read canonical state before keeping a stale connection toggle.
       const latest = await refresh({

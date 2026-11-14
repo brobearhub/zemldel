@@ -29,11 +29,15 @@ import { ProvidersService } from './providers.service';
 import { ProviderVerificationService } from './provider-verification.service';
 import { CreateProviderDto } from './dto/create-provider.dto';
 import { SubmitVerificationDto } from './dto/submit-verification.dto';
-import { AddProviderManagerDto } from './dto/add-provider-manager.dto';
+import {
+  InviteProviderMemberDto,
+  UpdateProviderMemberDto,
+} from './dto/provider-team.dto';
+import { ProviderTeamService } from './provider-team.service';
 import {
   ProviderActivateResponseDto,
   ProviderCityUpdateResponseDto,
-  ProviderMemberDto,
+  ProviderTeamInvitationDto,
   ProviderMembersResponseDto,
   ProviderMembershipListItemDto,
   PublicProviderProfileDto,
@@ -51,6 +55,7 @@ export class ProvidersController {
     private readonly providersService: ProvidersService,
     private readonly providerVerificationService: ProviderVerificationService,
     private readonly internalAuthService: InternalAuthService,
+    private readonly teamService: ProviderTeamService,
   ) {}
 
   @Post()
@@ -129,14 +134,42 @@ export class ProvidersController {
 
   @Post(':providerId/members')
   @ApiParam({ name: 'providerId', type: String })
-  @ApiCreatedResponse({ type: ProviderMemberDto })
-  addProviderManager(
+  @ApiCreatedResponse({ type: ProviderTeamInvitationDto })
+  inviteProviderMember(
     @Req() request: Request,
     @Param('providerId') providerId: string,
-    @Body() body: AddProviderManagerDto,
+    @Body() body: InviteProviderMemberDto,
   ) {
     const userId = this.internalAuthService.getUserIdFromRequest(request);
-    return this.providersService.addProviderManager(userId, providerId, body);
+    return this.teamService.invite(userId, providerId, body);
+  }
+
+  @Patch(':providerId/members/:memberId')
+  updateMember(
+    @Req() request: Request,
+    @Param('providerId') providerId: string,
+    @Param('memberId') memberId: string,
+    @Body() body: UpdateProviderMemberDto,
+  ) {
+    return this.teamService.updateJobTitle(
+      this.internalAuthService.getUserIdFromRequest(request),
+      providerId,
+      memberId,
+      body.jobTitle,
+    );
+  }
+
+  @Delete(':providerId/invitations/:invitationId')
+  revokeInvitation(
+    @Req() request: Request,
+    @Param('providerId') providerId: string,
+    @Param('invitationId') invitationId: string,
+  ) {
+    return this.teamService.revoke(
+      this.internalAuthService.getUserIdFromRequest(request),
+      providerId,
+      invitationId,
+    );
   }
 
   @Patch(':providerId/slug')

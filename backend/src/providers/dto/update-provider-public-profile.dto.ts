@@ -41,6 +41,13 @@ export class UpdateProviderPublicStatDto {
 }
 
 export class UpdateProviderPublicProfileDto {
+  @ApiPropertyOptional({ example: 'Кадастровый инженер', maxLength: 120 })
+  @ValidateIf((_, value) => value !== undefined)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(120)
+  jobTitle?: string;
+
   @ApiPropertyOptional({ minLength: 2, nullable: true, example: 'Земледел' })
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => trimOrNull(value), {

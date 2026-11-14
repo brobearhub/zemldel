@@ -1,3 +1,4 @@
+import { ProviderTeam } from "@/widgets/provider-team/ProviderTeam";
 import { FavoriteButton } from "@/features/favorites/FavoriteButton";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import {
@@ -127,6 +128,16 @@ export function ServiceProviderSection({
   imageSide = "left",
 }: Props) {
   const isRight = imageSide === "right";
+  const teamMembers = provider.team?.length
+    ? provider.team
+    : provider.jobTitle
+      ? [{
+          id: provider.id,
+          name: "",
+          image: null,
+          jobTitle: provider.jobTitle,
+        }]
+      : [];
 
   return (
     <Box
@@ -219,15 +230,6 @@ export function ServiceProviderSection({
               >
                 {provider.name}
               </Typography>
-              <ProfileTrustNote verified={provider.verified} />
-              <Typography
-                sx={{
-                  fontSize: { xs: "1rem", md: "1rem" },
-                  lineHeight: { xs: 1.43, md: 1.75 },
-                }}
-              >
-                {provider.subtitle}
-              </Typography>
               {provider.rating != null ? (
                 <Stack
                   direction="row"
@@ -246,6 +248,17 @@ export function ServiceProviderSection({
                     {formatReviewCount(provider.reviewCount)}
                   </Typography>
                 </Stack>
+              ) : null}
+              {provider.verified ? <ProfileTrustNote verified /> : null}
+              {provider.subtitle ? (
+                <Typography
+                  sx={{
+                    fontSize: "1rem",
+                    lineHeight: { xs: 1.43, md: 1.75 },
+                  }}
+                >
+                  {provider.subtitle}
+                </Typography>
               ) : null}
             </Stack>
 
@@ -302,6 +315,11 @@ export function ServiceProviderSection({
                   ))}
               </Box>
             ) : null}
+
+            <ProviderTeam
+              members={teamMembers}
+              compact
+            />
 
             <Stack
               direction={{ xs: "column", md: "row" }}

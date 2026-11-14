@@ -4,18 +4,21 @@ import { Badge } from "@mui/material";
 export function UnreadCountBadge({
   count = 0,
   children,
+  horizontalOffset = 0,
 }: {
   count?: number;
   children: ReactNode;
+  horizontalOffset?: number;
 }) {
-  const diameter = count > 99 ? 28 : 24;
+  const diameter = count > 99 ? 26 : 22;
   return (
     <Badge
-      color="error"
       badgeContent={count}
       max={99}
       sx={{
         "& .MuiBadge-badge": {
+          bgcolor: "accent.main",
+          color: "accent.contrastText",
           width: diameter,
           minWidth: diameter,
           height: diameter,
@@ -23,8 +26,9 @@ export function UnreadCountBadge({
           borderRadius: "50%",
           fontSize: "0.75rem",
           lineHeight: 1,
-          fontWeight: 600,
+          fontWeight: 700,
           boxSizing: "border-box",
+          right: horizontalOffset,
         },
       }}
     >

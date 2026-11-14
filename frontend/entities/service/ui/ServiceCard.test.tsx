@@ -12,6 +12,19 @@ vi.mock("next/link", () => ({
 }));
 
 describe("ServiceCard", () => {
+  it("shows only the region when it already covers the selected city", () => {
+    render(<ServiceCard item={{
+      id: "coverage", title: "Оформление права собственности", price: "20000",
+      provider: { id: "provider", name: "Исполнитель", city: null },
+      places: [
+        { kind: "city", cityId: "ekb", name: "Екатеринбург", regionCode: "66", regionName: "Свердловская область" },
+        { kind: "region", name: "Свердловская область", regionCode: "66", regionName: "Свердловская область" },
+      ],
+    }} />);
+    expect(screen.getByText("Свердловская обл.")).toBeInTheDocument();
+    expect(screen.queryByText(/Екатеринбург/)).not.toBeInTheDocument();
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
   });

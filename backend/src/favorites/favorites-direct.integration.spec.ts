@@ -140,10 +140,39 @@ describe.skipIf(!local)(
         profileCount: 1,
         interestedCount: 1,
         services: [{ count: 1 }],
-        items: [{ name: 'Анна П.', profile: true }],
+        items: [{ name: 'Анна П.', city: null, profile: true }],
       });
       expect(JSON.stringify(report)).not.toContain('Петрова');
       expect(JSON.stringify(report)).not.toContain('@example');
+      const cityId = randomUUID();
+      await db.user.update({
+        where: { id: f.customer.id },
+        data: {
+          customerCity: {
+            create: {
+              id: cityId,
+              objectGuid: cityId,
+              garObjectId: BigInt(
+                '0x' + cityId.replaceAll('-', '').slice(0, 12),
+              ),
+              name: 'Екатеринбург',
+              typeName: 'г',
+              level: 5,
+              regionCode: '66',
+              regionName: 'Свердловская область',
+            },
+          },
+        },
+      });
+      expect(
+        (await favorites.interest(f.owner.id, { page: 0 })).items,
+      ).toMatchObject([
+        {
+          customerId: f.customer.id,
+          name: 'Анна П.',
+          city: { name: 'Екатеринбург' },
+        },
+      ]);
       await db.service.update({
         where: { id: f.service.id },
         data: { status: 'DRAFT', title: 'PRIVATE DRAFT' },
@@ -234,6 +263,69 @@ describe.skipIf(!local)(
       expect(JSON.stringify(history)).not.toContain('private-avatar');
       expect(gateway.emitDirectMessageCreated).toHaveBeenCalled();
     });
+
+    it('lets only the customer accept a waiting contact without sending a message', async () => {
+      const f = await fixture();
+      await favorites.set(f.customer.id, 'providers', f.provider.id, true);
+      const { conversationId: id } = await chat.startDirect(
+        f.owner.id,
+        f.customer.id,
+        f.input(),
+      );
+      await expect(
+        chat.createMessage(f.owner.id, id, f.input()),
+      ).rejects.toMatchObject({ status: 403 });
+      await expect(
+        chat.changeDirectState(f.owner.id, id, 'accept'),
+      ).rejects.toMatchObject({ status: 403 });
+      await expect(
+        chat.changeDirectState(f.manager.id, id, 'accept'),
+      ).rejects.toMatchObject({ status: 403 });
+
+      gateway.emitConversationChanged.mockClear();
+      expect(await chat.changeDirectState(f.customer.id, id, 'accept')).toEqual(
+        { directState: 'ACTIVE' },
+      );
+      expect(await chat.changeDirectState(f.customer.id, id, 'accept')).toEqual(
+        { directState: 'ACTIVE' },
+      );
+      expect(await db.message.count({ where: { conversationId: id } })).toBe(1);
+      expect(gateway.emitConversationChanged).toHaveBeenCalledWith(
+        f.owner.id,
+        id,
+      );
+      expect(gateway.emitConversationChanged).toHaveBeenCalledWith(
+        f.customer.id,
+        id,
+      );
+      expect(await chat.getConversationAccess(f.manager.id, id)).toMatchObject({
+        canWrite: true,
+      });
+      await chat.createMessage(f.manager.id, id, f.input());
+      expect(await db.message.count({ where: { conversationId: id } })).toBe(2);
+    });
+
+    it.each(['decline', 'block'] as const)(
+      'does not let a stale acceptance override %s',
+      async (action) => {
+        const f = await fixture();
+        await favorites.set(f.customer.id, 'providers', f.provider.id, true);
+        const { conversationId: id } = await chat.startDirect(
+          f.owner.id,
+          f.customer.id,
+          f.input(),
+        );
+        await chat.changeDirectState(f.customer.id, id, action);
+        await expect(
+          chat.changeDirectState(f.customer.id, id, 'accept'),
+        ).rejects.toMatchObject({ status: 400 });
+        expect(
+          await db.conversation.findUnique({ where: { id } }),
+        ).toMatchObject({
+          directState: action === 'block' ? 'BLOCKED' : 'DECLINED',
+        });
+      },
+    );
 
     it('enforces current interest and allows only the customer to unblock or resume', async () => {
       const f = await fixture();

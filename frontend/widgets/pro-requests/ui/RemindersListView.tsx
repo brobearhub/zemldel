@@ -112,7 +112,7 @@ export function RemindersListView({
         direction="row"
         spacing={0.5}
         sx={{
-          alignItems: "flex-start",
+          alignItems: "center",
           py: 0.5,
         }}
       >
@@ -120,7 +120,10 @@ export function RemindersListView({
           size="small"
           checked={r.isDone}
           onChange={() => void handleToggle(r)}
-          sx={{ p: 0.5, flexShrink: 0, mt: 0.25 }}
+          sx={{
+            p: 0.5,
+            flexShrink: 0,
+          }}
         />
         <Box
           sx={{

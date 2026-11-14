@@ -134,7 +134,7 @@ describe("MessengerSettings", () => {
   it("shows a failed connection request without falsely claiming success", async () => {
     vi.mocked(messengerApi.status).mockResolvedValue([status]);
     vi.mocked(messengerApi.link).mockRejectedValue(
-      new Error("Сервис временно недоступен"),
+      new MessengerRequestError("Сервис временно недоступен", 400),
     );
     render(<MessengerSettings />);
     fireEvent.click(
@@ -146,6 +146,39 @@ describe("MessengerSettings", () => {
     expect(
       screen.queryByRole("switch", { name: "Отключить Telegram" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows a Russian message for a network failure and retries loading", async () => {
+    vi.mocked(messengerApi.status)
+      .mockResolvedValueOnce([connected])
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce([connected]);
+    render(<MessengerSettings singleColumn />);
+    await screen.findByRole("switch", { name: "Отключить Telegram" });
+
+    fireEvent(window, new Event("focus"));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Не удалось загрузить данные о подключении мессенджеров. Попробуйте ещё раз.",
+    );
+    expect(screen.queryByText("Failed to fetch")).not.toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Отключить Telegram" })).toBeChecked();
+
+    fireEvent.click(screen.getByRole("button", { name: "Повторить" }));
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+  });
+
+  it("does not display technical errors after a failed action", async () => {
+    vi.mocked(messengerApi.status).mockResolvedValue([status]);
+    vi.mocked(messengerApi.link).mockRejectedValue(new TypeError("Failed to fetch"));
+    render(<MessengerSettings />);
+
+    fireEvent.click(await screen.findByRole("switch", { name: "Подключить Telegram" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Не удалось обновить подключение. Попробуйте ещё раз.",
+    );
+    expect(screen.queryByText("Failed to fetch")).not.toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Подключить Telegram" })).not.toBeChecked();
   });
 
   it("recovers a stale disconnected toggle after a conflict by reading the saved connection", async () => {
@@ -318,8 +351,9 @@ describe("MessengerSettings", () => {
   it("shows an actual disconnect failure and keeps the previous connection", async () => {
     vi.mocked(messengerApi.status).mockResolvedValue([connected]);
     vi.mocked(messengerApi.disconnect).mockRejectedValue(
-      new Error(
+      new MessengerRequestError(
         "Не удалось получить ответ сервера. Обновите статус подключения.",
+        400,
       ),
     );
     render(<MessengerSettings />);

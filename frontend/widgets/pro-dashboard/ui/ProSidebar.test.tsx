@@ -15,9 +15,10 @@ import { ProSidebar } from "./ProSidebar";
 const chatState = vi.hoisted(() => ({
   unreadByRequestId: {} as Record<string, number>,
   pathname: "/pro/requests/feed",
+  role: "OWNER",
 }));
 vi.mock("next/navigation", () => ({ usePathname: () => chatState.pathname }));
-vi.mock("@/core/store/hooks", () => ({ useAppSelector: () => "Компания" }));
+vi.mock("@/core/store/hooks", () => ({ useAppSelector: (selector: (state: unknown) => unknown) => selector({ auth: { user: { activeProviderId: "p", memberships: [{ providerId: "p", providerName: "Компания", role: chatState.role }] } } }) }));
 vi.mock("@/widgets/chat/socket/ChatSocketContext", () => ({
   useChatSocket: () => chatState,
 }));
@@ -30,6 +31,7 @@ beforeEach(() => {
   localStorage.clear();
   chatState.unreadByRequestId = {};
   chatState.pathname = "/pro/requests/feed";
+  chatState.role = "OWNER";
 });
 const setup = (collapsed = false) =>
   render(
@@ -48,7 +50,7 @@ describe("Меню исполнителя", () => {
     });
     expect(chat).toHaveAttribute("href", "/pro/chats");
     expect(chat).toHaveAttribute("aria-current", "page");
-    expect(within(chat).getByText("5")).toHaveClass("MuiBadge-colorError");
+    expect(within(chat).getByText("5")).toHaveClass("MuiBadge-badge");
     expect(
       within(screen.getByRole("button", { name: "Заявки" })).queryByText("5"),
     ).toBeNull();
@@ -73,12 +75,12 @@ describe("Меню исполнителя", () => {
       within(menu)
         .getAllByRole("link")
         .map((link) => link.textContent),
-    ).toEqual(["Чаты", "Лента заявок", "Доска", "Интерес клиентов", "Услуги", "Клиенты", "Сторисы", "Обзор"]);
+    ).toEqual(["Чаты", "Лента заявок", "Доска", "Услуги", "Интерес клиентов", "Клиенты", "Сторисы", "Обзор"]);
     const team = within(menu).getByRole("button", { name: "Команда" });
     expect(team).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(team);
     expect(
-      within(menu).getByRole("link", { name: "Добавление менеджера" }),
+      within(menu).getByRole("link", { name: "Команда" }),
     ).toHaveAttribute("href", "/pro/team/add-manager");
     expect(
       within(menu).getByRole("link", { name: "Задачи команды" }),
@@ -134,4 +136,14 @@ describe("Меню исполнителя", () => {
       "false",
     );
   });
+});
+
+it("показывает сотруднику только назначенные заявки и личные настройки", () => {
+  chatState.role = "EMPLOYEE";
+  setup();
+  expect(screen.getByRole("link", { name: "Назначенные заявки" })).toHaveAttribute("href", "/pro/assigned");
+  expect(screen.queryByRole("link", { name: "Услуги" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Настройки" }));
+  expect(screen.getByRole("link", { name: "Мои данные" })).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Тариф" })).not.toBeInTheDocument();
 });

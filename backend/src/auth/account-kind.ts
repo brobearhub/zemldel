@@ -23,10 +23,12 @@ export function assertCanCreateCustomerRequest(actor: AccountActor): void {
   throw new ForbiddenException('Only customers can create requests');
 }
 
-/** Why: менеджером компании может стать только уже зарегистрированный исполнитель. */
+/** Why: сотрудник присоединяется через аккаунт исполнителя. */
 export function assertCanJoinProviderTeam(actor: {
   accountKind: AccountKind;
 }): void {
   if (actor.accountKind === 'PROVIDER') return;
-  throw new ForbiddenException('Only providers can join a provider team');
+  throw new ForbiddenException(
+    'В команду можно вступить с аккаунтом исполнителя',
+  );
 }

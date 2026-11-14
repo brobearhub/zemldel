@@ -19,6 +19,7 @@ import {
 type Category = {
   id: string;
   name: string;
+  slug: string;
   parentId: string | null;
   sortOrder: number | null;
 };
@@ -186,7 +187,7 @@ function CrumbMenu({
                 <MenuItem
                   key={item.id}
                   component={Link}
-                  href={`/service-categories/${item.id}`}
+                  href={`/service-categories/${encodeURIComponent(item.slug)}`}
                   selected={item.id === currentId}
                   aria-current={item.id === currentId ? "page" : undefined}
                   onClick={() => close()}
@@ -233,7 +234,7 @@ export function CategoryBreadcrumbs({
       {parent ? (
         <CrumbMenu
           label={parent.name}
-          href={`/service-categories/${parent.id}`}
+          href={`/service-categories/${encodeURIComponent(parent.slug)}`}
           items={childrenOf(parent.id)}
           currentId={categoryId}
         />
@@ -241,7 +242,7 @@ export function CategoryBreadcrumbs({
       {children.length ? (
         <CrumbMenu
           label={category.name}
-          href={`/service-categories/${category.id}`}
+          href={`/service-categories/${encodeURIComponent(category.slug)}`}
           items={children}
           currentId={categoryId}
           isCurrent

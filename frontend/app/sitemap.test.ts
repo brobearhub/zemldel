@@ -9,8 +9,8 @@ describe("public sitemap", () => {
   it("includes child hubs and deduplicates providers", async () => {
     vi.mocked(fetchBackendJson).mockImplementation(async (path) => {
       if (path === "/service-categories") return [
-        { id: "root", parentId: null },
-        { id: "child", parentId: "root" },
+        { id: "root", slug: "root-slug", parentId: null },
+        { id: "child", slug: "child-slug", parentId: "root" },
       ];
       return [
         { id: "one", provider: { slug: "specialist" } },
@@ -18,7 +18,7 @@ describe("public sitemap", () => {
       ];
     });
     const urls = (await sitemap()).map((item) => new URL(item.url).pathname);
-    expect(urls).toContain("/service-categories/child");
+    expect(urls).toContain("/service-categories/child-slug");
     expect(urls).toContain("/services/one");
     expect(urls.filter((url) => url === "/providers/specialist")).toHaveLength(1);
   });

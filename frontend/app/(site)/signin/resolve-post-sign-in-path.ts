@@ -18,6 +18,9 @@ export function resolvePostSignInPath(input: {
   readonly hasProviderMembership: boolean;
   readonly returnTo: string | null;
 }): string {
+  if (isSafeReturnToPath(input.returnTo) && /^\/team-invitations\/[A-Za-z0-9_-]{43}$/.test(input.returnTo)) {
+    return input.returnTo;
+  }
   if (input.accountKind === "PROVIDER") {
     if (input.hasProviderMembership && isSafeReturnToPath(input.returnTo) && isProviderArea(input.returnTo)) {
       return input.returnTo;

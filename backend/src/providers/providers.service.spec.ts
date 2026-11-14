@@ -113,6 +113,7 @@ describe('ProvidersService.createProvider', () => {
   it('создаёт физлицо и пишет ФИО в профиль и пользователя', async () => {
     const { service, tx } = makeService();
     await service.createProvider(USER_ID, {
+      jobTitle: 'Кадастровый инженер',
       type: 'INDIVIDUAL',
       cityId: CITY_ID,
       offerVersion,
@@ -157,6 +158,7 @@ describe('ProvidersService.createProvider', () => {
   it('создаёт самозанятого', async () => {
     const { service, tx } = makeService();
     await service.createProvider(USER_ID, {
+      jobTitle: 'Кадастровый инженер',
       type: 'SELF_EMPLOYED',
       cityId: CITY_ID,
       offerVersion,
@@ -175,6 +177,7 @@ describe('ProvidersService.createProvider', () => {
   it('создаёт ИП с ОГРНИП', async () => {
     const { service, tx } = makeService();
     await service.createProvider(USER_ID, {
+      jobTitle: 'Кадастровый инженер',
       type: 'SOLE_PROPRIETOR',
       cityId: CITY_ID,
       offerVersion,
@@ -197,6 +200,7 @@ describe('ProvidersService.createProvider', () => {
   it('создаёт организацию и пишет контактное лицо в пользователя', async () => {
     const { service, tx } = makeService();
     await service.createProvider(USER_ID, {
+      jobTitle: 'Кадастровый инженер',
       type: 'COMPANY',
       cityId: CITY_ID,
       offerVersion,
@@ -236,6 +240,7 @@ describe('ProvidersService.createProvider', () => {
   it('создаёт профиль без реквизитов и не сохраняет присланный ИНН', async () => {
     const { service, tx } = makeService();
     await service.createProvider(USER_ID, {
+      jobTitle: 'Кадастровый инженер',
       type: 'INDIVIDUAL',
       cityId: CITY_ID,
       offerVersion,
@@ -257,6 +262,7 @@ describe('ProvidersService.createProvider', () => {
     });
     await expect(
       service.createProvider(USER_ID, {
+        jobTitle: 'Кадастровый инженер',
         type: 'INDIVIDUAL',
         cityId: CITY_ID,
         offerVersion,
@@ -269,6 +275,7 @@ describe('ProvidersService.createProvider', () => {
     const { service } = makeService({ existingPersonal: { id: PROVIDER_ID } });
     await expect(
       service.createProvider(USER_ID, {
+        jobTitle: 'Кадастровый инженер',
         type: 'SELF_EMPLOYED',
         cityId: CITY_ID,
         offerVersion,

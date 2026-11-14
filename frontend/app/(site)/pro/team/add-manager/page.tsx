@@ -4,7 +4,7 @@ import { getServerAuthSession } from "@/core/auth";
 import { signInRedirect } from "@/core/auth/sign-in-redirect";
 import { ProfessionalWorkspacePanel } from "@/widgets/pro-dashboard/ui/ProfessionalWorkspacePanel";
 
-export const metadata: Metadata = { title: "Добавление менеджера — Земледел" };
+export const metadata: Metadata = { title: "Команда — Земледел" };
 
 export default async function ProTeamPage() {
   const session = await getServerAuthSession();
@@ -24,7 +24,7 @@ export default async function ProTeamPage() {
             fontWeight: 700,
           }}
         >
-          Добавление менеджера
+          Команда
         </Typography>
         <Typography
           sx={{

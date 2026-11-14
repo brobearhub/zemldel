@@ -15,14 +15,14 @@ describe("isLlmsTxtPublic", () => {
 describe("buildLlmsTxt", () => {
   it("собирает публичный индекс с абсолютными ссылками и корневыми категориями", () => {
     const text = buildLlmsTxt("https://novagor.ru/", [
-      { id: "root-1", name: "Межевание", parentId: null },
-      { id: "child-1", name: "Уточнение границ", parentId: "root-1" },
-      { id: " ", name: "Пустая", parentId: null },
+      { id: "root-1", slug: "root-slug", name: "Межевание", parentId: null },
+      { id: "child-1", slug: "child-slug", name: "Уточнение границ", parentId: "root-1" },
+      { id: "empty", slug: " ", name: "Пустая", parentId: null },
     ]);
 
     expect(text.startsWith("# Земледел")).toBe(true);
     expect(text).toContain("[Главная](https://novagor.ru):");
-    expect(text).toContain("[Межевание](https://novagor.ru/service-categories/root-1):");
+    expect(text).toContain("[Межевание](https://novagor.ru/service-categories/root-slug):");
     expect(text).not.toContain("Уточнение границ");
     expect(text).not.toContain("Пустая");
     expect(text).toContain("/sitemap.xml");
@@ -34,7 +34,7 @@ describe("buildLlmsTxt", () => {
     expect(empty).toContain("Актуальный список открывается на главной странице.");
 
     const text = buildLlmsTxt("https://zemledel.pro", [
-      { id: "a/b", name: "Кадастр [участок]", parentId: null },
+      { id: "root", slug: "a/b", name: "Кадастр [участок]", parentId: null },
     ]);
 
     expect(text).not.toContain("Актуальный список открывается на главной странице.");

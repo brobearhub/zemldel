@@ -161,17 +161,31 @@ export function RequestDetailHeaderCard({
           <Stack
             direction={{ xs: "column", sm: "row" }}
             spacing={1}
+            useFlexGap
             sx={{
               alignItems: { xs: "stretch", sm: "center" },
               justifyContent: "space-between",
+              flexWrap: "wrap",
               width: "100%",
               pt: { xs: 2, sm: 1 },
             }}
           >
-            <Box sx={{ minWidth: 0, flex: "1 1 auto" }}>{afterBody}</Box>
+            <Box
+              sx={{
+                minWidth: 0,
+                flex: { xs: "0 1 auto", sm: "1 1 220px" },
+              }}
+            >
+              {afterBody}
+            </Box>
             {footerEnd ? (
               <Box
-                sx={{ flexShrink: 0, display: "flex", alignItems: "center" }}
+                sx={{
+                  flexShrink: 1,
+                  maxWidth: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                }}
               >
                 {footerEnd}
               </Box>

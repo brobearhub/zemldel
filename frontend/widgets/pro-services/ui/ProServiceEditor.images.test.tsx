@@ -98,7 +98,8 @@ describe("service photo gallery", () => {
     vi.stubGlobal("fetch", fetchMock);
     mount([], "create", true);
     await userEvent.upload(screen.getByLabelText("Фотографии услуги"), files(1));
-    expect(screen.getByText("Обложка")).toBeInTheDocument();
+    expect(screen.getByText("Главная")).toBeInTheDocument();
+    expect(screen.queryByText("Обложка")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("combobox", { name: /Категория/ }));
     await userEvent.click(screen.getByRole("option", { name: new RegExp(mainService.category.name) }));
     await userEvent.type(screen.getByRole("textbox", { name: "Цена" }), "15000");
@@ -159,7 +160,7 @@ describe("service photo gallery", () => {
     await userEvent.upload(screen.getByLabelText("Фотографии услуги"), files(1));
     await userEvent.click(screen.getAllByRole("button", { name: "Опубликовать" })[0]);
     await screen.findByText("Не удалось загрузить фото");
-    expect(screen.getByText("Обложка · Не загружено")).toBeInTheDocument();
+    expect(screen.getByText("Не загружено")).toBeInTheDocument();
     expect(navigation.push).not.toHaveBeenCalled();
     expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(0);
     const creates = fetchMock.mock.calls.filter(([url]) => url === "/api/pro/services");
@@ -193,7 +194,8 @@ describe("service photo gallery", () => {
     await userEvent.upload(screen.getByLabelText("Фотографии услуги"), files(1));
     await userEvent.click(screen.getAllByRole("button", { name: "Опубликовать" })[0]);
     await screen.findByText("Не удалось опубликовать");
-    expect(screen.getByText("Обложка")).toBeInTheDocument();
+    expect(screen.getByText("Главная")).toBeInTheDocument();
+    expect(screen.queryByText("Обложка")).not.toBeInTheDocument();
     expect(navigation.push).not.toHaveBeenCalled();
 
     await userEvent.click(screen.getAllByRole("button", { name: "Опубликовать" })[0]);

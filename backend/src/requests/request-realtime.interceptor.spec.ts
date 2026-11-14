@@ -71,7 +71,14 @@ describe('request realtime invalidation', () => {
     expect(gateway.emitRequestChanged).not.toHaveBeenCalled();
     expect(await lastValueFrom(stream)).toEqual({ ok: true });
     expect(prisma.providerMember.findMany).toHaveBeenCalledWith({
-      where: { providerId: { in: ['selected', 'archived'] }, status: 'ACTIVE' },
+      where: {
+        providerId: { in: ['selected', 'archived'] },
+        status: 'ACTIVE',
+        OR: [
+          { role: { in: ['OWNER', 'MANAGER'] } },
+          { assignedRequests: { some: { id: 'r', providerId: 'selected' } } },
+        ],
+      },
       select: { userId: true },
     });
     expect(gateway.emitRequestChanged.mock.calls).toEqual([

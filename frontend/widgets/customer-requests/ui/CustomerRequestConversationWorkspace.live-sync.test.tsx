@@ -7,6 +7,7 @@ import { fetchCustomerRequestDocumentRequests } from "@/entities/request/api/req
 import { fetchCustomerWorkStages } from "@/entities/request/api/request-work-stages";
 import { CustomerRequestConversationWorkspace } from "./CustomerRequestConversationWorkspace";
 
+vi.mock("@mui/material/useMediaQuery", () => ({ default: () => false }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
 vi.mock("@/widgets/chat/socket/ChatSocketContext", () => ({ useChatSocket: () => ({ socket: null }) }));
 vi.mock("@/widgets/chat/ui/ServiceRequestChatPanel", () => ({ ServiceRequestChatPanel: ({conversationId}: {conversationId: string}) => <div data-testid="active-chat">{conversationId}</div> }));
