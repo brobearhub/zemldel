@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import CloseIcon from "@mui/icons-material/Close";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SearchIcon from "@mui/icons-material/Search";
@@ -10,6 +10,7 @@ import {
   Box,
   Button,
   ButtonBase,
+  Collapse,
   IconButton,
   InputAdornment,
   Paper,
@@ -51,6 +52,8 @@ export function ServiceRequestsPanel({
   emptyLabel = "Пока нет заявок",
   showCustomerAvatar = false,
 }: Props) {
+  const [expanded, setExpanded] = useState(true);
+  const listId = useId();
   const [search, setSearch] = useState("");
   const [unfilteredTotal, setUnfilteredTotal] = useState<number | null>(null);
   const isSearching = search.trim().length > 0;
@@ -85,7 +88,7 @@ export function ServiceRequestsPanel({
     <Paper
       elevation={0}
       sx={{
-        height: "100%",
+        height: expanded ? "100%" : "auto",
         overflow: "hidden",
       }}
     >
@@ -216,124 +219,143 @@ export function ServiceRequestsPanel({
                   : "Повторить"}
             </Button>
           ) : null}
+          <IconButton
+            size="small"
+            aria-label={expanded ? "Свернуть список заявок" : "Развернуть список заявок"}
+            aria-expanded={expanded}
+            aria-controls={listId}
+            onClick={() => setExpanded((value) => !value)}
+          >
+            <ExpandMoreIcon
+              sx={{
+                transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+                transition: (theme) => theme.transitions.create("transform"),
+              }}
+            />
+          </IconButton>
         </Box>
       </Box>
-      {rateLimitReached ? (
-        <Alert
-          severity={isRateLimited ? "warning" : "info"}
-          role="status"
-          aria-live="polite"
-          sx={{
-            mx: { xs: 1.5, sm: 2.5 },
-            mb: 1.5,
-          }}
-        >
-          <AlertTitle>
-            {isRateLimited ? "Подождите немного" : "Можно продолжить"}
-          </AlertTitle>
-          {isRateLimited
-            ? "Вы слишком часто запрашиваете заявки. Загрузка временно приостановлена. "
-            : "Ожидание закончилось. Можно снова загружать заявки."}
-          {isRateLimited ? (
-            <Box
-              component="span"
-              role="timer"
-              aria-live="off"
-              aria-label="До следующего запроса"
-              sx={{
-                display: "block",
-                fontWeight: 700,
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
-              {`Повторить можно через ${retryTime}`}
-            </Box>
-          ) : null}
-        </Alert>
-      ) : null}
-      {error && requests !== null ? (
-        <Typography
-          role="alert"
-          sx={{
-            px: 2.5,
-            pb: 1,
-            color: "text.secondary",
-          }}
-        >
-          {error}
-        </Typography>
-      ) : null}
-      <Box
-        role="status"
-        sx={{
-          position: "absolute",
-          width: 1,
-          height: 1,
-          overflow: "hidden",
-          clipPath: "inset(50%)",
-        }}
+      <Collapse
+        id={listId}
+        in={expanded}
       >
-        {hasPendingRequests
-          ? "Есть новые заявки. Нажмите «Показать новые», чтобы обновить список."
-          : ""}
-      </Box>
+        {rateLimitReached ? (
+          <Alert
+            severity={isRateLimited ? "warning" : "info"}
+            role="status"
+            aria-live="polite"
+            sx={{
+              mx: { xs: 1.5, sm: 2.5 },
+              mb: 1.5,
+            }}
+          >
+            <AlertTitle>
+              {isRateLimited ? "Подождите немного" : "Можно продолжить"}
+            </AlertTitle>
+            {isRateLimited
+              ? "Вы слишком часто запрашиваете заявки. Загрузка временно приостановлена. "
+              : "Ожидание закончилось. Можно снова загружать заявки."}
+            {isRateLimited ? (
+              <Box
+                component="span"
+                role="timer"
+                aria-live="off"
+                aria-label="До следующего запроса"
+                sx={{
+                  display: "block",
+                  fontWeight: 700,
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {`Повторить можно через ${retryTime}`}
+              </Box>
+            ) : null}
+          </Alert>
+        ) : null}
+        {error && requests !== null ? (
+          <Typography
+            role="alert"
+            sx={{
+              px: 2.5,
+              pb: 1,
+              color: "text.secondary",
+            }}
+          >
+            {error}
+          </Typography>
+        ) : null}
+        <Box
+          role="status"
+          sx={{
+            position: "absolute",
+            width: 1,
+            height: 1,
+            overflow: "hidden",
+            clipPath: "inset(50%)",
+          }}
+        >
+          {hasPendingRequests
+            ? "Есть новые заявки. Нажмите «Показать новые», чтобы обновить список."
+            : ""}
+        </Box>
 
-      {isLoading ? (
-        <Typography sx={{ px: 2.5, pb: 2.5, color: "text.secondary" }}>
-          Загрузка…
-        </Typography>
-      ) : requests === null && rateLimitReached ? null : error && requests === null ? (
-        <Typography sx={{ px: 2.5, pb: 2.5, color: "text.secondary" }}>
-          {error}
-        </Typography>
-      ) : requests?.length === 0 && !hasMore ? (
-        <Typography sx={{ px: 2.5, pb: 2.5, color: "text.secondary" }}>
-          {isSearching ? "Заявки не найдены" : emptyLabel}
-        </Typography>
-      ) : (
-        <>
-          <Box>
-            {requests?.map((request) => (
-              <ServiceRequestRow
-                key={request.id}
-                request={request}
-                title={rowTitle(request, serviceTitle, titleFor)}
-                showCustomerAvatar={showCustomerAvatar}
-                sending={sendingId === request.id}
-                onReply={setReplyItem}
-              />
-            ))}
-          </Box>
-          {hasMore ? (
-            <ButtonBase
-              type="button"
-              disabled={isRateLimited || isLoadingMore || isRefreshing}
-              onClick={() => void loadMore()}
-              sx={{
-                display: "flex",
-                width: "100%",
-                gap: 0.5,
-                py: 1.25,
-                borderTop: "1px solid",
-                borderColor: "divider",
-                color: "text.primary",
-                fontWeight: 700,
-                "&:hover": {
-                  bgcolor: "action.hover",
-                },
-                "&.Mui-focusVisible": {
-                  outline: "2px solid",
-                  outlineColor: "primary.dark",
-                  outlineOffset: -2,
-                },
-              }}
-            >
-              {isLoadingMore ? "Загрузка…" : "Ещё"}
-              <ExpandMoreIcon />
-            </ButtonBase>
-          ) : null}
-        </>
-      )}
+        {isLoading ? (
+          <Typography sx={{ px: 2.5, pb: 2.5, color: "text.secondary" }}>
+            Загрузка…
+          </Typography>
+        ) : requests === null && rateLimitReached ? null : error && requests === null ? (
+          <Typography sx={{ px: 2.5, pb: 2.5, color: "text.secondary" }}>
+            {error}
+          </Typography>
+        ) : requests?.length === 0 && !hasMore ? (
+          <Typography sx={{ px: 2.5, pb: 2.5, color: "text.secondary" }}>
+            {isSearching ? "Заявки не найдены" : emptyLabel}
+          </Typography>
+        ) : (
+          <>
+            <Box>
+              {requests?.map((request) => (
+                <ServiceRequestRow
+                  key={request.id}
+                  request={request}
+                  title={rowTitle(request, serviceTitle, titleFor)}
+                  showCustomerAvatar={showCustomerAvatar}
+                  sending={sendingId === request.id}
+                  onReply={setReplyItem}
+                />
+              ))}
+            </Box>
+            {hasMore ? (
+              <ButtonBase
+                type="button"
+                disabled={isRateLimited || isLoadingMore || isRefreshing}
+                onClick={() => void loadMore()}
+                sx={{
+                  display: "flex",
+                  width: "100%",
+                  gap: 0.5,
+                  py: 1.25,
+                  borderTop: "1px solid",
+                  borderColor: "divider",
+                  color: "text.primary",
+                  fontWeight: 700,
+                  "&:hover": {
+                    bgcolor: "action.hover",
+                  },
+                  "&.Mui-focusVisible": {
+                    outline: "2px solid",
+                    outlineColor: "primary.dark",
+                    outlineOffset: -2,
+                  },
+                }}
+              >
+                {isLoadingMore ? "Загрузка…" : "Ещё"}
+                <ExpandMoreIcon />
+              </ButtonBase>
+            ) : null}
+          </>
+        )}
+      </Collapse>
       <ProviderRequestReplyDialog
         item={replyItem}
         onClose={() => setReplyItem(null)}
