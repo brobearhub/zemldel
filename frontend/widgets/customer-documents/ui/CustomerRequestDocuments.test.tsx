@@ -48,3 +48,17 @@ describe("CustomerRequestDocuments", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
+
+
+it("uses provider document APIs and request links for the provider view", async () => {
+  const fetchMock = vi.fn().mockImplementation((url: string) => Promise.resolve(json(
+    url === "/api/pro/documents/request-ids" ? ["with-files"] :
+    url.endsWith("/provider-misc") ? [{ id: "provider-file", originalName: "Шаблон.xlsx", sizeBytes: 2048 }] : [],
+  )));
+  vi.stubGlobal("fetch", fetchMock);
+  render(<CustomerRequestDocuments audience="provider" requests={requests} loading={false} error={null} onRetry={() => {}} />);
+  await userEvent.setup().click(await screen.findByRole("button", { name: /С документами/ }));
+  expect(await screen.findByRole("link", { name: "Скачать Шаблон.xlsx" })).toHaveAttribute("href", "/api/pro/contract-files/provider-file/download");
+  expect(screen.getByRole("link", { name: "Открыть заявку" })).toHaveAttribute("href", "/pro/requests/with-files");
+  expect(fetchMock.mock.calls.every(([url]) => String(url).startsWith("/api/pro/"))).toBe(true);
+});

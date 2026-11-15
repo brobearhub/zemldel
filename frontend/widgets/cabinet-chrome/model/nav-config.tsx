@@ -195,6 +195,13 @@ const providerServices: CabinetNavItem = {
 };
 const providerSections: readonly CabinetNavItem[] = [
   {
+    key: "documents",
+    label: "Документы",
+    href: "/pro/documents",
+    icon: <DescriptionOutlinedIcon />,
+    isActive: ({ pathname }) => pathname.startsWith("/pro/documents"),
+  },
+  {
     key: "clients",
     label: "Клиенты",
     href: "/pro/clients",

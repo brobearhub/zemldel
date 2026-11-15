@@ -37,7 +37,7 @@ export default async function ProDashboardPage() {
   }
 
   try {
-    // Why: заявки списка грузит клиент целиком. Здесь только услуги и напоминания.
+    // Why: заявки списка клиент загружает страницами. Здесь только услуги и напоминания.
     const [services, reminders, verification] = await Promise.all([
       fetchBackendJsonAsUser<ServiceDto[]>("/pro/services", session.user.id),
       fetchBackendJsonAsUser<RequestReminderDto[]>(

@@ -252,10 +252,7 @@ export function NewStoryComposer({
           sx={{
             alignSelf: "flex-start",
             borderRadius: "14px",
-            px: 2.5,
-            py: 0.75,
             fontWeight: 700,
-            fontSize: "1rem",
             textTransform: "none",
             boxShadow: "none",
             "&:hover": { boxShadow: "none" },

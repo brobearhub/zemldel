@@ -114,7 +114,7 @@ export function PublicUnlinkedRequestForm({
   const { validationError, isBlocked } = useMemo(() => {
     if (!city) {
       return {
-        validationError: "Выберите населённый пункт, где нужны работы.",
+        validationError: "Выберите город, чтобы продолжить.",
         isBlocked: true,
       };
     }
@@ -246,7 +246,10 @@ export function PublicUnlinkedRequestForm({
             </Stack>
             <Typography
               variant="body2"
-              sx={{ color: "text.secondary", textAlign: "center" }}
+              sx={{
+                color: "text.secondary",
+                textAlign: "left",
+              }}
             >
               Заявку увидят несколько подходящих исполнителей. Сравните ответы в
               чатах и выберите одного.
@@ -284,8 +287,14 @@ export function PublicUnlinkedRequestForm({
             minRows={3}
             required
             sx={{
+              "& .MuiInputLabel-root": {
+                width: "100%",
+                textAlign: "right",
+              },
+              "& .MuiInputLabel-asterisk": {
+                display: "none",
+              },
               "& .MuiInputBase-multiline": {
-                minHeight: 144,
                 alignItems: "flex-start",
               },
             }}
@@ -293,11 +302,12 @@ export function PublicUnlinkedRequestForm({
 
           <Stack spacing={2}>
             <LocationField
-              label="Где нужны работы?"
-              caption="Где нужны работы? *"
+              label="Выберите город"
+              caption={city ? undefined : "Выберите город"}
+              captionAlign="right"
               helperText={
                 !city
-                  ? "Выберите населённый пункт, чтобы продолжить."
+                  ? "Выберите город, чтобы продолжить."
                   : undefined
               }
               value={city}
@@ -310,6 +320,7 @@ export function PublicUnlinkedRequestForm({
 
             <CadastralNumberChipsField
               value={form.cadastralNumbers}
+              labelAlign="center"
               onChange={(cadastralNumbers) =>
                 setForm((prev) => ({ ...prev, cadastralNumbers }))
               }
@@ -384,12 +395,8 @@ export function PublicUnlinkedRequestForm({
           disabled={isBlocked || formDisabled}
           sx={{
             fontWeight: 700,
-            fontSize: "1rem",
-            lineHeight: 1.5,
             letterSpacing: "0.46px",
             textTransform: "none",
-            py: 1,
-            px: 2.75,
             boxShadow:
               variant === "card"
                 ? "0px 1px 5px rgba(0,0,0,0.12), 0px 2px 2px rgba(0,0,0,0.14), 0px 3px 1px -2px rgba(0,0,0,0.2)"

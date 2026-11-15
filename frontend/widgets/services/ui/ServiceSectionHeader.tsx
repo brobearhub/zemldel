@@ -1,14 +1,16 @@
 "use client";
 
 import { Box, Typography } from "@mui/material";
+import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 import { useCitySelect } from "@/features/select-city";
 
 type Props = {
   title: string;
   cityLabel?: string | null;
+  inlineCity?: boolean;
 };
 
-export function ServiceSectionHeader({ title, cityLabel }: Props) {
+export function ServiceSectionHeader({ title, cityLabel, inlineCity = false }: Props) {
   const { openCitySelect } = useCitySelect();
 
   return (
@@ -17,6 +19,8 @@ export function ServiceSectionHeader({ title, cityLabel }: Props) {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
+        flexWrap: "wrap",
+        columnGap: inlineCity ? 1.5 : 0,
         py: 1.25,
       }}
     >
@@ -38,11 +42,14 @@ export function ServiceSectionHeader({ title, cityLabel }: Props) {
           type="button"
           onClick={() => openCitySelect("customer")}
           sx={{
-            fontWeight: 500,
+            fontWeight: inlineCity ? 700 : 500,
             fontSize: "1rem",
             lineHeight: 1.57,
             letterSpacing: "0.1px",
-            color: "text.secondary",
+            color: inlineCity ? "text.primary" : "text.secondary",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.5,
             border: 0,
             p: 0,
             bgcolor: "transparent",
@@ -50,6 +57,16 @@ export function ServiceSectionHeader({ title, cityLabel }: Props) {
             "&:hover": { color: "primary.main" },
           }}
         >
+          {inlineCity ? (
+            <LocationOnOutlinedIcon
+              aria-hidden="true"
+              sx={{
+                fontSize: 18,
+                color: "text.primary",
+                transform: "translateY(-2px)",
+              }}
+            />
+          ) : null}
           {cityLabel}
         </Typography>
       ) : null}

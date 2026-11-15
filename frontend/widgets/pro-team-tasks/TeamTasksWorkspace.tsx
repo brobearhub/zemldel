@@ -236,17 +236,7 @@ export function TeamTasksWorkspace({ providerId }: { providerId: string }) {
       sx={{
         minWidth: 0,
         width: "100%",
-        "& .MuiButton-sizeSmall": {
-          minHeight: 32,
-          padding: "4px 10px",
-          fontSize: 14,
-        },
         "& .MuiOutlinedInput-root.MuiInputBase-sizeSmall": {
-          fontSize: 16,
-          lineHeight: 1.4375,
-          "&:not(.MuiInputBase-multiline)": {
-            minHeight: 40,
-          },
           "&:focus-within": {
             outline: "none",
           },
@@ -447,13 +437,7 @@ export function TeamTasksWorkspace({ providerId }: { providerId: string }) {
                     <ToggleButton
                       key={id}
                       value={id}
-                      sx={{
-                        ...selectedSx,
-                        px: {
-                          xs: 1,
-                          sm: 2,
-                        },
-                      }}
+                      sx={selectedSx}
                     >
                       {label}
                     </ToggleButton>
@@ -532,10 +516,7 @@ export function TeamTasksWorkspace({ providerId }: { providerId: string }) {
                   <ToggleButton
                     key={id}
                     value={id}
-                    sx={{
-                      ...selectedSx,
-                      px: 1.5,
-                    }}
+                    sx={selectedSx}
                   >
                     {label}
                   </ToggleButton>

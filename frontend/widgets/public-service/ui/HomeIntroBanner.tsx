@@ -4,7 +4,7 @@ import ChatBubbleOutlineRoundedIcon from "@mui/icons-material/ChatBubbleOutlineR
 import ExploreOutlinedIcon from "@mui/icons-material/ExploreOutlined";
 import FormatListBulletedRoundedIcon from "@mui/icons-material/FormatListBulletedRounded";
 import PlaceRoundedIcon from "@mui/icons-material/PlaceRounded";
-import { Box, ButtonBase, Stack, Typography } from "@mui/material";
+import { Box, ButtonBase, Stack, Typography, useTheme } from "@mui/material";
 
 type Props = { onCreateRequest: () => void };
 
@@ -24,6 +24,10 @@ const descriptionSx = {
 };
 
 export function HomeIntroBanner({ onCreateRequest }: Props) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const detailColor = isDark ? "text.primary" : green;
+
   return (
     <Box
       component="section"
@@ -33,10 +37,11 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
         flexDirection: { xs: "column", md: "row" },
         my: 2,
         overflow: "hidden",
-        border: "1px solid #D3E0DA",
+        border: "1px solid",
+        borderColor: isDark ? "divider" : "#D3E0DA",
         borderRadius: "18px",
-        bgcolor: "primary.light",
-        boxShadow: "0 12px 32px -16px rgba(22, 48, 37, 0.45)",
+        bgcolor: isDark ? "background.secondary" : "primary.light",
+        boxShadow: isDark ? "none" : "0 12px 32px -16px rgba(22, 48, 37, 0.45)",
       }}
     >
       <Box
@@ -51,7 +56,7 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
           overflow: "hidden",
           px: { xs: 2.5, md: 4.5 },
           py: { xs: 3, md: 4 },
-          color: "common.white",
+          color: isDark ? "text.primary" : "common.white",
           "&::before": {
             content: '""',
             position: "absolute",
@@ -113,7 +118,10 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
             Земельные и кадастровые услуги
             <Box
               component="span"
-              sx={{ display: "block", color: "primary.dark" }}
+              sx={{
+                display: "block",
+                color: isDark ? "primary.main" : "primary.dark",
+              }}
             >
               Найдите своего специалиста
             </Box>
@@ -183,7 +191,7 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
               width: 12,
               height: 12,
               borderRadius: "50%",
-              bgcolor: "primary.dark",
+              bgcolor: isDark ? "primary.main" : "primary.dark",
               flexShrink: 0,
             }}
           />
@@ -197,8 +205,8 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
           overflow: "hidden",
           px: { xs: 2, md: 3.5 },
           py: { xs: 2.5, md: 3.5 },
-          bgcolor: "#f0f0e6",
-          color: green,
+          bgcolor: isDark ? "background.paper" : "#f0f0e6",
+          color: detailColor,
         }}
       >
         <Box
@@ -210,8 +218,9 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
             width: 320,
             height: 260,
             borderRadius: "50%",
-            background:
-              "repeating-radial-gradient(ellipse, transparent 0 31px, rgba(50,94,73,.1) 32px 33px)",
+            background: isDark
+              ? "repeating-radial-gradient(ellipse, transparent 0 31px, rgba(255,255,255,.1) 32px 33px)"
+              : "repeating-radial-gradient(ellipse, transparent 0 31px, rgba(50,94,73,.1) 32px 33px)",
             pointerEvents: "none",
           }}
         />
@@ -232,8 +241,8 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
                   height: 24,
                   flexShrink: 0,
                   borderRadius: "50%",
-                  bgcolor: "#DCEBE3",
-                  color: green,
+                  bgcolor: isDark ? "background.secondary" : "#DCEBE3",
+                  color: isDark ? "primary.main" : green,
                 }}
               >
                 <FormatListBulletedRoundedIcon
@@ -249,7 +258,7 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
                   fontSize: "1rem",
                   fontWeight: 700,
                   lineHeight: 1.5,
-                  color: green,
+                  color: detailColor,
                 }}
               >
                 Каталог услуг
@@ -268,13 +277,14 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
               flexDirection: "column",
               alignItems: "stretch",
               textAlign: "left",
-              color: "#1E3A2E",
+              color: isDark ? "text.primary" : "#1E3A2E",
               transition: "background-color 150ms, box-shadow 150ms",
               "&:hover": {
-                bgcolor: "#EEF5F1",
+                bgcolor: isDark ? "action.hover" : "#EEF5F1",
               },
               "&.Mui-focusVisible": {
-                outline: `2px solid ${green}`,
+                outline: "2px solid",
+                outlineColor: isDark ? "primary.main" : green,
                 outlineOffset: 3,
               },
             }}
@@ -294,8 +304,8 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
                   height: 24,
                   flexShrink: 0,
                   borderRadius: "50%",
-                  bgcolor: "#DCEBE3",
-                  color: green,
+                  bgcolor: isDark ? "background.secondary" : "#DCEBE3",
+                  color: isDark ? "primary.main" : green,
                 }}
               >
                 <PlaceRoundedIcon
@@ -311,7 +321,7 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
                   fontSize: "1rem",
                   fontWeight: 700,
                   lineHeight: 1.5,
-                  color: green,
+                  color: detailColor,
                 }}
               >
                 Своя заявка
@@ -337,12 +347,17 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
             position: "relative",
             mt: 2,
             pt: 1.5,
-            borderTop: "1px dashed #B5CCD8",
+            borderTop: "1px dashed",
+            borderColor: isDark ? "divider" : "#B5CCD8",
           }}
         >
           <ChatBubbleOutlineRoundedIcon
             aria-hidden="true"
-            sx={{ fontSize: 15, mt: "1px", color: green }}
+            sx={{
+              fontSize: 15,
+              mt: "1px",
+              color: detailColor,
+            }}
           />
           <Typography sx={{ fontSize: "1rem", lineHeight: 1.5 }}>
             Условия и цену согласуете в чате до договора.

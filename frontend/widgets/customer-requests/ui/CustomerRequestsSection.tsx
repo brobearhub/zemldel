@@ -188,7 +188,6 @@ export function CustomerRequestsSection({
           disabled={loading}
           sx={{
             whiteSpace: "normal",
-            minHeight: 44,
             color: "text.primary",
             borderColor: "text.primary",
           }}
@@ -283,7 +282,7 @@ export function CustomerRequestsSection({
           <Button
             component={Link}
             href="/"
-            sx={{ mt: 2, minHeight: 44 }}
+            sx={{ mt: 2 }}
             variant="contained"
           >
             На главную

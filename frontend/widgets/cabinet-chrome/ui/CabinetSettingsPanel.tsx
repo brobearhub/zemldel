@@ -12,6 +12,7 @@ import {
   IconButton,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import ChevronRightRounded from "@mui/icons-material/ChevronRightRounded";
@@ -36,6 +37,7 @@ import {
   useColorMode,
   type ColorPreference,
 } from "@/core/theme/ColorModeContext";
+import { DarkPaletteSelect } from "@/core/theme/DarkPaletteSelect";
 
 type Props = {
   titleId: string;
@@ -71,9 +73,11 @@ export function CabinetSettingsPanel({
       onClick={onNavigate}
       sx={{
         minHeight: 50,
-        px: 1,
-        gap: "14px",
-        color: "text.primary",
+        px: 1.25,
+        py: 1,
+        gap: 1.5,
+        mb: 0.25,
+        color: "text.secondary",
         "&:not(:last-child)": {
           borderBottom: { xs: 1, tablet: 0 },
           borderColor: "divider",
@@ -83,18 +87,28 @@ export function CabinetSettingsPanel({
       <ListItemIcon
         sx={{
           minWidth: 24,
-          color: "text.secondary",
+          color: "inherit",
+          "& .MuiSvgIcon-root": {
+            fontSize: 24,
+          },
         }}
       >
         {icon}
       </ListItemIcon>
       <ListItemText
         primary={label}
-        slotProps={{ primary: { sx: { fontSize: "1rem" } } }}
+        slotProps={{
+          primary: {
+            sx: {
+              fontSize: "1rem",
+              fontWeight: 500,
+            },
+          },
+        }}
       />
       <ChevronRightRounded
         sx={{
-          color: "text.secondary",
+          color: "inherit",
           fontSize: 20,
         }}
       />
@@ -169,9 +183,11 @@ export function CabinetSettingsPanel({
           <>
             <Typography
               sx={{
-                color: "text.secondary",
-                mb: 1,
-                px: 1,
+                color: "text.primary",
+                mb: 0.75,
+                px: 1.25,
+                fontSize: "0.875rem",
+                fontWeight: 800,
               }}
             >
               Мой профиль
@@ -215,10 +231,12 @@ export function CabinetSettingsPanel({
           <>
             <Typography
               sx={{
-                color: "text.secondary",
-                mt: 3,
-                mb: 1,
-                px: 1,
+                color: "text.primary",
+                mt: 2,
+                mb: 0.75,
+                px: 1.25,
+                fontSize: "0.875rem",
+                fontWeight: 800,
               }}
             >
               Работа
@@ -240,10 +258,12 @@ export function CabinetSettingsPanel({
             </List>
             <Typography
               sx={{
-                color: "text.secondary",
-                mt: 3,
-                mb: 1,
-                px: 1,
+                color: "text.primary",
+                mt: 2,
+                mb: 0.75,
+                px: 1.25,
+                fontSize: "0.875rem",
+                fontWeight: 800,
               }}
             >
               Шаблоны
@@ -264,10 +284,12 @@ export function CabinetSettingsPanel({
         ) : null}
         <Typography
           sx={{
-            color: "text.secondary",
-            mt: 3,
-            mb: 1,
-            px: 1,
+            color: "text.primary",
+            mt: 2,
+            mb: 0.75,
+            px: 1.25,
+            fontSize: "0.875rem",
+            fontWeight: 800,
           }}
         >
           Внешний вид
@@ -280,17 +302,18 @@ export function CabinetSettingsPanel({
         >
           <ToggleButtonGroup
             exclusive
-            fullWidth
             value={preference}
             onChange={(_, value: ColorPreference | null) => {
               if (value) setPreference(value);
             }}
             aria-label="Тема оформления"
             sx={{
-              gap: 1,
+              width: "100%",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 0,
               "& .MuiToggleButtonGroup-grouped": {
-                border: "1px solid",
-                borderColor: "divider",
+                border: 0,
                 borderRadius: "16px !important",
                 m: 0,
               },
@@ -311,43 +334,60 @@ export function CabinetSettingsPanel({
                 },
               ] as const
             ).map((item) => (
-              <ToggleButton
-                key={item.value}
-                value={item.value}
-                aria-label={item.label}
-                sx={{
-                  flexDirection: "column",
-                  gap: 1,
-                  py: 2,
-                  px: 0.5,
-                  textTransform: "none",
-                  fontSize: "0.8125rem",
-                }}
-              >
-                {item.icon}
-                {item.label}
-              </ToggleButton>
+              <Tooltip key={item.value} title={item.label} placement="right">
+                <ToggleButton
+                  value={item.value}
+                  aria-label={item.label}
+                  sx={{
+                    width: 40,
+                    minWidth: 0,
+                    height: 40,
+                    p: 1,
+                    justifyContent: "center",
+                  }}
+                >
+                  {item.icon}
+                </ToggleButton>
+              </Tooltip>
             ))}
           </ToggleButtonGroup>
+          {preference !== "light" ? (
+            <Box sx={{ mt: 2 }}>
+              <DarkPaletteSelect />
+            </Box>
+          ) : null}
         </Box>
         {authenticated ? (
           <List
             disablePadding
             sx={{
               ...groupSx,
-              mt: 3,
+              mt: 2,
             }}
           >
             <ListItemButton
               onClick={() => void signOut({ callbackUrl: "/" })}
               sx={{
-                minHeight: 58,
+                minHeight: 50,
+                px: 1.25,
+                py: 1,
                 gap: 1.5,
+                mb: 0.25,
                 color: "error.main",
               }}
             >
-              <LogoutRounded />
-              <ListItemText primary="Выйти" />
+              <LogoutRounded sx={{ fontSize: 24 }} />
+              <ListItemText
+                primary="Выйти"
+                slotProps={{
+                  primary: {
+                    sx: {
+                      fontSize: "1rem",
+                      fontWeight: 500,
+                    },
+                  },
+                }}
+              />
             </ListItemButton>
           </List>
         ) : null}

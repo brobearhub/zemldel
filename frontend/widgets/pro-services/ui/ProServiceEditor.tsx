@@ -1246,10 +1246,6 @@ export function ProServiceEditor({
                       disabled={busy}
                       onClick={() => makeMainPhoto(image)}
                       sx={{
-                        px: 0.5,
-                        py: 0.5,
-                        minHeight: 36,
-                        fontSize: 12,
                         letterSpacing: 0,
                         whiteSpace: "nowrap",
                         color: "text.primary",

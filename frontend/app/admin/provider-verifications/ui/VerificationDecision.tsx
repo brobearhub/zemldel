@@ -91,7 +91,7 @@ export function VerificationDecision({ requestId }: Props) {
         loading={pendingAction === "approve"}
         disabled={busy}
         onClick={() => void approve()}
-        sx={{ alignSelf: "flex-start", minHeight: 44 }}
+        sx={{ alignSelf: "flex-start" }}
       >
         Подтвердить
       </Button>
@@ -105,7 +105,6 @@ export function VerificationDecision({ requestId }: Props) {
             size="small"
             variant="outlined"
             onClick={() => setReason(template)}
-            sx={{ minHeight: 44 }}
           >
             {template}
           </Button>
@@ -125,7 +124,7 @@ export function VerificationDecision({ requestId }: Props) {
         loading={pendingAction === "reject"}
         disabled={busy || reason.trim().length === 0}
         onClick={() => void reject()}
-        sx={{ alignSelf: "flex-start", minHeight: 44 }}
+        sx={{ alignSelf: "flex-start" }}
       >
         Отклонить
       </Button>

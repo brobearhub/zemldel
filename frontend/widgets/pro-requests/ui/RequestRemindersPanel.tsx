@@ -233,7 +233,6 @@ export function RequestRemindersPanel({ requestId }: Props) {
                   sx: {
                     minWidth: 220,
                     "& .MuiOutlinedInput-root": {
-                      height: 40,
                       color: "error.main",
                       "& fieldset": { borderColor: "rgba(224, 21, 21, 0.23)" },
                       "&:hover fieldset": {
@@ -252,10 +251,6 @@ export function RequestRemindersPanel({ requestId }: Props) {
             loading={adding}
             disabled={!text.trim() || !remindAt || !remindAt.isValid()}
             onClick={() => void handleAdd()}
-            sx={{
-              height: 40,
-              minHeight: 40,
-            }}
           >
             Добавить
           </Button>

@@ -22,7 +22,19 @@ vi.mock("@/widgets/request-work-progress", () => ({
   RequestWorkProgress: ({ stages }: { stages: { title: string }[] }) =>
     <div data-testid="stages">{stages.map((s) => s.title).join(",")}</div>,
 }));
-vi.mock("./CustomerRequestDocumentsSection", () => ({ CustomerRequestDocumentsSection: () => null }));
+vi.mock("./CustomerRequestDocumentsSection", () => ({
+  CustomerRequestDocumentsSection: ({ open, providerFiles, providerFilesError, onRetryProviderFiles }: {
+    open: boolean;
+    providerFiles: { originalName: string }[];
+    providerFilesError: string | null;
+    onRetryProviderFiles: () => void;
+  }) => open ? (
+    <div data-testid="provider-files">
+      {providerFiles.map(file => file.originalName).join(",")}
+      {providerFilesError ? <button onClick={onRetryProviderFiles}>{providerFilesError}</button> : null}
+    </div>
+  ) : null,
+}));
 
 const request = {
   id: "request-a", subjectType: "FREEFORM", status: "ACTIVE", providerId: "provider-a",
@@ -36,12 +48,46 @@ describe("customer request sections follow live updates", () => {
   beforeEach(() => {
     vi.useFakeTimers(); vi.clearAllMocks();
     vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
-    vi.stubGlobal("fetch", vi.fn(async (url) => new Response(JSON.stringify(String(url).endsWith("contract-bundles") ? [] : request))));
+    vi.stubGlobal("fetch", vi.fn(async (url) => new Response(JSON.stringify(/contract-bundles$|provider-misc$/.test(String(url)) ? [] : request))));
     vi.mocked(fetchCustomerWorkStages).mockResolvedValue([]);
     vi.mocked(fetchCustomerRequestDocumentRequests).mockResolvedValue([]);
     vi.mocked(fetchCustomerRequestConversations).mockResolvedValue([]);
   });
   afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+  it("refreshes additional provider files after upload and deletion events", async () => {
+    let files: { originalName: string }[] = [];
+    vi.mocked(fetch).mockImplementation(async (url) => new Response(JSON.stringify(
+      String(url).endsWith("provider-misc") ? files : String(url).endsWith("contract-bundles") ? [] : request
+    )));
+    await act(async () => { render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={request} /></ConfirmProvider>); });
+    expect(screen.getByTestId("provider-files")).toHaveTextContent("");
+    files = [{ originalName: "Дополнительный документ.docx" }];
+    await act(async () => { window.dispatchEvent(new CustomEvent("request:changed", { detail: { requestId: request.id } })); });
+    expect(screen.getByTestId("provider-files")).toHaveTextContent("Дополнительный документ.docx");
+    files = [];
+    await act(async () => { window.dispatchEvent(new CustomEvent("request:changed", { detail: { requestId: request.id } })); });
+    expect(screen.getByTestId("provider-files")).toBeEmptyDOMElement();
+  });
+
+  it("keeps loaded provider files on a temporary error and retries from the documents block", async () => {
+    let failing = false;
+    vi.mocked(fetch).mockImplementation(async (url) =>
+      String(url).endsWith("provider-misc")
+        ? new Response(JSON.stringify(failing ? {} : [{ originalName: "План.pdf" }]), { status: failing ? 503 : 200 })
+        : new Response(JSON.stringify(String(url).endsWith("contract-bundles") ? [] : request))
+    );
+    await act(async () => { render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={request} /></ConfirmProvider>); });
+    expect(screen.getByTestId("provider-files")).toHaveTextContent("План.pdf");
+    failing = true;
+    await act(async () => { window.dispatchEvent(new Event("request:sync")); });
+    expect(screen.getByTestId("provider-files")).toHaveTextContent("План.pdf");
+    const retry = screen.getByRole("button", { name: "Не удалось загрузить документы исполнителя." });
+    failing = false;
+    await act(async () => { fireEvent.click(retry); });
+    expect(screen.queryByRole("button", { name: "Не удалось загрузить документы исполнителя." })).not.toBeInTheDocument();
+    expect(screen.getByTestId("provider-files")).toHaveTextContent("План.pdf");
+  });
 
   it("shows a newly published stage even while the request remains ACTIVE", async () => {
     await act(async () => { render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={request} /></ConfirmProvider>); });

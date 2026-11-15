@@ -133,10 +133,6 @@ export function OrderPassportPanel({ orderId }: { orderId: string }) {
         alignSelf: { xs: "flex-end", sm: "center" },
         flexShrink: 0,
         color: "text.primary",
-        minHeight: 32,
-        px: 1,
-        py: 0.5,
-        fontSize: "0.875rem",
         whiteSpace: "nowrap",
       }}
     >

@@ -263,9 +263,6 @@ export function ProRequestBoardCard({ item }: { item: RequestProDto }) {
             disableElevation
             sx={{
               flexShrink: 0,
-              fontSize: 13,
-              minHeight: 34,
-              px: 1.5,
               bgcolor: (theme) => theme.palette.mode === "light"
                 ? theme.palette.text.primary
                 : theme.palette.primary.main,

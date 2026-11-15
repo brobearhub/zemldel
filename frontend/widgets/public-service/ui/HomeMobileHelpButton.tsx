@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
-import { Box, Dialog, IconButton, Typography, useTheme } from "@mui/material";
+import { Box, Button, Dialog, IconButton, Typography, useTheme } from "@mui/material";
 import { PublicUnlinkedRequestForm } from "@/widgets/public-service/ui/PublicUnlinkedRequestForm";
 
 type Props = {
@@ -32,17 +32,15 @@ export function HomeMobileHelpButton({
       : "/zemledel_logo_img_light.svg";
 
   const launcher = (
-    <Box
-      component="button"
+    <Button
       type="button"
+      variant="outlined"
+      fullWidth
       aria-label="Помощь"
       onClick={() => setOpen(true)}
       sx={{
         display: { xs: "flex", md: "none" },
-        width: "100%",
-        minHeight: 48,
         my: 2,
-        p: 1.5,
         border: "1px solid",
         borderColor: "divider",
         borderRadius: 1,
@@ -68,7 +66,7 @@ export function HomeMobileHelpButton({
         />
         <Typography
           sx={{
-            fontSize: "1rem",
+            fontSize: "inherit",
             fontWeight: 700,
             lineHeight: 1.5,
             color: "text.primary",
@@ -77,7 +75,7 @@ export function HomeMobileHelpButton({
           Помощь с выбором услуги
         </Typography>
       </Box>
-    </Box>
+    </Button>
   );
 
   return (

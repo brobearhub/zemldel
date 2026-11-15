@@ -1,15 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import CloseIcon from "@mui/icons-material/Close";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import SearchIcon from "@mui/icons-material/Search";
 import {
+  Alert,
+  AlertTitle,
   Box,
   Button,
   ButtonBase,
-  Collapse,
   IconButton,
+  InputAdornment,
   Paper,
+  TextField,
   Typography,
 } from "@mui/material";
 import type { RequestProDto } from "@/entities/request";
@@ -27,11 +31,7 @@ type Props = {
   titleFor?: (request: RequestProDto) => string;
   emptyLabel?: string;
   showCustomerAvatar?: boolean;
-  expanded?: boolean;
-  onExpandedChange?: (expanded: boolean) => void;
 };
-
-const PREVIEW_COUNT = 3;
 
 function rowTitle(
   request: RequestProDto,
@@ -50,47 +50,36 @@ export function ServiceRequestsPanel({
   titleFor,
   emptyLabel = "Пока нет заявок",
   showCustomerAvatar = false,
-  expanded: expandedProp = false,
-  onExpandedChange,
 }: Props) {
+  const [search, setSearch] = useState("");
+  const [unfilteredTotal, setUnfilteredTotal] = useState<number | null>(null);
+  const isSearching = search.trim().length > 0;
   const {
     requests,
+    total,
+    needsReply,
+    hasMore,
+    isLoadingMore,
+    loadMore,
     error,
+    rateLimitReached,
+    retryAfterSeconds,
     isLoading,
     hasPendingRequests,
     isRefreshing,
     showNewRequests,
     markAwaitingCustomerReply,
-  } = useRequestList(serviceId);
+  } = useRequestList(serviceId, search);
+  const isRateLimited = retryAfterSeconds > 0;
+  const retryTime = `${Math.floor(retryAfterSeconds / 60)}:${String(retryAfterSeconds % 60).padStart(2, "0")}`;
   const [replyItem, setReplyItem] = useState<RequestProDto | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
-  const [ownExpanded, setOwnExpanded] = useState(false);
-  const expanded = onExpandedChange != null ? expandedProp : ownExpanded;
-
-  function changeExpanded(next: boolean) {
-    if (onExpandedChange) onExpandedChange(next);
-    else setOwnExpanded(next);
-  }
-  const needsReply =
-    requests?.filter((request) => !request.awaitingCustomerReply).length ?? 0;
   useEffect(() => {
-    if (serviceId && requests !== null)
-      onSummary?.(serviceId, { count: requests.length, needsReply });
-  }, [serviceId, requests, needsReply, onSummary]);
-  const ordered =
-    serviceId === null
-      ? requests
-      : requests
-        ? [...requests].sort(
-            (a, b) =>
-              Number(a.awaitingCustomerReply) -
-                Number(b.awaitingCustomerReply) ||
-              Number(b.status === "NEW") - Number(a.status === "NEW"),
-          )
-        : null;
-  const canFold = (requests?.length ?? 0) > PREVIEW_COUNT;
-  const previewRequests = canFold ? ordered?.slice(0, PREVIEW_COUNT) : ordered;
-  const restRequests = canFold ? (ordered?.slice(PREVIEW_COUNT) ?? []) : [];
+    if (requests !== null && !isSearching) {
+      setUnfilteredTotal(total);
+      if (serviceId) onSummary?.(serviceId, { count: total, needsReply });
+    }
+  }, [serviceId, requests, total, needsReply, isSearching, onSummary]);
 
   return (
     <Paper
@@ -102,7 +91,11 @@ export function ServiceRequestsPanel({
     >
       <Box
         sx={{
-          display: "flex",
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "minmax(0, 1fr) auto",
+            sm: "auto minmax(0, 1fr) auto",
+          },
           alignItems: "center",
           justifyContent: "space-between",
           gap: 1,
@@ -110,7 +103,13 @@ export function ServiceRequestsPanel({
           py: 1,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "baseline",
+            gap: 1,
+          }}
+        >
           <Typography
             component="h2"
             sx={{
@@ -124,34 +123,89 @@ export function ServiceRequestsPanel({
           {requests !== null ? (
             <Typography
               component="span"
-              sx={{ fontWeight: 700, fontSize: 14, color: "text.primary" }}
+              sx={{
+                fontWeight: 700,
+                fontSize: 14,
+                color: "text.primary",
+              }}
             >
-              {requests.length}
+              {isSearching && unfilteredTotal !== null
+                ? `${total} из ${unfilteredTotal}`
+                : total}
             </Typography>
           ) : null}
         </Box>
+        <TextField
+          size="small"
+          placeholder="Номер, имя или фамилия"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          slotProps={{
+            htmlInput: {
+              "aria-label": "Поиск заявок по номеру, имени или фамилии",
+              maxLength: 200,
+            },
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+              endAdornment: search ? (
+                <InputAdornment position="end">
+                  <IconButton
+                    size="small"
+                    edge="end"
+                    aria-label="Очистить поиск заявок"
+                    onClick={() => setSearch("")}
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
+            },
+          }}
+          sx={{
+            gridColumn: {
+              xs: "1 / -1",
+              sm: "2",
+            },
+            gridRow: {
+              xs: 2,
+              sm: 1,
+            },
+            justifySelf: "end",
+            width: "100%",
+            maxWidth: {
+              sm: 340,
+            },
+          }}
+        />
         <Box
           sx={{
+            gridColumn: {
+              xs: 2,
+              sm: 3,
+            },
+            gridRow: 1,
             display: "flex",
             alignItems: "center",
             gap: 0.5,
           }}
         >
-          {serviceId === null ? (
+          {serviceId === null || ((error || rateLimitReached) && !hasMore) ? (
             <Button
               size="small"
               variant="text"
-              disabled={isRefreshing || (!hasPendingRequests && !error)}
+              disabled={isRateLimited || isRefreshing || (!hasPendingRequests && !error && !rateLimitReached)}
               onClick={() => void showNewRequests()}
               sx={{
                 visibility:
-                  hasPendingRequests || error || isRefreshing
+                  hasPendingRequests || error || rateLimitReached || isRefreshing
                     ? "visible"
                     : "hidden",
-                minWidth: 130,
                 color: "text.primary",
                 fontWeight: 700,
-                fontSize: 13,
                 whiteSpace: "nowrap",
               }}
             >
@@ -162,19 +216,41 @@ export function ServiceRequestsPanel({
                   : "Повторить"}
             </Button>
           ) : null}
-          {canFold ? (
-            <IconButton
-              size="small"
-              aria-expanded={expanded}
-              aria-label={expanded ? "Свернуть заявки" : "Развернуть заявки"}
-              onClick={() => changeExpanded(!expanded)}
-              sx={{ color: "text.secondary" }}
-            >
-              {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-            </IconButton>
-          ) : null}
         </Box>
       </Box>
+      {rateLimitReached ? (
+        <Alert
+          severity={isRateLimited ? "warning" : "info"}
+          role="status"
+          aria-live="polite"
+          sx={{
+            mx: { xs: 1.5, sm: 2.5 },
+            mb: 1.5,
+          }}
+        >
+          <AlertTitle>
+            {isRateLimited ? "Подождите немного" : "Можно продолжить"}
+          </AlertTitle>
+          {isRateLimited
+            ? "Вы слишком часто запрашиваете заявки. Загрузка временно приостановлена. "
+            : "Ожидание закончилось. Можно снова загружать заявки."}
+          {isRateLimited ? (
+            <Box
+              component="span"
+              role="timer"
+              aria-live="off"
+              aria-label="До следующего запроса"
+              sx={{
+                display: "block",
+                fontWeight: 700,
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {`Повторить можно через ${retryTime}`}
+            </Box>
+          ) : null}
+        </Alert>
+      ) : null}
       {error && requests !== null ? (
         <Typography
           role="alert"
@@ -206,18 +282,18 @@ export function ServiceRequestsPanel({
         <Typography sx={{ px: 2.5, pb: 2.5, color: "text.secondary" }}>
           Загрузка…
         </Typography>
-      ) : error && requests === null ? (
+      ) : requests === null && rateLimitReached ? null : error && requests === null ? (
         <Typography sx={{ px: 2.5, pb: 2.5, color: "text.secondary" }}>
           {error}
         </Typography>
-      ) : requests && requests.length === 0 ? (
+      ) : requests?.length === 0 && !hasMore ? (
         <Typography sx={{ px: 2.5, pb: 2.5, color: "text.secondary" }}>
-          {emptyLabel}
+          {isSearching ? "Заявки не найдены" : emptyLabel}
         </Typography>
       ) : (
         <>
           <Box>
-            {previewRequests?.map((request) => (
+            {requests?.map((request) => (
               <ServiceRequestRow
                 key={request.id}
                 request={request}
@@ -228,27 +304,11 @@ export function ServiceRequestsPanel({
               />
             ))}
           </Box>
-          {restRequests.length > 0 ? (
-            <Collapse in={expanded} timeout="auto">
-              <Box>
-                {restRequests.map((request) => (
-                  <ServiceRequestRow
-                    key={request.id}
-                    request={request}
-                    title={rowTitle(request, serviceTitle, titleFor)}
-                    showCustomerAvatar={showCustomerAvatar}
-                    sending={sendingId === request.id}
-                    onReply={setReplyItem}
-                  />
-                ))}
-              </Box>
-            </Collapse>
-          ) : null}
-          {canFold ? (
+          {hasMore ? (
             <ButtonBase
               type="button"
-              aria-expanded={expanded}
-              onClick={() => changeExpanded(!expanded)}
+              disabled={isRateLimited || isLoadingMore || isRefreshing}
+              onClick={() => void loadMore()}
               sx={{
                 display: "flex",
                 width: "100%",
@@ -268,8 +328,8 @@ export function ServiceRequestsPanel({
                 },
               }}
             >
-              {expanded ? "Свернуть" : "Ещё"}
-              {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              {isLoadingMore ? "Загрузка…" : "Ещё"}
+              <ExpandMoreIcon />
             </ButtonBase>
           ) : null}
         </>

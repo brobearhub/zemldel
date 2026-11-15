@@ -71,7 +71,10 @@ export const Footer = () => {
     <Box
       component="footer"
       sx={{
-        bgcolor: "var(--mui-custom-bgColors-secondary)",
+        bgcolor: (theme) =>
+          theme.palette.mode === "light"
+            ? "var(--mui-custom-bgColors-secondary)"
+            : theme.palette.background.paper,
         color: "var(--mui-custom-textColors-footer)",
         "& a:hover": { color: "inherit" },
         pt: { xs: 6, md: 8 },
@@ -367,8 +370,11 @@ export const Footer = () => {
                   theme.palette.mode === "light"
                     ? "rgba(0,0,0,0.72)"
                     : "rgba(255,255,255,0.78)",
-                textDecoration: "underline",
-                "&:hover": { textDecoration: "underline", color: "inherit" },
+                textDecoration: "none",
+                "&:hover": {
+                  textDecoration: "none",
+                  color: "inherit",
+                },
               }}
             >
               Проектирование и разработка: {DEVELOPED_BY}

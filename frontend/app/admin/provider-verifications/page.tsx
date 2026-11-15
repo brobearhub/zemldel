@@ -86,7 +86,7 @@ export default async function ProviderVerificationsPage({
             label="ИНН, ОГРН или название"
             size="small"
           />
-          <Button type="submit" variant="contained" sx={{ minHeight: 44 }}>
+          <Button type="submit" variant="contained">
             Найти
           </Button>
         </Box>
@@ -103,7 +103,6 @@ export default async function ProviderVerificationsPage({
                 component="a"
                 href={href}
                 variant={active ? "contained" : "outlined"}
-                sx={{ minHeight: 44 }}
               >
                 {filter.label}
               </Button>

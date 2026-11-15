@@ -46,7 +46,7 @@ export class PassportAccessService {
   ) {}
 
   async mine(userId: string) {
-    const [grants, audit, form, photos, requests] = await Promise.all([
+    const [grants, form, photos, requests] = await Promise.all([
       this.prisma.passportAccessGrant.findMany({
         where: { passportUserId: userId },
         orderBy: { grantedAt: 'desc' },
@@ -61,29 +61,6 @@ export class PassportAccessService {
               category: { select: { name: true } },
             },
           },
-        },
-      }),
-      this.prisma.passportAccessAudit.findMany({
-        where: {
-          passportUserId: userId,
-          OR: [
-            { action: { startsWith: 'GRANT_' } },
-            { action: { contains: 'REVOKE_' } },
-            { action: { startsWith: 'PROVIDER_' } },
-            { action: { startsWith: 'REQUEST_FORM' } },
-            { action: { startsWith: 'REQUEST_PHOTO' } },
-            { action: { startsWith: 'DECLINE_' } },
-          ],
-        },
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        take: 50,
-        select: {
-          id: true,
-          action: true,
-          actorProviderId: true,
-          actorUserId: true,
-          requestId: true,
-          createdAt: true,
         },
       }),
       this.prisma.passportDocument.count({ where: { userId } }),
@@ -105,7 +82,6 @@ export class PassportAccessService {
           request.providerId === grant.providerId &&
           request.customerUserId === userId,
       })),
-      audit,
     };
   }
 

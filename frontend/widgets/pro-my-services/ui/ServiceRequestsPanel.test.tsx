@@ -1,20 +1,31 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { RequestListFeed } from "../lib/request-list-cache";
 import type { RequestProDto, RequestStatus, RequestSubjectType } from "@/entities/request";
 import { legalService, mainService } from "@/tests/fixtures/services";
 import { ProMyServicesSection } from "./ProMyServicesSection";
 import { ServiceRequestRow } from "./ServiceRequestRow";
 import { ServiceRequestsPanel } from "./ServiceRequestsPanel";
+import {
+  clearRequestFeedRateLimit,
+  RequestFeedRateLimitError,
+  setRequestFeedRetryAfter,
+} from "../lib/request-feed-rate-limit";
 
-const { fetchRequestList, readRequestListCache, writeRequestListCache, replyToRequestCustomer } = vi.hoisted(() => ({
+const { fetchRequestList, readRequestListCache, writeRequestListCache, invalidateRequestListCache, replyToRequestCustomer } = vi.hoisted(() => ({
   fetchRequestList: vi.fn(),
-  readRequestListCache: vi.fn((): RequestProDto[] | null => null),
+  readRequestListCache: vi.fn((): RequestListFeed | null => null),
   writeRequestListCache: vi.fn(),
+  invalidateRequestListCache: vi.fn(),
   replyToRequestCustomer: vi.fn(),
 }));
 
 vi.mock("../lib/fetch-request-list", () => ({
-  fetchRequestList,
+  fetchRequestList: async (...args: unknown[]) => {
+    const result = await fetchRequestList(...args);
+    const items = result.items.filter((item: RequestProDto) => !["COMPLETED", "CLOSED", "CANCELLED"].includes(item.status));
+    return { total: items.length, needsReply: items.filter((item: RequestProDto) => !item.awaitingCustomerReply).length, hasMore: false, nextCursor: null, ...result, items };
+  },
 }));
 
 vi.mock("../lib/reply-to-customer", () => ({
@@ -24,7 +35,7 @@ vi.mock("../lib/reply-to-customer", () => ({
 vi.mock("../lib/request-list-cache", () => ({
   readRequestListCache,
   writeRequestListCache,
-  invalidateRequestListCache: vi.fn(),
+  invalidateRequestListCache,
 }));
 
 vi.mock("@/core/store/hooks", () => ({
@@ -98,12 +109,72 @@ function request(overrides: Partial<RequestProDto> = {}): RequestProDto {
 
 describe("ServiceRequestsPanel", () => {
   beforeEach(() => {
+    clearRequestFeedRateLimit();
     fetchRequestList.mockReset();
     readRequestListCache.mockReset();
     writeRequestListCache.mockReset();
+    invalidateRequestListCache.mockReset();
     replyToRequestCustomer.mockReset();
     readRequestListCache.mockReturnValue(null);
     replyToRequestCustomer.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+    clearRequestFeedRateLimit();
+  });
+
+  it.each(["svc", null])("показывает предупреждение с таймером, сохраняет строки и разрешает дозагрузку после ожидания: %s", async (serviceId) => {
+    const first = [request({ id: "first", number: 1 })];
+    const next = request({ id: "next", number: 2 });
+    fetchRequestList.mockResolvedValueOnce({ items: first, hasMore: true, nextCursor: "next" })
+      .mockImplementationOnce(() => {
+        setRequestFeedRetryAfter(10);
+        throw new RequestFeedRateLimitError();
+      })
+      .mockResolvedValueOnce({ items: [next], hasMore: false });
+    render(<ServiceRequestsPanel serviceId={serviceId} />);
+    const more = await screen.findByRole("button", { name: "Ещё" });
+
+    vi.useFakeTimers();
+    await act(async () => fireEvent.click(more));
+    expect(screen.getByText("Подождите немного")).toBeInTheDocument();
+    expect(screen.getByRole("timer")).toHaveTextContent("Повторить можно через 0:10");
+    expect(more).toBeDisabled();
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+    await act(async () => vi.advanceTimersByTime(5_000));
+    expect(screen.getByRole("timer")).toHaveTextContent("Повторить можно через 0:05");
+    await act(async () => vi.advanceTimersByTime(5_000));
+    expect(screen.queryByRole("timer")).not.toBeInTheDocument();
+    expect(screen.getByText("Ожидание закончилось. Можно снова загружать заявки.")).toBeInTheDocument();
+    expect(more).toBeEnabled();
+    expect(fetchRequestList).toHaveBeenCalledTimes(2);
+
+    await act(async () => fireEvent.click(more));
+    expect(screen.getAllByRole("link")).toHaveLength(2);
+    expect(screen.queryByText("Можно продолжить")).not.toBeInTheDocument();
+  });
+
+  it("показывает минутное ожидание при первой загрузке и разрешает повторить её после таймера", async () => {
+    vi.useFakeTimers();
+    fetchRequestList.mockImplementationOnce(() => {
+      setRequestFeedRetryAfter(60);
+      throw new RequestFeedRateLimitError();
+    }).mockResolvedValueOnce({ items: [request()] });
+    render(<ServiceRequestsPanel serviceId="svc" />);
+    await act(async () => vi.advanceTimersByTime(0));
+    expect(screen.getByText("Подождите немного")).toBeInTheDocument();
+    expect(screen.queryByText("Загрузка…")).not.toBeInTheDocument();
+    expect(screen.queryByText("Пока нет заявок")).not.toBeInTheDocument();
+    expect(screen.getByRole("timer")).toHaveTextContent("1:00");
+    const retry = screen.getByRole("button", { name: "Повторить" });
+    expect(retry).toBeDisabled();
+
+    await act(async () => vi.advanceTimersByTime(60_000));
+    expect(retry).toBeEnabled();
+    await act(async () => fireEvent.click(retry));
+    expect(screen.getAllByRole("link")).toHaveLength(1);
   });
 
   it("показывает порядковый номер в общей строке заявки клиента и исполнителя", () => {
@@ -140,34 +211,59 @@ describe("ServiceRequestsPanel", () => {
     expect(screen.getByRole("heading", { name: "Заявки" }).parentElement).toHaveTextContent(/Заявки\s*1/);
     expect(screen.getAllByRole("link")).toHaveLength(1);
     expect(screen.queryByText("Заявка выполнена")).not.toBeInTheDocument();
-    expect(fetchRequestList).toHaveBeenCalledWith({ serviceId: "svc" });
+    expect(fetchRequestList).toHaveBeenCalledWith({ serviceId: "svc", search: "", limit: 3 });
   });
 
-  it("показывает три заявки и раскрывает остальные кнопкой под списком", async () => {
+  it.each(["svc", null])("загружает 3, затем порции по 5 и скрывает кнопку после последней страницы: %s", async (serviceId) => {
     const user = userEvent.setup();
-    fetchRequestList.mockResolvedValue({
-      items: Array.from({ length: 6 }, (_, index) =>
-        request({ id: `r${index}`, customerName: `Клиент ${index}` }),
-      ),
-    });
-
-    render(<ServiceRequestsPanel serviceId="svc" titleFor={(item) => item.customerName ?? "Заявка"} />);
-
+    const rows = Array.from({ length: 16 }, (_, index) => request({ id: `r${index}`, number: index + 1 }));
+    fetchRequestList.mockResolvedValueOnce({ items: rows.slice(0, 3), total: 16, hasMore: true, nextCursor: "page-2" })
+      .mockResolvedValueOnce({ items: rows.slice(3, 8), total: 16, hasMore: true, nextCursor: "page-3" })
+      .mockResolvedValueOnce({ items: rows.slice(8, 13), total: 16, hasMore: true, nextCursor: "page-4" })
+      .mockResolvedValueOnce({ items: rows.slice(13), total: 16, hasMore: false, nextCursor: null });
+    render(<ServiceRequestsPanel serviceId={serviceId} />);
     expect(await screen.findAllByRole("link")).toHaveLength(3);
-    expect(screen.getByRole("heading", { name: "Заявки" }).parentElement).toHaveTextContent(/Заявки\s*6/);
-    expect(screen.queryByRole("link", { name: /Клиент 5/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Заявки" }).parentElement).toHaveTextContent("16");
+    for (const [index, count] of [8, 13, 16].entries()) {
+      await user.click(screen.getByRole("button", { name: "Ещё" }));
+      await waitFor(() => expect(screen.getAllByRole("link")).toHaveLength(count));
+      expect(fetchRequestList).toHaveBeenLastCalledWith({ serviceId, search: "", limit: 5, cursor: `page-${index + 2}` }, expect.any(Number), true);
+    }
+    expect(screen.queryByRole("button", { name: "Ещё" })).not.toBeInTheDocument();
+    expect(fetchRequestList).toHaveBeenCalledTimes(4);
+  });
 
-    expect(screen.getByRole("button", { name: "Ещё" })).toHaveAttribute("aria-expanded", "false");
-    await user.click(screen.getByRole("button", { name: "Ещё" }));
+  it("повторяет неудачную страницу и не дублирует загрузку по двойному клику", async () => {
+    fetchRequestList.mockResolvedValueOnce({ items: [request()], hasMore: true, nextCursor: "next", total: 4 });
+    render(<ServiceRequestsPanel serviceId="svc" />);
+    await screen.findByRole("link");
+    fetchRequestList.mockRejectedValueOnce(new Error("Нет соединения"));
+    await userEvent.click(screen.getByRole("button", { name: "Ещё" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Нет соединения");
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+    let resolve!: (value: { items: RequestProDto[] }) => void;
+    fetchRequestList.mockReturnValueOnce(new Promise((done) => { resolve = done; }));
+    const more = screen.getByRole("button", { name: "Ещё" });
+    fireEvent.click(more);
+    fireEvent.click(more);
+    expect(more).toBeDisabled();
+    expect(fetchRequestList).toHaveBeenCalledTimes(3);
+    await act(async () => resolve({ items: [request({ id: "r2" })] }));
+    expect(screen.getAllByRole("link")).toHaveLength(2);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ещё" })).not.toBeInTheDocument();
+  });
 
-    expect(await screen.findByRole("link", { name: /Клиент 5/ })).toBeInTheDocument();
-    expect(screen.getAllByRole("link")).toHaveLength(6);
-    expect(screen.getByRole("button", { name: "Свернуть" })).toHaveAttribute("aria-expanded", "true");
-
-    await user.click(screen.getByRole("button", { name: "Свернуть заявки" }));
-
-    await waitFor(() => expect(screen.queryByRole("link", { name: /Клиент 5/ })).not.toBeInTheDocument());
-    expect(screen.getAllByRole("link")).toHaveLength(3);
+  it("при обновлении не открывает следующую страницу вместо закрытых заявок", async () => {
+    fetchRequestList.mockResolvedValueOnce({ items: [request({ id: "a" }), request({ id: "b" }), request({ id: "c" })], total: 5, hasMore: true, nextCursor: "next" });
+    render(<ServiceRequestsPanel serviceId="svc" />);
+    expect(await screen.findAllByRole("link")).toHaveLength(3);
+    fetchRequestList.mockResolvedValueOnce({ items: [request({ id: "b" }), request({ id: "c" })], total: 4, hasMore: true, nextCursor: "next" });
+    await act(async () => { window.dispatchEvent(new Event("request:changed")); });
+    expect(screen.getAllByRole("link")).toHaveLength(2);
+    expect(fetchRequestList).toHaveBeenCalledTimes(2);
+    expect(fetchRequestList).toHaveBeenLastCalledWith({ serviceId: "svc", search: "", limit: 3 }, expect.any(Number), true);
+    expect(screen.getByRole("button", { name: "Ещё" })).toBeVisible();
   });
 
   it("при пустом ответе показывает пустое состояние и ноль", async () => {
@@ -178,7 +274,34 @@ describe("ServiceRequestsPanel", () => {
     expect(await screen.findByText("Пока нет свободных заявок")).toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: "Фильтр заявок" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Заявки" }).parentElement).toHaveTextContent(/Заявки\s*0/);
-    expect(fetchRequestList).toHaveBeenCalledWith({ serviceId: null });
+    expect(fetchRequestList).toHaveBeenCalledWith({ serviceId: null, search: "", limit: 3 }, expect.any(Number), true);
+  });
+
+  it("передаёт поиск серверу, сбрасывает страницу и игнорирует запоздалую дозагрузку", async () => {
+    fetchRequestList.mockResolvedValueOnce({ items: [request({ number: 1 })], total: 24, hasMore: true, nextCursor: "next" });
+    const onSummary = vi.fn();
+    render(<ServiceRequestsPanel serviceId="svc" onSummary={onSummary} titleFor={(item) => item.customerName ?? "Заявка"} />);
+    await screen.findByRole("link");
+    let resolveOld!: (value: { items: RequestProDto[] }) => void;
+    fetchRequestList.mockReturnValueOnce(new Promise((done) => { resolveOld = done; }));
+    await userEvent.click(screen.getByRole("button", { name: "Ещё" }));
+    fetchRequestList.mockResolvedValueOnce({ items: [request({ id: "hidden", number: 127, customerName: "Артём Соколов" })] });
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "СОКОЛ" } });
+    expect(await screen.findByRole("link", { name: /№ 127 · Артём Соколов/ })).toBeVisible();
+    expect(fetchRequestList).toHaveBeenLastCalledWith({ serviceId: "svc", search: "СОКОЛ", limit: 3 });
+    expect(screen.getByRole("heading", { name: "Заявки" }).parentElement).toHaveTextContent("1 из 24");
+    await act(async () => resolveOld({ items: [request({ id: "old-page", number: 99 })] }));
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+    expect(onSummary).toHaveBeenLastCalledWith("svc", { count: 24, needsReply: 1 });
+
+    fetchRequestList.mockResolvedValueOnce({ items: [], total: 0 });
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Петров" } });
+    expect(await screen.findByText("Заявки не найдены")).toBeVisible();
+    fetchRequestList.mockResolvedValueOnce({ items: [request()], total: 24, hasMore: true, nextCursor: "next" });
+    await userEvent.click(screen.getByRole("button", { name: "Очистить поиск заявок" }));
+    expect(await screen.findByRole("link")).toBeVisible();
+    expect(fetchRequestList).toHaveBeenLastCalledWith({ serviceId: "svc", search: "", limit: 3 });
+    expect(screen.getByRole("button", { name: "Ещё" })).toBeVisible();
   });
 
   it("накапливает новые заявки и сохраняет строки до нажатия, включая возврат во вкладку", async () => {
@@ -342,7 +465,7 @@ describe("ServiceRequestsPanel", () => {
 
     expect(await screen.findByText("Когда сможете?")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ответить" })).toBeInTheDocument();
-    expect(fetchRequestList).toHaveBeenCalledWith({ serviceId: "svc" });
+    expect(fetchRequestList).toHaveBeenCalledWith({ serviceId: "svc", search: "", limit: 3 });
   });
 
   it("в «Ответить» не показывает свою прошлую реплику", async () => {
@@ -398,15 +521,7 @@ describe("ServiceRequestsPanel", () => {
     expect(screen.getByText("Завтра")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Валерия", hidden: true })).toBeInTheDocument();
     expect(replyToRequestCustomer).toHaveBeenCalledWith({ requestId: "talk", body: "Завтра" });
-    expect(writeRequestListCache).toHaveBeenCalledWith({ serviceId: "svc" }, [
-      expect.objectContaining({
-        id: "talk",
-        awaitingCustomerReply: true,
-        customerLastMessage: "Когда сможете?",
-        providerLastMessage: "Завтра",
-        lastMessageAt: expect.any(String),
-      }),
-    ]);
+    expect(invalidateRequestListCache).toHaveBeenCalledWith({ serviceId: "svc" });
   });
 
   it("если исполнитель уже ответил, вместо кнопки показывает «Ждем ответ»", async () => {
@@ -475,6 +590,7 @@ describe("ProMyServicesSection", () => {
     fetchRequestList.mockReset();
     readRequestListCache.mockReset();
     writeRequestListCache.mockReset();
+    invalidateRequestListCache.mockReset();
     readRequestListCache.mockReturnValue(null);
   });
 
@@ -528,36 +644,20 @@ describe("ProMyServicesSection", () => {
     expect(screen.getByRole("heading", { name: "Пустая услуга" })).toBeVisible();
   });
 
-  it("разворачивает только один список заявок", async () => {
-    const user = userEvent.setup();
-    fetchRequestList.mockImplementation(async (query: { serviceId: string | null }) => ({
-      items: Array.from({ length: 5 }, (_, index) =>
-        request({
-          id: `${query.serviceId}-${index}`,
-          serviceId: query.serviceId ?? undefined,
-          customerName: `${query.serviceId} клиент ${index}`,
-        }),
-      ),
+  it("дозагружает услуги независимо друг от друга", async () => {
+    fetchRequestList.mockImplementation(async (query: { serviceId: string; cursor?: string }) => ({
+      items: Array.from({ length: query.cursor ? 2 : 3 }, (_, index) => request({ id: `${query.serviceId}-${query.cursor ?? "first"}-${index}`, customerName: `${query.serviceId} клиент ${query.cursor ? index + 3 : index}` })),
+      total: 5, hasMore: !query.cursor, nextCursor: query.cursor ? null : "next",
     }));
-
-    render(
-      <ProMyServicesSection
-        services={[
-          { ...mainService, id: "a", title: "Услуга А" },
-          { ...legalService, id: "b", title: "Услуга Б", status: "PUBLISHED" },
-        ]}
-      />,
-    );
-
-    const expandButtons = await screen.findAllByRole("button", { name: "Развернуть заявки" });
-    expect(expandButtons).toHaveLength(2);
-
-    await user.click(expandButtons[0]);
-    expect(await screen.findByRole("link", { name: /a клиент 4/ })).toBeInTheDocument();
+    render(<ProMyServicesSection services={[{ ...mainService, id: "a", title: "Услуга А" }, { ...legalService, id: "b", title: "Услуга Б", status: "PUBLISHED" }]} />);
+    await waitFor(() => expect(screen.getAllByRole("button", { name: "Ещё" })).toHaveLength(2));
+    const buttons = screen.getAllByRole("button", { name: "Ещё" });
+    await userEvent.click(buttons[0]);
+    expect(await screen.findByRole("link", { name: /a клиент 4/ })).toBeVisible();
     expect(screen.queryByRole("link", { name: /b клиент 4/ })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Развернуть заявки" }));
-    expect(await screen.findByRole("link", { name: /b клиент 4/ })).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByRole("link", { name: /a клиент 4/ })).not.toBeInTheDocument());
+    await userEvent.click(screen.getByRole("button", { name: "Ещё" }));
+    expect(await screen.findByRole("link", { name: /b клиент 4/ })).toBeVisible();
+    expect(screen.getByRole("link", { name: /a клиент 4/ })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Ещё" })).not.toBeInTheDocument();
   });
 });

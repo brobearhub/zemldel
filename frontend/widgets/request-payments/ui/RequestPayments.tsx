@@ -175,7 +175,6 @@ function PaymentListRow({
             loading={Boolean(markPaidLoading)}
             disabled={Boolean(markPaidDisabled)}
             onClick={onMarkPaid}
-            sx={{ minHeight: 44 }}
           >
             Отметить оплату
           </Button>
@@ -226,7 +225,6 @@ function AddPaymentTrigger({
         onClick={onClick}
         sx={{
           bgcolor: "grey.300",
-          px: 2,
           "&:hover": { bgcolor: "grey.100" },
         }}
       >
@@ -548,7 +546,7 @@ export function RequestPayments(props: RequestPaymentsProps) {
                       setTotalEditOpen(true);
                     }}
                     startIcon={<EditOutlinedIcon fontSize="small" />}
-                    sx={{ minWidth: 0, px: 0.5, color: "text.secondary" }}
+                    sx={{ minWidth: 0, color: "text.secondary" }}
                   >
                     <Typography
                       component="span"

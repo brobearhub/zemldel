@@ -336,8 +336,6 @@ export function ServiceProviderSection({
                   textTransform: "uppercase",
                   fontWeight: 600,
                   letterSpacing: "0.46px",
-                  py: "8px",
-                  px: "22px",
                   minWidth: { xs: "100%", md: "auto" },
                   boxShadow:
                     "0px 1px 5px rgba(0,0,0,0.12), 0px 2px 2px rgba(0,0,0,0.14), 0px 3px 1px -2px rgba(0,0,0,0.2)",
@@ -360,8 +358,6 @@ export function ServiceProviderSection({
                     textTransform: "uppercase",
                     fontWeight: 600,
                     letterSpacing: "0.46px",
-                    py: { xs: "6px", md: "8px" },
-                    px: { xs: "8px", md: "11px" },
                     minWidth: 0,
                     flexGrow: { xs: 1, md: 0 },
                   }}

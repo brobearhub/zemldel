@@ -5,22 +5,6 @@ import { Alert, Button, Link, Stack, Typography } from "@mui/material";
 import { formatRequestCreatedAt, formatRequestReference, type RequestCustomerDto } from "@/entities/request";
 import { PASSPORT_REQUESTS_CHANGED, passportAccessError, passportAccessUrl, passportKindLabel, refreshPassportRequests, type PassportAccessRequest, type PassportAccessState } from "../model/passport-access";
 
-const actions: Record<string, string> = {
-  REQUEST_FORM: "Исполнитель запросил данные паспорта",
-  REQUEST_PHOTO: "Исполнитель запросил фотографии паспорта",
-  DECLINE_FORM: "Отклонён запрос данных паспорта",
-  DECLINE_PHOTO: "Отклонён запрос фотографий паспорта",
-  GRANT_FORM: "Предоставлен доступ к данным паспорта",
-  GRANT_PHOTO: "Предоставлен доступ к фотографиям паспорта",
-  REVOKE_FORM: "Отозван доступ к данным паспорта",
-  REVOKE_PHOTO: "Отозван доступ к фотографиям паспорта",
-  REQUEST_REVOKE_FORM: "Доступ к данным паспорта закрыт из-за изменения заявки",
-  REQUEST_REVOKE_PHOTO: "Доступ к фотографиям паспорта закрыт из-за изменения заявки",
-  PROVIDER_FORM_READ: "Исполнитель просмотрел данные паспорта",
-  PROVIDER_PHOTO_READ: "Исполнитель просмотрел фотографию",
-  PROVIDER_READ: "Исполнитель просмотрел данные паспорта по прежним правилам",
-};
-
 export function PassportAccessPanel({ refreshKey, requests, onShare }: { refreshKey: string; requests: RequestCustomerDto[]; onShare?: (request: PassportAccessRequest) => void }) {
   const [state, setState] = useState<PassportAccessState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -174,7 +158,7 @@ export function PassportAccessPanel({ refreshKey, requests, onShare }: { refresh
           color: "text.primary",
         }}
       >
-        Обновить журнал
+        Обновить разрешения
       </Button>
       {error ? <Alert severity="error">{error}<Button onClick={() => setAttempt((value) => value + 1)}>Повторить</Button></Alert> : null}
       {!state && !error ? <Typography>Загрузка разрешений…</Typography> : null}
@@ -214,34 +198,6 @@ export function PassportAccessPanel({ refreshKey, requests, onShare }: { refresh
           </Button>
         </Stack>
       ))}
-      {state?.audit.length ? (
-        <Stack spacing={1}>
-          <Typography variant="subtitle1">Журнал доступа · последние 50 событий</Typography>
-          {state.audit.map((event) => {
-            const request = requests.find((request) => request.id === event.requestId);
-            const providerName = state.grants.find((grant) => grant.providerId === event.actorProviderId)?.providerName ?? (request?.providerId === event.actorProviderId ? request.providerName : null);
-            return (
-              <Typography
-                key={event.id}
-                variant="body2"
-              >
-                {new Date(event.createdAt).toLocaleString("ru-RU")} · {actions[event.action] ?? event.action}
-                {providerName ? ` · ${providerName}` : event.actorProviderId ? ` · Исполнитель ${event.actorProviderId.slice(0, 8)}` : ""}
-                {event.requestId ? (
-                  <>
-                    {" · "}
-                    <Link href={`/profile/requests/${event.requestId}`}>
-                      {request?.serviceTitle || request?.categoryName || "Заявка"}
-                      {" · "}
-                      {formatRequestReference({ id: event.requestId, number: request?.number, createdAt: request?.createdAt })}
-                    </Link>
-                  </>
-                ) : null}
-              </Typography>
-            );
-          })}
-        </Stack>
-      ) : null}
     </Stack>
   );
 }

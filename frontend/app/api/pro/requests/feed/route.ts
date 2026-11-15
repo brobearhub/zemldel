@@ -13,7 +13,11 @@ export async function GET(request: Request) {
     const path = search.length > 0 ? `/pro/requests/feed?${search}` : "/pro/requests/feed";
     const response = await fetchBackendAsUser(path, session.user.id);
     const payload = await response.json().catch(() => ({ error: "Failed to fetch feed" }));
-    return NextResponse.json(payload, { status: response.status });
+    const retryAfter = response.headers.get("Retry-After");
+    return NextResponse.json(payload, {
+      status: response.status,
+      headers: retryAfter ? { "Retry-After": retryAfter } : undefined,
+    });
   } catch (error) {
     console.error("Error fetching pro request feed:", error);
     return NextResponse.json({ error: "Failed to fetch feed" }, { status: 500 });

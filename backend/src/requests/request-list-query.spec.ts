@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   parseRequestListFeedQuery,
+  encodeRequestFeedCursor,
   requestListAssignedWhere,
 } from './request-list-query';
 
@@ -16,7 +17,7 @@ describe('requestListAssignedWhere', () => {
     ).toEqual({
       AND: [
         { providerId: 'provider-1' },
-        { status: { not: 'COMPLETED' } },
+        { status: { notIn: ['COMPLETED', 'CLOSED', 'CANCELLED'] } },
         { serviceId: SERVICE_ID },
       ],
     });
@@ -27,6 +28,9 @@ describe('parseRequestListFeedQuery', () => {
   it('принимает услугу', () => {
     expect(parseRequestListFeedQuery({ serviceId: SERVICE_ID })).toEqual({
       ok: true,
+      limit: 3,
+      cursor: null,
+      search: '',
       scope: { kind: 'service', serviceId: SERVICE_ID },
     });
   });
@@ -34,8 +38,53 @@ describe('parseRequestListFeedQuery', () => {
   it('принимает свободные заявки', () => {
     expect(parseRequestListFeedQuery({ scope: 'free' })).toEqual({
       ok: true,
+      limit: 3,
+      cursor: null,
+      search: '',
       scope: { kind: 'free' },
     });
+  });
+
+  it('accepts a continuation cursor and normalized search', () => {
+    const cursor = {
+      id: SERVICE_ID,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      priority: 1,
+    };
+    expect(
+      parseRequestListFeedQuery({
+        serviceId: SERVICE_ID,
+        limit: '5',
+        cursor: encodeRequestFeedCursor(cursor),
+        search: ' № 27  АРТЁМ ',
+      }),
+    ).toEqual({
+      ok: true,
+      scope: { kind: 'service', serviceId: SERVICE_ID },
+      limit: 5,
+      cursor,
+      search: '27 артем',
+    });
+  });
+
+  it.each(['0', '6', '10', '-1', '1.5', 'abc', ''])(
+    'rejects page size %s',
+    (limit) => {
+      expect(
+        parseRequestListFeedQuery({ serviceId: SERVICE_ID, limit }).ok,
+      ).toBe(false);
+    },
+  );
+  it('rejects invalid cursors and oversized searches', () => {
+    expect(
+      parseRequestListFeedQuery({ serviceId: SERVICE_ID, cursor: 'bad' }).ok,
+    ).toBe(false);
+    expect(
+      parseRequestListFeedQuery({
+        serviceId: SERVICE_ID,
+        search: 'a'.repeat(201),
+      }).ok,
+    ).toBe(false);
   });
 
   it.each([

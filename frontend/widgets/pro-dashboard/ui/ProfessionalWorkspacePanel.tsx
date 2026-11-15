@@ -388,8 +388,6 @@ export function ProfessionalWorkspacePanel() {
                         onClick={handleSlugEditStart}
                         sx={{
                           minWidth: 0,
-                          p: 0.25,
-                          fontSize: "1rem",
                           flexShrink: 0,
                           whiteSpace: "nowrap",
                         }}

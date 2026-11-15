@@ -86,11 +86,13 @@ export function FavoritesPage({ kind }: { kind: FavoriteKind }) {
             Сохранённые предложения доступны на любом устройстве после входа.
           </Typography>
         </Box>
-        <Alert severity="info">
+        <Typography
+          color="text.secondary"
+        >
           Исполнитель видит ваше имя в формате «Имя Ф.» и может предложить
           помощь в чате. Вы можете отклонить обращение или заблокировать
           исполнителя.
-        </Alert>
+        </Typography>
         {error ? (
           <Alert
             severity="error"

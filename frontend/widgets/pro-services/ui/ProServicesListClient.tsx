@@ -419,7 +419,6 @@ export function ProServicesListClient({ initialServices }: Props) {
               }
               sx={{
                 flex: { xs: 1, md: "none" },
-                minHeight: 48,
                 bgcolor: "common.white",
                 color: (theme) =>
                   theme.palette.mode === "dark"
@@ -436,7 +435,7 @@ export function ProServicesListClient({ initialServices }: Props) {
               href="/pro/settings/profile"
               variant="outlined"
               color="inherit"
-              sx={{ minHeight: 48, borderColor: "currentColor" }}
+              sx={{ borderColor: "currentColor" }}
             >
               Мой профиль
             </Button>

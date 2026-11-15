@@ -102,11 +102,6 @@ function ReplyAction({
       onClick={onReply}
       sx={{
         flexShrink: 0,
-        minHeight: 32,
-        px: 1.25,
-        py: 0.5,
-        fontSize: 14,
-        lineHeight: 1.5,
         whiteSpace: "nowrap",
       }}
     >

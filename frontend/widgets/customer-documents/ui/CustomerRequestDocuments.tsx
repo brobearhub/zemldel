@@ -25,7 +25,10 @@ import { formatRequestReference, getRequestStatusLabel, type RequestCustomerDto 
 import { pluralRu } from "@/shared/lib/plural-ru";
 import { loadRequestDocuments, type CustomerDocumentItem } from "../model/request-documents";
 
-function DocumentRow({ item, requestId }: { item: CustomerDocumentItem; requestId: string }) {
+type Audience = "customer" | "provider";
+export type DocumentRequest = Pick<RequestCustomerDto, "id" | "number" | "status" | "serviceTitle" | "categoryName" | "message" | "customerName"> & { providerName?: string | null };
+
+function DocumentRow({ item, requestId, audience }: { item: CustomerDocumentItem; requestId: string; audience: Audience }) {
   return (
     <Stack
       direction={{ xs: "column", sm: "row" }}
@@ -76,23 +79,21 @@ function DocumentRow({ item, requestId }: { item: CustomerDocumentItem; requestI
           >
             {item.source}
             {item.href && item.sizeBytes !== null ? ` · ${Math.max(1, Math.round(item.sizeBytes / 1024))} КБ` : ""}
-            {!item.href ? " · Нужно загрузить" : ""}
+            {!item.href ? audience === "provider" ? " · Ожидается загрузка" : " · Нужно загрузить" : ""}
           </Typography>
         </Box>
       </Stack>
       <Button
         component="a"
-        href={item.href ?? `/profile/requests/${requestId}#documents`}
+        href={item.href ?? `/${audience === "provider" ? "pro" : "profile"}/requests/${requestId}#documents`}
         size="small"
         startIcon={item.href ? <DownloadOutlinedIcon /> : undefined}
-        aria-label={item.href ? `Скачать ${item.title}` : `Загрузить ${item.title} в заявке`}
+        aria-label={item.href ? `Скачать ${item.title}` : `${audience === "provider" ? "Открыть" : "Загрузить"} ${item.title} в заявке`}
         sx={{
           flexShrink: 0,
           alignSelf: { xs: "flex-start", sm: "center" },
           ...(item.href && {
             color: "text.primary",
-            minHeight: 0,
-            padding: "4px 12px",
             "&:hover": {
               bgcolor: "primary.main",
               color: "primary.contrastText",
@@ -100,13 +101,13 @@ function DocumentRow({ item, requestId }: { item: CustomerDocumentItem; requestI
           }),
         }}
       >
-        {item.href ? "Скачать" : "Перейти к загрузке"}
+        {item.href ? "Скачать" : audience === "provider" ? "Открыть заявку" : "Перейти к загрузке"}
       </Button>
     </Stack>
   );
 }
 
-function RequestGroup({ request }: { request: RequestCustomerDto }) {
+function RequestGroup({ request, audience }: { request: DocumentRequest; audience: Audience }) {
   const [expanded, setExpanded] = useState(false);
   const [items, setItems] = useState<CustomerDocumentItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -119,7 +120,7 @@ function RequestGroup({ request }: { request: RequestCustomerDto }) {
     const controller = new AbortController();
     setLoading(true);
     setError(null);
-    void loadRequestDocuments(request.id, controller.signal)
+    void loadRequestDocuments(request.id, controller.signal, audience)
       .then((result) => {
         if (controller.signal.aborted) return;
         setItems(result.items);
@@ -132,7 +133,7 @@ function RequestGroup({ request }: { request: RequestCustomerDto }) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [expanded, request.id, attempt]);
+  }, [expanded, request.id, attempt, audience]);
 
   return (
     <Accordion
@@ -188,7 +189,7 @@ function RequestGroup({ request }: { request: RequestCustomerDto }) {
               }}
             >
               {formatRequestReference(request)}
-              {request.providerName ? ` · ${request.providerName}` : ""}
+              {audience === "provider" ? request.customerName ? ` · ${request.customerName}` : "" : request.providerName ? ` · ${request.providerName}` : ""}
             </Typography>
           </Box>
           <Chip
@@ -208,7 +209,7 @@ function RequestGroup({ request }: { request: RequestCustomerDto }) {
         <Stack spacing={1}>
           <Button
             component={Link}
-            href={`/profile/requests/${request.id}`}
+            href={`/${audience === "provider" ? "pro" : "profile"}/requests/${request.id}`}
             size="small"
             endIcon={<ArrowForwardRoundedIcon />}
             sx={{
@@ -251,6 +252,7 @@ function RequestGroup({ request }: { request: RequestCustomerDto }) {
                   key={item.id}
                   item={item}
                   requestId={request.id}
+                  audience={audience}
                 />
               ))}
             </Stack>
@@ -262,13 +264,14 @@ function RequestGroup({ request }: { request: RequestCustomerDto }) {
 }
 
 type Props = {
-  requests: RequestCustomerDto[];
+  requests: DocumentRequest[];
+  audience?: Audience;
   loading: boolean;
   error: string | null;
   onRetry: () => void;
 };
 
-export function CustomerRequestDocuments({ requests, loading, error, onRetry }: Props) {
+export function CustomerRequestDocuments({ requests, loading, error, onRetry, audience = "customer" }: Props) {
   const [documentIds, setDocumentIds] = useState<Set<string> | null>(null);
   const [documentError, setDocumentError] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -280,7 +283,7 @@ export function CustomerRequestDocuments({ requests, loading, error, onRetry }: 
     setDocumentError(false);
     void (async () => {
       try {
-        const response = await fetch("/api/requests/with-documents", {
+        const response = await fetch(audience === "provider" ? "/api/pro/documents/request-ids" : "/api/requests/with-documents", {
           cache: "no-store",
           signal: controller.signal,
         });
@@ -294,7 +297,7 @@ export function CustomerRequestDocuments({ requests, loading, error, onRetry }: 
       }
     })();
     return () => controller.abort();
-  }, [requests, loading, error, attempt]);
+  }, [requests, loading, error, attempt, audience]);
 
   const visibleRequests = documentIds
     ? requests.filter((request) => documentIds.has(request.id))
@@ -369,6 +372,7 @@ export function CustomerRequestDocuments({ requests, loading, error, onRetry }: 
               <RequestGroup
                 key={request.id}
                 request={request}
+                audience={audience}
               />
             ))}
           </>

@@ -1,4 +1,5 @@
 "use client";
+import Button from "@mui/material/Button";
 import type { BillingPeriod } from "./model";
 import s from "./billing.module.css";
 
@@ -19,24 +20,28 @@ export function BillingPeriodSelector({
       role="group"
       aria-label="Период оплаты"
     >
-      <button
+      <Button
         type="button"
-        className={value === "MONTH" ? s.button : s.secondary}
+        size="small"
+        variant={value === "MONTH" ? "contained" : "outlined"}
+        className={s.smallButton}
         aria-pressed={value === "MONTH"}
         onClick={() => onChange("MONTH")}
         disabled={disabled}
       >
         Месяц
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
-        className={value === "YEAR" ? s.button : s.secondary}
+        size="small"
+        variant={value === "YEAR" ? "contained" : "outlined"}
+        className={s.smallButton}
         aria-pressed={value === "YEAR"}
         onClick={() => onChange("YEAR")}
         disabled={disabled}
       >
         Год −10%
-      </button>
+      </Button>
     </div>
   );
 }

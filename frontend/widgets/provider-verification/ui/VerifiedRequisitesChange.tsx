@@ -17,7 +17,7 @@ export function VerifiedRequisitesChange({ providerId, view }: Props) {
     return (
       <Stack spacing={1.5} sx={{ alignItems: "flex-start" }}>
         <Alert severity="warning">Профиль снова уйдёт на проверку, значок пропадёт.</Alert>
-        <Button variant="outlined" onClick={() => setEditing(true)} sx={{ minHeight: 44 }}>
+        <Button variant="outlined" onClick={() => setEditing(true)}>
           Изменить реквизиты
         </Button>
       </Stack>

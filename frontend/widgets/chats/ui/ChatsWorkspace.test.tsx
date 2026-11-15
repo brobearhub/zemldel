@@ -10,6 +10,8 @@ const state = vi.hoisted(() => ({
   unread: { b: 2 } as Record<string, number>,
 }));
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/pro/chats",
+  useRouter: () => ({ replace: vi.fn() }),
   useParams: () => ({ requestId: state.requestId, conversationId: state.conversationId }),
   useSearchParams: () => new URLSearchParams(state.query),
 }));

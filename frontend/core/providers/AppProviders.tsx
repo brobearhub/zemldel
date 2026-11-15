@@ -19,11 +19,14 @@ interface Props {
 }
 
 const InnerProviders = ({ children }: Props) => {
-  const { mode } = useColorMode();
+  const { mode, darkPalette } = useColorMode();
   const legacyAuth = preservesAuthAppearance(usePathname());
   const theme = useMemo(
-    () => (legacyAuth ? createLegacyAuthTheme(mode) : createAppTheme(mode)),
-    [legacyAuth, mode],
+    () =>
+      legacyAuth
+        ? createLegacyAuthTheme(mode, { darkPalette })
+        : createAppTheme(mode, { darkPalette }),
+    [legacyAuth, mode, darkPalette],
   );
 
   return (

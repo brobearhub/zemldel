@@ -1,5 +1,10 @@
 "use client";
 
+import { ProviderDocumentPicker } from "@/features/provider-documents/ui/ProviderDocumentPicker";
+import type { ProviderDocument } from "@/entities/provider-document/api/documents";
+import type { ContractBundleUpload } from "@/entities/request/api/pro-contract-bundles";
+import { REQUEST_DOCUMENT_INPUT_ACCEPT } from "@/entities/request/lib/request-document-upload";
+
 import { useMemo, useState } from "react";
 import {
   Alert,
@@ -16,12 +21,16 @@ import {
   Paper,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutlined";
 import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
+import { ProRequestMiscUploadDialog } from "./ProRequestMiscUploadDialog";
 import {
   ProRequestDocumentDelete,
   ProRequestDocumentDownload,
@@ -44,6 +53,7 @@ import Link from "@/shared/ui/Link";
 import { DocumentsSectionHeader } from "@/features/documents-security-info";
 import { DocumentsNeutralAlert } from "@/shared/ui/DocumentsNeutralAlert";
 import { DocumentsSectionShell } from "@/shared/ui/DocumentsSectionShell";
+import { ConfirmDialog } from "@/shared/ui/confirm/ConfirmDialog";
 
 function contractFileStatusLabel(status: ProContractBundleStatus) {
   if (status === "APPROVED") return "Одобрен";
@@ -69,26 +79,42 @@ export type ProRequestDocumentsSectionProps = {
 
   onCreateDocRequest: (title: string) => Promise<void> | void;
   onCancelDocRequest: (docRequestId: string) => Promise<void> | void;
-  onUploadContractBundle: (input: {
-    document: File;
-    signature?: File | null;
-  }) => Promise<void> | void;
+  onUploadContractBundle: (input: ContractBundleUpload) => Promise<void> | void;
   onDeleteContractBundle: (bundleId: string) => Promise<void> | void;
-  onUploadMiscFiles: (files: File[]) => Promise<void> | void;
+  onUploadMiscFiles: (
+    files: File[],
+    visibleToCustomer: boolean,
+    sourceDocuments?: ProviderDocument[],
+  ) => Promise<void> | void;
   onDeleteMiscFile: (fileId: string) => Promise<void> | void;
+  onSetMiscFileVisibility: (
+    fileId: string,
+    visibleToCustomer: boolean,
+  ) => Promise<void> | void;
 };
 
 export function ProRequestDocumentsSection(
   props: ProRequestDocumentsSectionProps,
 ) {
   const [docDialogOpen, setDocDialogOpen] = useState(false);
+  const [miscDialogOpen, setMiscDialogOpen] = useState(false);
   const [docTitle, setDocTitle] = useState("");
 
+  const [bundlePickerOpen, setBundlePickerOpen] = useState(false);
+  const [sourceDocument, setSourceDocument] = useState<ProviderDocument | null>(
+    null,
+  );
   const [bundleDialogOpen, setBundleDialogOpen] = useState(false);
   const [bundleError, setBundleError] = useState<string | null>(null);
   const [bundleDocument, setBundleDocument] = useState<File | null>(null);
   const [bundleSignature, setBundleSignature] = useState<File | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [visibilityError, setVisibilityError] = useState<string | null>(null);
+  const [visibilityConfirmation, setVisibilityConfirmation] = useState<{
+    fileId: string;
+    fileName: string;
+    visibleToCustomer: boolean;
+  } | null>(null);
 
   async function runPending(action: string, fn: () => Promise<void> | void) {
     setPendingAction(action);
@@ -96,6 +122,25 @@ export function ProRequestDocumentsSection(
       await fn();
     } finally {
       setPendingAction(null);
+    }
+  }
+
+  async function confirmMiscVisibility() {
+    if (!visibilityConfirmation || props.isBusy || pendingAction !== null)
+      return;
+    const { fileId, visibleToCustomer } = visibilityConfirmation;
+    setVisibilityConfirmation(null);
+    setVisibilityError(null);
+    try {
+      await runPending(`visibility:${fileId}`, () =>
+        props.onSetMiscFileVisibility(fileId, visibleToCustomer),
+      );
+    } catch (error) {
+      setVisibilityError(
+        error instanceof Error
+          ? error.message
+          : "Не удалось изменить видимость файла.",
+      );
     }
   }
 
@@ -293,7 +338,8 @@ export function ProRequestDocumentsSection(
                           onClick={() =>
                             void runPending(
                               `delete-bundle:${bundle.bundleId}`,
-                              () => props.onDeleteContractBundle(bundle.bundleId),
+                              () =>
+                                props.onDeleteContractBundle(bundle.bundleId),
                             )
                           }
                         />
@@ -339,9 +385,7 @@ export function ProRequestDocumentsSection(
                     disabled={props.isBusy}
                     sx={{
                       alignSelf: "flex-start",
-                      p: 0,
                       minWidth: 0,
-                      minHeight: 40,
                     }}
                   >
                     Скачать подпись
@@ -360,10 +404,13 @@ export function ProRequestDocumentsSection(
             >
               <Button
                 variant="contained"
-                color={props.contractBundles.length > 0 ? "primary" : "secondary"}
+                color={
+                  props.contractBundles.length > 0 ? "primary" : "secondary"
+                }
                 disabled={props.isBusy || !props.contractBundlesLoaded}
                 onClick={() => {
                   setBundleDocument(null);
+                  setSourceDocument(null);
                   setBundleSignature(null);
                   setBundleError(null);
                   setBundleDialogOpen(true);
@@ -435,7 +482,10 @@ export function ProRequestDocumentsSection(
                                   : "Ждём от клиента"
                               }
                               sx={(theme) => ({
-                                bgcolor: alpha(theme.palette.success.main, 0.12),
+                                bgcolor: alpha(
+                                  theme.palette.success.main,
+                                  0.12,
+                                ),
                                 fontWeight: 700,
                               })}
                             />
@@ -523,6 +573,50 @@ export function ProRequestDocumentsSection(
                       title={file.originalName}
                       actions={
                         <>
+                          <Tooltip
+                            title={
+                              file.visibleToCustomer
+                                ? "Скрыть от клиента"
+                                : "Показать клиенту"
+                            }
+                          >
+                            <Button
+                              variant="text"
+                              aria-label={
+                                file.visibleToCustomer
+                                  ? `Скрыть ${file.originalName} от клиента`
+                                  : `Показать ${file.originalName} клиенту`
+                              }
+                              aria-pressed={file.visibleToCustomer}
+                              disabled={props.isBusy || pendingAction !== null}
+                              loading={
+                                pendingAction === `visibility:${file.id}`
+                              }
+                              onClick={() =>
+                                setVisibilityConfirmation({
+                                  fileId: file.id,
+                                  fileName: file.originalName,
+                                  visibleToCustomer: !file.visibleToCustomer,
+                                })
+                              }
+                              sx={{
+                                minWidth: 40,
+                                width: 40,
+                                minHeight: 40,
+                                p: 1,
+                                borderRadius: "50%",
+                                color: file.visibleToCustomer
+                                  ? "text.primary"
+                                  : "text.secondary",
+                              }}
+                            >
+                              {file.visibleToCustomer ? (
+                                <VisibilityOutlinedIcon fontSize="small" />
+                              ) : (
+                                <VisibilityOffOutlinedIcon fontSize="small" />
+                              )}
+                            </Button>
+                          </Tooltip>
                           <ProRequestDocumentDownload
                             href={`/api/pro/contract-files/${file.id}/download`}
                             name={file.originalName}
@@ -549,11 +643,10 @@ export function ProRequestDocumentsSection(
                 </>
               ) : null}
               <Button
-                component="label"
                 variant="text"
                 color="inherit"
-                loading={pendingAction === "upload-misc"}
                 disabled={props.isBusy || !props.miscLoaded}
+                onClick={() => setMiscDialogOpen(true)}
                 sx={{
                   width: "fit-content",
                   maxWidth: "100%",
@@ -566,26 +659,44 @@ export function ProRequestDocumentsSection(
                 }}
               >
                 Загрузить документы
-                <input
-                  hidden
-                  type="file"
-                  multiple
-                  aria-label="Файлы исполнителя"
-                  accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                  onChange={(e) => {
-                    const next = Array.from(e.currentTarget.files ?? []);
-                    e.currentTarget.value = "";
-                    if (next.length === 0) return;
-                    void runPending("upload-misc", () =>
-                      props.onUploadMiscFiles(next),
-                    );
-                  }}
-                />
               </Button>
+              {visibilityError ? (
+                <Alert severity="error">{visibilityError}</Alert>
+              ) : null}
             </Stack>
           </Stack>
         </Box>
       </DocumentsSectionShell>
+
+      {visibilityConfirmation ? (
+        <ConfirmDialog
+          open
+          title={
+            visibilityConfirmation.visibleToCustomer
+              ? "Показать файл клиенту?"
+              : "Скрыть файл от клиента?"
+          }
+          description={
+            visibilityConfirmation.visibleToCustomer
+              ? `Вы уверены, что хотите показать файл «${visibilityConfirmation.fileName}» клиенту? Клиент сможет увидеть и скачать его в документах заявки.`
+              : `Вы уверены, что хотите скрыть файл «${visibilityConfirmation.fileName}» от клиента? Клиент больше не будет видеть его в документах заявки.`
+          }
+          confirmText={
+            visibilityConfirmation.visibleToCustomer ? "Показать" : "Скрыть"
+          }
+          confirmDisabled={props.isBusy || pendingAction !== null}
+          onCancel={() => setVisibilityConfirmation(null)}
+          onConfirm={() => void confirmMiscVisibility()}
+        />
+      ) : null}
+
+      {miscDialogOpen ? (
+        <ProRequestMiscUploadDialog
+          isBusy={props.isBusy}
+          onClose={() => setMiscDialogOpen(false)}
+          onUpload={props.onUploadMiscFiles}
+        />
+      ) : null}
 
       <Dialog
         open={docDialogOpen}
@@ -657,8 +768,8 @@ export function ProRequestDocumentsSection(
                 color: "text.secondary",
               }}
             >
-              Загрузите договор в PDF или DOCX. Готовый файл подписи можно
-              приложить при наличии.
+              Выберите договор в Word, Excel, PDF или фотографию. Готовый файл
+              подписи можно приложить при наличии.
             </Typography>
             {bundleError ? <Alert severity="error">{bundleError}</Alert> : null}
 
@@ -678,20 +789,39 @@ export function ProRequestDocumentsSection(
                   alignSelf: "flex-start",
                 }}
               >
-                {bundleDocument ? bundleDocument.name : "Выбрать файл"}
+                {bundleDocument
+                  ? bundleDocument.name
+                  : "Выбрать файл с компьютера"}
                 <input
                   hidden
                   type="file"
-                  accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  accept={REQUEST_DOCUMENT_INPUT_ACCEPT}
                   aria-label="Файл договора"
                   onChange={(e) => {
                     const file = e.currentTarget.files?.[0] ?? null;
                     e.currentTarget.value = "";
                     setBundleDocument(file);
+                    setSourceDocument(null);
                     setBundleError(null);
                   }}
                 />
               </Button>
+              <Button
+                variant="outlined"
+                disabled={props.isBusy || pendingAction !== null}
+                onClick={() => setBundlePickerOpen(true)}
+                sx={{ alignSelf: "flex-start" }}
+              >
+                Выбрать из «Моих документов»
+              </Button>
+              {sourceDocument ? (
+                <Typography
+                  variant="body2"
+                  sx={{ overflowWrap: "anywhere" }}
+                >
+                  {sourceDocument.originalName}
+                </Typography>
+              ) : null}
             </Stack>
 
             <Stack spacing={1}>
@@ -757,19 +887,29 @@ export function ProRequestDocumentsSection(
           <Button
             variant="contained"
             loading={pendingAction === "upload-bundle"}
-            disabled={props.isBusy || !bundleDocument}
+            disabled={
+              props.isBusy ||
+              pendingAction !== null ||
+              (!bundleDocument && !sourceDocument)
+            }
             onClick={async () => {
-              if (!bundleDocument) return;
+              if (
+                pendingAction !== null ||
+                (!bundleDocument && !sourceDocument)
+              )
+                return;
               setBundleError(null);
               try {
                 await runPending("upload-bundle", () =>
                   props.onUploadContractBundle({
                     document: bundleDocument,
+                    ...(sourceDocument ? { sourceDocument } : {}),
                     signature: bundleSignature,
                   }),
                 );
                 setBundleDialogOpen(false);
                 setBundleDocument(null);
+                setSourceDocument(null);
                 setBundleSignature(null);
               } catch (error) {
                 setBundleError(
@@ -784,6 +924,16 @@ export function ProRequestDocumentsSection(
           </Button>
         </DialogActions>
       </Dialog>
+      {bundlePickerOpen ? (
+        <ProviderDocumentPicker
+          onClose={() => setBundlePickerOpen(false)}
+          onSelect={(files) => {
+            setSourceDocument(files[0]);
+            setBundleDocument(null);
+            setBundlePickerOpen(false);
+          }}
+        />
+      ) : null}
     </>
   );
 }

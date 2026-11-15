@@ -291,7 +291,6 @@ export function ProviderOnboardingForm() {
                           setType(option.value);
                           setFieldErrors({});
                         }}
-                        sx={{ minHeight: 44, px: 1.5 }}
                       >
                         {option.label}
                       </Button>
@@ -454,7 +453,7 @@ export function ProviderOnboardingForm() {
                   variant="contained"
                   loading={loading}
                   disabled={!offerAcknowledged || !offerVersion || avatarProcessing}
-                  sx={{ minHeight: 44, alignSelf: "flex-start" }}
+                  sx={{ alignSelf: "flex-start" }}
                 >
                   Создать профиль
                 </Button>

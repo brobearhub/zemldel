@@ -5,6 +5,7 @@ import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
 import LocationCityIcon from "@mui/icons-material/LocationCity";
 import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
+import PeopleOutlinedIcon from "@mui/icons-material/PeopleOutlined";
 
 export default function AdminIndexPage() {
   return (
@@ -31,6 +32,45 @@ export default function AdminIndexPage() {
               alignItems: "stretch",
             }}
           >
+            <Link
+              href="/admin/users"
+              style={{
+                textDecoration: "none",
+              }}
+            >
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2.5,
+                  color: "inherit",
+                  display: "flex",
+                  gap: 2,
+                  alignItems: "center",
+                  "&:hover": {
+                    bgcolor: "action.hover",
+                  },
+                }}
+              >
+                <PeopleOutlinedIcon color="primary" />
+                <Box>
+                  <Typography
+                    sx={{
+                      fontWeight: 700,
+                    }}
+                  >
+                    Пользователи
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "text.secondary",
+                    }}
+                  >
+                    Журнал доступа к паспортам
+                  </Typography>
+                </Box>
+              </Paper>
+            </Link>
             <Link
               href="/admin/provider-verifications"
               style={{ textDecoration: "none" }}

@@ -3,6 +3,7 @@ import {
   forgetWriteIntent,
 } from "@/shared/api/idempotent-write";
 import type { RequestDocumentRequestDto } from "@/entities/request";
+import { prepareRequestDocumentUpload } from "../lib/request-document-upload";
 
 async function safeJson(res: Response) {
   return (await res.json().catch(() => null)) as unknown;
@@ -80,8 +81,9 @@ export async function uploadCustomerRequestDocument(
   docRequestId: string,
   file: File,
 ): Promise<{ ok: true }> {
+  const uploadFile = await prepareRequestDocumentUpload(file);
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", uploadFile);
   const res = await fetchIdempotentWrite(
     `/api/requests/${requestId}/document-requests/${docRequestId}/upload`,
     {
@@ -91,7 +93,7 @@ export async function uploadCustomerRequestDocument(
     {
       recover: async () => {
         // Confirm the exact bytes using the authoritative read, not only a filename or UI state.
-        const bytes = await file.arrayBuffer();
+        const bytes = await uploadFile.arrayBuffer();
         const digest = await crypto.subtle.digest("SHA-256", bytes);
         const sha256 = Array.from(new Uint8Array(digest), (b) =>
           b.toString(16).padStart(2, "0"),
@@ -100,7 +102,7 @@ export async function uploadCustomerRequestDocument(
         const current = documents.find((row) => row.id === docRequestId);
         return current?.status === "UPLOADED" &&
           current.sha256 === sha256 &&
-          current.originalName === file.name
+          current.originalName === uploadFile.name
           ? new Response(JSON.stringify({ ok: true }), {
               headers: { "Content-Type": "application/json" },
             })

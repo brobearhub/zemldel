@@ -18,22 +18,9 @@ import {
   isOrderExecutionStatus,
 } from '../requests/dto/request.dto';
 import { DocumentStorageService } from '../storage/document-storage.service';
+import { validateRequestAttachment } from '../common/request-attachment-file';
 
-const ALLOWED_EXT = new Set(['.pdf', '.docx']);
 const ALLOWED_SIG_EXT = new Set(['.sig', '.sgn', '.p7s']);
-
-function normalizeExt(fileName: string, mimeType: string) {
-  const ext = path.extname(fileName).toLowerCase();
-  if (ALLOWED_EXT.has(ext)) return ext;
-  if (mimeType === 'application/pdf') return '.pdf';
-  if (
-    mimeType ===
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  ) {
-    return '.docx';
-  }
-  return '';
-}
 
 function normalizeSigExt(fileName: string) {
   const ext = path.extname(fileName).toLowerCase();
@@ -311,6 +298,7 @@ export class ContractFilesService {
       },
       select: {
         id: true,
+        visibleToCustomer: true,
         status: true,
         originalName: true,
         mimeType: true,
@@ -331,10 +319,35 @@ export class ContractFilesService {
     }));
   }
 
+  async setMiscVisibilityForProvider(input: {
+    actorUserId: string;
+    requestId: string;
+    fileId: string;
+    visibleToCustomer: boolean;
+  }) {
+    const providerId = await this.requireProviderId(input.actorUserId);
+    await this.assertProviderCanManageFiles({
+      providerId,
+      requestId: input.requestId,
+    });
+    const result = await this.prisma.requestContractFile.updateMany({
+      where: {
+        id: input.fileId,
+        requestId: input.requestId,
+        providerId,
+        role: 'PROVIDER_MISC',
+      },
+      data: { visibleToCustomer: input.visibleToCustomer },
+    });
+    if (result.count === 0) throw new NotFoundException('File not found');
+    return { id: input.fileId, visibleToCustomer: input.visibleToCustomer };
+  }
+
   async uploadForProvider(input: {
     actorUserId: string;
     requestId: string;
     files: Express.Multer.File[];
+    visibleToCustomer?: boolean;
   }) {
     const providerId = await this.requireProviderId(input.actorUserId);
     await this.assertProviderCanManageFiles({
@@ -343,14 +356,10 @@ export class ContractFilesService {
     });
 
     const out: Array<{ id: string }> = [];
-    for (const file of input.files) {
-      const ext = normalizeExt(file.originalname, file.mimetype);
-      if (!ext) {
-        throw new BadRequestException('Unsupported file type');
-      }
-      if (!file.buffer || file.buffer.length === 0) {
-        throw new BadRequestException('Empty file');
-      }
+    // Validate the entire batch before storing the first attachment.
+    const extensions = input.files.map(validateRequestAttachment);
+    for (const [index, file] of input.files.entries()) {
+      const ext = extensions[index];
 
       const id = randomUUID();
       const key = `documents/requests/${input.requestId}/contract-files/${id}${ext}`;
@@ -372,6 +381,7 @@ export class ContractFilesService {
             uploadedByUser: { connect: { id: input.actorUserId } },
             status: 'APPROVED',
             role: 'PROVIDER_MISC',
+            visibleToCustomer: input.visibleToCustomer ?? true,
             bundleId: null,
             originalName,
             mimeType: file.mimetype,
@@ -404,14 +414,7 @@ export class ContractFilesService {
       providerId,
       requestId: input.requestId,
     });
-    const docExt = normalizeExt(
-      input.document.originalname,
-      input.document.mimetype,
-    );
-    if (!docExt) throw new BadRequestException('Unsupported document type');
-    if (!input.document.buffer || input.document.buffer.length === 0) {
-      throw new BadRequestException('Empty document');
-    }
+    const docExt = validateRequestAttachment(input.document);
     const signature = input.signature;
     const sigExt = signature ? normalizeSigExt(signature.originalname) : null;
     if (signature && !sigExt)
@@ -660,7 +663,18 @@ export class ContractFilesService {
       }));
   }
 
-  async listForCustomer(input: { actorUserId: string; requestId: string }) {
+  listForCustomer(input: { actorUserId: string; requestId: string }) {
+    return this.listFilesForCustomer(input, 'CONTRACT_DOCUMENT');
+  }
+
+  listMiscForCustomer(input: { actorUserId: string; requestId: string }) {
+    return this.listFilesForCustomer(input, 'PROVIDER_MISC');
+  }
+
+  private async listFilesForCustomer(
+    input: { actorUserId: string; requestId: string },
+    role: 'CONTRACT_DOCUMENT' | 'PROVIDER_MISC',
+  ) {
     const request = await this.prisma.request.findFirst({
       where: { id: input.requestId, customerUserId: input.actorUserId },
       select: { id: true, status: true, providerId: true, lockedAt: true },
@@ -677,7 +691,8 @@ export class ContractFilesService {
       where: {
         requestId: request.id,
         providerId: request.providerId,
-        role: 'CONTRACT_DOCUMENT',
+        role,
+        ...(role === 'PROVIDER_MISC' ? { visibleToCustomer: true } : {}),
       },
       select: {
         id: true,
@@ -691,7 +706,7 @@ export class ContractFilesService {
         updatedAt: true,
       },
       orderBy: [{ updatedAt: 'desc' }],
-      take: 50,
+      take: role === 'PROVIDER_MISC' ? 200 : 50,
     });
 
     return rows.map((row) => ({
@@ -1000,6 +1015,7 @@ export class ContractFilesService {
         id: input.fileId,
         requestId: request.id,
         providerId: request.providerId,
+        OR: [{ role: { not: 'PROVIDER_MISC' } }, { visibleToCustomer: true }],
       },
       select: {
         id: true,

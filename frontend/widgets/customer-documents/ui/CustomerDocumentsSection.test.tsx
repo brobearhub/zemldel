@@ -48,6 +48,9 @@ function setup(initialPassport: typeof passport | null = null) {
     if (path === "/api/requests") return json([request]);
     if (path === "/api/requests/with-documents") return json([request.id]);
     if (path.endsWith("/contract-files")) return json([contract]);
+    if (path.endsWith("/provider-misc")) return json([{
+      id: "provider-file", originalName: "Дополнительный документ.docx", sizeBytes: 1024,
+    }]);
     if (path.endsWith("/contract-bundles")) return json([{ document: contract, signature: null }]);
     if (path.endsWith("/document-requests")) return json([{
       id: "document-1",
@@ -187,6 +190,9 @@ describe("CustomerDocumentsSection", () => {
       "href", "/api/requests/request-1/contract-files/contract-1/download",
     );
     expect(screen.getAllByRole("link", { name: "Скачать Договор.pdf" })).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "Скачать Дополнительный документ.docx" })).toHaveAttribute(
+      "href", "/api/requests/request-1/contract-files/provider-file/download",
+    );
     expect(screen.getByRole("link", { name: "Скачать Выписка ЕГРН" })).toHaveAttribute(
       "href", "/api/requests/request-1/document-requests/document-1/download",
     );

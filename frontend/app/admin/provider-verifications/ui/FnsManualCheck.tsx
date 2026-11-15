@@ -124,12 +124,8 @@ function RequisitePill({
           onClick={onCopy}
           sx={{
             minWidth: 0,
-            minHeight: 0,
-            p: 0,
             color: CARD.primary,
             fontWeight: 600,
-            fontSize: "1rem",
-            lineHeight: 1.5,
             "&:hover": { bgcolor: "transparent", color: CARD.primaryHover },
           }}
         >

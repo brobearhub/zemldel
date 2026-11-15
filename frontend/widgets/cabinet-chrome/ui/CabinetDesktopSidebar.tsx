@@ -2,7 +2,8 @@
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Box } from "@mui/material";
+import { Box, IconButton } from "@mui/material";
+import ChevronRightRounded from "@mui/icons-material/ChevronRightRounded";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { resolveAccountKind } from "@/core/auth/authorization";
 import { useAppSelector } from "@/core/store/hooks";
@@ -12,7 +13,11 @@ import { CabinetNavigationPanel } from "./CabinetNavigationPanel";
 import { CabinetSettingsPanel } from "./CabinetSettingsPanel";
 import { CabinetSidebarFooter } from "./CabinetSidebarFooter";
 
-export function CabinetDesktopSidebar() {
+export function CabinetDesktopSidebar({
+  compactPublicPage = false,
+}: {
+  compactPublicPage?: boolean;
+}) {
   const wide = useMediaQuery((theme) => theme.breakpoints.up("tablet"));
   const pathname = usePathname();
   const titleId = useId();
@@ -23,6 +28,7 @@ export function CabinetDesktopSidebar() {
     ? "ui.sidebar.pro.collapsed"
     : "ui.sidebar.profile.collapsed";
   const [savedCollapsed, setSavedCollapsed] = useState(false);
+  const [publicSidebar, setPublicSidebar] = useState({ pathname, collapsed: true });
   const [requestSidebar, setRequestSidebar] = useState<{
     pathname: string;
     collapsed: boolean;
@@ -32,15 +38,18 @@ export function CabinetDesktopSidebar() {
   const board = wide && /^\/pro\/requests\/board\/?$/.test(pathname);
   // Requests and the board start collapsed, independently of the saved preference.
   const collapseByDefault = requestDetail || board;
-  const collapsed = collapseByDefault
-    ? requestSidebar?.pathname === pathname
-      ? requestSidebar.collapsed
-      : true
-    : savedCollapsed;
+  const collapsed = compactPublicPage
+    ? publicSidebar.pathname !== pathname || publicSidebar.collapsed
+    : collapseByDefault
+      ? requestSidebar?.pathname === pathname
+        ? requestSidebar.collapsed
+        : true
+      : savedCollapsed;
   const { setExpanded, collapseRequest } = useCabinetSidebar();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsTrigger = useRef<HTMLElement | null>(null);
   const narrow = collapsed && !settingsOpen;
+  const ultraCompact = compactPublicPage && narrow;
 
   useLayoutEffect(() => {
     if (!requestDetail || collapseRequest === 0) return;
@@ -69,13 +78,14 @@ export function CabinetDesktopSidebar() {
   }, [settingsOpen]);
 
   useEffect(() => {
+    if (compactPublicPage) return;
     try {
       const value = localStorage.getItem(storageKey);
       setSavedCollapsed(value === "1" || value === "true");
     } catch {
       /* Storage may be unavailable. */
     }
-  }, [storageKey]);
+  }, [compactPublicPage, storageKey]);
 
   useEffect(() => {
     setSettingsOpen(false);
@@ -85,15 +95,19 @@ export function CabinetDesktopSidebar() {
   useEffect(() => {
     document.documentElement.style.setProperty(
       "--cabinet-sidebar-width",
-      narrow ? "80px" : "300px",
+      ultraCompact ? "26px" : narrow ? "80px" : "300px",
     );
     return () => {
       document.documentElement.style.removeProperty("--cabinet-sidebar-width");
     };
-  }, [narrow]);
+  }, [narrow, ultraCompact]);
 
   const toggle = () => {
     const next = !collapsed;
+    if (compactPublicPage) {
+      setPublicSidebar({ pathname, collapsed: next });
+      return;
+    }
     if (collapseByDefault) {
       setRequestSidebar({ pathname, collapsed: next });
       return;
@@ -127,37 +141,59 @@ export function CabinetDesktopSidebar() {
         bgcolor: "background.default",
         borderRight: 1,
         borderColor: "divider",
-        pt: 2,
-        px: narrow ? 0.75 : 1.5,
+        pt: ultraCompact ? 0 : 2,
+        px: ultraCompact ? 0 : narrow ? 0.75 : 1.5,
         boxSizing: "border-box",
         zIndex: 1201,
       }}
     >
-      <Box sx={{ display: settingsOpen ? "none" : "contents" }}>
-        <CabinetNavigationPanel
-          titleId={titleId}
-          collapsed={collapsed}
-          onNavigate={() => setSettingsOpen(false)}
-        />
-      </Box>
-      {settingsOpen ? (
-        <CabinetSettingsPanel
-          titleId={`${titleId}-settings`}
-          provider={provider}
-          authenticated={authenticated}
-          onBack={backToMenu}
-          onNavigate={() => setSettingsOpen(false)}
-        />
-      ) : null}
-      <CabinetSidebarFooter
-        titleId={settingsOpen ? `${titleId}-settings` : titleId}
-        collapsed={narrow}
-        settingsOpen={settingsOpen}
-        onOpenSettings={openSettings}
-        onBack={backToMenu}
-        onNavigate={() => setSettingsOpen(false)}
-        onToggleCollapsed={toggle}
-      />
+      {ultraCompact ? (
+        <IconButton
+          aria-label="Развернуть меню"
+          title="Развернуть меню"
+          aria-expanded={false}
+          onClick={toggle}
+          sx={{
+            flex: 1,
+            width: "100%",
+            minWidth: 0,
+            px: 0,
+            borderRadius: 0,
+            color: "text.secondary",
+          }}
+        >
+          <ChevronRightRounded />
+        </IconButton>
+      ) : (
+        <>
+          <Box sx={{ display: settingsOpen ? "none" : "contents" }}>
+            <CabinetNavigationPanel
+              titleId={titleId}
+              collapsed={collapsed}
+              showCollapsedLogo={authenticated && !provider && !compactPublicPage}
+              onNavigate={() => setSettingsOpen(false)}
+            />
+          </Box>
+          {settingsOpen ? (
+            <CabinetSettingsPanel
+              titleId={`${titleId}-settings`}
+              provider={provider}
+              authenticated={authenticated}
+              onBack={backToMenu}
+              onNavigate={() => setSettingsOpen(false)}
+            />
+          ) : null}
+          <CabinetSidebarFooter
+            titleId={settingsOpen ? `${titleId}-settings` : titleId}
+            collapsed={narrow}
+            settingsOpen={settingsOpen}
+            onOpenSettings={openSettings}
+            onBack={backToMenu}
+            onNavigate={() => setSettingsOpen(false)}
+            onToggleCollapsed={toggle}
+          />
+        </>
+      )}
     </Box>
   );
 }

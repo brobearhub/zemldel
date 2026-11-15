@@ -8,7 +8,7 @@ function row(status: RequestProDto["status"]): RequestProDto {
 
 describe("withoutCompletedRequests", () => {
   it("убирает завершённые заявки", () => {
-    const items = [row("NEW"), row("COMPLETED"), row("DISCUSSING")];
+    const items = [row("NEW"), row("COMPLETED"), row("CLOSED"), row("CANCELLED"), row("DISCUSSING")];
 
     expect(withoutCompletedRequests(items).map((item) => item.status)).toEqual(["NEW", "DISCUSSING"]);
   });

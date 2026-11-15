@@ -19,6 +19,7 @@ vi.mock("@/core/store/hooks", () => ({
 }));
 vi.mock("@/widgets/chat/socket/ChatSocketContext", () => ({
   useChatSocket: () => ({ unreadByRequestId: {} }),
+  useChatUnreadCount: () => 0,
 }));
 vi.mock("@/widgets/header/ui/HeaderLogo", () => ({ HeaderLogo: () => null }));
 vi.mock("@/widgets/header/ui/HeaderCity", () => ({ HeaderCity: () => null }));
@@ -44,7 +45,7 @@ describe("customer header clock", () => {
 
     expect(screen.getByText("12:34")).toBeInTheDocument();
     expect(screen.getByText("8 ноября 2026")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Документы и доступ к паспорту" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Открыть оповещения" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Открыть напоминания" })).not.toBeInTheDocument();
   });
 
@@ -55,7 +56,7 @@ describe("customer header clock", () => {
     expect(screen.getByText("8 ноября 2026")).toBeInTheDocument();
     expect(within(screen.getByText("12:34").parentElement!).getByRole(
       "link",
-      { name: "Документы и доступ к паспорту" },
+      { name: "Открыть оповещения" },
     )).toBeInTheDocument();
   });
 

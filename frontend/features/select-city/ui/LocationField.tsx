@@ -15,6 +15,7 @@ type Props = {
   helperText?: string;
   /** Подпись над кнопкой, если рядом несколько локаций. */
   caption?: string;
+  captionAlign?: "left" | "right";
   iconColor?: LocationIconColor;
   /** `light` — цвет родителя, чтобы локация читалась на тёмном стекле. */
   tone?: LocationTone;
@@ -35,6 +36,7 @@ export function LocationField({
   error,
   helperText,
   caption,
+  captionAlign = "left",
   emptyLabel = EMPTY_LABEL,
   iconColor,
   tone = "default",
@@ -52,7 +54,14 @@ export function LocationField({
   return (
     <Box>
       {caption ? (
-        <Typography variant="body2" sx={{ color: tone === "light" ? "inherit" : "text.secondary", mb: 0.25 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: tone === "light" ? "inherit" : "text.secondary",
+            mb: 0.25,
+            textAlign: captionAlign,
+          }}
+        >
           {caption}
         </Typography>
       ) : null}

@@ -46,11 +46,8 @@ export function ServicePlaces({ places, compact = false }: Props) {
             setExpanded((open) => !open);
           }}
           sx={{
-            px: 0,
             minWidth: 0,
-            minHeight: 32,
             color: "text.secondary",
-            fontSize: compact ? 12 : "1rem",
             fontWeight: 600,
           }}
         >

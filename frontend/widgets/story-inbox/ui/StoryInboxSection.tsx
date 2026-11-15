@@ -232,7 +232,7 @@ const SendButton = forwardRef<
       ref={ref}
       variant="contained"
       {...props}
-      sx={{ flexShrink: 0, px: 2.5 }}
+      sx={{ flexShrink: 0 }}
     >
       Отправить
     </Button>

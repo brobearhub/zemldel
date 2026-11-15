@@ -101,7 +101,7 @@ export const HeaderNav = ({
               color: "common.gray",
               display: showLabels ? "block" : { xs: "none", md: "block" },
               fontWeight: 600,
-              fontSize: "1rem",
+              fontSize: showLabels ? "1rem" : "0.625rem",
               opacity: 1,
               "&:hover": { color: "info.main" },
             }}

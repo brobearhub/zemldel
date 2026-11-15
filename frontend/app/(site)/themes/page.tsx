@@ -18,6 +18,8 @@ import { ThemeProvider } from "@mui/material";
 import { createAppTheme } from "@/core/theme/createAppTheme";
 import { ColorModeToggle } from "@/core/theme/ColorModeToggle";
 import { useColorMode } from "@/core/theme/ColorModeContext";
+import { DarkPaletteSelect } from "@/core/theme/DarkPaletteSelect";
+import { DARK_PALETTES, type DarkPaletteId } from "@/core/theme/dark-palettes";
 import { useMemo } from "react";
 
 const BREAKPOINT_KEYS = [
@@ -120,10 +122,16 @@ function getPaletteSwatches(theme: Theme) {
   ] as const;
 }
 
-const ThemePaletteBlock = ({ mode }: { mode: "light" | "dark" }) => {
+const ThemePaletteBlock = ({
+  mode,
+  darkPalette,
+}: {
+  mode: "light" | "dark";
+  darkPalette: DarkPaletteId;
+}) => {
   const theme = useMemo(
-    () => createAppTheme(mode, { cssVariables: false }),
-    [mode],
+    () => createAppTheme(mode, { cssVariables: false, darkPalette }),
+    [mode, darkPalette],
   );
   const groups = useMemo(() => getPaletteSwatches(theme), [theme]);
 
@@ -139,7 +147,7 @@ const ThemePaletteBlock = ({ mode }: { mode: "light" | "dark" }) => {
         <Stack spacing={2}>
           <Stack spacing={0.5}>
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              {mode.toUpperCase()} theme
+              {mode === "light" ? "Светлая тема" : DARK_PALETTES[darkPalette].name}
             </Typography>
             <Typography variant="body2" sx={{ color: "text.secondary" }}>
               Автосгенерированные значения `theme.palette.*`
@@ -193,7 +201,7 @@ function getActiveBreakpointKey(args: {
 
 export default function ThemesPage() {
   const theme = useTheme();
-  const { mode } = useColorMode();
+  const { mode, darkPalette } = useColorMode();
   const isXs = useMediaQuery(theme.breakpoints.only("xs"));
   const isSm = useMediaQuery(theme.breakpoints.only("sm"));
   const isTablet = useMediaQuery(theme.breakpoints.only("tablet"));
@@ -241,7 +249,17 @@ export default function ThemesPage() {
                 </Box>
               </Typography>
             </Box>
-            <ColorModeToggle showLabel />
+            <Stack
+              spacing={1}
+              sx={{
+                width: "100%",
+                maxWidth: 320,
+                alignItems: "flex-end",
+              }}
+            >
+              <ColorModeToggle showLabel />
+              <DarkPaletteSelect />
+            </Stack>
           </Stack>
 
           <Paper
@@ -493,6 +511,18 @@ export default function ThemesPage() {
                     <Button variant="outlined" color="info">
                       Info
                     </Button>
+                    <Button
+                      variant="contained"
+                      sx={{
+                        bgcolor: "accent.main",
+                        color: "accent.contrastText",
+                        "&:hover": {
+                          bgcolor: "accent.main",
+                        },
+                      }}
+                    >
+                      Акцент
+                    </Button>
                     <Button variant="contained" color="success">
                       Success
                     </Button>
@@ -561,6 +591,18 @@ export default function ThemesPage() {
                     <Button variant="outlined" color="info">
                       Info
                     </Button>
+                    <Button
+                      variant="contained"
+                      sx={{
+                        bgcolor: "accent.main",
+                        color: "accent.contrastText",
+                        "&:hover": {
+                          bgcolor: "accent.main",
+                        },
+                      }}
+                    >
+                      Акцент
+                    </Button>
                     <Button variant="contained" color="success">
                       Success
                     </Button>
@@ -589,8 +631,14 @@ export default function ThemesPage() {
           </Paper>
 
           <Stack spacing={2}>
-            <ThemePaletteBlock mode="light" />
-            <ThemePaletteBlock mode="dark" />
+            <ThemePaletteBlock
+              mode="light"
+              darkPalette={darkPalette}
+            />
+            <ThemePaletteBlock
+              mode="dark"
+              darkPalette={darkPalette}
+            />
           </Stack>
         </Stack>
       </Container>

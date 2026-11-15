@@ -527,11 +527,7 @@ function ProfileOverview({
                     disabled={imageBusy}
                     loading={imageAction === "upload-button"}
                     sx={{
-                      fontSize: 13,
-                      px: 0.5,
-                      py: 0.25,
                       minWidth: 0,
-                      minHeight: 32,
                       whiteSpace: "nowrap",
                     }}
                   >
@@ -555,11 +551,7 @@ function ProfileOverview({
                     disabled={imageBusy || !hasImage}
                     onClick={() => void deleteProfileImage()}
                     sx={{
-                      fontSize: 13,
-                      px: 0.5,
-                      py: 0.25,
                       minWidth: 0,
-                      minHeight: 32,
                       whiteSpace: "nowrap",
                     }}
                   >
@@ -823,10 +815,6 @@ function ProfileOverview({
                     display: { xs: "none", sm: "inline-flex" },
                     alignSelf: "stretch",
                     flexShrink: 0,
-                    minHeight: 0,
-                    px: 1.5,
-                    py: 0,
-                    fontSize: "0.875rem",
                     whiteSpace: "nowrap",
                     overflowWrap: "normal",
                   }}
@@ -1167,7 +1155,6 @@ function ProfileOverview({
                 sx={{
                   // Временно скрыто.
                   display: "none",
-                  minHeight: 52,
                   borderRadius: 3,
                   borderStyle: "dashed",
                   "&:hover": { borderStyle: "dashed" },

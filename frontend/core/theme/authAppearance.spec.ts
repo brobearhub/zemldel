@@ -1,5 +1,6 @@
 import { createAppTheme } from "./createAppTheme";
 import { createLegacyAuthTheme } from "./legacyAuthTheme";
+import { DARK_PALETTE_OPTIONS } from "./dark-palettes";
 import { preservesAuthAppearance } from "@/shared/config/preserved-auth-appearance";
 
 describe("preserved auth appearance", () => {
@@ -29,4 +30,18 @@ describe("preserved auth appearance", () => {
     ).toBeUndefined();
     expect(createAppTheme("light").typography.body1.fontSize).toBe("1.125rem");
   });
+  it.each(DARK_PALETTE_OPTIONS)(
+    "uses the selected $name palette for auth pages",
+    ({ id }) => {
+      const site = createAppTheme("dark", { darkPalette: id });
+      const auth = createLegacyAuthTheme("dark", { darkPalette: id });
+      expect(auth.palette.background).toEqual(site.palette.background);
+      expect(auth.palette.primary).toEqual(site.palette.primary);
+      expect(auth.palette.text).toEqual(site.palette.text);
+      expect(auth.palette.divider).toBe(site.palette.divider);
+      expect(auth.custom.bgColors).toEqual(site.custom.bgColors);
+      expect(auth.custom.preserveAuthAppearance).toBe(true);
+    },
+  );
+
 });

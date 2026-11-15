@@ -11,10 +11,16 @@ import {
   red,
   teal,
 } from "@mui/material/colors";
-import { alpha } from "@mui/material/styles";
+import { alpha, darken, lighten } from "@mui/material/styles";
 import { breakpointValues, media } from "./breakpoints";
 import { readableTypography } from "./typography";
 import { SECONDARY_BACKGROUND } from "./background";
+import {
+  DARK_PALETTES,
+  DEFAULT_DARK_PALETTE,
+  isDarkPaletteId,
+  type DarkPaletteId,
+} from "./dark-palettes";
 import type {} from "@mui/x-date-pickers/themeAugmentation";
 
 export { breakpointValues, media };
@@ -77,7 +83,7 @@ const TOKENS = {
   },
   dark: {
     bg: grey[900],
-    header: common.black,
+    header: grey[900],
     paper: grey[800],
     gray: grey[500],
     primary: {
@@ -106,11 +112,57 @@ const TOKENS = {
   },
 } as const;
 
+function getDarkTokens(id: DarkPaletteId) {
+  // Retain the former dark palette, with the header matching the page background.
+  if (id === "turquoise-cocoa") return TOKENS.dark;
+
+  const palette = DARK_PALETTES[id];
+  const contrastText =
+    "contrastText" in palette ? palette.contrastText : "#122017";
+
+  return {
+    bg: palette.background,
+    header: palette.background,
+    paper: palette.paper,
+    gray: palette.muted,
+    primary: {
+      main: palette.primary,
+      light: lighten(palette.primary, 0.15),
+      dark: darken(palette.primary, 0.15),
+      contrastText,
+    },
+    secondary: {
+      main: palette.text,
+      light: lighten(palette.text, 0.08),
+      dark: palette.muted,
+      contrastText,
+    },
+    info: { main: palette.info, contrastText },
+    accent: { main: LIGHT_BRAND.accent, contrastText: common.white },
+    success: { main: "#a5c79c", contrastText },
+    warning: { main: "#d0ca91", contrastText },
+    error: { main: palette.error, contrastText },
+    divider: palette.divider,
+    textPrimary: palette.text,
+    textSecondary: palette.muted,
+    textSecondaryLight: alpha(palette.muted, 0.7),
+    footer: palette.background,
+    disabledButton: palette.raised,
+  };
+}
+
 export function createAppTheme(
   mode: PaletteMode,
-  { cssVariables = true }: { cssVariables?: boolean } = {},
+  {
+    cssVariables = true,
+    darkPalette = DEFAULT_DARK_PALETTE,
+  }: { cssVariables?: boolean; darkPalette?: DarkPaletteId } = {},
 ) {
-  const t = TOKENS[mode];
+  const paletteId = isDarkPaletteId(darkPalette)
+    ? darkPalette
+    : DEFAULT_DARK_PALETTE;
+  const isNewDarkPalette = mode === "dark" && paletteId !== "turquoise-cocoa";
+  const t = mode === "light" ? TOKENS.light : getDarkTokens(paletteId);
 
   return createTheme(
     {
@@ -138,7 +190,9 @@ export function createAppTheme(
         background: {
           default: t.bg,
           paper: t.paper,
-          secondary: SECONDARY_BACKGROUND,
+          secondary: isNewDarkPalette
+            ? DARK_PALETTES[paletteId].raised
+            : SECONDARY_BACKGROUND,
         },
         divider: t.divider,
         text: {
@@ -148,11 +202,18 @@ export function createAppTheme(
         },
         action: {
           disabledBackground: t.disabledButton,
+          ...(isNewDarkPalette
+            ? {
+                hover: alpha(t.primary.main, 0.08),
+                selected: DARK_PALETTES[paletteId].raised,
+              }
+            : {}),
         },
       },
       custom: {
         textColors: {
-          footer: mode === "light" ? t.textPrimary : common.white,
+          footer:
+            mode === "light" || isNewDarkPalette ? t.textPrimary : common.white,
         },
         bgColors: {
           primary: t.bg,
@@ -206,7 +267,9 @@ export function createAppTheme(
               // Sage primary is too pale for small label text on a white field.
               // Keep error/disabled states and contextual glass-form colors.
               "&.Mui-focused:where(:not(.Mui-error, .Mui-disabled))": {
-                color: theme.palette.text.primary,
+                color: isNewDarkPalette
+                  ? theme.palette.primary.main
+                  : theme.palette.text.primary,
               },
             }),
             outlined: {
@@ -289,10 +352,6 @@ export function createAppTheme(
               textTransform: "none",
               borderRadius: theme.shape.borderRadius,
               fontWeight: 700,
-              fontSize: "1rem",
-              lineHeight: 1.5,
-              minHeight: 48,
-              padding: "12px 20px",
               whiteSpace: "normal",
               overflowWrap: "anywhere",
             }),
@@ -413,7 +472,9 @@ export function createAppTheme(
           styleOverrides: {
             root: ({ theme }) => ({
               borderRadius: theme.shape.borderRadius,
-              backgroundColor: theme.palette.background.paper,
+              backgroundColor: isNewDarkPalette
+                ? theme.palette.background.default
+                : theme.palette.background.paper,
               // The label sits above the field. Override MUI's floating-label offset.
               "& .MuiOutlinedInput-notchedOutline": {
                 top: 0,
@@ -421,9 +482,12 @@ export function createAppTheme(
               "&:hover .MuiOutlinedInput-notchedOutline": {
                 borderColor: theme.palette.text.primary,
               },
-              "&.Mui-focused:not(.Mui-error) .MuiOutlinedInput-notchedOutline": {
-                borderColor: theme.palette.text.primary,
-              },
+              "&.Mui-focused:not(.Mui-error) .MuiOutlinedInput-notchedOutline":
+                {
+                  borderColor: isNewDarkPalette
+                    ? theme.palette.primary.main
+                    : theme.palette.text.primary,
+                },
             }),
             notchedOutline: ({ theme }) => ({
               borderColor: theme.palette.divider,
@@ -448,13 +512,6 @@ export function createAppTheme(
             }),
           },
         },
-        MuiFilledInput: {
-          styleOverrides: {
-            input: {
-              paddingTop: 14,
-            },
-          },
-        },
         MuiDialogTitle: {
           styleOverrides: {
             root: {
@@ -471,15 +528,6 @@ export function createAppTheme(
               lineHeight: 1.5,
               paddingTop: 12,
               paddingBottom: 12,
-            },
-          },
-        },
-        MuiPaginationItem: {
-          styleOverrides: {
-            root: {
-              fontSize: "1rem",
-              minWidth: 44,
-              minHeight: 44,
             },
           },
         },
@@ -537,9 +585,10 @@ export function createAppTheme(
               "& .MuiPickersOutlinedInput-notchedOutline": {
                 top: 0,
               },
-              "&.Mui-focused:not(.Mui-error) .MuiPickersOutlinedInput-notchedOutline": {
-                borderColor: theme.palette.text.primary,
-              },
+              "&.Mui-focused:not(.Mui-error) .MuiPickersOutlinedInput-notchedOutline":
+                {
+                  borderColor: theme.palette.text.primary,
+                },
             }),
             notchedOutline: ({ theme }) => ({
               borderColor: theme.palette.divider,
@@ -652,7 +701,9 @@ export function createAppTheme(
               backgroundImage: "none",
             }),
             outlined: ({ theme }) => ({
-              borderColor: alpha(theme.palette.text.primary, 0.1),
+              borderColor: isNewDarkPalette
+                ? theme.palette.divider
+                : alpha(theme.palette.text.primary, 0.1),
               backgroundImage: "none",
               boxShadow:
                 theme.palette.mode === "light"
@@ -664,9 +715,6 @@ export function createAppTheme(
         MuiToggleButton: {
           styleOverrides: {
             root: ({ theme }) => ({
-              fontSize: "1rem",
-              lineHeight: 1.5,
-              minHeight: 48,
               fontWeight: 600,
               textTransform: "none",
               color: theme.palette.text.secondary,

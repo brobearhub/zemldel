@@ -32,28 +32,12 @@
   align-items: center;
 }
 .action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 13px 20px;
-  border: 1px solid currentColor;
   border-radius: 4px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-weight: 700;
-  text-decoration: none;
-  cursor: pointer;
 }
 .action:hover {
   background: var(--mui-palette-primary-main);
   border-color: transparent;
   color: var(--mui-palette-common-black);
-}
-.actionSmall {
-  padding: 6px 12px;
-  font-size: 1rem;
-  line-height: 1.75;
 }
 .figure {
   margin: 0;
@@ -289,7 +273,6 @@
   .actions {
     column-gap: 4px;
   }
-  .nextStep .actionSmall,
   .nextStep .offersLink {
     padding-inline: 4px;
   }
@@ -320,14 +303,8 @@
   }
 }
 
-.action,
 .offersLink {
-  min-height: 48px;
   line-height: 1.5;
-}
-.actionSmall,
-.offersLink {
-  padding: 12px 16px;
 }
 .body + .body {
   margin-top: 20px;

@@ -1,9 +1,10 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider } from "@mui/material";
 import { signOut } from "next-auth/react";
 import { Provider } from "react-redux";
 import { createAppTheme } from "@/core/theme/createAppTheme";
+import { ColorModeProvider } from "@/core/theme/ColorModeContext";
 import type { AuthMembership, AuthPerson } from "@/core/auth/authorization";
 import { makeStore } from "@/core/store/store";
 import { setAuthenticated, setUnauthenticated } from "@/core/store/authSlice";
@@ -113,12 +114,14 @@ describe("ProfileMenu", () => {
     const user = userEvent.setup();
     render(
       <Provider store={store}>
-        <ThemeProvider theme={createAppTheme("light")}>
-          <ProfileMenu
-            layout={options?.layout}
-            onNavigate={options?.onNavigate}
-          />
-        </ThemeProvider>
+        <ColorModeProvider>
+          <ThemeProvider theme={createAppTheme("light")}>
+            <ProfileMenu
+              layout={options?.layout}
+              onNavigate={options?.onNavigate}
+            />
+          </ThemeProvider>
+        </ColorModeProvider>
       </Provider>
     );
 
@@ -220,6 +223,7 @@ describe("ProfileMenu", () => {
       "Услуги",
       "Исполнители",
       "Сторис",
+      "Настройки",
       "Выйти",
     ]);
     expect(screen.getAllByRole("menuitem").filter((item) => item.getAttribute("aria-current") === "page"))
@@ -230,6 +234,20 @@ describe("ProfileMenu", () => {
     expect(navigation.push).toHaveBeenCalledWith(`/profile?section=${section}`);
     expect(onNavigate).toHaveBeenCalledOnce();
     expect(screen.getByRole("button", { name: "Профиль" })).not.toHaveAttribute("aria-expanded");
+  });
+
+  it("opens customer settings from the menu", async () => {
+    const { user } = renderWithAuthState("customer");
+    await user.click(screen.getByRole("button", { name: "Профиль" }));
+    await user.click(screen.getByRole("menuitem", { name: "Настройки" }));
+    const dialog = screen.getByRole("dialog", { name: "Настройки" });
+    const theme = within(dialog).getByRole("group", { name: "Тема оформления" });
+    await user.click(within(theme).getByRole("button", { name: "Тёмная" }));
+    expect(within(screen.getByRole("dialog", { name: "Настройки" })).getByRole("button", { name: "Тёмная" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(within(dialog).getByRole("button", { name: "Закрыть настройки" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Настройки" })).not.toBeInTheDocument();
+    });
   });
 
   it.each([

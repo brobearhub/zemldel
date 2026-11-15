@@ -1,6 +1,7 @@
 import { alpha } from "@mui/material/styles";
 import { createAppTheme } from "./createAppTheme";
 import { createLegacyAuthTheme } from "./legacyAuthTheme";
+import { DARK_PALETTE_OPTIONS } from "./dark-palettes";
 
 describe.each(["light", "dark"] as const)(
   "createAppTheme %s readability",
@@ -40,16 +41,17 @@ describe.each(["light", "dark"] as const)(
     });
 
     it("exposes the secondary background as a theme value and CSS variable", () => {
-      expect(theme.palette.background.secondary).toBe("#a0b4a00f");
+      const expected = mode === "light" ? "#a0b4a00f" : "#3a352c";
+      expect(theme.palette.background.secondary).toBe(expected);
       expect(theme.vars.palette.background.secondary).toContain(
         "--mui-palette-background-secondary",
       );
       expect(
         createAppTheme(mode, { cssVariables: false }).palette.background
           .secondary,
-      ).toBe("#a0b4a00f");
+      ).toBe(expected);
       expect(createLegacyAuthTheme(mode).palette.background.secondary).toBe(
-        "#a0b4a00f",
+        expected,
       );
     });
   },
@@ -72,11 +74,62 @@ describe("createAppTheme restored palette", () => {
   });
 
   it("uses the original dark secondary colors", () => {
-    const theme = createAppTheme("dark");
+    const theme = createAppTheme("dark", { darkPalette: "turquoise-cocoa" });
 
     expect(theme.palette.accent.main).toBe("#FA5018");
     expect(theme.palette.text.secondary).toBe(alpha("#fff", 0.5));
     expect(theme.palette.divider).toBe(alpha("#fff", 0.12));
     expect(theme.custom.textColors?.footer).toBe("#fff");
   });
+});
+
+describe("approved dark palettes", () => {
+  it("uses Warm Coal for an existing dark preference without a palette", () => {
+    const theme = createAppTheme("dark");
+    expect(theme.palette.background.default).toBe("#1d1b18");
+    expect(theme.palette.background.paper).toBe("#2c2924");
+    expect(theme.palette.primary.main).toBe("#b1b8a0");
+    expect(theme.palette.text.primary).toBe("#f0ece1");
+    expect(theme.palette.text.secondary).toBe("#bdb6a7");
+    expect(theme.palette.divider).toBe("#575144");
+  });
+
+  it("offers the eight selected palettes with all graphite variants together", () => {
+    expect(DARK_PALETTE_OPTIONS.map(({ name }) => name)).toEqual([
+      "Тёплый уголь",
+      "Шалфейный графит",
+      "Серебряный графит",
+      "Лавандовый графит",
+      "Минеральный сланец",
+      "Торф и медь",
+      "Лунный камень",
+      "Бирюза и какао",
+    ]);
+  });
+
+  it.each(DARK_PALETTE_OPTIONS)(
+    "applies $name to dark mode and leaves the full light palette unchanged",
+    ({ id, background, paper, primary, text, muted, divider }) => {
+      const dark = createAppTheme("dark", { darkPalette: id });
+      expect(dark.palette.background.default).toBe(background);
+      expect(dark.palette.background.paper).toBe(paper);
+      expect(dark.palette.primary.main).toBe(primary);
+      expect(dark.palette.text.primary).toBe(text);
+      expect(dark.palette.text.secondary).toBe(muted);
+      expect(dark.palette.divider).toBe(divider);
+      expect(dark.palette.accent.main).toBe("#FA5018");
+      expect(dark.palette.accent.contrastText).toBe("#fff");
+      expect(dark.vars.palette.primary.main).toContain(
+        "--mui-palette-primary-main",
+      );
+
+      const light = createAppTheme("light", { darkPalette: id });
+      const original = createAppTheme("light");
+      // Compare token data; MUI creates fresh helper functions for each theme.
+      expect(JSON.stringify(light.palette)).toBe(
+        JSON.stringify(original.palette),
+      );
+      expect(light.custom).toEqual(original.custom);
+    },
+  );
 });

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { Box, Container, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
+import { LogoIcon } from "@/shared/ui/LogoIcon";
 
 export const Hero = () => {
   const theme = useTheme();
@@ -194,6 +195,19 @@ export const Hero = () => {
             textAlign: "center",
           }}
         >
+          <LogoIcon
+            size={176}
+            aria-hidden="true"
+            priority
+            sx={{
+              width: { xs: 128, md: 176 },
+              height: { xs: 128, md: 176 },
+              "& img": {
+                width: "100%",
+                height: "100%",
+              },
+            }}
+          />
           <Box
             component="h1"
             sx={{

@@ -117,8 +117,6 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
             onClick={() => setCreateOpen((v) => !v)}
             sx={{
               minWidth: 0,
-              px: 1,
-              lineHeight: 1.2,
               alignItems: "center",
               "& .MuiButton-startIcon": {
                 marginRight: 0.5,

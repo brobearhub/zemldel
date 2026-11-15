@@ -61,9 +61,6 @@ function ServicePhoto({ service }: { service: ServiceDto }) {
 export function ProMyServicesSection({ services }: { services: ServiceDto[] }) {
   const [summaries, setSummaries] = useState<Record<string, Summary>>({});
   const [showEmpty, setShowEmpty] = useState(true);
-  const [expandedServiceId, setExpandedServiceId] = useState<string | null>(
-    null,
-  );
   const onSummary = useCallback((id: string, summary: Summary) => {
     setSummaries((current) =>
       current[id]?.count === summary.count &&
@@ -95,7 +92,6 @@ export function ProMyServicesSection({ services }: { services: ServiceDto[] }) {
           component={Link}
           href="/pro/services/create"
           variant="outlined"
-          sx={{ minHeight: 44 }}
         >
           Добавить услугу
         </Button>
@@ -141,10 +137,6 @@ export function ProMyServicesSection({ services }: { services: ServiceDto[] }) {
               serviceId={service.id}
               showCustomerAvatar
               onSummary={onSummary}
-              expanded={expandedServiceId === service.id}
-              onExpandedChange={(open) =>
-                setExpandedServiceId(open ? service.id : null)
-              }
               titleFor={(request) =>
                 serviceRequestRowTitle(request.customerName, service.title)
               }
@@ -158,7 +150,7 @@ export function ProMyServicesSection({ services }: { services: ServiceDto[] }) {
           variant="text"
           onClick={() => setShowEmpty((value) => !value)}
           aria-expanded={showEmpty}
-          sx={{ alignSelf: "flex-start", minHeight: 44 }}
+          sx={{ alignSelf: "flex-start" }}
         >
           {showEmpty
             ? "Скрыть услуги без заявок"

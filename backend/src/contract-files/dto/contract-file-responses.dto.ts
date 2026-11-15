@@ -34,6 +34,11 @@ export class ContractFileItemDto {
   updatedAt!: string;
 }
 
+export class ProviderMiscFileItemDto extends ContractFileItemDto {
+  @ApiProperty()
+  visibleToCustomer!: boolean;
+}
+
 export class ContractFilesUploadResponseDto {
   @ApiProperty({
     type: 'array',

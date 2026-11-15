@@ -1,5 +1,8 @@
 "use client";
 
+import type { ProviderDocument } from "@/entities/provider-document/api/documents";
+import type { ContractBundleUpload } from "@/entities/request/api/pro-contract-bundles";
+
 import { RequestAssignment } from "@/widgets/provider-team/RequestAssignee";
 import { OrderPassportPanel } from "./OrderPassportPanel";
 import {
@@ -87,6 +90,7 @@ import {
   deleteProRequestContractBundle,
   fetchProRequestContractBundles,
   fetchProRequestMiscFiles,
+  setProRequestMiscFileVisibility,
   uploadProRequestContractBundle,
   uploadProRequestMiscFiles,
 } from "@/entities/request/api/pro-contract-bundles";
@@ -356,8 +360,10 @@ export function ProRequestDetails({
     try {
       const payload = await fetchProRequestMiscFiles(req.id);
       setMiscFiles(payload);
+      return true;
     } catch {
       // Keep previous list.
+      return false;
     }
   }
 
@@ -413,14 +419,11 @@ export function ProRequestDetails({
     }
   }
 
-  async function uploadContractBundle(input: {
-    document: File;
-    signature?: File | null;
-  }) {
+  async function uploadContractBundle(input: ContractBundleUpload) {
     const startedAt = Date.now();
     setUploadBusy(true);
     setUploadNames([
-      input.document.name,
+      input.sourceDocument?.originalName ?? input.document?.name ?? "Договор",
       ...(input.signature ? [input.signature.name] : []),
     ]);
     setError(null);
@@ -475,21 +478,26 @@ export function ProRequestDetails({
     }
   }
 
-  async function uploadMiscFiles(files: File[]) {
-    if (files.length === 0) return;
+  async function uploadMiscFiles(files: File[], visibleToCustomer: boolean, sourceDocuments: ProviderDocument[] = []) {
+    if (files.length === 0 && sourceDocuments.length === 0) return;
     const startedAt = Date.now();
     setUploadBusy(true);
-    setUploadNames(files.map((f) => f.name));
+    setUploadNames([...files.map((f) => f.name), ...sourceDocuments.map(file => file.originalName)]);
     setError(null);
     setNotice(null);
     try {
-      await uploadProRequestMiscFiles(req.id, files);
-      await refreshMiscFiles();
+      await uploadProRequestMiscFiles(req.id, files, visibleToCustomer, sourceDocuments);
       setNotice("Документы прикреплены.");
+      if (!(await refreshMiscFiles())) {
+        setNotice(
+          "Документы загружены. Не удалось обновить список — вернитесь во вкладку, чтобы повторить обновление.",
+        );
+      }
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Не удалось загрузить документы",
-      );
+      const error =
+        e instanceof Error ? e : new Error("Не удалось загрузить документы");
+      setError(error.message);
+      throw error;
     } finally {
       const elapsed = Date.now() - startedAt;
       const minMs = 600;
@@ -498,6 +506,28 @@ export function ProRequestDetails({
       }
       setUploadBusy(false);
       setUploadNames([]);
+    }
+  }
+
+  async function setMiscFileVisibility(fileId: string, visibleToCustomer: boolean) {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const updated = await setProRequestMiscFileVisibility(
+        req.id,
+        fileId,
+        visibleToCustomer,
+      );
+      setMiscFiles((files) =>
+        files.map((file) =>
+          file.id === updated.id
+            ? { ...file, visibleToCustomer: updated.visibleToCustomer }
+            : file,
+        ),
+      );
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -1016,6 +1046,7 @@ export function ProRequestDetails({
             onDeleteContractBundle={deleteContractBundle}
             onUploadMiscFiles={uploadMiscFiles}
             onDeleteMiscFile={deleteMiscFile}
+            onSetMiscFileVisibility={setMiscFileVisibility}
           />
 
           <RequestRemindersPanel requestId={req.id} />
