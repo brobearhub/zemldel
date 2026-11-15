@@ -3,6 +3,7 @@
 import { useId, useState, type ComponentProps } from "react";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogTitle,
@@ -26,19 +27,18 @@ export function CategoryRequestButton({ size = "medium", ...props }: Props) {
 
   return (
     <>
-      <button
+      <Button
         type="button"
-        className={
-          size === "small"
-            ? `${styles.action} ${styles.actionSmall}`
-            : styles.action
-        }
+        size={size}
+        variant="outlined"
+        color="inherit"
+        className={styles.action}
         aria-haspopup="dialog"
         aria-controls={open ? id : undefined}
         onClick={() => setOpen(true)}
       >
         Обсудить задачу
-      </button>
+      </Button>
       <Dialog
         open={open}
         onClose={() => setOpen(false)}

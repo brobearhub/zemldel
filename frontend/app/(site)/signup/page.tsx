@@ -30,7 +30,7 @@ import type { CitySuggestItemDto } from "@/entities/city";
 import { LocationField } from "@/features/select-city";
 import { Markdown } from "@/shared/ui/Markdown";
 import { SITE_HEADER_HEIGHT_PX } from "@/shared/config/site-layout";
-import { authBackground } from "@/app/(site)/auth-background";
+import { themedAuthBackground } from "@/app/(site)/auth-background";
 import { LogoIcon } from "@/shared/ui/LogoIcon";
 import { RainGlassPaper } from "@/shared/ui/RainGlassPaper";
 import { PasswordVisibilityButton } from "@/shared/ui/PasswordVisibilityButton";
@@ -74,7 +74,7 @@ const signUpShellSx = {
     sm: `${SITE_HEADER_HEIGHT_PX.sm + 24}px`,
     md: 10,
   },
-  backgroundImage: authBackground("/hero-bg-house_static.jpg"),
+  backgroundImage: themedAuthBackground,
   backgroundSize: "cover",
   backgroundPosition: "center",
   backgroundRepeat: "no-repeat",
@@ -107,13 +107,13 @@ function SignUpKindChoice({
             </Typography>
           ) : null}
           <Stack spacing={0.75}>
-            <Button variant="contained" size="large" fullWidth onClick={() => onChoose("customer")} sx={{ minHeight: 44 }}>
+            <Button variant="contained" size="large" fullWidth onClick={() => onChoose("customer")}>
               Клиент
             </Button>
             <Typography variant="body2">Оставляете заявки и общаетесь с исполнителями.</Typography>
           </Stack>
           <Stack spacing={0.75}>
-            <Button variant="contained" color="secondary" size="large" fullWidth onClick={() => onChoose("provider")} sx={{ minHeight: 44 }}>
+            <Button variant="contained" color="secondary" size="large" fullWidth onClick={() => onChoose("provider")}>
               Исполнитель
             </Button>
             <Typography variant="body2">Оказываете услуги и ведёте заявки.</Typography>
@@ -870,7 +870,6 @@ function SignUpPageContent() {
                 type="submit"
                 loading={loading}
                 disabled={!versionsReady || (isRequestIntent && !pending.loaded)}
-                sx={{ minHeight: 44 }}
               >
                 {isRequestIntent && pending.draft ? "Создать аккаунт и отправить заявку" : "Создать аккаунт"}
               </Button>

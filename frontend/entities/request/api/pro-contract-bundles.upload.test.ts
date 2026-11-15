@@ -17,7 +17,7 @@ describe("contract upload errors", () => {
   });
   it("rejects an unsupported file or oversized file before sending", async () => {
     const fetchMock=vi.fn(); vi.stubGlobal("fetch",fetchMock);
-    await expect(uploadProRequestContractBundle("r",{document:new File(["x"],"invalid.exe")})).rejects.toThrow("PDF или DOCX");
+    await expect(uploadProRequestContractBundle("r",{document:new File(["x"],"invalid.exe")})).rejects.toThrow("PDF, Word, Excel");
     const large=new File([new Uint8Array(20*1024*1024+1)],"large.pdf");
     await expect(uploadProRequestContractBundle("r",{document:large})).rejects.toThrow("20 МБ");
     expect(fetchMock).not.toHaveBeenCalled();

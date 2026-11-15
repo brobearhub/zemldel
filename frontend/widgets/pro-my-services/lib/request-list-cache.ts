@@ -4,21 +4,40 @@ export const REQUEST_LIST_CACHE_TTL_MS = 10 * 60 * 1000;
 
 export type RequestListQuery = {
   serviceId: string | null;
+  search?: string;
+  cursor?: string;
+  limit?: number;
+};
+
+export type RequestListFeed = {
+  items: RequestProDto[];
+  total: number;
+  needsReply: number;
+  hasMore: boolean;
+  nextCursor: string | null;
 };
 
 type CacheEntry = {
   at: number;
-  data: RequestProDto[];
+  data: RequestListFeed;
 };
 
 const cache = new Map<string, CacheEntry>();
 
-function scopeKey(serviceId: string | null): string {
-  return serviceId ?? "free";
+function scopeKey(query: RequestListQuery): string {
+  return JSON.stringify([
+    query.serviceId,
+    query.search ?? "",
+    query.cursor ?? "",
+    query.limit ?? 3,
+  ]);
 }
 
-export function readRequestListCache(query: RequestListQuery, now = Date.now()): RequestProDto[] | null {
-  const key = scopeKey(query.serviceId);
+export function readRequestListCache(
+  query: RequestListQuery,
+  now = Date.now(),
+): RequestListFeed | null {
+  const key = scopeKey(query);
   const entry = cache.get(key);
   if (!entry) return null;
   if (now - entry.at >= REQUEST_LIST_CACHE_TTL_MS) {
@@ -30,10 +49,13 @@ export function readRequestListCache(query: RequestListQuery, now = Date.now()):
 
 export function writeRequestListCache(
   query: RequestListQuery,
-  data: readonly RequestProDto[],
+  data: RequestListFeed,
   now = Date.now(),
 ): void {
-  cache.set(scopeKey(query.serviceId), { at: now, data: [...data] });
+  cache.set(scopeKey(query), {
+    at: now,
+    data: { ...data, items: [...data.items] },
+  });
 }
 
 export function clearRequestListCache(): void {
@@ -41,5 +63,8 @@ export function clearRequestListCache(): void {
 }
 
 export function invalidateRequestListCache(query: RequestListQuery): void {
-  cache.delete(scopeKey(query.serviceId));
+  for (const key of cache.keys()) {
+    if ((JSON.parse(key) as unknown[])[0] === query.serviceId)
+      cache.delete(key);
+  }
 }

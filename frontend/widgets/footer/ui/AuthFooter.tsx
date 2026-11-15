@@ -18,7 +18,10 @@ export function AuthFooter() {
     <Box
       component="footer"
       sx={{
-        bgcolor: "background.default",
+        bgcolor: (theme) =>
+          theme.palette.mode === "light"
+            ? theme.palette.background.default
+            : theme.palette.background.paper,
         color: "text.primary",
         px: 2,
         py: 1.5,

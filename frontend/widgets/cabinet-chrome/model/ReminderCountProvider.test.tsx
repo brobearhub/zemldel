@@ -86,7 +86,7 @@ it("shares one poll across both icons and hides zero after the next refresh", as
   await settle();
   expect(fetch).toHaveBeenCalledTimes(1);
   expect(
-    screen.getAllByRole("link", { name: /2 в ближайший час/ }),
+    screen.getAllByRole("link", { name: /: 2$/ }),
   ).toHaveLength(2);
   await act(async () => {
     await vi.advanceTimersByTimeAsync(14 * 60_000);
@@ -121,13 +121,13 @@ it("stops polling in a hidden tab and catches up on return and mutation", async 
   act(() => document.dispatchEvent(new Event("visibilitychange")));
   await settle();
   expect(
-    screen.getAllByRole("link", { name: /3 в ближайший час/ }),
+    screen.getAllByRole("link", { name: /: 3$/ }),
   ).toHaveLength(2);
   vi.mocked(fetch).mockResolvedValueOnce(response(1));
   act(() => notifyRemindersChanged());
   await settle();
   expect(
-    screen.getAllByRole("link", { name: /1 в ближайший час/ }),
+    screen.getAllByRole("link", { name: /: 1$/ }),
   ).toHaveLength(2);
 });
 
@@ -149,7 +149,7 @@ it("clears the previous provider count and ignores its late response", async () 
     resolveOld(response(9));
   });
   expect(
-    screen.getAllByRole("link", { name: /5 в ближайший час/ }),
+    screen.getAllByRole("link", { name: /: 5$/ }),
   ).toHaveLength(2);
   expect(screen.queryByText("9")).not.toBeInTheDocument();
   act(() => store.dispatch(setUnauthenticated()));
@@ -175,7 +175,7 @@ it("retries after an error and clears pending timers on unmount", async () => {
     await vi.advanceTimersByTimeAsync(15 * 60_000);
   });
   expect(
-    screen.getAllByRole("link", { name: /4 в ближайший час/ }),
+    screen.getAllByRole("link", { name: /: 4$/ }),
   ).toHaveLength(2);
   unmount();
   const calls = vi.mocked(fetch).mock.calls.length;
@@ -205,7 +205,7 @@ it("on mobile fetches on every menu opening without background polling", async (
   await settle();
   expect(fetch).toHaveBeenCalledTimes(2);
   expect(
-    screen.getAllByRole("link", { name: /3 в ближайший час/ }),
+    screen.getAllByRole("link", { name: /: 3$/ }),
   ).toHaveLength(2);
   vi.mocked(fetch).mockResolvedValueOnce(response(0));
   act(() => notifyRemindersChanged());

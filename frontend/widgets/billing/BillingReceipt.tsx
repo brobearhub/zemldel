@@ -1,15 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import Button from "@mui/material/Button";
 import { BillingPeriodSelector } from "./BillingPeriodSelector";
+import { PlanFeatureLabel } from "./PlanFeatureLabel";
 import {
   comparison,
+  dailyStoryLimits,
   money,
   periodLabel,
   plans,
   productFor,
   productNames,
   statusNames,
+  requestsAvailability,
+  servicePhotoLimits,
   type BillingOverview,
   type BillingPeriod,
   type Product,
@@ -96,13 +101,18 @@ export function BillingPlanFeatures({ data }: { data: BillingOverview }) {
         01 / Возможности вашего тарифа
       </h2>
       <dl className={p.features}>
-        {comparison.map(([label, ...values]) => (
-          <div key={label}>
-            <dt>{label}</dt>
-            <dd>{values[entitlementIndex >= 0 ? entitlementIndex : 0]}</dd>
+        {comparison.map((feature) => (
+          <div key={feature.label}>
+            <dt>
+              <PlanFeatureLabel feature={feature} />
+            </dt>
+            <dd>{feature.values[entitlementIndex >= 0 ? entitlementIndex : 0]}</dd>
           </div>
         ))}
       </dl>
+      <p className={p.included}>
+        {requestsAvailability}
+      </p>
       <p className={p.included}>
         На всех тарифах: отклики и регионы без ограничений, команда и шаблоны.
       </p>
@@ -161,9 +171,9 @@ export function BillingPlanChoices({
               <div>
                 <h3>{plan.name}</h3>
                 <p className={p.muted}>
-                  {comparison[1][index + 1]}{" "}
+                  {dailyStoryLimits[index]}{" "}
                   {plan.id === "STANDARD" ? "история" : "историй"} / сутки ·{" "}
-                  {comparison[5][index + 1]} фото в услуге
+                  {servicePhotoLimits[index]} фото в услуге
                 </p>
               </div>
               <div className={p.planPrice}>
@@ -180,15 +190,17 @@ export function BillingPlanChoices({
                       : `Или ${money(data.catalog[productFor(plan.id, "YEAR")].amount)} ₽ сразу за год`}
                 </span>
                 {product ? (
-                  <button
+                  <Button
                     type="button"
+                    size="small"
+                    variant="text"
                     className={p.textButton}
                     aria-label={`${plan.name}${current ? " подключён" : ""} · ${money(data.catalog[product].amount)} ₽ / ${periodLabel(period)}`}
                     disabled={disabled || current}
                     onClick={() => onSelect(product)}
                   >
                     {current ? "Подключён ✓" : "Выбрать →"}
-                  </button>
+                  </Button>
                 ) : (
                   <span className={p.included}>
                     {current

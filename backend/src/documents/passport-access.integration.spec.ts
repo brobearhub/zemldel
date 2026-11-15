@@ -13,18 +13,21 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PassportAccessService } from './passport-access.service';
 import { DocumentsService } from './documents.service';
 import { PassportPhotosService } from './passport-photos.service';
+import { UsersAdminService } from '../users/users-admin.service';
 
 describe.skipIf(!process.env.DATABASE_URL)(
   'explicit passport permissions',
   () => {
     const providerId = randomUUID(),
       otherProvider = randomUUID(),
-      actor = randomUUID();
+      actor = randomUUID(),
+      admin = randomUUID();
     const customers: string[] = [];
     let db: PrismaService,
       access: PassportAccessService,
       documents: DocumentsService,
-      photos: PassportPhotosService;
+      photos: PassportPhotosService,
+      adminUsers: UsersAdminService;
     let userId: string, requestId: string, photoId: string;
     const form = { series: '0000', number: '000001' };
     const formRead = vi.fn(() => Promise.resolve(form));
@@ -37,8 +40,18 @@ describe.skipIf(!process.env.DATABASE_URL)(
         requestId,
       });
     const readPhoto = () => photos.readForProvider(actor, requestId, photoId);
+    const audit = async () =>
+      (await adminUsers.passportAudit(admin, userId)).items;
     beforeAll(async () => {
       db = new PrismaService();
+      adminUsers = new UsersAdminService(db);
+      await db.user.create({
+        data: {
+          id: admin,
+          email: `qa-grants-${admin}@example.com`,
+          systemRole: 'PLATFORM_ADMIN',
+        },
+      });
       await db.user.create({
         data: { id: actor, email: `qa-grants-${actor}@example.com` },
       });
@@ -113,7 +126,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
         where: { customerUserId: { in: customers } },
       });
       await db.user.deleteMany({
-        where: { id: { in: [...customers, actor] } },
+        where: { id: { in: [...customers, actor, admin] } },
       });
       await db.passportObjectCleanup.deleteMany({
         where: { userId: { in: customers } },
@@ -134,7 +147,8 @@ describe.skipIf(!process.env.DATABASE_URL)(
       await grant(false, true);
       await expect(readForm()).rejects.toMatchObject({ status: 403 });
       expect((await readPhoto()).body.toString()).toBe('synthetic');
-      expect((await access.mine(userId)).audit.map((e) => e.action)).toEqual(
+      expect(await access.mine(userId)).not.toHaveProperty('audit');
+      expect((await audit()).map((e) => e.action)).toEqual(
         expect.arrayContaining([
           'GRANT_FORM',
           'REVOKE_FORM',
@@ -166,9 +180,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
         ).pendingKinds.sort(),
       ).toEqual(['FORM', 'PHOTO']);
       expect(
-        (await access.mine(userId)).audit.filter(
-          (row) => row.action === 'REQUEST_FORM',
-        ),
+        (await audit()).filter((row) => row.action === 'REQUEST_FORM'),
       ).toHaveLength(1);
       await expect(readForm()).rejects.toMatchObject({ status: 403 });
       await expect(readPhoto()).rejects.toMatchObject({ status: 403 });
@@ -199,9 +211,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(await access.pendingRequests(userId)).toEqual([]);
       await expect(readPhoto()).rejects.toMatchObject({ status: 403 });
       expect(
-        (await access.mine(userId)).audit.some(
-          (row) => row.action === 'DECLINE_PHOTO',
-        ),
+        (await audit()).some((row) => row.action === 'DECLINE_PHOTO'),
       ).toBe(true);
       await access.requestAccess(actor, requestId, 'PHOTO');
       expect(await access.pendingRequests(userId)).toHaveLength(1);
@@ -335,10 +345,75 @@ describe.skipIf(!process.env.DATABASE_URL)(
       });
       await expect(readPhoto()).rejects.toMatchObject({ status: 403 });
       expect(
-        (await access.mine(userId)).audit.some(
-          (e) => e.action === 'REQUEST_REVOKE_PHOTO',
+        (await audit()).some((e) => e.action === 'REQUEST_REVOKE_PHOTO'),
+      ).toBe(true);
+    });
+    it('limits the user directory and passport audit to platform admins', async () => {
+      await grant(true, true);
+      for (const id of [userId, actor]) {
+        await expect(adminUsers.list(id, {})).rejects.toMatchObject({
+          status: 403,
+        });
+        await expect(
+          adminUsers.passportAudit(id, userId),
+        ).rejects.toMatchObject({ status: 403 });
+      }
+      const directory = await adminUsers.list(admin, { q: userId });
+      expect(directory.total).toBe(1);
+      expect(directory.items[0].id).toBe(userId);
+      expect(directory.items[0]).not.toHaveProperty('passwordHash');
+      const history = await adminUsers.passportAudit(admin, userId);
+      expect(history.user.id).toBe(userId);
+      expect(history.items).toHaveLength(2);
+      expect(history.items[0]).toMatchObject({
+        actorUserId: userId,
+        providerName: 'Grant QA',
+        requestId,
+      });
+      expect(history.items[0]).not.toHaveProperty('series');
+      expect((await adminUsers.passportAudit(admin, actor)).items).toEqual([]);
+      await expect(
+        adminUsers.passportAudit(admin, randomUUID()),
+      ).rejects.toMatchObject({ status: 404 });
+    });
+    it('paginates every passport event and preserves references to deleted entities', async () => {
+      const deletedActor = randomUUID(),
+        deletedProvider = randomUUID(),
+        deletedRequest = randomUUID();
+      await db.passportAccessAudit.createMany({
+        data: Array.from({ length: 51 }, (_, index) => ({
+          passportUserId: userId,
+          action: index === 0 ? 'CUSTOMER_WRITE' : 'PROVIDER_PHOTO_READ',
+          actorUserId: deletedActor,
+          actorProviderId: deletedProvider,
+          requestId: deletedRequest,
+          createdAt: new Date('2026-11-15T00:00:00Z'),
+        })),
+      });
+      const first = await adminUsers.passportAudit(admin, userId);
+      const second = await adminUsers.passportAudit(admin, userId, '2');
+      expect(first.total).toBe(51);
+      expect(first.items).toHaveLength(50);
+      expect(second.items).toHaveLength(1);
+      expect(
+        new Set([...first.items, ...second.items].map((row) => row.id)).size,
+      ).toBe(51);
+      expect(
+        [...first.items, ...second.items].some(
+          (row) => row.action === 'CUSTOMER_WRITE',
         ),
       ).toBe(true);
+      expect(first.items[0]).toMatchObject({
+        actorUserId: deletedActor,
+        actorName: null,
+        actorProviderId: deletedProvider,
+        providerName: null,
+        requestId: deletedRequest,
+        requestTitle: null,
+      });
+      await expect(
+        adminUsers.passportAudit(admin, userId, '0'),
+      ).rejects.toMatchObject({ status: 400 });
     });
     it('revokes on source deletion and cannot grant missing data', async () => {
       await grant(true, true);

@@ -55,6 +55,7 @@ describe.skipIf(!databaseUrl)('customer documents query', () => {
           [
             'empty',
             'contract',
+            'providerMisc',
             'requested',
             'file',
             'slot',
@@ -86,6 +87,12 @@ describe.skipIf(!databaseUrl)('customer documents query', () => {
         await tx.requestContractFile.createMany({
           data: [
             { ...file, requestId: ids.contract, providerId },
+            {
+              ...file,
+              requestId: ids.providerMisc,
+              providerId,
+              role: 'PROVIDER_MISC',
+            },
             {
               ...file,
               requestId: ids.otherProvider,
@@ -157,12 +164,13 @@ describe.skipIf(!databaseUrl)('customer documents query', () => {
         expect(await service.listMineWithDocuments(userId)).toEqual(
           expect.arrayContaining([
             ids.contract,
+            ids.providerMisc,
             ids.requested,
             ids.file,
             ids.slot,
           ]),
         );
-        expect(await service.listMineWithDocuments(userId)).toHaveLength(4);
+        expect(await service.listMineWithDocuments(userId)).toHaveLength(5);
         throw rollback;
       }),
     ).rejects.toBe(rollback);

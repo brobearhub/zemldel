@@ -19,7 +19,6 @@ import {
 import AddRounded from "@mui/icons-material/AddRounded";
 import PersonOutlineRounded from "@mui/icons-material/PersonOutlineRounded";
 import ChatOutlined from "@mui/icons-material/ChatOutlined";
-import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import AdminPanelSettingsOutlined from "@mui/icons-material/AdminPanelSettingsOutlined";
 import AssignmentOutlined from "@mui/icons-material/AssignmentOutlined";
 import LightModeOutlined from "@mui/icons-material/LightModeOutlined";
@@ -30,11 +29,13 @@ import {
   useColorMode,
   type ColorPreference,
 } from "@/core/theme/ColorModeContext";
+import { DarkPaletteSelect } from "@/core/theme/DarkPaletteSelect";
 import { getActiveMembership, resolveAccountKind } from "@/core/auth/authorization";
 import { useAppSelector } from "@/core/store/hooks";
 import { UnreadCountBadge } from "@/shared/ui/UnreadCountBadge";
 import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import { HeaderCity } from "@/widgets/header/ui/HeaderCity";
+import { HeaderLogo } from "@/widgets/header/ui/HeaderLogo";
 import {
   CUSTOMER_FAVORITES_NAV,
   CUSTOMER_HOME_NAV,
@@ -53,6 +54,7 @@ type Props = {
   collapsed?: boolean;
   titleId: string;
   onNavigate: () => void;
+  showCollapsedLogo?: boolean;
 };
 
 /** Shared navigation content for the mobile drawer and desktop sidebar. */
@@ -60,6 +62,7 @@ export function CabinetNavigationPanel({
   collapsed = false,
   titleId,
   onNavigate: close,
+  showCollapsedLogo = false,
 }: Props) {
   const pathname = usePathname();
   const query = useSearchParams()?.toString() ?? "";
@@ -108,7 +111,7 @@ export function CabinetNavigationPanel({
           justifyContent: collapsed ? "center" : "flex-start",
           borderRadius: "14px",
           mb: 0.25,
-          color: "text.primary",
+          color: "text.secondary",
           "&.Mui-selected": {
             bgcolor: "action.selected",
           },
@@ -192,7 +195,7 @@ export function CabinetNavigationPanel({
           justifyContent: collapsed ? "center" : "flex-start",
           borderRadius: "14px",
           mb: 0.25,
-          color: key === "sign-out" ? "error.main" : "text.primary",
+          color: key === "sign-out" ? "error.main" : "text.secondary",
           "&.Mui-selected": { bgcolor: "action.selected" },
         }}
       >
@@ -231,8 +234,8 @@ export function CabinetNavigationPanel({
             px: 1.25,
             mb: 0.75,
             fontSize: "0.875rem",
-            color: "text.secondary",
-            fontWeight: 500,
+            color: "text.primary",
+            fontWeight: 800,
           }}
         >
           {label}
@@ -248,20 +251,27 @@ export function CabinetNavigationPanel({
     <>
       <Box
         sx={{
-          display: collapsed ? "none" : "block",
           height: "var(--cabinet-navigation-top-height, auto)",
           boxSizing: "border-box",
-          px: 1.25,
+          pl: 2.75,
           pr: 2.75,
-          mr: -1.5,
+          ml: collapsed ? -0.75 : -1.5,
+          mr: collapsed ? -0.75 : -1.5,
           pb: 1,
           mb: 1,
           borderBottom: 1,
           borderColor: "divider",
           flexShrink: 0,
+          ...(collapsed && showCollapsedLogo && {
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            "& a": { mr: 0 },
+          }),
         }}
       >
-        {!authenticated ? (
+        {collapsed && showCollapsedLogo ? <HeaderLogo compact /> : null}
+        {!collapsed && !authenticated ? (
           <Typography
             id={titleId}
             component="h2"
@@ -276,26 +286,28 @@ export function CabinetNavigationPanel({
             Земледел
           </Typography>
         ) : null}
-        <Box
-          sx={{
-            mt: 0.5,
-            ml: -1,
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            color: "text.secondary",
-          }}
-        >
+        {!collapsed ? (
           <Box
             sx={{
-              flex: 1,
-              minWidth: 0,
-              overflow: "hidden",
+              mt: 0.5,
+              ml: -1,
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              color: "text.secondary",
             }}
           >
-            <HeaderCity showLabel scope={provider ? "provider" : undefined} />
+            <Box
+              sx={{
+                flex: 1,
+                minWidth: 0,
+                overflow: "hidden",
+              }}
+            >
+              <HeaderCity showLabel scope={provider ? "provider" : undefined} />
+            </Box>
           </Box>
-        </Box>
+        ) : null}
       </Box>
       <Box
         component="nav"
@@ -375,6 +387,7 @@ export function CabinetNavigationPanel({
               >
                 <ToggleButtonGroup
                   exclusive
+                  orientation={collapsed ? "vertical" : "horizontal"}
                   value={preference}
                   onChange={(_, value: ColorPreference | null) => {
                     if (value) setPreference(value);
@@ -385,12 +398,13 @@ export function CabinetNavigationPanel({
                     display: "flex",
                     flexDirection: collapsed ? "column" : "row",
                     alignItems: "center",
-                    gap: 0.5,
+                    justifyContent: collapsed ? "center" : "space-between",
+                    gap: collapsed ? 0.25 : 0,
                     width: "100%",
                     "& .MuiToggleButtonGroup-grouped": {
                       m: 0,
                       border: 0,
-                      borderRadius: "12px !important",
+                      borderRadius: collapsed ? "14px !important" : "12px !important",
                     },
                   }}
                 >
@@ -413,25 +427,22 @@ export function CabinetNavigationPanel({
                   ] as const).map(({ value, label, icon }) => (
                     <Tooltip
                       key={value}
-                      title={collapsed ? label : ""}
+                      title={label}
                       placement="right"
                     >
                       <ToggleButton
                         value={value}
                         aria-label={label}
                         sx={{
-                          flex: collapsed ? "none" : 1,
-                          width: collapsed ? 48 : "auto",
+                          width: collapsed ? "100%" : 40,
                           minWidth: 0,
-                          minHeight: collapsed ? 44 : 68,
-                          px: 0.25,
+                          height: collapsed ? 50 : 40,
+                          p: 1,
                           display: "flex",
-                          flexDirection: "column",
-                          gap: 0.5,
+                          justifyContent: "center",
                           color: "text.primary",
                           textTransform: "none",
-                          fontSize: "0.75rem",
-                          lineHeight: 1.2,
+                          whiteSpace: "nowrap",
                           "&.Mui-selected": {
                             bgcolor: "action.selected",
                             color: "text.primary",
@@ -439,14 +450,29 @@ export function CabinetNavigationPanel({
                         }}
                       >
                         {icon}
-                        {collapsed ? null : label}
                       </ToggleButton>
                     </Tooltip>
                   ))}
                 </ToggleButtonGroup>
+                {preference !== "light" ? (
+                  <Box
+                    sx={{
+                      mt: collapsed ? 0.25 : 2,
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      minHeight: collapsed ? 50 : 0,
+                    }}
+                  >
+                    <DarkPaletteSelect compact={collapsed} />
+                  </Box>
+                ) : null}
               </Box>,
             )}
-            <List disablePadding>
+            <List
+              disablePadding
+              sx={{ mt: 2 }}
+            >
               {actionRow("sign-out", "Выйти", <LogoutRounded />, () => {
                 close();
                 void signOut({ callbackUrl: "/" });
@@ -473,22 +499,16 @@ export function CabinetNavigationPanel({
             </>,
           )
         )}
-        {provider || !authenticated || user?.systemRole === "PLATFORM_ADMIN"
-          ? group(
-              "Земледел",
-              <>
-                {row("/about", "О проекте и контакты", <InfoOutlined />)}
-                {user?.systemRole === "PLATFORM_ADMIN"
-                  ? row(
-                      "/admin",
-                      "Админка",
-                      <AdminPanelSettingsOutlined />,
-                      pathname.startsWith("/admin"),
-                    )
-                  : null}
-              </>,
-            )
-          : null}
+        {user?.systemRole === "PLATFORM_ADMIN" ? (
+          <List disablePadding>
+            {row(
+              "/admin",
+              "Админка",
+              <AdminPanelSettingsOutlined />,
+              pathname.startsWith("/admin"),
+            )}
+          </List>
+        ) : null}
       </Box>
     </>
   );

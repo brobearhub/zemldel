@@ -19,13 +19,9 @@ export const actionSx: SxProps<Theme> = {
 
 export const selectedSx: SxProps<Theme> = {
   textTransform: "none",
-  fontSize: 14,
   fontWeight: 600,
   borderRadius: "6px !important",
   border: "0 !important",
-  px: 2,
-  py: 0.5,
-  minHeight: 32,
   "&.Mui-selected, &.Mui-selected:hover": {
     bgcolor: "text.primary",
     color: "background.paper",

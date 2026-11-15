@@ -169,7 +169,11 @@ export function HomeServicesByCity({
 
       {showMy ? (
         <Stack spacing={0}>
-          <ServiceSectionHeader title="Услуги" cityLabel={cityName} />
+          <ServiceSectionHeader
+            title="Услуги"
+            cityLabel={cityName}
+            inlineCity
+          />
           <ServiceGrid items={myItemsSorted} variant="myCity" />
         </Stack>
       ) : null}

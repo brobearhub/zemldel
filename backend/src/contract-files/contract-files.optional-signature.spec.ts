@@ -125,7 +125,7 @@ describe('contract upload with optional signature', () => {
         requestId: 'r1',
         document: { ...document, buffer: Buffer.alloc(0) },
       }),
-    ).rejects.toThrow('Empty document');
+    ).rejects.toThrow('Empty file');
     expect(s3.putObject).not.toHaveBeenCalled();
   });
 
@@ -172,6 +172,7 @@ describe('contract upload HTTP boundary', () => {
     const controller = new ContractFilesController(
       service as never,
       { getUserIdFromRequest: () => 'u1' } as never,
+      {} as never,
     );
     await expect(
       controller.uploadBundleForProvider(
@@ -190,6 +191,7 @@ describe('contract upload HTTP boundary', () => {
     const controller = new ContractFilesController(
       service as never,
       { getUserIdFromRequest: () => 'u1' } as never,
+      {} as never,
     );
     const response = { json: vi.fn() };
     await controller.uploadBundleForProvider(

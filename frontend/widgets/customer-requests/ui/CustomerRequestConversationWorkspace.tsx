@@ -90,6 +90,10 @@ import {
   deleteCustomerRequestDocumentFile,
 } from "@/entities/request/api/request-document-requests";
 import type { CustomerContractBundleListItem } from "@/features/request-contract-files/ui/CustomerRequestContractFilesClient";
+import {
+  fetchCustomerProviderFiles,
+  type CustomerProviderFile,
+} from "@/entities/request/api/customer-provider-files";
 import { canCustomerAcceptContract } from "@/widgets/customer-requests/lib/can-accept-contract";
 import { CustomerRequestDocumentsSection } from "@/widgets/customer-requests/ui/CustomerRequestDocumentsSection";
 import { useConfirm, useConfirmWithReason } from "@/shared/ui/confirm";
@@ -211,6 +215,8 @@ export function CustomerRequestConversationWorkspace({
     [],
   );
   const [docUploadBusy, setDocUploadBusy] = useState(false);
+  const [providerFiles, setProviderFiles] = useState<CustomerProviderFile[]>([]);
+  const [providerFilesError, setProviderFilesError] = useState<string | null>(null);
   const [remarks, setRemarks] = useState<RequestRemarkDto[]>([]);
   const [remarksError, setRemarksError] = useState<string | null>(null);
   const [workStages, setWorkStages] = useState<WorkStageDto[]>([]);
@@ -335,12 +341,14 @@ export function CustomerRequestConversationWorkspace({
     // Do not show documents or execution details from a previous provider scope.
     setContractBundles([]);
     setDocRequests([]);
+    setProviderFiles([]);
+    setProviderFilesError(null);
     setWorkStages([]);
     setRemarks([]);
     setRemarksError(null);
   }, [req.providerId, req.lockedAt]);
 
-  useVisibleRefresh({
+  const refreshVisibleRequest = useVisibleRefresh({
     requestId: req.id,
     refreshAt: req.status === "ACCEPTANCE_PENDING" ? req.autoAcceptAt : null,
     scope: `${req.id}:${req.providerId}:${req.lockedAt}:${selectedConversationId}`,
@@ -358,7 +366,7 @@ export function CustomerRequestConversationWorkspace({
       if (!response.ok || !next?.id || signal.aborted) return;
       const exclusive = hasRequestLock(next);
       const executing = isOrderExecutionStatus(next.status);
-      const [chats, bundles, documents, stages, nextRemarks] =
+      const [chats, bundles, documents, stages, nextRemarks, nextProviderFiles] =
         await Promise.allSettled([
           loadConversations(),
           exclusive
@@ -379,6 +387,9 @@ export function CustomerRequestConversationWorkspace({
             ? fetchCustomerWorkStages(req.id)
             : Promise.resolve([]),
           executing ? fetchCustomerRequestRemarks(req.id) : Promise.resolve([]),
+          exclusive
+            ? fetchCustomerProviderFiles(req.id, signal)
+            : Promise.resolve([]),
         ]);
       if (signal.aborted) return;
       // Commit one cycle together; events received during it queue a follow-up read.
@@ -390,6 +401,12 @@ export function CustomerRequestConversationWorkspace({
       }
       if (bundles.status === "fulfilled") setContractBundles(bundles.value);
       if (documents.status === "fulfilled") setDocRequests(documents.value);
+      if (nextProviderFiles.status === "fulfilled") {
+        setProviderFiles(nextProviderFiles.value);
+        setProviderFilesError(null);
+      } else {
+        setProviderFilesError("Не удалось загрузить документы исполнителя.");
+      }
       if (stages.status === "fulfilled") setWorkStages(stages.value);
       if (nextRemarks.status === "fulfilled") {
         setRemarks(nextRemarks.value);
@@ -1291,6 +1308,9 @@ export function CustomerRequestConversationWorkspace({
               docUploadBusy={docUploadBusy}
               contractBundles={contractBundles}
               docRequests={docRequests}
+              providerFiles={providerFiles}
+              providerFilesError={providerFilesError}
+              onRetryProviderFiles={refreshVisibleRequest}
               allRequestedDocumentsUploaded={allRequestedDocumentsUploaded}
               hasRevisionRequested={hasRevisionRequested}
               hasPending={hasPending}
@@ -1391,6 +1411,10 @@ export function CustomerRequestConversationWorkspace({
                       sx={{
                         flexDirection: { xs: "column", sm: "row" },
                         alignItems: "stretch",
+                        bgcolor:
+                          c.conversationId === selectedConversationId
+                            ? "background.secondary"
+                            : undefined,
                       }}
                     >
                       <ListItemButton
@@ -1401,9 +1425,11 @@ export function CustomerRequestConversationWorkspace({
                         sx={{
                           minWidth: 0,
                           flex: 1,
-                          "&.Mui-selected": { bgcolor: "action.selected" },
+                          "&.Mui-selected": {
+                            bgcolor: "transparent",
+                          },
                           "&.Mui-selected:hover": {
-                            bgcolor: "action.selected",
+                            bgcolor: "transparent",
                           },
                         }}
                       >
@@ -1434,8 +1460,16 @@ export function CustomerRequestConversationWorkspace({
                               {isChosenProvider ? (
                                 <Chip
                                   size="small"
-                                  color="success"
+                                  color="warning"
                                   label="Исполнитель"
+                                  sx={{
+                                    minHeight: 24,
+                                    fontSize: "0.8125rem",
+                                    "& .MuiChip-label": {
+                                      px: 1.5,
+                                      py: 0,
+                                    },
+                                  }}
                                 />
                               ) : null}
                               {!isSelected && isDeclined ? (

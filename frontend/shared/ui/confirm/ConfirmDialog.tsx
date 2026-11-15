@@ -50,12 +50,6 @@ export function ConfirmDialog({
   const titleId = `${dialogId}-title`;
   const descriptionId = `${dialogId}-description`;
   const reasonId = `${dialogId}-reason`;
-  const buttonSx = buttonSize === "small" ? {
-    minHeight: 32,
-    px: 1.5,
-    py: 0.5,
-    fontSize: "0.875rem",
-  } : undefined;
 
   return (
     <Dialog
@@ -101,14 +95,12 @@ export function ConfirmDialog({
         {actions}
         <Button
           size={buttonSize}
-          sx={buttonSx}
           onClick={onCancel}
         >
           {cancelText}
         </Button>
         <Button
           size={buttonSize}
-          sx={buttonSx}
           variant="contained"
           color={confirmColor}
           onClick={onConfirm}

@@ -1,6 +1,7 @@
 import type { RequestDocumentRequestDto, WorkStageDto } from "@/entities/request";
 import type { CustomerContractBundleItem } from "@/entities/request/api/customer-contract-bundles";
 import type { ProContractFileItem } from "@/entities/request/api/pro-contract-files";
+import type { CustomerProviderFile } from "@/entities/request/api/customer-provider-files";
 
 export type CustomerDocumentItem = {
   id: string;
@@ -18,15 +19,16 @@ async function fetchRows<T>(url: string, signal: AbortSignal): Promise<T[]> {
   return payload as T[];
 }
 
-export async function loadRequestDocuments(requestId: string, signal: AbortSignal) {
-  const base = `/api/requests/${encodeURIComponent(requestId)}`;
+export async function loadRequestDocuments(requestId: string, signal: AbortSignal, audience: "customer" | "provider" = "customer") {
+  const base = `/api/${audience === "provider" ? "pro/" : ""}requests/${encodeURIComponent(requestId)}`;
   const results = await Promise.allSettled([
     fetchRows<ProContractFileItem>(`${base}/contract-files`, signal),
     fetchRows<CustomerContractBundleItem>(`${base}/contract-bundles`, signal),
     fetchRows<RequestDocumentRequestDto>(`${base}/document-requests`, signal),
     fetchRows<WorkStageDto>(`${base}/work-stages`, signal),
+    fetchRows<CustomerProviderFile>(`${base}/provider-misc`, signal),
   ]);
-  const [contracts, bundles, documents, stages] = results;
+  const [contracts, bundles, documents, stages, providerFiles] = results;
   const rows = new Map<string, CustomerDocumentItem>();
   const addContract = (file: { id: string; originalName: string; sizeBytes: number }, source: string) => {
     rows.set(`contract:${file.id}`, {
@@ -34,7 +36,7 @@ export async function loadRequestDocuments(requestId: string, signal: AbortSigna
       title: file.originalName,
       filename: null,
       source,
-      href: `${base}/contract-files/${encodeURIComponent(file.id)}/download`,
+      href: audience === "provider" ? `/api/pro/contract-files/${encodeURIComponent(file.id)}/download` : `${base}/contract-files/${encodeURIComponent(file.id)}/download`,
       sizeBytes: file.sizeBytes,
     });
   };
@@ -48,6 +50,9 @@ export async function loadRequestDocuments(requestId: string, signal: AbortSigna
       if (bundle.signature) addContract(bundle.signature, "Подпись к договору");
     });
   }
+  if (providerFiles.status === "fulfilled") {
+    providerFiles.value.forEach((file) => addContract(file, "Документ исполнителя"));
+  }
   if (documents.status === "fulfilled") {
     documents.value.forEach((document) => {
       rows.set(`requested:${document.id}`, {
@@ -56,7 +61,7 @@ export async function loadRequestDocuments(requestId: string, signal: AbortSigna
         filename: document.originalName,
         source: "Документ заказчика",
         href: document.status === "UPLOADED" && document.originalName
-          ? `${base}/document-requests/${encodeURIComponent(document.id)}/download`
+          ? audience === "provider" ? `/api/pro/document-requests/${encodeURIComponent(document.id)}/download` : `${base}/document-requests/${encodeURIComponent(document.id)}/download`
           : null,
         sizeBytes: document.sizeBytes,
       });
@@ -90,7 +95,7 @@ export async function loadRequestDocuments(requestId: string, signal: AbortSigna
     });
   }
 
-  const sources = ["договоры", "пакеты договоров", "документы заказчика", "документы этапов"];
+  const sources = ["договоры", "пакеты договоров", "документы заказчика", "документы этапов", "документы исполнителя"];
   const failed = results.flatMap((result, index) => result.status === "rejected" ? [sources[index]] : []);
   return {
     items: [...rows.values()],

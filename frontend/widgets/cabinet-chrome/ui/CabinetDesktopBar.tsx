@@ -14,6 +14,9 @@ import { useChatSocket } from "@/widgets/chat/socket/ChatSocketContext";
 import { ProviderHeaderStatus } from "@/widgets/cabinet-chrome/ui/ProviderHeaderStatus";
 import { CustomerNotificationsButton } from "./CustomerNotificationsButton";
 import { CabinetHeaderStatus } from "./CabinetHeaderStatus";
+import { useCabinetSidebar } from "@/shared/ui/CabinetSidebarContext";
+import { resolveAccountKind } from "@/core/auth/authorization";
+import { useAppSelector } from "@/core/store/hooks";
 
 type Props = {
   items: readonly NavItem[];
@@ -106,6 +109,12 @@ export function CabinetDesktopBar({
   alignWithWorkspace = false,
 }: Props) {
   const pathname = usePathname();
+  const { expanded } = useCabinetSidebar();
+  const customer = useAppSelector(
+    (state) =>
+      state.auth.status === "authenticated" &&
+      resolveAccountKind(state.auth.user) !== "PROVIDER",
+  );
   const searchParams = useSearchParams();
   const chatUnread = useChatSocket();
   const unreadByRequestId = chatUnread.unreadByConversationId ?? chatUnread.unreadByRequestId;
@@ -160,7 +169,7 @@ export function CabinetDesktopBar({
             zIndex: 1,
           }}
         >
-          {alignWithWorkspace ? (
+          {alignWithWorkspace && !(customer && pathname.startsWith("/profile") && !expanded) ? (
             <Box
               sx={{
                 display: "var(--pro-header-logo-display, flex)",
@@ -168,9 +177,9 @@ export function CabinetDesktopBar({
             >
               <HeaderLogo compact />
             </Box>
-          ) : (
+          ) : !alignWithWorkspace ? (
             <HeaderLogo />
-          )}
+          ) : null}
           {showSiteCity ? <HeaderCity showLabel /> : null}
           {showProviderCity && !alignWithWorkspace ? (
             <HeaderCity

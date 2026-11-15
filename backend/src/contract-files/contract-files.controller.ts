@@ -1,3 +1,4 @@
+import { ProviderDocumentsService } from '../provider-documents/provider-documents.service';
 import {
   Body,
   HttpException,
@@ -5,6 +6,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Req,
   Res,
@@ -32,30 +34,18 @@ import { pipeline } from 'node:stream/promises';
 import { create as contentDisposition } from 'content-disposition';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import { ContractFilesService } from './contract-files.service';
+import { normalizeRequestAttachmentExt } from '../common/request-attachment-file';
 import { OkResponseDto } from '../common/dto/ok-response.dto';
 import {
   ContractFileItemDto,
+  ProviderMiscFileItemDto,
   ContractFilesUploadResponseDto,
   ContractBundleItemDto,
 } from './dto/contract-file-responses.dto';
 import { ApiValidationErrorResponseDto } from '../common/dto/api-error-response.dto';
 import { ApiStandardErrors } from '../common/swagger/api-standard-errors.decorator';
 
-const ALLOWED_EXT = new Set(['.pdf', '.docx']);
 const ALLOWED_SIG_EXT = new Set(['.sig', '.sgn', '.p7s']);
-
-function normalizeExt(fileName: string, mimeType: string) {
-  const ext = path.extname(fileName).toLowerCase();
-  if (ALLOWED_EXT.has(ext)) return ext;
-  if (mimeType === 'application/pdf') return '.pdf';
-  if (
-    mimeType ===
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  ) {
-    return '.docx';
-  }
-  return '';
-}
 
 function normalizeSigExt(fileName: string) {
   const ext = path.extname(fileName).toLowerCase();
@@ -68,6 +58,7 @@ export class ContractFilesController {
   constructor(
     private readonly contractFiles: ContractFilesService,
     private readonly internalAuth: InternalAuthService,
+    private readonly library: ProviderDocumentsService,
   ) {}
 
   private getRequiredActorUserId(request: Request) {
@@ -89,13 +80,54 @@ export class ContractFilesController {
   @Get('pro/requests/:requestId/provider-misc')
   @ApiTags('contract-files')
   @ApiParam({ name: 'requestId', type: String })
-  @ApiOkResponse({ type: [ContractFileItemDto] })
+  @ApiOkResponse({ type: [ProviderMiscFileItemDto] })
   listMiscForProvider(
     @Req() request: Request,
     @Param('requestId') requestId: string,
   ) {
     const actorUserId = this.getRequiredActorUserId(request);
     return this.contractFiles.listMiscForProvider({ actorUserId, requestId });
+  }
+
+  @Patch('pro/requests/:requestId/provider-misc/:fileId')
+  @ApiTags('contract-files')
+  @ApiParam({ name: 'requestId', type: String })
+  @ApiParam({ name: 'fileId', type: String })
+  @ApiBodyDoc({
+    schema: {
+      type: 'object',
+      properties: { visibleToCustomer: { type: 'boolean' } },
+      required: ['visibleToCustomer'],
+    },
+  })
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', format: 'uuid' },
+        visibleToCustomer: { type: 'boolean' },
+      },
+      required: ['id', 'visibleToCustomer'],
+    },
+  })
+  setMiscVisibilityForProvider(
+    @Req() request: Request,
+    @Param('requestId') requestId: string,
+    @Param('fileId') fileId: string,
+    @Body() body: { visibleToCustomer?: unknown } | null,
+  ) {
+    const actorUserId = this.getRequiredActorUserId(request);
+    if (typeof body?.visibleToCustomer !== 'boolean') {
+      throw new UnprocessableEntityException({
+        error: 'Некорректная настройка видимости файла.',
+      });
+    }
+    return this.contractFiles.setMiscVisibilityForProvider({
+      actorUserId,
+      requestId,
+      fileId,
+      visibleToCustomer: body.visibleToCustomer,
+    });
   }
 
   @Post('pro/requests/:requestId/provider-misc')
@@ -106,12 +138,17 @@ export class ContractFilesController {
     schema: {
       type: 'object',
       properties: {
+        visibleToCustomer: { type: 'boolean', default: true },
+        sourceDocumentIds: {
+          type: 'string',
+          description: 'JSON array of provider library document IDs',
+        },
         files: {
           type: 'array',
           items: { type: 'string', format: 'binary' },
         },
       },
-      required: ['files'],
+      anyOf: [{ required: ['files'] }, { required: ['sourceDocumentIds'] }],
     },
   })
   @ApiOkResponse({ type: ContractFilesUploadResponseDto })
@@ -124,12 +161,14 @@ export class ContractFilesController {
       storage: memoryStorage(),
       limits: { fileSize: 20 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
-        const ext = normalizeExt(file.originalname, file.mimetype);
+        const ext = normalizeRequestAttachmentExt(
+          file.originalname,
+          file.mimetype,
+        );
         if (!ext) {
           cb(
             new UnprocessableEntityException({
-              message:
-                'Допустимы договоры PDF/DOCX и готовые подписи .sig, .sgn или .p7s.',
+              message: 'Допустимы PDF, Word, Excel или фото в WebP.',
             }),
             false,
           );
@@ -145,7 +184,44 @@ export class ContractFilesController {
     @Res() res: Response,
   ) {
     const actorUserId = this.getRequiredActorUserId(request);
-    const files = (request as any).files as Express.Multer.File[] | undefined;
+    const files = (request.files as Express.Multer.File[] | undefined) ?? [];
+    const sourceIds: unknown = (
+      request.body as { sourceDocumentIds?: unknown } | undefined
+    )?.sourceDocumentIds;
+    if (sourceIds !== undefined) {
+      if (typeof sourceIds !== 'string')
+        throw new UnprocessableEntityException(
+          'Некорректный список документов.',
+        );
+      let ids: unknown;
+      try {
+        ids = JSON.parse(sourceIds);
+      } catch {
+        throw new UnprocessableEntityException(
+          'Некорректный список документов.',
+        );
+      }
+      if (
+        !Array.isArray(ids) ||
+        ids.some((id) => typeof id !== 'string') ||
+        ids.length + files.length > 10
+      )
+        throw new UnprocessableEntityException('Выберите не более 10 файлов.');
+      for (const id of new Set(ids as string[]))
+        files.push(await this.library.uploadSource(actorUserId, id));
+    }
+    const visibility = (
+      request.body as { visibleToCustomer?: unknown } | undefined
+    )?.visibleToCustomer;
+    if (
+      visibility !== undefined &&
+      visibility !== 'true' &&
+      visibility !== 'false'
+    ) {
+      throw new UnprocessableEntityException({
+        error: 'Некорректная настройка видимости файла.',
+      });
+    }
 
     if (!files?.length) {
       throw new UnprocessableEntityException({
@@ -159,6 +235,7 @@ export class ContractFilesController {
         actorUserId,
         requestId,
         files,
+        visibleToCustomer: visibility !== 'false',
       });
       return res.json(created);
     } catch (e) {
@@ -192,12 +269,14 @@ export class ContractFilesController {
       storage: memoryStorage(),
       limits: { fileSize: 20 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
-        const ext = normalizeExt(file.originalname, file.mimetype);
+        const ext = normalizeRequestAttachmentExt(
+          file.originalname,
+          file.mimetype,
+        );
         if (!ext) {
           cb(
             new UnprocessableEntityException({
-              message:
-                'Допустимы договоры PDF/DOCX и готовые подписи .sig, .sgn или .p7s.',
+              message: 'Допустимы PDF, Word, Excel или фото в WebP.',
             }),
             false,
           );
@@ -213,7 +292,7 @@ export class ContractFilesController {
     @Res() res: Response,
   ) {
     const actorUserId = this.getRequiredActorUserId(request);
-    const files = (request as any).files as Express.Multer.File[] | undefined;
+    const files = request.files as Express.Multer.File[] | undefined;
 
     if (!files?.length) {
       throw new UnprocessableEntityException({
@@ -260,9 +339,10 @@ export class ContractFilesController {
       type: 'object',
       properties: {
         document: { type: 'string', format: 'binary' },
+        sourceDocumentId: { type: 'string', format: 'uuid' },
         signature: { type: 'string', format: 'binary' },
       },
-      required: ['document'],
+      oneOf: [{ required: ['document'] }, { required: ['sourceDocumentId'] }],
     },
   })
   @ApiOkResponse({
@@ -289,7 +369,12 @@ export class ContractFilesController {
           const field = String(file?.fieldname ?? '');
           const ok =
             field === 'document'
-              ? Boolean(normalizeExt(file.originalname, file.mimetype))
+              ? Boolean(
+                  normalizeRequestAttachmentExt(
+                    file.originalname,
+                    file.mimetype,
+                  ),
+                )
               : field === 'signature'
                 ? Boolean(normalizeSigExt(file.originalname))
                 : false;
@@ -297,7 +382,7 @@ export class ContractFilesController {
             cb(
               new UnprocessableEntityException({
                 message:
-                  'Допустимы договоры PDF/DOCX и готовые подписи .sig, .sgn или .p7s.',
+                  'Допустимы PDF, Word, Excel, фото в WebP и готовые подписи .sig, .sgn или .p7s.',
               }),
               false,
             );
@@ -314,11 +399,22 @@ export class ContractFilesController {
     @Res() res: Response,
   ) {
     const actorUserId = this.getRequiredActorUserId(request);
-    const files = (request as any).files as
+    const files = request.files as
       | { document?: Express.Multer.File[]; signature?: Express.Multer.File[] }
       | undefined;
 
-    const document = files?.document?.[0];
+    const sourceDocumentId: unknown = (
+      request.body as { sourceDocumentId?: unknown } | undefined
+    )?.sourceDocumentId;
+    if (
+      sourceDocumentId !== undefined &&
+      (typeof sourceDocumentId !== 'string' || files?.document?.length)
+    )
+      throw new UnprocessableEntityException('Выберите один файл договора.');
+    const document =
+      typeof sourceDocumentId === 'string'
+        ? await this.library.uploadSource(actorUserId, sourceDocumentId)
+        : files?.document?.[0];
     const signature = files?.signature?.[0];
     if (!document) {
       throw new UnprocessableEntityException({
@@ -426,6 +522,18 @@ export class ContractFilesController {
     });
   }
 
+  @Get('requests/mine/:requestId/provider-misc')
+  @ApiTags('contract-files')
+  @ApiParam({ name: 'requestId', type: String })
+  @ApiOkResponse({ type: [ContractFileItemDto] })
+  listMiscForCustomer(
+    @Req() request: Request,
+    @Param('requestId') requestId: string,
+  ) {
+    const actorUserId = this.getRequiredActorUserId(request);
+    return this.contractFiles.listMiscForCustomer({ actorUserId, requestId });
+  }
+
   @Get('requests/mine/:requestId/contract-files')
   @ApiParam({ name: 'requestId', type: String })
   @ApiOkResponse({ type: [ContractFileItemDto] })
@@ -485,6 +593,7 @@ export class ContractFilesController {
   @ApiParam({ name: 'fileId', type: String })
   @ApiQuery({ name: 'inline', required: false, type: String })
   @ApiProduces(
+    'image/webp',
     'application/pdf',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   )
@@ -523,6 +632,7 @@ export class ContractFilesController {
   @ApiParam({ name: 'fileId', type: String })
   @ApiQuery({ name: 'inline', required: false, type: String })
   @ApiProduces(
+    'image/webp',
     'application/pdf',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   )

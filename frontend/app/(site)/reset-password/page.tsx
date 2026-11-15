@@ -140,7 +140,6 @@ function ResetPasswordForm() {
                 size="large"
                 fullWidth
                 loading={loading}
-                sx={{ minHeight: 44 }}
               >
                 Сохранить пароль
               </Button>

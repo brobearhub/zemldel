@@ -135,11 +135,6 @@ export function ProServiceCardActions({
           disabled={busy}
           sx={{
             flex: 1,
-            minHeight: 44,
-            px: 1.5,
-            py: 1,
-            fontSize: 14,
-            lineHeight: 1.5,
             whiteSpace: "nowrap",
             overflowWrap: "normal",
           }}

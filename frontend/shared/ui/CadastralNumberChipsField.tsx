@@ -25,6 +25,7 @@ type Props = {
   value: CadastralNumberParts[];
   onChange: (next: CadastralNumberParts[]) => void;
   disabled?: boolean;
+  labelAlign?: "left" | "center" | "right";
 };
 
 const PLACEHOLDER = "66:41:0000000:000";
@@ -51,6 +52,7 @@ export function CadastralNumberChipsField({
   value,
   onChange,
   disabled = false,
+  labelAlign = "left",
 }: Props) {
   const { chips, draft } = splitRows(value);
   const draftText = formatCadastralParts(draft);
@@ -109,7 +111,12 @@ export function CadastralNumberChipsField({
   return (
     <Stack spacing={1} sx={{ width: "100%" }}>
       <Typography
-        sx={{ color: "common.gray", fontSize: "1rem", lineHeight: 1.5 }}
+        sx={{
+          color: "common.gray",
+          fontSize: "1rem",
+          lineHeight: 1.5,
+          textAlign: labelAlign,
+        }}
       >
         Кадастровый номер · необязательно
       </Typography>

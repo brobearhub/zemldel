@@ -62,8 +62,8 @@ describe("provider header status", () => {
 
     expect(screen.getByText("23:59")).toBeInTheDocument();
     expect(screen.getByText("8 ноября 2026")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Документы и доступ к паспорту" }))
-      .toHaveAttribute("href", "/profile?section=documents#passport-access");
+    expect(screen.getByRole("link", { name: "Открыть оповещения" }))
+      .toHaveAttribute("href", "/profile/notifications");
     expect(screen.queryByRole("link", { name: "Открыть напоминания" })).not.toBeInTheDocument();
 
     act(() => {

@@ -117,9 +117,7 @@ export function ProviderVerificationBanner({
             href="/pro/settings/profile/verification"
             variant={verified ? "outlined" : "contained"}
             sx={{
-              minHeight: 48,
               flexShrink: 0,
-              px: 1.5,
               width: { xs: "100%", tablet: "auto" },
               ...(verified ? { color: "text.primary" } : {}),
             }}

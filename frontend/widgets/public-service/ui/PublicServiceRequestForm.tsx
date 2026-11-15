@@ -173,7 +173,7 @@ export function PublicServiceRequestForm({
           size="large"
           loading={busy}
           disabled={Boolean(validationError)}
-          sx={{ fontWeight: 700, textTransform: "none", px: 3, py: 1.25 }}
+          sx={{ fontWeight: 700, textTransform: "none" }}
         >
           Оставить заявку
         </Button>

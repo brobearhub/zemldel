@@ -215,9 +215,7 @@
   flex: 1;
   border: 0;
   border-radius: 0;
-  padding: 12px;
   min-width: 0;
-  font-size: 14px;
 }
 .periods button[aria-pressed="false"] {
   background: transparent;
@@ -260,16 +258,12 @@
   font-size: 15px;
 }
 .textButton {
-  padding: 6px 0;
   background: transparent;
   border: 0;
   color: var(--forest);
-  font:
-    600 12px/1.6 var(--font-billing-mono),
-    "Courier New",
-    monospace;
+  font-family: var(--font-billing-mono), "Courier New", monospace;
+  font-weight: 600;
   cursor: pointer;
-  min-height: 32px;
 }
 .textButton:hover:enabled {
   text-decoration: underline;
@@ -317,8 +311,7 @@
 }
 .root :global(.MuiInputBase-root) {
   border-radius: 0;
-  font: inherit;
-  font-size: 12px;
+  font-family: inherit;
   color: var(--receipt-ink);
 }
 .root :global(.MuiFormControlLabel-label) {
@@ -374,9 +367,6 @@
   border-radius: 0;
   background: var(--mui-palette-action-hover);
   color: var(--receipt-ink);
-  font-size: 12px;
-  min-height: 40px;
-  padding: 10px 14px;
 }
 .root .notice {
   background: color-mix(in srgb, var(--mui-palette-primary-main) 12%, var(--paper));

@@ -49,6 +49,7 @@ function setup(
   kind: "PROVIDER" | "CUSTOMER" | "guest" = "PROVIDER",
   desktop = false,
   role: "OWNER" | "EMPLOYEE" = "OWNER",
+  compactPublicPage = false,
 ) {
   const store = makeStore();
   if (kind === "guest") store.dispatch(setUnauthenticated());
@@ -85,7 +86,7 @@ function setup(
       <ColorModeProvider>
         <ThemeProvider theme={createAppTheme("light")}>
           {desktop ? (
-            <CabinetDesktopSidebar />
+            <CabinetDesktopSidebar compactPublicPage={compactPublicPage} />
           ) : (
             <MobileNavigation>
               <MobileMenuButton />
@@ -100,6 +101,24 @@ function setup(
 }
 
 describe("Единое мобильное меню", () => {
+  it("раскрывает пустую публичную полоску без изменения настройки кабинета", async () => {
+    localStorage.setItem("ui.sidebar.pro.collapsed", "0");
+    const user = setup("PROVIDER", true, "OWNER", true);
+    const sidebar = screen.getByRole("complementary", {
+      name: "Разделы кабинета исполнителя",
+    });
+    expect(within(sidebar).queryAllByRole("link")).toHaveLength(0);
+    expect(within(sidebar).getAllByRole("button")).toHaveLength(1);
+    expect(document.documentElement.style.getPropertyValue("--cabinet-sidebar-width")).toBe("26px");
+    await user.click(within(sidebar).getByRole("button", { name: "Развернуть меню" }));
+    expect(within(sidebar).getByRole("link", { name: "Доска" })).toBeInTheDocument();
+    expect(document.documentElement.style.getPropertyValue("--cabinet-sidebar-width")).toBe("300px");
+    await user.click(within(sidebar).getByRole("button", { name: "Свернуть меню" }));
+    expect(within(sidebar).queryAllByRole("link")).toHaveLength(0);
+    expect(within(sidebar).getAllByRole("button")).toHaveLength(1);
+    expect(localStorage.getItem("ui.sidebar.pro.collapsed")).toBe("0");
+  });
+
   it("показывает общий счётчик непрочитанных в чатах", async () => {
     socketState.unreadByRequestId = { first: 2, second: 1 };
     const user = setup();
@@ -133,7 +152,7 @@ describe("Единое мобильное меню", () => {
     const user = setup();
     await user.click(screen.getByRole("button", { name: "Открыть меню" }));
     const menu = screen.getByRole("dialog", { name: "Компания" });
-    expect(within(menu).getByRole("link", { name: "О проекте и контакты" })).toHaveAttribute("href", "/about");
+    expect(within(menu).queryByRole("link", { name: "О проекте и контакты" })).not.toBeInTheDocument();
     for (const item of [...REQUEST_ITEMS, ...NAV_ITEMS, INTEREST_ITEM]) {
       expect(
         within(menu).getByRole("link", { name: item.label }),
@@ -151,6 +170,7 @@ describe("Единое мобильное меню", () => {
         .map((link) => link.textContent),
     ).toEqual([
       "Услуги",
+      "Документы",
       "Клиенты",
       "Сторисы",
       "Обзор",
@@ -287,7 +307,7 @@ describe("Единое мобильное меню", () => {
       "href",
       "/signup",
     );
-    expect(screen.getByRole("link", { name: "О проекте и контакты" })).toHaveAttribute("href", "/about");
+    expect(screen.queryByRole("link", { name: "О проекте и контакты" })).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "Мой профиль" }),
     ).not.toBeInTheDocument();

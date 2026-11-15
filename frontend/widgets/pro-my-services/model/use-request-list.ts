@@ -1,111 +1,190 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { formatReplyPreview, type RequestProDto } from "@/entities/request";
+import { formatReplyPreview } from "@/entities/request";
 import { fetchRequestList } from "../lib/fetch-request-list";
 import { withoutCompletedRequests } from "../lib/open-request-feed";
+import { RequestFeedRateLimitError } from "../lib/request-feed-rate-limit";
 import {
   invalidateRequestListCache,
   readRequestListCache,
-  writeRequestListCache,
+  type RequestListFeed,
 } from "../lib/request-list-cache";
 import { useFreeRequestNotifications } from "./FreeRequestNotificationsProvider";
+import { useRequestFeedRateLimit } from "./use-request-feed-rate-limit";
 
-function readOpenRequestList(serviceId: string | null): RequestProDto[] | null {
-  const cached = readRequestListCache({ serviceId });
-  return cached ? withoutCompletedRequests(cached) : null;
-}
-
-export function useRequestList(serviceId: string | null) {
-  const [requests, setRequests] = useState<RequestProDto[] | null>(() =>
-    readOpenRequestList(serviceId),
-  );
+export function useRequestList(serviceId: string | null, search = "") {
+  const normalizedSearch = search.trim().replace(/\s+/g, " ");
+  const key = JSON.stringify([serviceId, normalizedSearch]);
+  const [view, setView] = useState<{
+    key: string;
+    feed: RequestListFeed | null;
+  }>(() => ({
+    key,
+    feed: readRequestListCache({
+      serviceId,
+      search: normalizedSearch,
+      limit: 3,
+    }),
+  }));
   const [error, setError] = useState<string | null>(null);
+  const [rateLimitReached, setRateLimitReached] = useState(false);
+  const retryAfterSeconds = useRequestFeedRateLimit();
   const [hasPendingRequests, setHasPendingRequests] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const visibleRef = useRef(requests);
-  const loadRef = useRef<(() => Promise<void>) | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const visibleRef = useRef(view.feed);
+  const loadRef = useRef<((mode: "manual" | "more") => Promise<void>) | null>(
+    null,
+  );
   const { getLatestMarker, markSeen } = useFreeRequestNotifications();
 
   useEffect(() => {
     let cancelled = false;
     let notificationVersion = 0;
-    let revision = 0;
-    let manualBusy = false;
-    let backgroundBusy = false;
-    const query = { serviceId };
+    let busy = false;
+    let queuedRefresh = false;
+    let loadedPageCount = 1;
+    const query = { serviceId, search: normalizedSearch, limit: 3 };
     const free = serviceId === null;
-    let visible = readOpenRequestList(serviceId);
-    visibleRef.current = visible;
-    setRequests(visible);
+    const cached = readRequestListCache(query);
+    visibleRef.current = cached;
+    setView({ key, feed: cached });
     setError(null);
+    setRateLimitReached(false);
     setHasPendingRequests(false);
     setIsRefreshing(false);
+    setIsLoadingMore(false);
 
-    const load = async (force = false, manual = false, initial = false) => {
-      if (manualBusy || (!manual && backgroundBusy)) return;
-      if (manual) {
-        manualBusy = true;
-        setIsRefreshing(true);
-      } else backgroundBusy = true;
-      const ownRevision = ++revision;
+    const publish = (feed: RequestListFeed) => {
+      visibleRef.current = feed;
+      setView({ key, feed });
+    };
+    const load = async (mode: "initial" | "background" | "manual" | "more") => {
+      if (busy) {
+        if (mode === "background") queuedRefresh = true;
+        return;
+      }
+      const previous = visibleRef.current;
+      if (mode === "more" && (!previous?.hasMore || !previous.nextCursor))
+        return;
+      busy = true;
+      if (mode === "more") setIsLoadingMore(true);
+      else if (mode === "manual") setIsRefreshing(true);
       const startedAtVersion = notificationVersion;
       const marker = getLatestMarker();
-      const replace = !free || manual || initial || visible === null;
       try {
-        const feed = await (force
-          ? fetchRequestList(query, Date.now(), true)
-          : fetchRequestList(query));
-        if (cancelled || ownRevision !== revision) {
-          invalidateRequestListCache(query);
-          return;
-        }
-        const incoming = withoutCompletedRequests(feed.items);
-        if (replace) {
-          visible = free
-            ? [...incoming].sort(
-                (a, b) =>
-                  Number(a.awaitingCustomerReply) -
-                    Number(b.awaitingCustomerReply) ||
-                  Number(b.status === "NEW") - Number(a.status === "NEW"),
-              )
-            : incoming;
-          setHasPendingRequests(startedAtVersion !== notificationVersion);
-          if (free) markSeen(marker);
+        if (mode === "more") {
+          const next = await fetchRequestList(
+            { ...query, cursor: previous!.nextCursor!, limit: 5 },
+            Date.now(),
+            true,
+          );
+          if (cancelled) return;
+          loadedPageCount++;
+          const current = visibleRef.current ?? previous!;
+          const ids = new Set(current.items.map((row) => row.id));
+          publish({
+            ...next,
+            items: [
+              ...current.items,
+              ...next.items.filter((row) => !ids.has(row.id)),
+            ],
+          });
         } else {
-          const previous = visibleRef.current ?? [];
-          const ids = new Set(previous.map((row) => row.id));
-          if (incoming.some((row) => !ids.has(row.id)))
-            setHasPendingRequests(true);
-          const byId = new Map(incoming.map((row) => [row.id, row]));
-          // Keep the current rows and their order while the user is reading.
-          visible = previous.map((row) => byId.get(row.id) ?? row);
+          let incoming =
+            mode === "initial" && !free
+              ? await fetchRequestList(query)
+              : await fetchRequestList(query, Date.now(), true);
+          // Refresh only as many pages as the user has already opened.
+          const targetPages = mode === "background" ? loadedPageCount : 1;
+          let pageCount = 1;
+          const cursors = new Set<string>();
+          while (
+            !cancelled &&
+            pageCount < targetPages &&
+            incoming.hasMore &&
+            incoming.nextCursor &&
+            !cursors.has(incoming.nextCursor)
+          ) {
+            cursors.add(incoming.nextCursor);
+            const next = await fetchRequestList(
+              { ...query, cursor: incoming.nextCursor, limit: 5 },
+              Date.now(),
+              true,
+            );
+            pageCount++;
+            const ids = new Set(incoming.items.map((row) => row.id));
+            incoming = {
+              ...next,
+              items: [
+                ...incoming.items,
+                ...next.items.filter((row) => !ids.has(row.id)),
+              ],
+            };
+          }
+          if (cancelled) return;
+          loadedPageCount = pageCount;
+          if (free && mode === "background" && previous) {
+            const ids = new Set(previous.items.map((row) => row.id));
+            if (incoming.items.some((row) => !ids.has(row.id)))
+              setHasPendingRequests(true);
+            const byId = new Map(incoming.items.map((row) => [row.id, row]));
+            // Keep the reading order; closed/removed rows disappear immediately.
+            publish({
+              ...incoming,
+              items: previous.items.flatMap((row) => {
+                const updated = byId.get(row.id);
+                return updated ? [updated] : [];
+              }),
+            });
+          } else {
+            publish({
+              ...incoming,
+              items: withoutCompletedRequests(incoming.items),
+            });
+            setHasPendingRequests(startedAtVersion !== notificationVersion);
+            if (free && !normalizedSearch) markSeen(marker);
+          }
         }
-        if (startedAtVersion !== notificationVersion)
-          invalidateRequestListCache(query);
-        visibleRef.current = visible;
-        setRequests(visible);
         setError(null);
+        setRateLimitReached(false);
       } catch (reason) {
-        if (cancelled || ownRevision !== revision) return;
-        setError(
-          reason instanceof Error && reason.message.trim()
-            ? reason.message
-            : "Не удалось загрузить заявки",
-        );
+        if (!cancelled && reason instanceof RequestFeedRateLimitError) {
+          setRateLimitReached(true);
+          setError(null);
+        } else if (!cancelled) {
+          setError(
+            reason instanceof Error && reason.message.trim()
+              ? reason.message
+              : "Не удалось загрузить заявки",
+          );
+        }
       } finally {
-        if (manual) {
-          manualBusy = false;
-          if (!cancelled) setIsRefreshing(false);
-        } else backgroundBusy = false;
+        busy = false;
+        if (!cancelled) {
+          setIsRefreshing(false);
+          setIsLoadingMore(false);
+          if (queuedRefresh) {
+            queuedRefresh = false;
+            void load("background");
+          }
+        }
       }
     };
-    const showNew = () => load(true, true);
-    loadRef.current = showNew;
-    if (visible === null) void load();
-    else if (free) void load(true, false, true);
+    const invoke = (mode: "manual" | "more") => load(mode);
+    loadRef.current = invoke;
+    // Search requests are debounced; clearing the search restores the first page immediately.
+    const timer =
+      cached && !free
+        ? null
+        : window.setTimeout(
+            () => void load("initial"),
+            normalizedSearch ? 250 : 0,
+          );
     const refresh = () => {
-      if (document.visibilityState === "visible") void load(true);
+      invalidateRequestListCache(query);
+      if (document.visibilityState === "visible") void load("background");
     };
     const queueNew = () => {
       notificationVersion++;
@@ -119,7 +198,8 @@ export function useRequestList(serviceId: string | null) {
     document.addEventListener("visibilitychange", refresh);
     return () => {
       cancelled = true;
-      if (loadRef.current === showNew) loadRef.current = null;
+      if (timer !== null) window.clearTimeout(timer);
+      if (loadRef.current === invoke) loadRef.current = null;
       window.removeEventListener("request:changed", refresh);
       window.removeEventListener("request:sync", refresh);
       if (free) window.removeEventListener("free-request:created", queueNew);
@@ -127,15 +207,22 @@ export function useRequestList(serviceId: string | null) {
       window.removeEventListener("online", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, [serviceId, getLatestMarker, markSeen]);
+  }, [serviceId, normalizedSearch, key, getLatestMarker, markSeen]);
 
-  const showNewRequests = useCallback(() => loadRef.current?.(), []);
+  const showNewRequests = useCallback(() => loadRef.current?.("manual"), []);
+  const loadMore = useCallback(() => loadRef.current?.("more"), []);
 
   function markAwaitingCustomerReply(requestId: string, body: string) {
+    const current = visibleRef.current;
+    if (!current) return;
     const providerLastMessage = formatReplyPreview(body);
-    setRequests((current) => {
-      if (!current) return current;
-      const next = current.map((row) =>
+    const changed = current.items.some(
+      (row) => row.id === requestId && !row.awaitingCustomerReply,
+    );
+    const next = {
+      ...current,
+      needsReply: Math.max(0, current.needsReply - Number(changed)),
+      items: current.items.map((row) =>
         row.id === requestId
           ? {
               ...row,
@@ -145,21 +232,29 @@ export function useRequestList(serviceId: string | null) {
               lastMessageAt: new Date().toISOString(),
             }
           : row,
-      );
-      visibleRef.current = next;
-      if (serviceId === null) invalidateRequestListCache({ serviceId });
-      else writeRequestListCache({ serviceId }, next);
-      return next;
-    });
+      ),
+    };
+    visibleRef.current = next;
+    setView({ key, feed: next });
+    invalidateRequestListCache({ serviceId });
   }
 
+  const feed = view.key === key ? view.feed : null;
   return {
-    requests,
+    requests: feed?.items ?? null,
+    total: feed?.total ?? 0,
+    needsReply: feed?.needsReply ?? 0,
+    hasMore: feed?.hasMore ?? false,
     error,
-    isLoading: requests === null && error === null,
+    rateLimitReached: rateLimitReached || retryAfterSeconds > 0,
+    retryAfterSeconds,
+    isLoading:
+      feed === null && error === null && !rateLimitReached && retryAfterSeconds === 0,
     hasPendingRequests,
     isRefreshing,
+    isLoadingMore,
     showNewRequests,
+    loadMore,
     markAwaitingCustomerReply,
   };
 }

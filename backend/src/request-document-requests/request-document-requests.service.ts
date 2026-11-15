@@ -7,7 +7,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
-import path from 'node:path';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
@@ -17,21 +16,7 @@ import {
   isOrderExecutionStatus,
 } from '../requests/dto/request.dto';
 import { DocumentStorageService } from '../storage/document-storage.service';
-
-const ALLOWED_EXT = new Set(['.pdf', '.docx']);
-
-function normalizeExt(fileName: string, mimeType: string) {
-  const ext = path.extname(fileName).toLowerCase();
-  if (ALLOWED_EXT.has(ext)) return ext;
-  if (mimeType === 'application/pdf') return '.pdf';
-  if (
-    mimeType ===
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  ) {
-    return '.docx';
-  }
-  return '';
-}
+import { validateRequestAttachment } from '../common/request-attachment-file';
 
 function sha256Buffer(buf: Buffer) {
   return createHash('sha256').update(buf).digest('hex');
@@ -294,13 +279,7 @@ export class RequestDocumentRequestsService {
     });
     if (!doc) throw new NotFoundException('Document request not found');
 
-    const ext = normalizeExt(input.file.originalname, input.file.mimetype);
-    if (!ext) {
-      throw new BadRequestException('Unsupported file type');
-    }
-    if (!input.file.buffer || input.file.buffer.length === 0) {
-      throw new BadRequestException('Empty file');
-    }
+    const ext = validateRequestAttachment(input.file);
 
     const newKey = `documents/requests/${request.id}/document-requests/${doc.id}/${randomUUID()}${ext}`;
     const originalName = decodePossiblyMisencodedFileName(

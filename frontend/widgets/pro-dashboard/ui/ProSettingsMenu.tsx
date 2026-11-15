@@ -25,6 +25,7 @@ import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useColorMode } from "@/core/theme/ColorModeContext";
+import { DarkPaletteSelect } from "@/core/theme/DarkPaletteSelect";
 
 const rowSx = {
   minHeight: 48,
@@ -117,6 +118,18 @@ export function ProSettingsMenu({ onNavigate }: { onNavigate?: () => void }) {
           sx={{ pointerEvents: "none" }}
         />
       </ListItemButton>
+      {mode === "dark" ? (
+        <Box
+          component="li"
+          sx={{
+            px: 2,
+            py: 1,
+            listStyle: "none",
+          }}
+        >
+          <DarkPaletteSelect />
+        </Box>
+      ) : null}
       <ListItemButton
         onClick={() => void signOut({ callbackUrl: "/" })}
         sx={{ ...rowSx, color: "error.main" }}

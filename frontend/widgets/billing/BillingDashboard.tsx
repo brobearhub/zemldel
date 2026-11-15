@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { FormControlLabel, MenuItem, Switch, TextField } from "@mui/material";
+import { Button, FormControlLabel, MenuItem, Switch, TextField } from "@mui/material";
 import { fetchIdempotentWrite } from "@/shared/api/idempotent-write";
 import {
   billingProducts,
@@ -10,6 +10,7 @@ import {
   periodLabel,
   type BillingPeriod,
   productNames,
+  requestsAvailability,
   statusNames,
   type BillingOrder,
   type BillingOverview,
@@ -375,16 +376,18 @@ export function BillingDashboard({
               .join("\n")}
             {!data && (
               <div className={s.actions}>
-                <button
+                <Button
                   type="button"
-                  className={`${s.secondary} ${paper.secondaryButton}`}
+                  size="small"
+                  variant="outlined"
+                  className={paper.secondaryButton}
                   onClick={() => {
                     setError("");
                     load().catch((e: Error) => setError(e.message));
                   }}
                 >
                   Повторить загрузку
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -534,9 +537,11 @@ export function BillingDashboard({
                               ? " Для перехода понадобится ручная оплата."
                               : ""}
                           </p>
-                          <button
+                          <Button
                             type="button"
-                            className={`${s.secondary} ${paper.secondaryButton}`}
+                            size="small"
+                            variant="outlined"
+                            className={paper.secondaryButton}
                             disabled={busy}
                             onClick={() =>
                               saveSettings({
@@ -546,7 +551,7 @@ export function BillingDashboard({
                             }
                           >
                             Отменить переход
-                          </button>
+                          </Button>
                         </>
                       )}
                     </div>
@@ -617,13 +622,15 @@ export function BillingDashboard({
                             </MenuItem>
                           ))}
                       </TextField>
-                      <button
+                      <Button
                         type="submit"
-                        className={`${s.secondary} ${paper.secondaryButton}`}
+                        size="small"
+                        variant="outlined"
+                        className={paper.secondaryButton}
                         disabled={busy || !data.canPay}
                       >
                         Сохранить
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 </section>
@@ -664,21 +671,25 @@ export function BillingDashboard({
                             </span>
                             <div className={paper.orderActions}>
                               {order.paymentUrl && data.canPay && (
-                                <a
-                                  className={`${s.button} ${paper.primaryButton}`}
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  className={paper.primaryButton}
                                   href={bankUrl(order.paymentUrl)}
                                 >
                                   Продолжить оплату
-                                </a>
+                                </Button>
                               )}
-                              <button
+                              <Button
                                 type="button"
-                                className={`${s.secondary} ${paper.secondaryButton}`}
+                                size="small"
+                                variant="outlined"
+                                className={paper.secondaryButton}
                                 disabled={busy || !data.enabled}
                                 onClick={() => checkOrder(order.id)}
                               >
                                 Проверить статус
-                              </button>
+                              </Button>
                             </div>
                           </div>
                         </li>
@@ -692,7 +703,12 @@ export function BillingDashboard({
         )}
       </div>
       <footer className={paper.footer}>
-        <p>Счётчики сохранений услуг и профиля доступны на всех тарифах. На «Бизнесе» открываются имена заинтересованных клиентов и первое обращение без заявки: одно сообщение до ответа. Начатые диалоги продолжаются после окончания тарифа.</p>
+        <p>
+          {requestsAvailability}{" "}
+          На «Бизнесе» вы также видите, кто добавил ваши услуги или профиль
+          в избранное, и можете первым предложить свои услуги.
+          После ответа клиента переписку можно продолжать даже по окончании тарифа.
+        </p>
         <Link href="/pricing">Сравнить тарифы →</Link>
         <Link href="/offer">Оферта и возвраты</Link>
         <Link href="/pro/settings/promotion">
@@ -787,9 +803,11 @@ export function BillingDashboard({
               </label>
             )}
             <div className={s.actions}>
-              <button
+              <Button
                 type="button"
-                className={`${s.button} ${paper.primaryButton}`}
+                size="small"
+                variant="contained"
+                className={paper.primaryButton}
                 disabled={
                   busy ||
                   !data?.canPay ||
@@ -826,15 +844,17 @@ export function BillingDashboard({
                     : quote?.mode === "schedule"
                     ? "Запланировать переход"
                     : "Перейти к оплате"}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                className={`${s.secondary} ${paper.secondaryButton}`}
+                size="small"
+                variant="outlined"
+                className={paper.secondaryButton}
                 disabled={busy}
                 onClick={() => setSelected(null)}
               >
                 Отмена
-              </button>
+              </Button>
             </div>
           </>
         )}

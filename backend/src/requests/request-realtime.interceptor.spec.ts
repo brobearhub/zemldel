@@ -50,6 +50,8 @@ describe('request realtime invalidation', () => {
     '/pro/requests/:id/complete',
     '/requests/mine/:id/select-provider',
     '/pro/requests/:requestId/payments',
+    '/pro/requests/:requestId/provider-misc',
+    '/pro/requests/:requestId/provider-misc/:fileId',
     '/requests/:requestId/reviews',
     '/reviews/:reviewId/reply',
     '/pro/contract-files/:fileId',

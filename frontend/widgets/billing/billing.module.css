@@ -1,8 +1,6 @@
 .root {
-  --forest: #325e49;
-  --paper: #f6f6ef;
-  color: #263e32;
-  background: #f0f0e6;
+  color: var(--mui-palette-text-primary);
+  background: var(--mui-palette-background-default);
   border-radius: 16px;
   padding: 40px 24px 64px;
   max-width: 1220px;
@@ -18,7 +16,7 @@
   text-transform: uppercase;
   letter-spacing: 0.14em;
   font-weight: 700;
-  color: #526c5b;
+  color: var(--mui-palette-text-secondary);
 }
 .root h1 {
   font-size: clamp(2rem, 4vw, 3rem);
@@ -34,13 +32,13 @@
   line-height: 1.6;
 }
 .muted {
-  color: #526356;
+  color: var(--mui-palette-text-secondary);
   font-size: 1rem;
 }
 .notice {
   padding: 16px 20px;
-  border: 1px solid #bacbbb;
-  background: #f0f4ee;
+  border: 1px solid var(--mui-palette-divider);
+  background: color-mix(in srgb, var(--mui-palette-primary-main) 12%, var(--mui-palette-background-default));
   border-radius: 12px;
   font-size: 1rem;
   line-height: 1.6;
@@ -49,16 +47,16 @@
 .error {
   padding: 16px;
   white-space: pre-line;
-  background: #fff0eb;
-  color: #872e21;
+  background: color-mix(in srgb, var(--mui-palette-error-main) 12%, var(--mui-palette-background-default));
+  color: var(--mui-palette-error-main);
   border-radius: 12px;
   margin-bottom: 16px;
 }
 .tableWrap {
-  border: 1px solid #dce1d6;
+  border: 1px solid var(--mui-palette-divider);
   border-radius: 18px;
   overflow: hidden;
-  background: var(--paper);
+  background: var(--mui-palette-background-paper);
 }
 .table {
   width: 100%;
@@ -70,18 +68,21 @@
 .table td {
   text-align: left;
   padding: 19px 22px;
-  border-bottom: 1px solid #dce1d6;
+  border-bottom: 1px solid var(--mui-palette-divider);
   vertical-align: top;
 }
 .table thead th {
   padding-top: 26px;
 }
+.table thead .smallButton {
+  margin-top: 16px;
+}
 .table th:first-child {
-  background: #eaece6;
+  background: var(--mui-palette-background-default);
 }
 .table th:nth-child(4),
 .table td:nth-child(4) {
-  background: #e3ebdf;
+  background: color-mix(in srgb, var(--mui-palette-primary-main) 12%, var(--mui-palette-background-default));
 }
 .table tbody th {
   font-weight: 600;
@@ -104,44 +105,14 @@
   font-size: 1rem;
   font-weight: 500;
 }
-.button,
-.secondary {
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  gap: 8px;
-  min-height: 48px;
-  padding: 11px 20px;
-  border-radius: 9px;
-  border: 1px solid var(--forest);
-  font: inherit;
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-  text-decoration: none;
-  box-sizing: border-box;
-}
-.button {
-  background: var(--forest);
-  color: white;
-}
-.secondary {
-  background: transparent;
-  color: var(--forest);
-}
-.button:disabled,
-.secondary:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-.button:focus-visible,
-.secondary:focus-visible,
+.root button:focus-visible,
 .root a:focus-visible {
-  outline: 3px solid #b08d2b;
+  outline: 3px solid var(--mui-palette-text-primary);
   outline-offset: 3px;
 }
-.wide {
-  width: 100%;
+.smallButton:global(.MuiButton-outlined) {
+  color: var(--mui-palette-text-primary);
+  border-color: var(--mui-palette-primary-main);
 }
 .cards {
   display: grid;
@@ -150,14 +121,14 @@
   margin-bottom: 28px;
 }
 .card {
-  background: var(--paper);
-  border: 1px solid #dce1d6;
+  background: var(--mui-palette-background-paper);
+  border: 1px solid var(--mui-palette-divider);
   border-radius: 16px;
   padding: 28px;
   min-width: 0;
 }
 .accent {
-  background: #e3ebdf;
+  background: color-mix(in srgb, var(--mui-palette-primary-main) 12%, var(--mui-palette-background-default));
 }
 .row {
   display: flex;
@@ -189,7 +160,7 @@
 }
 .history li {
   padding: 20px 0;
-  border-bottom: 1px solid #dce1d6;
+  border-bottom: 1px solid var(--mui-palette-divider);
 }
 .history strong {
   display: block;
@@ -205,11 +176,11 @@
   max-width: 480px;
   width: calc(100% - 40px);
   box-sizing: border-box;
-  color: #263e32;
-  background: #f6f6ef;
+  color: var(--mui-palette-text-primary);
+  background: var(--mui-palette-background-paper);
 }
 .dialog::backdrop {
-  background: #182d2399;
+  background: color-mix(in srgb, var(--mui-palette-common-black) 60%, transparent);
 }
 .dialog h2 {
   font-size: 1.625rem;
@@ -220,7 +191,7 @@
 }
 .root details {
   padding: 18px 0;
-  border-bottom: 1px solid #dce1d6;
+  border-bottom: 1px solid var(--mui-palette-divider);
 }
 .root summary {
   cursor: pointer;
@@ -252,9 +223,8 @@
     gap: 8px;
     margin-bottom: 12px;
   }
-  .tabs button {
+  .tabs .smallButton {
     flex: 1;
-    padding: 10px 6px;
   }
   .table th,
   .table td {
@@ -270,28 +240,11 @@
   .price {
     font-size: 1.8125rem;
   }
-  .table .button {
-    padding: 10px 8px;
-  }
-}
-
-.textInput {
-  display: block;
-  width: 100%;
-  max-width: 280px;
-  min-height: 48px;
-  margin-top: 6px;
-  padding: 8px 12px;
-  box-sizing: border-box;
-  color: inherit;
-  background: transparent;
-  border: 1px solid #6f7d73;
-  border-radius: 8px;
-  font: inherit;
 }
 
 .periods {
   display: flex;
+  justify-content: center;
   flex-wrap: wrap;
   gap: 8px;
   margin: 20px 0 12px;

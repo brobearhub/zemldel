@@ -120,7 +120,6 @@ export function ProviderFirstSteps({ progressLabel, steps }: Props) {
                 variant={step.current || step.error ? "contained" : "outlined"}
                 sx={{
                   flex: "0 0 auto",
-                  minHeight: 44,
                   ...(step.current || step.error
                     ? {}
                     : { color: "text.primary", borderColor: "primary.dark" }),

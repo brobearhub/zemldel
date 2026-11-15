@@ -7,12 +7,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent } from "react";
 import { resolvePostSignInPath } from "./resolve-post-sign-in-path";
 import { authCardShellSx } from "@/app/(site)/auth-card-shell";
+import { themedAuthBackground } from "@/app/(site)/auth-background";
 import Link from "@/shared/ui/Link";
 import { RainGlassPaper } from "@/shared/ui/RainGlassPaper";
 import { LogoFull } from "@/shared/ui/LogoFull";
 import { PasswordVisibilityButton } from "@/shared/ui/PasswordVisibilityButton";
 import { PendingRequestAuthSummary, usePendingRequestContext } from "@/features/continue-request";
 import { REQUEST_INTENT, REQUESTS_PROFILE_RESUME_URL, REQUESTS_PROFILE_URL } from "@/entities/request";
+
+const signInShellSx = {
+  ...authCardShellSx,
+  backgroundImage: themedAuthBackground,
+} as const;
 
 export default function SignInPage() {
   return (
@@ -24,7 +30,7 @@ export default function SignInPage() {
 
 function SignInPageFallback() {
   return (
-    <Box sx={authCardShellSx}>
+    <Box sx={signInShellSx}>
       <RainGlassPaper sx={{ width: "100%", maxWidth: 420, p: 4 }} />
     </Box>
   );
@@ -161,7 +167,7 @@ function SignInPageContent() {
   };
 
   return (
-    <Box sx={authCardShellSx}>
+    <Box sx={signInShellSx}>
       <RainGlassPaper sx={{ width: "100%", maxWidth: 420, p: 4 }}>
         <Stack spacing={2.5}>
           <Stack spacing={1} sx={{ alignItems: "center" }}>
@@ -237,7 +243,6 @@ function SignInPageContent() {
                 type="submit"
                 loading={loading}
                 disabled={wrongAccount || (isRequestIntent && !pending.loaded) || (reauthenticate && !reauthReady)}
-                sx={{ minHeight: 44 }}
               >
                 {isRequestIntent && pending.draft ? "Войти и отправить заявку" : "Войти"}
               </Button>

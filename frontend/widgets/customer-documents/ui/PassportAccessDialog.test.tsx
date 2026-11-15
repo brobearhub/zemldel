@@ -7,7 +7,7 @@ const requests = [{ id: "request-1", providerId: "provider-1", providerName: "И
 const onSaved = vi.fn();
 const onClose = vi.fn();
 const grant = { requestId: "request-1", kind: "FORM", providerId: "provider-1", providerName: "Исполнитель", requestTitle: "Межевание", expiresAt: "2099-01-01T00:00:00Z", active: true };
-const state = { hasForm: true, photoCount: 4, grants: [], audit: [] };
+const state = { hasForm: true, photoCount: 4, grants: [] };
 function mount() { return render(<PassportAccessDialog initialKind="photo" requests={requests} loading={false} error={null} hasPassport onSaved={onSaved} onClose={onClose} />); }
 async function selectRequest() {
  await waitFor(() => expect(screen.getByRole("combobox", { name: "Заявка и исполнитель" })).toBeEnabled());
@@ -16,6 +16,18 @@ async function selectRequest() {
 }
 beforeEach(() => vi.clearAllMocks());
 afterEach(() => vi.unstubAllGlobals());
+it("shows permissions without exposing legacy audit events", async () => {
+ vi.stubGlobal("fetch", vi.fn(async () => Response.json({
+  ...state,
+  grants: [grant],
+  audit: [{ id: "event-1", action: "PROVIDER_FORM_READ", createdAt: "2026-11-15T10:00:00Z" }],
+ })));
+ render(<PassportAccessPanel refreshKey="1" requests={requests} />);
+ expect(await screen.findByRole("button", { name: "Отозвать доступ: данные паспорта" })).toBeInTheDocument();
+ expect(screen.getByRole("button", { name: "Обновить разрешения" })).toBeInTheDocument();
+ expect(screen.queryByText(/Журнал доступа|Исполнитель просмотрел|PROVIDER_FORM_READ/)).not.toBeInTheDocument();
+ expect(screen.queryByRole("button", { name: "Обновить журнал" })).not.toBeInTheDocument();
+});
 it("grants only photos and keeps the form private", async () => {
  const fetchMock = vi.fn(async (_: unknown, init?: RequestInit) => Response.json(init?.method ? { ok: true } : state));
  vi.stubGlobal("fetch", fetchMock); mount(); await selectRequest();

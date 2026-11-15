@@ -24,7 +24,6 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
 import { memoryStorage } from 'multer';
-import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { create as contentDisposition } from 'content-disposition';
 import { InternalAuthService } from '../auth/internal-auth.service';
@@ -32,25 +31,11 @@ import { OkResponseDto } from '../common/dto/ok-response.dto';
 import { ApiValidationErrorResponseDto } from '../common/dto/api-error-response.dto';
 import { ApiStandardErrors } from '../common/swagger/api-standard-errors.decorator';
 import { RequestDocumentRequestsService } from './request-document-requests.service';
+import { normalizeRequestAttachmentExt } from '../common/request-attachment-file';
 import {
   CreateRequestDocumentRequestDto,
   RequestDocumentRequestItemDto,
 } from './dto/request-document-requests.dto';
-
-const ALLOWED_EXT = new Set(['.pdf', '.docx']);
-
-function normalizeExt(fileName: string, mimeType: string) {
-  const ext = path.extname(fileName).toLowerCase();
-  if (ALLOWED_EXT.has(ext)) return ext;
-  if (mimeType === 'application/pdf') return '.pdf';
-  if (
-    mimeType ===
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  ) {
-    return '.docx';
-  }
-  return '';
-}
 
 @ApiStandardErrors()
 @ApiTags('request-document-requests')
@@ -143,9 +128,17 @@ export class RequestDocumentRequestsController {
       storage: memoryStorage(),
       limits: { fileSize: 20 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
-        const ext = normalizeExt(file.originalname, file.mimetype);
+        const ext = normalizeRequestAttachmentExt(
+          file.originalname,
+          file.mimetype,
+        );
         if (!ext) {
-          cb(new Error('Unsupported file type'), false);
+          cb(
+            new UnprocessableEntityException(
+              'Допустимы PDF, DOCX или фото в WebP.',
+            ),
+            false,
+          );
           return;
         }
         cb(null, true);
@@ -207,6 +200,7 @@ export class RequestDocumentRequestsController {
   @ApiParam({ name: 'docRequestId', type: String })
   @ApiQuery({ name: 'inline', required: false, type: String })
   @ApiProduces(
+    'image/webp',
     'application/pdf',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   )
@@ -237,6 +231,7 @@ export class RequestDocumentRequestsController {
   @ApiParam({ name: 'docRequestId', type: String })
   @ApiQuery({ name: 'inline', required: false, type: String })
   @ApiProduces(
+    'image/webp',
     'application/pdf',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   )

@@ -181,7 +181,6 @@ export function ProClientsBoard({ initialOrders }: Props) {
             component="a"
             href="/pro/services"
             variant="contained"
-            sx={{ minHeight: 44 }}
           >
             К услугам
           </Button>

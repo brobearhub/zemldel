@@ -82,8 +82,9 @@ export function CabinetSidebarFooter({
         flexDirection: collapsed ? "column" : "row",
         pt: 1.5,
         pb: "max(16px, env(safe-area-inset-bottom))",
-        px: 1,
+        pl: collapsed ? 1.75 : 2.5,
         pr: collapsed ? 1.75 : 2.5,
+        ml: collapsed ? -0.75 : -1.5,
         mr: collapsed ? -0.75 : -1.5,
         borderTop: 1,
         borderColor: "divider",
@@ -204,10 +205,7 @@ export function CabinetSidebarFooter({
             flex: "0 1 auto",
             ml: collapsed ? 0 : "auto",
             minWidth: 0,
-            minHeight: 48,
             borderRadius: "28px",
-            px: 1.5,
-            fontSize: "0.875rem",
             bgcolor: (theme) =>
               theme.palette.mode === "light" ? "#242522" : "#f5f6f2",
             color: (theme) =>

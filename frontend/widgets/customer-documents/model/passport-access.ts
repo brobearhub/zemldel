@@ -12,7 +12,6 @@ export type PassportAccessState = {
   photoCount: number;
   grants: PassportGrant[];
   requests?: PassportAccessRequest[];
-  audit: Array<{ id: string; action: string; actorUserId: string | null; actorProviderId: string | null; requestId: string | null; createdAt: string }>;
 };
 export const passportAccessUrl = "/api/documents/passport/access";
 export const passportKindLabel = (kind: "FORM" | "PHOTO") => kind === "FORM" ? "Данные паспорта" : "Фотографии паспорта";

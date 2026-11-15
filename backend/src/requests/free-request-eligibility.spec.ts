@@ -55,9 +55,13 @@ describe('free request eligibility', () => {
     });
   });
 
-  it('filters feed candidates in the database before the 200-item limit', async () => {
-    const findMany = vi.fn().mockResolvedValue([]);
+  it('loads only the page index for an empty feed', async () => {
+    const findMany = vi.fn();
+    const queryRaw = vi
+      .fn()
+      .mockResolvedValue([{ rows: [], total: 0, needsReply: 0 }]);
     const prisma = {
+      $queryRaw: queryRaw,
       request: { findMany },
       provider: {
         findUnique: vi.fn().mockResolvedValue({ city: { regionCode: '66' } }),
@@ -76,16 +80,14 @@ describe('free request eligibility', () => {
     );
     await expect(
       service.listProFeed('provider', { scope: 'free' }),
-    ).resolves.toEqual({ items: [] });
-    const eligibility = freeRequestEligibilityWhere('66', [
-      'leaf',
-      'child',
-      'root',
-    ]);
-    for (const call of findMany.mock.calls.slice(1)) {
-      const query = call[0] as { take: number; where: { AND: unknown[] } };
-      expect(query.take).toBe(200);
-      expect(query.where.AND).toContainEqual(eligibility);
-    }
+    ).resolves.toEqual({
+      items: [],
+      total: 0,
+      needsReply: 0,
+      hasMore: false,
+      nextCursor: null,
+    });
+    expect(findMany).not.toHaveBeenCalled();
+    expect(queryRaw).toHaveBeenCalledTimes(1);
   });
 });

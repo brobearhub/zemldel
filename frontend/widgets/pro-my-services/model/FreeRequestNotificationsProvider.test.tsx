@@ -84,13 +84,13 @@ afterEach(cleanup);
 
 describe("free request tab notification", () => {
   it("shows a red dot on a new event, invalidates the free list, and clears only after loading the list", async () => {
-    writeRequestListCache({ serviceId: null }, []);
+    writeRequestListCache({ serviceId: null }, { items: [], total: 0, needsReply: 0, hasMore: false, nextCursor: null });
     render(<View />);
     emit("free-request.snapshot", first);
     expect(
       screen.getByRole("tab", { name: "Свободные заявки" }),
     ).toBeInTheDocument();
-    writeRequestListCache({ serviceId: null }, []);
+    writeRequestListCache({ serviceId: null }, { items: [], total: 0, needsReply: 0, hasMore: false, nextCursor: null });
     emit("free-request.created", second);
     const tab = screen.getByRole("tab", {
       name: "Свободные заявки: есть новые заявки",

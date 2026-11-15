@@ -311,8 +311,6 @@ export function ServiceHeroSection({ vm, serviceId }: Props) {
                   href={vm.ctaAnchorHref}
                   variant="contained"
                   sx={{
-                    px: "22px",
-                    py: "8px",
                     fontWeight: 600,
                     letterSpacing: "0.46px",
                     textTransform: "uppercase",

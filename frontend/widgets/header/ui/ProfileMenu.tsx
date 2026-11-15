@@ -5,12 +5,18 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Box,
   Divider,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  IconButton,
   Menu,
   MenuItem,
   Tooltip,
   Typography,
 } from "@mui/material";
 import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import LogoutIcon from "@mui/icons-material/Logout";
 import LoginIcon from "@mui/icons-material/Login";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
@@ -38,6 +44,7 @@ import {
   type ProviderIdentity,
 } from "@/entities/provider/lib/provider-identity";
 import { resolveProfileMenuSection } from "../lib/profile-menu-section";
+import { CabinetSettingsPanel } from "@/widgets/cabinet-chrome/ui/CabinetSettingsPanel";
 function formatContactShortName(name: string | null | undefined) {
   const parts = name?.trim().split(/\s+/).filter(Boolean) ?? [];
   return parts.length > 1
@@ -196,6 +203,7 @@ export const ProfileMenu = ({
   const searchParams = useSearchParams();
   const { status, user } = useAppSelector((state) => state.auth);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [customerSettingsOpen, setCustomerSettingsOpen] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
@@ -275,7 +283,7 @@ export const ProfileMenu = ({
   );
 
   const handleMouseEnter = (event: MouseEvent<HTMLElement>) => {
-    if (isInline || onPress) return;
+    if (isInline || onPress || customerSettingsOpen) return;
     setAnchorEl(event.currentTarget);
   };
 
@@ -667,7 +675,7 @@ export const ProfileMenu = ({
               display: forceLabel ? "block" : { xs: "none", md: "block" },
               maxWidth: forceLabel ? "100%" : 180,
               fontWeight: 600,
-              fontSize: "1rem",
+              fontSize: forceLabel ? "1rem" : "0.625rem",
               opacity: 1,
               "&:hover": { color: "info.main" },
             }}
@@ -838,6 +846,18 @@ export const ProfileMenu = ({
                   Админка
                 </SectionMenuItem>
               ) : null}
+              {showCustomerCabinet ? (
+                <MenuItem
+                  onClick={() => {
+                    handleClose();
+                    setCustomerSettingsOpen(true);
+                  }}
+                  sx={menuItemSx(false)}
+                >
+                  <SettingsOutlinedIcon sx={menuIconSx} />
+                  Настройки
+                </MenuItem>
+              ) : null}
               <MenuItem
                 onClick={handleSignOut}
                 sx={{ ...menuItemSx(false), color: "error.main" }}
@@ -875,6 +895,48 @@ export const ProfileMenu = ({
           )}
         </Menu>
       ) : null}
+      <Dialog
+        open={customerSettingsOpen}
+        onClose={() => setCustomerSettingsOpen(false)}
+        aria-labelledby="customer-settings-title"
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle
+          id="customer-settings-title"
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          Настройки
+          <IconButton
+            aria-label="Закрыть настройки"
+            onClick={() => setCustomerSettingsOpen(false)}
+          >
+            <CloseRoundedIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent
+          sx={{
+            display: "flex",
+            minHeight: 0,
+            overflow: "hidden",
+          }}
+        >
+          <CabinetSettingsPanel
+            titleId="customer-settings-title"
+            provider={false}
+            authenticated
+            onBack={() => setCustomerSettingsOpen(false)}
+            onNavigate={() => {
+              setCustomerSettingsOpen(false);
+              onNavigate?.();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 };

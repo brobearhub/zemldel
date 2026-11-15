@@ -142,7 +142,6 @@ export function PublicCategoryRequestForm({
           minRows={3}
           sx={{
             "& .MuiInputBase-multiline": {
-              minHeight: 144,
               alignItems: "flex-start",
             },
           }}
@@ -160,7 +159,7 @@ export function PublicCategoryRequestForm({
           size="large"
           loading={busy}
           disabled={Boolean(validationError)}
-          sx={{ fontWeight: 700, textTransform: "none", px: 3, py: 1.25 }}
+          sx={{ fontWeight: 700, textTransform: "none" }}
         >
           Получить предложения
         </Button>

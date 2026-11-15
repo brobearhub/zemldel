@@ -12,6 +12,7 @@ import {
   Query,
   Req,
   UnprocessableEntityException,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBody,
@@ -23,6 +24,7 @@ import {
   ApiProperty,
   ApiQuery,
   ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
@@ -51,6 +53,8 @@ import {
 import { parseDeclineOfferDto } from './dto/decline-offer.dto';
 import { MarkRenderedDto, parseMarkRenderedDto } from './dto/mark-rendered.dto';
 import { RequestsService } from './requests.service';
+import type { RequestListFeedQuery } from './request-list-query';
+import { RequestFeedThrottlerGuard } from './request-feed-throttler.guard';
 import {
   ProEligibleCategoryDto,
   ProInboxSettingsDto,
@@ -111,6 +115,18 @@ class ProRequestStatsDto {
 class ProRequestListFeedDto {
   @ApiProperty({ type: [RequestProDto] })
   items!: RequestProDto[];
+
+  @ApiProperty()
+  total!: number;
+
+  @ApiProperty()
+  needsReply!: number;
+
+  @ApiProperty()
+  hasMore!: boolean;
+
+  @ApiProperty({ type: String, nullable: true })
+  nextCursor!: string | null;
 }
 
 @ApiTags('requests')
@@ -572,13 +588,18 @@ export class RequestsController {
   // --- Provider: feed / inbox ---
 
   @Get('pro/requests/feed')
+  @UseGuards(RequestFeedThrottlerGuard)
   @ApiQuery({ name: 'serviceId', required: false, type: String })
   @ApiQuery({ name: 'scope', required: false, type: String })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'cursor', required: false, type: String })
+  @ApiQuery({ name: 'search', required: false, type: String })
   @ApiOkResponse({ type: ProRequestListFeedDto })
-  async proFeed(
-    @Req() request: Request,
-    @Query() query: { serviceId?: string; scope?: string },
-  ) {
+  @ApiTooManyRequestsResponse({
+    description:
+      'Общий лимит ленты на пользователя: 30 запросов за 10 секунд и 120 за минуту. Retry-After — время ожидания в секундах.',
+  })
+  async proFeed(@Req() request: Request, @Query() query: RequestListFeedQuery) {
     const ctx = await this.requests.requireProviderContext(request);
     return this.requests.listProFeed(ctx.providerId, query);
   }

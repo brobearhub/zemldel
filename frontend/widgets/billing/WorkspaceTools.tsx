@@ -155,26 +155,28 @@ export function WorkspaceTools({
             ["templates", "Шаблоны ответов"],
             ["team", "Задачи команды"],
           ].map(([id, label]) => (
-            <button
-              className={tab === id ? s.button : s.secondary}
+            <Button
+              size="small"
+              variant={tab === id ? "contained" : "outlined"}
               aria-pressed={tab === id}
               key={id}
               onClick={() => setTab(id)}
             >
               {label}
-            </button>
+            </Button>
           ))}
         </div>
       )}
       {error && (
         <p role="alert" className={s.error}>
           {error}{" "}
-          <button
-            className={s.secondary}
+          <Button
+            size="small"
+            variant="outlined"
             onClick={() => load().catch((e: Error) => setError(e.message))}
           >
             Повторить загрузку
-          </button>
+          </Button>
         </p>
       )}
       {notice && <p role="status">{notice}</p>}
@@ -287,8 +289,9 @@ export function WorkspaceTools({
                     </strong>
                     <p style={{ whiteSpace: "pre-wrap" }}>{row.body}</p>
                     <div className={s.actions}>
-                      <button
-                        className={s.secondary}
+                      <Button
+                        size="small"
+                        variant="outlined"
                         onClick={() =>
                           navigator.clipboard
                             .writeText(row.body)
@@ -305,9 +308,10 @@ export function WorkspaceTools({
                         }
                       >
                         Скопировать
-                      </button>
-                      <button
-                        className={s.secondary}
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
                         disabled={
                           busy ||
                           !data.limits.templates ||
@@ -316,9 +320,10 @@ export function WorkspaceTools({
                         onClick={() => setTemplate(row)}
                       >
                         Изменить
-                      </button>
-                      <button
-                        className={s.secondary}
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
                         disabled={
                           busy ||
                           !data.limits.templates ||
@@ -329,7 +334,7 @@ export function WorkspaceTools({
                         }
                       >
                         Удалить
-                      </button>
+                      </Button>
                     </div>
                   </article>
                 ))}
@@ -427,13 +432,14 @@ export function WorkspaceTools({
                       </Link>
                     )}
                     <div className={s.actions}>
-                      <button
-                        className={s.secondary}
+                      <Button
+                        size="small"
+                        variant="outlined"
                         disabled={busy || !data.limits.team}
                         onClick={() => setTask(row)}
                       >
                         Изменить задачу
-                      </button>
+                      </Button>
                     </div>
                     <details>
                       <summary>История изменений</summary>

@@ -25,6 +25,7 @@ describe('contract downloads over HTTP', () => {
         'attachment',
       ],
       ['contract "final".pdf', 'application/pdf', 'attachment'],
+      ['Фотография участка.webp', 'image/webp', 'attachment'],
       ['contract\r\nX-Injected: yes.pdf', 'application/pdf', 'attachment'],
     ]) {
       it(`${role}: ${disposition} ${JSON.stringify(fileName)}`, async () => {
@@ -43,6 +44,7 @@ describe('contract downloads over HTTP', () => {
             getDownloadStreamForCustomer: download,
           } as never,
           { getUserIdFromRequest: () => 'actor' } as never,
+          {} as never,
         );
         const server = createServer((req, res) => {
           const request = Object.assign(req, {

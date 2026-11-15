@@ -102,7 +102,6 @@ export default function ForgotPasswordPage() {
                 size="large"
                 fullWidth
                 loading={loading}
-                sx={{ minHeight: 44 }}
               >
                 Отправить ссылку
               </Button>

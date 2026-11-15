@@ -23,6 +23,7 @@ import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
 import LocationCityIcon from "@mui/icons-material/LocationCity";
 import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
+import PeopleOutlinedIcon from "@mui/icons-material/PeopleOutlined";
 import { useMemo, useState } from "react";
 
 const SERVICES_GROUP = {
@@ -123,6 +124,24 @@ export function AdminSidebar({ pendingVerifications = 0 }: Props) {
       </Box>
       <Divider />
       <List dense disablePadding>
+        <ListItemButton
+          component={Link}
+          href="/admin/users"
+          selected={pathname.startsWith("/admin/users")}
+          sx={{
+            px: 2,
+            py: 1.25,
+          }}
+        >
+          <ListItemIcon
+            sx={{
+              minWidth: 36,
+            }}
+          >
+            <PeopleOutlinedIcon />
+          </ListItemIcon>
+          <ListItemText primary="Пользователи" />
+        </ListItemButton>
         <ListItemButton
           component={Link}
           href="/admin/provider-verifications"

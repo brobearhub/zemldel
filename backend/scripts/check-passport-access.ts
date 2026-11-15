@@ -15,10 +15,11 @@ async function main() {
   const customer = randomUUID(),
     actor = randomUUID(),
     stranger = randomUUID(),
+    admin = randomUUID(),
     providerId = randomUUID(),
     requestId = randomUUID(),
     photoId = randomUUID();
-  const users = [customer, actor, stranger];
+  const users = [customer, actor, stranger, admin];
   const base = `http://127.0.0.1:${Number(process.env.PORT ?? 3003)}`;
   const headers = (id: string) => ({
     'x-internal-auth': InternalAuthService.createTokenForUserId(
@@ -45,6 +46,8 @@ async function main() {
       data: users.map((id) => ({
         id,
         email: `qa-access-${id}@example.com`,
+        systemRole:
+          id === admin ? ('PLATFORM_ADMIN' as const) : ('CUSTOMER' as const),
         accountKind:
           id === actor ? ('PROVIDER' as const) : ('CUSTOMER' as const),
       })),
@@ -183,19 +186,34 @@ async function main() {
     assert.equal((await call(formPath, actor)).status, 403);
     const state = (await (
       await call('/documents/passport/access', customer)
-    ).json()) as { audit: Array<{ action: string }> };
+    ).json()) as Record<string, unknown>;
+    assert(!('audit' in state));
+    const auditPath = `/admin/users/${customer}/passport-audit`;
+    for (const userId of [customer, actor, stranger]) {
+      assert.equal((await call(auditPath, userId)).status, 403);
+    }
+    assert.equal((await fetch(`${base}${auditPath}`)).status, 401);
+    const auditResponse = await call(auditPath, admin);
+    assert.equal(auditResponse.status, 200);
+    assert.equal(
+      auditResponse.headers.get('cache-control'),
+      'private, no-store',
+    );
+    const history = (await auditResponse.json()) as {
+      items: Array<{ action: string }>;
+    };
     assert(
-      state.audit.some(
+      history.items.some(
         (row: { action: string }) => row.action === 'PROVIDER_FORM_READ',
       ),
     );
     assert(
-      state.audit.some(
+      history.items.some(
         (row: { action: string }) => row.action === 'PROVIDER_PHOTO_READ',
       ),
     );
     assert(
-      state.audit.some(
+      history.items.some(
         (row: { action: string }) => row.action === 'REQUEST_REVOKE_PHOTO',
       ),
     );

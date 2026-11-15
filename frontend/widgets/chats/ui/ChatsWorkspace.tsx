@@ -668,10 +668,7 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
                   endIcon={<ChevronRightRoundedIcon />}
                   sx={{
                     flexShrink: 0,
-                    minHeight: 44,
-                    fontSize: "0.75rem",
                     color: "text.primary",
-                    px: 0.5,
                   }}
                 >
                   К заявке

@@ -1,3 +1,4 @@
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import FavoriteBorderRoundedIcon from "@mui/icons-material/FavoriteBorderRounded";
 import type { ReactNode } from "react";
 import ViewKanbanOutlinedIcon from "@mui/icons-material/ViewKanbanOutlined";
@@ -67,6 +68,12 @@ export const NAV_ITEMS: readonly SidebarNavItem[] = [
     label: "Услуги",
     icon: <FormatListBulletedOutlinedIcon />,
     active: (path) => path.startsWith("/pro/services"),
+  },
+  {
+    href: "/pro/documents",
+    label: "Документы",
+    icon: <DescriptionOutlinedIcon />,
+    active: (path) => path.startsWith("/pro/documents"),
   },
   {
     href: "/pro/clients",

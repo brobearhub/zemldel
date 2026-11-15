@@ -120,9 +120,6 @@ export function ProRequestsFeedFilters({
                 : onSelectMobileStatus(filter.status)}
               sx={{
                 gap: 0.75,
-                px: 1.5,
-                py: 0.875,
-                fontSize: 14,
                 flexShrink: 0,
                 whiteSpace: "nowrap",
                 fontWeight: selected ? 700 : 400,

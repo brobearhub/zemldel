@@ -840,10 +840,8 @@ export function ProviderProfileEditorSection({
             variant="text"
             endIcon={<OpenInNewRoundedIcon />}
             sx={{
-              minHeight: 48,
               flexShrink: 0,
               color: "text.primary",
-              px: 0,
             }}
           >
             Открыть профиль
@@ -963,8 +961,6 @@ export function ProviderProfileEditorSection({
                     textTransform: "uppercase",
                     fontWeight: 600,
                     letterSpacing: "0.46px",
-                    py: { xs: "6px", md: "8px" },
-                    px: { xs: "10px", md: "12px" },
                     minWidth: 0,
                     flex: "1 1 0",
                     "&:hover": { borderColor: "rgba(255,255,255,0.55)" },
@@ -997,8 +993,6 @@ export function ProviderProfileEditorSection({
                       textTransform: "uppercase",
                       fontWeight: 600,
                       letterSpacing: "0.46px",
-                      py: { xs: "6px", md: "8px" },
-                      px: { xs: "8px", md: "11px" },
                       minWidth: 0,
                       flex: "1 1 0",
                       color: "text.secondary",
@@ -1042,7 +1036,6 @@ export function ProviderProfileEditorSection({
                             color: "secondary.contrastText",
                             textTransform: "none",
                             fontWeight: 700,
-                            minHeight: 36,
                             "&:hover": { bgcolor: "text.primary" },
                           }}
                         >

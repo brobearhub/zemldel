@@ -13,11 +13,15 @@ import { AuthFooter } from "@/widgets/footer/ui/AuthFooter";
 import { Footer } from "@/widgets/footer/ui/Footer";
 import {
   isFullBleedAuthPath,
+  SITE_HEADER_HEIGHT_PX,
   SITE_HEADER_SPACER_PX,
 } from "@/shared/config/site-layout";
 import { rememberInternalNav } from "@/shared/lib/internal-nav-history";
 import { CabinetChrome, getCabinetZone } from "@/widgets/cabinet-chrome";
 import { CabinetSidebarProvider } from "@/shared/ui/CabinetSidebarContext";
+import { resolveAccountKind } from "@/core/auth/authorization";
+import { useAppSelector } from "@/core/store/hooks";
+import { isPublicSidebarRoute } from "@/widgets/cabinet-chrome/lib/is-public-sidebar-route";
 
 type Props = {
   children: ReactNode;
@@ -71,6 +75,13 @@ function SiteChromeContent({ children }: Props) {
     pathname === chatBasePath || pathname.startsWith(`${chatBasePath}/`);
   const isChatThread = pathname.startsWith(`${chatBasePath}/`);
   const fullBleedAuth = isFullBleedAuthPath(pathname);
+  const isAbout = pathname === "/about";
+  const publicSidebar = useAppSelector(
+    (state) =>
+      state.auth.status === "authenticated" &&
+      resolveAccountKind(state.auth.user) === "PROVIDER" &&
+      isPublicSidebarRoute(pathname),
+  );
 
   // Why: пишем синхронно в render, чтобы «Назад» на услуге успел прочитать prev
   // до своего useEffect. Query не нужен: router.back() вернёт полный URL.
@@ -118,6 +129,9 @@ function SiteChromeContent({ children }: Props) {
           minHeight: "100dvh",
           display: "flex",
           flexDirection: "column",
+          ml: publicSidebar
+            ? { tablet: "var(--cabinet-sidebar-width, 26px)" }
+            : undefined,
         }}
       >
         <SkipLink />
@@ -125,20 +139,49 @@ function SiteChromeContent({ children }: Props) {
           className="mui-fixed"
           sx={{
             position: "fixed",
-            left: 0,
+            left: publicSidebar
+              ? { xs: 0, tablet: "var(--cabinet-sidebar-width, 26px)" }
+              : 0,
             top: 0,
-            width: "100%",
+            width: publicSidebar
+              ? {
+                  xs: "100%",
+                  tablet: "calc(100% - var(--cabinet-sidebar-width, 26px))",
+                }
+              : "100%",
             zIndex: 1200,
+            ...(isAbout && {
+              "& > .MuiAppBar-root": {
+                bgcolor: "background.default",
+              },
+            }),
+            ...(publicSidebar && {
+              "& > .MuiAppBar-root": {
+                position: "static",
+                left: "auto",
+                width: "100%",
+                bgcolor: "background.default",
+              },
+            }),
           }}
         >
           <Header />
         </Box>
-        {/* Единый зазор header → контент (см. SITE_HEADER_SPACER_PX). Страницы не дублируют pt сверху. */}
+        {publicSidebar ? (
+          <Suspense fallback={null}>
+            <CabinetDesktopSidebar compactPublicPage />
+          </Suspense>
+        ) : null}
+        {/* About starts directly below the header, including its 1px bottom border. */}
         <Box
           sx={{
             height: {
-              xs: SITE_HEADER_SPACER_PX.xs,
-              sm: SITE_HEADER_SPACER_PX.sm,
+              xs: isAbout
+                ? SITE_HEADER_HEIGHT_PX.xs + 1
+                : SITE_HEADER_SPACER_PX.xs,
+              sm: isAbout
+                ? SITE_HEADER_HEIGHT_PX.sm + 1
+                : SITE_HEADER_SPACER_PX.sm,
             },
           }}
         />

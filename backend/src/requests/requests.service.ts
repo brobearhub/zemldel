@@ -52,8 +52,8 @@ import {
 } from './dto/request-cadastral-number.dto';
 import {
   parseRequestListFeedQuery,
+  encodeRequestFeedCursor,
   requestListAssignedWhere,
-  requestListScopeWhere,
   type RequestListFeedQuery,
 } from './request-list-query';
 import {
@@ -68,6 +68,10 @@ import { randomUUID } from 'node:crypto';
 import { foldProRequestStats, type ProRequestStats } from './pro-request-stats';
 
 import { assignedMemberSelect } from './request-assignment';
+import {
+  requestFeedPageQuery,
+  type RequestFeedPageIndex,
+} from './request-list-page';
 
 const select = {
   id: true,
@@ -965,7 +969,7 @@ export class RequestsService {
       JOIN customer_requests request ON request."id" = file."requestId"
       WHERE file."providerId" = request."providerId"
         AND request."lockedAt" IS NOT NULL
-        AND file."role" = 'CONTRACT_DOCUMENT'
+        AND file."role" IN ('CONTRACT_DOCUMENT', 'PROVIDER_MISC')
       UNION
       SELECT request."id"
       FROM "RequestDocumentRequest" document
@@ -1854,109 +1858,69 @@ export class RequestsService {
   async listProFeed(
     actorProviderId: string,
     input: RequestListFeedQuery,
-  ): Promise<{ items: RequestProDto[] }> {
+  ): Promise<{
+    items: RequestProDto[];
+    total: number;
+    needsReply: number;
+    hasMore: boolean;
+    nextCursor: string | null;
+  }> {
     const parsed = parseRequestListFeedQuery(input);
     if (!parsed.ok) throw new BadRequestException(parsed.message);
 
-    const scopeWhere = requestListScopeWhere(parsed.scope);
-    const [providerRegionCode, eligibleCategoryIds] = await Promise.all([
-      this.getProviderRegionCode(actorProviderId),
-      this.getProviderEligibleCategoryIds(actorProviderId),
-    ]);
-
-    const [assignedRows, unassignedRows, activeOtherRows] = await Promise.all([
-      this.prisma.request.findMany({
-        where: requestListAssignedWhere(actorProviderId, parsed.scope),
-        select,
-        orderBy: [{ createdAt: 'desc' }],
-        take: 200,
-      }),
-      this.prisma.request.findMany({
-        where: {
-          AND: [
-            { providerId: null, status: { in: ['NEW', 'DISCUSSING'] } },
-            scopeWhere,
-            freeRequestEligibilityWhere(
-              providerRegionCode,
-              eligibleCategoryIds,
-            ),
-          ],
-        },
-        select,
-        orderBy: [{ createdAt: 'desc' }],
-        take: 200,
-      }),
-      this.prisma.request.findMany({
-        where: {
-          AND: [
-            { serviceId: null, providerId: { not: null }, status: 'ACTIVE' },
-            scopeWhere,
-            freeRequestEligibilityWhere(
-              providerRegionCode,
-              eligibleCategoryIds,
-            ),
-          ],
-        },
-        select,
-        orderBy: [{ createdAt: 'desc' }],
-        take: 200,
-      }),
-    ]);
-
-    const [unassignedRegionById, activeRegionById] = await Promise.all([
-      this.resolveRequestsRegionCodes(
-        unassignedRows as unknown as RequestDbRow[],
-      ),
-      this.resolveRequestsRegionCodes(
-        activeOtherRows as unknown as RequestDbRow[],
-      ),
-    ]);
-    const eligibleUnassigned: RequestDbRow[] = [];
-    for (const row of unassignedRows as unknown as RequestDbRow[]) {
-      try {
-        this.assertProviderEligibleForUnassignedRequest(
-          actorProviderId,
-          row,
-          providerRegionCode,
-          eligibleCategoryIds,
-          unassignedRegionById,
-        );
-        eligibleUnassigned.push(row);
-      } catch {
-        // not eligible
-      }
-    }
-
-    const eligibleActiveOther: RequestDbRow[] = [];
-    for (const row of activeOtherRows as unknown as RequestDbRow[]) {
-      if (!row.providerId || row.providerId === actorProviderId) continue;
-      try {
-        this.assertProviderEligibleForUnassignedRequest(
-          actorProviderId,
-          row,
-          providerRegionCode,
-          eligibleCategoryIds,
-          activeRegionById,
-        );
-        eligibleActiveOther.push(row);
-      } catch {
-        // not eligible
-      }
-    }
-
-    const scope = parsed.scope;
-    const merged = [
-      ...(assignedRows as unknown as RequestDbRow[]),
-      ...eligibleUnassigned,
-      ...eligibleActiveOther,
-    ]
-      .filter((row) =>
-        scope.kind === 'free'
-          ? row.serviceId == null
-          : row.serviceId === scope.serviceId,
-      )
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, 200);
+    const [regionCode, categoryIds] =
+      parsed.scope.kind === 'free'
+        ? await Promise.all([
+            this.getProviderRegionCode(actorProviderId),
+            this.getProviderEligibleCategoryIds(actorProviderId),
+          ])
+        : ([null, new Set<string>()] as const);
+    const [index] = await this.prisma.$queryRaw<RequestFeedPageIndex[]>(
+      requestFeedPageQuery(actorProviderId, parsed, regionCode, [
+        ...categoryIds,
+      ]),
+    );
+    const page = index.rows.slice(0, parsed.limit);
+    const hasMore = index.rows.length > parsed.limit;
+    const last = page.at(-1);
+    const accessWhere: Prisma.RequestWhereInput =
+      parsed.scope.kind === 'service'
+        ? requestListAssignedWhere(actorProviderId, parsed.scope)
+        : {
+            serviceId: null,
+            OR: [
+              { providerId: actorProviderId },
+              {
+                AND: [
+                  freeRequestEligibilityWhere(regionCode, categoryIds),
+                  {
+                    OR: [
+                      {
+                        providerId: null,
+                        status: { in: ['NEW', 'DISCUSSING'] },
+                      },
+                      { providerId: { not: null }, status: 'ACTIVE' },
+                    ],
+                  },
+                ],
+              },
+            ],
+          };
+    const rows = page.length
+      ? await this.prisma.request.findMany({
+          where: {
+            AND: [accessWhere],
+            id: { in: page.map((row) => row.id) },
+            status: { notIn: ['COMPLETED', 'CLOSED', 'CANCELLED'] },
+          },
+          select,
+        })
+      : [];
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    const merged = page.flatMap((row) => {
+      const found = byId.get(row.id);
+      return found ? [found as unknown as RequestDbRow] : [];
+    });
 
     const ids = merged.map((r) => r.id);
     const [conversationCounts, customerReplies] = await Promise.all([
@@ -1964,6 +1928,10 @@ export class RequestsService {
       this.getLatestCustomerMessages(ids, actorProviderId),
     ]);
     return {
+      total: index.total,
+      needsReply: index.needsReply,
+      hasMore,
+      nextCursor: hasMore && last ? encodeRequestFeedCursor(last) : null,
       items: merged.map((r) => {
         const preview = customerReplies.get(r.id);
         return requestRowToProDtoPlain(

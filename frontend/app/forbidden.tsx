@@ -18,7 +18,6 @@ export default function ForbiddenPage() {
           component="a"
           href="/pro/requests/feed"
           variant="contained"
-          sx={{ minHeight: 44 }}
         >
           В кабинет
         </Button>

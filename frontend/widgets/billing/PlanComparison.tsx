@@ -1,16 +1,19 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import Button from "@mui/material/Button";
 import {
   comparison,
   plans,
   money,
   productFor,
   periodLabel,
+  requestsAvailability,
   type BillingPeriod,
   type BillingCatalog,
 } from "./model";
 import { BillingPeriodSelector } from "./BillingPeriodSelector";
+import { PlanFeatureLabel } from "./PlanFeatureLabel";
 import s from "./billing.module.css";
 
 export function PlanComparison({ catalog }: { catalog: BillingCatalog }) {
@@ -25,21 +28,27 @@ export function PlanComparison({ catalog }: { catalog: BillingCatalog }) {
       <p className={s.muted}>
         При оплате за год скидка 10%. Вся сумма оплачивается сразу.
       </p>
-      <p className={s.muted}>На «Бизнесе» можно написать клиенту, сохранившему вашу услугу или профиль. До ответа доступно одно сообщение. После окончания тарифа начатые диалоги продолжаются; новые обращения требуют «Бизнес». Прямые чаты работают на сайте.</p>
+      <p className={s.notice}>
+        <strong>{requestsAvailability}</strong>{" "}
+        «Бизнес» дополнительно позволяет увидеть, кто добавил вас в избранное,
+        и первым предложить свои услуги.
+      </p>
       <div
         className={s.tabs}
         aria-label="Выбор тарифа для сравнения"
       >
         {plans.map((plan, index) => (
-          <button
+          <Button
             key={plan.id}
             type="button"
-            className={index === selected ? s.button : s.secondary}
+            size="small"
+            variant={index === selected ? "contained" : "outlined"}
+            className={s.smallButton}
             aria-pressed={index === selected}
             onClick={() => setSelected(index)}
           >
             {plan.name}
-          </button>
+          </Button>
         ))}
       </div>
       <div className={s.tableWrap}>
@@ -71,22 +80,27 @@ export function PlanComparison({ catalog }: { catalog: BillingCatalog }) {
                       ? "Без срока действия"
                       : `за ${periodLabel(period)}`}
                   </span>
-                  <p className={s.muted}>{plan.description}</p>
-                  <Link
-                    className={`${s.button} ${s.wide}`}
+                  <Button
+                    component={Link}
+                    size="small"
+                    variant="contained"
+                    fullWidth
+                    className={s.smallButton}
                     href={`/pro/settings/tariff${plan.id !== "STANDARD" ? `?product=${productFor(plan.id, period)}` : ""}`}
                   >
                     {plan.id === "STANDARD" ? "Начать бесплатно" : "Выбрать тариф"}
-                  </Link>
+                  </Button>
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {comparison.map(([label, ...values]) => (
-              <tr key={label}>
-                <th scope="row">{label}</th>
-                {values.map((value, index) => (
+            {comparison.map((feature) => (
+              <tr key={feature.label}>
+                <th scope="row">
+                  <PlanFeatureLabel feature={feature} />
+                </th>
+                {feature.values.map((value, index) => (
                   <td
                     key={index}
                     data-hidden={index !== selected}

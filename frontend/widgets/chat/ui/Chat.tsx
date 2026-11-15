@@ -918,7 +918,6 @@ export function Chat({
               sx={(theme) => ({
                 minWidth: 0,
                 "& .MuiOutlinedInput-root": {
-                  minHeight: 44,
                   borderRadius: 1.5,
                   bgcolor: "background.paper",
                   color: theme.palette.text.primary,

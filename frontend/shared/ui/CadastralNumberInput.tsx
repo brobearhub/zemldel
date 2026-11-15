@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, type ChangeEvent, type KeyboardEvent } from "react";
-import { Box, Stack, Typography } from "@mui/material";
+import { OutlinedInput, Stack, Typography } from "@mui/material";
 import {
   CADASTRAL_PART_MAX_LENGTHS,
   digitsOnly,
@@ -19,6 +19,7 @@ export function CadastralNumberInput({
   value,
   onChange,
   disabled = false,
+  size = "medium",
 }: Props) {
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
@@ -69,50 +70,32 @@ export function CadastralNumberInput({
             alignItems: "center",
           }}
         >
-          <Box
-            component="input"
-            ref={(element: HTMLInputElement | null) => {
+          <OutlinedInput
+            size={size}
+            inputRef={(element: HTMLInputElement | null) => {
               inputRefs.current[index] = element;
             }}
             value={part}
             onChange={handleChange(index)}
             onKeyDown={handleKeyDown(index)}
             disabled={disabled}
-            inputMode="numeric"
             placeholder={
               index === 3
                 ? "0000"
                 : "0".repeat(CADASTRAL_PART_MAX_LENGTHS[index])
             }
-            maxLength={CADASTRAL_PART_MAX_LENGTHS[index]}
-            aria-label={`Кадастровый номер, часть ${index + 1}`}
+            slotProps={{
+              input: {
+                inputMode: "numeric",
+                maxLength: CADASTRAL_PART_MAX_LENGTHS[index],
+                "aria-label": `Кадастровый номер, часть ${index + 1}`,
+                sx: {
+                  width: `${index === 2 ? 7 : index === 3 ? Math.max(4, part.length) + 1 : 2}ch`,
+                },
+              },
+            }}
             sx={{
-              width: index === 2 ? "9ch" : index === 3 ? "auto" : "4ch",
-              minWidth: index === 3 ? "4ch" : undefined,
-              ...(index === 3
-                ? {
-                    width: `calc(${Math.max(4, part.length || 0) + 1}ch)`,
-                    // запас +1ch, чтобы последняя цифра не "подъедалась" из‑за метрик шрифта/рендеринга
-                    boxSizing: "content-box",
-                  }
-                : null),
-              minHeight: 52,
-              border: 1,
-              borderColor: "divider",
-              borderRadius: 1,
-              px: 1,
-              font: "inherit",
-              fontSize: "1.125rem",
-              outline: "none",
-              bgcolor: "background.paper",
-              "&:focus": {
-                borderColor: "primary.main",
-              },
-              "&:focus-visible": {
-                outline: "2px solid",
-                outlineColor: "text.primary",
-                outlineOffset: 2,
-              },
+              width: "auto",
             }}
           />
           {index < 3 ? (

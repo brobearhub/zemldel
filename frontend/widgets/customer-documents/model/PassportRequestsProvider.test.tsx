@@ -21,17 +21,17 @@ it("refreshes the animated dot from existing request events and clears it after 
   let requested = false;
   vi.stubGlobal("fetch", vi.fn(async () => requested ? pending() : Response.json({requests:[]})));
   setup();
-  await screen.findByRole("link", {name:"Документы и доступ к паспорту"});
+  await screen.findByRole("link", {name:"Открыть оповещения"});
   requested = true;
   act(() => window.dispatchEvent(new CustomEvent("request:changed", {detail:{requestId:"request-1"}})));
-  const bell = await screen.findByRole("link", {name:"Запрошены документы паспорта"});
-  expect(bell).toHaveAttribute("href", "/profile?section=documents#passport-access");
+  const bell = await screen.findByRole("link", {name:"Открыть оповещения: запрошен доступ к документам паспорта"});
+  expect(bell).toHaveAttribute("href", "/profile/notifications");
   expect(bell.querySelector(".MuiBadge-badge")).not.toHaveClass("MuiBadge-invisible");
   expect(bell.querySelector(".MuiBadge-badge")).toHaveTextContent("");
   requested = false;
   act(() => refreshPassportRequests());
-  await screen.findByRole("link", {name:"Документы и доступ к паспорту"});
-  expect(bell.querySelector(".MuiBadge-badge")).toHaveClass("MuiBadge-invisible");
+  await screen.findByRole("link", {name:"Открыть оповещения"});
+  expect(bell.querySelector(".MuiBadge-badge")).not.toBeInTheDocument();
 });
 
 it("keeps pending state on a failed refresh, and never leaks it across logout or account changes", async () => {
@@ -39,22 +39,22 @@ it("keeps pending state on a failed refresh, and never leaks it across logout or
   const fetchMock = vi.fn(async () => fail ? Response.json({}, {status:502}) : pending());
   vi.stubGlobal("fetch", fetchMock);
   const store = setup();
-  await screen.findByRole("link", {name:"Запрошены документы паспорта"});
+  await screen.findByRole("link", {name:"Открыть оповещения: запрошен доступ к документам паспорта"});
   fail = true;
   act(() => refreshPassportRequests());
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-  expect(screen.getByRole("link", {name:"Запрошены документы паспорта"})).toBeInTheDocument();
+  expect(screen.getByRole("link", {name:"Открыть оповещения: запрошен доступ к документам паспорта"})).toBeInTheDocument();
   act(() => store.dispatch(setUnauthenticated()));
-  expect(screen.getByRole("link", {name:"Документы и доступ к паспорту"})).toBeInTheDocument();
+  expect(screen.getByRole("link", {name:"Открыть оповещения"})).toBeInTheDocument();
   act(() => store.dispatch(setAuthenticated({...user,id:"customer-2"})));
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-  expect(screen.queryByRole("link", {name:"Запрошены документы паспорта"})).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", {name:"Открыть оповещения: запрошен доступ к документам паспорта"})).not.toBeInTheDocument();
 });
 
 it("does not query customer requests for a provider account", async () => {
   const fetchMock = vi.fn();
   vi.stubGlobal("fetch", fetchMock);
   setup({...user, accountKind:"PROVIDER"});
-  expect(screen.getByRole("link", {name:"Документы и доступ к паспорту"})).toBeInTheDocument();
+  expect(screen.getByRole("link", {name:"Открыть оповещения"})).toBeInTheDocument();
   expect(fetchMock).not.toHaveBeenCalled();
 });
