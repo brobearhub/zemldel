@@ -69,10 +69,10 @@ export function RequestDocumentFileCard({
           <Chip
             size="small"
             label="Вложение"
-            sx={(theme) => ({
+            sx={{
               display: { xs: "inline-flex", tablet: "none" },
-              bgcolor: alpha(theme.palette.primary.main, 0.16),
-            })}
+              bgcolor: "background.secondary",
+            }}
           />
         ) : (
           status

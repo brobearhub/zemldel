@@ -258,12 +258,12 @@ export function ProRequestDocumentsSection(
             component="section"
             aria-label="Договор с клиентом"
             spacing={2}
-            sx={(theme) => ({
+            sx={{
               p: { xs: 2.5, tablet: 3 },
               minWidth: 0,
               borderRadius: 1.5,
-              bgcolor: alpha(theme.palette.primary.main, 0.16),
-            })}
+              bgcolor: "background.secondary",
+            }}
           >
             <Stack
               direction="row"

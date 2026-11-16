@@ -1529,11 +1529,16 @@ export function CustomerRequestConversationWorkspace({
                                   color="warning"
                                   label="Исполнитель"
                                   sx={{
+                                    height: 24,
                                     minHeight: 24,
                                     fontSize: "0.8125rem",
                                     "& .MuiChip-label": {
+                                      display: "flex",
+                                      alignItems: "center",
+                                      height: "100%",
                                       px: 1.5,
                                       py: 0,
+                                      lineHeight: 1,
                                     },
                                   }}
                                 />

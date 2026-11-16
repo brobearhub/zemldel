@@ -37,8 +37,8 @@ describe("HomeIntroBanner", () => {
   });
 
   it.each([
-    ["warm-coal", "rgb(58, 53, 44)"],
-    ["sage-graphite", "rgb(45, 55, 47)"],
+    ["warm-coal", "rgb(55, 54, 48)"],
+    ["sage-graphite", "rgb(47, 55, 48)"],
   ] as const)("uses the selected dark palette %s", (palette, background) => {
     const theme = createAppTheme("dark", {
       cssVariables: false,

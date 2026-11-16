@@ -14,7 +14,7 @@ import {
 import { alpha, darken, lighten } from "@mui/material/styles";
 import { breakpointValues, media } from "./breakpoints";
 import { readableTypography } from "./typography";
-import { SECONDARY_BACKGROUND } from "./background";
+import { getSecondaryBackground } from "./background";
 import {
   DARK_PALETTES,
   DEFAULT_DARK_PALETTE,
@@ -190,9 +190,7 @@ export function createAppTheme(
         background: {
           default: t.bg,
           paper: t.paper,
-          secondary: isNewDarkPalette
-            ? DARK_PALETTES[paletteId].raised
-            : SECONDARY_BACKGROUND,
+          secondary: getSecondaryBackground(t.primary.main, t.bg),
         },
         divider: t.divider,
         text: {

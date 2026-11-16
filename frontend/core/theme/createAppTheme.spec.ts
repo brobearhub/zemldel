@@ -41,7 +41,7 @@ describe.each(["light", "dark"] as const)(
     });
 
     it("exposes the secondary background as a theme value and CSS variable", () => {
-      const expected = mode === "light" ? "#a0b4a00f" : "#3a3347";
+      const expected = mode === "light" ? "#dbdfd3" : "#383243";
       expect(theme.palette.background.secondary).toBe(expected);
       expect(theme.vars.palette.background.secondary).toContain(
         "--mui-palette-background-secondary",
@@ -76,6 +76,7 @@ describe("createAppTheme restored palette", () => {
   it("uses the original dark secondary colors", () => {
     const theme = createAppTheme("dark", { darkPalette: "turquoise-cocoa" });
 
+    expect(theme.palette.background.secondary).toBe("#313f3e");
     expect(theme.palette.accent.main).toBe("#FA5018");
     expect(theme.palette.text.secondary).toBe(alpha("#fff", 0.5));
     expect(theme.palette.divider).toBe(alpha("#fff", 0.12));
@@ -84,6 +85,17 @@ describe("createAppTheme restored palette", () => {
 });
 
 describe("approved dark palettes", () => {
+  const secondaryByPalette = {
+    "lavender-graphite": "#383243",
+    "warm-coal": "#373630",
+    "sage-graphite": "#2f3730",
+    "silver-graphite": "#353535",
+    "mineral-slate": "#303a3a",
+    "peat-copper": "#3b362f",
+    moonstone: "#3d4343",
+    "turquoise-cocoa": "#313f3e",
+  } as const;
+
   it("uses Lavender Graphite by default", () => {
     const theme = createAppTheme("dark");
     expect(theme.palette.background.default).toBe("#1c1922");
@@ -113,6 +125,7 @@ describe("approved dark palettes", () => {
       const dark = createAppTheme("dark", { darkPalette: id });
       expect(dark.palette.background.default).toBe(background);
       expect(dark.palette.background.paper).toBe(paper);
+      expect(dark.palette.background.secondary).toBe(secondaryByPalette[id]);
       expect(dark.palette.primary.main).toBe(primary);
       expect(dark.palette.text.primary).toBe(text);
       expect(dark.palette.text.secondary).toBe(muted);

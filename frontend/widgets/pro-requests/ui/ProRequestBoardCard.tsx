@@ -80,7 +80,7 @@ export function ProRequestBoardCard({ item }: { item: RequestProDto }) {
               borderRadius: 0.75,
               py: 0.25,
               color: "text.secondary",
-              bgcolor: (theme) => alpha(theme.palette.primary.main, 0.16),
+              bgcolor: "background.secondary",
               "& .MuiChip-label": {
                 px: 1,
                 fontSize: 13,
