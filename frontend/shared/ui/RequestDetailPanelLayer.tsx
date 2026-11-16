@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import CloseIcon from "@mui/icons-material/Close";
 import { Box, IconButton, Paper, Stack, Typography } from "@mui/material";
 
@@ -23,6 +23,19 @@ export function RequestDetailPanelLayer({
   children,
   panel,
 }: RequestDetailPanelLayerProps) {
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const trigger = document.activeElement;
+    closeButtonRef.current?.focus({ preventScroll: true });
+    return () => {
+      if (trigger instanceof HTMLElement && trigger.isConnected) {
+        trigger.focus({ preventScroll: true });
+      }
+    };
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     function onKeyDown(event: KeyboardEvent) {
@@ -48,7 +61,7 @@ export function RequestDetailPanelLayer({
         <Paper
           elevation={0}
           role="dialog"
-          aria-modal="true"
+          aria-modal="false"
           aria-label={title}
           sx={(theme) => ({
             gridArea: "1 / 1",
@@ -65,7 +78,10 @@ export function RequestDetailPanelLayer({
             boxShadow: "none",
           })}
         >
-          <Stack spacing={2.5} sx={{ flex: 1, minHeight: "100%", minWidth: 0 }}>
+          <Stack
+            spacing={2.5}
+            sx={{ flex: 1, minHeight: "100%", minWidth: 0 }}
+          >
             <Stack
               direction="row"
               spacing={2}
@@ -97,7 +113,12 @@ export function RequestDetailPanelLayer({
                   {title}
                 </Typography>
               </Stack>
-              <IconButton aria-label="Закрыть" onClick={onClose} size="small">
+              <IconButton
+                ref={closeButtonRef}
+                aria-label="Закрыть"
+                onClick={onClose}
+                size="small"
+              >
                 <CloseIcon />
               </IconButton>
             </Stack>

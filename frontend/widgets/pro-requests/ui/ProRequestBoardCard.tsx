@@ -35,8 +35,8 @@ export function ProRequestBoardCard({ item }: { item: RequestProDto }) {
     .join("")
     .toUpperCase();
   const price = resolveRequestPriceView(item);
-  const isAgreed = price.agreedAmount != null;
-  const canReply = item.status === "NEW" && !item.isLocked && !item.awaitingCustomerReply && !isAgreed;
+  const hasSetPrice = price.agreedAmount != null;
+  const canReply = item.status === "NEW" && !item.isLocked && !item.awaitingCustomerReply;
   const subjectLabel = item.subjectType === "SERVICE"
     ? "Услуга"
     : item.subjectType === "CATEGORY"
@@ -236,7 +236,7 @@ export function ProRequestBoardCard({ item }: { item: RequestProDto }) {
               alignItems: "center",
             }}
           >
-            {isAgreed ? (
+            {hasSetPrice ? (
               <CheckCircleRoundedIcon
                 sx={{
                   fontSize: 16,
@@ -248,8 +248,8 @@ export function ProRequestBoardCard({ item }: { item: RequestProDto }) {
               variant="body2"
               sx={{
                 fontSize: 14,
-                fontWeight: isAgreed ? 700 : 400,
-                color: isAgreed ? "text.primary" : "warning.main",
+                fontWeight: hasSetPrice ? 700 : 400,
+                color: hasSetPrice ? "text.primary" : "warning.main",
               }}
             >
               {price.headline}

@@ -54,7 +54,7 @@ export type ChatInboxItemDto = {
   requestStatus?: string;
   contractPhase?: boolean;
   serviceRequestId: string | null;
-  kind?: "REQUEST" | "DIRECT";
+  kind?: "REQUEST" | "DIRECT" | "PARTNER";
   directState?: string | null;
   requestNumber?: number | null;
   title: string;

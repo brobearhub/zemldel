@@ -8,6 +8,8 @@ import Groups2OutlinedIcon from "@mui/icons-material/Groups2Outlined";
 import FormatListBulletedOutlinedIcon from "@mui/icons-material/FormatListBulletedOutlined";
 import DataSaverOnIcon from "@mui/icons-material/DataSaverOn";
 import ChatBubbleOutlineRoundedIcon from "@mui/icons-material/ChatBubbleOutlineRounded";
+import HandshakeOutlinedIcon from "@mui/icons-material/HandshakeOutlined";
+import PeopleOutlineOutlinedIcon from "@mui/icons-material/PeopleOutlineOutlined";
 
 export type SidebarNavItem = {
   href: string;
@@ -44,8 +46,14 @@ export const TEAM_ITEMS: readonly SidebarNavItem[] = [
   {
     href: "/pro/team/add-manager",
     label: "Команда",
-    icon: null,
+    icon: <PeopleOutlineOutlinedIcon />,
     active: (pathname) => pathname === "/pro/team/add-manager",
+  },
+  {
+    href: "/pro/partners",
+    label: "Партнёры",
+    icon: <HandshakeOutlinedIcon />,
+    active: (pathname) => pathname.startsWith("/pro/partners"),
   },
   {
     href: "/pro/team/tasks",

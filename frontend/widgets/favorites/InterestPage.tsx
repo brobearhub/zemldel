@@ -278,23 +278,35 @@ export function InterestPage() {
                     По выбранным условиям клиентов пока нет.
                   </Alert>
                 ) : (
-                  <Stack spacing={1}>
+                  <Stack
+                    spacing={1}
+                    sx={{
+                      containerType: "inline-size",
+                      containerName: "interest-list",
+                    }}
+                  >
                     {data.items.map((customer) => (
                       <Paper
                         key={customer.customerId}
                         sx={{
-                          p: 2,
                           display: "grid",
-                          gridTemplateColumns: {
-                            xs: "1fr",
-                            md: "minmax(130px, 1fr) minmax(200px, 2fr) 130px 180px",
+                          gridTemplateColumns: "1fr",
+                          "@container interest-list (min-width: 824px)": {
+                            gridTemplateColumns:
+                              "minmax(162px, 1fr) minmax(240px, 2fr) max-content 212px",
                           },
-                          gap: 2,
-                          alignItems: "center",
+                          overflow: "hidden",
                         }}
                       >
-                        <Box sx={{ minWidth: 0 }}>
+                        <Box
+                          sx={{
+                            minWidth: 0,
+                            p: 2,
+                            bgcolor: "background.paper",
+                          }}
+                        >
                           <Typography
+                            component="div"
                             variant="caption"
                             color="text.secondary"
                           >
@@ -320,25 +332,54 @@ export function InterestPage() {
                             ) : null}
                           </Typography>
                         </Box>
-                        <Box>
+                        <Box
+                          sx={{
+                            minWidth: 0,
+                            p: 2,
+                            pl: customer.services.length > 1 ? 3 : 2,
+                            bgcolor: "background.secondary",
+                          }}
+                        >
                           <Typography
+                            component="div"
                             variant="caption"
                             color="text.secondary"
                           >
                             Услуги в избранном
                           </Typography>
-                          {customer.services.length ? (
-                            <Box component="details">
+                          {customer.services.length > 1 ? (
+                            <Box
+                              component="details"
+                              sx={{
+                                "&[open] [data-services-count]": {
+                                  display: "none",
+                                },
+                              }}
+                            >
                               <Box
                                 component="summary"
-                                sx={{ cursor: "pointer" }}
+                                sx={{
+                                  cursor: "pointer",
+                                  display: "list-item",
+                                  listStylePosition: "outside",
+                                  "&::marker": {
+                                    fontSize: "0.75em",
+                                  },
+                                }}
                               >
                                 {customer.services[0].title}
-                                {customer.services.length > 1
-                                  ? ` и ещё ${customer.services.length - 1}`
-                                  : ""}
+                                {customer.services[0].available ? "" : " · недоступна"}
+                                <Box
+                                  component="span"
+                                  data-services-count=""
+                                  sx={{
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {` и ещё ${customer.services.length - 1}`}
+                                </Box>
                               </Box>
-                              {customer.services.map((service) => (
+                              {customer.services.slice(1).map((service) => (
                                 <Typography
                                   key={service.id}
                                   variant="body2"
@@ -348,14 +389,29 @@ export function InterestPage() {
                                 </Typography>
                               ))}
                             </Box>
+                          ) : customer.services.length === 1 ? (
+                            <Typography>
+                              {customer.services[0].title}
+                              {customer.services[0].available ? "" : " · недоступна"}
+                            </Typography>
                           ) : (
                             <Typography>—</Typography>
                           )}
                         </Box>
-                        <Box>
+                        <Box
+                          sx={{
+                            minWidth: 0,
+                            p: 2,
+                            bgcolor: "background.paper",
+                          }}
+                        >
                           <Typography
+                            component="div"
                             variant="caption"
                             color="text.secondary"
+                            sx={{
+                              whiteSpace: "nowrap",
+                            }}
                           >
                             Профиль в избранном
                           </Typography>
@@ -363,8 +419,16 @@ export function InterestPage() {
                             {customer.profile ? "Да" : "—"}
                           </Typography>
                         </Box>
-                        <Stack spacing={0.5}>
+                        <Stack
+                          spacing={0.5}
+                          sx={{
+                            minWidth: 0,
+                            p: 2,
+                            bgcolor: "background.secondary",
+                          }}
+                        >
                           <Typography
+                            component="div"
                             variant="caption"
                             color="text.secondary"
                           >
@@ -375,6 +439,9 @@ export function InterestPage() {
                               component={Link}
                               href={`/pro/chats/direct/${customer.conversationId}`}
                               size="small"
+                              sx={{
+                                color: "text.primary",
+                              }}
                             >
                               Открыть чат
                             </Button>

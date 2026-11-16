@@ -66,39 +66,34 @@ describe('formatCustomerSelectProviderChatMessage', () => {
 });
 
 describe('RequestsService.selectProviderByCustomer', () => {
-  it('сохраняет принятую цену выбранного provider B и не переносит цену A', async () => {
-    const acceptedAt = new Date('2026-08-05T00:00:00.000Z');
-    const row = makeRequestRow({
-      providerId: null,
-      totalAmountRubles: 11000,
-      priceProposals: [
-        {
-          id: 'proposal-a',
-          providerId: 'provider-a',
-          amountRubles: 11000,
-          authorSide: 'PROVIDER',
-          acceptedAt,
-          supersededAt: null,
-          createdAt: acceptedAt,
-        },
-        {
-          id: 'proposal-b',
-          providerId: 'provider-b',
-          amountRubles: 22000,
-          authorSide: 'PROVIDER',
-          acceptedAt,
-          supersededAt: null,
-          createdAt: acceptedAt,
-        },
-      ],
-    });
+  it('locks the request before reading a concurrently updated provider price', async () => {
+    let amount = 12000;
+    const now = new Date('2026-11-16T00:00:00Z');
     const tx = {
       request: {
-        findUnique: vi.fn().mockResolvedValue(row),
+        updateMany: vi.fn().mockImplementation(() => {
+          amount = 25000;
+          return { count: 1 };
+        }),
+        findUnique: vi.fn().mockImplementation(() =>
+          makeRequestRow({
+            priceProposals: [
+              {
+                id: 'provider-price',
+                providerId: 'provider-b',
+                amountRubles: amount,
+                authorSide: 'PROVIDER',
+                acceptedAt: null,
+                isDirectSet: true,
+                createdAt: now,
+              },
+            ],
+          }),
+        ),
         update: vi.fn().mockImplementation(({ data }) => ({
-          ...row,
+          ...makeRequestRow(),
           ...data,
-          providerOffers: [],
+          priceProposals: [],
         })),
       },
       requestProviderOffer: {
@@ -106,32 +101,133 @@ describe('RequestsService.selectProviderByCustomer', () => {
           .fn()
           .mockResolvedValue({ id: 'offer-b', status: 'SELECTED' }),
         upsert: vi.fn().mockResolvedValue({ id: 'offer-b' }),
-        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
       requestPriceProposal: {
-        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
       conversation: { findFirst: vi.fn().mockResolvedValue(null) },
       requestEvent: { create: vi.fn() },
     };
     const prisma = {
-      $transaction: async (fn: (client: typeof tx) => Promise<unknown>) =>
-        fn(tx),
+      $transaction: (run: (client: typeof tx) => Promise<unknown>) => run(tx),
     };
 
     await makeService(prisma).svc.selectProviderByCustomer('cu1', 'r1', {
       providerId: 'provider-b',
     });
-
+    expect(tx.request.updateMany.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.request.findUnique.mock.invocationCallOrder[0],
+    );
+    expect(tx.request.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'r1',
+        customerUserId: 'cu1',
+        lockedAt: null,
+        status: { in: ['NEW', 'DISCUSSING', 'TERMS_AGREED'] },
+      },
+      data: { updatedAt: expect.any(Date) },
+    });
     expect(tx.request.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           providerId: 'provider-b',
-          totalAmountRubles: 22000,
+          totalAmountRubles: 25000,
         }),
       }),
     );
   });
+
+  it.each([
+    {
+      scenario: 'previously accepted',
+      isDirectSet: false,
+      isAccepted: true,
+      expected: 22000,
+    },
+    {
+      scenario: 'directly set',
+      isDirectSet: true,
+      isAccepted: false,
+      expected: 22000,
+    },
+    {
+      scenario: 'legacy pending',
+      isDirectSet: false,
+      isAccepted: false,
+      expected: null,
+    },
+  ])(
+    'selects provider B with $scenario price without transferring A',
+    async ({ isDirectSet, isAccepted, expected }) => {
+      const acceptedAt = new Date('2026-08-05T00:00:00.000Z');
+      const row = makeRequestRow({
+        providerId: null,
+        totalAmountRubles: 11000,
+        priceProposals: [
+          {
+            id: 'proposal-a',
+            providerId: 'provider-a',
+            amountRubles: 11000,
+            authorSide: 'PROVIDER',
+            acceptedAt,
+            supersededAt: null,
+            createdAt: acceptedAt,
+          },
+          {
+            id: 'proposal-b',
+            providerId: 'provider-b',
+            amountRubles: 22000,
+            authorSide: 'PROVIDER',
+            acceptedAt: isAccepted ? acceptedAt : null,
+            isDirectSet,
+            supersededAt: null,
+            createdAt: acceptedAt,
+          },
+        ],
+      });
+      const tx = {
+        request: {
+          updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+          findUnique: vi.fn().mockResolvedValue(row),
+          update: vi.fn().mockImplementation(({ data }) => ({
+            ...row,
+            ...data,
+            providerOffers: [],
+          })),
+        },
+        requestProviderOffer: {
+          findUnique: vi
+            .fn()
+            .mockResolvedValue({ id: 'offer-b', status: 'SELECTED' }),
+          upsert: vi.fn().mockResolvedValue({ id: 'offer-b' }),
+          updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        },
+        requestPriceProposal: {
+          updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        },
+        conversation: { findFirst: vi.fn().mockResolvedValue(null) },
+        requestEvent: { create: vi.fn() },
+      };
+      const prisma = {
+        $transaction: async (fn: (client: typeof tx) => Promise<unknown>) =>
+          fn(tx),
+      };
+
+      await makeService(prisma).svc.selectProviderByCustomer('cu1', 'r1', {
+        providerId: 'provider-b',
+      });
+
+      expect(tx.request.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            providerId: 'provider-b',
+            totalAmountRubles: expected,
+          }),
+        }),
+      );
+    },
+  );
 
   it('после DECLINED снова ставит SELECTED и шлёт сообщение в чат', async () => {
     const row = makeRequestRow({
@@ -167,6 +263,7 @@ describe('RequestsService.selectProviderByCustomer', () => {
 
     const tx = {
       request: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         findUnique: vi.fn().mockResolvedValue(row),
         update: vi.fn().mockResolvedValue(refreshed),
       },
@@ -238,7 +335,10 @@ describe('RequestsService.selectProviderByCustomer', () => {
   it('без conversation и offer → BadRequestException', async () => {
     const row = makeRequestRow();
     const tx = {
-      request: { findUnique: vi.fn().mockResolvedValue(row) },
+      request: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        findUnique: vi.fn().mockResolvedValue(row),
+      },
       requestProviderOffer: {
         findUnique: vi.fn().mockResolvedValue(null),
       },

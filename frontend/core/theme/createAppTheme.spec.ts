@@ -41,7 +41,7 @@ describe.each(["light", "dark"] as const)(
     });
 
     it("exposes the secondary background as a theme value and CSS variable", () => {
-      const expected = mode === "light" ? "#a0b4a00f" : "#3a352c";
+      const expected = mode === "light" ? "#a0b4a00f" : "#3a3347";
       expect(theme.palette.background.secondary).toBe(expected);
       expect(theme.vars.palette.background.secondary).toContain(
         "--mui-palette-background-secondary",
@@ -84,22 +84,22 @@ describe("createAppTheme restored palette", () => {
 });
 
 describe("approved dark palettes", () => {
-  it("uses Warm Coal for an existing dark preference without a palette", () => {
+  it("uses Lavender Graphite by default", () => {
     const theme = createAppTheme("dark");
-    expect(theme.palette.background.default).toBe("#1d1b18");
-    expect(theme.palette.background.paper).toBe("#2c2924");
-    expect(theme.palette.primary.main).toBe("#b1b8a0");
-    expect(theme.palette.text.primary).toBe("#f0ece1");
-    expect(theme.palette.text.secondary).toBe("#bdb6a7");
-    expect(theme.palette.divider).toBe("#575144");
+    expect(theme.palette.background.default).toBe("#1c1922");
+    expect(theme.palette.background.paper).toBe("#292532");
+    expect(theme.palette.primary.main).toBe("#bea9df");
+    expect(theme.palette.text.primary).toBe("#f0eaf7");
+    expect(theme.palette.text.secondary).toBe("#bbafcb");
+    expect(theme.palette.divider).toBe("#584b6b");
   });
 
-  it("offers the eight selected palettes with all graphite variants together", () => {
+  it("offers the default palette first and preserves the other choices", () => {
     expect(DARK_PALETTE_OPTIONS.map(({ name }) => name)).toEqual([
+      "Лавандовый графит",
       "Тёплый уголь",
       "Шалфейный графит",
       "Серебряный графит",
-      "Лавандовый графит",
       "Минеральный сланец",
       "Торф и медь",
       "Лунный камень",

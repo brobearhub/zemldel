@@ -13,6 +13,7 @@ type Props = {
   servicePriceRubles: number | null;
   priceProposal?: RequestPriceProposalDto | null;
   serviceId?: string | null;
+  showReferencePrice?: boolean;
   /** Короткая строка «Цена: …» для договора и приёмки. */
   statedOnly?: boolean;
 };
@@ -22,6 +23,7 @@ export function RequestPriceBlock({
   servicePriceRubles,
   priceProposal = null,
   serviceId,
+  showReferencePrice = true,
   statedOnly = false,
 }: Props) {
   const view = resolveRequestPriceView({
@@ -33,7 +35,7 @@ export function RequestPriceBlock({
     return (
       <Typography variant="body2" sx={{ color: "text.secondary" }}>
         {view.statedAmount == null
-          ? "Цена не согласована"
+          ? "Цена работ не указана"
           : `Цена: ${formatRubles(view.statedAmount)}`}
       </Typography>
     );
@@ -63,7 +65,7 @@ export function RequestPriceBlock({
           </Link>
         ) : null}
       </Stack>
-      {view.changedNote ? (
+      {showReferencePrice && view.changedNote ? (
         <Typography
           variant="body2"
           sx={{ color: "text.secondary", overflowWrap: "anywhere" }}
@@ -71,7 +73,7 @@ export function RequestPriceBlock({
           {view.changedNote}
         </Typography>
       ) : null}
-      {view.servicePriceLabel ? (
+      {showReferencePrice && view.servicePriceLabel ? (
         <Typography
           variant="body2"
           sx={{ color: "text.secondary", overflowWrap: "anywhere" }}

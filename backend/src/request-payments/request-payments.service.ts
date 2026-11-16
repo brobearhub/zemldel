@@ -14,6 +14,7 @@ import {
 import {
   remainingRubles,
   sumPaidRublesByType,
+  isRequestPriceMutable as isPriceMutable,
   type PaymentAmountWithTypeAndPaidAt,
 } from '../requests/dto/request-finance';
 import { formatRubles } from '../requests/lib/service-price-rubles';
@@ -21,18 +22,6 @@ import { ChatService } from '../chat/chat.service';
 import type { RequestFinanceDto } from './dto/request-payments.dto';
 
 const PAYMENT_BLOCKED_STATUSES = new Set(['CANCELLED', 'CLOSED']);
-const PRICE_MUTABLE_STATUSES = new Set(['NEW', 'DISCUSSING', 'TERMS_AGREED']);
-
-function isPriceMutable(request: {
-  status: string;
-  contractAcceptedAt: Date | null;
-}): boolean {
-  return (
-    request.contractAcceptedAt == null &&
-    PRICE_MUTABLE_STATUSES.has(request.status)
-  );
-}
-
 const paymentSelect = {
   id: true,
   type: true,
@@ -51,6 +40,7 @@ const priceProposalSelect = {
   proposedByUserId: true,
   acceptedAt: true,
   acceptedByUserId: true,
+  isDirectSet: true,
   supersededAt: true,
   createdAt: true,
 } as const;
@@ -73,6 +63,7 @@ type PriceProposalRow = {
   proposedByUserId: string | null;
   acceptedAt: Date | null;
   acceptedByUserId: string | null;
+  isDirectSet: boolean;
   supersededAt: Date | null;
   createdAt: Date;
 };
@@ -128,22 +119,19 @@ function toFinanceDto(
   );
   return {
     totalAmountRubles,
-    priceProposal: priceProposal
-      ? {
-          id: priceProposal.id,
-          providerId: priceProposal.providerId,
-          amountRubles: priceProposal.amountRubles,
-          authorSide: priceProposal.authorSide,
-          acceptedAt: priceProposal.acceptedAt?.toISOString() ?? null,
-          createdAt: priceProposal.createdAt.toISOString(),
-        }
-      : null,
-    canProposePrice,
-    canAcceptPrice:
-      priceMutable &&
-      priceProposal != null &&
-      priceProposal.acceptedAt == null &&
-      priceProposal.authorSide !== viewerSide,
+    priceProposal:
+      priceProposal && !priceProposal.isDirectSet
+        ? {
+            id: priceProposal.id,
+            providerId: priceProposal.providerId,
+            amountRubles: priceProposal.amountRubles,
+            authorSide: priceProposal.authorSide,
+            acceptedAt: priceProposal.acceptedAt?.toISOString() ?? null,
+            createdAt: priceProposal.createdAt.toISOString(),
+          }
+        : null,
+    canProposePrice: viewerSide === 'PROVIDER' && canProposePrice,
+    canAcceptPrice: false,
     paidAmountRubles,
     remainingAmountRubles: remainingRubles(totalAmountRubles, paidAmountRubles),
     payments: payments.map((row) => toPaymentDto(row, customerUserId)),
@@ -156,7 +144,10 @@ function scopedTotalAmount(
   storedTotal: number | null,
   proposal: PriceProposalRow | null,
 ): number | null {
-  if (proposal?.acceptedAt) return proposal.amountRubles;
+  if (requestProviderId === providerId && storedTotal != null)
+    return storedTotal;
+  if (proposal?.acceptedAt || proposal?.isDirectSet)
+    return proposal.amountRubles;
   return requestProviderId === providerId ? storedTotal : null;
 }
 
@@ -353,13 +344,13 @@ export class RequestPaymentsService {
     body: string | null;
   }) {
     if (!input.body || !input.customerUserId || !this.chat) return;
-    const providerIds = await this.noteTargets({
-      requestId: input.requestId,
-      requestProviderId: input.requestProviderId,
-      actorProviderId: input.actorProviderId,
-    });
-    if (providerIds.length === 0) return;
     try {
+      const providerIds = await this.noteTargets({
+        requestId: input.requestId,
+        requestProviderId: input.requestProviderId,
+        actorProviderId: input.actorProviderId,
+      });
+      if (providerIds.length === 0) return;
       await this.chat.postFinanceNote({
         requestId: input.requestId,
         actorUserId: input.actorUserId,
@@ -496,13 +487,7 @@ export class RequestPaymentsService {
       requestId: input.requestId,
     });
     this.assertPriceMutable(request);
-    return this.acceptPriceProposal({
-      request,
-      providerId,
-      actorUserId: input.actorUserId,
-      actorSide: 'PROVIDER',
-      proposalId: input.proposalId,
-    });
+    throw new ForbiddenException('Price confirmation is no longer supported');
   }
 
   private async createPriceProposal(input: {
@@ -553,12 +538,16 @@ export class RequestPaymentsService {
           amountRubles: input.amountRubles,
           authorSide: input.authorSide,
           proposedByUserId: input.actorUserId,
+          isDirectSet: true,
         },
         select: priceProposalSelect,
       });
       const request = await tx.request.update({
         where: { id: input.request.id },
-        data: { totalAmountRubles: null },
+        data:
+          input.request.providerId === input.providerId
+            ? { totalAmountRubles: input.amountRubles }
+            : {},
         select: {
           totalAmountRubles: true,
           payments: {
@@ -571,7 +560,7 @@ export class RequestPaymentsService {
       await tx.requestEvent.create({
         data: {
           requestId: input.request.id,
-          type: 'PRICE_PROPOSED',
+          type: 'PRICE_UPDATED',
           actorUserId: input.actorUserId,
           actorProviderId: input.providerId,
           payload: {
@@ -591,131 +580,15 @@ export class RequestPaymentsService {
       requestProviderId: input.providerId,
       actorProviderId:
         input.authorSide === 'PROVIDER' ? input.providerId : null,
-      body: `${input.authorSide === 'PROVIDER' ? 'Исполнитель' : 'Клиент'} предложил цену ${formatRubles(input.amountRubles)}`,
+      body: `Исполнитель установил стоимость работ ${formatRubles(input.amountRubles)}`,
     });
 
     return toFinanceDto(
-      updated.totalAmountRubles,
+      input.amountRubles,
       updated.payments,
       input.request.customerUserId,
       updated.proposal,
       input.authorSide,
-      true,
-    );
-  }
-
-  private async acceptPriceProposal(input: {
-    request: PriceRequestState;
-    providerId: string;
-    actorUserId: string;
-    actorSide: 'CUSTOMER' | 'PROVIDER';
-    proposalId: string;
-  }): Promise<RequestFinanceDto> {
-    const proposal = input.request.priceProposals.find(
-      (item) => item.id === input.proposalId,
-    );
-    if (
-      !proposal ||
-      proposal.providerId !== input.providerId ||
-      proposal.supersededAt ||
-      proposal.acceptedAt
-    ) {
-      throw new ForbiddenException('Price proposal is not active');
-    }
-    if (proposal.authorSide === input.actorSide) {
-      throw new ForbiddenException(
-        'Own-side price proposal cannot be accepted',
-      );
-    }
-    if (
-      input.request.lockedAt != null &&
-      input.request.providerId !== input.providerId
-    ) {
-      throw new ForbiddenException('Request provider scope has changed');
-    }
-
-    const now = new Date();
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const lock = await tx.request.updateMany({
-        where: {
-          id: input.request.id,
-          providerId:
-            input.request.lockedAt != null
-              ? input.providerId
-              : input.request.providerId,
-          lockedAt: input.request.lockedAt,
-          contractAcceptedAt: null,
-          status: { in: ['NEW', 'DISCUSSING', 'TERMS_AGREED'] },
-        },
-        data: { updatedAt: now },
-      });
-      if (lock.count !== 1) {
-        throw new ForbiddenException(
-          'Price cannot be changed after contract acceptance',
-        );
-      }
-      const accepted = await tx.requestPriceProposal.updateMany({
-        where: {
-          id: proposal.id,
-          requestId: input.request.id,
-          providerId: input.providerId,
-          acceptedAt: null,
-          supersededAt: null,
-        },
-        data: { acceptedAt: now, acceptedByUserId: input.actorUserId },
-      });
-      if (accepted.count !== 1) {
-        throw new ForbiddenException('Price proposal is not active');
-      }
-      const request = await tx.request.update({
-        where: { id: input.request.id },
-        data: { totalAmountRubles: proposal.amountRubles },
-        select: {
-          totalAmountRubles: true,
-          payments: {
-            where: { providerId: input.providerId },
-            select: paymentSelect,
-            orderBy: { paidAt: 'asc' },
-          },
-        },
-      });
-      await tx.requestEvent.create({
-        data: {
-          requestId: input.request.id,
-          type: 'PRICE_ACCEPTED',
-          actorUserId: input.actorUserId,
-          actorProviderId: input.providerId,
-          payload: {
-            proposalId: proposal.id,
-            amountRubles: proposal.amountRubles,
-          },
-        },
-      });
-      return {
-        ...request,
-        proposal: {
-          ...proposal,
-          acceptedAt: now,
-          acceptedByUserId: input.actorUserId,
-        },
-      };
-    });
-
-    await this.postNote({
-      requestId: input.request.id,
-      actorUserId: input.actorUserId,
-      customerUserId: input.request.customerUserId,
-      requestProviderId: input.providerId,
-      actorProviderId: input.actorSide === 'PROVIDER' ? input.providerId : null,
-      body: `${input.actorSide === 'PROVIDER' ? 'Исполнитель' : 'Клиент'} принял цену ${formatRubles(proposal.amountRubles)}`,
-    });
-
-    return toFinanceDto(
-      updated.totalAmountRubles,
-      updated.payments,
-      input.request.customerUserId,
-      updated.proposal,
-      input.actorSide,
       true,
     );
   }
@@ -794,6 +667,12 @@ export class RequestPaymentsService {
                 select: paymentSelect,
                 orderBy: { paidAt: 'asc' },
               },
+              priceProposals: {
+                where: { providerId, supersededAt: null },
+                select: priceProposalSelect,
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+              },
             },
           });
           return toScopedFinanceDto({
@@ -802,7 +681,7 @@ export class RequestPaymentsService {
             storedTotal: finance.totalAmountRubles,
             payments: finance.payments,
             customerUserId: request.customerUserId,
-            proposal: request.priceProposals?.[0] ?? null,
+            proposal: finance.priceProposals?.[0] ?? null,
             viewerSide: 'PROVIDER',
             priceMutable: isPriceMutable(request),
           });
@@ -890,6 +769,12 @@ export class RequestPaymentsService {
             select: paymentSelect,
             orderBy: { paidAt: 'asc' },
           },
+          priceProposals: {
+            where: { providerId, supersededAt: null },
+            select: priceProposalSelect,
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
         },
       });
     });
@@ -910,7 +795,7 @@ export class RequestPaymentsService {
       storedTotal: updated.totalAmountRubles,
       payments: updated.payments,
       customerUserId: request.customerUserId,
-      proposal: request.priceProposals?.[0] ?? null,
+      proposal: updated.priceProposals?.[0] ?? null,
       viewerSide: 'PROVIDER',
       priceMutable: isPriceMutable(request),
     });
@@ -980,6 +865,12 @@ export class RequestPaymentsService {
             select: paymentSelect,
             orderBy: { paidAt: 'asc' },
           },
+          priceProposals: {
+            where: { providerId, supersededAt: null },
+            select: priceProposalSelect,
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
         },
       });
     });
@@ -1000,7 +891,7 @@ export class RequestPaymentsService {
       storedTotal: updated.totalAmountRubles,
       payments: updated.payments,
       customerUserId: request.customerUserId,
-      proposal: request.priceProposals?.[0] ?? null,
+      proposal: updated.priceProposals?.[0] ?? null,
       viewerSide: 'CUSTOMER',
       priceMutable: isPriceMutable(request),
     });
@@ -1012,21 +903,9 @@ export class RequestPaymentsService {
     amountRubles: number;
     conversationId?: string;
   }): Promise<RequestFinanceDto> {
-    const request = await this.loadCustomerRequest(input);
-    this.assertPriceMutable(request);
-    const providerId = await this.resolvePaymentProviderId(request, input);
-    if (!providerId) {
-      throw new BadRequestException(
-        'Provider must be selected before customer price proposal',
-      );
-    }
-    return this.createPriceProposal({
-      request,
-      providerId,
-      actorUserId: input.actorUserId,
-      authorSide: 'CUSTOMER',
-      amountRubles: input.amountRubles,
-    });
+    await this.loadCustomerRequest(input);
+    // Keep the legacy endpoint explicit: customer clients must receive 403.
+    throw new ForbiddenException('Only the provider can change the price');
   }
 
   async acceptPriceForCustomer(input: {
@@ -1037,19 +916,7 @@ export class RequestPaymentsService {
   }): Promise<RequestFinanceDto> {
     const request = await this.loadCustomerRequest(input);
     this.assertPriceMutable(request);
-    const proposal = request.priceProposals.find(
-      (item) => item.id === input.proposalId,
-    );
-    if (!proposal) {
-      throw new ForbiddenException('Price proposal is not active');
-    }
-    return this.acceptPriceProposal({
-      request,
-      providerId: proposal.providerId,
-      actorUserId: input.actorUserId,
-      actorSide: 'CUSTOMER',
-      proposalId: input.proposalId,
-    });
+    throw new ForbiddenException('Price confirmation is no longer supported');
   }
 
   async addPaymentForCustomer(input: {
@@ -1119,6 +986,12 @@ export class RequestPaymentsService {
                 select: paymentSelect,
                 orderBy: { paidAt: 'asc' },
               },
+              priceProposals: {
+                where: { providerId, supersededAt: null },
+                select: priceProposalSelect,
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+              },
             },
           });
           return toScopedFinanceDto({
@@ -1127,7 +1000,7 @@ export class RequestPaymentsService {
             storedTotal: finance.totalAmountRubles,
             payments: finance.payments,
             customerUserId: request.customerUserId,
-            proposal: request.priceProposals?.[0] ?? null,
+            proposal: finance.priceProposals?.[0] ?? null,
             viewerSide: 'CUSTOMER',
             priceMutable: isPriceMutable(request),
           });

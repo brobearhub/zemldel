@@ -259,6 +259,7 @@ export const ProfileMenu = ({
   const initials = currentIdentity.initials;
   const [inlineOpen, setInlineOpen] = useState(false);
   const isInline = layout === "inline";
+  const isServiceDetail = /^\/services\/[^/]+\/?$/.test(pathname);
   /** Why: в drawer гость ищет вход, а не «профиль», которого ещё нет. */
   const triggerLabel = !isAuthenticated
     ? isInline
@@ -471,8 +472,9 @@ export const ProfileMenu = ({
           onClick={handleOpenOnClick}
           sx={{
             display: "flex",
+            flexDirection: isServiceDetail ? "column" : "row",
             alignItems: "center",
-            gap: 1,
+            gap: isServiceDetail ? 0.25 : 1,
             minWidth: 44,
             minHeight: 44,
             p: 0.75,
@@ -494,7 +496,24 @@ export const ProfileMenu = ({
           >
             {initials}
           </ProfileAvatar>
-          {showLabel ? <Typography>{currentIdentity.title}</Typography> : null}
+          {showLabel ? (
+            isServiceDetail ? (
+              <Typography
+                className="nav-label"
+                variant="body2"
+                sx={{
+                  color: "common.gray",
+                  display: { xs: "none", md: "block" },
+                  fontWeight: 600,
+                  fontSize: "0.625rem",
+                }}
+              >
+                Профиль
+              </Typography>
+            ) : (
+              <Typography>{currentIdentity.title}</Typography>
+            )
+          ) : null}
         </Box>
         <Menu
           id="profile-menu"

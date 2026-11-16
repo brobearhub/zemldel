@@ -2,38 +2,48 @@ import { describe, expect, it } from "vitest";
 import { resolveRequestPaymentPermissions } from "./request-payment-permissions";
 
 describe("resolveRequestPaymentPermissions", () => {
-  it("allows customer first price proposal before lock after server conversation validation", () => {
+  it("denies customer price changes even when a stale server flag allows them", () => {
     expect(
       resolveRequestPaymentPermissions({
         status: "DISCUSSING",
         mode: "customer",
         isLocked: false,
         canProposePrice: true,
-        canAcceptPrice: false,
       }),
     ).toMatchObject({
-      canEditPrice: true,
-      canProposePrice: true,
-      canAcceptPrice: false,
+      canEditPrice: false,
+      canAddPayment: true,
+      canMarkPaid: true,
     });
   });
 
-  it("allows the selected provider to propose and accept price from server-derived flags", () => {
+  it("allows price changes for the provider with server permission", () => {
+    expect(
+      resolveRequestPaymentPermissions({
+        status: "DISCUSSING",
+        mode: "provider",
+        isLocked: false,
+        canProposePrice: true,
+      }),
+    ).toMatchObject({
+      canEditPrice: true,
+      canAddPayment: true,
+      canMarkPaid: true,
+    });
+  });
+
+  it("honors the provider price permission and locked payment state", () => {
     expect(
       resolveRequestPaymentPermissions({
         status: "DISCUSSING",
         mode: "provider",
         isLocked: true,
-        canProposePrice: true,
-        canAcceptPrice: true,
+        canProposePrice: false,
       }),
     ).toMatchObject({
-      canEditPrice: true,
+      canEditPrice: false,
       canAddPayment: false,
       canMarkPaid: false,
-      canProposePrice: true,
-      canAcceptPrice: true,
-      canEditPayments: false,
     });
   });
 
@@ -44,30 +54,29 @@ describe("resolveRequestPaymentPermissions", () => {
         mode: "provider",
         isLocked: false,
         canProposePrice: true,
-        canAcceptPrice: true,
       }),
     ).toMatchObject({
       canEditPrice: false,
       canAddPayment: true,
       canMarkPaid: true,
-      canProposePrice: false,
-      canAcceptPrice: false,
     });
   });
 
-  it.each(["CANCELLED", "CLOSED"] as const)("disables all financial actions in %s", (status) => {
-    expect(
-      resolveRequestPaymentPermissions({
-        status,
-        mode: "customer",
-        isLocked: false,
-        canProposePrice: true,
-        canAcceptPrice: true,
-      }),
-    ).toMatchObject({
-      canEditPrice: false,
-      canAddPayment: false,
-      canMarkPaid: false,
-    });
-  });
+  it.each(["CANCELLED", "CLOSED"] as const)(
+    "disables all financial actions in %s",
+    (status) => {
+      expect(
+        resolveRequestPaymentPermissions({
+          status,
+          mode: "customer",
+          isLocked: false,
+          canProposePrice: true,
+        }),
+      ).toMatchObject({
+        canEditPrice: false,
+        canAddPayment: false,
+        canMarkPaid: false,
+      });
+    },
+  );
 });

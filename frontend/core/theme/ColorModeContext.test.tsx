@@ -36,21 +36,21 @@ describe("ColorModeProvider", () => {
     vi.unstubAllGlobals();
   });
 
-  it("starts in light mode", () => {
+  it("starts in dark mode", () => {
     render(
       <ColorModeProvider>
         <ModeProbe />
       </ColorModeProvider>,
     );
 
-    expect(screen.getByText("light")).toBeInTheDocument();
+    expect(screen.getByText("dark")).toBeInTheDocument();
   });
 
-  it("stays light when the system prefers dark and nothing is stored", async () => {
+  it("stays dark when the system prefers light and nothing is stored", () => {
     vi.stubGlobal(
       "matchMedia",
       vi.fn().mockImplementation((query: string) => ({
-        matches: query.includes("dark"),
+        matches: false,
         media: query,
         onchange: null,
         addListener: () => {},
@@ -67,11 +67,11 @@ describe("ColorModeProvider", () => {
       </ColorModeProvider>,
     );
 
-    expect(screen.getByText("light")).toBeInTheDocument();
+    expect(screen.getByText("dark")).toBeInTheDocument();
   });
 
-  it("restores dark mode from localStorage", async () => {
-    window.localStorage.setItem(COLOR_MODE_STORAGE_KEY, "dark");
+  it("restores light mode from localStorage", async () => {
+    window.localStorage.setItem(COLOR_MODE_STORAGE_KEY, "light");
 
     render(
       <ColorModeProvider>
@@ -79,7 +79,7 @@ describe("ColorModeProvider", () => {
       </ColorModeProvider>,
     );
 
-    expect(await screen.findByText("dark")).toBeInTheDocument();
+    expect(await screen.findByText("light")).toBeInTheDocument();
   });
 
   it("в системном режиме отслеживает изменения темы устройства", () => {
@@ -109,10 +109,10 @@ describe("ColorModeProvider", () => {
       </ColorModeProvider>,
     );
 
-    const toggle = screen.getByRole("button", { name: "Включить тёмную тему" });
+    const toggle = screen.getByRole("button", { name: "Включить светлую тему" });
     await user.click(toggle);
 
-    expect(screen.getByRole("button", { name: "Включить светлую тему" })).toBeInTheDocument();
-    expect(window.localStorage.getItem(COLOR_MODE_STORAGE_KEY)).toBe("dark");
+    expect(screen.getByRole("button", { name: "Включить тёмную тему" })).toBeInTheDocument();
+    expect(window.localStorage.getItem(COLOR_MODE_STORAGE_KEY)).toBe("light");
   });
 });

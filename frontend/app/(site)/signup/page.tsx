@@ -180,7 +180,7 @@ function SignUpPageContent() {
   });
   const accountParam = searchParams.get("account");
   const accountKind = isRequestIntent ? "CUSTOMER" : accountParam === "provider" ? "PROVIDER" : accountParam === "customer" ? "CUSTOMER" : null;
-  const invitationPath = /^\/team-invitations\/[A-Za-z0-9_-]{43}$/.test(searchParams.get("returnTo") ?? "") ? searchParams.get("returnTo") : null;
+  const invitationPath = /^\/(?:team|partner)-invitations\/[A-Za-z0-9_-]{43}$/.test(searchParams.get("returnTo") ?? "") ? searchParams.get("returnTo") : null;
   const signInHref = searchParams.toString() ? `/signin?${searchParams.toString()}` : "/signin";
 
   const chooseAccount = (account: SignupAccount) => {

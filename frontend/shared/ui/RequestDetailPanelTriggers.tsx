@@ -6,6 +6,7 @@ import { Button, Stack, Typography } from "@mui/material";
 export type RequestDetailPanelTrigger = {
   id: string;
   label: string;
+  ariaLabel?: string;
   caption?: string | null;
   endIcon?: ReactNode;
   visible?: boolean;
@@ -33,6 +34,7 @@ export function RequestDetailPanelTriggers({ items, onOpen }: RequestDetailPanel
             variant="text"
             color="inherit"
             size="small"
+            aria-label={item.ariaLabel}
             endIcon={item.endIcon}
             onClick={() => onOpen(item.id)}
             sx={{

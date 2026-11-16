@@ -37,7 +37,7 @@ const TYPE_OPTIONS: Array<{ value: ProviderOnboardingType; label: string }> = [
   { value: "COMPANY", label: "Организация" },
 ];
 
-export function ProviderOnboardingForm() {
+export function ProviderOnboardingForm({ returnTo }: { returnTo?: string } = {}) {
   const router = useRouter();
   const { update: updateSession } = useSession();
   const [type, setType] = useState<ProviderOnboardingType | null>(null);
@@ -220,9 +220,9 @@ export function ProviderOnboardingForm() {
       await updateSession().catch(() => undefined);
       navigated = true;
       router.push(
-        avatarNotice
+        returnTo ?? (avatarNotice
           ? `/pro/requests/feed?welcome=1&notice=${avatarNotice}`
-          : "/pro/requests/feed?welcome=1",
+          : "/pro/requests/feed?welcome=1"),
       );
       router.refresh();
     } catch {

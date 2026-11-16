@@ -171,7 +171,16 @@ describe('ChatService listInbox', () => {
 
     expect(prisma.conversation.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ providerId: 'p1' }),
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            {
+              OR: [
+                { providerId: 'p1' },
+                { kind: 'PARTNER', partnerProviderId: 'p1' },
+              ],
+            },
+          ]),
+        }),
       }),
     );
   });

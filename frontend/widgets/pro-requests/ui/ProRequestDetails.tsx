@@ -33,7 +33,6 @@ import {
   resolvePaymentTriggerLabel,
   resolveRequestDetailBody,
   resolveRequestDetailTitle,
-  resolveRequestPriceView,
   SYSTEM_WORK_STAGE_STATUSES,
   type RequestRemarkDto,
   type RequestProDto,
@@ -197,7 +196,7 @@ export function ProRequestDetails({
         ? "Клиент просит доработать договор. Обновите файл в документах."
         : hasApproved
           ? "Договор одобрен. Ждём заключения договора клиентом."
-          : "Цена согласована. Подготовьте и отправьте договор в разделе документов.";
+          : "Цена указана. Подготовьте и отправьте договор в разделе документов.";
   const hasPendingRequestedDocs = docRequests.some(
     (d) => d.status === "REQUESTED",
   );
@@ -675,17 +674,13 @@ export function ProRequestDetails({
     canProposePrice: req.canProposePrice,
     canAcceptPrice: req.canAcceptPrice,
   });
-  const priceView = resolveRequestPriceView({
-    totalAmountRubles: req.totalAmountRubles,
-    servicePriceRubles: req.servicePriceRubles,
-    priceProposal: req.priceProposal,
-  });
   const customerFields = getCustomerContactFields({
     customerName: req.customerName,
     customerPhone: req.customerPhone,
     customerEmail: req.customerEmail,
   });
 
+  const paymentTriggerLabel = resolvePaymentTriggerLabel(req);
   const panelItems = [
     {
       id: "cadastral",
@@ -695,8 +690,8 @@ export function ProRequestDetails({
     },
     {
       id: "payment",
-      label: resolvePaymentTriggerLabel(req.totalAmountRubles),
-      caption: priceView.triggerCaption,
+      label: paymentTriggerLabel,
+      ariaLabel: `Цена и оплата: ${paymentTriggerLabel}`,
       visible: showPayment,
       endIcon: <PaymentIcon />,
     },
@@ -811,6 +806,13 @@ export function ProRequestDetails({
           providerId={req.providerId}
           providerName={req.providerName}
           member={req.assignedMember}
+          delegationBlockedReason={
+            req.contractAcceptedAt || req.payments?.length
+              ? "Передать можно только заявку без подписанного договора и оплат."
+              : ["ACCEPTANCE_PENDING", "ACCEPTED", "COMPLETED"].includes(req.status)
+                ? "Нельзя передать закрытую заявку или заявку на приёмке."
+                : undefined
+          }
           onChange={(assignedMember) => setReq((current) => ({ ...current, assignedMember }))}
         />
       ) : null}
@@ -859,6 +861,7 @@ export function ProRequestDetails({
                   servicePriceRubles={req.servicePriceRubles}
                   priceProposal={req.priceProposal}
                   serviceId={req.isLocked ? null : req.serviceId}
+                  showReferencePrice={false}
                 />
                 {req.status === "ACCEPTANCE_PENDING" ? (
                   <RequestPriceBlock

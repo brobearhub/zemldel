@@ -14,6 +14,7 @@ import Groups2OutlinedIcon from "@mui/icons-material/Groups2Outlined";
 import FormatListBulletedOutlinedIcon from "@mui/icons-material/FormatListBulletedOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import DataSaverOnIcon from "@mui/icons-material/DataSaverOn";
+import HandshakeOutlinedIcon from "@mui/icons-material/HandshakeOutlined";
 
 export type CabinetRole = "customer" | "provider";
 
@@ -214,6 +215,13 @@ const providerSections: readonly CabinetNavItem[] = [
     href: "/pro/team/add-manager",
     icon: <PeopleOutlineOutlinedIcon />,
     isActive: ({ pathname }) => pathname.startsWith("/pro/team/"),
+  },
+  {
+    key: "partners",
+    label: "Партнёры",
+    href: "/pro/partners",
+    icon: <HandshakeOutlinedIcon />,
+    isActive: ({ pathname }) => pathname.startsWith("/pro/partners"),
   },
   {
     key: "stories",

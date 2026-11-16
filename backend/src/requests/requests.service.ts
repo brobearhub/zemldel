@@ -161,6 +161,7 @@ const select = {
       amountRubles: true,
       authorSide: true,
       acceptedAt: true,
+      isDirectSet: true,
       createdAt: true,
     },
     orderBy: { createdAt: 'desc' },
@@ -749,7 +750,6 @@ export class RequestsService {
         id: true,
         providerId: true,
         price: true,
-        createdByUserId: true,
       },
     });
     if (!service) {
@@ -817,27 +817,6 @@ export class RequestsService {
         select,
       });
 
-      const initialPriceProposal =
-        servicePriceRubles == null
-          ? null
-          : await tx.requestPriceProposal.create({
-              data: {
-                requestId: next.id,
-                providerId: service.providerId,
-                amountRubles: servicePriceRubles,
-                authorSide: 'PROVIDER',
-                proposedByUserId: service.createdByUserId,
-              },
-              select: {
-                id: true,
-                providerId: true,
-                amountRubles: true,
-                authorSide: true,
-                acceptedAt: true,
-                createdAt: true,
-              },
-            });
-
       await this.addEvent(tx, {
         requestId: next.id,
         type: 'PROVIDER_SELECTED',
@@ -847,7 +826,7 @@ export class RequestsService {
 
       return {
         ...next,
-        priceProposals: initialPriceProposal ? [initialPriceProposal] : [],
+        priceProposals: [],
       };
     };
     const result = await this.prisma.$transaction((tx) =>
@@ -2185,7 +2164,7 @@ export class RequestsService {
         if (!req.providerId || req.providerId !== actorProviderId) {
           throw new ForbiddenException('Forbidden');
         }
-      } else {
+      } else if (req.providerId !== actorProviderId) {
         const regionById = await this.resolveRequestsRegionCodes([
           {
             id: req.id,
@@ -2720,6 +2699,17 @@ export class RequestsService {
     input: { providerId: string },
   ): Promise<RequestCustomerDto> {
     const updated = await this.prisma.$transaction(async (tx) => {
+      // Serialize provider selection with price changes before reading the
+      // selected provider's effective price.
+      const lock = await tx.request.updateMany({
+        where: {
+          id: requestId,
+          customerUserId: actorUserId,
+          lockedAt: null,
+          status: { in: ['NEW', 'DISCUSSING', 'TERMS_AGREED'] },
+        },
+        data: { updatedAt: new Date() },
+      });
       const current = await tx.request.findUnique({
         where: { id: requestId },
         select,
@@ -2740,6 +2730,9 @@ export class RequestsService {
         req.status !== 'TERMS_AGREED'
       ) {
         throw new BadRequestException('Invalid status');
+      }
+      if (lock.count !== 1) {
+        throw new ConflictException('Request is not editable');
       }
 
       // Customer may select a provider directly from an existing conversation
@@ -2814,10 +2807,10 @@ export class RequestsService {
         data: { supersededAt: now },
       });
 
-      const selectedAcceptedProposal = req.priceProposals?.find(
+      const selectedPrice = req.priceProposals?.find(
         (proposal) =>
           proposal.providerId === input.providerId &&
-          proposal.acceptedAt != null,
+          (proposal.acceptedAt != null || proposal.isDirectSet),
       );
       const next = await tx.request.update({
         where: { id: req.id },
@@ -2827,7 +2820,7 @@ export class RequestsService {
             ? { assignedMemberId: null }
             : {}),
           lockedAt: req.lockedAt ?? now,
-          totalAmountRubles: selectedAcceptedProposal?.amountRubles ?? null,
+          totalAmountRubles: selectedPrice?.amountRubles ?? null,
         },
         select,
       });
@@ -2982,7 +2975,7 @@ export class RequestsService {
   async acceptContractByCustomer(
     actorUserId: string,
     requestId: string,
-    input: { termsVersion: string },
+    input: { termsVersion: string; expectedTotalAmountRubles?: number | null },
   ): Promise<RequestCustomerDto> {
     const termsVersions = await this.legalDocs.assertCurrentVersions({
       terms: input.termsVersion,
@@ -3019,18 +3012,32 @@ export class RequestsService {
           'Provider must be selected before contract acceptance',
         );
       }
+      if (
+        input.expectedTotalAmountRubles !== undefined &&
+        input.expectedTotalAmountRubles !== (req.totalAmountRubles ?? null)
+      ) {
+        throw new ConflictException({
+          error: 'PRICE_CHANGED',
+          message:
+            'Цена работ изменилась. Проверьте новую сумму и подтвердите договор повторно.',
+        });
+      }
       if (req.totalAmountRubles == null) {
         throw new ConflictException(
           'Price must be agreed before contract acceptance',
         );
       }
+      // A legacy pending proposal can supersede the previously accepted row
+      // without changing the stored total. Only direct prices must be active.
       const agreedPriceProposal = await tx.requestPriceProposal.findFirst({
         where: {
           requestId: req.id,
           providerId: req.providerId,
           amountRubles: req.totalAmountRubles,
-          acceptedAt: { not: null },
-          supersededAt: null,
+          OR: [
+            { acceptedAt: { not: null } },
+            { isDirectSet: true, supersededAt: null },
+          ],
         },
         select: { id: true },
       });

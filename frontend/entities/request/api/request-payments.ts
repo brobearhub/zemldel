@@ -34,7 +34,7 @@ export async function proposeProRequestPrice(requestId: string, amountRubles: nu
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ amountRubles }),
   });
-  return parseJson<RequestFinanceDto>(res, "Не удалось предложить цену");
+  return parseJson<RequestFinanceDto>(res, "Не удалось изменить цену");
 }
 
 export async function acceptProRequestPrice(requestId: string, proposalId: string): Promise<RequestFinanceDto> {
@@ -75,15 +75,6 @@ export async function fetchCustomerRequestFinance(
     { cache: "no-store", signal },
   );
   return parseJson<RequestFinanceDto>(res, "Не удалось загрузить оплату");
-}
-
-export async function proposeCustomerRequestPrice(requestId: string, amountRubles: number, conversationId?: string): Promise<RequestFinanceDto> {
-  const res = await fetch(`/api/requests/${requestId}/price-proposals`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ amountRubles, conversationId }),
-  });
-  return parseJson<RequestFinanceDto>(res, "Не удалось предложить цену");
 }
 
 export async function acceptCustomerRequestPrice(requestId: string, proposalId: string, conversationId?: string): Promise<RequestFinanceDto> {

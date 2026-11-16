@@ -118,22 +118,17 @@ describe.skipIf(!databaseUrl)(
                   totalAmountRubles: 15000,
                 },
               });
-              if (request.id === direct.id) {
-                await tx.requestPriceProposal.updateMany({
-                  where: { requestId: request.id },
-                  data: { acceptedAt: new Date() },
-                });
-              } else {
-                await tx.requestPriceProposal.create({
-                  data: {
-                    requestId: request.id,
-                    providerId: provider.id,
-                    amountRubles: 15000,
-                    authorSide: 'PROVIDER',
-                    acceptedAt: new Date(),
-                  },
-                });
-              }
+              await tx.requestPriceProposal.create({
+                data: {
+                  requestId: request.id,
+                  providerId: provider.id,
+                  amountRubles: 15000,
+                  authorSide: 'PROVIDER',
+                  ...(request.id === direct.id
+                    ? { isDirectSet: true }
+                    : { acceptedAt: new Date() }),
+                },
+              });
             }
 
             await expect(
@@ -175,10 +170,30 @@ describe.skipIf(!databaseUrl)(
               categorized.id,
               { termsVersion: 'numbering-test' },
             );
+            await expect(
+              service.acceptContractByCustomer(customer.id, direct.id, {
+                termsVersion: 'numbering-test',
+                expectedTotalAmountRubles: 12000,
+              }),
+            ).rejects.toMatchObject({
+              status: 409,
+              response: expect.objectContaining({ error: 'PRICE_CHANGED' }),
+            });
+            const unchangedDirect = await tx.request.findUniqueOrThrow({
+              where: { id: direct.id },
+              select: { contractAcceptedAt: true, totalAmountRubles: true },
+            });
+            expect(unchangedDirect).toEqual({
+              contractAcceptedAt: null,
+              totalAmountRubles: 15000,
+            });
             const acceptedDirect = await service.acceptContractByCustomer(
               customer.id,
               direct.id,
-              { termsVersion: 'numbering-test' },
+              {
+                termsVersion: 'numbering-test',
+                expectedTotalAmountRubles: 15000,
+              },
             );
             expect(accepted.number).toBe(counter.lastNumber + 2);
             expect(acceptedCategory.number).toBe(counter.lastNumber + 3);

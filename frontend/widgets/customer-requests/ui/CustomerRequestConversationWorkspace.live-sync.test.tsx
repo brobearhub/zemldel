@@ -1,10 +1,11 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { fetchCustomerRequestConversations } from "@/entities/chat";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RequestCustomerDto } from "@/entities/request";
 import { ConfirmProvider } from "@/shared/ui/confirm";
 import { fetchCustomerRequestDocumentRequests } from "@/entities/request/api/request-document-requests";
 import { fetchCustomerWorkStages } from "@/entities/request/api/request-work-stages";
+import * as financeRunner from "../model/latest-finance-request";
 import { CustomerRequestConversationWorkspace } from "./CustomerRequestConversationWorkspace";
 
 vi.mock("@mui/material/useMediaQuery", () => ({ default: () => false }));
@@ -54,6 +55,64 @@ describe("customer request sections follow live updates", () => {
     vi.mocked(fetchCustomerRequestConversations).mockResolvedValue([]);
   });
   afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+  it("opens the full estimate in place of the progress and restores it on close", async () => {
+    const withExpenses = {
+      ...request,
+      payments: [{ id: "expense", type: "OTHER", amountRubles: 8100, comment: "Расходы", paidAt: null, createdAt: "2026-11-14", createdBySide: "PROVIDER" }],
+    } as RequestCustomerDto;
+    vi.mocked(fetch).mockImplementation(async (url) => new Response(JSON.stringify(
+      /contract-bundles$|provider-misc$/.test(String(url)) ? [] : withExpenses
+    )));
+    await act(async () => { render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={withExpenses} /></ConfirmProvider>); });
+    expect(screen.queryByText(/Всего:/)).not.toBeInTheDocument();
+    const progress = screen.getByText("Обсуждение");
+    expect(progress).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: /20\s*100\s*₽/ }));
+    const panel = screen.getByRole("dialog", { name: "Цена и оплата" });
+    expect(within(panel).getByRole("region", { name: "Итог по заявке" })).toHaveTextContent("20 100 ₽");
+    expect(progress).not.toBeVisible();
+    fireEvent.click(within(panel).getByRole("button", { name: "Закрыть" }));
+    expect(progress).toBeVisible();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("hides reference-price details in the request header", async () => {
+    const pricedRequest = {
+      ...request,
+      totalAmountRubles: 15000,
+      servicePriceRubles: 12000,
+    } as RequestCustomerDto;
+    vi.mocked(fetch).mockImplementation(async (url) => new Response(JSON.stringify(
+      /contract-bundles$|provider-misc$/.test(String(url)) ? [] : pricedRequest
+    )));
+    await act(async () => {
+      render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={pricedRequest} /></ConfirmProvider>);
+    });
+    expect(screen.getByText(/Цена работ: 15\s*000\s*₽/)).toBeVisible();
+    expect(screen.queryByText("Отличается от справочной цены услуги")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Справочная цена услуги:/)).not.toBeInTheDocument();
+  });
+
+  it("updates the total button when work price and expenses change", async () => {
+    await act(async () => { render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={request} /></ConfirmProvider>); });
+    expect(screen.getByRole("button", { name: /12\s*000\s*₽/ })).toBeVisible();
+    const updated = {
+      ...request,
+      totalAmountRubles: 15000,
+      payments: [{ id: "expense", type: "OTHER", amountRubles: 3000, comment: "Расход", paidAt: null, createdAt: "2026-11-14", createdBySide: "PROVIDER" }],
+    };
+    vi.mocked(fetch).mockImplementation(async (url) => new Response(JSON.stringify(
+      /contract-bundles$|provider-misc$/.test(String(url)) ? [] : updated
+    )));
+    await act(async () => { window.dispatchEvent(new CustomEvent("request:changed", { detail: { requestId: request.id } })); });
+    expect(screen.getByRole("button", { name: /18\s*000\s*₽/ })).toBeVisible();
+    vi.mocked(fetch).mockImplementation(async (url) => new Response(JSON.stringify(
+      /contract-bundles$|provider-misc$/.test(String(url)) ? [] : { ...updated, totalAmountRubles: null }
+    )));
+    await act(async () => { window.dispatchEvent(new CustomEvent("request:changed", { detail: { requestId: request.id } })); });
+    expect(screen.getByRole("button", { name: "Цена и оплата: Сумма" })).toHaveTextContent("Сумма");
+  });
 
   it("refreshes additional provider files after upload and deletion events", async () => {
     let files: { originalName: string }[] = [];
@@ -147,6 +206,158 @@ describe("customer request sections follow live updates", () => {
     expect(screen.getByText('Исполнитель запросил документы. Загрузите их перед заключением договора.')).toBeInTheDocument();
     expect(screen.getByRole('button',{name:'Загрузить документы'})).toBeEnabled();
     expect(vi.mocked(fetch).mock.calls.some(([url, options]) => String(url).includes('accept-contract') && options?.method==='POST')).toBe(false);
+  });
+
+  it("requires a fresh confirmation when the displayed work price changes", async () => {
+    const draft = { ...request, status: "DISCUSSING", contractAcceptedAt: null } as RequestCustomerDto;
+    let current = draft;
+    const submissions: unknown[] = [];
+    vi.mocked(fetch).mockImplementation(async (url, init) => {
+      const path = String(url);
+      if (path.includes("/legal-docs/")) return new Response(JSON.stringify({ version: "v1" }));
+      if (path.endsWith("contract-bundles")) return new Response(JSON.stringify([{ status: "APPROVED" }]));
+      if (path.endsWith("provider-misc")) return new Response("[]");
+      if (path.endsWith("accept-contract") && init?.method === "POST") {
+        submissions.push(JSON.parse(String(init.body)));
+        return new Response(JSON.stringify({ ...current, status: "ACTIVE", contractAcceptedAt: "2026-11-16" }));
+      }
+      return new Response(JSON.stringify(current));
+    });
+    await act(async () => {
+      render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={draft} /></ConfirmProvider>);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Заключить договор" }));
+    await act(async () => {});
+    const checkbox = screen.getByRole("checkbox", { name: /Я согласен/ });
+    fireEvent.click(checkbox);
+    expect(screen.getByRole("button", { name: "Подтвердить заключение" })).toBeEnabled();
+
+    current = { ...draft, totalAmountRubles: 15000, remainingAmountRubles: 15000 };
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent("request:changed", { detail: { requestId: request.id } }));
+    });
+    expect(checkbox).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "Подтвердить заключение" })).toBeDisabled();
+    expect(screen.getByText(/Цена работ изменилась\. Проверьте новую сумму/)).toBeVisible();
+    expect(within(screen.getByRole("dialog")).getByText(/Цена: 15\s*000\s*₽/)).toBeVisible();
+
+    fireEvent.click(checkbox);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Подтвердить заключение" }));
+    });
+    expect(submissions).toEqual([{ termsVersion: "v1", expectedTotalAmountRubles: 15000 }]);
+  });
+
+  it("refreshes the price and requires confirmation again after a price conflict", async () => {
+    const draft = { ...request, status: "DISCUSSING", contractAcceptedAt: null } as RequestCustomerDto;
+    let current = draft;
+    const submissions: Array<{ termsVersion: string; expectedTotalAmountRubles: number | null }> = [];
+    vi.mocked(fetch).mockImplementation(async (url, init) => {
+      const path = String(url);
+      if (path.includes("/legal-docs/")) return new Response(JSON.stringify({ version: "v1" }));
+      if (path.endsWith("contract-bundles")) return new Response(JSON.stringify([{ status: "APPROVED" }]));
+      if (path.endsWith("provider-misc")) return new Response("[]");
+      if (path.endsWith("/payments")) {
+        current = { ...draft, totalAmountRubles: 15000 };
+        return new Response(JSON.stringify(current));
+      }
+      if (path.endsWith("accept-contract") && init?.method === "POST") {
+        submissions.push(JSON.parse(String(init.body)));
+        return submissions.length === 1
+          ? new Response(JSON.stringify({ error: "PRICE_CHANGED", message: "Цена работ изменилась" }), { status: 409 })
+          : new Response(JSON.stringify({ ...draft, totalAmountRubles: 15000, status: "ACTIVE", contractAcceptedAt: "2026-11-16" }));
+      }
+      return new Response(JSON.stringify(current));
+    });
+    await act(async () => {
+      render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={draft} /></ConfirmProvider>);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Заключить договор" }));
+    await act(async () => {});
+    const checkbox = screen.getByRole("checkbox", { name: /Я согласен/ });
+    fireEvent.click(checkbox);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Подтвердить заключение" }));
+    });
+    expect(submissions).toEqual([{ termsVersion: "v1", expectedTotalAmountRubles: 12000 }]);
+    expect(checkbox).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "Подтвердить заключение" })).toBeDisabled();
+    expect(screen.getByText(/Цена работ изменилась\. Проверьте новую сумму/)).toBeVisible();
+    expect(within(screen.getByRole("dialog")).getByText(/Цена: 15\s*000\s*₽/)).toBeVisible();
+    fireEvent.click(checkbox);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Подтвердить заключение" }));
+    });
+    expect(submissions).toEqual([
+      { termsVersion: "v1", expectedTotalAmountRubles: 12000 },
+      { termsVersion: "v1", expectedTotalAmountRubles: 15000 },
+    ]);
+  });
+
+  it("keeps contract confirmation disabled when the changed price cannot be refreshed", async () => {
+    const draft = { ...request, status: "DISCUSSING", contractAcceptedAt: null } as RequestCustomerDto;
+    vi.mocked(fetch).mockImplementation(async (url, init) => {
+      const path = String(url);
+      if (path.includes("/legal-docs/")) return new Response(JSON.stringify({ version: "v1" }));
+      if (path.endsWith("contract-bundles")) return new Response(JSON.stringify([{ status: "APPROVED" }]));
+      if (path.endsWith("provider-misc")) return new Response("[]");
+      if (path.endsWith("/payments")) return new Response("{}", { status: 503 });
+      if (path.endsWith("accept-contract") && init?.method === "POST") {
+        return new Response(JSON.stringify({ error: "PRICE_CHANGED" }), { status: 409 });
+      }
+      return new Response(JSON.stringify(draft));
+    });
+    await act(async () => {
+      render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={draft} /></ConfirmProvider>);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Заключить договор" }));
+    await act(async () => {});
+    fireEvent.click(screen.getByRole("checkbox", { name: /Я согласен/ }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Подтвердить заключение" }));
+    });
+    expect(screen.getByText(/Цена работ изменилась, но не удалось обновить данные/)).toBeVisible();
+    expect(screen.getByRole("checkbox", { name: /Я согласен/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Подтвердить заключение" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Вернуться к обсуждению" }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    fireEvent.click(screen.getByRole("button", { name: "Заключить договор" }));
+    await act(async () => {});
+    expect(screen.getByText(/Цена работ изменилась, но не удалось обновить данные/)).toBeVisible();
+    expect(screen.getByRole("checkbox", { name: /Я согласен/ })).toBeDisabled();
+  });
+
+  it("keeps confirmation blocked when a price refresh is superseded", async () => {
+    const draft = { ...request, status: "DISCUSSING", contractAcceptedAt: null } as RequestCustomerDto;
+    const runner = {
+      run: vi.fn().mockResolvedValue(false),
+      cancel: vi.fn(),
+      currentKey: vi.fn().mockReturnValue(null),
+    };
+    vi.spyOn(financeRunner, "createLatestFinanceRequestRunner").mockReturnValue(runner);
+    vi.mocked(fetch).mockImplementation(async (url, init) => {
+      const path = String(url);
+      if (path.includes("/legal-docs/")) return new Response(JSON.stringify({ version: "v1" }));
+      if (path.endsWith("contract-bundles")) return new Response(JSON.stringify([{ status: "APPROVED" }]));
+      if (path.endsWith("provider-misc")) return new Response("[]");
+      if (path.endsWith("accept-contract") && init?.method === "POST") {
+        return new Response(JSON.stringify({ error: "PRICE_CHANGED" }), { status: 409 });
+      }
+      return new Response(JSON.stringify(draft));
+    });
+    await act(async () => {
+      render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={draft} /></ConfirmProvider>);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Заключить договор" }));
+    await act(async () => {});
+    fireEvent.click(screen.getByRole("checkbox", { name: /Я согласен/ }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Подтвердить заключение" }));
+    });
+    expect(runner.run).toHaveBeenCalled();
+    expect(screen.getByText(/Цена работ изменилась, но не удалось обновить данные/)).toBeVisible();
+    expect(screen.getByRole("checkbox", { name: /Я согласен/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Подтвердить заключение" })).toBeDisabled();
   });
 
 });

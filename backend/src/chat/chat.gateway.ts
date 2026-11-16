@@ -195,6 +195,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       .emit('conversation.changed', { conversationId });
   }
 
+  evictConversation(conversationId: string) {
+    this.server
+      .in(`${CONVERSATION_PREFIX}${conversationId}`)
+      .socketsLeave(`${CONVERSATION_PREFIX}${conversationId}`);
+  }
+
   emitRequestChanged(userId: string, requestId: string) {
     this.server
       .to(`${USER_PREFIX}${userId}`)

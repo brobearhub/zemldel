@@ -8,7 +8,7 @@ export function extractAcceptContractError(payload: unknown): string {
   if (/requested documents/i.test(raw)) return "Загрузите все запрошенные документы, затем вернитесь к заключению договора.";
   if (/all contract bundles must be approved/i.test(raw)) return "Одобрите все пакеты договора.";
   if (/approved contract bundle/i.test(raw)) return "Нужен одобренный пакет договора. Файл подписи необязателен.";
-  if (/price must be agreed/i.test(raw)) return "Сначала согласуйте цену с исполнителем.";
+  if (/price must be (agreed|set)/i.test(raw)) return "Сначала исполнитель должен указать цену работ.";
   if (/[а-яё]/i.test(raw)) return raw;
-  return "Условия заявки изменились. Проверьте документы и согласованную цену, затем повторите попытку.";
+  return "Условия заявки изменились. Проверьте документы и цену работ, затем повторите попытку.";
 }

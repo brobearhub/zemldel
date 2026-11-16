@@ -81,6 +81,7 @@ describe("resolvePostSignInPath", () => {
 
 it("возвращает нового сотрудника к приглашению вместо создания собственного профиля", () => {
   const returnTo = `/team-invitations/${"a".repeat(43)}`;
+  expect(resolvePostSignInPath({ accountKind: "PROVIDER", hasProviderMembership: false, returnTo: `/partner-invitations/${"b".repeat(43)}` })).toBe(`/partner-invitations/${"b".repeat(43)}`);
   expect(resolvePostSignInPath({ accountKind: "PROVIDER", hasProviderMembership: false, returnTo })).toBe(returnTo);
   expect(resolvePostSignInPath({ accountKind: "PROVIDER", hasProviderMembership: true, returnTo })).toBe(returnTo);
   expect(resolvePostSignInPath({ accountKind: "PROVIDER", hasProviderMembership: false, returnTo: "//evil.test/team-invitations/secret" })).toBe("/providers/new");

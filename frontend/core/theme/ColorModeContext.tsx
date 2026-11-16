@@ -58,8 +58,8 @@ export function ColorModeProvider({
 }: {
   readonly children: ReactNode;
 }) {
-  const [mode, setModeState] = useState<PaletteMode>("light");
-  const [preference, setPreferenceState] = useState<ColorPreference>("light");
+  const [mode, setModeState] = useState<PaletteMode>("dark");
+  const [preference, setPreferenceState] = useState<ColorPreference>("dark");
   const [darkPalette, setDarkPaletteState] =
     useState<DarkPaletteId>(DEFAULT_DARK_PALETTE);
 

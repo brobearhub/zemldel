@@ -5,6 +5,37 @@ import { createAppTheme } from "@/core/theme/createAppTheme";
 import { HomeIntroBanner } from "./HomeIntroBanner";
 
 describe("HomeIntroBanner", () => {
+  it("keeps headings in semantic order with their requested attributes", () => {
+    render(<HomeIntroBanner onCreateRequest={() => {}} />);
+
+    const headings = screen.getAllByRole("heading");
+
+    expect(headings.map((heading) => heading.tagName)).toEqual([
+      "H1",
+      "H2",
+      "H3",
+      "H4",
+    ]);
+    expect(headings.map((heading) => heading.textContent)).toEqual([
+      "Земледел",
+      "Земельные и кадастровые услуги",
+      "ЗЕМЛЯ • УЧАСТОК • ДОКУМЕНТЫ",
+      "Найдите своего специалиста",
+    ]);
+    expect(headings.map((heading) => heading.getAttribute("title"))).toEqual([
+      "земледел",
+      "Земельные и кадастровые услуги",
+      "ЗЕМЛЯ, УЧАСТОК, ДОКУМЕНТЫ",
+      "Найдите своего специалиста",
+    ]);
+    for (const heading of headings) {
+      const description = heading.getAttribute("description");
+      expect(description).toBeTruthy();
+      expect(screen.queryByText(description!)).not.toBeInTheDocument();
+    }
+    expect(screen.getByRole("region", { name: "Земледел" })).toBeInTheDocument();
+  });
+
   it.each([
     ["warm-coal", "rgb(58, 53, 44)"],
     ["sage-graphite", "rgb(45, 55, 47)"],
