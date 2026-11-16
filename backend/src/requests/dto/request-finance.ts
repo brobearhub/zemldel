@@ -2,6 +2,18 @@ export type PaymentAmount = {
   readonly amountRubles: number;
 };
 
+const PRICE_MUTABLE_STATUSES = new Set(['NEW', 'DISCUSSING', 'TERMS_AGREED']);
+
+export function isRequestPriceMutable(request: {
+  status: string;
+  contractAcceptedAt?: Date | null;
+}): boolean {
+  return (
+    request.contractAcceptedAt == null &&
+    PRICE_MUTABLE_STATUSES.has(request.status)
+  );
+}
+
 export function sumPaidRubles(payments: readonly PaymentAmount[]): number {
   return payments.reduce((sum, payment) => sum + payment.amountRubles, 0);
 }

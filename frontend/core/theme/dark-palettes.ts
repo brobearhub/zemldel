@@ -1,5 +1,18 @@
 /** Approved Subframe palettes. Keep these names independent of canvas numbering. */
 export const DARK_PALETTES = {
+  "lavender-graphite": {
+    name: "Лавандовый графит",
+    background: "#1c1922",
+    paper: "#292532",
+    raised: "#3a3347",
+    text: "#f0eaf7",
+    muted: "#bbafcb",
+    primary: "#bea9df",
+    contrastText: "#21172f",
+    divider: "#584b6b",
+    info: "#ff8b66",
+    error: "#f1a09a",
+  },
   "warm-coal": {
     name: "Тёплый уголь",
     background: "#1d1b18",
@@ -34,19 +47,6 @@ export const DARK_PALETTES = {
     primary: "#c2c2c2",
     contrastText: "#171717",
     divider: "#505050",
-    info: "#ff8b66",
-    error: "#f1a09a",
-  },
-  "lavender-graphite": {
-    name: "Лавандовый графит",
-    background: "#1c1922",
-    paper: "#292532",
-    raised: "#3a3347",
-    text: "#f0eaf7",
-    muted: "#bbafcb",
-    primary: "#bea9df",
-    contrastText: "#21172f",
-    divider: "#584b6b",
     info: "#ff8b66",
     error: "#f1a09a",
   },
@@ -102,7 +102,7 @@ export const DARK_PALETTES = {
 
 export type DarkPaletteId = keyof typeof DARK_PALETTES;
 
-export const DEFAULT_DARK_PALETTE: DarkPaletteId = "warm-coal";
+export const DEFAULT_DARK_PALETTE: DarkPaletteId = "lavender-graphite";
 export const DARK_PALETTE_STORAGE_KEY = "dark-palette";
 export const DARK_PALETTE_OPTIONS = Object.entries(DARK_PALETTES).map(
   ([id, palette]) => ({ id: id as DarkPaletteId, ...palette }),

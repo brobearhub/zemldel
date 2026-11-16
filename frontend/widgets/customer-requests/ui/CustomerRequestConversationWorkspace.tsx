@@ -50,7 +50,6 @@ import {
   resolveProviderTriggerLabel,
   resolveRequestDetailBody,
   resolveRequestDetailTitle,
-  resolveRequestPriceView,
   type RequestDocumentRequestDto,
   type RequestRemarkDto,
   type RequestCustomerDto,
@@ -148,6 +147,11 @@ type Props = {
   initialConversationId?: string;
 };
 
+type AcceptContractRequest = {
+  termsVersion: string;
+  expectedTotalAmountRubles: number | null;
+};
+
 type ChatRecovery = Extract<
   SelectedProviderChatResult,
   { kind: "recovery-required" }
@@ -231,6 +235,10 @@ export function CustomerRequestConversationWorkspace({
   const [termsError, setTermsError] = useState<string | null>(null);
   const [termsVersion, setTermsVersion] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsAcceptedPriceRubles, setTermsAcceptedPriceRubles] = useState<
+    number | null
+  >(null);
+  const [priceRefreshRequired, setPriceRefreshRequired] = useState(false);
   const syncPaused =
     busy ||
     docUploadBusy ||
@@ -247,9 +255,10 @@ export function CustomerRequestConversationWorkspace({
     [conversations, selectedConversationId],
   );
 
-  const refreshFinance = useCallback(async () => {
+  const refreshFinance = useCallback(async (requireApplied = false) => {
     if (!req.lockedAt && !selectedConversationId) {
       financeRequestRunner.current.cancel();
+      if (requireApplied) throw new Error("Finance context is unavailable");
       return;
     }
     const conversationId = req.lockedAt
@@ -258,9 +267,12 @@ export function CustomerRequestConversationWorkspace({
     const financeKey = req.lockedAt
       ? `provider:${req.providerId ?? "missing"}`
       : `conversation:${selectedConversationId}`;
-    await financeRequestRunner.current.run(financeKey, (signal) =>
+    const applied = await financeRequestRunner.current.run(financeKey, (signal) =>
       fetchCustomerRequestFinance(req.id, conversationId, signal),
     );
+    if (requireApplied && !applied) {
+      throw new Error("Finance refresh was superseded");
+    }
   }, [req.id, req.lockedAt, req.providerId, selectedConversationId]);
 
   useEffect(() => {
@@ -510,8 +522,25 @@ export function CustomerRequestConversationWorkspace({
   });
 
   useEffect(() => {
-    if (contractDialogOpen && !canAcceptContract) setTermsAccepted(false);
-  }, [contractDialogOpen, canAcceptContract]);
+    if (!contractDialogOpen) return;
+    if (
+      termsAccepted &&
+      termsAcceptedPriceRubles !== finance.totalAmountRubles
+    ) {
+      setTermsAccepted(false);
+      setTermsError(
+        "Цена работ изменилась. Проверьте новую сумму и подтвердите договор повторно.",
+      );
+    } else if (!canAcceptContract) {
+      setTermsAccepted(false);
+    }
+  }, [
+    contractDialogOpen,
+    canAcceptContract,
+    finance.totalAmountRubles,
+    termsAccepted,
+    termsAcceptedPriceRubles,
+  ]);
 
   function canInitiateOrderFor(providerId: string) {
     if (isExclusiveStatus || req.status === "CLOSED") return false;
@@ -765,12 +794,21 @@ export function CustomerRequestConversationWorkspace({
       setTermsError(
         !allRequestedDocumentsUploaded
           ? "Загрузите все запрошенные документы."
-          : "Проверьте документы и согласованную цену.",
+          : "Проверьте документы и цену работ.",
       );
       return;
     }
     if (!termsVersion) {
       setTermsError("Версия пользовательского соглашения не загружена");
+      return;
+    }
+    if (
+      priceRefreshRequired ||
+      !termsAccepted ||
+      termsAcceptedPriceRubles !== finance.totalAmountRubles
+    ) {
+      setTermsAccepted(false);
+      setTermsError("Проверьте актуальную цену работ и подтвердите договор повторно.");
       return;
     }
     setBusy(true);
@@ -779,16 +817,41 @@ export function CustomerRequestConversationWorkspace({
     setTermsError(null);
     setNotice(null);
     try {
+      const contractPayload: AcceptContractRequest = {
+        termsVersion,
+        expectedTotalAmountRubles: termsAcceptedPriceRubles,
+      };
       const res = await fetch(`/api/requests/${req.id}/accept-contract`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ termsVersion }),
+        body: JSON.stringify(contractPayload),
       });
       const payload = (await res.json().catch(() => null)) as
         | { error?: string; message?: string }
         | RequestCustomerDto
         | null;
       if (!res.ok) {
+        if (
+          res.status === 409 &&
+          payload &&
+          "error" in payload &&
+          payload.error === "PRICE_CHANGED"
+        ) {
+          setTermsAccepted(false);
+          setPriceRefreshRequired(true);
+          try {
+            await refreshFinance(true);
+            setPriceRefreshRequired(false);
+            setTermsError(
+              "Цена работ изменилась. Проверьте новую сумму и подтвердите договор повторно.",
+            );
+          } catch {
+            setTermsError(
+              "Цена работ изменилась, но не удалось обновить данные. Обновите страницу и проверьте цену.",
+            );
+          }
+          return;
+        }
         throw new Error(extractAcceptContractError(payload));
       }
       setReq(payload as RequestCustomerDto);
@@ -807,7 +870,12 @@ export function CustomerRequestConversationWorkspace({
 
   function openContractDialog() {
     setTermsAccepted(false);
-    setTermsError(null);
+    setTermsAcceptedPriceRubles(null);
+    setTermsError(
+      priceRefreshRequired
+        ? "Не удалось обновить цену. Обновите страницу и проверьте условия договора."
+        : null,
+    );
     setContractDialogOpen(true);
     void loadTermsVersion();
   }
@@ -949,11 +1017,6 @@ export function CustomerRequestConversationWorkspace({
     lockedAt: req.lockedAt,
   });
   const showPayment = true;
-  const priceView = resolveRequestPriceView({
-    totalAmountRubles: finance.totalAmountRubles,
-    servicePriceRubles: req.servicePriceRubles,
-    priceProposal: finance.priceProposal,
-  });
   const createdNotice =
     justCreated &&
     req.status === "NEW" &&
@@ -970,6 +1033,7 @@ export function CustomerRequestConversationWorkspace({
     providerEmail: req.providerEmail,
   });
 
+  const paymentTriggerLabel = resolvePaymentTriggerLabel(finance);
   const panelItems = [
     {
       id: "cadastral",
@@ -979,8 +1043,8 @@ export function CustomerRequestConversationWorkspace({
     },
     {
       id: "payment",
-      label: resolvePaymentTriggerLabel(finance.totalAmountRubles),
-      caption: priceView.triggerCaption,
+      label: paymentTriggerLabel,
+      ariaLabel: `Цена и оплата: ${paymentTriggerLabel}`,
       visible: showPayment,
       endIcon: <PaymentIcon />,
     },
@@ -1059,6 +1123,7 @@ export function CustomerRequestConversationWorkspace({
   const panelContent =
     activePanel?.id === "payment" ? (
       <RequestPayments
+        key={`${req.id}:${selectedConversationId ?? "request"}`}
         mode="customer"
         requestId={req.id}
         conversationId={selectedConversationId ?? undefined}
@@ -1191,6 +1256,7 @@ export function CustomerRequestConversationWorkspace({
                     servicePriceRubles={req.servicePriceRubles}
                     priceProposal={finance.priceProposal}
                     serviceId={req.serviceId}
+                    showReferencePrice={false}
                   />
                   {req.status === "ACCEPTANCE_PENDING" ? (
                     <RequestPriceBlock
@@ -1613,10 +1679,15 @@ export function CustomerRequestConversationWorkspace({
                   >
                     {!allRequestedDocumentsUploaded
                       ? "Исполнитель запросил документы. Загрузите их перед заключением договора."
-                      : "Условия заявки изменились. Проверьте документы и согласованную цену."}
+                      : "Условия заявки изменились. Проверьте документы и цену работ."}
                   </Alert>
                 ) : null}
-                {termsError ? (
+                {priceRefreshRequired ? (
+                  <Alert severity="warning">
+                    Цена работ изменилась, но не удалось обновить данные.
+                    Обновите страницу и проверьте цену.
+                  </Alert>
+                ) : termsError ? (
                   <Alert severity="error">{termsError}</Alert>
                 ) : null}
                 {termsBusy ? (
@@ -1631,8 +1702,17 @@ export function CustomerRequestConversationWorkspace({
                 <FormControlLabel
                   control={
                     <Checkbox
-                      checked={termsAccepted}
-                      onChange={(e) => setTermsAccepted(e.target.checked)}
+                      checked={
+                        termsAccepted &&
+                        termsAcceptedPriceRubles === finance.totalAmountRubles
+                      }
+                      disabled={priceRefreshRequired}
+                      onChange={(e) => {
+                        setTermsAccepted(e.target.checked);
+                        setTermsAcceptedPriceRubles(
+                          e.target.checked ? finance.totalAmountRubles : null,
+                        );
+                      }}
                     />
                   }
                   label="Я согласен(а) с договором исполнителя и пользовательским соглашением платформы"
@@ -1654,6 +1734,8 @@ export function CustomerRequestConversationWorkspace({
                   busy ||
                   termsBusy ||
                   !termsAccepted ||
+                  termsAcceptedPriceRubles !== finance.totalAmountRubles ||
+                  priceRefreshRequired ||
                   !termsVersion ||
                   !canAcceptContract
                 }

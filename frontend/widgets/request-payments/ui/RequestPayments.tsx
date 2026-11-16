@@ -1,236 +1,694 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
-import CheckIcon from "@mui/icons-material/Check";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
-import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import QueueIcon from "@mui/icons-material/Queue";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
   Alert,
   Box,
   Button,
+  Checkbox,
+  CircularProgress,
+  Collapse,
   Divider,
   IconButton,
+  NoSsr,
+  Paper,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import {
   formatRubles,
   parseRublesInput,
+  resolveRequestFinanceSummary,
+  resolveRequestPriceView,
   type RequestPaymentItemDto,
   type RequestPaymentType,
   type RequestPriceProposalDto,
   type RequestStatus,
 } from "@/entities/request";
 import {
-  acceptCustomerRequestPrice,
-  acceptProRequestPrice,
   addCustomerRequestPayment,
   addProRequestPayment,
   markCustomerRequestPaymentPaid,
   markProRequestPaymentPaid,
-  proposeCustomerRequestPrice,
   proposeProRequestPrice,
 } from "@/entities/request/api/request-payments";
-import { resolveRequestPriceView } from "@/entities/request/lib/request-finance";
 import { useConfirm } from "@/shared/ui/confirm";
 import { resolveRequestPaymentPermissions } from "../model/request-payment-permissions";
 
-const PAYMENT_ACTION_SLOT_WIDTH = 32;
-const PAYMENT_SECTION_GRID_SX = {
-  display: "grid",
-  gridTemplateColumns: {
-    xs: "minmax(0, 1fr) auto",
-    sm: `minmax(0, 1fr) auto ${PAYMENT_ACTION_SLOT_WIDTH}px`,
-  },
-  columnGap: 1,
-  rowGap: 0.75,
-  alignItems: "center",
-} as const;
-
-const PAYMENT_AMOUNT_SX = {
-  gridColumn: 2,
-  justifySelf: "stretch",
-  textAlign: "right",
-  fontVariantNumeric: "tabular-nums",
+const WIDE_PAYMENT_LAYOUT = "@container request-payments (min-width: 840px)";
+const WIDE_PAYMENT_LIST_LAYOUT =
+  "@container request-payment-list (min-width: 520px)";
+const paymentLeaderStyles = {
   minWidth: 0,
+  borderBottom: "1px dotted",
+  borderColor: "divider",
+  transform: "translateY(5px)",
 } as const;
-
-const PAYMENT_ACTION_SLOT_SX = {
-  gridColumn: 3,
-  width: { xs: "auto", sm: PAYMENT_ACTION_SLOT_WIDTH },
-  minWidth: { xs: 0, sm: PAYMENT_ACTION_SLOT_WIDTH },
-  maxWidth: { xs: "none", sm: PAYMENT_ACTION_SLOT_WIDTH },
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
+const paymentFormStyles = {
+  pt: 1,
+  "& .MuiButton-root.MuiButton-sizeSmall": {
+    minHeight: 0,
+  },
+  "&::before": {
+    content: '""',
+    display: "block",
+    mx: { xs: -2, sm: -2.5 },
+    mb: 1,
+    borderTop: 1,
+    borderColor: "divider",
+  },
 } as const;
+const paymentDateFormatter = new Intl.DateTimeFormat("ru-RU", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+const paymentDateTimeFormatter = new Intl.DateTimeFormat("ru-RU", {
+  dateStyle: "long",
+  timeStyle: "short",
+});
 
-const PAYMENT_AMOUNT_TOTAL_TYPO_SX = {
-  fontWeight: 700,
-  fontSize: "1.375rem",
-} as const;
+function amountLabel(amount: number | null): string {
+  return amount == null ? "—" : formatRubles(amount);
+}
 
-function PaymentAmountCell({
-  children,
+function PaymentSummaryRow({
+  caption,
+  expanded,
+  contentId,
+  sectionName,
+  onToggle,
   action,
-  typographySx,
-  sx,
 }: {
-  children: ReactNode;
+  caption: string;
+  expanded: boolean;
+  contentId: string;
+  sectionName: string;
+  onToggle: () => void;
   action?: ReactNode;
-  typographySx?: object;
-  sx?: object;
 }) {
   return (
     <Box
       sx={{
-        display: { xs: "flex", sm: "contents" },
-        gridColumn: "1 / -1",
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr) auto 48px",
+        columnGap: 1,
         alignItems: "center",
-        gap: 1,
-        minWidth: 0,
+        px: { xs: 2, sm: 2.5 },
+        pt: 1,
       }}
     >
       <Typography
+        variant="body2"
+        color="text.secondary"
         sx={{
-          ...PAYMENT_AMOUNT_SX,
-          ...typographySx,
-          ...sx,
-          textAlign: { xs: "left", sm: "right" },
-          flex: 1,
-          overflowWrap: "anywhere",
+          gridColumn: 1,
+          gridRow: 1,
+          minWidth: 0,
         }}
       >
-        {children}
+        {caption}
       </Typography>
-      <Box sx={PAYMENT_ACTION_SLOT_SX}>{action}</Box>
+      {action ? (
+        <Box
+          sx={{
+            gridColumn: 2,
+            gridRow: 1,
+            justifySelf: "end",
+            "@container request-payments (max-width: 520px)": {
+              gridColumn: "1 / 4",
+              gridRow: 2,
+            },
+          }}
+        >
+          {action}
+        </Box>
+      ) : null}
+      <IconButton
+        size="small"
+        color="inherit"
+        aria-expanded={expanded}
+        aria-controls={contentId}
+        aria-label={`${expanded ? "Свернуть" : "Развернуть"}: ${sectionName}`}
+        onClick={onToggle}
+        sx={{
+          gridColumn: 3,
+          gridRow: 1,
+          width: 48,
+          height: 48,
+          color: "text.secondary",
+        }}
+      >
+        {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+      </IconButton>
+    </Box>
+  );
+}
+
+function WorkPriceSection({
+  amount,
+  paid,
+  remaining,
+  overpaid,
+  hasPayments,
+  hasDetails,
+  expanded,
+  onToggle,
+  onEntered,
+  action,
+  children,
+}: {
+  amount: number | null;
+  paid: number;
+  remaining: number | null;
+  overpaid: number;
+  hasPayments: boolean;
+  hasDetails: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+  onEntered: () => void;
+  action: ReactNode;
+  children: ReactNode;
+}) {
+  const contentId = useId();
+  const paymentCaption =
+    overpaid > 0
+      ? `Переплата за работы ${formatRubles(overpaid)}`
+      : amount != null && remaining === 0
+        ? "Оплачено полностью"
+        : paid > 0
+          ? `Оплачено ${formatRubles(paid)}${remaining == null ? "" : ` · Осталось ${formatRubles(remaining)}`}`
+          : amount == null
+            ? "Цена пока не установлена"
+            : hasPayments
+              ? "Оплат не отмечено"
+              : "Оплат пока нет";
+  const price = (
+    <Typography
+      sx={{
+        fontSize: "1.5rem",
+        lineHeight: "32px",
+        fontWeight: 700,
+        fontVariantNumeric: "tabular-nums",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {amountLabel(amount)}
+    </Typography>
+  );
+
+  return (
+    <Box
+      component="section"
+      aria-label="Стоимость работ"
+      sx={{
+        minWidth: 0,
+      }}
+    >
+      <Stack
+        spacing={0}
+        sx={{
+          pb: 1.5,
+        }}
+      >
+        <Stack
+          direction="row"
+          spacing={1.5}
+          sx={{
+            alignItems: "center",
+            px: { xs: 2, sm: 2.5 },
+            pt: 1.5,
+            pb: 1,
+            minHeight: 68,
+            bgcolor: "background.secondary",
+          }}
+        >
+          <Typography
+            component="h3"
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              fontSize: "1.125rem",
+              lineHeight: "28px",
+              fontWeight: 700,
+            }}
+          >
+            Цена работ
+          </Typography>
+          {price}
+        </Stack>
+        <PaymentSummaryRow
+          caption={paymentCaption}
+          expanded={expanded}
+          contentId={contentId}
+          sectionName="Стоимость работ"
+          onToggle={onToggle}
+          action={expanded ? action : null}
+        />
+      </Stack>
+      <Collapse in={expanded && hasDetails} onEntered={onEntered}>
+        <Stack
+          id={contentId}
+          spacing={2}
+          sx={{
+            px: { xs: 2, sm: 2.5 },
+            pb: { xs: 2, sm: 2.5 },
+            minWidth: 0,
+          }}
+        >
+          {children}
+        </Stack>
+      </Collapse>
+    </Box>
+  );
+}
+
+function MoneyRow({
+  label,
+  amount,
+  emphasized = false,
+}: {
+  label: string;
+  amount: number | null;
+  emphasized?: boolean;
+}) {
+  return (
+    <Stack
+      direction="row"
+      spacing={2}
+      useFlexGap
+      sx={{
+        alignItems: "baseline",
+        justifyContent: "space-between",
+        flexWrap: "wrap",
+      }}
+    >
+      <Typography
+        variant="body2"
+        sx={{
+          fontWeight: emphasized ? 700 : 400,
+        }}
+      >
+        {label}
+      </Typography>
+      <Typography
+        variant="body2"
+        sx={{
+          fontWeight: 700,
+          fontVariantNumeric: "tabular-nums",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {amountLabel(amount)}
+      </Typography>
+    </Stack>
+  );
+}
+
+function ExpenseSection({
+  amount,
+  paid,
+  remaining,
+  expanded,
+  onToggle,
+  onEntered,
+  children,
+}: {
+  amount: number;
+  paid: number;
+  remaining: number;
+  expanded: boolean;
+  onToggle: () => void;
+  onEntered?: () => void;
+  children: ReactNode;
+}) {
+  const id = useId();
+  const titleId = `${id}-title`;
+  const contentId = `${id}-content`;
+  const paymentCaption =
+    amount > 0 && remaining === 0
+      ? "Оплачено полностью"
+      : `Оплачено ${formatRubles(paid)} · Осталось ${formatRubles(remaining)}`;
+
+  return (
+    <Box
+      component="section"
+      aria-labelledby={titleId}
+      sx={{
+        minWidth: 0,
+        borderRadius: 1.5,
+        borderTopLeftRadius: 0,
+        borderTopRightRadius: 0,
+        overflow: "hidden",
+        bgcolor: "background.paper",
+      }}
+    >
+      <Stack
+        direction="row"
+        spacing={1.5}
+        sx={{
+          alignItems: "center",
+          px: { xs: 2, sm: 2.5 },
+          pt: 1.5,
+          pb: 1,
+          minHeight: 68,
+          bgcolor: "background.secondary",
+          "@container request-payments (max-width: 320px)": {
+            flexWrap: "wrap",
+            justifyContent: "flex-end",
+          },
+        }}
+      >
+        <Typography
+          id={titleId}
+          component="h3"
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            fontSize: "1.125rem",
+            lineHeight: "28px",
+            fontWeight: 700,
+            "@container request-payments (max-width: 320px)": {
+              flexBasis: "100%",
+            },
+          }}
+        >
+          Дополнительные расходы
+        </Typography>
+        <Typography
+          sx={{
+            fontSize: "1.5rem",
+            lineHeight: "32px",
+            fontWeight: 700,
+            fontVariantNumeric: "tabular-nums",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {formatRubles(amount)}
+        </Typography>
+      </Stack>
+      <Box
+        sx={{
+          pb: expanded ? 0 : 1.5,
+        }}
+      >
+        <PaymentSummaryRow
+          caption={paymentCaption}
+          expanded={expanded}
+          contentId={contentId}
+          sectionName="Дополнительные расходы"
+          onToggle={onToggle}
+        />
+      </Box>
+      <Collapse in={expanded} onEntered={onEntered}>
+        <Stack
+          id={contentId}
+          spacing={0.5}
+          sx={{
+            px: { xs: 2, sm: 2.5 },
+            pt: 1.5,
+            pb: 1.5,
+            minWidth: 0,
+          }}
+        >
+          {children}
+        </Stack>
+      </Collapse>
     </Box>
   );
 }
 
 function PaymentListRow({
-  comment,
-  amountRubles,
-  paid,
+  payment,
   onMarkPaid,
-  markPaidDisabled,
-  markPaidLoading,
-  authorCaption,
+  busy,
+  loading,
 }: {
-  comment: string;
-  amountRubles: number;
-  paid: boolean;
+  payment: RequestPaymentItemDto;
   onMarkPaid?: () => void;
-  markPaidDisabled?: boolean;
-  markPaidLoading?: boolean;
-  authorCaption?: string | null;
+  busy: boolean;
+  loading: boolean;
 }) {
+  const id = useId();
+  const paid = payment.paidAt != null;
+  const paidAt = payment.paidAt ? new Date(payment.paidAt) : null;
+  const paymentDateLabel =
+    paidAt && !Number.isNaN(paidAt.getTime())
+      ? paymentDateFormatter.format(paidAt)
+      : null;
+  const paymentDateTitle =
+    paymentDateLabel && paidAt
+      ? `Оплачено ${paymentDateTimeFormatter.format(paidAt)}`
+      : undefined;
+
   return (
     <Box
+      role="group"
+      aria-labelledby={id}
       sx={{
-        gridColumn: "1 / -1",
-        py: 1.5,
-        borderBottom: 1,
-        borderColor: "divider",
+        display: "grid",
+        gridTemplateColumns: "88px minmax(0, 1fr) max-content 48px",
+        alignItems: "center",
+        columnGap: 1,
+        minHeight: 48,
         minWidth: 0,
+        [WIDE_PAYMENT_LIST_LAYOUT]: {
+          // Anchor dates to the row width so different titles and amounts do not move them.
+          gridTemplateColumns:
+            "minmax(0, calc(68% - 130.5px)) 96px minmax(12px, 1fr) max-content 64px",
+          columnGap: 1.5,
+        },
       }}
     >
-      <Typography
-        variant="body2"
-        sx={{ fontWeight: 600, overflowWrap: "anywhere" }}
-      >
-        {comment}
-      </Typography>
-      <Stack
-        direction="row"
-        spacing={1}
-        useFlexGap
+      <Box
         sx={{
+          display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          mt: 0.75,
+          gap: 1,
+          minWidth: 0,
+          gridColumn: "1 / -1",
+          gridRow: 1,
+          [WIDE_PAYMENT_LIST_LAYOUT]: {
+            gridColumn: 1,
+          },
         }}
       >
         <Typography
-          sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}
-        >
-          {formatRubles(amountRubles)}
-        </Typography>
-        <Typography
           variant="body2"
-          color={paid ? "success.main" : "text.secondary"}
+          sx={{
+            minWidth: 0,
+            overflowWrap: "anywhere",
+          }}
         >
-          {paid ? "Оплачено" : "Не оплачено"}
+          <Box component="span" id={id}>
+            {payment.comment}
+          </Box>
         </Typography>
-        {!paid && onMarkPaid ? (
-          <Button
-            aria-label="Отметить как оплачено"
-            size="small"
-            variant="outlined"
-            color="inherit"
-            loading={Boolean(markPaidLoading)}
-            disabled={Boolean(markPaidDisabled)}
-            onClick={onMarkPaid}
-          >
-            Отметить оплату
-          </Button>
-        ) : null}
-      </Stack>
-      {authorCaption ? (
-        <Typography variant="caption" color="text.secondary">
-          {authorCaption}
-        </Typography>
-      ) : null}
+        <Box
+          aria-hidden="true"
+          sx={{
+            ...paymentLeaderStyles,
+            display: "none",
+            flex: 1,
+            minWidth: 12,
+            [WIDE_PAYMENT_LIST_LAYOUT]: {
+              display: "block",
+            },
+          }}
+        />
+      </Box>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          minWidth: 0,
+          gridColumn: 1,
+          gridRow: 2,
+          [WIDE_PAYMENT_LIST_LAYOUT]: {
+            gridColumn: 2,
+            gridRow: 1,
+            justifyContent: "center",
+          },
+        }}
+      >
+        {paymentDateLabel ? (
+          <NoSsr>
+            <Typography
+              component="time"
+              variant="body2"
+              dateTime={payment.paidAt ?? undefined}
+              title={paymentDateTitle}
+              sx={{
+                color: "text.secondary",
+                whiteSpace: "nowrap",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {paymentDateLabel}
+            </Typography>
+          </NoSsr>
+        ) : (
+          <Box
+            aria-hidden="true"
+            sx={{
+              ...paymentLeaderStyles,
+              width: "100%",
+            }}
+          />
+        )}
+      </Box>
+      <Box
+        aria-hidden="true"
+        sx={{
+          ...paymentLeaderStyles,
+          gridColumn: 2,
+          gridRow: 2,
+          [WIDE_PAYMENT_LIST_LAYOUT]: {
+            gridColumn: 3,
+            gridRow: 1,
+          },
+        }}
+      />
+      <Typography
+        variant="body2"
+        sx={{
+          gridColumn: 3,
+          gridRow: 2,
+          fontWeight: 700,
+          fontVariantNumeric: "tabular-nums",
+          whiteSpace: "nowrap",
+          textAlign: "right",
+          [WIDE_PAYMENT_LIST_LAYOUT]: {
+            gridColumn: 4,
+            gridRow: 1,
+          },
+        }}
+      >
+        {formatRubles(payment.amountRubles)}
+      </Typography>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          gridColumn: 4,
+          gridRow: 2,
+          [WIDE_PAYMENT_LIST_LAYOUT]: {
+            gridColumn: 5,
+            gridRow: 1,
+          },
+        }}
+      >
+        <Checkbox
+          size="small"
+          checked={paid}
+          disabled={busy || paid || !onMarkPaid}
+          onChange={onMarkPaid}
+          slotProps={{
+            input: {
+              "aria-label": `${paid ? "Оплачено" : "Оплата"}: ${payment.comment}, ${formatRubles(payment.amountRubles)}`,
+              "aria-busy": loading,
+            },
+          }}
+          icon={
+            loading ? (
+              <CircularProgress size={20} color="inherit" />
+            ) : (
+              <Box
+                component="span"
+                sx={{
+                  width: 20,
+                  height: 20,
+                  border: "1px solid",
+                  borderColor: "currentColor",
+                  borderRadius: "4px",
+                }}
+              />
+            )
+          }
+          sx={{
+            width: 48,
+            height: 48,
+            color: "text.secondary",
+            "& .MuiSvgIcon-root": {
+              fontSize: 20,
+            },
+            "&.Mui-checked.Mui-disabled": {
+              color: "primary.main",
+            },
+            "&.Mui-focusVisible": {
+              outline: "2px solid currentColor",
+              outlineOffset: 2,
+            },
+          }}
+        />
+      </Box>
     </Box>
   );
 }
 
-function expenseAuthorCaption(payment: RequestPaymentItemDto): string {
-  const who =
-    payment.createdBySide === "CUSTOMER"
-      ? "Клиент"
-      : payment.createdBySide === "PROVIDER"
-        ? "Исполнитель"
-        : "Участник";
-  const when = new Intl.DateTimeFormat("ru-RU", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(payment.createdAt));
-  return `${who} · ${when}`;
-}
-
-function AddPaymentTrigger({
-  disabled,
-  onClick,
-  label,
+function PaymentList({
+  payments,
+  onMarkPaid,
+  busy,
+  pendingAction,
 }: {
-  disabled?: boolean;
-  onClick: () => void;
-  label: string;
+  payments: readonly RequestPaymentItemDto[];
+  onMarkPaid?: (paymentId: string) => void;
+  busy: boolean;
+  pendingAction: string | null;
 }) {
   return (
-    <Box sx={{ display: "flex", justifyContent: "center", flexShrink: 0 }}>
-      <Button
-        color="warning"
-        variant="text"
-        size="small"
-        startIcon={<AddIcon />}
-        disabled={disabled}
-        onClick={onClick}
+    <Stack
+      spacing={0.5}
+      sx={{
+        minWidth: 0,
+        containerType: "inline-size",
+        containerName: "request-payment-list",
+      }}
+    >
+      <Typography
+        variant="body2"
+        color="text.secondary"
         sx={{
-          bgcolor: "grey.300",
-          "&:hover": { bgcolor: "grey.100" },
+          alignSelf: "flex-end",
+          width: 48,
+          textAlign: "center",
+          whiteSpace: "nowrap",
+          [WIDE_PAYMENT_LIST_LAYOUT]: {
+            width: 64,
+          },
         }}
       >
-        {label}
-      </Button>
-    </Box>
+        Оплата
+      </Typography>
+      {payments.map((payment) => (
+        <PaymentListRow
+          key={payment.id}
+          payment={payment}
+          busy={busy}
+          loading={pendingAction === `paid:${payment.id}`}
+          onMarkPaid={onMarkPaid ? () => onMarkPaid(payment.id) : undefined}
+        />
+      ))}
+    </Stack>
+  );
+}
+
+function sortPayments(
+  a: RequestPaymentItemDto,
+  b: RequestPaymentItemDto,
+): number {
+  if (a.paidAt == null && b.paidAt != null) return -1;
+  if (a.paidAt != null && b.paidAt == null) return 1;
+  return (
+    new Date(b.paidAt ?? b.createdAt).getTime() -
+    new Date(a.paidAt ?? a.createdAt).getTime()
   );
 }
 
@@ -256,25 +714,33 @@ export type RequestPaymentsProps = {
 
 export function RequestPayments(props: RequestPaymentsProps) {
   const confirm = useConfirm();
+  const contractAmountRef = useRef<HTMLInputElement>(null);
   const permissions = resolveRequestPaymentPermissions({
     status: props.status,
     mode: props.mode,
     isLocked: Boolean(props.isLocked),
     canProposePrice: props.canProposePrice,
-    canAcceptPrice: props.canAcceptPrice,
   });
-  const priceView = resolveRequestPriceView({
-    totalAmountRubles: props.totalAmountRubles,
-    servicePriceRubles: props.servicePriceRubles,
-    priceProposal: props.priceProposal,
-  });
+  const priceView = resolveRequestPriceView(props);
+  const summary = resolveRequestFinanceSummary(props);
+  const payments = props.payments;
+  const pendingPriceProposal =
+    props.priceProposal?.acceptedAt == null ? props.priceProposal : null;
+  const total = props.totalAmountRubles;
+  const totalIsSet = total != null;
+  const contractPayments = payments
+    .filter((payment) => payment.type === "CONTRACT")
+    .sort(sortPayments);
+  const otherPayments = payments
+    .filter((payment) => payment.type === "OTHER")
+    .sort(sortPayments);
+
+  const [workExpanded, setWorkExpanded] = useState(false);
+  const [expensesExpanded, setExpensesExpanded] = useState(false);
   const [totalInput, setTotalInput] = useState(() => {
-    if (props.totalAmountRubles != null) return String(props.totalAmountRubles);
-    if (props.priceProposal != null)
-      return String(props.priceProposal.amountRubles);
-    if (props.servicePriceRubles != null)
-      return String(props.servicePriceRubles);
-    return "";
+    const initial =
+      total ?? pendingPriceProposal?.amountRubles ?? props.servicePriceRubles;
+    return initial == null ? "" : String(initial);
   });
   const [totalEditOpen, setTotalEditOpen] = useState(false);
   const [contractAmountInput, setContractAmountInput] = useState("");
@@ -293,41 +759,14 @@ export function RequestPayments(props: RequestPaymentsProps) {
     return () => onBusyChange?.(false);
   }, [onBusyChange, saving]);
 
+  useEffect(() => {
+    if (contractAddOpen) contractAmountRef.current?.focus();
+  }, [contractAddOpen]);
+
   const isBusy = Boolean(props.busy) || saving;
-  const remaining = props.remainingAmountRubles;
-  const payments = props.payments ?? [];
-  const total = props.totalAmountRubles;
-  const totalIsSet = total != null;
-  const canEditTotal = permissions.canProposePrice;
-  const isEditingTotal =
-    canEditTotal && (props.priceProposal == null || totalEditOpen);
-  const canAddContractPayments = permissions.canAddPayment;
-  const canAddOtherPayments = permissions.canAddPayment;
   const canMarkPaid = permissions.canMarkPaid;
-  const contractPayments = payments
-    .filter((p) => p.type === "CONTRACT")
-    .slice()
-    .sort((a, b) => {
-      if (a.paidAt == null && b.paidAt != null) return -1;
-      if (a.paidAt != null && b.paidAt == null) return 1;
-      if (a.paidAt != null && b.paidAt != null)
-        return new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime();
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
-  const otherPayments = payments
-    .filter((p) => p.type === "OTHER")
-    .slice()
-    .sort((a, b) => {
-      if (a.paidAt == null && b.paidAt != null) return -1;
-      if (a.paidAt != null && b.paidAt == null) return 1;
-      if (a.paidAt != null && b.paidAt != null)
-        return new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime();
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
-  const otherPaidAmountRubles = otherPayments.reduce(
-    (sum, p) => (p.paidAt ? sum + p.amountRubles : sum),
-    0,
-  );
+  const isEditingTotal =
+    permissions.canEditPrice && totalEditOpen;
   const canSubmitContract =
     parseRublesInput(contractAmountInput) != null &&
     contractComment.trim().length > 0;
@@ -335,58 +774,39 @@ export function RequestPayments(props: RequestPaymentsProps) {
     parseRublesInput(otherAmountInput) != null &&
     otherComment.trim().length > 0;
 
-  function formatRublesForInput(rubles: number): string {
-    return String(rubles);
+  function closeContractForm() {
+    setContractAddOpen(false);
+    setContractAmountInput("");
+    setContractComment("");
   }
 
-  async function proposePrice() {
+  function closeExpenseForm() {
+    setOtherAddOpen(false);
+    setOtherAmountInput("");
+    setOtherComment("");
+  }
+
+  async function changePrice() {
+    if (!permissions.canEditPrice || isBusy) return;
     const rubles = parseRublesInput(totalInput);
     if (rubles == null) {
-      setError("Укажите полную цену больше нуля (целое число рублей)");
+      setError("Укажите цену работ больше нуля (целое число рублей)");
       return;
     }
     setSaving(true);
     setPendingAction("total");
     setError(null);
     try {
-      if (props.mode === "provider") {
-        await proposeProRequestPrice(props.requestId, rubles);
-      } else {
-        await proposeCustomerRequestPrice(
-          props.requestId,
-          rubles,
-          props.conversationId,
-        );
-      }
+      await proposeProRequestPrice(props.requestId, rubles);
       setTotalInput("");
       setTotalEditOpen(false);
-      await props.onChanged?.();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось предложить цену");
-    } finally {
-      setSaving(false);
-      setPendingAction(null);
-    }
-  }
-
-  async function acceptPrice() {
-    if (!props.priceProposal || !permissions.canAcceptPrice || isBusy) return;
-    setSaving(true);
-    setPendingAction("accept-price");
-    setError(null);
-    try {
-      if (props.mode === "provider") {
-        await acceptProRequestPrice(props.requestId, props.priceProposal.id);
-      } else {
-        await acceptCustomerRequestPrice(
-          props.requestId,
-          props.priceProposal.id,
-          props.conversationId,
-        );
+      try {
+        await props.onChanged?.();
+      } catch {
+        setError("Цена сохранена, но не удалось обновить данные. Обновите страницу.");
       }
-      await props.onChanged?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось принять цену");
+      setError(e instanceof Error ? e.message : "Не удалось изменить цену");
     } finally {
       setSaving(false);
       setPendingAction(null);
@@ -398,6 +818,7 @@ export function RequestPayments(props: RequestPaymentsProps) {
     amountInput: string;
     comment: string;
   }) {
+    if (!permissions.canAddPayment || isBusy) return;
     const rubles = parseRublesInput(input.amountInput);
     const trimmed = input.comment.trim();
     if (rubles == null) {
@@ -448,9 +869,12 @@ export function RequestPayments(props: RequestPaymentsProps) {
 
   async function markPaid(paymentId: string) {
     if (!canMarkPaid || isBusy) return;
+    const payment = payments.find((item) => item.id === paymentId);
+    if (!payment || payment.paidAt) return;
     const ok = await confirm({
       title: "Отметить как оплаченное?",
       description:
+        `${payment.comment}: ${formatRubles(payment.amountRubles)}. ` +
         "Стороны фиксируют, что эта сумма оплачена напрямую. Отметку нельзя снять.",
       confirmText: "Оплачено",
       confirmColor: "success",
@@ -485,442 +909,530 @@ export function RequestPayments(props: RequestPaymentsProps) {
 
   return (
     <Stack
-      spacing={1.5}
-      sx={{ flex: 1, minHeight: "100%", minWidth: 0, maxWidth: "100%" }}
+      spacing={2.5}
+      sx={{
+        flex: 1,
+        minWidth: 0,
+        maxWidth: "100%",
+        containerType: "inline-size",
+        containerName: "request-payments",
+        "& .MuiButton-root": {
+          minHeight: 48,
+          fontSize: "1rem",
+          lineHeight: 1.5,
+        },
+      }}
     >
-      <Typography variant="body2" sx={{ color: "text.secondary" }}>
-        {props.status === "COMPLETED"
-          ? "Работы завершены. Здесь можно зафиксировать поступившие оплаты."
-          : props.status === "CLOSED" || props.status === "CANCELLED"
-            ? "Заявка закрыта. Здесь сохранена история цены и оплат."
-            : permissions.canEditPrice
-              ? "Одна сторона предлагает цену, противоположная — явно принимает"
-              : "Согласованная цена работ и история оплат по заявке."}
-      </Typography>
-      <Typography variant="body2" sx={{ color: "text.secondary" }}>
-        Оплата идёт напрямую между вами и{" "}
-        {props.mode === "provider" ? "клиентом" : "исполнителем"}. Здесь вы
-        фиксируете договорённости и отметки.
-      </Typography>
+      {props.status === "COMPLETED" ||
+      props.status === "CANCELLED" ||
+      props.status === "CLOSED" ? (
+        <Typography variant="body2" color="text.secondary">
+          {props.status === "COMPLETED"
+            ? "Работы завершены. Здесь можно зафиксировать поступившие оплаты."
+            : "Заявка закрыта. Здесь сохранена история цены и оплат."}
+        </Typography>
+      ) : null}
       {error ? <Alert severity="error">{error}</Alert> : null}
-
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        spacing={2}
+      <Box
         sx={{
-          alignItems: "stretch",
-          flex: 1,
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr)",
+          gap: 3,
+          alignItems: "start",
+          [WIDE_PAYMENT_LAYOUT]: {
+            gridTemplateColumns: "minmax(0, 1fr) 320px",
+          },
         }}
       >
-        <Stack
-          spacing={1.25}
-          sx={{ flex: "1 1 0", minWidth: 0, height: { md: "100%" } }}
+        <Paper
+          component="section"
+          aria-label="Итог по заявке"
+          elevation={0}
+          sx={(theme) => ({
+            p: { xs: 2, sm: 3 },
+            minWidth: 0,
+            borderRadius: 2,
+            bgcolor: alpha(theme.palette.primary.main, 0.18),
+            [WIDE_PAYMENT_LAYOUT]: {
+              gridColumn: 2,
+              gridRow: 1,
+              position: "sticky",
+              top: 24,
+            },
+          })}
         >
-          <Box sx={PAYMENT_SECTION_GRID_SX}>
-            <Typography
-              sx={{
-                fontWeight: 700,
-                gridColumn: 1,
-                minWidth: 0,
-              }}
-            >
-              Цена работ
-            </Typography>
-            <PaymentAmountCell
-              typographySx={PAYMENT_AMOUNT_TOTAL_TYPO_SX}
-              action={
-                canEditTotal && !isEditingTotal ? (
-                  <Button
-                    aria-label="Редактировать цену"
-                    size="small"
-                    disabled={isBusy}
-                    onClick={() => {
-                      setTotalInput(
-                        formatRublesForInput(
-                          props.priceProposal?.amountRubles ??
-                            props.totalAmountRubles ??
-                            props.servicePriceRubles ??
-                            0,
-                        ),
-                      );
-                      setTotalEditOpen(true);
-                    }}
-                    startIcon={<EditOutlinedIcon fontSize="small" />}
-                    sx={{ minWidth: 0, color: "text.secondary" }}
-                  >
-                    <Typography
-                      component="span"
-                      variant="caption"
-                      sx={{ display: { xs: "inline", sm: "none" } }}
-                    >
-                      Изменить
-                    </Typography>
-                  </Button>
-                ) : null
-              }
-            >
-              {totalIsSet
-                ? `Согласовано: ${formatRubles(total)}`
-                : props.priceProposal
-                  ? `Предложено: ${formatRubles(props.priceProposal.amountRubles)}`
-                  : "Цена не согласована"}
-            </PaymentAmountCell>
-
-            {contractPayments.length > 0 ? (
-              contractPayments.map((payment) => (
-                <PaymentListRow
-                  key={payment.id}
-                  comment={payment.comment}
-                  amountRubles={payment.amountRubles}
-                  paid={Boolean(payment.paidAt)}
-                  onMarkPaid={
-                    !payment.paidAt && canMarkPaid
-                      ? () => void markPaid(payment.id)
-                      : undefined
-                  }
-                  markPaidDisabled={isBusy}
-                  markPaidLoading={pendingAction === `paid:${payment.id}`}
-                />
-              ))
-            ) : (
-              <Typography
-                variant="body2"
-                sx={{
-                  color: "text.secondary",
-                  gridColumn: "1 / -1",
-                }}
-              >
-                Оплат пока нет
+          <Stack spacing={2.5}>
+            <Box aria-live="polite" aria-atomic="true">
+              <Typography variant="body2" color="text.secondary">
+                Всего по заявке
               </Typography>
-            )}
-
-            {priceView.changedNote ? (
               <Typography
-                variant="body2"
-                sx={{ color: "text.secondary", gridColumn: "1 / -1" }}
-              >
-                {priceView.servicePriceLabel}. {priceView.changedNote}
-              </Typography>
-            ) : null}
-
-            <Typography
-              sx={{
-                fontWeight: 700,
-                gridColumn: 1,
-                minWidth: 0,
-                pt: 0.5,
-              }}
-            >
-              К оплате:
-            </Typography>
-            <PaymentAmountCell
-              sx={{ pt: 0.5 }}
-              typographySx={PAYMENT_AMOUNT_TOTAL_TYPO_SX}
-            >
-              {remaining == null ? "—" : formatRubles(remaining)}
-            </PaymentAmountCell>
-          </Box>
-
-          {canEditTotal || canAddContractPayments ? (
-            <Stack spacing={1.25} sx={{ flexShrink: 0, pt: 1 }}>
-              {isEditingTotal ? (
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  spacing={1}
-                  sx={{
-                    alignItems: { sm: "flex-end" },
-                  }}
-                >
-                  <TextField
-                    variant="standard"
-                    label="Полная цена, ₽"
-                    placeholder="Напр. 25000"
-                    value={totalInput}
-                    onChange={(e) => setTotalInput(e.target.value)}
-                    disabled={isBusy}
-                    size="small"
-                    slotProps={{ htmlInput: { inputMode: "decimal" } }}
-                  />
-                  <IconButton
-                    aria-label="Предложить цену"
-                    color="primary"
-                    loading={pendingAction === "total"}
-                    disabled={isBusy}
-                    onClick={() => void proposePrice()}
-                  >
-                    <CheckIcon />
-                  </IconButton>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      display: { xs: "inline", sm: "none" },
-                      color: "text.secondary",
-                    }}
-                  >
-                    Предложить
-                  </Typography>
-                  {totalIsSet ? (
-                    <IconButton
-                      aria-label="Отмена"
-                      disabled={isBusy}
-                      onClick={() => setTotalEditOpen(false)}
-                    >
-                      <CloseIcon />
-                    </IconButton>
-                  ) : null}
-                </Stack>
-              ) : null}
-
-              {permissions.canAcceptPrice && props.priceProposal ? (
-                <Button
-                  variant="contained"
-                  color="success"
-                  loading={pendingAction === "accept-price"}
-                  disabled={isBusy}
-                  onClick={() => void acceptPrice()}
-                >
-                  Принять {formatRubles(props.priceProposal.amountRubles)}
-                </Button>
-              ) : null}
-
-              {priceView.servicePriceLabel &&
-              ((totalIsSet && total !== props.servicePriceRubles) ||
-                (isEditingTotal &&
-                  parseRublesInput(totalInput) != null &&
-                  parseRublesInput(totalInput) !==
-                    props.servicePriceRubles)) ? (
-                <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                  {priceView.servicePriceLabel}
-                </Typography>
-              ) : null}
-
-              {canAddContractPayments && !isEditingTotal && !contractAddOpen ? (
-                <AddPaymentTrigger
-                  disabled={isBusy}
-                  label="Добавить оплату"
-                  onClick={() => setContractAddOpen(true)}
-                />
-              ) : null}
-
-              {canAddContractPayments && !isEditingTotal && contractAddOpen ? (
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  spacing={1}
-                  sx={{
-                    alignItems: { sm: "flex-end" },
-                  }}
-                >
-                  <TextField
-                    variant="standard"
-                    label="Сумма, ₽"
-                    placeholder="Напр. 25000"
-                    value={contractAmountInput}
-                    onChange={(e) => setContractAmountInput(e.target.value)}
-                    disabled={isBusy}
-                    size="small"
-                    slotProps={{ htmlInput: { inputMode: "decimal" } }}
-                  />
-                  <TextField
-                    variant="standard"
-                    label="Назначение платежа (договор)"
-                    placeholder="Напр. Аванс"
-                    value={contractComment}
-                    onChange={(e) => setContractComment(e.target.value)}
-                    disabled={isBusy}
-                    size="small"
-                    sx={{ minWidth: { sm: 220 } }}
-                  />
-                  <IconButton
-                    aria-label="Добавить"
-                    color="primary"
-                    loading={pendingAction === "add:CONTRACT"}
-                    disabled={isBusy || !canSubmitContract}
-                    onClick={() =>
-                      void addPayment({
-                        type: "CONTRACT",
-                        amountInput: contractAmountInput,
-                        comment: contractComment,
-                      })
-                    }
-                  >
-                    <QueueIcon />
-                  </IconButton>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      display: { xs: "inline", sm: "none" },
-                      color: "text.secondary",
-                    }}
-                  >
-                    Добавить
-                  </Typography>
-                  <IconButton
-                    aria-label="Отмена"
-                    disabled={isBusy}
-                    onClick={() => {
-                      setContractAddOpen(false);
-                      setContractAmountInput("");
-                      setContractComment("");
-                    }}
-                  >
-                    <CloseIcon />
-                  </IconButton>
-                </Stack>
-              ) : null}
-            </Stack>
-          ) : null}
-        </Stack>
-
-        <Divider flexItem sx={{ display: { xs: "block", md: "none" } }} />
-        <Divider
-          flexItem
-          orientation="vertical"
-          sx={{ display: { xs: "none", md: "block" } }}
-        />
-
-        <Stack
-          spacing={1.25}
-          sx={{ flex: "1 1 0", minWidth: 0, height: { md: "100%" } }}
-        >
-          <Box sx={PAYMENT_SECTION_GRID_SX}>
-            <Typography
-              sx={{
-                fontWeight: 700,
-                gridColumn: 1,
-                minWidth: 0,
-              }}
-            >
-              Дополнительные расходы
-            </Typography>
-            <PaymentAmountCell>{null}</PaymentAmountCell>
-            {otherPayments.length > 0 ? (
-              <Typography
-                variant="body2"
                 sx={{
-                  color: "text.secondary",
-                  gridColumn: "1 / -1",
+                  mt: 0.5,
+                  fontSize: "2.25rem",
+                  lineHeight: 1.25,
+                  fontWeight: 800,
+                  fontVariantNumeric: "tabular-nums",
                   overflowWrap: "anywhere",
                 }}
               >
-                Оплачено {formatRubles(otherPaidAmountRubles)} из{" "}
-                {formatRubles(
-                  otherPayments.reduce(
-                    (sum, item) => sum + item.amountRubles,
-                    0,
-                  ),
-                )}
+                {amountLabel(summary.totalAmountRubles)}
               </Typography>
-            ) : null}
-
-            {otherPayments.length > 0 ? (
-              otherPayments.map((payment) => (
-                <PaymentListRow
-                  key={payment.id}
-                  comment={payment.comment}
-                  amountRubles={payment.amountRubles}
-                  paid={Boolean(payment.paidAt)}
-                  onMarkPaid={
-                    !payment.paidAt && canMarkPaid
-                      ? () => void markPaid(payment.id)
-                      : undefined
-                  }
-                  markPaidDisabled={isBusy}
-                  markPaidLoading={pendingAction === `paid:${payment.id}`}
-                  authorCaption={expenseAuthorCaption(payment)}
-                />
-              ))
-            ) : (
-              <Typography
-                variant="body2"
-                sx={{
-                  color: "text.secondary",
-                  gridColumn: "1 / -1",
-                }}
-              >
-                Дополнительных расходов пока нет
-              </Typography>
-            )}
-          </Box>
-
-          {canAddOtherPayments && !otherAddOpen ? (
-            <Box sx={{ flexShrink: 0, pt: 1 }}>
-              <AddPaymentTrigger
-                disabled={isBusy}
-                label="Добавить расход"
-                onClick={() => setOtherAddOpen(true)}
-              />
             </Box>
-          ) : null}
-
-          {canAddOtherPayments && otherAddOpen ? (
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={1}
+            <Stack spacing={1}>
+              <MoneyRow label="Стоимость работ" amount={total} />
+              <MoneyRow label="Расходы" amount={summary.expensesAmountRubles} />
+            </Stack>
+            <Divider />
+            <Stack spacing={1}>
+              <MoneyRow label="Оплачено" amount={summary.paidAmountRubles} />
+              <MoneyRow
+                label="Осталось"
+                amount={summary.remainingAmountRubles}
+                emphasized
+              />
+              {summary.overpaidWorkAmountRubles > 0 ? (
+                <MoneyRow
+                  label="Переплата за работы"
+                  amount={summary.overpaidWorkAmountRubles}
+                />
+              ) : null}
+            </Stack>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              aria-label="Описание итога по заявке"
               sx={{
-                alignItems: { sm: "flex-end" },
-                flexShrink: 0,
-                pt: 1,
+                fontStyle: "italic",
+                fontSize: "0.875rem",
               }}
             >
-              <TextField
-                variant="standard"
-                label="Сумма, ₽"
-                placeholder="Напр. 8000"
-                value={otherAmountInput}
-                onChange={(e) => setOtherAmountInput(e.target.value)}
-                disabled={isBusy}
-                size="small"
-                slotProps={{ htmlInput: { inputMode: "decimal" } }}
+              {!totalIsSet
+                ? "Общий итог появится после указания цены работ. Расходы учтены отдельно."
+                : summary.overpaidWorkAmountRubles > 0
+                  ? "Переплата за работы не погашает дополнительные расходы автоматически."
+                  : "Включает работы и все добавленные расходы."}
+            </Typography>
+          </Stack>
+        </Paper>
+
+        <Paper
+          elevation={0}
+          sx={{
+            minWidth: 0,
+            borderRadius: 2,
+            overflow: "hidden",
+            [WIDE_PAYMENT_LAYOUT]: {
+              gridColumn: 1,
+              gridRow: 1,
+            },
+          }}
+        >
+          <WorkPriceSection
+            amount={total}
+            paid={props.paidAmountRubles}
+            remaining={summary.remainingWorkAmountRubles}
+            overpaid={summary.overpaidWorkAmountRubles}
+            hasPayments={contractPayments.length > 0}
+            hasDetails={
+              (pendingPriceProposal != null && permissions.canEditPrice) ||
+              isEditingTotal ||
+              contractPayments.length > 0 ||
+              contractAddOpen ||
+              permissions.canAddPayment
+            }
+            expanded={workExpanded}
+            onToggle={() => setWorkExpanded((value) => !value)}
+            onEntered={() => {
+              if (!contractAddOpen) return;
+              contractAmountRef.current?.scrollIntoView?.({
+                block: "center",
+                behavior: "smooth",
+              });
+              contractAmountRef.current?.focus({ preventScroll: true });
+            }}
+            action={
+              !isEditingTotal && permissions.canEditPrice ? (
+                <Button
+                  variant="text"
+                  color="primary"
+                  size="small"
+                  disabled={isBusy}
+                  onClick={() => {
+                    const current =
+                      total ??
+                      pendingPriceProposal?.amountRubles ??
+                      props.servicePriceRubles;
+                    setTotalInput(current == null ? "" : String(current));
+                    setTotalEditOpen(true);
+                  }}
+                  sx={{
+                    fontWeight: 600,
+                    "&&": {
+                      minHeight: 0,
+                    },
+                  }}
+                >
+                  Изменить цену
+                </Button>
+              ) : null
+            }
+          >
+            {pendingPriceProposal && permissions.canEditPrice && !isEditingTotal ? (
+              <Alert
+                severity="info"
+                icon={false}
+                sx={{
+                  bgcolor: "action.hover",
+                  color: "text.primary",
+                }}
+              >
+                Ранее указано {formatRubles(pendingPriceProposal.amountRubles)}.
+                {total == null
+                  ? " Сохраните цену работ."
+                  : ` Текущая цена работ — ${formatRubles(total)}.`}
+              </Alert>
+            ) : null}
+            {isEditingTotal ? (
+              <Stack
+                component="form"
+                aria-label="Изменение цены работ"
+                spacing={1.5}
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void changePrice();
+                }}
+              >
+                <Typography variant="body2" color="text.secondary">
+                  Укажите стоимость работ.
+                </Typography>
+                <TextField
+                  label="Цена работ, ₽"
+                  placeholder="Напр. 12000"
+                  value={totalInput}
+                  onChange={(event) => setTotalInput(event.target.value)}
+                  disabled={isBusy}
+                  size="small"
+                  slotProps={{
+                    htmlInput: {
+                      inputMode: "numeric",
+                    },
+                  }}
+                />
+                {priceView.servicePriceLabel ? (
+                  <Typography variant="body2" color="text.secondary">
+                    {priceView.servicePriceLabel}
+                  </Typography>
+                ) : null}
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  useFlexGap
+                  sx={{
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    size="small"
+                    loading={pendingAction === "total"}
+                    disabled={isBusy || parseRublesInput(totalInput) == null}
+                  >
+                    Изменить цену
+                  </Button>
+                  <Button
+                    size="small"
+                    color="inherit"
+                    disabled={isBusy}
+                    onClick={() => setTotalEditOpen(false)}
+                  >
+                    Отмена
+                  </Button>
+                </Stack>
+              </Stack>
+            ) : null}
+            {contractPayments.length > 0 ? (
+              <PaymentList
+                payments={contractPayments}
+                busy={isBusy}
+                pendingAction={pendingAction}
+                onMarkPaid={canMarkPaid ? (id) => void markPaid(id) : undefined}
               />
-              <TextField
-                variant="standard"
-                label="Назначение платежа (прочее)"
-                placeholder="Напр. Кадастровый инженер"
-                value={otherComment}
-                onChange={(e) => setOtherComment(e.target.value)}
-                disabled={isBusy}
-                size="small"
-                sx={{ minWidth: { sm: 220 } }}
+            ) : null}
+            {permissions.canAddPayment && !contractAddOpen ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                }}
+              >
+                <Button
+                  variant="text"
+                  color="primary"
+                  size="small"
+                  startIcon={<AddIcon />}
+                  disabled={isBusy}
+                  onClick={() => {
+                    setWorkExpanded(true);
+                    setContractAddOpen(true);
+                  }}
+                  sx={{
+                    color: "text.primary",
+                  }}
+                >
+                  Добавить оплату
+                </Button>
+              </Box>
+            ) : null}
+            {permissions.canAddPayment && contractAddOpen ? (
+              <Stack
+                component="form"
+                aria-label="Новая оплата за работы"
+                spacing={1.5}
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void addPayment({
+                    type: "CONTRACT",
+                    amountInput: contractAmountInput,
+                    comment: contractComment,
+                  });
+                }}
+                sx={paymentFormStyles}
+              >
+                <Stack
+                  direction="row"
+                  sx={{
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Typography variant="subtitle2" component="h4">
+                    Новая оплата за работы
+                  </Typography>
+                  <IconButton
+                    aria-label="Закрыть форму оплаты"
+                    size="small"
+                    disabled={isBusy}
+                    onClick={closeContractForm}
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      flexShrink: 0,
+                    }}
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </Stack>
+                <TextField
+                  inputRef={contractAmountRef}
+                  label="Сумма, ₽"
+                  placeholder="Напр. 6000"
+                  value={contractAmountInput}
+                  onChange={(event) =>
+                    setContractAmountInput(event.target.value)
+                  }
+                  disabled={isBusy}
+                  size="small"
+                  slotProps={{
+                    htmlInput: {
+                      inputMode: "numeric",
+                    },
+                  }}
+                />
+                <TextField
+                  label="Назначение платежа"
+                  placeholder="Напр. Аванс за подготовку документов"
+                  value={contractComment}
+                  onChange={(event) => setContractComment(event.target.value)}
+                  disabled={isBusy}
+                  size="small"
+                />
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  useFlexGap
+                  sx={{
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    size="small"
+                    aria-label="Добавить оплату за работы"
+                    loading={pendingAction === "add:CONTRACT"}
+                    disabled={isBusy || !canSubmitContract}
+                  >
+                    Добавить
+                  </Button>
+                  <Button
+                    size="small"
+                    color="inherit"
+                    disabled={isBusy}
+                    onClick={closeContractForm}
+                  >
+                    Отмена
+                  </Button>
+                </Stack>
+                <Typography variant="body2" color="text.secondary">
+                  После добавления отметьте факт оплаты, когда деньги будут
+                  переведены.
+                </Typography>
+              </Stack>
+            ) : null}
+          </WorkPriceSection>
+          <ExpenseSection
+            amount={summary.expensesAmountRubles}
+            paid={summary.paidExpensesAmountRubles}
+            remaining={summary.remainingExpensesAmountRubles}
+            expanded={expensesExpanded}
+            onToggle={() => setExpensesExpanded((value) => !value)}
+          >
+            {otherPayments.length > 0 ? (
+              <PaymentList
+                payments={otherPayments}
+                busy={isBusy}
+                pendingAction={pendingAction}
+                onMarkPaid={canMarkPaid ? (id) => void markPaid(id) : undefined}
               />
-              <IconButton
-                aria-label="Добавить"
-                color="primary"
-                loading={pendingAction === "add:OTHER"}
-                disabled={isBusy || !canSubmitOther}
-                onClick={() =>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                Расходов пока нет
+              </Typography>
+            )}
+            {permissions.canAddPayment && !otherAddOpen ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  pt: 1.5,
+                }}
+              >
+                <Button
+                  variant="text"
+                  color="primary"
+                  size="small"
+                  aria-label="Добавить расход"
+                  startIcon={<AddIcon />}
+                  disabled={isBusy}
+                  onClick={() => setOtherAddOpen(true)}
+                  sx={{
+                    color: "text.primary",
+                  }}
+                >
+                  Добавить расход
+                </Button>
+              </Box>
+            ) : null}
+            {permissions.canAddPayment && otherAddOpen ? (
+              <Stack
+                component="form"
+                aria-label="Новый расход"
+                spacing={1.5}
+                onSubmit={(event) => {
+                  event.preventDefault();
                   void addPayment({
                     type: "OTHER",
                     amountInput: otherAmountInput,
                     comment: otherComment,
-                  })
-                }
-              >
-                <QueueIcon />
-              </IconButton>
-              <Typography
-                variant="caption"
-                sx={{
-                  display: { xs: "inline", sm: "none" },
-                  color: "text.secondary",
+                  });
                 }}
+                sx={paymentFormStyles}
               >
-                Добавить
-              </Typography>
-              <IconButton
-                aria-label="Отмена"
-                disabled={isBusy}
-                onClick={() => {
-                  setOtherAddOpen(false);
-                  setOtherAmountInput("");
-                  setOtherComment("");
-                }}
-              >
-                <CloseIcon />
-              </IconButton>
-            </Stack>
-          ) : null}
-        </Stack>
-      </Stack>
+                <Stack
+                  direction="row"
+                  sx={{
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Typography variant="subtitle2" component="h4">
+                    Новый расход
+                  </Typography>
+                  <IconButton
+                    aria-label="Закрыть форму расхода"
+                    size="small"
+                    disabled={isBusy}
+                    onClick={closeExpenseForm}
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      flexShrink: 0,
+                    }}
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </Stack>
+                <TextField
+                  label="Название расхода"
+                  placeholder="Напр. Услуги инженера"
+                  value={otherComment}
+                  onChange={(event) => setOtherComment(event.target.value)}
+                  disabled={isBusy}
+                  size="small"
+                />
+                <TextField
+                  label="Сумма, ₽"
+                  placeholder="Напр. 3000"
+                  value={otherAmountInput}
+                  onChange={(event) => setOtherAmountInput(event.target.value)}
+                  disabled={isBusy}
+                  size="small"
+                  slotProps={{
+                    htmlInput: {
+                      inputMode: "numeric",
+                    },
+                  }}
+                />
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  useFlexGap
+                  sx={{
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    size="small"
+                    aria-label="Сохранить расход"
+                    loading={pendingAction === "add:OTHER"}
+                    disabled={isBusy || !canSubmitOther}
+                  >
+                    Добавить
+                  </Button>
+                  <Button
+                    size="small"
+                    color="inherit"
+                    disabled={isBusy}
+                    onClick={closeExpenseForm}
+                  >
+                    Отмена
+                  </Button>
+                </Stack>
+                <Typography variant="body2" color="text.secondary">
+                  После добавления отметьте факт оплаты, когда деньги будут
+                  переведены.
+                </Typography>
+              </Stack>
+            ) : null}
+          </ExpenseSection>
+        </Paper>
+      </Box>
+      <Typography
+        variant="body2"
+        color="text.secondary"
+        sx={{
+          pt: 2,
+          borderTop: 1,
+          borderColor: "divider",
+        }}
+      >
+        Оплата проходит напрямую между клиентом и исполнителем. Здесь вы
+        фиксируете суммы и отмечаете оплату.
+      </Typography>
     </Stack>
   );
 }

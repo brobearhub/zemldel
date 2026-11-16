@@ -5,6 +5,7 @@ const state = vi.hoisted(() => ({
   requestId: undefined as string | undefined,
   conversationId: undefined as string | undefined,
   direct: false,
+  partner: false,
   query: "",
   sharedRequest: false,
   unread: { b: 2 } as Record<string, number>,
@@ -27,11 +28,11 @@ vi.mock("../model/use-chat-inbox", () => ({
     items: [
       {
         conversationId: "a",
-        serviceRequestId: state.direct ? null : "r-a",
-        kind: state.direct ? "DIRECT" : "REQUEST",
+        serviceRequestId: state.direct || state.partner ? null : "r-a",
+        kind: state.partner ? "PARTNER" : state.direct ? "DIRECT" : "REQUEST",
         directState: state.direct ? "WAITING" : null,
-        requestNumber: 118,
-        title: "Межевание",
+        requestNumber: state.partner ? null : 118,
+        title: state.partner ? "Партнёр" : "Межевание",
         peerName: "Анна",
         lastSnippet: "Привет",
         lastMessageAt: null,
@@ -60,11 +61,24 @@ beforeEach(() => {
   state.requestId = undefined;
   state.conversationId = undefined;
   state.direct = false;
+  state.partner = false;
   state.query = "";
   state.sharedRequest = false;
   state.unread = { b: 2 };
 });
 describe("provider messenger navigation", () => {
+  it("opens a partner chat in the shared messenger without customer-contact controls", () => {
+    state.partner = true;
+    state.conversationId = "a";
+    render(<ChatsWorkspace role="provider" />);
+    expect(screen.getByTestId("active-thread")).toHaveTextContent("a");
+    // One label in the inbox and one under the peer name, without a repeated ribbon.
+    expect(screen.getAllByText("Партнёр")).toHaveLength(2);
+    expect(screen.queryByRole("link", { name: "К заявке" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Отклонить обращение" })).toBeNull();
+    const links = within(screen.getByRole("list", { name: "Диалоги" })).getAllByRole("link");
+    expect(links[0]).toHaveAttribute("href", "/pro/chats/direct/a");
+  });
   it("opens a direct contact without a request link and exposes customer controls", () => {
     state.direct = true;
     state.conversationId = "a";

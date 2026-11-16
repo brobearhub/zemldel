@@ -2,7 +2,7 @@ export type LatestFinanceRequestRunner<T> = {
   run: (
     key: string,
     load: (signal: AbortSignal) => Promise<T>,
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   cancel: () => void;
   currentKey: () => string | null;
 };
@@ -31,13 +31,15 @@ export function createLatestFinanceRequestRunner<T>(
         value = await load(controller.signal);
       } catch (error) {
         if (requestSequence !== sequence || controller.signal.aborted) {
-          return;
+          return false;
         }
         throw error;
       }
       if (requestSequence === sequence && key === nextKey) {
         apply(value);
+        return true;
       }
+      return false;
     },
     cancel() {
       sequence += 1;

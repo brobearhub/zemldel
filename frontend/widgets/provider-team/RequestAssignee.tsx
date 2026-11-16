@@ -14,6 +14,7 @@ import { useAppSelector } from "@/core/store/hooks";
 import { getActiveMembership } from "@/core/auth/authorization";
 import type { RequestAssignedMemberDto } from "@/entities/request/dto/request.dto";
 import { teamApi } from "@/shared/lib/team-api";
+import { DelegatePartnerButton } from "@/widgets/partners/DelegatePartnerButton";
 import type {
   ProviderMembersResponse,
   ProviderMemberRecord,
@@ -50,12 +51,14 @@ export function RequestAssignment({
   providerName,
   member,
   onChange,
+  delegationBlockedReason,
 }: {
   requestId: string;
   providerId: string | null;
   providerName?: string | null;
   member?: RequestAssignedMemberDto | null;
   onChange: (member: RequestAssignedMemberDto | null) => void;
+  delegationBlockedReason?: string;
 }) {
   const membership = useAppSelector((state) =>
     getActiveMembership(state.auth.user),
@@ -79,39 +82,55 @@ export function RequestAssignment({
         />
         {error ? <Alert severity="error">{error}</Alert> : null}
         {canAssign && !editing ? (
-          <Button
-            size="small"
-            variant="text"
-            loading={busy}
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
             sx={{
-              alignSelf: "flex-start",
-              color: "text.primary",
-            }}
-            onClick={async () => {
-              setBusy(true);
-              setError(null);
-              try {
-                const data = await teamApi<ProviderMembersResponse>(
-                  `/api/providers/${providerId}/members`,
-                );
-                setMembers(
-                  data.members.filter((item) => item.status === "ACTIVE"),
-                );
-                setValue(member?.id ?? "");
-                setEditing(true);
-              } catch (reason) {
-                setError(
-                  reason instanceof Error
-                    ? reason.message
-                    : "Не удалось загрузить команду",
-                );
-              } finally {
-                setBusy(false);
-              }
+              justifyContent: "space-between",
+              alignItems: {
+                xs: "flex-start",
+                sm: "center",
+              },
             }}
           >
-            {member ? "Изменить сотрудника" : "Назначить сотрудника"}
-          </Button>
+            <Button
+              size="small"
+              variant="text"
+              loading={busy}
+              sx={{
+                alignSelf: "flex-start",
+                color: "text.primary",
+              }}
+              onClick={async () => {
+                setBusy(true);
+                setError(null);
+                try {
+                  const data = await teamApi<ProviderMembersResponse>(
+                    `/api/providers/${providerId}/members`,
+                  );
+                  setMembers(
+                    data.members.filter((item) => item.status === "ACTIVE"),
+                  );
+                  setValue(member?.id ?? "");
+                  setEditing(true);
+                } catch (reason) {
+                  setError(
+                    reason instanceof Error
+                      ? reason.message
+                      : "Не удалось загрузить команду",
+                  );
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              {member ? "Изменить сотрудника" : "Назначить сотрудника"}
+            </Button>
+            <DelegatePartnerButton
+              requestId={requestId}
+              blockedReason={delegationBlockedReason}
+            />
+          </Stack>
         ) : null}
         {canAssign && editing ? (
           <Stack spacing={1.5}>

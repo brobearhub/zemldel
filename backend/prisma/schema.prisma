@@ -474,6 +474,9 @@ model PasswordResetToken {
 }
 
 model Provider {
+  requestedPartnerships ProviderPartnership[] @relation("PartnershipRequester")
+  receivedPartnerships ProviderPartnership[] @relation("PartnershipRecipient")
+  partnerConversations Conversation[] @relation("ConversationPartner")
   documentFolders ProviderDocumentFolder[]
   documents ProviderDocument[]
   favorites ProviderFavorite[]
@@ -756,6 +759,37 @@ model ProviderTeamInvitation {
   @@index([acceptedById])
 }
 
+enum PartnershipStatus {
+  PENDING
+  ACTIVE
+  DECLINED
+  CANCELLED
+}
+
+model ProviderPartnership {
+  id                  String @id @default(uuid()) @db.Uuid
+  requesterProviderId String @db.Uuid
+  partnerProviderId   String? @db.Uuid
+  /// Sorted provider IDs; prevents duplicate invitations in either direction.
+  pairKey             String? @unique
+  email               String?
+  status              PartnershipStatus @default(PENDING)
+  invitedById         String @db.Uuid
+  tokenHash           String? @unique
+  sentAt              DateTime?
+  expiresAt           DateTime?
+  acceptedAt          DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  requester           Provider @relation("PartnershipRequester", fields: [requesterProviderId], references: [id], onDelete: Cascade)
+  partner             Provider? @relation("PartnershipRecipient", fields: [partnerProviderId], references: [id], onDelete: Cascade)
+  conversation        Conversation?
+
+  @@unique([requesterProviderId, email])
+  @@index([requesterProviderId, status])
+  @@index([partnerProviderId, status])
+}
+
 model ProviderUserSettings {
   id                String   @id @default(uuid()) @db.Uuid
   userId            String   @db.Uuid
@@ -1012,6 +1046,7 @@ model RequestPriceProposal {
   proposedByUserId String?                        @db.Uuid
   acceptedAt       DateTime?
   acceptedByUserId String?                        @db.Uuid
+  isDirectSet      Boolean                        @default(false)
   supersededAt     DateTime?
 
   request      Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
@@ -1385,6 +1420,7 @@ model ProviderFavorite {
 enum ConversationKind {
   REQUEST
   DIRECT
+  PARTNER
 }
 
 enum DirectConversationState {
@@ -1395,6 +1431,10 @@ enum DirectConversationState {
 }
 
 model Conversation {
+  partnershipId  String? @unique @db.Uuid
+  partnerProviderId String? @db.Uuid
+  partnership    ProviderPartnership? @relation(fields: [partnershipId], references: [id], onDelete: Cascade)
+  partnerProvider Provider? @relation("ConversationPartner", fields: [partnerProviderId], references: [id], onDelete: Cascade)
   id             String                  @id @default(uuid()) @db.Uuid
   requestId      String?                 @db.Uuid
   kind           ConversationKind        @default(REQUEST)
@@ -1414,6 +1454,7 @@ model Conversation {
 
   @@unique([requestId, providerId])
   @@index([providerId])
+  @@index([partnerProviderId])
   @@index([customerUserId])
   @@index([requestId])
 }

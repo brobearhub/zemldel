@@ -8,11 +8,13 @@ import { ProviderOnboardingForm } from "./ProviderOnboardingForm";
 export const metadata: Metadata = {
   robots: { index: false, follow: true }, title: "Создание профиля — Земледел" };
 
-export default async function NewProviderPage() {
+export default async function NewProviderPage({ searchParams }: { searchParams: Promise<{ returnTo?: string }> }) {
+  const params = await searchParams;
+  const returnTo = /^\/partner-invitations\/[A-Za-z0-9_-]{43}$/.test(params.returnTo ?? "") ? params.returnTo : undefined;
   const session = await getServerAuthSession();
 
   if (!session?.user?.id) {
-    signInRedirect("/providers/new");
+    signInRedirect(returnTo ?? "/providers/new");
   }
 
   const isPlatformAdmin = session.user.systemRole === "PLATFORM_ADMIN";
@@ -21,8 +23,8 @@ export default async function NewProviderPage() {
   }
 
   if (session.user.memberships.length > 0) {
-    redirect("/pro/requests/feed?notice=profile-ready");
+    redirect(returnTo ?? "/pro/requests/feed?notice=profile-ready");
   }
 
-  return <ProviderOnboardingForm />;
+  return <ProviderOnboardingForm returnTo={returnTo} />;
 }

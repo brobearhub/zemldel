@@ -21,11 +21,24 @@ describe("createLatestFinanceRequestRunner", () => {
     const pendingA = runner.run("conversation-a", () => requestA.promise);
     const pendingB = runner.run("conversation-b", () => requestB.promise);
     requestB.resolve("finance-b");
-    await pendingB;
+    expect(await pendingB).toBe(true);
     requestA.resolve("finance-a");
-    await pendingA;
+    expect(await pendingA).toBe(false);
 
     expect(applied).toEqual(["finance-b"]);
     expect(runner.currentKey()).toBe("conversation-b");
+  });
+
+  it("reports that a cancelled response was not applied", async () => {
+    const applied: string[] = [];
+    const pending = deferred<string>();
+    const runner = createLatestFinanceRequestRunner<string>((value) => {
+      applied.push(value);
+    });
+    const result = runner.run("conversation-a", () => pending.promise);
+    runner.cancel();
+    pending.resolve("stale-finance");
+    expect(await result).toBe(false);
+    expect(applied).toEqual([]);
   });
 });

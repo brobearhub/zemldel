@@ -83,6 +83,7 @@ describe("ProfileMenu", () => {
       readonly membership?: AuthMembership;
       readonly name?: string | null;
       readonly person?: AuthPerson | null;
+      readonly showLabel?: boolean;
     },
   ) {
     const store = makeStore();
@@ -119,6 +120,7 @@ describe("ProfileMenu", () => {
             <ProfileMenu
               layout={options?.layout}
               onNavigate={options?.onNavigate}
+              showLabel={options?.showLabel}
             />
           </ThemeProvider>
         </ColorModeProvider>
@@ -339,6 +341,20 @@ describe("ProfileMenu", () => {
       expect(screen.queryByText("Контактное лицо")).not.toBeInTheDocument();
     },
   );
+
+  it("показывает подпись профиля под аватаром на странице услуги", async () => {
+    navigation.pathname = "/services/service-1";
+    const { user } = renderWithAuthState("provider", {
+      withMembership: true,
+      showLabel: true,
+    });
+    const profile = screen.getByRole("button", { name: "Мой профиль" });
+
+    expect(profile).toHaveTextContent("Профиль");
+    expect(profile).not.toHaveTextContent("Бурый Медведь");
+    await user.hover(profile);
+    expect(screen.getByRole("menuitem", { name: "Профиль исполнителя" })).toBeInTheDocument();
+  });
 
   it("открывает данные и профиль исполнителя и выполняет выход", async () => {
     const { user } = renderWithAuthState("provider", { withMembership: true });

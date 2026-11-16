@@ -37,4 +37,5 @@ describe("providerWithoutProfileRedirect", () => {
 
 it("разрешает принять приглашение без собственного профиля", () => {
   expect(providerWithoutProfileRedirect({ accountKind: "PROVIDER", systemRole: "CUSTOMER", hasMembership: false, pathname: `/team-invitations/${"a".repeat(43)}` })).toBeNull();
+  expect(providerWithoutProfileRedirect({ ...provider, pathname: `/partner-invitations/${"b".repeat(43)}` })).toBeNull();
 });

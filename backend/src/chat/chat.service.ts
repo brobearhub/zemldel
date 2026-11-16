@@ -1,4 +1,6 @@
 import { DirectChatService, chatMessageInclude } from './direct-chat.service';
+import { PartnerChatService } from './partner-chat.service';
+import { requirePartnerChatAccess } from '../partners/partner-access';
 import { shortCustomerName } from '../favorites/favorite-policy';
 import { providerRequestCategories } from '../requests/free-request-eligibility';
 import type { FreeRequestNotification } from './free-request-broadcast';
@@ -65,7 +67,7 @@ export type ChatInboxItemDto = {
   requestStatus?: string;
   contractPhase?: boolean;
   serviceRequestId: string | null;
-  kind?: 'REQUEST' | 'DIRECT';
+  kind?: 'REQUEST' | 'DIRECT' | 'PARTNER';
   directState?: string | null;
   requestNumber: number | null;
   title: string;
@@ -77,6 +79,7 @@ export type ChatInboxItemDto = {
 @Injectable()
 export class ChatService {
   private readonly direct: DirectChatService;
+  private readonly partnerChat: PartnerChatService;
   constructor(
     private readonly prisma: PrismaService,
     private readonly internalAuth: InternalAuthService,
@@ -85,6 +88,7 @@ export class ChatService {
     private readonly plans: PlanService = new PlanService(prisma),
   ) {
     this.direct = new DirectChatService(prisma, plans);
+    this.partnerChat = new PartnerChatService(prisma);
   }
 
   getRequiredActorUserId(request: Request) {
@@ -288,6 +292,7 @@ export class ChatService {
 
     if (isCustomer) return;
     if (isProviderMember) {
+      if (req.providerId === subject.conversationProviderId) return;
       // Before the request is locked to another provider, providers must still be eligible
       // (region/category matching) to access the conversation.
       await this.assertProviderEligibleForRequest(
@@ -317,6 +322,8 @@ export class ChatService {
         directState: true,
         requestId: true,
         providerId: true,
+        partnerProviderId: true,
+        partnershipId: true,
         customerUserId: true,
       },
     });
@@ -325,6 +332,10 @@ export class ChatService {
       throw new NotFoundException('Conversation not found');
     }
 
+    if (conv.kind === 'PARTNER') {
+      await requirePartnerChatAccess(this.prisma, userId, conv);
+      return conv;
+    }
     if (conv.kind === 'DIRECT') {
       const side = await this.direct.authorize(this.prisma, userId, conv);
       if (action === 'write')
@@ -370,7 +381,10 @@ export class ChatService {
   }
 
   private async inboxWithUnread(userId: string, items: ChatInboxItemDto[]) {
-    if (!items.some((item) => item.kind === 'DIRECT')) return items;
+    if (
+      !items.some((item) => item.kind === 'DIRECT' || item.kind === 'PARTNER')
+    )
+      return items;
     const ids = items.flatMap((item) =>
       item.conversationId ? [item.conversationId] : [],
     );
@@ -424,12 +438,25 @@ export class ChatService {
 
       const rows = await this.prisma.conversation.findMany({
         where: {
-          providerId,
-          messages: { some: {} },
+          AND: [
+            {
+              OR: [
+                { providerId },
+                { kind: 'PARTNER', partnerProviderId: providerId },
+              ],
+            },
+            {
+              OR: [
+                { messages: { some: {} } },
+                { kind: 'PARTNER', partnership: { status: 'ACTIVE' } },
+              ],
+            },
+          ],
           ...(user.providerMemberships.find(
             (member) => member.providerId === providerId,
           )?.role === 'EMPLOYEE'
             ? {
+                kind: 'REQUEST',
                 request: {
                   providerId,
                   assignedMember: { userId: actorUserId, status: 'ACTIVE' },
@@ -439,7 +466,14 @@ export class ChatService {
             : {
                 OR: [
                   { kind: 'DIRECT' as const },
-                  { request: { status: { not: 'CLOSED' as const } } },
+                  {
+                    kind: 'PARTNER' as const,
+                    partnership: { status: 'ACTIVE' as const },
+                  },
+                  {
+                    kind: 'REQUEST' as const,
+                    request: { status: { not: 'CLOSED' as const } },
+                  },
                 ],
               }),
         },
@@ -452,6 +486,9 @@ export class ChatService {
           },
           requestId: true,
           providerId: true,
+          partnerProviderId: true,
+          provider: { select: { name: true } },
+          partnerProvider: { select: { name: true } },
           lastMessageAt: true,
           createdAt: true,
           request: {
@@ -480,6 +517,22 @@ export class ChatService {
       const seen = new Set<string>();
       const result: ChatInboxItemDto[] = [];
       for (const c of rows) {
+        if (c.kind === 'PARTNER') {
+          result.push({
+            conversationId: c.id,
+            kind: 'PARTNER',
+            peerName:
+              (c.providerId === providerId
+                ? c.partnerProvider?.name
+                : c.provider.name) ?? 'Партнёр',
+            serviceRequestId: null,
+            requestNumber: null,
+            title: 'Партнёр',
+            lastMessageAt: c.lastMessageAt?.toISOString() ?? null,
+            lastSnippet: c.messages[0]?.body.slice(0, SNIPPET_LEN) ?? null,
+          });
+          continue;
+        }
         if (c.kind === 'DIRECT') {
           result.push({
             conversationId: c.id,
@@ -532,6 +585,7 @@ export class ChatService {
     const rows = await this.prisma.conversation.findMany({
       where: {
         customerUserId: actorUserId,
+        kind: { not: 'PARTNER' },
         messages: { some: {} },
         OR: [{ kind: 'DIRECT' }, { request: { status: { not: 'CLOSED' } } }],
       },
@@ -793,11 +847,12 @@ export class ChatService {
       };
     }
 
-    await this.assertProviderEligibleForRequest(providerId, {
-      categoryId: req.categoryId ?? null,
-      requestCityId: req.requestCityId ?? null,
-      customerCityId: req.customerUser?.customerCityId ?? null,
-    });
+    if (req.providerId !== providerId)
+      await this.assertProviderEligibleForRequest(providerId, {
+        categoryId: req.categoryId ?? null,
+        requestCityId: req.requestCityId ?? null,
+        customerCityId: req.customerUser?.customerCityId ?? null,
+      });
 
     const where = {
       requestId_providerId: {
@@ -1061,6 +1116,8 @@ export class ChatService {
       select: {
         customerUserId: true,
         providerId: true,
+        kind: true,
+        partnerProviderId: true,
       },
     });
     if (!conv) {
@@ -1069,7 +1126,10 @@ export class ChatService {
 
     const members = await this.prisma.providerMember.findMany({
       where: {
-        providerId: conv.providerId,
+        providerId:
+          conv.kind === 'PARTNER' && conv.partnerProviderId
+            ? { in: [conv.providerId, conv.partnerProviderId] }
+            : conv.providerId,
         status: 'ACTIVE',
         OR: [
           { role: { in: ['OWNER', 'MANAGER'] } },
@@ -1087,7 +1147,7 @@ export class ChatService {
     });
 
     const ids = new Set<string>([
-      conv.customerUserId,
+      ...(conv.kind === 'PARTNER' ? [] : [conv.customerUserId]),
       ...members.map((m) => m.userId),
     ]);
     return [...ids];
@@ -1099,10 +1159,16 @@ export class ChatService {
     payload: ChatPresenceUpdatedPayload;
     customerUserId: string;
     providerId: string;
+    partnerProviderId: string | null;
   } | null> {
     const conv = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
-      select: { id: true, customerUserId: true, providerId: true },
+      select: {
+        id: true,
+        customerUserId: true,
+        providerId: true,
+        partnerProviderId: true,
+      },
     });
     if (!conv) {
       return null;
@@ -1110,7 +1176,9 @@ export class ChatService {
 
     const members = await this.prisma.providerMember.findMany({
       where: {
-        providerId: conv.providerId,
+        providerId: conv.partnerProviderId
+          ? { in: [conv.providerId, conv.partnerProviderId] }
+          : conv.providerId,
         status: 'ACTIVE',
         OR: [
           { role: { in: ['OWNER', 'MANAGER'] } },
@@ -1124,12 +1192,19 @@ export class ChatService {
           },
         ],
       },
-      select: { userId: true },
+      select: { userId: true, providerId: true },
     });
 
-    const customerOnline = this.gateway.isUserOnline(conv.customerUserId);
-    const providerOnline = members.some((m) =>
-      this.gateway.isUserOnline(m.userId),
+    const customerOnline = conv.partnerProviderId
+      ? members.some(
+          (m) =>
+            m.providerId === conv.partnerProviderId &&
+            this.gateway.isUserOnline(m.userId),
+        )
+      : this.gateway.isUserOnline(conv.customerUserId);
+    const providerOnline = members.some(
+      (m) =>
+        m.providerId === conv.providerId && this.gateway.isUserOnline(m.userId),
     );
 
     return {
@@ -1140,6 +1215,7 @@ export class ChatService {
       },
       customerUserId: conv.customerUserId,
       providerId: conv.providerId,
+      partnerProviderId: conv.partnerProviderId,
     };
   }
 
@@ -1153,8 +1229,19 @@ export class ChatService {
     await this.assertConversationAccess(actorUserId, conversationId, 'read');
     const res = await this.getConversationPresencePayload(conversationId);
     if (!res) return null;
-    const viewerSide: ChatViewerSide =
-      actorUserId === res.customerUserId ? 'customer' : 'provider';
+    const actor = res.partnerProviderId
+      ? await this.prisma.user.findUnique({
+          where: { id: actorUserId },
+          select: { activeProviderId: true },
+        })
+      : null;
+    const viewerSide: ChatViewerSide = res.partnerProviderId
+      ? actor?.activeProviderId === res.partnerProviderId
+        ? 'customer'
+        : 'provider'
+      : actorUserId === res.customerUserId
+        ? 'customer'
+        : 'provider';
     return { viewerSide, presence: res.payload };
   }
 
@@ -1163,6 +1250,7 @@ export class ChatService {
       id: true,
       customerUserId: true,
       providerId: true,
+      partnerProviderId: true,
       request: {
         select: {
           providerId: true,
@@ -1183,12 +1271,22 @@ export class ChatService {
 
     const [customerConvs, providerConvs] = await Promise.all([
       this.prisma.conversation.findMany({
-        where: { customerUserId: userId, status: 'OPEN' },
+        where: {
+          customerUserId: userId,
+          kind: { not: 'PARTNER' },
+          status: 'OPEN',
+        },
         select: conversationSelect,
       }),
       providerIds.length
         ? this.prisma.conversation.findMany({
-            where: { providerId: { in: providerIds }, status: 'OPEN' },
+            where: {
+              OR: [
+                { providerId: { in: providerIds } },
+                { partnerProviderId: { in: providerIds } },
+              ],
+              status: 'OPEN',
+            },
             select: conversationSelect,
           })
         : Promise.resolve([] as PresenceConversation[]),
@@ -1201,7 +1299,12 @@ export class ChatService {
     if (conversations.length === 0) return;
 
     const uniqProviderIds = [
-      ...new Set(conversations.map((c) => c.providerId)),
+      ...new Set(
+        conversations.flatMap((c) => [
+          c.providerId,
+          ...(c.partnerProviderId ? [c.partnerProviderId] : []),
+        ]),
+      ),
     ];
     const allMembers = await this.prisma.providerMember.findMany({
       where: {
@@ -1230,7 +1333,11 @@ export class ChatService {
       }
       const payload: ChatPresenceUpdatedPayload = {
         conversationId: conv.id,
-        customerOnline: this.gateway.isUserOnline(conv.customerUserId),
+        customerOnline: conv.partnerProviderId
+          ? (memberIdsByProviderId.get(conv.partnerProviderId) ?? []).some(
+              (id) => this.gateway.isUserOnline(id),
+            )
+          : this.gateway.isUserOnline(conv.customerUserId),
         providerOnline: memberIds.some((id) => this.gateway.isUserOnline(id)),
       };
       this.gateway.emitPresenceUpdated(conv.id, payload);
@@ -1431,8 +1538,10 @@ export class ChatService {
       conversationId,
       'read',
     );
-    if (conversation.kind === 'DIRECT') {
-      const result = await this.direct.send(actorUserId, conversationId, input);
+    if (conversation.kind === 'DIRECT' || conversation.kind === 'PARTNER') {
+      const result = await (
+        conversation.kind === 'PARTNER' ? this.partnerChat : this.direct
+      ).send(actorUserId, conversationId, input);
       const dto = this.mapMessageRow(result.message);
       if (!result.alreadyExisted) {
         await this.broadcastMessageCreated({
@@ -1467,6 +1576,15 @@ export class ChatService {
 
     try {
       const created = await this.prisma.$transaction(async (tx) => {
+        if (conversation.requestId) {
+          await tx.$queryRaw`SELECT id FROM "Request" WHERE id = ${conversation.requestId}::uuid FOR UPDATE`;
+          // Delegation can revoke access between the first check and this transaction.
+          await this.assertConversationAccess(
+            actorUserId,
+            conversationId,
+            'write',
+          );
+        }
         const msg = await tx.message.create({
           data: {
             id: randomUUID(),

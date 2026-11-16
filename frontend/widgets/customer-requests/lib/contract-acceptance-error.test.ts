@@ -9,7 +9,8 @@ describe("contract acceptance conflicts", () => {
     expect(extractAcceptContractError({error:"Conflict",message:"At least one approved contract bundle is required"})).toBe("Нужен одобренный пакет договора. Файл подписи необязателен.");
   });
   it("explains a changed price and unknown conflicts in Russian", () => {
-    expect(extractAcceptContractError({message:"Price must be agreed before contract acceptance"})).toContain("согласуйте цену");
+    expect(extractAcceptContractError({message:"Price must be agreed before contract acceptance"})).toContain("исполнитель должен указать цену");
+    expect(extractAcceptContractError({message:"Price must be set before contract acceptance"})).toContain("исполнитель должен указать цену");
     expect(extractAcceptContractError({error:"Conflict"})).toContain("Условия заявки изменились");
   });
 });

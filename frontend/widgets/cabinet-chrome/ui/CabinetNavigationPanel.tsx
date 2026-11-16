@@ -356,6 +356,12 @@ export function CabinetNavigationPanel({
                 ),
               ),
             )}
+            {group(
+              "Команда и партнёры",
+              TEAM_ITEMS.filter((item) => item.href !== "/pro/team/tasks").map((item) =>
+                row(item.href, item.label, item.icon, item.active(pathname)),
+              ),
+            )}
           </>
         ) : authenticated ? (
           <>

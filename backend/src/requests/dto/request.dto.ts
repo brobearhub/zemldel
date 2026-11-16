@@ -26,6 +26,7 @@ import {
 import {
   remainingRubles,
   sumPaidRublesByType,
+  isRequestPriceMutable,
   type PaymentAmountWithTypeAndPaidAt,
 } from './request-finance';
 import {
@@ -760,17 +761,27 @@ export class RequestCustomerDto {
   @IsInt()
   servicePriceRubles!: number | null;
 
-  @ApiProperty({ type: RequestPriceProposalDto, nullable: true })
+  @ApiProperty({
+    type: RequestPriceProposalDto,
+    nullable: true,
+    description:
+      'Историческое предложение цены; прямые установки сюда не попадают.',
+  })
   @Expose()
   @Type(() => RequestPriceProposalDto)
   priceProposal!: RequestPriceProposalDto | null;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Исполнитель может установить или изменить стоимость работ.',
+  })
   @Expose()
   @IsBoolean()
   canProposePrice!: boolean;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Устаревшее поле; подтверждение цены больше не требуется.',
+    example: false,
+  })
   @Expose()
   @IsBoolean()
   canAcceptPrice!: boolean;
@@ -1114,17 +1125,27 @@ export class RequestProDto {
   @IsInt()
   servicePriceRubles!: number | null;
 
-  @ApiProperty({ type: RequestPriceProposalDto, nullable: true })
+  @ApiProperty({
+    type: RequestPriceProposalDto,
+    nullable: true,
+    description:
+      'Историческое предложение цены; прямые установки сюда не попадают.',
+  })
   @Expose()
   @Type(() => RequestPriceProposalDto)
   priceProposal!: RequestPriceProposalDto | null;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Исполнитель может установить или изменить стоимость работ.',
+  })
   @Expose()
   @IsBoolean()
   canProposePrice!: boolean;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Устаревшее поле; подтверждение цены больше не требуется.',
+    example: false,
+  })
   @Expose()
   @IsBoolean()
   canAcceptPrice!: boolean;
@@ -1258,6 +1279,7 @@ export type RequestDbRow = {
     amountRubles: number;
     authorSide: RequestPriceProposalAuthorSide;
     acceptedAt: Date | null;
+    isDirectSet?: boolean;
     createdAt: Date;
   }>;
   deliverySubmissions?: Array<{
@@ -1350,13 +1372,14 @@ function toFinanceDto(
       : (row.priceProposals?.find(
           (item) => item.providerId === financeProviderId,
         ) ?? null);
-  const priceMutable =
-    row.contractAcceptedAt == null && !isOrderExecutionStatus(row.status);
+  const priceMutable = isRequestPriceMutable(row);
   const scopedTotalAmountRubles =
-    proposal?.acceptedAt != null
-      ? proposal.amountRubles
-      : financeProviderId != null && row.providerId === financeProviderId
-        ? (row.totalAmountRubles ?? null)
+    financeProviderId != null &&
+    row.providerId === financeProviderId &&
+    row.totalAmountRubles != null
+      ? row.totalAmountRubles
+      : proposal?.acceptedAt != null || proposal?.isDirectSet
+        ? proposal.amountRubles
         : null;
   const paidAmountRubles = sumPaidRublesByType(
     payments as unknown as PaymentAmountWithTypeAndPaidAt[],
@@ -1365,24 +1388,19 @@ function toFinanceDto(
   return {
     totalAmountRubles: scopedTotalAmountRubles,
     servicePriceRubles: row.servicePriceRubles ?? null,
-    priceProposal: proposal
-      ? {
-          id: proposal.id,
-          providerId: proposal.providerId,
-          amountRubles: proposal.amountRubles,
-          authorSide: proposal.authorSide,
-          acceptedAt: proposal.acceptedAt?.toISOString() ?? null,
-          createdAt: proposal.createdAt.toISOString(),
-        }
-      : null,
-    canProposePrice:
-      priceMutable &&
-      (viewerSide === 'PROVIDER' || row.providerId != null || proposal != null),
-    canAcceptPrice:
-      priceMutable &&
-      proposal != null &&
-      proposal.acceptedAt == null &&
-      proposal.authorSide !== viewerSide,
+    priceProposal:
+      proposal && !proposal.isDirectSet
+        ? {
+            id: proposal.id,
+            providerId: proposal.providerId,
+            amountRubles: proposal.amountRubles,
+            authorSide: proposal.authorSide,
+            acceptedAt: proposal.acceptedAt?.toISOString() ?? null,
+            createdAt: proposal.createdAt.toISOString(),
+          }
+        : null,
+    canProposePrice: priceMutable && viewerSide === 'PROVIDER',
+    canAcceptPrice: false,
     paidAmountRubles,
     remainingAmountRubles: remainingRubles(
       scopedTotalAmountRubles,

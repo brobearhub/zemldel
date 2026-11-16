@@ -372,7 +372,16 @@ export class RequestsController {
   @ApiBody({
     schema: {
       type: 'object',
-      properties: { termsVersion: { type: 'string' } },
+      properties: {
+        termsVersion: { type: 'string' },
+        expectedTotalAmountRubles: {
+          type: 'integer',
+          nullable: true,
+          minimum: 0,
+          description:
+            'Стоимость работ, показанная клиенту при принятии договора.',
+        },
+      },
       required: ['termsVersion'],
     },
   })
@@ -387,7 +396,10 @@ export class RequestsController {
     @Body() body: unknown,
   ) {
     const userId = this.requests.getRequiredActorUserId(request);
-    const payload = body as { termsVersion?: unknown } | null | undefined;
+    const payload = body as
+      | { termsVersion?: unknown; expectedTotalAmountRubles?: unknown }
+      | null
+      | undefined;
     const termsVersion =
       payload &&
       typeof payload === 'object' &&
@@ -405,7 +417,31 @@ export class RequestsController {
         ],
       });
     }
-    return this.requests.acceptContractByCustomer(userId, id, { termsVersion });
+    const expected = payload?.expectedTotalAmountRubles;
+    if (
+      expected !== undefined &&
+      expected !== null &&
+      (typeof expected !== 'number' ||
+        !Number.isSafeInteger(expected) ||
+        expected < 0)
+    ) {
+      throw new UnprocessableEntityException({
+        error: 'Validation failed',
+        issues: [
+          {
+            path: ['expectedTotalAmountRubles'],
+            message:
+              'expectedTotalAmountRubles must be a non-negative integer or null',
+          },
+        ],
+      });
+    }
+    return this.requests.acceptContractByCustomer(userId, id, {
+      termsVersion,
+      ...(expected !== undefined
+        ? { expectedTotalAmountRubles: expected }
+        : {}),
+    });
   }
 
   // --- Customer: order-phase actions ---

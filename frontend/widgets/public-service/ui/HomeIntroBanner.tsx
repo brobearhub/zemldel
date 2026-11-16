@@ -22,6 +22,28 @@ const descriptionSx = {
   fontSize: { xs: "1rem", md: "1rem" },
   lineHeight: 1.5,
 };
+const headingAttributes = {
+  brand: {
+    title: "земледел",
+    description:
+      "Земледел - Сервис для поиска специалистов по земле и недвижимости.",
+  },
+  services: {
+    title: "Земельные и кадастровые услуги",
+    description:
+      "Межевание, кадастровые работы, технические планы и оформление недвижимости.",
+  },
+  topics: {
+    title: "ЗЕМЛЯ, УЧАСТОК, ДОКУМЕНТЫ",
+    description:
+      "Помощь с участком: от проверки перед покупкой до оформления документов.",
+  },
+  specialist: {
+    title: "Найдите своего специалиста",
+    description:
+      "Создайте заявку, сравните отклики и согласуйте условия с исполнителем в чате.",
+  },
+};
 
 export function HomeIntroBanner({ onCreateRequest }: Props) {
   const theme = useTheme();
@@ -83,56 +105,218 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
           },
         }}
       >
-        <Box sx={{ position: "relative" }}>
-          <Stack
-            direction="row"
-            spacing={1}
-            sx={{
-              alignItems: "center",
-              width: "fit-content",
-              ml: "auto",
-              px: 1.5,
-              py: 0.5,
-            }}
-          >
-            <Typography
-              sx={{
-                fontSize: "1rem",
-                lineHeight: 1.5,
-                fontWeight: 700,
-                letterSpacing: "1.5px",
-              }}
-            >
-              ЗЕМЛЯ • ДОМ • ДОКУМЕНТЫ
-            </Typography>
-          </Stack>
+        <Box
+          sx={{
+            position: "relative",
+            display: "grid",
+            flex: 1,
+            minWidth: 0,
+            minHeight: {
+              md: 238,
+            },
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              lg: "minmax(0, 1fr) minmax(0, 1.5fr)",
+            },
+            gridTemplateRows: {
+              xs: "auto",
+              md: "1fr auto 16px auto 1fr",
+            },
+            gridTemplateAreas: {
+              xs: '"brand" "tagline" "conditions" "topics" "services"',
+              md: '"topics" "brand" "." "tagline" "services"',
+              lg: '"topics topics" "brand brand" ". ." "tagline tagline" "route services"',
+            },
+            columnGap: {
+              lg: 3,
+            },
+            rowGap: {
+              xs: 2.5,
+              md: 0,
+            },
+          }}
+        >
           <Typography
+            {...headingAttributes.brand}
             id="home-intro-title"
             component="h1"
             variant="h1"
             sx={{
-              mt: 1.5,
-              fontWeight: 700,
+              gridArea: "brand",
+              maxWidth: 520,
+              opacity: 0.8,
+              transform: {
+                md: "translateY(-22px)",
+              },
+              fontSize: {
+                xs: "2.875rem",
+                md: "3rem",
+                lg: "3.625rem",
+              },
+              lineHeight: {
+                xs: 50 / 46,
+                md: 52 / 48,
+                lg: 62 / 58,
+              },
+              fontWeight: 800,
+              letterSpacing: "-1px",
+            }}
+          >
+            Земледел
+          </Typography>
+          <Typography
+            {...headingAttributes.services}
+            component="h2"
+            variant="h2"
+            sx={{
+              gridArea: "services",
+              alignSelf: "end",
+              justifySelf: "end",
+              minWidth: 0,
+              fontSize: {
+                xs: "1.625rem",
+                md: "1.5rem",
+              },
+              lineHeight: {
+                xs: 32 / 26,
+                md: 1.5,
+              },
+              fontWeight: {
+                xs: 700,
+                md: 400,
+              },
+              letterSpacing: "normal",
+              textAlign: "right",
             }}
           >
             Земельные и кадастровые услуги
+          </Typography>
+          <Typography
+            {...headingAttributes.topics}
+            component="h3"
+            variant="h3"
+            sx={{
+              gridArea: "topics",
+              alignSelf: "start",
+              justifySelf: {
+                xs: "start",
+                md: "end",
+              },
+              maxWidth: "100%",
+              pt: {
+                md: 1,
+              },
+              fontSize: {
+                xs: "1rem",
+                md: "1rem",
+              },
+              lineHeight: {
+                xs: 1.5,
+                md: 1.5,
+              },
+              fontWeight: 700,
+              letterSpacing: {
+                xs: "0.5px",
+                md: "1px",
+              },
+              textAlign: {
+                xs: "left",
+                md: "right",
+              },
+            }}
+          >
+            ЗЕМЛЯ • УЧАСТОК • ДОКУМЕНТЫ
+          </Typography>
+          <Typography
+            {...headingAttributes.specialist}
+            component="h4"
+            variant="h4"
+            sx={{
+              gridArea: "tagline",
+              minWidth: 0,
+              transform: {
+                md: "translateY(-22px)",
+              },
+              fontSize: {
+                xs: "1.75rem",
+                lg: "2.25rem",
+              },
+              lineHeight: {
+                xs: 34 / 28,
+                lg: 42 / 36,
+              },
+              fontWeight: 700,
+              letterSpacing: "normal",
+              color: isDark ? "primary.main" : "primary.dark",
+            }}
+          >
+            Найдите своего специалиста
+          </Typography>
+          <Box
+            aria-hidden="true"
+            sx={{
+              gridArea: "route",
+              alignSelf: "end",
+              display: {
+                xs: "none",
+                lg: "flex",
+              },
+              alignItems: "center",
+              gap: 1,
+              width: "100%",
+              maxWidth: 320,
+            }}
+          >
             <Box
-              component="span"
               sx={{
-                display: "block",
-                color: isDark ? "primary.main" : "primary.dark",
+                width: 12,
+                height: 12,
+                border: "2px solid white",
+                borderRadius: "50%",
+                flexShrink: 0,
+              }}
+            />
+            <Box
+              sx={{
+                flex: 1,
+                borderTop: "2px dashed rgba(255,255,255,.4)",
+              }}
+            />
+            <Box
+              sx={{
+                display: "grid",
+                placeItems: "center",
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                bgcolor: "rgba(255,255,255,.12)",
               }}
             >
-              Найдите своего специалиста
+              <ExploreOutlinedIcon sx={{ fontSize: 16 }} />
             </Box>
-          </Typography>
+            <Box
+              sx={{
+                flex: 1,
+                borderTop: "2px dashed rgba(255,255,255,.4)",
+              }}
+            />
+            <Box
+              sx={{
+                width: 12,
+                height: 12,
+                borderRadius: "50%",
+                bgcolor: isDark ? "primary.main" : "primary.dark",
+                flexShrink: 0,
+              }}
+            />
+          </Box>
           <Stack
             direction="row"
             spacing={1}
             sx={{
+              gridArea: "conditions",
               display: { xs: "flex", md: "none" },
               alignItems: "flex-start",
-              mt: 2,
             }}
           >
             <ChatBubbleOutlineRoundedIcon
@@ -152,54 +336,13 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
             </Typography>
           </Stack>
         </Box>
-        <Box
-          aria-hidden="true"
-          sx={{
-            position: "relative",
-            display: { xs: "none", md: "flex" },
-            alignItems: "center",
-            gap: 1,
-            width: "100%",
-            maxWidth: 320,
-          }}
-        >
-          <Box
-            sx={{
-              width: 12,
-              height: 12,
-              border: "2px solid white",
-              borderRadius: "50%",
-              flexShrink: 0,
-            }}
-          />
-          <Box sx={{ flex: 1, borderTop: "2px dashed rgba(255,255,255,.4)" }} />
-          <Box
-            sx={{
-              display: "grid",
-              placeItems: "center",
-              width: 28,
-              height: 28,
-              borderRadius: "50%",
-              bgcolor: "rgba(255,255,255,.12)",
-            }}
-          >
-            <ExploreOutlinedIcon sx={{ fontSize: 16 }} />
-          </Box>
-          <Box sx={{ flex: 1, borderTop: "2px dashed rgba(255,255,255,.4)" }} />
-          <Box
-            sx={{
-              width: 12,
-              height: 12,
-              borderRadius: "50%",
-              bgcolor: isDark ? "primary.main" : "primary.dark",
-              flexShrink: 0,
-            }}
-          />
-        </Box>
       </Box>
       <Box
         sx={{
           position: "relative",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
           width: { xs: "100%", md: 480 },
           flexShrink: 0,
           overflow: "hidden",

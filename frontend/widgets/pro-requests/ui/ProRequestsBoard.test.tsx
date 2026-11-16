@@ -93,10 +93,18 @@ describe("Доска заявок", () => {
     render(<ProRequestsFeed initialItems={[]} initialOrders={[
       request({ isLocked: true }),
     ]} />);
-    expect(screen.getByText("Цена не согласована")).toBeInTheDocument();
+    expect(screen.getByText("Цена работ не указана")).toBeInTheDocument();
     expect(screen.queryByText(/Согласовано:/)).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Ответить" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Услуга" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Открыть заявку" })).toHaveAttribute("href", "/pro/requests/new-request");
+  });
+
+  it("сохраняет возможность ответить на новую заявку после установки цены", () => {
+    render(<ProRequestsFeed initialItems={[]} initialOrders={[
+      request({ totalAmountRubles: 15000 }),
+    ]} />);
+    expect(screen.getByText(/Цена работ: 15\s*000/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ответить" })).toHaveAttribute("href", "/pro/requests/new-request");
   });
 });

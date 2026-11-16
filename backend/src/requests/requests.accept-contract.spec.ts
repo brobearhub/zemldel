@@ -23,6 +23,352 @@ function makeService(
 
 describe('RequestsService acceptContractByCustomer', () => {
   it.each([
+    {
+      scenario: 'changed after the form opened',
+      expected: 20000,
+      actual: 25000,
+      result: 'changed',
+    },
+    {
+      scenario: 'same price',
+      expected: 25000,
+      actual: 25000,
+      result: 'accepted',
+    },
+    {
+      scenario: 'zero is compared rather than skipped',
+      expected: 0,
+      actual: 25000,
+      result: 'changed',
+    },
+    {
+      scenario: 'zero matches zero',
+      expected: 0,
+      actual: 0,
+      result: 'accepted',
+    },
+    {
+      scenario: 'no price shown but one was set',
+      expected: null,
+      actual: 25000,
+      result: 'changed',
+    },
+    {
+      scenario: 'price still absent',
+      expected: null,
+      actual: null,
+      result: 'missing',
+    },
+    {
+      scenario: 'legacy client omits the field',
+      expected: undefined,
+      actual: 25000,
+      result: 'accepted',
+    },
+  ] as const)(
+    'checks the price after the row lock: $scenario',
+    async ({ expected, actual, result }) => {
+      const now = new Date('2026-11-16T00:00:00Z');
+      let storedPrice: number | null = 20000;
+      const current = {
+        id: 'r1',
+        status: 'DISCUSSING',
+        providerId: 'p1',
+        lockedAt: now,
+        customerUserId: 'u1',
+        serviceId: null,
+        categoryId: null,
+        requestCityId: null,
+        message: null,
+        location: null,
+        createdAt: now,
+        updatedAt: now,
+        providerOffers: [],
+        payments: [],
+        priceProposals: [],
+      };
+      const tx = {
+        request: {
+          updateMany: vi.fn().mockImplementation(() => {
+            storedPrice = actual;
+            return { count: 1 };
+          }),
+          findUnique: vi.fn().mockImplementation(() => ({
+            ...current,
+            totalAmountRubles: storedPrice,
+          })),
+          update: vi.fn().mockImplementation(() => ({
+            ...current,
+            totalAmountRubles: storedPrice,
+            status: 'ACTIVE',
+            contractAcceptedAt: now,
+          })),
+        },
+        requestPriceProposal: {
+          findFirst: vi.fn().mockResolvedValue({ id: 'p1-price' }),
+        },
+        requestContractFile: {
+          findMany: vi
+            .fn()
+            .mockResolvedValue([{ bundleId: 'b1', status: 'APPROVED' }]),
+        },
+        requestDocumentRequest: { count: vi.fn().mockResolvedValue(0) },
+        legalAcceptance: { create: vi.fn() },
+        requestEvent: { create: vi.fn() },
+      };
+      const service = makeService({
+        $transaction: (run: (client: typeof tx) => Promise<unknown>) => run(tx),
+      });
+      const action = service.acceptContractByCustomer('u1', 'r1', {
+        termsVersion: '2026-08-04',
+        ...(expected !== undefined
+          ? { expectedTotalAmountRubles: expected }
+          : {}),
+      });
+      if (result === 'changed') {
+        await expect(action).rejects.toMatchObject({
+          status: 409,
+          response: {
+            error: 'PRICE_CHANGED',
+            message:
+              'Цена работ изменилась. Проверьте новую сумму и подтвердите договор повторно.',
+          },
+        });
+        expect(tx.request.update).not.toHaveBeenCalled();
+        expect(tx.requestPriceProposal.findFirst).not.toHaveBeenCalled();
+        expect(tx.legalAcceptance.create).not.toHaveBeenCalled();
+        expect(tx.requestEvent.create).not.toHaveBeenCalled();
+      } else if (result === 'missing') {
+        await expect(action).rejects.toThrow(
+          'Price must be agreed before contract acceptance',
+        );
+        expect(tx.request.update).not.toHaveBeenCalled();
+      } else {
+        await expect(action).resolves.toMatchObject({
+          status: 'ACTIVE',
+          totalAmountRubles: actual,
+        });
+        expect(tx.request.update).toHaveBeenCalledOnce();
+      }
+      expect(tx.request.updateMany.mock.invocationCallOrder[0]).toBeLessThan(
+        tx.request.findUnique.mock.invocationCallOrder[0],
+      );
+    },
+  );
+
+  it('uses a previously accepted stored price when a newer pending proposal was never accepted', async () => {
+    const now = new Date('2026-11-16T00:00:00Z');
+    const current = {
+      id: 'r1',
+      status: 'DISCUSSING',
+      providerId: 'p1',
+      lockedAt: now,
+      customerUserId: 'u1',
+      totalAmountRubles: 12000,
+      serviceId: null,
+      categoryId: null,
+      requestCityId: null,
+      message: null,
+      location: null,
+      createdAt: now,
+      updatedAt: now,
+      providerOffers: [],
+      payments: [],
+      priceProposals: [
+        {
+          id: 'pending',
+          providerId: 'p1',
+          amountRubles: 15000,
+          authorSide: 'PROVIDER',
+          acceptedAt: null,
+          isDirectSet: false,
+          createdAt: now,
+        },
+      ],
+    };
+    const previous = {
+      id: 'accepted',
+      providerId: 'p1',
+      amountRubles: 12000,
+      acceptedAt: now,
+      isDirectSet: false,
+      supersededAt: now,
+    };
+    const pending = {
+      id: 'pending',
+      providerId: 'p1',
+      amountRubles: 15000,
+      acceptedAt: null,
+      isDirectSet: false,
+      supersededAt: null,
+    };
+    const tx = {
+      request: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        findUnique: vi.fn().mockResolvedValue(current),
+        update: vi.fn().mockResolvedValue({
+          ...current,
+          status: 'ACTIVE',
+          contractAcceptedAt: now,
+        }),
+      },
+      requestPriceProposal: {
+        findFirst: vi.fn(({ where }) =>
+          Promise.resolve(
+            [previous, pending].find(
+              (price) =>
+                price.providerId === where.providerId &&
+                price.amountRubles === where.amountRubles &&
+                where.OR.some(
+                  (clause: {
+                    acceptedAt?: { not: null };
+                    isDirectSet?: boolean;
+                    supersededAt?: null;
+                  }) =>
+                    (clause.acceptedAt?.not === null &&
+                      price.acceptedAt != null) ||
+                    (clause.isDirectSet === true &&
+                      price.isDirectSet &&
+                      price.supersededAt === null),
+                ),
+            ) ?? null,
+          ),
+        ),
+      },
+      requestContractFile: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ bundleId: 'b1', status: 'APPROVED' }]),
+      },
+      requestDocumentRequest: { count: vi.fn().mockResolvedValue(0) },
+      legalAcceptance: { create: vi.fn() },
+      requestEvent: { create: vi.fn() },
+    };
+    const service = makeService({
+      $transaction: (run: (client: typeof tx) => Promise<unknown>) => run(tx),
+    });
+    const dto = await service.acceptContractByCustomer('u1', 'r1', {
+      termsVersion: '2026-08-04',
+      expectedTotalAmountRubles: 12000,
+    });
+    expect(dto).toMatchObject({ status: 'ACTIVE', totalAmountRubles: 12000 });
+    expect(tx.requestPriceProposal.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          providerId: 'p1',
+          amountRubles: 12000,
+        }),
+      }),
+    );
+  });
+
+  it.each([
+    {
+      mode: 'directly set',
+      isDirectSet: true,
+      acceptedAt: null,
+      permitted: true,
+    },
+    {
+      mode: 'previously accepted',
+      isDirectSet: false,
+      acceptedAt: new Date('2026-08-05T00:00:00Z'),
+      permitted: true,
+    },
+    {
+      mode: 'legacy pending',
+      isDirectSet: false,
+      acceptedAt: null,
+      permitted: false,
+    },
+  ])(
+    'requires an effective price, including $mode',
+    async ({ isDirectSet, acceptedAt, permitted }) => {
+      const now = new Date('2026-11-02T00:00:00Z');
+      const current = {
+        id: 'r1',
+        status: 'DISCUSSING',
+        providerId: 'p1',
+        lockedAt: now,
+        customerUserId: 'u1',
+        totalAmountRubles: 12000,
+        serviceId: null,
+        categoryId: null,
+        requestCityId: null,
+        message: null,
+        location: null,
+        createdAt: now,
+        updatedAt: now,
+        providerOffers: [],
+        payments: [],
+        priceProposals: [],
+      };
+      const tx = {
+        request: {
+          updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+          findUnique: vi.fn().mockResolvedValue(current),
+          update: vi.fn().mockResolvedValue({
+            ...current,
+            status: 'ACTIVE',
+            contractAcceptedAt: now,
+          }),
+        },
+        requestPriceProposal: {
+          findFirst: vi.fn(({ where }) => {
+            const matches =
+              where.providerId === 'p1' &&
+              where.amountRubles === 12000 &&
+              where.OR.some(
+                (clause: {
+                  acceptedAt?: { not: null };
+                  isDirectSet?: boolean;
+                }) =>
+                  (clause.isDirectSet === true && isDirectSet) ||
+                  (clause.acceptedAt?.not === null && acceptedAt != null),
+              );
+            return Promise.resolve(matches ? { id: 'price-1' } : null);
+          }),
+        },
+        requestContractFile: {
+          findMany: vi
+            .fn()
+            .mockResolvedValue([{ bundleId: 'b1', status: 'APPROVED' }]),
+        },
+        requestDocumentRequest: { count: vi.fn().mockResolvedValue(0) },
+        legalAcceptance: { create: vi.fn().mockResolvedValue({ id: 'a1' }) },
+        requestEvent: { create: vi.fn().mockResolvedValue({ id: 'e1' }) },
+      };
+      const prisma = {
+        $transaction: (run: (client: typeof tx) => Promise<unknown>) => run(tx),
+      };
+      const action = makeService(prisma).acceptContractByCustomer('u1', 'r1', {
+        termsVersion: '2026-08-04',
+      });
+      if (permitted) {
+        await expect(action).resolves.toMatchObject({ status: 'ACTIVE' });
+      } else {
+        await expect(action).rejects.toThrow(
+          'Price must be agreed before contract acceptance',
+        );
+        expect(tx.request.update).not.toHaveBeenCalled();
+      }
+      expect(tx.requestPriceProposal.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            requestId: 'r1',
+            providerId: 'p1',
+            amountRubles: 12000,
+            OR: [
+              { acceptedAt: { not: null } },
+              { isDirectSet: true, supersededAt: null },
+            ],
+          }),
+        }),
+      );
+    },
+  );
+
+  it.each([
     ['SERVICE', false],
     ['SERVICE', true],
     ['FREEFORM', false],

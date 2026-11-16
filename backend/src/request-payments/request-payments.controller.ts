@@ -1,7 +1,14 @@
 import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
-import { ApiOkResponse, ApiParam, ApiTags } from '@nestjs/swagger';
+import {
+  ApiForbiddenResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Request } from 'express';
 import { InternalAuthService } from '../auth/internal-auth.service';
+import { ApiForbiddenErrorDto } from '../common/dto/api-error-response.dto';
 import { ApiStandardErrors } from '../common/swagger/api-standard-errors.decorator';
 import {
   CreateRequestPriceProposalDto,
@@ -38,6 +45,11 @@ export class RequestPaymentsController {
   }
 
   @Post('pro/requests/:requestId/price-proposals')
+  @ApiOperation({
+    summary: 'Установить стоимость работ',
+    description:
+      'Исполнитель устанавливает или изменяет стоимость работ. Цена применяется сразу, подтверждение клиентом не требуется.',
+  })
   @ApiParam({ name: 'requestId', type: String })
   @ApiOkResponse({ type: RequestFinanceDto })
   proposePriceForProvider(
@@ -53,9 +65,18 @@ export class RequestPaymentsController {
   }
 
   @Post('pro/requests/:requestId/price-proposals/:proposalId/accept')
+  @ApiOperation({
+    summary: 'Устаревшее подтверждение цены исполнителем',
+    description:
+      'Подтверждение цены больше не требуется. Метод возвращает 403.',
+    deprecated: true,
+  })
   @ApiParam({ name: 'requestId', type: String })
   @ApiParam({ name: 'proposalId', type: String })
-  @ApiOkResponse({ type: RequestFinanceDto })
+  @ApiForbiddenResponse({
+    type: ApiForbiddenErrorDto,
+    description: 'Подтверждение цены больше не поддерживается.',
+  })
   acceptPriceForProvider(
     @Req() request: Request,
     @Param('requestId') requestId: string,
@@ -119,8 +140,17 @@ export class RequestPaymentsController {
   }
 
   @Post('requests/mine/:requestId/price-proposals')
+  @ApiOperation({
+    summary: 'Устаревшее предложение цены клиентом',
+    description:
+      'Клиент не может менять стоимость работ. Метод возвращает 403.',
+    deprecated: true,
+  })
   @ApiParam({ name: 'requestId', type: String })
-  @ApiOkResponse({ type: RequestFinanceDto })
+  @ApiForbiddenResponse({
+    type: ApiForbiddenErrorDto,
+    description: 'Только исполнитель может изменить стоимость работ.',
+  })
   proposePriceForCustomer(
     @Req() request: Request,
     @Param('requestId') requestId: string,
@@ -135,9 +165,18 @@ export class RequestPaymentsController {
   }
 
   @Post('requests/mine/:requestId/price-proposals/:proposalId/accept')
+  @ApiOperation({
+    summary: 'Устаревшее подтверждение цены клиентом',
+    description:
+      'Подтверждение цены больше не требуется. Метод возвращает 403.',
+    deprecated: true,
+  })
   @ApiParam({ name: 'requestId', type: String })
   @ApiParam({ name: 'proposalId', type: String })
-  @ApiOkResponse({ type: RequestFinanceDto })
+  @ApiForbiddenResponse({
+    type: ApiForbiddenErrorDto,
+    description: 'Подтверждение цены больше не поддерживается.',
+  })
   acceptPriceForCustomer(
     @Req() request: Request,
     @Param('requestId') requestId: string,

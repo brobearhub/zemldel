@@ -49,8 +49,16 @@ afterEach(() => {
 });
 
 describe("dark palette selection", () => {
+  it("uses Lavender Graphite in dark mode on the first visit", () => {
+    mount();
+    expect(screen.getByTestId("palette")).toHaveTextContent(
+      "dark/dark/lavender-graphite/#bea9df",
+    );
+  });
+
   it("restores the selected palette and keeps it across light/dark switches and remounts", async () => {
     localStorage.setItem("color-mode", "dark");
+    localStorage.setItem(DARK_PALETTE_STORAGE_KEY, "warm-coal");
     const user = userEvent.setup();
     const view = mount();
     expect(screen.getByTestId("palette")).toHaveTextContent(
@@ -58,7 +66,8 @@ describe("dark palette selection", () => {
     );
     await user.click(screen.getByRole("combobox", { name: "Тёмная палитра" }));
     expect(screen.getAllByRole("option")).toHaveLength(8);
-    await user.click(screen.getByRole("option", { name: "Лавандовый графит" }));
+    expect(screen.getAllByRole("option")[0]).toHaveTextContent("Лавандовый графит");
+    await user.click(screen.getByRole("option", { name: "Лавандовый графит По умолчанию" }));
     expect(screen.getByTestId("palette")).toHaveTextContent(
       "dark/dark/lavender-graphite/#bea9df",
     );
@@ -82,8 +91,9 @@ describe("dark palette selection", () => {
     const user = userEvent.setup();
     mount(true);
     await user.click(
-      screen.getByRole("button", { name: "Тёмная палитра: Тёплый уголь" }),
+      screen.getByRole("button", { name: "Тёмная палитра: Лавандовый графит" }),
     );
+    expect(screen.getAllByRole("menuitem")[0]).toHaveTextContent("Лавандовый графит");
     await user.click(screen.getByRole("menuitem", { name: "Бирюза и какао" }));
     expect(screen.getByTestId("palette")).toHaveTextContent(
       "dark/dark/turquoise-cocoa/#80cbc4",
@@ -97,12 +107,12 @@ describe("dark palette selection", () => {
     "smoky-sage",
     "green-ink",
     "pine-dusk",
-  ])("falls back to Warm Coal for unavailable stored palette %s", (palette) => {
+  ])("falls back to Lavender Graphite for unavailable stored palette %s", (palette) => {
     localStorage.setItem("color-mode", "dark");
     localStorage.setItem(DARK_PALETTE_STORAGE_KEY, palette);
     mount();
     expect(screen.getByTestId("palette")).toHaveTextContent(
-      "dark/dark/warm-coal/#b1b8a0",
+      "dark/dark/lavender-graphite/#bea9df",
     );
   });
 
@@ -153,7 +163,6 @@ describe("dark palette selection", () => {
     });
     const user = userEvent.setup();
     mount();
-    await user.click(screen.getByRole("button", { name: "Переключить режим" }));
     await user.click(screen.getByRole("combobox", { name: "Тёмная палитра" }));
     await user.click(screen.getByRole("option", { name: "Серебряный графит" }));
     expect(screen.getByTestId("palette")).toHaveTextContent(

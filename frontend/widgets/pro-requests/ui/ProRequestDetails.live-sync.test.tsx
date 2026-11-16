@@ -1,4 +1,4 @@
-import { act, cleanup, render as testingRender, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render as testingRender, screen, within } from "@testing-library/react";
 import { ThemeProvider } from "@mui/material";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -47,11 +47,75 @@ describe("provider request sections follow live updates", () => {
   });
   afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
+  it("opens the full estimate in place of the progress and restores it on close", async () => {
+    const withExpenses = {
+      ...request,
+      payments: [{ id: "expense", type: "OTHER", amountRubles: 8100, comment: "Расходы", paidAt: null, createdAt: "2026-11-14", createdBySide: "PROVIDER" }],
+    } as RequestProDto;
+    vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify(withExpenses)));
+    await act(async () => { render(<ConfirmProvider><ProRequestDetails initialRequest={withExpenses} subtitle="" /></ConfirmProvider>); });
+    expect(screen.queryByText(/Всего:/)).not.toBeInTheDocument();
+    const progress = screen.getByText("Обсуждение");
+    expect(progress).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: /20\s*100\s*₽/ }));
+    const panel = screen.getByRole("dialog", { name: "Цена и оплата" });
+    expect(within(panel).getByRole("region", { name: "Итог по заявке" })).toHaveTextContent("20 100 ₽");
+    expect(progress).not.toBeVisible();
+    fireEvent.click(within(panel).getByRole("button", { name: "Закрыть" }));
+    expect(progress).toBeVisible();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("hides reference-price details in the request header but keeps them in the price editor", async () => {
+    const pricedRequest = {
+      ...request,
+      totalAmountRubles: 15000,
+      servicePriceRubles: 12000,
+      canProposePrice: true,
+    } as RequestProDto;
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify(pricedRequest)));
+    await act(async () => {
+      render(<ConfirmProvider><ProRequestDetails initialRequest={pricedRequest} subtitle="" /></ConfirmProvider>);
+    });
+    expect(screen.getByText(/Цена работ: 15\s*000\s*₽/)).toBeVisible();
+    expect(screen.queryByText("Отличается от справочной цены услуги")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Справочная цена услуги:/)).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /15\s*000\s*₽/ }));
+    });
+    const panel = screen.getByRole("dialog", { name: "Цена и оплата" });
+    await act(async () => {
+      fireEvent.click(within(panel).getByRole("button", { name: "Развернуть: Стоимость работ" }));
+    });
+    await act(async () => {
+      fireEvent.click(within(panel).getByRole("button", { name: "Изменить цену" }));
+    });
+    expect(within(panel).getByText(/Справочная цена услуги: 12\s*000\s*₽/)).toBeVisible();
+    await act(async () => { vi.advanceTimersByTime(500); });
+  });
+
+  it("updates the total button when work price and expenses change", async () => {
+    await act(async () => { render(<ConfirmProvider><ProRequestDetails initialRequest={request} subtitle="" /></ConfirmProvider>); });
+    expect(screen.getByRole("button", { name: /12\s*000\s*₽/ })).toBeVisible();
+    const updated = {
+      ...request,
+      totalAmountRubles: 15000,
+      payments: [{ id: "expense", type: "OTHER", amountRubles: 3000, comment: "Расход", paidAt: null, createdAt: "2026-11-14", createdBySide: "PROVIDER" }],
+    };
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify(updated)));
+    await act(async () => { window.dispatchEvent(new CustomEvent("request:changed", { detail: { requestId: request.id } })); });
+    expect(screen.getByRole("button", { name: /18\s*000\s*₽/ })).toBeVisible();
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ ...updated, totalAmountRubles: null })));
+    await act(async () => { window.dispatchEvent(new CustomEvent("request:changed", { detail: { requestId: request.id } })); });
+    expect(screen.getByRole("button", { name: "Цена и оплата: Сумма" })).toHaveTextContent("Сумма");
+  });
+
   it("updates a contract decision even when the request status has not changed", async () => {
     await act(async () => { render(<ConfirmProvider><ProRequestDetails initialRequest={request} subtitle="" /></ConfirmProvider>); });
     expect(screen.getByTestId("contracts")).toHaveTextContent("PENDING_CUSTOMER");
     expect(screen.getByText("Договор отправлен. Ждём решения клиента.")).toBeInTheDocument();
-    expect(screen.queryByText("Цена согласована. Подготовьте и отправьте договор.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Цена указана. Подготовьте и отправьте договор.")).not.toBeInTheDocument();
     vi.mocked(fetchProRequestContractBundles).mockResolvedValue([{ status: "APPROVED" }] as never);
     await act(async () => { window.dispatchEvent(new CustomEvent("request:changed", { detail: { requestId: "request-a" } })); });
     expect(screen.getByTestId("contracts")).toHaveTextContent("APPROVED");

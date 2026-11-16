@@ -14,7 +14,10 @@ import {
 import { RequestPaymentItemDto } from '../../requests/dto/request.dto';
 
 export class CreateRequestPriceProposalDto {
-  @ApiProperty({ example: 25000, description: 'Предложенная цена в рублях' })
+  @ApiProperty({
+    example: 25000,
+    description: 'Стоимость работ в рублях, установленная исполнителем',
+  })
   @Type(() => Number)
   @IsInt()
   @Min(1)
@@ -97,13 +100,23 @@ export class RequestFinanceDto {
   @ApiProperty({ nullable: true, example: 25000 })
   totalAmountRubles!: number | null;
 
-  @ApiProperty({ type: RequestPriceProposalDto, nullable: true })
+  @ApiProperty({
+    type: RequestPriceProposalDto,
+    nullable: true,
+    description:
+      'Историческое предложение цены; прямые установки сюда не попадают.',
+  })
   priceProposal!: RequestPriceProposalDto | null;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Исполнитель может установить или изменить стоимость работ.',
+  })
   canProposePrice!: boolean;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Устаревшее поле; подтверждение цены больше не требуется.',
+    example: false,
+  })
   canAcceptPrice!: boolean;
 
   @ApiProperty({ example: 5000 })

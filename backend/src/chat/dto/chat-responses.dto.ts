@@ -16,8 +16,8 @@ export class ChatInboxItemDto {
   @ApiProperty({ format: 'uuid' })
   serviceRequestId!: string | null;
 
-  @ApiPropertyOptional({ enum: ['REQUEST', 'DIRECT'] })
-  kind?: 'REQUEST' | 'DIRECT';
+  @ApiPropertyOptional({ enum: ['REQUEST', 'DIRECT', 'PARTNER'] })
+  kind?: 'REQUEST' | 'DIRECT' | 'PARTNER';
 
   @ApiPropertyOptional()
   directState?: string | null;

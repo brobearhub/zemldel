@@ -101,7 +101,7 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
   }, [threadId]);
 
   const rows = items ?? [];
-  const own = rows.filter((row) => directId ? row.kind === "DIRECT" && row.conversationId === directId : row.serviceRequestId === requestId);
+  const own = rows.filter((row) => directId ? (row.kind === "DIRECT" || row.kind === "PARTNER") && row.conversationId === directId : row.serviceRequestId === requestId);
   const active = requestedConversation
     ? own.find((row) => row.conversationId === requestedConversation)
     : own.length === 1
@@ -609,17 +609,17 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
                         color: "text.secondary",
                       }}
                     >
-                      {peerLabel}
+                      {active.kind === "PARTNER" ? "Партнёр" : peerLabel}
                     </Typography>
                   ) : null}
                 </Box>
-                {active && active.kind !== "DIRECT" ? (
+                {active?.serviceRequestId ? (
                   <Box sx={{ ml: "auto" }}>
                     <DownloadChatPdfButton conversationId={active.conversationId} serviceRequestId={active.serviceRequestId ?? undefined} title={active.peerName || "Чат по заявке"} viewerRole={role === "provider" ? "PROVIDER" : "CUSTOMER"} counterpartyName={active.peerName} />
                   </Box>
                 ) : null}
               </Stack>
-              <Stack
+              {active?.kind !== "PARTNER" ? <Stack
                 direction="row"
                 spacing={1}
                 sx={{
@@ -673,7 +673,7 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
                 >
                   К заявке
                 </Button> : null}
-              </Stack>
+              </Stack> : null}
               {!items && !error ? (
                 <Skeleton
                   sx={{
