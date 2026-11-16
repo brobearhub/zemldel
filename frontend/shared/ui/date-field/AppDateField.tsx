@@ -2,7 +2,6 @@
 
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import type { SxProps, Theme } from "@mui/material/styles";
-import { alpha } from "@mui/material/styles";
 import dayjs, { type Dayjs } from "dayjs";
 import { AppDateLocalization } from "./AppDateLocalization";
 
@@ -16,17 +15,17 @@ const calendarSx: SxProps<Theme> = {
   borderRadius: 3,
   "& .MuiPickersCalendarHeader-label": { color: "text.primary", fontWeight: 700 },
   "& .MuiDayCalendar-weekDayLabel": { color: "text.secondary" },
-  "& .MuiPickersDay-root:hover": {
-    bgcolor: (theme) => alpha(theme.palette.primary.main, 0.16),
+  "& .MuiPickerDay-root:hover": {
+    bgcolor: "background.secondary",
   },
-  "& .MuiPickersDay-root.Mui-selected": {
+  "& .MuiPickerDay-root.Mui-selected": {
     bgcolor: "primary.main",
     color: "primary.contrastText",
   },
-  "& .MuiPickersDay-root.Mui-selected:hover, & .MuiPickersDay-root.Mui-selected:focus": {
+  "& .MuiPickerDay-root.Mui-selected:hover, & .MuiPickerDay-root.Mui-selected:focus": {
     bgcolor: "primary.dark",
   },
-  "& .MuiPickersDay-today:not(.Mui-selected)": {
+  "& .MuiPickerDay-today:not(.Mui-selected)": {
     borderColor: "primary.main",
   },
 };

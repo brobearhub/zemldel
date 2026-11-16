@@ -26,12 +26,12 @@ const headingAttributes = {
   brand: {
     title: "земледел",
     description:
-      "Земледел - Сервис для поиска специалистов по земле и недвижимости.",
+      "Земледел — сервис поиска специалистов по земельным вопросам.",
   },
   services: {
     title: "Земельные и кадастровые услуги",
     description:
-      "Межевание, кадастровые работы, технические планы и оформление недвижимости.",
+      "Кадастровые и землеустроительные работы, оформление участков, подключение коммуникаций, сопровождение сделок и земельных споров.",
   },
   topics: {
     title: "ЗЕМЛЯ, УЧАСТОК, ДОКУМЕНТЫ",
@@ -348,7 +348,7 @@ export function HomeIntroBanner({ onCreateRequest }: Props) {
           overflow: "hidden",
           px: { xs: 2, md: 3.5 },
           py: { xs: 2.5, md: 3.5 },
-          bgcolor: isDark ? "background.paper" : "#f0f0e6",
+          bgcolor: "background.secondary",
           color: detailColor,
         }}
       >

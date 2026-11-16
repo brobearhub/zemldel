@@ -162,7 +162,7 @@ const InboxRow = forwardRef<HTMLDivElement, ConversationListItemProps>(
           sx={{
             width: 40,
             height: 40,
-            bgcolor: (theme) => alpha(theme.palette.primary.main, 0.16),
+            bgcolor: "background.secondary",
             color: "primary.dark",
             fontSize: "1rem",
             fontWeight: 700,

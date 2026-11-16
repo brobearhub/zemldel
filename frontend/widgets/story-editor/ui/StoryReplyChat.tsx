@@ -78,7 +78,7 @@ export function StoryReplyChat({
           sx={{
             width: 36,
             height: 36,
-            bgcolor: (theme) => alpha(theme.palette.primary.main, 0.16),
+            bgcolor: "background.secondary",
             color: "primary.dark",
             fontSize: "1rem",
             fontWeight: 700,

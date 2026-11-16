@@ -113,11 +113,13 @@ describe("Меню исполнителя", () => {
     ]);
     const theme = within(settings).getByRole("switch", { name: "Тема" });
     expect(within(settings).getByRole("button", { name: "Выйти" })).toBeInTheDocument();
+    expect(theme).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(theme);
+    expect(theme).toHaveAttribute("aria-checked", "false");
+    expect(localStorage.getItem(COLOR_MODE_STORAGE_KEY)).toBe("light");
     fireEvent.click(theme);
     expect(theme).toHaveAttribute("aria-checked", "true");
     expect(localStorage.getItem(COLOR_MODE_STORAGE_KEY)).toBe("dark");
-    fireEvent.click(theme);
-    expect(localStorage.getItem(COLOR_MODE_STORAGE_KEY)).toBe("light");
   });
 
   it("открывает настройки в свёрнутом меню и закрывает панель клавишей Escape", async () => {

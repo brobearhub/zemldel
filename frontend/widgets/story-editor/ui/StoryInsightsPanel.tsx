@@ -256,8 +256,7 @@ function InsightsFigures({
                       sx={{
                         width: 36,
                         height: 36,
-                        bgcolor: (theme) =>
-                          alpha(theme.palette.primary.main, 0.16),
+                        bgcolor: "background.secondary",
                         color: "primary.dark",
                         fontSize: "1rem",
                         fontWeight: 700,
@@ -412,7 +411,7 @@ function ViewDonut({ mix }: { mix: ViewMix }) {
           cy={DONUT_SIZE / 2}
           r={radius}
           fill="none"
-          stroke={alpha(theme.palette.primary.main, 0.16)}
+          stroke={theme.palette.background.secondary}
           strokeWidth={DONUT_STROKE}
         />
         {arcs.map((arc) => (

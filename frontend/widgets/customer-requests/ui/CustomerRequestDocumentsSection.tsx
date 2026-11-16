@@ -326,13 +326,13 @@ export function CustomerRequestDocumentsSection(props: Props) {
           id="contract-review"
           tabIndex={-1}
           spacing={2}
-          sx={(theme) => ({
+          sx={{
             p: { xs: 2.5, tablet: 3 },
             minWidth: 0,
             borderRadius: 1.5,
-            bgcolor: alpha(theme.palette.primary.main, 0.16),
+            bgcolor: "background.secondary",
             scrollMarginTop: "96px",
-          })}
+          }}
         >
           <Stack
             direction="row"

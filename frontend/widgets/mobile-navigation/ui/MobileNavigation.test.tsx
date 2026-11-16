@@ -177,9 +177,13 @@ describe("Единое мобильное меню", () => {
       "Задачи команды",
       "Интерес клиентов",
     ]);
+    const team = within(menu).getByRole("list", { name: "Команда и партнёры" });
     expect(
-      within(menu).queryByRole("link", { name: "Команда" }),
-    ).not.toBeInTheDocument();
+      within(team).getByRole("link", { name: "Команда" }),
+    ).toHaveAttribute("href", "/pro/team/add-manager");
+    expect(
+      within(team).getByRole("link", { name: "Партнёры" }),
+    ).toHaveAttribute("href", "/pro/partners");
     expect(
       within(menu).queryByRole("link", { name: "Добавить услугу" }),
     ).not.toBeInTheDocument();
@@ -321,9 +325,13 @@ describe("Общий десктопный сайдбар", () => {
     expect(
       within(sidebar).getByRole("link", { name: "Задачи команды" }),
     ).toHaveAttribute("href", "/pro/team/tasks");
+    const team = within(sidebar).getByRole("list", { name: "Команда и партнёры" });
     expect(
-      within(sidebar).queryByRole("link", { name: "Команда" }),
-    ).not.toBeInTheDocument();
+      within(team).getByRole("link", { name: "Команда" }),
+    ).toHaveAttribute("href", "/pro/team/add-manager");
+    expect(
+      within(team).getByRole("link", { name: "Партнёры" }),
+    ).toHaveAttribute("href", "/pro/partners");
     await user.click(
       within(sidebar).getByRole("button", { name: "Настройки: Компания" }),
     );
