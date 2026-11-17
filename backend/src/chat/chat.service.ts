@@ -380,34 +380,41 @@ export class ChatService {
     );
   }
 
+  private async inboxUnreadCounts(userId: string, ids: string[]) {
+    const counts = new Map<string, number>();
+    // Keep each query below PostgreSQL's parameter limit, even for large inboxes.
+    for (let offset = 0; offset < ids.length; offset += 5000) {
+      const chunk = ids.slice(offset, offset + 5000);
+      const rows = await this.prisma.$queryRaw<
+        Array<{ conversationId: string; count: bigint }>
+      >(Prisma.sql`
+        SELECT m."conversationId", COUNT(*) AS count FROM "Message" m
+        LEFT JOIN "ConversationReadState" r ON r."conversationId" = m."conversationId" AND r."userId" = ${userId}::uuid
+        WHERE m."conversationId" IN (${Prisma.join(chunk.map((id) => Prisma.sql`${id}::uuid`))}) AND m."senderUserId" <> ${userId}::uuid
+        AND (r."lastReadAt" IS NULL OR m."createdAt" > r."lastReadAt") GROUP BY m."conversationId"`);
+      for (const row of rows) counts.set(row.conversationId, Number(row.count));
+    }
+    return counts;
+  }
+
   private async inboxWithUnread(userId: string, items: ChatInboxItemDto[]) {
-    if (
-      !items.some((item) => item.kind === 'DIRECT' || item.kind === 'PARTNER')
-    )
-      return items;
     const ids = items.flatMap((item) =>
       item.conversationId ? [item.conversationId] : [],
     );
-    const rows = await this.prisma.$queryRaw<
-      Array<{ conversationId: string; count: bigint }>
-    >(Prisma.sql`
-      SELECT m."conversationId", COUNT(*) AS count FROM "Message" m
-      LEFT JOIN "ConversationReadState" r ON r."conversationId" = m."conversationId" AND r."userId" = ${userId}::uuid
-      WHERE m."conversationId"::text IN (${Prisma.join(ids)}) AND m."senderUserId" <> ${userId}::uuid
-      AND (r."lastReadAt" IS NULL OR m."createdAt" > r."lastReadAt") GROUP BY m."conversationId"`);
-    const counts = new Map(
-      rows.map((row) => [row.conversationId, Number(row.count)]),
-    );
+    const counts = await this.inboxUnreadCounts(userId, ids);
     return items.map((item) => ({
       ...item,
       unreadCount: counts.get(item.conversationId ?? '') ?? 0,
     }));
   }
 
-  async listInbox(
+  private async inboxScope(
     actorUserId: string,
     role: 'customer' | 'provider',
-  ): Promise<ChatInboxItemDto[]> {
+  ): Promise<{
+    where: Prisma.ConversationWhereInput;
+    providerId: string | null;
+  }> {
     const user = await this.loadUserChatActor(actorUserId);
     const memberIds = user.providerMemberships.map((m) => m.providerId);
 
@@ -416,16 +423,6 @@ export class ChatService {
         'Platform admin cannot access customer-provider chats',
       );
     }
-
-    const titleFromRequest = (req: {
-      message?: string | null;
-      service: { title: string } | null;
-      category: { name: string } | null;
-    }) =>
-      req.service?.title ??
-      (req.message?.trim().slice(0, 120) || req.category?.name || 'Заявка');
-
-    const take = 500;
 
     if (role === 'provider') {
       const providerId = this.pickActorProviderId(user);
@@ -436,7 +433,8 @@ export class ChatService {
         throw new ForbiddenException('Forbidden');
       }
 
-      const rows = await this.prisma.conversation.findMany({
+      return {
+        providerId,
         where: {
           AND: [
             {
@@ -477,6 +475,68 @@ export class ChatService {
                 ],
               }),
         },
+      };
+    }
+    return {
+      providerId: null,
+      where: {
+        customerUserId: actorUserId,
+        kind: { not: 'PARTNER' },
+        messages: { some: {} },
+        OR: [{ kind: 'DIRECT' }, { request: { status: { not: 'CLOSED' } } }],
+      },
+    };
+  }
+
+  async unreadSnapshot(actorUserId: string, role: 'customer' | 'provider') {
+    const { where } = await this.inboxScope(actorUserId, role);
+    const rows = await this.prisma.conversation.findMany({
+      where,
+      select: {
+        id: true,
+        kind: true,
+        requestId: true,
+        providerId: true,
+        request: { select: { providerId: true, lockedAt: true } },
+      },
+    });
+    const visible = rows.filter((row) => {
+      if (row.kind === 'DIRECT' || row.kind === 'PARTNER') return true;
+      if (!row.request || !row.requestId) return false;
+      return (
+        role !== 'customer' ||
+        !isLockedToOtherProvider(row.request, row.providerId)
+      );
+    });
+    const counts = await this.inboxUnreadCounts(
+      actorUserId,
+      visible.map((row) => row.id),
+    );
+    return visible.map((row) => ({
+      conversationId: row.id,
+      serviceRequestId: row.requestId,
+      unreadCount: counts.get(row.id) ?? 0,
+    }));
+  }
+
+  async listInbox(
+    actorUserId: string,
+    role: 'customer' | 'provider',
+  ): Promise<ChatInboxItemDto[]> {
+    const { where, providerId } = await this.inboxScope(actorUserId, role);
+    const titleFromRequest = (req: {
+      message?: string | null;
+      service: { title: string } | null;
+      category: { name: string } | null;
+    }) =>
+      req.service?.title ??
+      (req.message?.trim().slice(0, 120) || req.category?.name || 'Заявка');
+
+    const take = 500;
+
+    if (role === 'provider') {
+      const rows = await this.prisma.conversation.findMany({
+        where,
         select: {
           id: true,
           kind: true,
@@ -583,12 +643,7 @@ export class ChatService {
 
     // customer
     const rows = await this.prisma.conversation.findMany({
-      where: {
-        customerUserId: actorUserId,
-        kind: { not: 'PARTNER' },
-        messages: { some: {} },
-        OR: [{ kind: 'DIRECT' }, { request: { status: { not: 'CLOSED' } } }],
-      },
+      where,
       select: {
         id: true,
         kind: true,

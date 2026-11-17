@@ -67,9 +67,12 @@ function makeCreatedRow(overrides: Record<string, unknown> = {}) {
 
 describe('RequestsService.createForService', () => {
   it.each([{ actor: 'u1' }, { actor: null }])(
-    'locks a service request without proposing the reference price for actor $actor',
+    'sets the fixed service price without attributing it to customer $actor',
     async ({ actor }) => {
-      const created = makeCreatedRow({ customerUserId: actor });
+      const created = makeCreatedRow({
+        customerUserId: actor,
+        totalAmountRubles: 15000,
+      });
       const tx = {
         request: {
           create: vi.fn().mockResolvedValue(created),
@@ -123,6 +126,8 @@ describe('RequestsService.createForService', () => {
         expect.objectContaining({
           data: expect.objectContaining({
             providerId: 'p1',
+            servicePriceRubles: 15000,
+            totalAmountRubles: 15000,
             lockedAt: expect.any(Date),
             providerOffers: {
               create: expect.objectContaining({
@@ -147,13 +152,84 @@ describe('RequestsService.createForService', () => {
           }),
         }),
       );
-      expect(tx.requestPriceProposal.create).not.toHaveBeenCalled();
-      expect(dto.totalAmountRubles).toBeNull();
+      expect(tx.requestPriceProposal.create).toHaveBeenCalledWith({
+        data: {
+          requestId: 'r1',
+          providerId: 'p1',
+          amountRubles: 15000,
+          authorSide: 'PROVIDER',
+          proposedByUserId: null,
+          isDirectSet: true,
+        },
+        select: { id: true },
+      });
+      expect(tx.requestEvent.create).toHaveBeenCalledWith({
+        data: {
+          requestId: 'r1',
+          type: 'PRICE_UPDATED',
+          actorUserId: null,
+          actorProviderId: null,
+          payload: {
+            proposalId: 'pp1',
+            providerId: 'p1',
+            amountRubles: 15000,
+            authorSide: 'PROVIDER',
+            source: 'SERVICE_PRICE_SNAPSHOT',
+          },
+        },
+        select: { id: true },
+      });
+      expect(dto.totalAmountRubles).toBe(15000);
       expect(dto.priceProposal).toBeNull();
       expect(dto.servicePriceRubles).toBe(15000);
       expect(dto.providerId).toBe('p1');
       expect(dto.lockedAt).not.toBeNull();
       expect(dto.selectedProviderIds).toEqual(['p1']);
+    },
+  );
+
+  it.each([
+    { price: 'от 15 000 ₽', snapshot: null },
+    { price: '10 000–20 000 ₽', snapshot: null },
+    { price: 'Договорная', snapshot: null },
+    { price: '2147483648', snapshot: null },
+  ])(
+    'does not set a contract price for $price',
+    async ({ price, snapshot }) => {
+      const tx = {
+        request: {
+          create: vi.fn().mockResolvedValue(
+            makeCreatedRow({
+              servicePriceRubles: snapshot,
+              totalAmountRubles: null,
+            }),
+          ),
+        },
+        requestPriceProposal: { create: vi.fn() },
+        requestEvent: { create: vi.fn().mockResolvedValue({ id: 'e1' }) },
+      };
+      const prisma = {
+        service: {
+          findFirst: vi
+            .fn()
+            .mockResolvedValue({ id: 's1', providerId: 'p1', price }),
+        },
+        $transaction: async (fn: (client: typeof tx) => Promise<unknown>) =>
+          fn(tx),
+      };
+      const dto = await makeService(prisma).createForService('s1', null, {
+        customerEmail: 'customer@example.com',
+      });
+      expect(tx.request.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            servicePriceRubles: snapshot,
+            totalAmountRubles: null,
+          }),
+        }),
+      );
+      expect(tx.requestPriceProposal.create).not.toHaveBeenCalled();
+      expect(dto.totalAmountRubles).toBeNull();
     },
   );
 });

@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import type { Request as ExpressRequest } from 'express';
 import { Prisma } from '@prisma/client';
-import { parseServicePriceRubles } from './lib/service-price-rubles';
+import { parseFixedServicePriceRubles } from './lib/service-price-rubles';
 import { PrismaService } from '../prisma/prisma.service';
 import { READABLE_REQUEST_STATUSES } from '../request-work-stages/readable-request-statuses';
 import { AuthService } from '../auth/auth.service';
@@ -108,6 +108,20 @@ const select = {
   acceptedAt: true,
   totalAmountRubles: true,
   servicePriceRubles: true,
+  _count: {
+    select: {
+      contractFiles: true,
+      documentRequests: { where: { storageRelPath: { not: null } } },
+      workStages: {
+        where: {
+          OR: [
+            { files: { some: {} } },
+            { docSlots: { some: { storageRelPath: { not: null } } } },
+          ],
+        },
+      },
+    },
+  },
   createdAt: true,
   updatedAt: true,
   service: { select: { title: true, image: true, providerId: true } },
@@ -307,28 +321,17 @@ export class RequestsService {
       .map((row) => row.id);
     if (requestIds.length === 0) return new Set();
 
-    const messages = await this.prisma.message.findMany({
-      where: {
-        kind: 'USER',
-        conversation: { requestId: { in: requestIds } },
-      },
-      select: {
-        senderUserId: true,
-        conversation: { select: { requestId: true, customerUserId: true } },
-      },
-      take: 5000,
-    });
-
-    const responded = new Set<string>();
-    for (const message of messages) {
-      if (
-        message.conversation.requestId &&
-        message.senderUserId !== message.conversation.customerUserId
-      ) {
-        responded.add(message.conversation.requestId);
-      }
-    }
-    return responded;
+    const responses = await this.prisma.$queryRaw<Array<{ requestId: string }>>(
+      Prisma.sql`
+        SELECT DISTINCT c."requestId"
+        FROM "Conversation" c
+        JOIN "Message" m ON m."conversationId" = c.id
+        WHERE c."requestId" IN (${Prisma.join(requestIds.map((id) => Prisma.sql`${id}::uuid`))})
+          AND m.kind = 'USER'
+          AND m."senderUserId" <> c."customerUserId"
+      `,
+    );
+    return new Set(responses.map((response) => response.requestId));
   }
 
   private async getLatestProviderMessages(
@@ -788,7 +791,7 @@ export class RequestsService {
 
     const create = async (tx: Prisma.TransactionClient) => {
       const now = new Date();
-      const servicePriceRubles = parseServicePriceRubles(service.price);
+      const initialPriceRubles = parseFixedServicePriceRubles(service.price);
       const next = await tx.request.create({
         data: {
           status: 'NEW',
@@ -812,7 +815,8 @@ export class RequestsService {
           message,
           location: null,
           cadastralNumbers: normalizeCadastralNumbers(input.cadastralNumbers),
-          servicePriceRubles,
+          servicePriceRubles: initialPriceRubles,
+          totalAmountRubles: initialPriceRubles,
         },
         select,
       });
@@ -823,6 +827,31 @@ export class RequestsService {
         actorUserId: actor?.id ?? undefined,
         payload: { providerId: service.providerId, autoLocked: true },
       });
+
+      if (initialPriceRubles != null) {
+        const initialPrice = await tx.requestPriceProposal.create({
+          data: {
+            requestId: next.id,
+            providerId: service.providerId,
+            amountRubles: initialPriceRubles,
+            authorSide: 'PROVIDER',
+            proposedByUserId: null,
+            isDirectSet: true,
+          },
+          select: { id: true },
+        });
+        await this.addEvent(tx, {
+          requestId: next.id,
+          type: 'PRICE_UPDATED',
+          payload: {
+            proposalId: initialPrice.id,
+            providerId: service.providerId,
+            amountRubles: initialPriceRubles,
+            authorSide: 'PROVIDER',
+            source: 'SERVICE_PRICE_SNAPSHOT',
+          },
+        });
+      }
 
       return {
         ...next,
@@ -1043,6 +1072,12 @@ export class RequestsService {
     requestId: string,
   ): Promise<{ ok: true }> {
     await this.prisma.$transaction(async (tx) => {
+      // Chat message creation locks the same request row before inserting.
+      // Recheck the response only after acquiring that lock.
+      const locked = await this.lockRequestRow(tx, requestId);
+      if (!locked || locked.customerUserId !== actorUserId) {
+        throw new NotFoundException('Request not found');
+      }
       const current = await tx.request.findFirst({
         where: { id: requestId, customerUserId: actorUserId },
         select,

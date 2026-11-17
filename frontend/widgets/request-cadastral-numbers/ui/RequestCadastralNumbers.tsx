@@ -134,6 +134,7 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
                     value={editParts}
                     onChange={setEditParts}
                     disabled={isBusy}
+                    size="small"
                   />
                   <Stack direction="row" spacing={1}>
                     <Button
@@ -242,6 +243,7 @@ export function RequestCadastralNumbers({ behavior, busy = false }: Props) {
             value={draftParts}
             onChange={setDraftParts}
             disabled={isBusy}
+            size="small"
           />
           <Button
             variant="contained"

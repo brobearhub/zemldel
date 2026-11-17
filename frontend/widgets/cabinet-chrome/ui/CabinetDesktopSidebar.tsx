@@ -34,7 +34,9 @@ export function CabinetDesktopSidebar({
     collapsed: boolean;
   } | null>(null);
   const requestDetail =
-    wide && /^\/pro\/requests\/(?!feed\/?$|board\/?$)[^/]+\/?$/.test(pathname);
+    wide &&
+    (/^\/pro\/requests\/(?!feed\/?$|board\/?$)[^/]+\/?$/.test(pathname) ||
+      /^\/profile\/requests\/[^/]+\/?$/.test(pathname));
   const board = wide && /^\/pro\/requests\/board\/?$/.test(pathname);
   // Requests and the board start collapsed, independently of the saved preference.
   const collapseByDefault = requestDetail || board;

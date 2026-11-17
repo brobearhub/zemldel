@@ -10,6 +10,7 @@ import {
   ServiceRequestAuthRequiredError,
 } from "@/features/create-service-request-lead/api/service-request-lead.api";
 import { buildRequestAuthHref, savePendingRequestDraft } from "@/entities/request";
+import { DEFAULT_SERVICE_REQUEST_GREETING } from "@/entities/request/api/send-initial-service-message";
 
 type Input = {
   serviceId: string;
@@ -47,16 +48,14 @@ export function useServiceAskQuestion(input: Input) {
       const ensured = await ensureRequestConversation({ serviceRequestId: created.id });
       chatEnsured = true;
 
-      if (message) {
-        await postConversationMessage({
-          conversationId: ensured.conversationId,
-          body: message,
-          clientMessageId: created.id,
-        });
-      }
+      await postConversationMessage({
+        conversationId: ensured.conversationId,
+        body: message || DEFAULT_SERVICE_REQUEST_GREETING,
+        clientMessageId: created.id,
+      });
 
       completeServiceRequestCreation(input.serviceId, created.id);
-      router.push(`/profile/requests/${created.id}`);
+      router.push(`/profile/requests/${created.id}?created=1`);
       router.refresh();
     } catch (e) {
       if (!createdRequestId && e instanceof ServiceRequestAuthRequiredError) {

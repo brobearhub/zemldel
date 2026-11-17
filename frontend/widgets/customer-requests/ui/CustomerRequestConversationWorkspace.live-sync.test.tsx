@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { fetchCustomerRequestConversations } from "@/entities/chat";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { RequestCustomerDto } from "@/entities/request";
+import { formatRequestCreatedAt, type RequestCustomerDto } from "@/entities/request";
 import { ConfirmProvider } from "@/shared/ui/confirm";
 import { fetchCustomerRequestDocumentRequests } from "@/entities/request/api/request-document-requests";
 import { fetchCustomerWorkStages } from "@/entities/request/api/request-work-stages";
@@ -56,6 +56,87 @@ describe("customer request sections follow live updates", () => {
   });
   afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
+  it("shows the request number separately from the creation date without a status chip", async () => {
+    const numbered = {
+      ...request,
+      number: 46,
+      createdAt: "2026-11-17T06:09:00.000Z",
+      subjectType: "SERVICE",
+      serviceTitle: "Межевание",
+      status: "NEW",
+    } as RequestCustomerDto;
+    vi.mocked(fetch).mockImplementation(async (url) => new Response(JSON.stringify(
+      /contract-bundles$|provider-misc$/.test(String(url)) ? [] : numbered
+    )));
+    await act(async () => {
+      render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={numbered} /></ConfirmProvider>);
+    });
+    expect(screen.getByText("Заявка № 46")).toBeVisible();
+    expect(screen.getByText(formatRequestCreatedAt(numbered.createdAt)!)).toBeVisible();
+    expect(screen.queryByText(/Заявка № 46 ·/)).not.toBeInTheDocument();
+    expect(Array.from(document.querySelectorAll(".MuiChip-label"), (chip) => chip.textContent)).not.toContain("Новая");
+  });
+
+  it.each(["timeout", "close"])("dismisses the reply notice by %s", async (method) => {
+    const pending = {
+      ...request,
+      subjectType: "SERVICE",
+      serviceTitle: "Межевание",
+      status: "NEW",
+      awaitingProviderReply: true,
+    } as RequestCustomerDto;
+    vi.mocked(fetch).mockImplementation(async (url) => new Response(JSON.stringify(
+      /contract-bundles$|provider-misc$/.test(String(url)) ? [] : pending
+    )));
+    await act(async () => {
+      render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={pending} justCreated /></ConfirmProvider>);
+    });
+    const alert = screen.getByText("Сообщение отправлено. Ждём ответа исполнителя.").closest<HTMLElement>('[role="alert"]')!;
+    expect(alert.compareDocumentPosition(screen.getByRole("heading", { name: "Межевание" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    if (method === "timeout") {
+      await act(() => vi.advanceTimersByTimeAsync(4999));
+      expect(alert).toBeInTheDocument();
+      await act(() => vi.advanceTimersByTimeAsync(1));
+    } else {
+      fireEvent.click(within(alert).getByRole("button", { name: /close|закрыть/i }));
+    }
+    expect(alert).not.toBeInTheDocument();
+  });
+
+  it("does not show the reply notice when reopening an existing request", async () => {
+    const pending = {
+      ...request,
+      subjectType: "SERVICE",
+      status: "NEW",
+      awaitingProviderReply: true,
+    } as RequestCustomerDto;
+    vi.mocked(fetch).mockImplementation(async (url) => new Response(JSON.stringify(
+      /contract-bundles$|provider-misc$/.test(String(url)) ? [] : pending
+    )));
+    await act(async () => {
+      render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={pending} /></ConfirmProvider>);
+    });
+    expect(screen.queryByText("Сообщение отправлено. Ждём ответа исполнителя.")).not.toBeInTheDocument();
+  });
+
+  it("shows the service title once when the customer did not write a message", async () => {
+    const serviceRequest = {
+      ...request,
+      subjectType: "SERVICE",
+      serviceTitle: "Кадастровые работы",
+      message: null,
+    } as RequestCustomerDto;
+    vi.mocked(fetch).mockImplementation(async (url) => new Response(JSON.stringify(
+      /contract-bundles$|provider-misc$/.test(String(url)) ? [] : serviceRequest
+    )));
+    await act(async () => {
+      render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={serviceRequest} /></ConfirmProvider>);
+    });
+    expect(screen.getAllByText("Кадастровые работы").filter((element) =>
+      getComputedStyle(element).display !== "none",
+    )).toHaveLength(1);
+  });
+
   it("opens the full estimate in place of the progress and restores it on close", async () => {
     const withExpenses = {
       ...request,
@@ -89,9 +170,25 @@ describe("customer request sections follow live updates", () => {
     await act(async () => {
       render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={pricedRequest} /></ConfirmProvider>);
     });
-    expect(screen.getByText(/Цена работ: 15\s*000\s*₽/)).toBeVisible();
+    expect(screen.queryByText(/Цена работ: 15\s*000\s*₽/)).not.toBeInTheDocument();
     expect(screen.queryByText("Отличается от справочной цены услуги")).not.toBeInTheDocument();
     expect(screen.queryByText(/Справочная цена услуги:/)).not.toBeInTheDocument();
+  });
+
+  it("shows the preliminary service price in the payment button", async () => {
+    const pricedRequest = {
+      ...request,
+      totalAmountRubles: null,
+      servicePriceRubles: 12000,
+    } as RequestCustomerDto;
+    vi.mocked(fetch).mockImplementation(async (url) => new Response(JSON.stringify(
+      /contract-bundles$|provider-misc$/.test(String(url)) ? [] : pricedRequest
+    )));
+    await act(async () => {
+      render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={pricedRequest} /></ConfirmProvider>);
+    });
+    expect(screen.queryByText(/Предварительная цена: 12\s*000\s*₽/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Цена и оплата: 12\s*000\s*₽/ })).toBeVisible();
   });
 
   it("updates the total button when work price and expenses change", async () => {
@@ -206,6 +303,20 @@ describe("customer request sections follow live updates", () => {
     expect(screen.getByText('Исполнитель запросил документы. Загрузите их перед заключением договора.')).toBeInTheDocument();
     expect(screen.getByRole('button',{name:'Загрузить документы'})).toBeEnabled();
     expect(vi.mocked(fetch).mock.calls.some(([url, options]) => String(url).includes('accept-contract') && options?.method==='POST')).toBe(false);
+  });
+
+  it("allows contract acceptance for a new service request with approved documents", async () => {
+    const draft = { ...request, subjectType: "SERVICE", status: "NEW", contractAcceptedAt: null } as RequestCustomerDto;
+    vi.mocked(fetch).mockImplementation(async (url) => new Response(JSON.stringify(
+      String(url).includes("/legal-docs/") ? { version: "v1" } : String(url).endsWith("contract-bundles") ? [{ status: "APPROVED" }] : draft
+    )));
+    await act(async () => {
+      render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={draft} /></ConfirmProvider>);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Заключить договор" }));
+    await act(async () => {});
+    fireEvent.click(screen.getByRole("checkbox", { name: /Я согласен/ }));
+    expect(screen.getByRole("button", { name: "Подтвердить заключение" })).toBeEnabled();
   });
 
   it("requires a fresh confirmation when the displayed work price changes", async () => {

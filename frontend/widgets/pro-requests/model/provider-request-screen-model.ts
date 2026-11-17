@@ -11,7 +11,8 @@ type ProviderRequestScreenModel = {
 };
 
 export function resolveProviderRequestScreenModel(
-  request: Pick<RequestProDto, "isLocked" | "status" | "lockedAt" | "totalAmountRubles">,
+  request: Pick<RequestProDto, "isLocked" | "status" | "lockedAt" | "totalAmountRubles"> &
+    Partial<Pick<RequestProDto, "subjectType">>,
 ): ProviderRequestScreenModel {
   if (!request.isLocked) {
     return {

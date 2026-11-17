@@ -1,4 +1,4 @@
-import type { RequestCustomerDto, RequestStatus } from "../dto/request.dto";
+import type { RequestCustomerDto, RequestStatus, RequestSubjectType } from "../dto/request.dto";
 import { getRequestStatusLabel, isOrderExecutionStatus } from "../dto/request.dto";
 
 export type RequestStatusFilter = "ALL" | RequestStatus;
@@ -13,9 +13,10 @@ export type RequestFlowStepperInput = {
   status: RequestStatus;
   lockedAt: string | null;
   totalAmountRubles?: number | null;
+  subjectType?: RequestSubjectType;
 };
 
-type CustomerRequestStepperInput = Pick<RequestCustomerDto, "status" | "dealTerms" | "lockedAt" | "totalAmountRubles">;
+type CustomerRequestStepperInput = Pick<RequestCustomerDto, "status" | "dealTerms" | "lockedAt" | "totalAmountRubles" | "subjectType">;
 
 const ORDER_STATUS_STEPPER_FLOW = ["CONTRACT", "WORK", "ACCEPTANCE", "COMPLETED"] as const;
 type OrderStepperStepId = (typeof ORDER_STATUS_STEPPER_FLOW)[number];
@@ -94,6 +95,7 @@ function buildOrderPhaseSteps(status: RequestStatus): StatusProgressStep[] {
 }
 
 function isVisibleContractStep(input: RequestFlowStepperInput) {
+  if (input.subjectType === "SERVICE" && input.status === "NEW") return false;
   return input.lockedAt != null &&
     (input.status === "TERMS_AGREED" ||
       ((input.status === "NEW" || input.status === "DISCUSSING") && input.totalAmountRubles != null));

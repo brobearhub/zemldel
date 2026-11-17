@@ -147,9 +147,9 @@ describe('request realtime invalidation', () => {
     await lastValueFrom(stream);
     expect(prisma.request.findUnique).toHaveBeenCalledTimes(1);
     expect(gateway.emitRequestChanged.mock.calls).toEqual([
-      ['selected-user', 'r'],
-      ['archived-user', 'r'],
-      ['customer', 'r'],
+      ['selected-user', 'r', true],
+      ['archived-user', 'r', true],
+      ['customer', 'r', true],
     ]);
   });
 

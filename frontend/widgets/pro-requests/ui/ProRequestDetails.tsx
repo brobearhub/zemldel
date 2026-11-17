@@ -27,7 +27,8 @@ import {
 import { RequestCityInactiveWarning } from "@/shared/ui/RequestCityInactiveWarning";
 import {
   canProviderManageDealDocuments,
-  formatRequestReference,
+  formatRequestCreatedAt,
+  formatRequestNumber,
   mergeWorkStageStatusOptions,
   RequestPriceBlock,
   resolvePaymentTriggerLabel,
@@ -186,6 +187,7 @@ export function ProRequestDetails({
     screenModel.showDealWorkflow &&
     showContractWorkflow &&
     !req.contractAcceptedAt &&
+    !(req.subjectType === "SERVICE" && req.status === "NEW" && contractBundles.length === 0) &&
     ["NEW", "DISCUSSING", "TERMS_AGREED"].includes(req.status) &&
     req.totalAmountRubles != null;
   const contractNextStep = !contractBundlesLoaded
@@ -825,7 +827,8 @@ export function ProRequestDetails({
       >
         <RequestDetailHeaderCard
           title={headerTitle}
-          reference={formatRequestReference(req)}
+          reference={formatRequestCreatedAt(req.createdAt) ?? undefined}
+          requestLabel={`Заявка ${formatRequestNumber(req)}`}
           subtitle={subtitle}
           statusLabel={screenModel.statusLabel}
           body={messageBody}

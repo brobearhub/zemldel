@@ -1,12 +1,9 @@
 "use client";
 
-import { fetchIdempotentWrite } from "@/shared/api/idempotent-write";
-
 import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, Button, Stack, TextField, Typography } from "@mui/material";
 import {
-  REQUESTS_PROFILE_URL,
   REQUESTS_PROFILE_RESUME_URL,
   buildRequestAuthHref,
   savePendingRequestDraft,
@@ -69,26 +66,6 @@ export function PublicServiceRequestForm({
     setError(null);
 
     try {
-      if (isAuthenticated) {
-        const res = await fetchIdempotentWrite(`/api/services/${serviceId}/requests`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            customerName: normalizeNullableString(form.customerName),
-            customerEmail: normalizeNullableString(form.customerEmail),
-            customerPhone: normalizeNullableString(form.customerPhone),
-            message: normalizeNullableString(form.message),
-            requestCityId: null,
-          }),
-        });
-        const payload = (await res.json().catch(() => null)) as { error?: string } | null;
-        if (!res.ok) {
-          throw new Error(payload?.error ?? "Не удалось отправить заявку");
-        }
-        router.push(REQUESTS_PROFILE_URL);
-        return;
-      }
-
       savePendingRequestDraft({
         kind: "SERVICE",
         serviceId,

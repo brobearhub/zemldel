@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
   query: "",
   sharedRequest: false,
   unread: { b: 2 } as Record<string, number>,
+  deletedConversationId: undefined as string | undefined,
 }));
 vi.mock("next/navigation", () => ({
   usePathname: () => "/pro/chats",
@@ -45,7 +46,7 @@ vi.mock("../model/use-chat-inbox", () => ({
         lastSnippet: "Вопрос",
         lastMessageAt: null,
       },
-    ],
+    ].filter((row) => row.conversationId !== state.deletedConversationId),
     error: null,
     refresh: vi.fn(),
     onMessage: vi.fn(),
@@ -65,8 +66,20 @@ beforeEach(() => {
   state.query = "";
   state.sharedRequest = false;
   state.unread = { b: 2 };
+  state.deletedConversationId = undefined;
 });
 describe("provider messenger navigation", () => {
+  it("recalculates dialog counters when a request disappears from the inbox", () => {
+    const { rerender } = render(<ChatsWorkspace role="provider" />);
+    expect(screen.getByRole("button", { name: "Все · 2" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Непрочитанные · 1" })).toBeInTheDocument();
+
+    state.deletedConversationId = "b";
+    rerender(<ChatsWorkspace role="provider" />);
+    expect(screen.getByRole("button", { name: "Все · 1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Непрочитанные · 0" })).toBeInTheDocument();
+    expect(screen.queryByText("Борис")).not.toBeInTheDocument();
+  });
   it("opens a partner chat in the shared messenger without customer-contact controls", () => {
     state.partner = true;
     state.conversationId = "a";

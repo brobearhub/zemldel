@@ -32,6 +32,9 @@ function UnreadProbe() {
       <span data-testid="second-unread">
         {chat.unreadByConversationId.second ?? 0}
       </span>
+      <span data-testid="other-unread">
+        {chat.unreadByConversationId.other ?? 0}
+      </span>
       <button onClick={() => chat.clearUnreadForConversation("first")}>
         Прочитать первый
       </button>
@@ -97,6 +100,197 @@ describe("socket recovery", () => {
     expect(screen.getByTestId("first-unread")).toHaveTextContent("0");
     expect(screen.getByTestId("second-unread")).toHaveTextContent("2");
     expect(screen.getByTestId("request-unread")).toHaveTextContent("2");
+  });
+  it("removes only a deleted request from unread counts and ignores delayed hints", async () => {
+    vi.stubGlobal("fetch", vi.fn(token));
+    render(
+      <ChatSocketProvider>
+        <UnreadProbe />
+      </ChatSocketProvider>,
+    );
+    await act(async () => {});
+    act(() => {
+      handlers["chat.unreadHint"]({ conversationId: "first", serviceRequestId: "request" });
+      handlers["chat.unreadHint"]({ conversationId: "second", serviceRequestId: "request" });
+      handlers["chat.unreadHint"]({ conversationId: "other", serviceRequestId: "other-request" });
+      handlers["request.changed"]({ requestId: "request" });
+    });
+    expect(screen.getByTestId("request-unread")).toHaveTextContent("2");
+    act(() => handlers["request.changed"]({ requestId: "request", deleted: true }));
+    expect(screen.getByTestId("request-unread")).toHaveTextContent("0");
+    expect(screen.getByTestId("other-unread")).toHaveTextContent("1");
+    act(() => handlers["chat.unreadHint"]({ conversationId: "first", serviceRequestId: "request" }));
+    expect(screen.getByTestId("first-unread")).toHaveTextContent("0");
+    expect(screen.getByTestId("other-unread")).toHaveTextContent("1");
+  });
+
+  it("does not restore a deleted conversation from an older unread response", async () => {
+    let finishInbox!: (response: Response) => void;
+    const fetcher = vi.fn((url: string) =>
+      url.startsWith("/api/chat/unread")
+        ? new Promise<Response>((resolve) => { finishInbox = resolve; })
+        : Promise.resolve(token()),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    render(
+      <ChatSocketProvider>
+        <UnreadProbe />
+      </ChatSocketProvider>,
+    );
+    await act(async () => {});
+    act(() => {
+      handlers["chat.unreadHint"]({ conversationId: "first", serviceRequestId: "request" });
+      socket.connected = true;
+      handlers.connect();
+    });
+    await act(async () => {});
+    expect(fetcher).toHaveBeenCalledWith(expect.stringContaining("/api/chat/unread"), expect.anything());
+    act(() => handlers["request.changed"]({ requestId: "request", deleted: true }));
+    await act(async () => {
+      finishInbox(new Response(JSON.stringify([{ conversationId: "first", serviceRequestId: "request", unreadCount: 1 }])));
+    });
+    expect(screen.getByTestId("first-unread")).toHaveTextContent("0");
+  });
+
+  it("removes conversations deleted while offline when the authoritative snapshot refreshes", async () => {
+    let snapshot = [
+      { conversationId: "first", serviceRequestId: "request", unreadCount: 2 },
+      { conversationId: "other", serviceRequestId: "other-request", unreadCount: 3 },
+    ];
+    vi.stubGlobal("fetch", vi.fn((url: string) => Promise.resolve(
+      url.startsWith("/api/chat/unread") ? new Response(JSON.stringify(snapshot)) : token(),
+    )));
+    render(<ChatSocketProvider><UnreadProbe /></ChatSocketProvider>);
+    await act(async () => {});
+    await act(async () => { socket.connected = true; handlers.connect(); });
+    expect(screen.getByTestId("first-unread")).toHaveTextContent("2");
+    expect(screen.getByTestId("other-unread")).toHaveTextContent("3");
+    snapshot = [{ conversationId: "other", serviceRequestId: "other-request", unreadCount: 3 }];
+    await act(async () => { window.dispatchEvent(new Event("focus")); });
+    expect(screen.getByTestId("first-unread")).toHaveTextContent("0");
+    expect(screen.getByTestId("other-unread")).toHaveTextContent("3");
+  });
+
+  it("retries a stale snapshot after a socket event and reconciles other conversations", async () => {
+    let resolveStale!: (response: Response) => void;
+    let unreadCalls = 0;
+    const fetcher = vi.fn((url: string) => {
+      if (!url.startsWith("/api/chat/unread")) return Promise.resolve(token());
+      unreadCalls += 1;
+      if (unreadCalls === 1) {
+        return new Promise<Response>((resolve) => { resolveStale = resolve; });
+      }
+      return Promise.resolve(new Response(JSON.stringify([
+        { conversationId: "other", serviceRequestId: "other-request", unreadCount: 3 },
+      ])));
+    });
+    vi.stubGlobal("fetch", fetcher);
+    render(<ChatSocketProvider><UnreadProbe /></ChatSocketProvider>);
+    await act(async () => {});
+    act(() => {
+      handlers["chat.unreadHint"]({ conversationId: "first", serviceRequestId: "request" });
+      handlers["chat.unreadHint"]({ conversationId: "other", serviceRequestId: "other-request" });
+      socket.connected = true;
+      handlers.connect();
+    });
+    await act(async () => {});
+    act(() => handlers["request.changed"]({ requestId: "request", deleted: true }));
+    await act(async () => {
+      resolveStale(new Response(JSON.stringify([
+        { conversationId: "first", serviceRequestId: "request", unreadCount: 1 },
+        { conversationId: "other", serviceRequestId: "other-request", unreadCount: 1 },
+      ])));
+    });
+    expect(unreadCalls).toBe(2);
+    expect(screen.getByTestId("first-unread")).toHaveTextContent("0");
+    expect(screen.getByTestId("other-unread")).toHaveTextContent("3");
+  });
+
+  it("keeps existing counts when unread refresh fails", async () => {
+    let fail = false;
+    vi.stubGlobal("fetch", vi.fn((url: string) => Promise.resolve(
+      url.startsWith("/api/chat/unread")
+        ? fail ? new Response("{}", { status: 503 }) : new Response(JSON.stringify([{ conversationId: "other", serviceRequestId: "other-request", unreadCount: 3 }]))
+        : token(),
+    )));
+    render(<ChatSocketProvider><UnreadProbe /></ChatSocketProvider>);
+    await act(async () => {});
+    await act(async () => { socket.connected = true; handlers.connect(); });
+    expect(screen.getByTestId("other-unread")).toHaveTextContent("3");
+    fail = true;
+    await act(async () => { window.dispatchEvent(new Event("focus")); });
+    expect(screen.getByTestId("other-unread")).toHaveTextContent("3");
+  });
+
+  it("reconciles a delayed hint already included in the server snapshot", async () => {
+    const rows = [{ conversationId: "other", serviceRequestId: "other-request", unreadCount: 1 }];
+    vi.stubGlobal("fetch", vi.fn((url: string) => Promise.resolve(
+      url.startsWith("/api/chat/unread") ? new Response(JSON.stringify(rows)) : token(),
+    )));
+    render(<ChatSocketProvider><UnreadProbe /></ChatSocketProvider>);
+    await act(async () => {});
+    await act(async () => { socket.connected = true; handlers.connect(); });
+    expect(screen.getByTestId("other-unread")).toHaveTextContent("1");
+    await act(async () => {
+      handlers["chat.unreadHint"]({ conversationId: "other", serviceRequestId: "other-request" });
+    });
+    expect(screen.getByTestId("other-unread")).toHaveTextContent("1");
+  });
+
+  it("coalesces focus refreshes and does not apply a stale snapshot", async () => {
+    const pending: Array<(response: Response) => void> = [];
+    vi.stubGlobal("fetch", vi.fn((url: string) =>
+      url.startsWith("/api/chat/unread")
+        ? new Promise<Response>((resolve) => { pending.push(resolve); })
+        : Promise.resolve(token()),
+    ));
+    render(<ChatSocketProvider><UnreadProbe /></ChatSocketProvider>);
+    await act(async () => {});
+    act(() => { socket.connected = true; handlers.connect(); });
+    await act(async () => {});
+    act(() => window.dispatchEvent(new Event("focus")));
+    expect(pending).toHaveLength(1);
+    await act(async () => pending[0](new Response(JSON.stringify([
+      { conversationId: "first", serviceRequestId: "request", unreadCount: 1 },
+    ]))));
+    expect(pending).toHaveLength(2);
+    await act(async () => pending[1](new Response(JSON.stringify([
+      { conversationId: "other", serviceRequestId: "other-request", unreadCount: 2 },
+    ]))));
+    expect(screen.getByTestId("first-unread")).toHaveTextContent("0");
+    expect(screen.getByTestId("other-unread")).toHaveTextContent("2");
+  });
+
+  it("coalesces a burst of hints while a read occurs during a snapshot", async () => {
+    const pending: Array<(response: Response) => void> = [];
+    vi.stubGlobal("fetch", vi.fn((url: string) =>
+      url.startsWith("/api/chat/unread")
+        ? new Promise<Response>((resolve) => { pending.push(resolve); })
+        : Promise.resolve(token()),
+    ));
+    render(<ChatSocketProvider><UnreadProbe /></ChatSocketProvider>);
+    await act(async () => {});
+    act(() => { socket.connected = true; handlers.connect(); });
+    await act(async () => {});
+    act(() => {
+      handlers["chat.unreadHint"]({ conversationId: "first", serviceRequestId: "request" });
+      handlers["chat.unreadHint"]({ conversationId: "first", serviceRequestId: "request" });
+      handlers["chat.unreadHint"]({ conversationId: "other", serviceRequestId: "other-request" });
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Прочитать первый" }));
+    expect(pending).toHaveLength(1);
+    await act(async () => pending[0](new Response(JSON.stringify([
+      { conversationId: "first", serviceRequestId: "request", unreadCount: 2 },
+      { conversationId: "other", serviceRequestId: "other-request", unreadCount: 0 },
+    ]))));
+    expect(pending).toHaveLength(2);
+    await act(async () => pending[1](new Response(JSON.stringify([
+      { conversationId: "first", serviceRequestId: "request", unreadCount: 0 },
+      { conversationId: "other", serviceRequestId: "other-request", unreadCount: 1 },
+    ]))));
+    expect(screen.getByTestId("first-unread")).toHaveTextContent("0");
+    expect(screen.getByTestId("other-unread")).toHaveTextContent("1");
+    expect(pending).toHaveLength(2);
   });
   it.each(["network", "503"])(
     "retries an initial %s failure without a reload",

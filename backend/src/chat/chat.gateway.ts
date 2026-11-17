@@ -201,10 +201,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       .socketsLeave(`${CONVERSATION_PREFIX}${conversationId}`);
   }
 
-  emitRequestChanged(userId: string, requestId: string) {
+  emitRequestChanged(userId: string, requestId: string, deleted = false) {
     this.server
       .to(`${USER_PREFIX}${userId}`)
-      .emit('request.changed', { requestId });
+      .emit(
+        'request.changed',
+        deleted ? { requestId, deleted: true } : { requestId },
+      );
   }
 
   emitFreeRequestCreated(payload: FreeRequestNotification) {

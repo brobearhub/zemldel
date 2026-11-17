@@ -33,6 +33,7 @@ import {
   ChatConversationAccessDto,
   ChatEnsureResponseDto,
   ChatInboxItemDto,
+  ChatUnreadSnapshotItemDto,
   ChatMarkReadResponseDto,
   ChatMessageDto,
   ChatPostMessageResponseDto,
@@ -109,6 +110,26 @@ export class ChatController {
     const role: 'customer' | 'provider' = dto.role ?? 'customer';
     const userId = this.chat.getRequiredActorUserId(request);
     return this.chat.listInbox(userId, role);
+  }
+
+  @Get('chat/unread')
+  @ApiQuery({ name: 'role', required: false, enum: ['customer', 'provider'] })
+  @ApiOkResponse({ type: [ChatUnreadSnapshotItemDto] })
+  @ApiUnprocessableEntityResponse({ type: ApiValidationErrorResponseDto })
+  async unreadSnapshot(@Req() request: Request, @Query() query: unknown) {
+    const dto = plainToInstance(ChatInboxQueryDto, query);
+    const issues = validateSync(dto, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
+    if (issues.length > 0) {
+      throw new UnprocessableEntityException({
+        error: 'Validation failed',
+        issues,
+      });
+    }
+    const userId = this.chat.getRequiredActorUserId(request);
+    return this.chat.unreadSnapshot(userId, dto.role ?? 'customer');
   }
 
   @Get('chat/requests/:id/conversations')

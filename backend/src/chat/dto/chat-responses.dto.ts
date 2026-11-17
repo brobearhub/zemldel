@@ -41,6 +41,17 @@ export class ChatInboxItemDto {
   unreadCount?: number;
 }
 
+export class ChatUnreadSnapshotItemDto {
+  @ApiProperty({ format: 'uuid' })
+  conversationId!: string;
+
+  @ApiProperty({ format: 'uuid', nullable: true })
+  serviceRequestId!: string | null;
+
+  @ApiProperty({ example: 0 })
+  unreadCount!: number;
+}
+
 export class ServiceRequestConversationListItemDto {
   @ApiProperty({ format: 'uuid' })
   conversationId!: string;

@@ -16,7 +16,7 @@ import {
   PendingRequestAuthRequiredError,
   resumePendingRequest,
 } from "@/entities/request/api/resume-pending-request";
-import { deleteCustomerRequest } from "@/entities/request/api/customer-requests";
+import { CustomerRequestDeleteConflictError, deleteCustomerRequest } from "@/entities/request/api/customer-requests";
 import { useConfirm } from "@/shared/ui/confirm";
 import { CustomerRequestReplyDialog } from "./CustomerRequestReplyDialog";
 import { CustomerRequestsFeed } from "./CustomerRequestsFeed";
@@ -165,6 +165,7 @@ export function CustomerRequestsSection({
       await deleteCustomerRequest(item.id);
       setItems((current) => current.filter((row) => row.id !== item.id));
     } catch (e) {
+      if (e instanceof CustomerRequestDeleteConflictError) await load();
       setError(e instanceof Error ? e.message : "Не удалось удалить заявку");
     } finally {
       setDeletingId(null);

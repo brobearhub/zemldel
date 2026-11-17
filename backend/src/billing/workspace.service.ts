@@ -256,10 +256,9 @@ export class WorkspaceService {
       new Date().toISOString().slice(0, 10) +
       ':' +
       createHash('sha256').update(`${serviceId}:${visitorId}`).digest('hex');
-    await this.prisma.serviceView.upsert({
-      where: { serviceId_visitorDay: { serviceId, visitorDay } },
-      create: { serviceId, visitorDay },
-      update: {},
+    await this.prisma.serviceView.createMany({
+      data: [{ serviceId, visitorDay }],
+      skipDuplicates: true,
     });
     return { ok: true };
   }

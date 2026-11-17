@@ -29,6 +29,7 @@ function makeRequestRow(overrides: Record<string, unknown> = {}) {
     createdAt: now,
     updatedAt: now,
     providerOffers: [],
+    _count: { contractFiles: 0, documentRequests: 0, workStages: 0 },
     service: null,
     category: { name: 'Cat' },
     provider: null,
@@ -74,6 +75,45 @@ describe('canCustomerDeleteRequest', () => {
       ),
     ).toBe(false);
   });
+
+  it('разрешает заявку услуги с автоматическим выбором исполнителя до его ответа', () => {
+    const row = makeRequestRow({
+      serviceId: 's1',
+      providerId: 'p1',
+      lockedAt: new Date(),
+      totalAmountRubles: 11111,
+      providerOffers: [{ providerId: 'p1', status: 'SELECTED' }],
+    });
+    expect(canCustomerDeleteRequest(row, false)).toBe(true);
+    expect(canCustomerDeleteRequest(row, true)).toBe(false);
+    expect(
+      canCustomerDeleteRequest(
+        { ...row, contractAcceptedAt: new Date() },
+        false,
+      ),
+    ).toBe(false);
+    expect(canCustomerDeleteRequest({ ...row, status: 'ACTIVE' }, false)).toBe(
+      false,
+    );
+  });
+
+  it.each(['contractFiles', 'documentRequests', 'workStages'] as const)(
+    'не удаляет заявку услуги с сохранёнными файлами: %s',
+    (kind) => {
+      const row = makeRequestRow({
+        serviceId: 's1',
+        providerId: 'p1',
+        lockedAt: new Date(),
+        _count: {
+          contractFiles: 0,
+          documentRequests: 0,
+          workStages: 0,
+          [kind]: 1,
+        },
+      });
+      expect(canCustomerDeleteRequest(row, false)).toBe(false);
+    },
+  );
 });
 
 describe('RequestsService.deleteMineByCustomer', () => {
@@ -81,6 +121,7 @@ describe('RequestsService.deleteMineByCustomer', () => {
     const prisma = {
       $transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
         fn({
+          $queryRaw: vi.fn().mockResolvedValue([]),
           request: { findFirst: vi.fn().mockResolvedValue(null) },
         }),
     };
@@ -93,6 +134,9 @@ describe('RequestsService.deleteMineByCustomer', () => {
   it('есть ответ исполнителя → ConflictException', async () => {
     const row = makeRequestRow();
     const tx = {
+      $queryRaw: vi
+        .fn()
+        .mockResolvedValue([{ id: 'r1', customerUserId: 'cu1' }]),
       request: { findFirst: vi.fn().mockResolvedValue(row) },
       message: { findFirst: vi.fn().mockResolvedValue({ id: 'm1' }) },
     };
@@ -110,6 +154,9 @@ describe('RequestsService.deleteMineByCustomer', () => {
     const requestDelete = vi.fn().mockResolvedValue({ id: 'r1' });
 
     const tx = {
+      $queryRaw: vi
+        .fn()
+        .mockResolvedValue([{ id: 'r1', customerUserId: 'cu1' }]),
       request: {
         findFirst: vi.fn().mockResolvedValue(row),
         delete: requestDelete,
@@ -125,5 +172,78 @@ describe('RequestsService.deleteMineByCustomer', () => {
 
     expect(requestDelete).toHaveBeenCalledWith({ where: { id: 'r1' } });
     expect(result).toEqual({ ok: true });
+  });
+
+  it('сверяет ответ исполнителя после блокировки заявки услуги', async () => {
+    const row = makeRequestRow({
+      serviceId: 's1',
+      providerId: 'p1',
+      lockedAt: new Date(),
+      providerOffers: [{ providerId: 'p1', status: 'SELECTED' }],
+    });
+    const lock = vi
+      .fn()
+      .mockResolvedValue([{ id: 'r1', customerUserId: 'cu1' }]);
+    const requestRead = vi.fn().mockResolvedValue(row);
+    const messageRead = vi.fn().mockResolvedValue(null);
+    const requestDelete = vi.fn().mockResolvedValue(row);
+    const tx = {
+      $queryRaw: lock,
+      request: { findFirst: requestRead, delete: requestDelete },
+      message: { findFirst: messageRead },
+    };
+    const svc = makeService({
+      $transaction: async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx),
+    });
+    await expect(svc.deleteMineByCustomer('cu1', 'r1')).resolves.toEqual({
+      ok: true,
+    });
+    expect(lock.mock.invocationCallOrder[0]).toBeLessThan(
+      requestRead.mock.invocationCallOrder[0],
+    );
+    expect(requestRead.mock.invocationCallOrder[0]).toBeLessThan(
+      messageRead.mock.invocationCallOrder[0],
+    );
+    expect(requestRead).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'r1', customerUserId: 'cu1' },
+      }),
+    );
+    expect(messageRead).toHaveBeenCalledWith({
+      where: {
+        kind: 'USER',
+        conversation: { requestId: 'r1', customerUserId: 'cu1' },
+        NOT: { senderUserId: 'cu1' },
+      },
+      select: { id: true },
+    });
+    expect(requestDelete).toHaveBeenCalled();
+  });
+
+  it('не удаляет заявку услуги, если ответ появился до повторной проверки', async () => {
+    const row = makeRequestRow({
+      serviceId: 's1',
+      providerId: 'p1',
+      lockedAt: new Date(),
+      providerOffers: [{ providerId: 'p1', status: 'SELECTED' }],
+    });
+    const requestDelete = vi.fn();
+    const tx = {
+      $queryRaw: vi
+        .fn()
+        .mockResolvedValue([{ id: 'r1', customerUserId: 'cu1' }]),
+      request: {
+        findFirst: vi.fn().mockResolvedValue(row),
+        delete: requestDelete,
+      },
+      message: { findFirst: vi.fn().mockResolvedValue({ id: 'response' }) },
+    };
+    const svc = makeService({
+      $transaction: async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx),
+    });
+    await expect(svc.deleteMineByCustomer('cu1', 'r1')).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(requestDelete).not.toHaveBeenCalled();
   });
 });

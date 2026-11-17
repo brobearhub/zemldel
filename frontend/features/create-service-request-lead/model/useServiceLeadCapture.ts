@@ -11,6 +11,7 @@ import {
   cadastralPartsFromInput,
   type CadastralNumberParts,
 } from "@/entities/request";
+import { DEFAULT_SERVICE_QUESTION } from "../lib/default-greeting";
 
 type Input = {
   serviceId: string;
@@ -25,7 +26,7 @@ function normalizeQuestion(value: string): string {
 export function useServiceLeadCapture(input: Input) {
   const router = useRouter();
   const [customerEmail, setCustomerEmail] = useState(input.initialCustomerEmail ?? "");
-  const [question, setQuestion] = useState("");
+  const [question, setQuestion] = useState(DEFAULT_SERVICE_QUESTION);
   const [cadastralNumbers, setCadastralNumbers] = useState<CadastralNumberParts[]>([createEmptyCadastralParts()]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +35,7 @@ export function useServiceLeadCapture(input: Input) {
     const draft = readPendingRequestDraft();
     if (draft?.kind !== "SERVICE" || draft.serviceId !== input.serviceId || draft.createdRequestId) return;
     setCustomerEmail(draft.customerEmail ?? input.initialCustomerEmail ?? "");
-    setQuestion(draft.message ?? "");
+    setQuestion(draft.message ?? DEFAULT_SERVICE_QUESTION);
     setCadastralNumbers(draft.cadastralNumbers.length ? draft.cadastralNumbers.map(cadastralPartsFromInput) : [createEmptyCadastralParts()]);
   }, [input.serviceId, input.initialCustomerEmail]);
 

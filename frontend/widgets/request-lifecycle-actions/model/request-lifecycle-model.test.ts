@@ -123,6 +123,27 @@ function makeProvider(overrides: Partial<RequestProDto> = {}): RequestProDto {
 }
 
 describe("buildRequestLifecycleViewModel", () => {
+  it("allows contract acceptance for a new service request when documents are ready", () => {
+    const request = makeCustomer({
+      subjectType: "SERVICE",
+      status: "NEW",
+      lockedAt: "2026-08-06T00:00:00.000Z",
+      totalAmountRubles: 11111,
+    });
+    const vm = buildRequestLifecycleViewModel({
+      side: "customer",
+      request,
+      canAcceptContract: true,
+    });
+    expect(vm.actions).toContainEqual(expect.objectContaining({ id: "openOfferDialog" }));
+    const discussing = buildRequestLifecycleViewModel({
+      side: "customer",
+      request: { ...request, status: "DISCUSSING" },
+      canAcceptContract: true,
+    });
+    expect(discussing.actions).toContainEqual(expect.objectContaining({ id: "openOfferDialog" }));
+  });
+
   it("customer: shows acceptance action on ACCEPTANCE_PENDING", () => {
     const req = makeCustomer({
       status: "ACCEPTANCE_PENDING",

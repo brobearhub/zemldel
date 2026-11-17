@@ -15,10 +15,10 @@ import {
 import Link from "@/shared/ui/Link";
 import {
   formatRequestNumber,
+  formatRubles,
   getRequestDisplayStatusLabel,
   orderReplyPreview,
   ReplyPreviewLines,
-  resolveRequestPriceView,
   visibleReplyPreview,
   type RequestCustomerDto,
   type RequestProDto,
@@ -197,7 +197,9 @@ function CustomerAvatar({
   );
 }
 
-export function ServiceRequestRow<T extends RequestProDto | RequestCustomerDto>({
+export function ServiceRequestRow<
+  T extends RequestProDto | RequestCustomerDto,
+>({
   request,
   title,
   customerView = false,
@@ -212,26 +214,25 @@ export function ServiceRequestRow<T extends RequestProDto | RequestCustomerDto>(
   const awaitingReply = customerView
     ? "awaitingProviderReply" in request && request.awaitingProviderReply
     : "awaitingCustomerReply" in request && request.awaitingCustomerReply;
-  const lastMessageAt = "lastMessageAt" in request ? request.lastMessageAt : null;
+  const lastMessageAt =
+    "lastMessageAt" in request ? request.lastMessageAt : null;
   const sentAt = awaitingReply ? lastMessageAt : null;
   const showSentMark = useReplySentMark(sentAt);
   const age = getRequestOpenAge(lastMessageAt ?? request.createdAt);
   const city = requestCityName(request);
+  const providerName =
+    customerView && "providerName" in request
+      ? request.providerName?.trim() || null
+      : null;
   const body = serviceRequestRowBody({
     title,
-    customerName:
-      customerView && "providerName" in request
-        ? request.providerName
-        : request.customerName,
-    message: request.message,
+    customerName: customerView ? null : request.customerName,
+    message:
+      customerView && request.subjectType === "SERVICE" && request.status === "NEW"
+        ? request.message?.trim() || request.customerLastMessage
+        : request.message,
   });
-  const priceView = customerView
-    ? resolveRequestPriceView({
-        totalAmountRubles: request.totalAmountRubles,
-        servicePriceRubles: request.servicePriceRubles,
-        priceProposal: request.priceProposal,
-      })
-    : null;
+  const price = request.totalAmountRubles ?? request.servicePriceRubles;
   const lines = visibleReplyPreview({
     lines: orderReplyPreview({
       customerMessage:
@@ -250,25 +251,61 @@ export function ServiceRequestRow<T extends RequestProDto | RequestCustomerDto>(
   const needsAction = lines.some(
     (line) => line.author === (customerView ? "provider" : "customer"),
   );
+  const showReplyControl =
+    needsAction ||
+    (customerView &&
+      request.subjectType === "SERVICE" &&
+      request.status === "NEW" &&
+      awaitingReply);
   const hasPreview = lines.length > 0;
   const lineColumn = stamp ? 2 : 1;
   const showAvatar = customerView || showCustomerAvatar;
+  const canDelete =
+    customerView &&
+    "canDeleteByCustomer" in request &&
+    request.canDeleteByCustomer &&
+    Boolean(onDelete);
   const avatarColumn = showAvatar ? lineColumn + 1 : null;
   const textColumn = (avatarColumn ?? lineColumn) + 1;
   const statusColumn = textColumn + 1;
-  const actionColumn = needsAction ? statusColumn + 1 : null;
-  const ageColumn = statusColumn + (needsAction ? 2 : 1);
+  const actionColumn = showReplyControl ? statusColumn + 1 : null;
+  const ageColumn = statusColumn + (showReplyControl ? 2 : 1);
   const gridTemplateColumns = [
     stamp ? "52px" : null,
     "1px",
     showAvatar ? "auto" : null,
     "minmax(0, 1fr)",
     "auto",
-    needsAction ? "auto" : null,
+    showReplyControl ? "auto" : null,
     "48px",
   ]
     .filter((column) => column != null)
     .join(" ");
+  const alignWaitingStatus = customerView && awaitingReply && showReplyControl;
+  const status = (
+    <Typography
+      sx={{
+        gridColumn: { xs: 1, md: alignWaitingStatus ? 1 : statusColumn },
+        gridRow: {
+          xs: alignWaitingStatus ? 1 : customerView ? 3 : 2,
+          md: alignWaitingStatus ? 1 : "1 / -1",
+        },
+        alignSelf: alignWaitingStatus ? "baseline" : "center",
+        justifySelf: { xs: "start", md: "end" },
+        m: 0,
+        fontSize: 10,
+        fontWeight: 800,
+        lineHeight: 1.3,
+        color: "text.secondary",
+        whiteSpace: { xs: "normal", md: "nowrap" },
+        overflowWrap: "anywhere",
+        pr: 2.5,
+        textTransform: "uppercase",
+      }}
+    >
+      {getRequestDisplayStatusLabel(request)}
+    </Typography>
+  );
 
   return (
     <Box
@@ -279,8 +316,14 @@ export function ServiceRequestRow<T extends RequestProDto | RequestCustomerDto>(
           md: gridTemplateColumns,
         },
         gridTemplateRows: {
-          xs: "auto auto auto auto",
-          md: hasPreview ? "auto auto" : "auto",
+          xs: customerView ? "auto auto auto auto auto" : "auto auto auto auto",
+          md: customerView
+            ? hasPreview
+              ? "auto auto auto"
+              : "auto auto"
+            : hasPreview
+              ? "auto auto"
+              : "auto",
         },
         columnGap: { xs: 1, md: 2 },
         alignItems: "center",
@@ -293,8 +336,14 @@ export function ServiceRequestRow<T extends RequestProDto | RequestCustomerDto>(
       }}
     >
       <Link
-        href={customerView ? `/profile/requests/${request.id}` : `/pro/requests/${request.id}`}
-        aria-disabled={customerView && request.status === "CLOSED" ? true : undefined}
+        href={
+          customerView
+            ? `/profile/requests/${request.id}`
+            : `/pro/requests/${request.id}`
+        }
+        aria-disabled={
+          customerView && request.status === "CLOSED" ? true : undefined
+        }
         onClick={
           customerView && request.status === "CLOSED"
             ? (event) => event.preventDefault()
@@ -414,17 +463,19 @@ export function ServiceRequestRow<T extends RequestProDto | RequestCustomerDto>(
               component="span"
               sx={{ fontWeight: 700, color: "text.primary" }}
             >
-              {request.number != null ? `${formatRequestNumber(request)} · ` : ""}
+              {request.number != null
+                ? `${formatRequestNumber(request)} · `
+                : ""}
               {title}
             </Box>
-            {city.length > 0 ? (
+            {!customerView && city.length > 0 ? (
               <Box
                 component="span"
                 sx={{ fontWeight: 400, color: "text.secondary" }}
               >{` · ${city}`}</Box>
             ) : null}
           </Typography>
-          {body.length > 0 && !needsAction ? (
+          {customerView && (providerName || city) ? (
             <Typography
               sx={{
                 mt: 0.25,
@@ -437,58 +488,38 @@ export function ServiceRequestRow<T extends RequestProDto | RequestCustomerDto>(
                 overflowWrap: "anywhere",
               }}
             >
-              {body}
+              {providerName}
+              {city ? (
+                <Box component="span">
+                  {providerName ? ` · ${city}` : city}
+                </Box>
+              ) : null}
             </Typography>
           ) : null}
-          {priceView ? (
+          {body.length > 0 && !needsAction ? (
             <Typography
-              variant="caption"
               sx={{
-                color: "text.secondary",
-                display: "block",
                 mt: 0.25,
+                color: customerView ? "text.secondary" : "text.primary",
+                fontSize: 15,
+                lineHeight: 1.4,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: { xs: "normal", md: "nowrap" },
+                overflowWrap: "anywhere",
               }}
             >
-              {priceView.headline}
-            </Typography>
-          ) : null}
-          {priceView?.servicePriceLabel ? (
-            <Typography
-              variant="caption"
-              sx={{
-                color: "text.secondary",
-                display: "block",
-              }}
-            >
-              {priceView.servicePriceLabel}
+              {body}
             </Typography>
           ) : null}
         </Box>
 
-        <Typography
-          sx={{
-            gridColumn: { xs: 1, md: statusColumn },
-            gridRow: { xs: 2, md: "1 / -1" },
-            alignSelf: "center",
-            justifySelf: { xs: "start", md: "end" },
-            m: 0,
-            fontSize: 10,
-            fontWeight: 800,
-            lineHeight: 1.3,
-            color: "text.secondary",
-            whiteSpace: { xs: "normal", md: "nowrap" },
-            overflowWrap: "anywhere",
-            pr: 2.5,
-            textTransform: "uppercase",
-          }}
-        >
-          {getRequestDisplayStatusLabel(request)}
-        </Typography>
+        {!alignWaitingStatus ? status : null}
 
         <Box
           sx={{
             gridColumn: { xs: 2, md: ageColumn },
-            gridRow: { xs: 2, md: "1 / -1" },
+            gridRow: { xs: customerView ? 3 : 2, md: canDelete ? 1 : "1 / -1" },
             alignSelf: "center",
             display: "flex",
             flexDirection: { xs: "row", md: "column" },
@@ -531,12 +562,83 @@ export function ServiceRequestRow<T extends RequestProDto | RequestCustomerDto>(
           )}
         </Box>
       </Link>
+      {alignWaitingStatus ? (
+        <Box
+          sx={{
+            gridColumn: { xs: 1, md: `${statusColumn} / ${ageColumn}` },
+            gridRow: { xs: 3, md: "1 / -1" },
+            alignSelf: "center",
+            display: "grid",
+            gridTemplateColumns: { xs: "auto auto", md: "subgrid" },
+            alignItems: "baseline",
+            columnGap: { xs: 1, md: 2 },
+            minWidth: 0,
+            position: "relative",
+            zIndex: 1,
+            pointerEvents: "none",
+          }}
+        >
+          {status}
+          <ReplyAction awaiting onReply={() => onReply(request)} />
+        </Box>
+      ) : null}
+      {customerView ? (
+        <Box
+          sx={{
+            gridColumn: { xs: "1 / -1", md: textColumn },
+            gridRow: 2,
+            display: "flex",
+            alignItems: "baseline",
+            flexWrap: "wrap",
+            gap: 0.5,
+            minWidth: 0,
+            mt: 0.25,
+            position: "relative",
+            zIndex: 1,
+            pointerEvents: "none",
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            {price == null ? "Цена работ не указана" : formatRubles(price)}
+          </Typography>
+          <Typography
+            component="span"
+            variant="caption"
+            color="text.secondary"
+            aria-hidden="true"
+          >
+            {" · "}
+          </Typography>
+          {request.subjectType === "SERVICE" && request.serviceId ? (
+            <Link
+              href={`/services/${request.serviceId}`}
+              sx={{
+                fontSize: 14,
+                fontWeight: 700,
+                pointerEvents: "auto",
+              }}
+            >
+              Услуга
+            </Link>
+          ) : (
+            <Typography
+              component="span"
+              variant="caption"
+              color="text.secondary"
+            >
+              {request.subjectType === "SERVICE"
+                ? "Услуга"
+                : "Свободная заявка"}
+            </Typography>
+          )}
+        </Box>
+      ) : null}
       {/* Why: пара реплик под именем. Кнопка вне ссылки, чтобы клик не открывал заявку. */}
       {hasPreview ? (
         <Box
           sx={{
             gridColumn: { xs: "1 / -1", md: textColumn },
-            gridRow: { xs: 3, md: 2 },
+            gridRow: { xs: customerView ? 4 : 3, md: customerView ? 3 : 2 },
             mt: 1,
             minWidth: 0,
             position: "relative",
@@ -554,11 +656,14 @@ export function ServiceRequestRow<T extends RequestProDto | RequestCustomerDto>(
           />
         </Box>
       ) : null}
-      {needsAction ? (
+      {showReplyControl && !alignWaitingStatus ? (
         <Box
           sx={{
-            gridColumn: { xs: "1 / -1", md: actionColumn ?? undefined },
-            gridRow: { xs: 4, md: "1 / -1" },
+            gridColumn: {
+              xs: customerView && canDelete ? 1 : "1 / -1",
+              md: actionColumn ?? undefined,
+            },
+            gridRow: { xs: customerView ? 5 : 4, md: "1 / -1" },
             justifySelf: { xs: "end", md: "auto" },
             mt: { xs: 1, md: 0 },
             alignSelf: "center",
@@ -574,16 +679,16 @@ export function ServiceRequestRow<T extends RequestProDto | RequestCustomerDto>(
           />
         </Box>
       ) : null}
-      {customerView && "canDeleteByCustomer" in request && request.canDeleteByCustomer && onDelete ? (
+      {canDelete ? (
         <IconButton
           size="small"
           color="error"
           aria-label="Удалить заявку"
           loading={deleting}
-          onClick={() => onDelete(request)}
+          onClick={() => onDelete?.(request)}
           sx={{
             gridColumn: { xs: 2, md: ageColumn },
-            gridRow: { xs: 4, md: 2 },
+            gridRow: { xs: 5, md: 2 },
             justifySelf: "center",
             position: "relative",
             zIndex: 1,
@@ -591,22 +696,6 @@ export function ServiceRequestRow<T extends RequestProDto | RequestCustomerDto>(
         >
           <CloseRoundedIcon fontSize="small" />
         </IconButton>
-      ) : null}
-      {customerView && request.serviceId ? (
-        <Link
-          href={`/services/${request.serviceId}`}
-          sx={{
-            gridColumn: "1 / -1",
-            gridRow: { xs: 5, md: hasPreview ? 3 : 2 },
-            justifySelf: "end",
-            position: "relative",
-            zIndex: 1,
-            fontSize: 14,
-            fontWeight: 700,
-          }}
-        >
-          Услуга
-        </Link>
       ) : null}
     </Box>
   );

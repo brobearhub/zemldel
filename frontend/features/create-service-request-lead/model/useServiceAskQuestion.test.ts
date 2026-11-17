@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useServiceAskQuestion } from "./useServiceAskQuestion";
 import { ServiceRequestAuthRequiredError } from "../api/service-request-lead.api";
 import { readPendingRequestDraft } from "@/entities/request";
+import { DEFAULT_SERVICE_REQUEST_GREETING } from "@/entities/request/api/send-initial-service-message";
 
 const router = {
   push: vi.fn(),
@@ -61,8 +62,12 @@ describe("useServiceAskQuestion", () => {
       cadastralNumbers: [],
     });
     expect(api.ensureRequestConversation).toHaveBeenCalledWith({ serviceRequestId: "r1" });
-    expect(api.postConversationMessage).not.toHaveBeenCalled();
-    expect(router.push).toHaveBeenCalledWith("/profile/requests/r1");
+    expect(api.postConversationMessage).toHaveBeenCalledWith({
+      conversationId: "c1",
+      body: DEFAULT_SERVICE_REQUEST_GREETING,
+      clientMessageId: "r1",
+    });
+    expect(router.push).toHaveBeenCalledWith("/profile/requests/r1?created=1");
     expect(result.current.error).toBeNull();
   });
 

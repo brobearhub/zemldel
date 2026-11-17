@@ -6,7 +6,6 @@ import { useSession } from "next-auth/react";
 import { io, type Socket } from "socket.io-client";
 import type {
   ChatJoinConversationAck,
-  ChatInboxItemDto,
   ChatUnreadHintPayload,
 } from "@/entities/chat/dto/chat.dto";
 import { getChatSocketUrl } from "@/shared/config/chat-socket";
@@ -16,6 +15,12 @@ import {
 } from "./ChatSocketContext";
 
 const TOKEN_REFRESH_MS = 240_000;
+
+type UnreadSnapshotItem = {
+  conversationId: string;
+  serviceRequestId: string | null;
+  unreadCount: number;
+};
 
 type Props = {
   readonly children: ReactNode;
@@ -65,6 +70,11 @@ export function ChatSocketProvider({ children }: Props) {
   const openConversationIdRef = useRef<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const tokenRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const deletedRequestIds = useRef(new Set<string>());
+
+  useEffect(() => {
+    deletedRequestIds.current.clear();
+  }, [userId, status]);
 
   const setOpenConversationId = useCallback((conversationId: string | null) => {
     openConversationIdRef.current = conversationId;
@@ -94,12 +104,12 @@ export function ChatSocketProvider({ children }: Props) {
   }, []);
 
   const applyUnreadHint = useCallback((hint: ChatUnreadHintPayload) => {
+    const id = hint.serviceRequestId ?? hint.subjectId;
+    if (!id || deletedRequestIds.current.has(id)) return;
     if (hint.conversationId === openConversationIdRef.current) {
       return;
     }
     unreadRevision.current += 1;
-    const id = hint.serviceRequestId ?? hint.subjectId;
-    if (!id) return;
     setUnreadConversations((prev) => ({
       ...prev,
       [hint.conversationId]: {
@@ -109,26 +119,75 @@ export function ChatSocketProvider({ children }: Props) {
     }));
   }, []);
 
-  const inboxRole = session?.user?.accountKind === "PROVIDER" ? "provider" : "customer";
+  const removeDeletedRequestUnread = useCallback((requestId: string) => {
+    deletedRequestIds.current.add(requestId);
+    unreadRevision.current += 1;
+    setUnreadConversations((previous) =>
+      Object.fromEntries(
+        Object.entries(previous).filter(([, entry]) => entry.requestId !== requestId),
+      ),
+    );
+  }, []);
+
+  const inboxRole =
+    session?.user?.accountKind === "PROVIDER" ? "provider" : "customer";
   useEffect(() => {
     if (!userId || !socketConnected) return;
     const controller = new AbortController();
-    const restore = async () => {
-      const revision = unreadRevision.current;
-      try {
-        const response = await fetch(`/api/chat/inbox?role=${inboxRole}`, { cache: "no-store", signal: controller.signal });
-        if (!response.ok) return;
-        const items = await response.json() as ChatInboxItemDto[];
-        if (controller.signal.aborted || revision !== unreadRevision.current || !Array.isArray(items)) return;
-        setUnreadConversations(current => {
-          const next = { ...current };
-          for (const item of items) if (item.conversationId && item.unreadCount != null) next[item.conversationId] = { requestId: item.serviceRequestId, count: item.conversationId === openConversationIdRef.current ? 0 : item.unreadCount };
-          return next;
-        });
-      } catch { /* Reconnect and focus retry the snapshot. */ }
+    let running = false;
+    let pending = false;
+
+    const restore = () => {
+      pending = true;
+      if (running) return;
+      running = true;
+      void (async () => {
+        while (pending && !controller.signal.aborted) {
+          pending = false;
+          const revision = unreadRevision.current;
+          try {
+            const response = await fetch(`/api/chat/unread?role=${inboxRole}`, {
+              cache: "no-store",
+              signal: controller.signal,
+            });
+            if (!response.ok) continue;
+            const items = (await response.json()) as UnreadSnapshotItem[];
+            if (controller.signal.aborted || !Array.isArray(items)) continue;
+            if (pending || revision !== unreadRevision.current) {
+              // One further snapshot reconciles all events received in flight.
+              pending = true;
+              continue;
+            }
+            const next: Record<string, { requestId: string | null; count: number }> = {};
+            for (const item of items) {
+              if (
+                !item.conversationId ||
+                item.unreadCount == null ||
+                (item.serviceRequestId && deletedRequestIds.current.has(item.serviceRequestId))
+              ) continue;
+              next[item.conversationId] = {
+                requestId: item.serviceRequestId,
+                count: item.conversationId === openConversationIdRef.current
+                  ? 0
+                  : item.unreadCount,
+              };
+            }
+            setUnreadConversations(next);
+          } catch {
+            // Reconnect and focus retry the snapshot.
+          }
+        }
+        running = false;
+      })();
     };
-    void restore(); window.addEventListener("focus", restore);
-    return () => { controller.abort(); window.removeEventListener("focus", restore); };
+    void restore();
+    window.addEventListener("focus", restore);
+    window.addEventListener("chat:unread-sync", restore);
+    return () => {
+      controller.abort();
+      window.removeEventListener("focus", restore);
+      window.removeEventListener("chat:unread-sync", restore);
+    };
   }, [userId, inboxRole, socketConnected]);
 
   const joinConversationRoom = useCallback(async (conversationId: string) => {
@@ -229,7 +288,10 @@ export function ChatSocketProvider({ children }: Props) {
       setSocketConnected(true);
       window.dispatchEvent(new Event("request:sync"));
     });
-    s.on("request.changed", (payload: { requestId: string }) => {
+    s.on("request.changed", (payload: { requestId: string; deleted?: boolean }) => {
+      if (payload.deleted === true && payload.requestId) {
+        removeDeletedRequestUnread(payload.requestId);
+      }
       window.dispatchEvent(
         new CustomEvent("request:changed", { detail: payload }),
       );
@@ -241,6 +303,9 @@ export function ChatSocketProvider({ children }: Props) {
     s.on("connect_error", scheduleRetry);
     s.on("chat.unreadHint", (hint: ChatUnreadHintPayload) => {
       applyUnreadHint(hint);
+      // The snapshot may already contain this message when its socket hint
+      // arrives. Reconcile the optimistic increment with the server count.
+      window.dispatchEvent(new Event("chat:unread-sync"));
     });
 
     const onOnline = () => {
@@ -266,7 +331,7 @@ export function ChatSocketProvider({ children }: Props) {
       setSocket(null);
       setSocketConnected(false);
     };
-  }, [status, userId, applyUnreadHint]);
+  }, [status, userId, applyUnreadHint, removeDeletedRequestUnread]);
 
   if (status !== "authenticated" || !userId) {
     return (

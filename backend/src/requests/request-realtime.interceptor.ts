@@ -93,8 +93,11 @@ export class RequestRealtimeInterceptor implements NestInterceptor {
           if (id) {
             const recipients =
               deletedRecipients ?? (await this.getRecipients(id));
-            for (const userId of recipients)
-              this.gateway.emitRequestChanged(userId, id);
+            for (const userId of recipients) {
+              if (request.method === 'DELETE' && route === 'requests/mine/:id')
+                this.gateway.emitRequestChanged(userId, id, true);
+              else this.gateway.emitRequestChanged(userId, id);
+            }
           }
         } catch (error) {
           // A notification failure must never turn a committed write into a failed response.

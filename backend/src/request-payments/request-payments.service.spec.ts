@@ -19,6 +19,84 @@ function makeService(prisma: object, providerId = PROVIDER_ID, chat?: object) {
 }
 
 describe('RequestPaymentsService', () => {
+  it('replaces the initial service price when the provider changes it', async () => {
+    const initialPrice = {
+      id: 'initial-price',
+      providerId: PROVIDER_ID,
+      amountRubles: 11111,
+      authorSide: 'PROVIDER' as const,
+      proposedByUserId: null,
+      acceptedAt: null,
+      acceptedByUserId: null,
+      isDirectSet: true,
+      supersededAt: null,
+      createdAt: NOW,
+    };
+    const updatedPrice = {
+      ...initialPrice,
+      id: 'updated-price',
+      amountRubles: 15000,
+      proposedByUserId: 'provider-user',
+    };
+    const tx = {
+      requestPriceProposal: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        create: vi.fn().mockResolvedValue(updatedPrice),
+      },
+      request: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        update: vi
+          .fn()
+          .mockResolvedValue({ totalAmountRubles: 15000, payments: [] }),
+      },
+      requestEvent: { create: vi.fn().mockResolvedValue(null) },
+    };
+    const prisma = {
+      request: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'r1',
+          status: 'DISCUSSING',
+          providerId: PROVIDER_ID,
+          customerUserId: 'customer',
+          lockedAt: NOW,
+          contractAcceptedAt: null,
+          totalAmountRubles: 11111,
+          payments: [],
+          priceProposals: [initialPrice],
+        }),
+      },
+      $transaction: vi.fn((run: (client: typeof tx) => unknown) => run(tx)),
+    };
+    const service = makeService(prisma);
+    vi.spyOn(
+      service as unknown as { noteTargets: () => Promise<string[]> },
+      'noteTargets',
+    ).mockResolvedValue([]);
+
+    const result = await service.proposePriceForProvider({
+      actorUserId: 'provider-user',
+      requestId: 'r1',
+      amountRubles: 15000,
+    });
+    expect(tx.requestPriceProposal.updateMany).toHaveBeenCalledWith({
+      where: { requestId: 'r1', providerId: PROVIDER_ID, supersededAt: null },
+      data: { supersededAt: expect.any(Date) },
+    });
+    expect(tx.requestPriceProposal.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          amountRubles: 15000,
+          proposedByUserId: 'provider-user',
+          isDirectSet: true,
+        }),
+      }),
+    );
+    expect(tx.request.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { totalAmountRubles: 15000 } }),
+    );
+    expect(result.totalAmountRubles).toBe(15000);
+  });
+
   it('provider finance reads only payments from its server-derived scope', async () => {
     const prisma = {
       request: {

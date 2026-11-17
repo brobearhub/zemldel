@@ -8,6 +8,7 @@ export type RequestDetailHeaderCardProps = {
   subtitle: string;
   reference?: string;
   statusLabel: string;
+  requestLabel?: string;
   /** Текст заявки в белой карточке; если null — карточка скрыта */
   body: string | null;
   /** Произвольный контент между заголовком и текстом заявки */
@@ -29,6 +30,7 @@ export function RequestDetailHeaderCard({
   subtitle,
   reference,
   statusLabel,
+  requestLabel,
   body,
   details,
   afterBody,
@@ -93,23 +95,37 @@ export function RequestDetailHeaderCard({
               {subtitle}
             </Typography>
           </Stack>
-          <Chip
-            size="small"
-            label={statusLabel}
-            sx={(theme) => ({
-              flexShrink: 0,
-              alignSelf: "flex-start",
-              mt: 0.25,
-              bgcolor: "background.paper",
-              color: "text.secondary",
-              fontWeight: 600,
-              border: "1px solid",
-              borderColor: "divider",
-              height: "auto",
-              minHeight: 36,
-              "& .MuiChip-label": { px: 1.25 },
-            })}
-          />
+          {requestLabel ? (
+            <Typography
+              variant="h4"
+              sx={{
+                flexShrink: 0,
+                alignSelf: "flex-start",
+                fontWeight: 700,
+                color: "text.primary",
+              }}
+            >
+              {requestLabel}
+            </Typography>
+          ) : (
+            <Chip
+              size="small"
+              label={statusLabel}
+              sx={{
+                flexShrink: 0,
+                alignSelf: "flex-start",
+                mt: 0.25,
+                bgcolor: "background.paper",
+                color: "text.secondary",
+                fontWeight: 600,
+                border: "1px solid",
+                borderColor: "divider",
+                height: "auto",
+                minHeight: 36,
+                "& .MuiChip-label": { px: 1.25 },
+              }}
+            />
+          )}
         </Stack>
 
         {nextStep}

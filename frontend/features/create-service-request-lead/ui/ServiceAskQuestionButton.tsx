@@ -9,7 +9,7 @@ import {
 } from "@/entities/request";
 import { CadastralNumberChipsField } from "@/shared/ui/CadastralNumberChipsField";
 import { useServiceAskQuestion } from "@/features/create-service-request-lead/model/useServiceAskQuestion";
-import { DEFAULT_SERVICE_QUESTION } from "@/features/create-service-request-lead";
+import { DEFAULT_SERVICE_QUESTION } from "../lib/default-greeting";
 
 type Props = {
   serviceId: string;
@@ -18,7 +18,7 @@ type Props = {
 
 export function ServiceAskQuestionButton({ serviceId, serviceTitle }: Props) {
   const form = useServiceAskQuestion({ serviceId, serviceTitle });
-  const [question, setQuestion] = useState("");
+  const [question, setQuestion] = useState(DEFAULT_SERVICE_QUESTION);
   const [cadastralNumbers, setCadastralNumbers] = useState<CadastralNumberParts[]>([createEmptyCadastralParts()]);
 
   return (
@@ -27,7 +27,6 @@ export function ServiceAskQuestionButton({ serviceId, serviceTitle }: Props) {
 
       <TextField
         label="Вопрос (необязательно)"
-        placeholder={DEFAULT_SERVICE_QUESTION}
         multiline
         minRows={3}
         value={question}
