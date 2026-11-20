@@ -36,10 +36,10 @@ export function HomeMobileHelpButton({
       type="button"
       variant="outlined"
       fullWidth
-      aria-label="Помощь"
       onClick={() => setOpen(true)}
       sx={{
         display: { xs: "flex", md: "none" },
+        [theme.media.phoneLandscape]: { display: "flex" },
         my: 2,
         border: "1px solid",
         borderColor: "divider",

@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Button, Container, Stack, Typography } from "@mui/material";
+import { Box, Container, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import type { ServiceCardItem } from "@/entities/service";
 
@@ -175,43 +175,19 @@ export function HomeStickyRequestLayout({
           })}
         >
           <Box
+            component="section"
+            id="home-services"
+            aria-label="Каталог услуг"
+            tabIndex={-1}
             sx={(theme) => ({
               minWidth: 0,
               order: { xs: 2, md: 0 },
               [theme.media.phoneLandscape]: { order: 2 },
+              scrollMarginTop: `calc(${SITE_STICKY_TOP_PX}px + var(--home-cats-bar-h, 0px) + 16px)`,
+              outline: "none",
             })}
           >
-            <Stack spacing={{ xs: 3, md: 3 }}>
-              {isAuthenticated ? (
-                <Box
-                  sx={(theme) => ({
-                    display: { xs: "block", md: "none" },
-                    [theme.media.phoneLandscape]: { display: "block" },
-                  })}
-                >
-                  <Button
-                    variant="contained"
-                    size="small"
-                    fullWidth
-                    onClick={() => setHelpOpen(true)}
-                  >
-                    Создать заявку
-                  </Button>
-                </Box>
-              ) : null}
-              <Box
-                component="section"
-                id="home-services"
-                aria-label="Каталог услуг"
-                tabIndex={-1}
-                sx={{
-                  scrollMarginTop: `calc(${SITE_STICKY_TOP_PX}px + var(--home-cats-bar-h, 0px) + 16px)`,
-                  outline: "none",
-                }}
-              >
-                <HomeServicesByCity initialItems={initialServices} />
-              </Box>
-            </Stack>
+            <HomeServicesByCity initialItems={initialServices} />
           </Box>
 
           <Box
