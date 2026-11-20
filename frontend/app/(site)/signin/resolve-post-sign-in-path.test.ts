@@ -73,6 +73,14 @@ describe("resolvePostSignInPath", () => {
   it("returns an authenticated provider to the original request", () => {
     expect(resolvePostSignInPath({accountKind: "PROVIDER", hasProviderMembership: true, returnTo: "/pro/requests/qa?tab=chat"})).toBe("/pro/requests/qa?tab=chat");
   });
+  it.each(["/lands/new", "/lands/new?kind=SELECTION", "/lands/mine", "/lands/listing-id/edit"])(
+    "возвращает клиента и исполнителя с профилем к объявлениям: %s",
+    (returnTo) => {
+      expect(resolvePostSignInPath({ accountKind: "CUSTOMER", hasProviderMembership: false, returnTo })).toBe(returnTo);
+      expect(resolvePostSignInPath({ accountKind: "PROVIDER", hasProviderMembership: true, returnTo })).toBe(returnTo);
+      expect(resolvePostSignInPath({ accountKind: "PROVIDER", hasProviderMembership: false, returnTo })).toBe("/providers/new");
+    },
+  );
   it.each(["https://other.test/pro", "//other.test/pro", "/profile/requests/private"])("does not return a provider to an unsafe or customer path: %s", returnTo => {
     expect(resolvePostSignInPath({accountKind: "PROVIDER", hasProviderMembership: true, returnTo})).toBe("/pro/requests/feed");
   });

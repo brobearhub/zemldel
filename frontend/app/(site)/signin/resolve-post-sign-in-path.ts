@@ -1,6 +1,8 @@
 import { isSafeReturnToPath } from "@/core/auth/session-recovery";
 import type { AccountKind } from "@/core/auth/authorization";
 
+const LAND_MANAGEMENT_PATH = /^\/lands\/(?:new|mine|[\w-]+\/edit)\/?(?:[?#]|$)/;
+
 function isProviderArea(path: string): boolean {
   const pathname = path.split("?")[0] ?? path;
   return (
@@ -22,7 +24,11 @@ export function resolvePostSignInPath(input: {
     return input.returnTo;
   }
   if (input.accountKind === "PROVIDER") {
-    if (input.hasProviderMembership && isSafeReturnToPath(input.returnTo) && isProviderArea(input.returnTo)) {
+    if (
+      input.hasProviderMembership &&
+      isSafeReturnToPath(input.returnTo) &&
+      (isProviderArea(input.returnTo) || LAND_MANAGEMENT_PATH.test(input.returnTo))
+    ) {
       return input.returnTo;
     }
     return input.hasProviderMembership ? "/pro/requests/feed" : "/providers/new";

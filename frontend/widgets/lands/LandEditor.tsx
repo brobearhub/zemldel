@@ -28,6 +28,7 @@ import LockOutlined from "@mui/icons-material/LockOutlined";
 import VisibilityOutlined from "@mui/icons-material/VisibilityOutlined";
 import WorkOutlineRounded from "@mui/icons-material/WorkOutlineRounded";
 import AssignmentOutlined from "@mui/icons-material/AssignmentOutlined";
+import { buildSignInHref } from "@/core/auth/session-recovery";
 import type { ServicePlace } from "@/entities/service";
 import type { CitySuggestItemDto } from "@/entities/city";
 import { ServiceGeographyField } from "@/features/select-service-places";
@@ -126,8 +127,14 @@ export function LandEditor({
   initial?: LandListing;
   initialKind?: LandKind;
 }) {
-  const { data: session, status } = useSession();
   const router = useRouter();
+  const { data: session, status } = useSession({
+    required: true,
+    onUnauthenticated() {
+      const { pathname, search } = window.location;
+      router.replace(buildSignInHref(pathname + search));
+    },
+  });
   const [draft, setDraft] = useState<LandDraft>(
     () => initial ?? { ...emptyLandDraft(), kind: initialKind },
   );
@@ -537,28 +544,6 @@ export function LandEditor({
         sx={{ m: 3 }}
       />
     );
-  if (!session?.user) {
-    return (
-      <Stack
-        spacing={2}
-        sx={{
-          p: 4,
-          alignItems: "flex-start",
-        }}
-      >
-        <Typography variant="h5">
-          Войдите, чтобы разместить объявление
-        </Typography>
-        <Button
-          component={Link}
-          href={`/signin?returnTo=${encodeURIComponent(`/lands/new?kind=${initialKind}`)}`}
-          variant="contained"
-        >
-          Войти
-        </Button>
-      </Stack>
-    );
-  }
 
   function locationHint() {
     if (addressLookup === "loading") return "Ищем координаты выбранного адреса…";
