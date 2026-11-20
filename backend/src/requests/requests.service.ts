@@ -373,7 +373,7 @@ export class RequestsService {
 
     return pickLatestProviderMessage(
       messages.flatMap((message) =>
-        message.conversation.requestId
+        message.conversation.requestId && message.conversation.providerId
           ? [
               {
                 body: message.body,
@@ -425,7 +425,7 @@ export class RequestsService {
 
     return pickLatestCustomerMessage(
       messages.flatMap((message) =>
-        message.conversation.requestId
+        message.conversation.requestId && message.conversation.providerId
           ? [
               {
                 body: message.body,
@@ -753,6 +753,7 @@ export class RequestsService {
         id: true,
         providerId: true,
         price: true,
+        landListing: { select: { id: true } },
       },
     });
     if (!service) {
@@ -790,8 +791,26 @@ export class RequestsService {
     );
 
     const create = async (tx: Prisma.TransactionClient) => {
+      let servicePrice = service.price;
+      if (service.landListing) {
+        // Serialize request creation with land edits/withdrawal. The linked
+        // service must still be published when the request is committed.
+        const listingId = service.landListing.id;
+        await tx.$queryRaw`SELECT id FROM "LandListing" WHERE id = ${listingId}::uuid FOR UPDATE`;
+        const current = await tx.service.findFirst({
+          where: {
+            id: service.id,
+            status: 'PUBLISHED',
+            landListing: { id: listingId, status: 'PUBLISHED' },
+          },
+          select: { price: true },
+        });
+        if (!current)
+          throw new NotFoundException('Предложение подбора больше не доступно');
+        servicePrice = current.price;
+      }
       const now = new Date();
-      const initialPriceRubles = parseFixedServicePriceRubles(service.price);
+      const initialPriceRubles = parseFixedServicePriceRubles(servicePrice);
       const next = await tx.request.create({
         data: {
           status: 'NEW',
@@ -2434,7 +2453,7 @@ export class RequestsService {
         },
         select: { providerId: true },
       });
-      if (!conv) {
+      if (!conv?.providerId) {
         throw new NotFoundException('Conversation not found');
       }
 

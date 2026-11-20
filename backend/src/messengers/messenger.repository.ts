@@ -376,7 +376,8 @@ export class MessengerRepository {
         include: { conversation: true },
       });
       if (
-        message.conversation.kind === 'DIRECT' ||
+        message.conversation.kind !== 'REQUEST' ||
+        !message.conversation.providerId ||
         !message.conversation.requestId
       )
         return;

@@ -32,7 +32,7 @@ export async function requirePartnerChatAccess(
   tx: Prisma.TransactionClient,
   userId: string,
   conversation: {
-    providerId: string;
+    providerId: string | null;
     partnerProviderId: string | null;
     partnershipId: string | null;
   },

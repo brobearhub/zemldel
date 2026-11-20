@@ -21,6 +21,7 @@ import { LocationPicker } from "./LocationPicker";
 type Props = {
   open: boolean;
   title: string;
+  initialSearch?: string;
   value: CitySuggestItemDto | null;
   busy?: boolean;
   error?: string | null;
@@ -32,6 +33,7 @@ type Props = {
 export function LocationDialog({
   open,
   title,
+  initialSearch,
   value,
   busy,
   error,
@@ -117,6 +119,7 @@ export function LocationDialog({
           </Alert>
         ) : null}
         <LocationPicker
+          initialSearch={initialSearch}
           value={value}
           disabled={busy}
           fill={fullScreen}

@@ -1,3 +1,4 @@
+import { LandChatService } from './land-chat.service';
 import { DirectChatService, chatMessageInclude } from './direct-chat.service';
 import { PartnerChatService } from './partner-chat.service';
 import { requirePartnerChatAccess } from '../partners/partner-access';
@@ -67,7 +68,8 @@ export type ChatInboxItemDto = {
   requestStatus?: string;
   contractPhase?: boolean;
   serviceRequestId: string | null;
-  kind?: 'REQUEST' | 'DIRECT' | 'PARTNER';
+  kind?: 'REQUEST' | 'DIRECT' | 'PARTNER' | 'LAND';
+  landListingId?: string;
   directState?: string | null;
   requestNumber: number | null;
   title: string;
@@ -79,6 +81,7 @@ export type ChatInboxItemDto = {
 @Injectable()
 export class ChatService {
   private readonly direct: DirectChatService;
+  private readonly landChat: LandChatService;
   private readonly partnerChat: PartnerChatService;
   constructor(
     private readonly prisma: PrismaService,
@@ -88,11 +91,18 @@ export class ChatService {
     private readonly plans: PlanService = new PlanService(prisma),
   ) {
     this.direct = new DirectChatService(prisma, plans);
+    this.landChat = new LandChatService(prisma);
     this.partnerChat = new PartnerChatService(prisma);
   }
 
   getRequiredActorUserId(request: Request) {
     return this.internalAuth.getUserIdFromRequest(request);
+  }
+
+  async startLand(userId: string, listingId: string) {
+    const result = await this.landChat.start(userId, listingId);
+    await this.notifyDirectChanged(result.conversationId);
+    return result;
   }
 
   notifyFreeRequestCreated(payload: FreeRequestNotification) {
@@ -324,6 +334,7 @@ export class ChatService {
         providerId: true,
         partnerProviderId: true,
         partnershipId: true,
+        landSellerUserId: true,
         customerUserId: true,
       },
     });
@@ -332,8 +343,16 @@ export class ChatService {
       throw new NotFoundException('Conversation not found');
     }
 
+    if (conv.kind === 'LAND') {
+      await this.landChat.authorize(this.prisma, userId, conv);
+      return conv;
+    }
+    if (!conv.providerId) throw new ForbiddenException('Invalid conversation');
     if (conv.kind === 'PARTNER') {
-      await requirePartnerChatAccess(this.prisma, userId, conv);
+      await requirePartnerChatAccess(this.prisma, userId, {
+        ...conv,
+        providerId: conv.providerId,
+      });
       return conv;
     }
     if (conv.kind === 'DIRECT') {
@@ -433,57 +452,83 @@ export class ChatService {
         throw new ForbiddenException('Forbidden');
       }
 
+      const workWhere: Prisma.ConversationWhereInput = {
+        AND: [
+          {
+            OR: [
+              { providerId },
+              { kind: 'PARTNER', partnerProviderId: providerId },
+            ],
+          },
+          {
+            OR: [
+              { messages: { some: {} } },
+              { kind: 'PARTNER', partnership: { status: 'ACTIVE' } },
+              { kind: 'LAND' },
+            ],
+          },
+        ],
+        ...(user.providerMemberships.find(
+          (member) => member.providerId === providerId,
+        )?.role === 'EMPLOYEE'
+          ? {
+              kind: 'REQUEST',
+              request: {
+                providerId,
+                assignedMember: { userId: actorUserId, status: 'ACTIVE' },
+                status: { not: 'CLOSED' },
+              },
+            }
+          : {
+              OR: [
+                { kind: 'DIRECT' as const },
+                { kind: 'LAND' as const },
+                {
+                  kind: 'PARTNER' as const,
+                  partnership: { status: 'ACTIVE' as const },
+                },
+                {
+                  kind: 'REQUEST' as const,
+                  request: { status: { not: 'CLOSED' as const } },
+                },
+              ],
+            }),
+      };
       return {
         providerId,
         where: {
-          AND: [
+          OR: [
+            workWhere,
             {
+              kind: 'LAND',
               OR: [
-                { providerId },
-                { kind: 'PARTNER', partnerProviderId: providerId },
-              ],
-            },
-            {
-              OR: [
-                { messages: { some: {} } },
-                { kind: 'PARTNER', partnership: { status: 'ACTIVE' } },
+                { customerUserId: actorUserId },
+                { landSellerUserId: actorUserId, providerId: null },
               ],
             },
           ],
-          ...(user.providerMemberships.find(
-            (member) => member.providerId === providerId,
-          )?.role === 'EMPLOYEE'
-            ? {
-                kind: 'REQUEST',
-                request: {
-                  providerId,
-                  assignedMember: { userId: actorUserId, status: 'ACTIVE' },
-                  status: { not: 'CLOSED' },
-                },
-              }
-            : {
-                OR: [
-                  { kind: 'DIRECT' as const },
-                  {
-                    kind: 'PARTNER' as const,
-                    partnership: { status: 'ACTIVE' as const },
-                  },
-                  {
-                    kind: 'REQUEST' as const,
-                    request: { status: { not: 'CLOSED' as const } },
-                  },
-                ],
-              }),
         },
       };
     }
     return {
       providerId: null,
       where: {
-        customerUserId: actorUserId,
-        kind: { not: 'PARTNER' },
-        messages: { some: {} },
-        OR: [{ kind: 'DIRECT' }, { request: { status: { not: 'CLOSED' } } }],
+        AND: [
+          {
+            OR: [
+              { customerUserId: actorUserId },
+              { kind: 'LAND', landSellerUserId: actorUserId, providerId: null },
+            ],
+          },
+          { OR: [{ kind: 'LAND' }, { messages: { some: {} } }] },
+          {
+            OR: [
+              { kind: 'LAND' },
+              { kind: 'DIRECT' },
+              { kind: 'REQUEST', request: { status: { not: 'CLOSED' } } },
+            ],
+          },
+        ],
       },
     };
   }
@@ -501,11 +546,16 @@ export class ChatService {
       },
     });
     const visible = rows.filter((row) => {
-      if (row.kind === 'DIRECT' || row.kind === 'PARTNER') return true;
+      if (
+        row.kind === 'DIRECT' ||
+        row.kind === 'PARTNER' ||
+        row.kind === 'LAND'
+      )
+        return true;
       if (!row.request || !row.requestId) return false;
       return (
         role !== 'customer' ||
-        !isLockedToOtherProvider(row.request, row.providerId)
+        !isLockedToOtherProvider(row.request, row.providerId ?? '')
       );
     });
     const counts = await this.inboxUnreadCounts(
@@ -541,6 +591,11 @@ export class ChatService {
           id: true,
           kind: true,
           directState: true,
+          landListing: { select: { id: true, title: true } },
+          customerUserId: true,
+          landSellerUser: {
+            select: { name: true, firstName: true, lastName: true },
+          },
           customerUser: {
             select: { name: true, firstName: true, lastName: true },
           },
@@ -577,6 +632,26 @@ export class ChatService {
       const seen = new Set<string>();
       const result: ChatInboxItemDto[] = [];
       for (const c of rows) {
+        if (c.kind === 'LAND') {
+          result.push({
+            conversationId: c.id,
+            kind: 'LAND',
+            landListingId: c.landListing?.id,
+            peerName:
+              c.customerUserId === actorUserId
+                ? c.provider?.name ||
+                  (c.landSellerUser
+                    ? shortCustomerName(c.landSellerUser)
+                    : 'Продавец')
+                : shortCustomerName(c.customerUser),
+            serviceRequestId: null,
+            requestNumber: null,
+            title: c.landListing?.title || 'Участок',
+            lastMessageAt: c.lastMessageAt?.toISOString() ?? null,
+            lastSnippet: c.messages[0]?.body.slice(0, SNIPPET_LEN) ?? null,
+          });
+          continue;
+        }
         if (c.kind === 'PARTNER') {
           result.push({
             conversationId: c.id,
@@ -584,7 +659,7 @@ export class ChatService {
             peerName:
               (c.providerId === providerId
                 ? c.partnerProvider?.name
-                : c.provider.name) ?? 'Партнёр',
+                : c.provider?.name) ?? 'Партнёр',
             serviceRequestId: null,
             requestNumber: null,
             title: 'Партнёр',
@@ -648,6 +723,14 @@ export class ChatService {
         id: true,
         kind: true,
         directState: true,
+        customerUserId: true,
+        customerUser: {
+          select: { name: true, firstName: true, lastName: true },
+        },
+        landSellerUser: {
+          select: { name: true, firstName: true, lastName: true },
+        },
+        landListing: { select: { id: true, title: true } },
         provider: { select: { name: true } },
         requestId: true,
         providerId: true,
@@ -678,12 +761,32 @@ export class ChatService {
 
     const result: ChatInboxItemDto[] = [];
     for (const c of rows) {
+      if (c.kind === 'LAND') {
+        result.push({
+          conversationId: c.id,
+          kind: 'LAND',
+          landListingId: c.landListing?.id,
+          peerName:
+            c.customerUserId === actorUserId
+              ? c.provider?.name ||
+                (c.landSellerUser
+                  ? shortCustomerName(c.landSellerUser)
+                  : 'Продавец')
+              : shortCustomerName(c.customerUser),
+          serviceRequestId: null,
+          requestNumber: null,
+          title: c.landListing?.title || 'Участок',
+          lastMessageAt: c.lastMessageAt?.toISOString() ?? null,
+          lastSnippet: c.messages[0]?.body.slice(0, SNIPPET_LEN) ?? null,
+        });
+        continue;
+      }
       if (c.kind === 'DIRECT') {
         result.push({
           conversationId: c.id,
           kind: 'DIRECT',
           directState: c.directState,
-          peerName: c.provider.name,
+          peerName: c.provider?.name ?? 'Исполнитель',
           serviceRequestId: null,
           requestNumber: null,
           title: 'Без заявки',
@@ -696,7 +799,7 @@ export class ChatService {
       }
       if (!c.request || !c.requestId) continue;
       // customer cannot see threads if request is locked to another provider
-      if (isLockedToOtherProvider(c.request, c.providerId)) continue;
+      if (isLockedToOtherProvider(c.request, c.providerId ?? '')) continue;
 
       const lastBody = c.messages[0]?.body ?? null;
       const snippet =
@@ -998,7 +1101,8 @@ export class ChatService {
       take: 200,
     });
 
-    return rows.map((c) => {
+    return rows.flatMap((c) => {
+      if (!c.providerId || !c.provider) return [];
       const lastBody = c.messages[0]?.body ?? null;
       const snippet =
         lastBody && lastBody.length > SNIPPET_LEN
@@ -1172,6 +1276,7 @@ export class ChatService {
         customerUserId: true,
         providerId: true,
         kind: true,
+        landSellerUserId: true,
         partnerProviderId: true,
       },
     });
@@ -1179,6 +1284,13 @@ export class ChatService {
       return [];
     }
 
+    if (!conv.providerId)
+      return [
+        ...new Set([
+          conv.customerUserId,
+          ...(conv.landSellerUserId ? [conv.landSellerUserId] : []),
+        ]),
+      ];
     const members = await this.prisma.providerMember.findMany({
       where: {
         providerId:
@@ -1213,7 +1325,7 @@ export class ChatService {
   ): Promise<{
     payload: ChatPresenceUpdatedPayload;
     customerUserId: string;
-    providerId: string;
+    providerId: string | null;
     partnerProviderId: string | null;
   } | null> {
     const conv = await this.prisma.conversation.findUnique({
@@ -1223,32 +1335,35 @@ export class ChatService {
         customerUserId: true,
         providerId: true,
         partnerProviderId: true,
+        landSellerUserId: true,
       },
     });
     if (!conv) {
       return null;
     }
 
-    const members = await this.prisma.providerMember.findMany({
-      where: {
-        providerId: conv.partnerProviderId
-          ? { in: [conv.providerId, conv.partnerProviderId] }
-          : conv.providerId,
-        status: 'ACTIVE',
-        OR: [
-          { role: { in: ['OWNER', 'MANAGER'] } },
-          {
-            assignedRequests: {
-              some: {
-                providerId: conv.providerId,
-                conversations: { some: { id: conversationId } },
+    const members = conv.providerId
+      ? await this.prisma.providerMember.findMany({
+          where: {
+            providerId: conv.partnerProviderId
+              ? { in: [conv.providerId, conv.partnerProviderId] }
+              : conv.providerId,
+            status: 'ACTIVE',
+            OR: [
+              { role: { in: ['OWNER', 'MANAGER'] } },
+              {
+                assignedRequests: {
+                  some: {
+                    providerId: conv.providerId,
+                    conversations: { some: { id: conversationId } },
+                  },
+                },
               },
-            },
+            ],
           },
-        ],
-      },
-      select: { userId: true, providerId: true },
-    });
+          select: { userId: true, providerId: true },
+        })
+      : [];
 
     const customerOnline = conv.partnerProviderId
       ? members.some(
@@ -1257,10 +1372,16 @@ export class ChatService {
             this.gateway.isUserOnline(m.userId),
         )
       : this.gateway.isUserOnline(conv.customerUserId);
-    const providerOnline = members.some(
-      (m) =>
-        m.providerId === conv.providerId && this.gateway.isUserOnline(m.userId),
-    );
+    const providerOnline =
+      Boolean(
+        conv.landSellerUserId &&
+        this.gateway.isUserOnline(conv.landSellerUserId),
+      ) ||
+      members.some(
+        (m) =>
+          m.providerId === conv.providerId &&
+          this.gateway.isUserOnline(m.userId),
+      );
 
     return {
       payload: {
@@ -1304,6 +1425,7 @@ export class ChatService {
     const conversationSelect = {
       id: true,
       customerUserId: true,
+      landSellerUserId: true,
       providerId: true,
       partnerProviderId: true,
       request: {
@@ -1327,7 +1449,10 @@ export class ChatService {
     const [customerConvs, providerConvs] = await Promise.all([
       this.prisma.conversation.findMany({
         where: {
-          customerUserId: userId,
+          OR: [
+            { customerUserId: userId },
+            { landSellerUserId: userId, providerId: null },
+          ],
           kind: { not: 'PARTNER' },
           status: 'OPEN',
         },
@@ -1356,7 +1481,7 @@ export class ChatService {
     const uniqProviderIds = [
       ...new Set(
         conversations.flatMap((c) => [
-          c.providerId,
+          ...(c.providerId ? [c.providerId] : []),
           ...(c.partnerProviderId ? [c.partnerProviderId] : []),
         ]),
       ),
@@ -1377,7 +1502,9 @@ export class ChatService {
     }
 
     for (const conv of conversations) {
-      const memberIds = [...(memberIdsByProviderId.get(conv.providerId) ?? [])];
+      const memberIds = [
+        ...(memberIdsByProviderId.get(conv.providerId ?? '') ?? []),
+      ];
       const assigned = conv.request?.assignedMember;
       if (
         assigned?.status === 'ACTIVE' &&
@@ -1393,7 +1520,11 @@ export class ChatService {
               (id) => this.gateway.isUserOnline(id),
             )
           : this.gateway.isUserOnline(conv.customerUserId),
-        providerOnline: memberIds.some((id) => this.gateway.isUserOnline(id)),
+        providerOnline:
+          Boolean(
+            conv.landSellerUserId &&
+            this.gateway.isUserOnline(conv.landSellerUserId),
+          ) || memberIds.some((id) => this.gateway.isUserOnline(id)),
       };
       this.gateway.emitPresenceUpdated(conv.id, payload);
     }
@@ -1593,9 +1724,17 @@ export class ChatService {
       conversationId,
       'read',
     );
-    if (conversation.kind === 'DIRECT' || conversation.kind === 'PARTNER') {
+    if (
+      conversation.kind === 'DIRECT' ||
+      conversation.kind === 'PARTNER' ||
+      conversation.kind === 'LAND'
+    ) {
       const result = await (
-        conversation.kind === 'PARTNER' ? this.partnerChat : this.direct
+        conversation.kind === 'LAND'
+          ? this.landChat
+          : conversation.kind === 'PARTNER'
+            ? this.partnerChat
+            : this.direct
       ).send(actorUserId, conversationId, input);
       const dto = this.mapMessageRow(result.message);
       if (!result.alreadyExisted) {

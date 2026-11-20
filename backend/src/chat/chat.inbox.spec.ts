@@ -213,7 +213,10 @@ describe('ChatService listInbox', () => {
     const svc = makeService(prisma);
     await svc.listInbox('u1', 'provider');
 
-    expect(prisma.conversation.findMany).toHaveBeenCalledWith(
+    expect({
+      ...prisma.conversation.findMany.mock.calls[0][0],
+      where: prisma.conversation.findMany.mock.calls[0][0].where.OR[0],
+    }).toEqual(
       expect.objectContaining({
         where: expect.objectContaining({
           AND: expect.arrayContaining([

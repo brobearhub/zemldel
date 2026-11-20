@@ -114,6 +114,10 @@ export function AdminSidebar({ pendingVerifications = 0 }: Props) {
         bgcolor: "background.paper",
       }}
     >
+      <ListItemButton component={Link} href="/admin/lands" selected={pathname.startsWith("/admin/lands")}>
+        <ListItemIcon><VerifiedUserOutlinedIcon /></ListItemIcon>
+        <ListItemText primary="Участки: модерация" />
+      </ListItemButton>
       <Box sx={{ px: 2, py: 1.5 }}>
         <Typography
           variant="overline"

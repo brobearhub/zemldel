@@ -11,6 +11,7 @@ import { PROVIDER_HEADER_NAV } from "@/widgets/cabinet-chrome/model/nav-config";
 import { CabinetDesktopBar } from "@/widgets/cabinet-chrome/ui/CabinetDesktopBar";
 import { HeaderLogo } from "./HeaderLogo";
 import { HeaderNav } from "./HeaderNav";
+import { HeaderCatalogNav } from "./HeaderCatalogNav";
 import { HeaderCity } from "./HeaderCity";
 import { MobileMenuButton } from "@/widgets/mobile-navigation/ui/MobileNavigation";
 import { CustomerNotificationsButton } from "@/widgets/cabinet-chrome/ui/CustomerNotificationsButton";
@@ -26,9 +27,11 @@ export const Header = () => {
   );
   const isWide = useMediaQuery((theme) => theme.breakpoints.up("tablet"));
   const hideHeaderCity = pathname === "/signup";
+  const showCatalogNav =
+    pathname === "/" || pathname === "/lands" || pathname.startsWith("/lands/");
 
   if (
-    (pathname === "/" || pathname === "/about") &&
+    (showCatalogNav || pathname === "/about") &&
     isAuthenticated &&
     isProviderAccount &&
     isWide
@@ -37,6 +40,7 @@ export const Header = () => {
       <Suspense fallback={null}>
         <CabinetDesktopBar
           items={PROVIDER_HEADER_NAV}
+          navigation={showCatalogNav ? <HeaderCatalogNav /> : undefined}
           showSiteCity
           showProviderStatus
         />
@@ -45,7 +49,10 @@ export const Header = () => {
   }
 
   return (
-    <AppBar position="sticky" elevation={0}>
+    <AppBar
+      position="sticky"
+      elevation={0}
+    >
       <Toolbar
         disableGutters
         sx={{
@@ -58,7 +65,10 @@ export const Header = () => {
             xs: SITE_HEADER_HEIGHT_PX.xs,
             sm: SITE_HEADER_HEIGHT_PX.sm,
           },
-          display: "flex",
+          display: showCatalogNav ? "grid" : "flex",
+          gridTemplateColumns: showCatalogNav
+            ? "auto minmax(0, 1fr) auto"
+            : undefined,
           flexWrap: "nowrap",
           alignItems: "center",
           justifyContent: "space-between",
@@ -72,6 +82,9 @@ export const Header = () => {
             alignItems: "center",
             minWidth: 0,
             flex: "0 0 auto",
+            ...(showCatalogNav && {
+              "& img": { width: { xs: 44, tablet: 100 } },
+            }),
           }}
         >
           <HeaderLogo />
@@ -79,6 +92,16 @@ export const Header = () => {
             {hideHeaderCity ? null : <HeaderCity />}
           </Box>
         </Box>
+
+        {showCatalogNav ? (
+          <Box
+            sx={{
+              minWidth: 0,
+            }}
+          >
+            <HeaderCatalogNav />
+          </Box>
+        ) : null}
 
         <Box
           sx={{
@@ -88,9 +111,11 @@ export const Header = () => {
           }}
         >
           {isAuthenticated && !isProviderAccount ? (
-            <CabinetHeaderStatus notification={<CustomerNotificationsButton />} />
+            <CabinetHeaderStatus
+              notification={<CustomerNotificationsButton />}
+            />
           ) : null}
-          <HeaderNav />
+          <HeaderNav showLandLink={!showCatalogNav} />
         </Box>
 
         <Box
@@ -101,7 +126,9 @@ export const Header = () => {
             ml: "auto",
           }}
         >
-          {isAuthenticated && !isProviderAccount ? <CustomerNotificationsButton /> : null}
+          {isAuthenticated && !isProviderAccount ? (
+            <CustomerNotificationsButton />
+          ) : null}
           <MobileMenuButton />
         </Box>
       </Toolbar>

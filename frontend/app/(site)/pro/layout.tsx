@@ -35,7 +35,7 @@ export default async function ProLayout({ children }: Props) {
   }
 
   const activeMembership = getActiveMembership(user ?? null);
-  if (activeMembership?.role === "EMPLOYEE" && pathname && !/^\/pro\/(?:assigned(?:\/|$)|settings\/(?:account|messengers)(?:\/|$))/.test(pathname)) {
+  if (activeMembership?.role === "EMPLOYEE" && pathname && !/^\/pro\/(?:assigned(?:\/|$)|chats(?:\/|$)|settings\/(?:account|messengers)(?:\/|$))/.test(pathname)) {
     const requestMatch = pathname.match(/^\/pro\/requests\/([0-9a-f-]{36})$/i);
     redirect(requestMatch ? `/pro/assigned/${requestMatch[1]}` : "/pro/assigned");
   }

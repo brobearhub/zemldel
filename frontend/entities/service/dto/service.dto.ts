@@ -117,6 +117,8 @@ export class ServiceProviderRefDto {
 
 export class ServiceDto {
   @Expose()
+  landListingId?: string | null;
+  @Expose()
   allRussia?: boolean;
 
   @Expose()

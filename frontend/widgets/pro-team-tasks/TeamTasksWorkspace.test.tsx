@@ -29,6 +29,13 @@ const rows = () =>
     .queryAllByTestId(/^task-/)
     .map((row) => row.getAttribute("data-testid"));
 
+function pasteDate(label: string, value: string) {
+  const field = screen.getByRole("group", { name: label });
+  const day = within(field).getByRole("spinbutton", { name: "День" });
+  fireEvent.focus(day);
+  fireEvent.paste(day, { clipboardData: { getData: () => value } });
+}
+
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-11-08T12:00:00"));
@@ -71,9 +78,7 @@ describe("TeamTasksWorkspace", () => {
     setup();
     await screen.findByTestId("task-1");
     fireEvent.click(screen.getByRole("button", { name: "Один день" }));
-    fireEvent.change(screen.getByLabelText("Дата"), {
-      target: { value: "2026-11-06" },
-    });
+    pasteDate("Дата", "06.11.2026");
     fireEvent.click(screen.getByRole("button", { name: "Применить" }));
     expect(rows()).toEqual(["task-1", "task-7", "task-9"]);
     fireEvent.click(screen.getByRole("button", { name: "Открытые" }));
@@ -98,29 +103,19 @@ describe("TeamTasksWorkspace", () => {
     setup();
     await screen.findByTestId("task-1");
     fireEvent.click(screen.getByRole("button", { name: "Диапазон" }));
-    fireEvent.change(screen.getByLabelText("Начало"), {
-      target: { value: "2026-11-12" },
-    });
-    fireEvent.change(screen.getByLabelText("Конец"), {
-      target: { value: "2026-11-05" },
-    });
+    pasteDate("Начало", "12.11.2026");
+    pasteDate("Конец", "05.11.2026");
     fireEvent.click(screen.getByRole("button", { name: "Применить" }));
     expect(
       screen.getByText("Дата окончания должна быть не раньше даты начала"),
     ).toBeInTheDocument();
     expect(rows()).toHaveLength(6);
-    fireEvent.change(screen.getByLabelText("Начало"), {
-      target: { value: "2026-11-05" },
-    });
-    fireEvent.change(screen.getByLabelText("Конец"), {
-      target: { value: "2026-11-12" },
-    });
+    pasteDate("Начало", "05.11.2026");
+    pasteDate("Конец", "12.11.2026");
     fireEvent.click(screen.getByRole("button", { name: "Применить" }));
     expect(rows()).toHaveLength(8);
     fireEvent.click(screen.getByRole("button", { name: "Один день" }));
-    fireEvent.change(screen.getByLabelText("Дата"), {
-      target: { value: "2026-11-16" },
-    });
+    pasteDate("Дата", "16.11.2026");
     fireEvent.click(screen.getByRole("button", { name: "Отмена" }));
     expect(rows()).toHaveLength(8);
     expect(screen.getByRole("button", { name: "Диапазон" })).toHaveAttribute(
@@ -220,6 +215,19 @@ describe("TeamTasksWorkspace", () => {
     expect(
       await screen.findByRole("region", { name: "Детали: Новое поручение" }),
     ).toBeInTheDocument();
+  });
+
+  it("saves the deadline entered in Russian format as the corresponding local instant", async () => {
+    setup();
+    await screen.findByTestId("task-1");
+    fireEvent.click(screen.getByRole("button", { name: "Новая задача" }));
+    fireEvent.change(screen.getByLabelText(/Название задачи/), {
+      target: { value: "Проверить документы" },
+    });
+    pasteDate("Срок (ваше местное время)", "14.11.2026 18:30");
+    fireEvent.click(screen.getByRole("button", { name: "Создать задачу" }));
+    await waitFor(() => expect(posts).toHaveLength(1));
+    expect(posts[0].dueAt).toBe(new Date(2026, 10, 14, 18, 30).toISOString());
   });
 
   it("keeps downgraded workspaces readable but disables mutations", async () => {

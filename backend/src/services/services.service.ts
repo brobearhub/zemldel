@@ -37,6 +37,7 @@ import {
 export const serviceSelect = {
   ...serviceGeographySelect,
   id: true,
+  landListing: { select: { id: true } },
   categoryId: true,
   status: true,
   title: true,
@@ -162,22 +163,17 @@ export class ServicesService {
   ) {}
 
   private async resolveScopedServiceId(id: string, providerId?: string | null) {
-    if (!providerId) {
-      return id;
-    }
-
     const row = await this.prisma.service.findFirst({
-      where: {
-        id,
-        providerId,
-      },
-      select: { id: true },
+      where: { id, ...(providerId ? { providerId } : {}) },
+      select: { id: true, landListing: { select: { id: true } } },
     });
-
-    if (!row) {
-      throw new NotFoundException('Service not found');
-    }
-
+    if (!row) throw new NotFoundException('Service not found');
+    if (row.landListing)
+      throw new BadRequestException({
+        code: 'LAND_LISTING_MANAGED',
+        message: 'Редактируйте подбор в разделе «Участки → Мои объявления»',
+        editUrl: `/lands/${row.landListing.id}/edit`,
+      });
     return row.id;
   }
 
@@ -290,6 +286,15 @@ export class ServicesService {
     const resolvedCategoryId = service.categoryId ?? null;
     if (!resolvedCategoryId)
       throw new BadRequestException('categoryId is required');
+
+    const category = await this.prisma.serviceCategory.findUnique({
+      where: { id: resolvedCategoryId },
+      select: { slug: true },
+    });
+    if (category?.slug === 'land-selection')
+      throw new BadRequestException(
+        'Разместите подбор через раздел «Участки → Разместить → Услуга подбора»',
+      );
 
     const resolvedTitle = service.title ?? null;
     if (!resolvedTitle) throw new BadRequestException('title is required');
@@ -480,18 +485,21 @@ export class ServicesService {
     return serviceDbRowToDtoPlain(row as ServiceDbRow);
   }
 
-  private async resolveStoredPlaces(places: readonly NormalizedServicePlace[]) {
+  async resolveStoredPlaces(
+    places: readonly NormalizedServicePlace[],
+    db: Pick<Prisma.TransactionClient, 'city'> = this.prisma,
+  ) {
     const cityIds = places.flatMap((place) =>
       place.kind === 'city' ? [place.cityId] : [],
     );
     for (const cityId of cityIds) {
-      await assertActiveSelectableCity(this.prisma, cityId);
+      await assertActiveSelectableCity(db, cityId);
     }
 
     const regions: Array<{ regionCode: string; regionName: string }> = [];
     for (const place of places) {
       if (place.kind !== 'region') continue;
-      const city = await this.prisma.city.findFirst({
+      const city = await db.city.findFirst({
         where: { regionCode: place.regionCode, status: 'ACTIVE' },
         select: { regionName: true },
       });
@@ -503,12 +511,13 @@ export class ServicesService {
     }
 
     const cityRows = cityIds.length
-      ? await this.prisma.city.findMany({
+      ? await db.city.findMany({
           where: { id: { in: cityIds } },
           select: {
             id: true,
             name: true,
             regionCode: true,
+            regionName: true,
             typeName: true,
             level: true,
           },
@@ -524,6 +533,7 @@ export class ServicesService {
       ),
     ];
     return {
+      cities: cityRows,
       cityIds: uniqueServiceCityIds(
         cityIds,
         cityRows,
@@ -534,7 +544,7 @@ export class ServicesService {
     };
   }
 
-  private async replaceServicePlaces(
+  async replaceServicePlaces(
     tx: Prisma.TransactionClient,
     serviceId: string,
     stored: {

@@ -10,7 +10,6 @@ import {
   IconButton,
   Paper,
   Stack,
-  TextField,
   Typography,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
@@ -18,6 +17,7 @@ import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { DateCalendar } from "@mui/x-date-pickers/DateCalendar";
+import { AppDateField } from "@/shared/ui/date-field";
 import { AppDateLocalization } from "@/shared/ui/date-field/AppDateLocalization";
 import {
   periodBounds,
@@ -264,30 +264,29 @@ export function TaskPeriodFilter({
               direction={{ xs: "column", sm: "row" }}
               spacing={2}
             >
-              <TextField
+              <AppDateField
                 autoFocus
                 fullWidth
                 size="small"
-                type="date"
+                keyboardOnly
                 label={editor === "day" ? "Дата" : "Начало"}
                 value={start}
                 onFocus={() => setFocusedField("start")}
-                onChange={(event) => setStart(event.target.value)}
+                onChange={setStart}
                 error={attempted && !validStart}
                 helperText={
                   attempted && !validStart ? "Укажите дату" : undefined
                 }
-                slotProps={{ inputLabel: { shrink: true } }}
               />
               {editor === "range" && (
-                <TextField
+                <AppDateField
                   fullWidth
                   size="small"
-                  type="date"
+                  keyboardOnly
                   label="Конец"
                   value={end}
                   onFocus={() => setFocusedField("end")}
-                  onChange={(event) => setEnd(event.target.value)}
+                  onChange={setEnd}
                   error={reversed || (attempted && !validEnd)}
                   helperText={
                     reversed
@@ -296,7 +295,6 @@ export function TaskPeriodFilter({
                         ? "Укажите дату окончания"
                         : undefined
                   }
-                  slotProps={{ inputLabel: { shrink: true } }}
                 />
               )}
             </Stack>

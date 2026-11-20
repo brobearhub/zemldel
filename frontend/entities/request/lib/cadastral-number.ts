@@ -39,6 +39,9 @@ const CADASTRAL_INPUT_MAX_DIGITS = CADASTRAL_PART_MAX_LENGTHS.reduce((sum, lengt
 
 /** Одна строка `66:41:0204016:12`: двоеточия ставятся сами, лишние символы отбрасываются. */
 export function formatCadastralInput(raw: string): string {
+  // Six-digit cadastral quarters need their explicit separator preserved.
+  const shortQuarter = /^(\d{2}:\d{2}:\d{6}:)(\d*)$/.exec(raw.trim());
+  if (shortQuarter) return shortQuarter[1] + shortQuarter[2].slice(0, 10);
   const digits = digitsOnly(raw).slice(0, CADASTRAL_INPUT_MAX_DIGITS);
   const parts: string[] = [];
   let offset = 0;

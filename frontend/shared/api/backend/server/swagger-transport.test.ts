@@ -17,6 +17,13 @@ vi.mock("@/core/auth", () => ({
 
 beforeEach(() => { request.mockReset(); });
 
+it("passes a caller's cancellation signal to the backend transport", async () => {
+  const controller = new AbortController();
+  request.mockResolvedValue({ status: 200, headers: {}, data: new ArrayBuffer(0) });
+  await backendSwaggerFetch({ path: "/geocoding/address-suggestions", init: { signal: controller.signal } });
+  expect(request).toHaveBeenCalledWith(expect.objectContaining({ signal: controller.signal }));
+});
+
 describe("backend responses without a body", () => {
   it.each([204, 205, 304])(
     "preserves HTTP %s without constructing an illegal response body",

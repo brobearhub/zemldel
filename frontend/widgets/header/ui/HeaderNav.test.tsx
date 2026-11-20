@@ -16,7 +16,10 @@ vi.mock("next-auth/react", () => ({
   signOut: vi.fn(),
 }));
 
-function renderNav(state: "unauth" | "customer" | "provider") {
+function renderNav(
+  state: "unauth" | "customer" | "provider",
+  props: { showLandLink?: boolean } = {},
+) {
   const store = makeStore();
   if (state === "unauth") {
     store.dispatch(setUnauthenticated());
@@ -40,16 +43,38 @@ function renderNav(state: "unauth" | "customer" | "provider") {
   render(
     <Provider store={store}>
       <ThemeProvider theme={createAppTheme("light")}>
-        <HeaderNav showLabels />
+        <HeaderNav
+          showLabels
+          {...props}
+        />
       </ThemeProvider>
     </Provider>,
   );
 }
 
 describe("HeaderNav drawer", () => {
+  it.each(["unauth", "customer", "provider"] as const)(
+    "убирает дубликат каталога у профиля и сохраняет заявки для %s",
+    (state) => {
+      renderNav(state, { showLandLink: false });
+
+      expect(
+        screen.queryByRole("link", { name: "Участки" }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Заявки" })).toHaveAttribute(
+        "href",
+        state === "provider"
+          ? "/pro/requests/feed"
+          : "/profile?section=requests",
+      );
+    },
+  );
   it("ведёт исполнителя сразу в рабочие заявки", () => {
     renderNav("provider");
-    expect(screen.getByRole("link", { name: "Заявки" })).toHaveAttribute("href", "/pro/requests/feed");
+    expect(screen.getByRole("link", { name: "Заявки" })).toHaveAttribute(
+      "href",
+      "/pro/requests/feed",
+    );
   });
   it("ставит регистрацию в общий список пунктов для гостя", () => {
     renderNav("unauth");
@@ -57,15 +82,19 @@ describe("HeaderNav drawer", () => {
     const registration = screen.getByRole("link", { name: "Регистрация" });
     expect(registration).toHaveAttribute("href", "/signup");
     expect(screen.getByRole("button", { name: "Войти" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Заявки" }).compareDocumentPosition(registration)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    );
+    expect(
+      screen
+        .getByRole("link", { name: "Заявки" })
+        .compareDocumentPosition(registration),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   it("не показывает регистрацию вошедшему пользователю", () => {
     renderNav("customer");
 
-    expect(screen.queryByRole("link", { name: "Регистрация" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Регистрация" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Профиль" })).toBeInTheDocument();
   });
 });

@@ -20,6 +20,7 @@ import { useAppSelector } from "@/core/store/hooks";
 
 type Props = {
   items: readonly NavItem[];
+  navigation?: ReactNode;
   showProviderCity?: boolean;
   showSiteCity?: boolean;
   showProviderStatus?: boolean;
@@ -103,6 +104,7 @@ function NavScroller({ children }: { children: ReactNode }) {
 
 export function CabinetDesktopBar({
   items,
+  navigation,
   showProviderCity = false,
   showSiteCity = false,
   showProviderStatus = false,
@@ -117,7 +119,8 @@ export function CabinetDesktopBar({
   );
   const searchParams = useSearchParams();
   const chatUnread = useChatSocket();
-  const unreadByRequestId = chatUnread.unreadByConversationId ?? chatUnread.unreadByRequestId;
+  const unreadByRequestId =
+    chatUnread.unreadByConversationId ?? chatUnread.unreadByRequestId;
 
   const unreadTotal = useMemo(
     () => Object.values(unreadByRequestId).reduce((acc, v) => acc + v, 0),
@@ -169,7 +172,8 @@ export function CabinetDesktopBar({
             zIndex: 1,
           }}
         >
-          {alignWithWorkspace && !(customer && pathname.startsWith("/profile") && !expanded) ? (
+          {alignWithWorkspace &&
+          !(customer && pathname.startsWith("/profile") && !expanded) ? (
             <Box
               sx={{
                 display: "var(--pro-header-logo-display, flex)",
@@ -192,27 +196,29 @@ export function CabinetDesktopBar({
         {alignWithWorkspace ? (
           <Box />
         ) : (
-          <NavScroller>
-            {items.map((item) => (
-              <Box
-                key={item.key}
-                sx={{ flex: "0 0 auto" }}
-              >
-                <CabinetNavItem
-                  href={item.href}
-                  label={item.label}
-                  icon={item.icon}
-                  selected={item.isActive(ctx)}
-                  badge={
-                    item.badgeKind === "chatUnreadTotal"
-                      ? unreadTotal
-                      : undefined
-                  }
-                  size="desktop"
-                />
-              </Box>
-            ))}
-          </NavScroller>
+          (navigation ?? (
+            <NavScroller>
+              {items.map((item) => (
+                <Box
+                  key={item.key}
+                  sx={{ flex: "0 0 auto" }}
+                >
+                  <CabinetNavItem
+                    href={item.href}
+                    label={item.label}
+                    icon={item.icon}
+                    selected={item.isActive(ctx)}
+                    badge={
+                      item.badgeKind === "chatUnreadTotal"
+                        ? unreadTotal
+                        : undefined
+                    }
+                    size="desktop"
+                  />
+                </Box>
+              ))}
+            </NavScroller>
+          ))
         )}
 
         <Box
@@ -227,7 +233,9 @@ export function CabinetDesktopBar({
         >
           {showProviderStatus ? <ProviderHeaderStatus /> : null}
           {!showProviderStatus && alignWithWorkspace ? (
-            <CabinetHeaderStatus notification={<CustomerNotificationsButton />} />
+            <CabinetHeaderStatus
+              notification={<CustomerNotificationsButton />}
+            />
           ) : null}
           <ProfileMenu />
         </Box>

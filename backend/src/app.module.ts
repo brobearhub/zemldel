@@ -1,3 +1,4 @@
+import { LandsModule } from './lands/lands.module';
 import { FavoritesModule } from './favorites/favorites.module';
 import { PartnersModule } from './partners/partners.module';
 import { PlanModule } from './billing/plan.module';
@@ -17,6 +18,7 @@ import { ChatModule } from './chat/chat.module';
 import { ServiceCategoriesModule } from './service-categories/service-categories.module';
 import { RequestsModule } from './requests/requests.module';
 import { CitiesModule } from './cities/cities.module';
+import { GeocodingModule } from './geocoding/geocoding.module';
 import { PublicOfferModule } from './public-offer/public-offer.module';
 import { LegalDocsModule } from './legal-docs/legal-docs.module';
 import { DocumentsModule } from './documents/documents.module';
@@ -30,6 +32,7 @@ import { StoriesModule } from './stories/stories.module';
 
 @Module({
   imports: [
+    LandsModule,
     PartnersModule,
     FavoritesModule,
     PlanModule,
@@ -45,6 +48,7 @@ import { StoriesModule } from './stories/stories.module';
     ProvidersModule,
     ChatModule,
     CitiesModule,
+    GeocodingModule,
     PublicOfferModule,
     DocumentsModule,
     ContractFilesModule,

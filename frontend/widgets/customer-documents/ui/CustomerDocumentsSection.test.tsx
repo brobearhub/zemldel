@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider } from "@mui/material";
 import { createAppTheme } from "@/core/theme/createAppTheme";
@@ -109,6 +109,15 @@ describe("CustomerDocumentsSection", () => {
     await user.type(screen.getByRole("textbox", { name: /Серия/ }), "1234");
     await user.type(screen.getByRole("textbox", { name: /Номер/ }), "567890");
     await user.type(screen.getByRole("textbox", { name: "ФИО" }), "Тестовый Пользователь");
+    const birthDate = within(screen.getByRole("group", { name: "Дата рождения" }));
+    const day = birthDate.getByRole("spinbutton", { name: "День" });
+    await act(async () => {
+      day.focus();
+    });
+    await act(async () => {
+      fireEvent.paste(day, { clipboardData: { getData: () => "02.01.1990" } });
+      day.blur();
+    });
     await user.click(screen.getByRole("button", { name: "Сохранить анкету" }));
 
     expect(await screen.findByText("Анкета сохранена")).toBeInTheDocument();
@@ -117,7 +126,12 @@ describe("CustomerDocumentsSection", () => {
     expect(screen.getByText("Тестовый Пользователь")).toBeInTheDocument();
     expect(screen.getByText("Паспорт •••• ••••90")).toBeInTheDocument();
     const write = fetchMock.mock.calls.find(([, init]: [RequestInfo | URL, RequestInit?]) => init?.method === "PUT");
-    expect(JSON.parse(String(write?.[1]?.body))).toMatchObject({ series: "1234", number: "567890" });
+    expect(JSON.parse(String(write?.[1]?.body))).toMatchObject({
+      series: "1234",
+      number: "567890",
+      birthDate: "1990-01-02",
+      issuedAt: null,
+    });
   });
 
   it("keeps the form and unsaved values on a failed save", async () => {

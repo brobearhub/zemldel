@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { CitiesService } from './cities.service';
 import { CitySuggestItemDto, PlaceSuggestPageDto } from './dto/city.dto';
@@ -46,5 +46,11 @@ export class CitiesController {
       String(q ?? ''),
       Number.isFinite(limitNumber) ? limitNumber : 10,
     );
+  }
+
+  @Get(':id')
+  @ApiOkResponse({ type: CitySuggestItemDto })
+  getCity(@Param('id', ParseUUIDPipe) id: string) {
+    return this.citiesService.getCity(id);
   }
 }

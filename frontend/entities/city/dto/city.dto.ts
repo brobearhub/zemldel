@@ -30,6 +30,11 @@ export type CitySuggestItemDto = {
   regionCode: string;
   regionName: string;
   displayName: string;
+  mapSearchName?: string;
+  center?: {
+    latitude: number;
+    longitude: number;
+  } | null;
 };
 
 export type RegionalCapitalItemDto = CitySuggestItemDto & {
