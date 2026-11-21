@@ -11,6 +11,7 @@ const PUBLIC_SIDEBAR_PATHS = new Set([
 export function isPublicSidebarRoute(pathname: string): boolean {
   return (
     PUBLIC_SIDEBAR_PATHS.has(pathname) ||
+    pathname === "/lands" || pathname.startsWith("/lands/") ||
     (/^\/(?:services|service-categories|providers|users|team-invitations)\/[^/]+\/?$/.test(pathname) &&
       pathname !== "/providers/new")
   );

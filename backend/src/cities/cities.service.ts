@@ -7,13 +7,17 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-  buildDisplayName,
   locationRowRank,
   placeNameLikePatterns,
   publicCityName,
   regionMatchesQuery,
   uniqueCityLocations,
 } from './city-suggest.lib';
+import {
+  citySuggestSelect,
+  toSuggestItem,
+  type SuggestCityRow,
+} from './city-suggest-item';
 import { isAllowedLocationRow } from './location';
 import { compareRegionalCapitals } from './regional-capital-order';
 import type {
@@ -76,25 +80,6 @@ function clampLimit(value: number, max = 20) {
   return Math.min(max, Math.max(1, Math.floor(value)));
 }
 
-type SuggestCityRow = {
-  id: string;
-  name: string;
-  regionCode: string;
-  regionName: string;
-  typeName: string;
-};
-
-function toSuggestItem(row: SuggestCityRow): CitySuggestItemDto {
-  const name = publicCityName(row.name);
-  return {
-    id: row.id,
-    name,
-    regionCode: row.regionCode,
-    regionName: row.regionName,
-    displayName: buildDisplayName({ ...row, name }),
-  };
-}
-
 function isPrismaUniqueViolation(error: unknown) {
   return (
     typeof error === 'object' &&
@@ -105,11 +90,7 @@ function isPrismaUniqueViolation(error: unknown) {
 }
 
 const capitalCitySelect = {
-  id: true,
-  name: true,
-  regionCode: true,
-  regionName: true,
-  typeName: true,
+  ...citySuggestSelect,
   status: true,
 } as const;
 
@@ -160,6 +141,15 @@ function sortRegionalCapitalRows(rows: RegionalCapitalRow[]) {
 export class CitiesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async getCity(id: string): Promise<CitySuggestItemDto> {
+    const row = await this.prisma.city.findUnique({
+      where: { id, status: 'ACTIVE' },
+      select: citySuggestSelect,
+    });
+    if (!row) throw new NotFoundException('Город не найден');
+    return toSuggestItem(row);
+  }
+
   async suggest(
     qRaw: string,
     limitRaw: number,
@@ -188,11 +178,7 @@ export class CitiesService {
         OR: cityNameQuery(q),
       },
       select: {
-        id: true,
-        name: true,
-        regionCode: true,
-        regionName: true,
-        typeName: true,
+        ...citySuggestSelect,
         level: true,
       },
       orderBy: [{ name: 'asc' }],

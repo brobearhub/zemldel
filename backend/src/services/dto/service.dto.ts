@@ -197,6 +197,9 @@ export class ServiceProviderRefDto {
 }
 
 export class ServiceDto {
+  @ApiPropertyOptional({ nullable: true })
+  @Expose()
+  landListingId?: string | null;
   @Expose()
   allRussia?: boolean;
 
@@ -299,6 +302,7 @@ export class ServiceDto {
 }
 
 export type ServiceDbRow = {
+  landListing?: { id: string } | null;
   allRussia?: boolean;
   regionOrder?: string[];
   id: string;
@@ -353,6 +357,7 @@ export function serviceDbRowToDtoPlain(row: ServiceDbRow): ServiceDto {
     ServiceDto,
     {
       ...row,
+      landListingId: row.landListing?.id ?? null,
       images: row.images?.length ? row.images : row.image ? [row.image] : [],
       places: servicePlacesFromRow(row),
       provider: {

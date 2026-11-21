@@ -1,6 +1,8 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import dayjs from "dayjs";
+import { AppDateField } from "@/shared/ui/date-field";
 import {
   Button,
   Checkbox,
@@ -518,27 +520,16 @@ export function WorkspaceTools({
                       </MenuItem>
                     ))}
                   </TextField>
-                  <TextField
-                    type="datetime-local"
+                  <AppDateField
+                    withTime
+                    size="medium"
                     label="Срок (ваше местное время)"
-                    slotProps={{ inputLabel: { shrink: true } }}
-                    value={
-                      task.dueAt
-                        ? new Date(
-                            new Date(task.dueAt).getTime() -
-                              new Date(task.dueAt).getTimezoneOffset() * 60000,
-                          )
-                            .toISOString()
-                            .slice(0, 16)
-                        : ""
-                    }
+                    value={task.dueAt ? dayjs(task.dueAt).format("YYYY-MM-DDTHH:mm") : ""}
                     disabled={busy || !data.limits.team}
-                    onChange={(e) =>
+                    onChange={(localDateTime) =>
                       setTask({
                         ...task,
-                        dueAt: e.target.value
-                          ? new Date(e.target.value).toISOString()
-                          : null,
+                        dueAt: localDateTime ? dayjs(localDateTime).toISOString() : null,
                       })
                     }
                   />

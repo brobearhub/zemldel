@@ -59,6 +59,17 @@ describe("CadastralNumberChipsField", () => {
     expect(screen.queryByRole("button", { name: /Удалить кадастровый номер/ })).toBeNull();
   });
 
+  it("keeps an explicitly typed six-digit quarter when adding multiple cadastral numbers", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    const input = screen.getByRole("textbox", { name: "Кадастровый номер" });
+    await user.type(input, "66:41:123456:78{Enter}");
+    await user.paste("66:41:1234567:8");
+    await user.tab();
+    expect(screen.getByRole("link", { name: "66:41:123456:78" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "66:41:1234567:8" })).toBeInTheDocument();
+  });
+
   it("links a finished chip to the NSPD map with that cadastral number", () => {
     render(
       <ThemeProvider theme={createAppTheme("light")}>

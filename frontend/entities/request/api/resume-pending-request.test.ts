@@ -15,16 +15,33 @@ describe("resume saved guest request", () => {
     });
     let finish!: (response: Response) => void;
     const fetcher = vi.fn().mockImplementationOnce(() => new Promise<Response>((resolve) => { finish = resolve; }))
-      .mockRejectedValueOnce(new Error("chat unavailable"));
+      .mockRejectedValueOnce(new Error("chat unavailable"))
+      .mockResolvedValueOnce(json({ conversationId: "conversation-1" }))
+      .mockResolvedValueOnce(json({}));
     const first = resumePendingRequest(draft, fetcher);
     const second = resumePendingRequest(readPendingRequestDraft()!, fetcher);
     expect(first).toBe(second);
     expect(fetcher).toHaveBeenCalledTimes(1);
     finish(json({ id: "request-1" }));
-    await expect(first).resolves.toEqual({ id: "request-1" });
+    await expect(first).rejects.toThrow("chat unavailable");
     expect(readPendingRequestDraft()?.createdRequestId).toBe("request-1");
     await expect(resumePendingRequest(readPendingRequestDraft()!, fetcher)).resolves.toEqual({ id: "request-1" });
-    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher).toHaveBeenCalledTimes(4);
+    expect(JSON.parse(fetcher.mock.calls[3][1].body)).toEqual({ body: "Нужно межевание", clientMessageId: "request-1" });
+  });
+
+  it("sends a greeting when a resumed service request has no message", async () => {
+    const draft = savePendingRequestDraft({
+      kind: "SERVICE", serviceId: "service-1", customerName: null, customerEmail: null,
+      customerPhone: null, message: null, requestCityId: null, cadastralNumbers: [],
+    });
+    const fetcher = vi.fn().mockResolvedValueOnce(json({ id: "request-2" }))
+      .mockResolvedValueOnce(json({ conversationId: "conversation-2" }))
+      .mockResolvedValueOnce(json({}));
+    await expect(resumePendingRequest(draft, fetcher)).resolves.toEqual({ id: "request-2" });
+    expect(JSON.parse(fetcher.mock.calls[2][1].body)).toEqual({
+      body: "Здравствуйте! Хочу обсудить мою задачу и дальнейшие шаги.", clientMessageId: "request-2",
+    });
   });
 
   it("keeps the task, work city and cadastral numbers when the session expires", async () => {

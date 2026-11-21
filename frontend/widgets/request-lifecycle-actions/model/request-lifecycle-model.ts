@@ -162,8 +162,8 @@ function buildCustomerState(
               {
                 id: "openOfferDialog",
                 label: "Заключить договор",
-                variant: "contained",
-                color: "success",
+                variant: "outlined",
+                color: "secondary",
               },
             ]
           : [],

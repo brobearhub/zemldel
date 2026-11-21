@@ -132,4 +132,20 @@ describe("provider inbox existing socket", () => {
     act(() => result.current.refresh());
     await waitFor(() => expect(result.current.error).toBeNull());
   });
+
+  it("refreshes the provider inbox after a request is deleted, even during another refresh", async () => {
+    const { result } = renderHook(() => useChatInbox("actor:provider", "provider"));
+    await waitFor(() => expect(result.current.items).toHaveLength(2));
+
+    let finish!: (value: ChatInboxItemDto[]) => void;
+    vi.mocked(fetchChatInbox)
+      .mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }))
+      .mockResolvedValueOnce([rows[1]]);
+    act(() => result.current.refresh());
+    emit("request.changed", { requestId: "r-a" });
+    await act(async () => finish(rows));
+
+    await waitFor(() => expect(result.current.items?.map((row) => row.conversationId)).toEqual(["b"]));
+    expect(fetchChatInbox).toHaveBeenCalledTimes(3);
+  });
 });

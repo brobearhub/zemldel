@@ -143,6 +143,20 @@ it("resets the menu on entering another request and restores the preference outs
   expect(sidebarWidth()).toBe("80px");
 });
 
+it("starts a customer request with the menu collapsed and lets chat reopen it", async () => {
+  const user = userEvent.setup();
+  navigation.pathname = "/profile/requests/new-request";
+  render(<Workspace />);
+
+  expect(sidebarWidth()).toBe("80px");
+  expect(screen.getByRole("textbox").parentElement).toHaveStyle({ display: "flex" });
+  await user.click(screen.getByRole("button", { name: "Развернуть меню" }));
+  expect(screen.getByLabelText("Свёрнутый чат")).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Открыть чат" }));
+  expect(sidebarWidth()).toBe("80px");
+  expect(screen.getByRole("textbox").parentElement).toHaveStyle({ display: "flex" });
+});
+
 it("hides chat while the sidebar settings are expanded", async () => {
   const user = userEvent.setup();
   render(<Workspace />);

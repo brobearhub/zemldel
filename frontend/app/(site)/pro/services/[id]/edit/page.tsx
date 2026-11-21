@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { ServiceCategory, ServiceDto } from "@/entities/service";
 import { BackendApiError, fetchBackendJson, fetchBackendJsonAsUser } from "@/shared/api/backend/server";
 import { getServerAuthSession } from "@/core/auth";
@@ -28,6 +28,8 @@ export default async function ProServicesEditPage({ params }: Props) {
     }
     throw error;
   }
+
+  if (service.landListingId) redirect(`/lands/${service.landListingId}/edit`);
 
   const categories = await fetchBackendJson<ServiceCategory[]>("/service-categories");
 

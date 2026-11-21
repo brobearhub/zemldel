@@ -56,6 +56,8 @@ export class DirectChatService {
     if (!user || user.systemRole === 'PLATFORM_ADMIN')
       throw new ForbiddenException('Нет доступа к диалогу');
     if (conversation.customerUserId === userId) return 'customer' as const;
+    if (!conversation.providerId)
+      throw new ForbiddenException('Нет доступа к диалогу');
     const member = await tx.providerMember.findUnique({
       where: {
         providerId_userId: { providerId: conversation.providerId, userId },

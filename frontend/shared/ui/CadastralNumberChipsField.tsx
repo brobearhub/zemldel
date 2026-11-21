@@ -1,34 +1,26 @@
 "use client";
 
-import {
-  useLayoutEffect,
-  useRef,
-  type ChangeEvent,
-  type KeyboardEvent,
-} from "react";
+import { useState, type KeyboardEvent } from "react";
 import CloseIcon from "@mui/icons-material/Close";
-import { Box, IconButton, Stack, TextField, Typography } from "@mui/material";
+import { Box, IconButton, Stack, Typography } from "@mui/material";
 import { CadastralNumberMapLink } from "@/entities/request/ui/CadastralNumberMapLink";
 import {
-  cadastralCaretFromDigitCount,
   cadastralPartsFromInput,
   createEmptyCadastralParts,
-  digitsOnly,
-  formatCadastralInput,
   formatCadastralParts,
   isCadastralPartsComplete,
   joinCadastralParts,
   type CadastralNumberParts,
 } from "@/entities/request/lib/cadastral-number";
+import { CadastralNumberTextField } from "./CadastralNumberTextField";
 
 type Props = {
   value: CadastralNumberParts[];
   onChange: (next: CadastralNumberParts[]) => void;
   disabled?: boolean;
   labelAlign?: "left" | "center" | "right";
+  errorText?: string;
 };
-
-const PLACEHOLDER = "66:41:0000000:000";
 
 /**
  * Последняя строка — черновик в поле. Предыдущие полные номера — чипы.
@@ -53,19 +45,14 @@ export function CadastralNumberChipsField({
   onChange,
   disabled = false,
   labelAlign = "left",
+  errorText,
 }: Props) {
   const { chips, draft } = splitRows(value);
-  const draftText = formatCadastralParts(draft);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const caretRef = useRef<number | null>(null);
-
-  useLayoutEffect(() => {
-    const input = inputRef.current;
-    const caret = caretRef.current;
-    if (!input || caret == null) return;
-    caretRef.current = null;
-    input.setSelectionRange(caret, caret);
-  }, [draftText]);
+  const [shortSeparator, setShortSeparator] = useState(false);
+  const formattedDraft = formatCadastralParts(draft);
+  const draftText = shortSeparator && /^\d{2}:\d{2}:\d{6}$/.test(formattedDraft)
+    ? formattedDraft + ":"
+    : formattedDraft;
 
   function publish(
     nextChips: CadastralNumberParts[],
@@ -74,11 +61,8 @@ export function CadastralNumberChipsField({
     onChange([...nextChips, nextDraft]);
   }
 
-  function updateDraft(raw: string, caretDigits: number | null) {
-    const formatted = formatCadastralInput(raw);
-    if (caretDigits != null) {
-      caretRef.current = cadastralCaretFromDigitCount(formatted, caretDigits);
-    }
+  function updateDraft(formatted: string) {
+    setShortSeparator(formatted.endsWith(":"));
     publish(chips, cadastralPartsFromInput(formatted));
   }
 
@@ -96,13 +80,7 @@ export function CadastralNumberChipsField({
     );
   }
 
-  function handleChange(event: ChangeEvent<HTMLInputElement>) {
-    const raw = event.target.value;
-    const caret = event.target.selectionStart ?? raw.length;
-    updateDraft(raw, digitsOnly(raw.slice(0, caret)).length);
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+  function handleKeyDown(event: KeyboardEvent) {
     if (event.key !== "Enter" || !isCadastralPartsComplete(draft)) return;
     event.preventDefault();
     commitDraft();
@@ -165,23 +143,14 @@ export function CadastralNumberChipsField({
         </Box>
       ) : null}
 
-      <TextField
-        size="small"
+      <CadastralNumberTextField
         value={draftText}
-        placeholder={PLACEHOLDER}
-        onChange={handleChange}
+        error={Boolean(errorText)}
+        helperText={errorText}
+        onValueChange={updateDraft}
         onKeyDown={handleKeyDown}
         onBlur={commitDraft}
         disabled={disabled}
-        fullWidth
-        slotProps={{
-          htmlInput: {
-            ref: inputRef,
-            inputMode: "numeric",
-            autoComplete: "off",
-            "aria-label": "Кадастровый номер",
-          },
-        }}
         sx={{
           "& .MuiOutlinedInput-root": {
             borderRadius: "16px",

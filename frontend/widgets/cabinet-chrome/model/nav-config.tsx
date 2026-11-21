@@ -306,6 +306,7 @@ export const PROVIDER_HEADER_NAV: readonly CabinetNavItem[] = [
 ];
 
 export const CUSTOMER_FAVORITES_NAV: readonly CabinetNavItem[] = [
+  { key: "favorite-lands", label: "Участки", href: "/lands?favorites=1", icon: <FavoriteBorderRoundedIcon />, isActive: ({ pathname, searchParams }) => pathname === "/lands" && searchParams.get("favorites") === "1" },
   { key: "favorite-services", label: "Услуги", href: "/profile/favorites/services", icon: <FavoriteBorderRoundedIcon />, isActive: ({ pathname }) => pathname === "/profile/favorites/services" },
   { key: "favorite-providers", label: "Исполнители", href: "/profile/favorites/providers", icon: <PersonOutlineOutlinedIcon />, isActive: ({ pathname }) => pathname === "/profile/favorites/providers" },
   { key: "favorite-stories", label: "Сторис", href: "/profile?section=stories&view=saved", icon: <DataSaverOnIcon />, isActive: ({ pathname, searchParams }) => pathname === "/profile" && searchParams.get("section") === "stories" && searchParams.get("view") === "saved" },

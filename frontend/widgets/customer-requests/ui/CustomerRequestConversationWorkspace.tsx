@@ -40,7 +40,8 @@ import {
 } from "@/entities/chat";
 import {
   getRequestDisplayStatusLabel,
-  formatRequestReference,
+  formatRequestCreatedAt,
+  formatRequestNumber,
   hasRequestLock,
   isOrderExecutionStatus,
   mergeWorkStageStatusOptions,
@@ -48,7 +49,6 @@ import {
   RequestPriceBlock,
   resolvePaymentTriggerLabel,
   resolveProviderTriggerLabel,
-  resolveRequestDetailBody,
   resolveRequestDetailTitle,
   type RequestDocumentRequestDto,
   type RequestRemarkDto,
@@ -172,6 +172,17 @@ export function CustomerRequestConversationWorkspace({
   );
   const documentsRef = useRef<HTMLDivElement>(null);
   const [req, setReq] = useState<RequestCustomerDto>(initialRequest);
+  const [replyNoticeOpen, setReplyNoticeOpen] = useState(justCreated);
+  const showReplyNotice =
+    replyNoticeOpen &&
+    req.subjectType === "SERVICE" &&
+    req.status === "NEW" &&
+    req.awaitingProviderReply;
+  useEffect(() => {
+    if (!showReplyNotice) return;
+    const timer = window.setTimeout(() => setReplyNoticeOpen(false), 5000);
+    return () => window.clearTimeout(timer);
+  }, [showReplyNotice]);
   const [finance, setFinance] = useState<RequestFinanceDto>({
     totalAmountRubles: initialRequest.lockedAt
       ? initialRequest.totalAmountRubles
@@ -1008,7 +1019,7 @@ export function CustomerRequestConversationWorkspace({
     }
   }
 
-  const requestBody = resolveRequestDetailBody(req.message, req.serviceTitle);
+  const requestBody = req.message?.trim() || null;
   const headerTitle = resolveRequestDetailTitle(
     req.subjectType,
     req.serviceTitle,
@@ -1020,12 +1031,9 @@ export function CustomerRequestConversationWorkspace({
   const createdNotice =
     justCreated &&
     req.status === "NEW" &&
-    (req.subjectType === "SERVICE" || !req.lockedAt)
-      ? req.subjectType === "SERVICE"
-        ? req.message?.trim()
-          ? "Заявка отправлена исполнителю услуги. Ответ появится в этом чате. Здесь можно уточнить задачу и согласовать условия."
-          : "Заявка создана. Напишите исполнителю в чате, что нужно сделать, и согласуйте условия."
-        : "Заявка опубликована. Подходящие исполнители смогут откликнуться здесь. Обсудите предложения в отдельных чатах и выберите одного исполнителя."
+    req.subjectType !== "SERVICE" &&
+    !req.lockedAt
+      ? "Заявка опубликована. Подходящие исполнители смогут откликнуться здесь. Обсудите предложения в отдельных чатах и выберите одного исполнителя."
       : null;
   const providerFields = getProviderContactFields({
     providerName: req.providerName,
@@ -1033,7 +1041,10 @@ export function CustomerRequestConversationWorkspace({
     providerEmail: req.providerEmail,
   });
 
-  const paymentTriggerLabel = resolvePaymentTriggerLabel(finance);
+  const paymentTriggerLabel = resolvePaymentTriggerLabel({
+    ...finance,
+    totalAmountRubles: finance.totalAmountRubles ?? req.servicePriceRubles,
+  });
   const panelItems = [
     {
       id: "cadastral",
@@ -1165,6 +1176,22 @@ export function CustomerRequestConversationWorkspace({
       onExpandRight={() => { collapseSidebar(); setChatCollapsed(false); }}
       middle={
         <Stack spacing={2}>
+          {showReplyNotice ? (
+            <Alert
+              severity="success"
+              closeText="Закрыть"
+              onClose={() => setReplyNoticeOpen(false)}
+              sx={{
+                bgcolor: "#386B47",
+                color: "common.white",
+                "& .MuiAlert-icon": {
+                  color: "inherit",
+                },
+              }}
+            >
+              Сообщение отправлено. Ждём ответа исполнителя.
+            </Alert>
+          ) : null}
           {req.assignedMember ? (
             <Paper sx={{ p: 2 }}>
               <RequestAssignee
@@ -1193,7 +1220,8 @@ export function CustomerRequestConversationWorkspace({
             ) : null}
             <RequestDetailHeaderCard
               title={headerTitle}
-              reference={formatRequestReference(req)}
+              reference={formatRequestCreatedAt(req.createdAt) ?? undefined}
+              requestLabel={`Заявка ${formatRequestNumber(req)}`}
               subtitle={pickTitle(req)}
               statusLabel={getRequestDisplayStatusLabel(req)}
               body={requestBody}
@@ -1250,23 +1278,14 @@ export function CustomerRequestConversationWorkspace({
                 ) : null
               }
               lead={
-                <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                req.status === "ACCEPTANCE_PENDING" ? (
                   <RequestPriceBlock
                     totalAmountRubles={finance.totalAmountRubles}
                     servicePriceRubles={req.servicePriceRubles}
                     priceProposal={finance.priceProposal}
-                    serviceId={req.serviceId}
-                    showReferencePrice={false}
+                    statedOnly
                   />
-                  {req.status === "ACCEPTANCE_PENDING" ? (
-                    <RequestPriceBlock
-                      totalAmountRubles={finance.totalAmountRubles}
-                      servicePriceRubles={req.servicePriceRubles}
-                      priceProposal={finance.priceProposal}
-                      statedOnly
-                    />
-                  ) : null}
-                </Stack>
+                ) : null
               }
               details={
                 <RequestDetails
@@ -1326,14 +1345,6 @@ export function CustomerRequestConversationWorkspace({
           {remarksError ? (
             <Alert severity="warning">{remarksError}</Alert>
           ) : null}
-          {isServiceRequest &&
-          req.status === "NEW" &&
-          req.awaitingProviderReply ? (
-            <Alert severity="info">
-              Сообщение отправлено. Ждём ответа исполнителя.
-            </Alert>
-          ) : null}
-
           <RequestReviewsPanel
             key={req.id}
             requestId={req.id}

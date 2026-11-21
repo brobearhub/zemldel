@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Alert, Button, Stack, TextField, Typography } from "@mui/material";
 import { CadastralNumberChipsField } from "@/shared/ui/CadastralNumberChipsField";
 import { useServiceLeadCapture } from "@/features/create-service-request-lead/model/useServiceLeadCapture";
-import { DEFAULT_SERVICE_QUESTION } from "@/features/create-service-request-lead";
 
 type Props = {
   serviceId: string;
@@ -21,7 +20,6 @@ export function ServiceLeadCaptureForm({ serviceId, serviceTitle, initialCustome
 
       <TextField
         label="Вопрос (необязательно)"
-        placeholder={DEFAULT_SERVICE_QUESTION}
         multiline
         minRows={3}
         value={form.question}

@@ -330,7 +330,7 @@ export class RequestPaymentsService {
         where: { requestId: input.requestId },
         select: { providerId: true },
       });
-      for (const row of rows) ids.add(row.providerId);
+      for (const row of rows) if (row.providerId) ids.add(row.providerId);
     }
     return [...ids];
   }
@@ -1098,7 +1098,7 @@ export class RequestPaymentsService {
       },
       select: { providerId: true },
     });
-    if (!conversation) {
+    if (!conversation?.providerId) {
       throw new ForbiddenException('Conversation does not belong to request');
     }
     return conversation.providerId;

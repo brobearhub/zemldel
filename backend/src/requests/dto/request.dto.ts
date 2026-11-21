@@ -1188,21 +1188,47 @@ export function canCustomerDeleteRequest(
   row: Pick<
     RequestDbRow,
     'status' | 'lockedAt' | 'dealTerms' | 'providerOffers'
-  >,
+  > &
+    Partial<
+      Pick<
+        RequestDbRow,
+        'serviceId' | 'providerId' | 'contractAcceptedAt' | '_count'
+      >
+    >,
   hasProviderResponse: boolean,
 ): boolean {
   if (row.status === 'CLOSED') return false;
-  if (hasRequestLock(row)) return false;
+  if (row.contractAcceptedAt != null) return false;
   if (isOrderExecutionStatus(row.status)) return false;
   if (row.status !== 'NEW' && row.status !== 'DISCUSSING') return false;
   if (hasProviderResponse) return false;
   if (row.dealTerms != null) return false;
   const offers = row.providerOffers ?? [];
+  if (row.serviceId != null) {
+    // Service requests are locked to their provider from creation. A response,
+    // an accepted contract, or persisted files still prevents deletion.
+    if (
+      (row._count?.contractFiles ?? 0) > 0 ||
+      (row._count?.documentRequests ?? 0) > 0 ||
+      (row._count?.workStages ?? 0) > 0
+    )
+      return false;
+    return !offers.some(
+      (offer) =>
+        offer.status === 'SELECTED' && offer.providerId !== row.providerId,
+    );
+  }
+  if (hasRequestLock(row)) return false;
   if (offers.some((offer) => offer.status === 'SELECTED')) return false;
   return true;
 }
 
 export type RequestDbRow = {
+  _count?: {
+    contractFiles: number;
+    documentRequests: number;
+    workStages: number;
+  };
   assignedMember?: Prisma.ProviderMemberGetPayload<{
     select: typeof assignedMemberSelect;
   }> | null;

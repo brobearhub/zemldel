@@ -3,7 +3,7 @@ import { ThemeProvider } from "@mui/material";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppTheme } from "@/core/theme/createAppTheme";
-import type { RequestProDto } from "@/entities/request";
+import { formatRequestCreatedAt, type RequestProDto } from "@/entities/request";
 import { ConfirmProvider } from "@/shared/ui/confirm";
 import { fetchProRequestContractBundles, fetchProRequestMiscFiles } from "@/entities/request/api/pro-contract-bundles";
 import { fetchProRequestDocumentRequests } from "@/entities/request/api/request-document-requests";
@@ -46,6 +46,50 @@ describe("provider request sections follow live updates", () => {
     vi.mocked(fetchProRequestContractBundles).mockResolvedValue([{ status: "PENDING_CUSTOMER" }] as never);
   });
   afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+  it("shows the request number separately from the creation date without a status chip", async () => {
+    const numbered = {
+      ...request,
+      number: 46,
+      createdAt: "2026-11-17T06:09:00.000Z",
+      subjectType: "SERVICE",
+      serviceTitle: "Межевание",
+      status: "NEW",
+    } as RequestProDto;
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify(numbered)));
+    await act(async () => {
+      render(<ConfirmProvider><ProRequestDetails initialRequest={numbered} subtitle="" /></ConfirmProvider>);
+    });
+    expect(screen.getByText("Заявка № 46")).toBeVisible();
+    expect(screen.getByText(formatRequestCreatedAt(numbered.createdAt)!)).toBeVisible();
+    expect(screen.queryByText(/Заявка № 46 ·/)).not.toBeInTheDocument();
+    expect(Array.from(document.querySelectorAll(".MuiChip-label"), (chip) => chip.textContent)).not.toContain("Новая");
+  });
+
+  it("keeps a new priced service request at the new stage without the contract banner", async () => {
+    const serviceRequest = {
+      ...request,
+      subjectType: "SERVICE",
+      status: "NEW",
+      servicePriceRubles: 12000,
+    } as RequestProDto;
+    vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify(serviceRequest)));
+    vi.mocked(fetchProRequestContractBundles).mockResolvedValue([]);
+    await act(async () => {
+      render(<ConfirmProvider><ProRequestDetails initialRequest={serviceRequest} subtitle="" /></ConfirmProvider>);
+    });
+    expect(screen.getAllByText("Новая")).toHaveLength(1);
+    expect(screen.queryByText("Цена указана. Подготовьте и отправьте договор в разделе документов.")).not.toBeInTheDocument();
+  });
+
+  it("shows a pending contract notice for a new service request", async () => {
+    const serviceRequest = { ...request, subjectType: "SERVICE", status: "NEW" } as RequestProDto;
+    vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify(serviceRequest)));
+    await act(async () => {
+      render(<ConfirmProvider><ProRequestDetails initialRequest={serviceRequest} subtitle="" /></ConfirmProvider>);
+    });
+    expect(screen.getByText("Договор отправлен. Ждём решения клиента.")).toBeVisible();
+  });
 
   it("opens the full estimate in place of the progress and restores it on close", async () => {
     const withExpenses = {
@@ -127,7 +171,6 @@ describe("provider request sections follow live updates", () => {
     const readsBefore = vi.mocked(fetchProRequestContractBundles).mock.calls.length;
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ ...request, isLocked: true })));
     await act(async () => { window.dispatchEvent(new CustomEvent("request:changed", { detail: { requestId: "request-a" } })); });
-    expect(screen.getByText("Работу выполняет другой исполнитель")).toBeInTheDocument();
     expect(screen.queryByTestId("contracts")).not.toBeInTheDocument();
     expect(fetchProRequestContractBundles).toHaveBeenCalledTimes(readsBefore);
   });
@@ -138,7 +181,6 @@ describe("provider request sections follow live updates", () => {
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({...request, isLocked: true, providerId: "other-provider"})));
     await act(async () => { window.dispatchEvent(new CustomEvent("request:changed", { detail: { requestId: "request-a" } })); });
     expect(screen.getByTestId("chat-readonly")).toHaveTextContent("true");
-    expect(screen.getByText("Работу выполняет другой исполнитель")).toBeInTheDocument();
   });
   it.each([401, 403, 404])('closes the whole workspace on access failure %s', async status => {
     await act(async () => { render(<ConfirmProvider><ProRequestWorkspace initialRequest={request} subtitle="" /></ConfirmProvider>); });

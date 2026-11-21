@@ -246,7 +246,8 @@ function CustomerAcceptContractActions(props: {
             useFlexGap
             sx={{
               flexWrap: "wrap",
-              alignSelf: "flex-start",
+              alignSelf: "flex-end",
+              mt: "auto",
               pt: 2,
             }}
           >
@@ -326,6 +327,7 @@ export function CustomerRequestDocumentsSection(props: Props) {
           id="contract-review"
           tabIndex={-1}
           spacing={2}
+          useFlexGap
           sx={{
             p: { xs: 2.5, tablet: 3 },
             minWidth: 0,

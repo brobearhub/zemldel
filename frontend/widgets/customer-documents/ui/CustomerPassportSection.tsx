@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import ShareOutlinedIcon from "@mui/icons-material/ShareOutlined";
@@ -20,6 +20,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useConfirm } from "@/shared/ui/confirm";
+import { AppDateField } from "@/shared/ui/date-field";
 import { PASSPORT_ICON_COLOR, PassportIcon } from "@/shared/ui/PassportIcon";
 
 type PassportDto = {
@@ -121,13 +122,10 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
     return () => controller.abort();
   }, [attempt]);
 
-  function setField(key: keyof PassportDto) {
-    return (event: ChangeEvent<HTMLInputElement>) => {
-      const next = event.target.value;
-      setValue((current) => ({ ...current, [key]: next || null }));
-      setError(null);
-      setNotice(null);
-    };
+  function setField(key: keyof PassportDto, next: string) {
+    setValue((current) => ({ ...current, [key]: next || null }));
+    setError(null);
+    setNotice(null);
   }
 
   function closeEditor() {
@@ -468,7 +466,7 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
               <TextField
                 label="Серия"
                 value={value.series ?? ""}
-                onChange={setField("series")}
+                onChange={(event) => setField("series", event.target.value)}
                 disabled={busy}
                 slotProps={{
                   htmlInput: {
@@ -485,7 +483,7 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
               <TextField
                 label="Номер"
                 value={value.number ?? ""}
-                onChange={setField("number")}
+                onChange={(event) => setField("number", event.target.value)}
                 disabled={busy}
                 slotProps={{
                   htmlInput: {
@@ -502,49 +500,39 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
             <TextField
               label="ФИО"
               value={value.fullName ?? ""}
-              onChange={setField("fullName")}
+              onChange={(event) => setField("fullName", event.target.value)}
               disabled={busy}
               fullWidth
             />
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-              <TextField
+              <AppDateField
                 label="Дата рождения"
-                type="date"
+                size="medium"
                 value={value.birthDate ?? ""}
-                onChange={setField("birthDate")}
+                onChange={(date) => setField("birthDate", date)}
                 disabled={busy}
-                slotProps={{
-                  inputLabel: {
-                    shrink: true,
-                  },
-                }}
                 fullWidth
               />
-              <TextField
+              <AppDateField
                 label="Дата выдачи"
-                type="date"
+                size="medium"
                 value={value.issuedAt ?? ""}
-                onChange={setField("issuedAt")}
+                onChange={(date) => setField("issuedAt", date)}
                 disabled={busy}
-                slotProps={{
-                  inputLabel: {
-                    shrink: true,
-                  },
-                }}
                 fullWidth
               />
             </Stack>
             <TextField
               label="Кем выдан"
               value={value.issuedBy ?? ""}
-              onChange={setField("issuedBy")}
+              onChange={(event) => setField("issuedBy", event.target.value)}
               disabled={busy}
               fullWidth
             />
             <TextField
               label="Код подразделения"
               value={value.departmentCode ?? ""}
-              onChange={setField("departmentCode")}
+              onChange={(event) => setField("departmentCode", event.target.value)}
               disabled={busy}
               placeholder="000-000"
               fullWidth
@@ -552,7 +540,7 @@ export function CustomerPassportSection({ onSavedChange, onShare }: Props) {
             <TextField
               label="Адрес регистрации"
               value={value.registrationAddress ?? ""}
-              onChange={setField("registrationAddress")}
+              onChange={(event) => setField("registrationAddress", event.target.value)}
               disabled={busy}
               multiline
               minRows={2}

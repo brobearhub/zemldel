@@ -568,7 +568,9 @@ export class PartnersService {
     const members = await this.prisma.providerMember.findMany({
       where: {
         providerId: {
-          in: [conversation.providerId, conversation.partnerProviderId!],
+          in: [conversation.providerId, conversation.partnerProviderId].filter(
+            (id): id is string => Boolean(id),
+          ),
         },
         status: 'ACTIVE',
         role: { in: ['OWNER', 'MANAGER'] },

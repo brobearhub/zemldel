@@ -2,6 +2,13 @@ import type { RequestCustomerDto } from "@/entities/request/dto/request.dto";
 
 type Fetcher = typeof fetch;
 
+export class CustomerRequestDeleteConflictError extends Error {
+  constructor() {
+    super("Заявку уже нельзя удалить. Возможно, исполнитель уже ответил.");
+    this.name = "CustomerRequestDeleteConflictError";
+  }
+}
+
 export async function selectCustomerRequestProvider(
   requestId: string,
   providerId: string,
@@ -65,6 +72,7 @@ export async function deleteCustomerRequest(requestId: string): Promise<{ ok: tr
   });
   const payload = (await res.json().catch(() => null)) as { ok?: true; error?: string } | null;
   if (!res.ok) {
+    if (res.status === 409) throw new CustomerRequestDeleteConflictError();
     throw new Error(
       payload && typeof payload === "object" && payload.error
         ? payload.error

@@ -1,5 +1,6 @@
 "use client";
 
+import LandscapeOutlined from "@mui/icons-material/LandscapeOutlined";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
@@ -323,9 +324,11 @@ export function CabinetNavigationPanel({
       >
         <List disablePadding>
           {row(CUSTOMER_HOME_NAV.href, CUSTOMER_HOME_NAV.label, CUSTOMER_HOME_NAV.icon)}
-          {authenticated && !isEmployee
+          {row("/lands", "Участки", <LandscapeOutlined />, pathname === "/lands")}
+          {authenticated ? row("/lands/mine", "Мои объявления", <LandscapeOutlined />, pathname.startsWith("/lands/") && !pathname.match(/^\/lands\/[a-f0-9-]{36}$/)) : null}
+          {authenticated
             ? row(
-                isEmployee ? "/pro/assigned" : provider ? "/pro/chats" : "/profile/chats",
+                provider ? "/pro/chats" : "/profile/chats",
                 "Чаты",
                 <ChatOutlined />,
                 pathname.startsWith(provider ? "/pro/chats" : "/profile/chats"),

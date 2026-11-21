@@ -1,4 +1,4 @@
 "use client";
 
-export const DEFAULT_SERVICE_QUESTION = "Здравствуйте, у меня есть вопрос по вашей услуге.";
+export { DEFAULT_SERVICE_REQUEST_GREETING as DEFAULT_SERVICE_QUESTION } from "@/entities/request/api/send-initial-service-message";
 

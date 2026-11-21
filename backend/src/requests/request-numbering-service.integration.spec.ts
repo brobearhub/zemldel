@@ -97,6 +97,18 @@ describe.skipIf(!databaseUrl)(
             );
             expect(replayed.id).toBe(direct.id);
             expect(replayed.number).toBe(direct.number);
+            expect(direct.totalAmountRubles).toBe(15000);
+            const directPrices = await tx.requestPriceProposal.findMany({
+              where: { requestId: direct.id, supersededAt: null },
+            });
+            expect(directPrices).toHaveLength(1);
+            expect(directPrices[0]).toMatchObject({
+              amountRubles: 15000,
+              authorSide: 'PROVIDER',
+              proposedByUserId: null,
+              acceptedAt: null,
+              isDirectSet: true,
+            });
 
             const free = await service.createUnlinked(customer.id, {
               message: 'Free request',
@@ -109,7 +121,7 @@ describe.skipIf(!databaseUrl)(
             expect(free.number).toBeNull();
             expect(categorized.number).toBeNull();
 
-            for (const request of [direct, free, categorized]) {
+            for (const request of [free, categorized]) {
               await tx.request.update({
                 where: { id: request.id },
                 data: {
@@ -124,9 +136,7 @@ describe.skipIf(!databaseUrl)(
                   providerId: provider.id,
                   amountRubles: 15000,
                   authorSide: 'PROVIDER',
-                  ...(request.id === direct.id
-                    ? { isDirectSet: true }
-                    : { acceptedAt: new Date() }),
+                  acceptedAt: new Date(),
                 },
               });
             }

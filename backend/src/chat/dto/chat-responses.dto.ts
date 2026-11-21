@@ -2,6 +2,8 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ChatInboxItemDto {
   @ApiPropertyOptional()
+  landListingId?: string;
+  @ApiPropertyOptional()
   conversationId?: string;
 
   @ApiPropertyOptional()
@@ -16,8 +18,8 @@ export class ChatInboxItemDto {
   @ApiProperty({ format: 'uuid' })
   serviceRequestId!: string | null;
 
-  @ApiPropertyOptional({ enum: ['REQUEST', 'DIRECT', 'PARTNER'] })
-  kind?: 'REQUEST' | 'DIRECT' | 'PARTNER';
+  @ApiPropertyOptional({ enum: ['REQUEST', 'DIRECT', 'PARTNER', 'LAND'] })
+  kind?: 'REQUEST' | 'DIRECT' | 'PARTNER' | 'LAND';
 
   @ApiPropertyOptional()
   directState?: string | null;
@@ -39,6 +41,17 @@ export class ChatInboxItemDto {
     description: 'Если не поддерживается — поле может отсутствовать.',
   })
   unreadCount?: number;
+}
+
+export class ChatUnreadSnapshotItemDto {
+  @ApiProperty({ format: 'uuid' })
+  conversationId!: string;
+
+  @ApiProperty({ format: 'uuid', nullable: true })
+  serviceRequestId!: string | null;
+
+  @ApiProperty({ example: 0 })
+  unreadCount!: number;
 }
 
 export class ServiceRequestConversationListItemDto {

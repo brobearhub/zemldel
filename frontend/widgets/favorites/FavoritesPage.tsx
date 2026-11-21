@@ -70,6 +70,7 @@ export function FavoritesPage({ kind }: { kind: FavoriteKind }) {
       sx={{ py: 3 }}
     >
       <Stack spacing={2.5}>
+        <Button component={Link} href="/lands?favorites=1" sx={{ alignSelf: "start" }}>Избранные объявления об участках</Button>
         <Box>
           <Typography
             variant="h4"

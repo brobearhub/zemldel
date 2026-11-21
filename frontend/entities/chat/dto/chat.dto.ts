@@ -49,12 +49,13 @@ export type ChatServiceRequestConversationListItemDto = {
 };
 
 export type ChatInboxItemDto = {
+  landListingId?: string;
   conversationId?: string;
   peerName?: string;
   requestStatus?: string;
   contractPhase?: boolean;
   serviceRequestId: string | null;
-  kind?: "REQUEST" | "DIRECT" | "PARTNER";
+  kind?: "REQUEST" | "DIRECT" | "PARTNER" | "LAND";
   directState?: string | null;
   requestNumber?: number | null;
   title: string;

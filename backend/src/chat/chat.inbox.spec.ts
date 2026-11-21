@@ -3,12 +3,56 @@ import { describe, expect, it, vi } from 'vitest';
 import { ChatService } from './chat.service';
 
 function makeService(prisma: any) {
+  prisma.$queryRaw ??= vi.fn().mockResolvedValue([]);
   const internalAuth = {} as any;
   const gateway = {} as any;
   return new ChatService(prisma, internalAuth, gateway);
 }
 
 describe('ChatService listInbox', () => {
+  it('includes unread counts in an inbox with only request conversations', async () => {
+    const prisma = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'u1',
+          systemRole: 'USER',
+          activeProviderId: null,
+          providerMemberships: [],
+        }),
+      },
+      conversation: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'c1',
+            kind: 'REQUEST',
+            requestId: 'r1',
+            providerId: 'p1',
+            provider: { name: 'Provider' },
+            createdAt: new Date(),
+            lastMessageAt: null,
+            messages: [{ body: 'hello', createdAt: new Date() }],
+            request: {
+              id: 'r1',
+              status: 'NEW',
+              lockedAt: null,
+              providerId: null,
+              service: null,
+              category: null,
+            },
+          },
+        ]),
+      },
+      $queryRaw: vi
+        .fn()
+        .mockResolvedValue([{ conversationId: 'c1', count: 3n }]),
+    };
+    const items = await makeService(prisma).listInbox('u1', 'customer');
+    expect(items[0]).toEqual(
+      expect.objectContaining({ conversationId: 'c1', unreadCount: 3 }),
+    );
+    expect(prisma.$queryRaw).toHaveBeenCalledOnce();
+  });
+
   it.each(['customer', 'provider'] as const)(
     '%s: agreed SERVICE price shows contract phase before a chat reply',
     async (role) => {
@@ -169,7 +213,10 @@ describe('ChatService listInbox', () => {
     const svc = makeService(prisma);
     await svc.listInbox('u1', 'provider');
 
-    expect(prisma.conversation.findMany).toHaveBeenCalledWith(
+    expect({
+      ...prisma.conversation.findMany.mock.calls[0][0],
+      where: prisma.conversation.findMany.mock.calls[0][0].where.OR[0],
+    }).toEqual(
       expect.objectContaining({
         where: expect.objectContaining({
           AND: expect.arrayContaining([

@@ -190,7 +190,10 @@ export function createAppTheme(
         background: {
           default: t.bg,
           paper: t.paper,
-          secondary: getSecondaryBackground(t.primary.main, t.bg),
+          secondary:
+            mode === "light"
+              ? "#cfd9ca"
+              : getSecondaryBackground(t.primary.main, t.bg),
         },
         divider: t.divider,
         text: {

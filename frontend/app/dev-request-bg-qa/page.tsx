@@ -22,7 +22,8 @@ export default function RequestBgQa() {
         <RequestDetailHeaderCard
           title="Оформление разрешений на строительство"
           subtitle=""
-          reference="Заявка № 21 · 03.11.2026, 07:45"
+          reference="03.11.2026, 07:45"
+          requestLabel="Заявка № 21"
           statusLabel="Договор"
           body="Оформление разрешений на строительство"
           nextStep={<Alert severity="info" icon={false} sx={{ bgcolor: "background.paper", color: "text.primary", border: 1, borderColor: "divider" }}>Цена согласована. Подготовьте и отправьте договор в разделе документов.</Alert>}

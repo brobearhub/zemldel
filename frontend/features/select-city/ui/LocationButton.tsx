@@ -1,8 +1,9 @@
 "use client";
 
-import type { Ref } from "react";
+import type { ClipboardEvent, KeyboardEvent, Ref } from "react";
 import { Box, Typography } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import ChevronRightRounded from "@mui/icons-material/ChevronRightRounded";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
 
 const ICON_COLOR = {
@@ -20,6 +21,7 @@ type Props = {
   label: string;
   describedBy?: string;
   onClick: () => void;
+  onTypeSearch?: (text: string) => void;
   disabled?: boolean;
   error?: boolean;
   iconColor?: LocationIconColor;
@@ -35,6 +37,7 @@ export function LocationButton({
   label,
   describedBy,
   onClick,
+  onTypeSearch,
   disabled,
   error,
   iconColor = "gray",
@@ -60,6 +63,7 @@ export function LocationButton({
         alignItems: "center",
         maxWidth: "100%",
         minWidth: 0,
+        width: onTypeSearch ? "100%" : undefined,
       }}
     >
       <Box
@@ -72,6 +76,16 @@ export function LocationButton({
         aria-invalid={error || undefined}
         disabled={disabled}
         onClick={onClick}
+        onKeyDown={onTypeSearch && ((event: KeyboardEvent<HTMLButtonElement>) => {
+          if (event.key.length === 1 && event.key.trim() && !event.ctrlKey && !event.altKey && !event.metaKey) {
+            event.preventDefault();
+            onTypeSearch(event.key);
+          }
+        })}
+        onPaste={onTypeSearch && ((event: ClipboardEvent<HTMLButtonElement>) => {
+          event.preventDefault();
+          onTypeSearch(event.clipboardData.getData("text").trim());
+        })}
         sx={{
           display: "inline-flex",
           alignItems: "center",
@@ -79,6 +93,7 @@ export function LocationButton({
           px: { xs: 0.75, sm: 1 },
           py: 0.75,
           minWidth: 0,
+          flex: onTypeSearch ? 1 : undefined,
           minHeight: 44,
           maxWidth: "100%",
           borderRadius: 1,
@@ -117,6 +132,7 @@ export function LocationButton({
         >
           {label}
         </Typography>
+        {onTypeSearch && !onClear && <ChevronRightRounded fontSize="small" sx={{ ml: "auto" }} />}
       </Box>
       {onClear ? (
         <Box

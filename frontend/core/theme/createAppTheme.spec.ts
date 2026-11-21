@@ -41,7 +41,7 @@ describe.each(["light", "dark"] as const)(
     });
 
     it("exposes the secondary background as a theme value and CSS variable", () => {
-      const expected = mode === "light" ? "#dbdfd3" : "#383243";
+      const expected = mode === "light" ? "#cfd9ca" : "#383243";
       expect(theme.palette.background.secondary).toBe(expected);
       expect(theme.vars.palette.background.secondary).toContain(
         "--mui-palette-background-secondary",

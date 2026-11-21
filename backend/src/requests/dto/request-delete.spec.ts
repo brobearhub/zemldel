@@ -59,4 +59,48 @@ describe('canCustomerDeleteRequest', () => {
     );
     expect(dto.canDeleteByCustomer).toBe(true);
   });
+
+  it('маппит удаление заявки услуги и блокирует его при наличии файла или ответа', () => {
+    const now = new Date('2026-08-06T00:00:00.000Z');
+    const row = {
+      id: 'r1',
+      status: 'NEW' as const,
+      serviceId: 's1',
+      categoryId: null,
+      providerId: 'p1',
+      customerUserId: 'cu1',
+      requestCityId: null,
+      message: 'hi',
+      location: null,
+      lockedAt: now,
+      dealTerms: null,
+      contractAcceptedAt: null,
+      totalAmountRubles: 11111,
+      createdAt: now,
+      updatedAt: now,
+      providerOffers: [
+        {
+          providerId: 'p1',
+          status: 'SELECTED' as const,
+          selectedAt: now,
+          declinedAt: null,
+        },
+      ],
+      _count: { contractFiles: 0, documentRequests: 0, workStages: 0 },
+    };
+    expect(
+      requestRowToCustomerDtoPlain(row, { hasProviderResponse: false })
+        .canDeleteByCustomer,
+    ).toBe(true);
+    expect(
+      requestRowToCustomerDtoPlain(row, { hasProviderResponse: true })
+        .canDeleteByCustomer,
+    ).toBe(false);
+    expect(
+      requestRowToCustomerDtoPlain(
+        { ...row, _count: { ...row._count, contractFiles: 1 } },
+        { hasProviderResponse: false },
+      ).canDeleteByCustomer,
+    ).toBe(false);
+  });
 });

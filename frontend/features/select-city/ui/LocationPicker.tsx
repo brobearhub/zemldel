@@ -30,6 +30,7 @@ type Props = {
   value: CitySuggestItemDto | null;
   disabled?: boolean;
   fill?: boolean;
+  initialSearch?: string;
   onSelect: (city: CitySuggestItemDto) => void;
 };
 
@@ -71,8 +72,8 @@ function CityRow({
   );
 }
 
-export function LocationPicker({ value, disabled, fill = false, onSelect }: Props) {
-  const [query, setQuery] = useState("");
+export function LocationPicker({ value, disabled, fill = false, initialSearch, onSelect }: Props) {
+  const [query, setQuery] = useState(initialSearch ?? "");
   const [letter, setLetter] = useState<string | null>(null);
   const [capitals, setCapitals] = useState<RegionalCapitalItemDto[]>([]);
   const [capitalsError, setCapitalsError] = useState<string | null>(null);
@@ -83,10 +84,16 @@ export function LocationPicker({ value, disabled, fill = false, onSelect }: Prop
   const [capitalsRetry, setCapitalsRetry] = useState(0);
   const [suggestRetry, setSuggestRetry] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const debounced = useDebounced(query, 250);
   const trimmed = query.trim();
   const searching = trimmed.length >= 2;
   const remoteReady = searching && query === debounced && !suggestLoading && !suggestError && suggestions.length > 0;
+
+  useEffect(() => {
+    if (initialSearch === undefined) return;
+    searchRef.current?.focus({ preventScroll: true });
+  }, [initialSearch]);
 
   useEffect(() => {
     let cancelled = false;
@@ -152,6 +159,7 @@ export function LocationPicker({ value, disabled, fill = false, onSelect }: Prop
     [capitals, value],
   );
   const letters = useMemo(() => capitalLetters(capitals), [capitals]);
+  const showFeatured = featured.length > 0 && (initialSearch === undefined || !trimmed);
   const groups = useMemo(() => {
     const prefixed = filterByPrefix(capitals, trimmed);
     return groupCitiesByLetter(filterByLetter(prefixed, trimmed ? null : letter));
@@ -187,9 +195,10 @@ export function LocationPicker({ value, disabled, fill = false, onSelect }: Prop
         height: fill ? "100%" : undefined,
       }}
     >
-      <Box sx={{ p: 2, pb: featured.length > 0 ? 1.5 : 2, flexShrink: 0 }}>
+      <Box sx={{ p: 2, pb: showFeatured ? 1.5 : 2, flexShrink: 0 }}>
         <TextField
           value={query}
+          inputRef={searchRef}
           placeholder="Поиск города"
           disabled={disabled}
           fullWidth
@@ -202,7 +211,7 @@ export function LocationPicker({ value, disabled, fill = false, onSelect }: Prop
           }}
           slotProps={{ htmlInput: { "aria-label": "Поиск города" } }}
         />
-        {featured.length > 0 ? (
+        {showFeatured ? (
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 3, mb: 2 }}>
             {featured.map((city) => {
               const selected = value?.id === city.id;
@@ -255,7 +264,7 @@ export function LocationPicker({ value, disabled, fill = false, onSelect }: Prop
             px: 2,
             py: 1.25,
             flexShrink: 0,
-            bgcolor: "grey.50",
+            bgcolor: (theme) => theme.palette.mode === "dark" ? "background.default" : "grey.50",
             borderTop: "1px solid",
             borderColor: "divider",
           }}

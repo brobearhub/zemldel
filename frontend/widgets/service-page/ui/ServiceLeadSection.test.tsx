@@ -3,8 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 import { ServiceLeadSection } from "./ServiceLeadSection";
 
 vi.mock("@/features/create-service-request-lead", () => ({
-  ServiceAskQuestionButton: ({ serviceId }: { serviceId: string }) => <div>ask:{serviceId}</div>,
-  ServiceLeadCaptureForm: ({ serviceId }: { serviceId: string }) => <div>capture:{serviceId}</div>,
+  ServiceAskQuestionButton: ({ serviceId }: { serviceId: string }) => (
+    <div>ask:{serviceId}</div>
+  ),
+  ServiceLeadCaptureForm: ({ serviceId }: { serviceId: string }) => (
+    <div>capture:{serviceId}</div>
+  ),
 }));
 
 describe("ServiceLeadSection", () => {
@@ -15,15 +19,19 @@ describe("ServiceLeadSection", () => {
         serviceTitle="Кадастровые работы"
         isAuthenticated
         initialCustomerEmail={null}
-      />
+      />,
     );
 
     expect(screen.getByText("Оставить заявку")).toBeInTheDocument();
     expect(
-      screen.getByText("Заявка появится в вашем профиле, а чат с исполнителем откроется сразу после отправки.")
+      screen.getByText(
+        "Заявка появится в вашем профиле, а чат с исполнителем откроется сразу после отправки.",
+      ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Мы создадим заявку по услуге «Кадастровые работы», откроем чат с исполнителем и, если добавите вопрос, отправим его в чат сразу.")
+      screen.getByText(
+        "Мы создадим заявку по услуге «Кадастровые работы», откроем чат с исполнителем и, если добавите вопрос, отправим его сразу в чат.",
+      ),
     ).toBeInTheDocument();
   });
 });

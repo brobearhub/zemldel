@@ -98,6 +98,43 @@ describe.skipIf(!allowed)('billing with PostgreSQL transactions', () => {
       },
     );
   });
+  it('counts concurrent repeated service views once per visitor', async () => {
+    const category = await prisma.serviceCategory.create({
+      data: { name: 'Views QA', shortName: 'Views QA', slug: randomUUID() },
+    });
+    try {
+      const offering = await prisma.service.create({
+        data: {
+          providerId,
+          categoryId: category.id,
+          title: 'Views QA',
+          status: 'PUBLISHED',
+          price: '1000',
+        },
+      });
+      const workspace = new WorkspaceService(prisma, new PlanService(prisma));
+      const results = await Promise.all(
+        Array.from({ length: 20 }, () =>
+          workspace.view(offering.id, 'same-visitor'),
+        ),
+      );
+      expect(results).toHaveLength(20);
+      expect(results.every((result) => result.ok)).toBe(true);
+      expect(
+        await prisma.serviceView.count({ where: { serviceId: offering.id } }),
+      ).toBe(1);
+      await workspace.view(offering.id, 'another-visitor');
+      expect(
+        await prisma.serviceView.count({ where: { serviceId: offering.id } }),
+      ).toBe(2);
+    } finally {
+      await prisma.serviceView.deleteMany({
+        where: { service: { categoryId: category.id } },
+      });
+      await prisma.service.deleteMany({ where: { categoryId: category.id } });
+      await prisma.serviceCategory.delete({ where: { id: category.id } });
+    }
+  });
   afterAll(async () => {
     await prisma.request.deleteMany({
       where: { conversations: { some: { providerId: { in: providers } } } },

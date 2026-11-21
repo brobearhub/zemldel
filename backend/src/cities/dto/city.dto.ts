@@ -15,6 +15,9 @@ export class CitySuggestItemDto {
 
   @ApiProperty({ example: 'Moscow, 77' })
   displayName!: string;
+
+  @ApiProperty({ required: false })
+  mapSearchName?: string;
 }
 
 export class PlaceSuggestItemDto {

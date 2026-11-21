@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import dayjs from "dayjs";
+import { AppDateField } from "@/shared/ui/date-field";
 import {
   Alert,
   Button,
@@ -174,16 +175,15 @@ export function TaskEditor({
             ))}
           </TextField>
         </Stack>
-        <TextField
+        <AppDateField
           size="small"
           fullWidth
-          type="datetime-local"
+          withTime
           label="Срок (ваше местное время)"
           helperText="Можно оставить без срока"
           value={deadline}
           disabled={disabled}
-          onChange={(event) => setDeadline(event.target.value)}
-          slotProps={{ inputLabel: { shrink: true } }}
+          onChange={setDeadline}
         />
         {editing && (
           <FormControlLabel

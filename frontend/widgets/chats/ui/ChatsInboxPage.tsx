@@ -131,7 +131,7 @@ export function ChatsInboxPage({ cabinetRole }: { cabinetRole?: CabinetRole }) {
                     >
                       <Typography variant="caption" color="text.secondary">
                         {row.peerName ?? "Переписка"} · №{" "}
-                        {row.kind === "PARTNER" ? "Партнёр" : row.kind === "DIRECT" ? "Без заявки" : row.serviceRequestId?.slice(0, 8)}
+                        {row.kind === "LAND" ? "Участок" : row.kind === "PARTNER" ? "Партнёр" : row.kind === "DIRECT" ? "Без заявки" : row.serviceRequestId?.slice(0, 8)}
                         {row.requestStatus
                           ? ` · ${row.contractPhase ? "Договор" : getRequestStatusLabel(row.requestStatus as RequestStatus)}`
                           : ""}

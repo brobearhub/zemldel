@@ -100,6 +100,7 @@ export async function backendSwaggerFetch({ path, init, userId, timeoutMs }: Bac
     body,
     format: "arraybuffer",
     secure: false,
+    ...(init?.signal && { signal: init.signal }),
     validateStatus: () => true,
   });
 

@@ -3,7 +3,7 @@ import type { ServiceDto } from "@/entities/service";
 import { fetchBackendJson } from "@/shared/api/backend/server";
 import { siteOrigin } from "@/shared/lib/site-origin";
 
-const PUBLIC_PAGES = ["/", "/about", "/terms", "/privacy", "/consent", "/offer"] as const;
+const PUBLIC_PAGES = ["/", "/about", "/lands", "/terms", "/privacy", "/consent", "/offer"] as const;
 
 // Read the current published catalog on every request; never cache a partial build-time snapshot.
 export const dynamic = "force-dynamic";
@@ -17,9 +17,10 @@ type SitemapCategory = {
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const origin = siteOrigin();
   // A failed dependency must return an error, not a successful but incomplete sitemap.
-  const [services, categories] = await Promise.all([
+  const [services, categories, lands] = await Promise.all([
     fetchBackendJson<ServiceDto[]>("/services"),
     fetchBackendJson<SitemapCategory[]>("/service-categories"),
+    fetchBackendJson<Array<{ id: string; updatedAt: string }>>("/lands/sitemap"),
   ]);
 
   const providers = new Map<string, string>();
@@ -35,5 +36,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .map((category) => ({ url: `${origin}/service-categories/${encodeURIComponent(category.slug.trim())}` })),
     ...[...providers.values()].map((url) => ({ url })),
     ...services.map((service) => ({ url: `${origin}/services/${service.id}` })),
+    ...lands.map((listing) => ({ url: `${origin}/lands/${listing.id}`, lastModified: listing.updatedAt })),
   ];
 }

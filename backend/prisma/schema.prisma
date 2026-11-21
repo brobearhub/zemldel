@@ -271,6 +271,7 @@ model City {
   importEvents  CityImportEvent[]
   regionalCapital RegionalCapital?
   serviceCities ServiceCity[]
+  landListings LandListing[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -326,6 +327,10 @@ model CityImportEvent {
 }
 
 model User {
+  landListings LandListing[]
+  landFavorites LandFavorite[]
+  landReviews LandReview[]
+  landSellerConversations Conversation[] @relation("ConversationLandSeller")
   favoriteServices ServiceFavorite[]
   favoriteProviders ProviderFavorite[]
   passportRequests PassportAccessRequest[]
@@ -474,6 +479,7 @@ model PasswordResetToken {
 }
 
 model Provider {
+  landListings LandListing[]
   requestedPartnerships ProviderPartnership[] @relation("PartnershipRequester")
   receivedPartnerships ProviderPartnership[] @relation("PartnershipRecipient")
   partnerConversations Conversation[] @relation("ConversationPartner")
@@ -1109,6 +1115,7 @@ model RequestProviderOffer {
 }
 
 model Service {
+  landListing LandListing?
   favorites ServiceFavorite[]
   allRussia Boolean @default(false)
   regionOrder String[] @default([])
@@ -1421,6 +1428,7 @@ enum ConversationKind {
   REQUEST
   DIRECT
   PARTNER
+  LAND
 }
 
 enum DirectConversationState {
@@ -1431,6 +1439,10 @@ enum DirectConversationState {
 }
 
 model Conversation {
+  landListingId String? @db.Uuid
+  landSellerUserId String? @db.Uuid
+  landListing LandListing? @relation(fields: [landListingId], references: [id], onDelete: Restrict)
+  landSellerUser User? @relation("ConversationLandSeller", fields: [landSellerUserId], references: [id], onDelete: Cascade)
   partnershipId  String? @unique @db.Uuid
   partnerProviderId String? @db.Uuid
   partnership    ProviderPartnership? @relation(fields: [partnershipId], references: [id], onDelete: Cascade)
@@ -1440,12 +1452,12 @@ model Conversation {
   kind           ConversationKind        @default(REQUEST)
   directState    DirectConversationState?
   interestContext Json?
-  providerId     String                  @db.Uuid
+  providerId     String?                 @db.Uuid
   customerUserId String                  @db.Uuid
   status         ConversationStatus      @default(OPEN)
   lastMessageAt  DateTime?
   request        Request?                @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  provider       Provider                @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  provider       Provider?               @relation(fields: [providerId], references: [id], onDelete: Cascade)
   customerUser   User                    @relation("ConversationCustomer", fields: [customerUserId], references: [id], onDelete: Cascade)
   messages       Message[]
   readStates     ConversationReadState[]
@@ -1453,6 +1465,8 @@ model Conversation {
   updatedAt      DateTime                @updatedAt
 
   @@unique([requestId, providerId])
+  @@unique([landListingId, customerUserId])
+  @@index([landSellerUserId])
   @@index([providerId])
   @@index([partnerProviderId])
   @@index([customerUserId])
@@ -1762,4 +1776,145 @@ model BillingNotice {
   createdAt DateTime @default(now())
   provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
   @@index([providerId, createdAt])
+}
+
+// Shared cadastral identity only: attributes remain seller assertions on each listing.
+model LandParcel {
+  id String @id @default(uuid()) @db.Uuid
+  cadastralNumber String @unique
+  listings LandListing[]
+}
+
+enum LandListingKind {
+  SALE
+  SELECTION
+}
+enum LandDealType {
+  WHOLE
+  SHARE
+  LEASE_ASSIGNMENT
+}
+enum LandListingStatus {
+  DRAFT
+  PENDING
+  CHANGES_REQUIRED
+  PUBLISHED
+  WITHDRAWN
+}
+enum LandDocumentStatus {
+  NOT_REQUESTED
+  REQUESTED
+  VERIFIED
+  REJECTED
+}
+model LandListing {
+  id String @id @default(uuid()) @db.Uuid
+  authorUserId String @db.Uuid
+  providerId String? @db.Uuid
+  parcelId String? @db.Uuid
+  cityId String? @db.Uuid
+  serviceId String? @unique @db.Uuid
+  kind LandListingKind @default(SALE)
+  dealType LandDealType @default(WHOLE)
+  status LandListingStatus @default(DRAFT)
+  version Int @default(1)
+  title String @default("")
+  description String @default("")
+  address String @default("")
+  latitude Float?
+  longitude Float?
+  category String @default("")
+  permittedUses String[] @default([])
+  purposes String[] @default([])
+  sellerRelation String @default("OWNER")
+  areaM2 Decimal? @db.Decimal(18, 2)
+  priceRubles Decimal? @db.Decimal(18, 2)
+  details Json @default("{}")
+  phone String @default("")
+  showPhone Boolean @default(false)
+  documentStatus LandDocumentStatus @default(NOT_REQUESTED)
+  documentReviewScope String?
+  documentReviewedAt DateTime?
+  moderationReason String?
+  withdrawalReason String?
+  submittedAt DateTime?
+  publishedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  author User @relation(fields: [authorUserId], references: [id], onDelete: Restrict)
+  provider Provider? @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  parcel LandParcel? @relation(fields: [parcelId], references: [id], onDelete: Restrict)
+  city City? @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  service Service? @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  media LandMedia[]
+  favorites LandFavorite[]
+  conversations Conversation[]
+  reviews LandReview[]
+  revision LandListingRevision?
+  @@index([status, kind, publishedAt])
+  @@index([providerId, status])
+  @@index([authorUserId, status])
+  @@index([parcelId])
+  @@index([cityId, status])
+  @@index([status, latitude, longitude])
+  @@index([status, dealType, priceRubles])
+}
+model LandListingRevision {
+  listingId String @id @db.Uuid
+  listing LandListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  publishedVersion Int
+  publishedUpdatedAt DateTime
+  draft Json
+  mediaIds String[] @db.Uuid
+  status LandListingStatus @default(DRAFT)
+  documentStatus LandDocumentStatus @default(NOT_REQUESTED)
+  documentReviewScope String?
+  documentReviewedAt DateTime?
+  moderationReason String?
+  submittedAt DateTime?
+  @@index([status, submittedAt])
+}
+model LandMedia {
+  id String @id @default(uuid()) @db.Uuid
+  listingId String @db.Uuid
+  // PHOTO or DOCUMENT. Private objects; public photos require a published listing.
+  kind String
+  storageKey String @unique
+  filename String
+  mimeType String
+  size Int
+  position Int @default(0)
+  revisionOnly Boolean @default(false)
+  createdAt DateTime @default(now())
+  listing LandListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  @@index([listingId, kind, position])
+}
+model LandFavorite {
+  userId String @db.Uuid
+  listingId String @db.Uuid
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing LandListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  @@id([userId, listingId])
+  @@index([listingId])
+}
+model LandReview {
+  id String @id @default(uuid()) @db.Uuid
+  listingId String @db.Uuid
+  reviewerUserId String? @db.Uuid
+  kind String
+  decision String
+  reason String
+  listingVersion Int
+  createdAt DateTime @default(now())
+  listing LandListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  reviewer User? @relation(fields: [reviewerUserId], references: [id], onDelete: SetNull)
+  @@index([listingId, createdAt])
+}
+
+// No FK: erasure jobs survive draft deletion. Upload jobs guard against orphaned objects.
+model LandObjectCleanup {
+  objectKey String @id
+  notBefore DateTime @default(now())
+  @@index([notBefore])
 }

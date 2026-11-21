@@ -9,8 +9,11 @@ import {
 } from './mail/create-mail-sender';
 import { MAIL_SENDER, type MailSender } from './mail/mail-sender';
 import { PrismaService } from '../prisma/prisma.service';
+import { PrismaModule } from '../prisma/prisma.module';
+import { LegalDocsModule } from '../legal-docs/legal-docs.module';
 
 @Module({
+  imports: [PrismaModule, LegalDocsModule],
   controllers: [AuthController],
   providers: [
     AuthService,

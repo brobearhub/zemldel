@@ -40,6 +40,19 @@ describe("request status flow stepper", () => {
     expect(getRequestFlowActiveStepId({ status: "DISCUSSING", lockedAt })).toBe("DISCUSSING");
   });
 
+  it("keeps a new service request at NEW when its service price is set", () => {
+    const input = {
+      subjectType: "SERVICE" as const,
+      status: "NEW" as const,
+      lockedAt: "2026-08-06T00:00:00.000Z",
+      totalAmountRubles: 11111,
+    };
+    expect(getRequestFlowActiveStepId(input)).toBe("NEW");
+    expect(getRequestDisplayStatusLabel(input)).toBe("Новая");
+    expect(buildRequestFlowSteps(input)[0].completed).toBe(false);
+    expect(getRequestFlowActiveStepId({ ...input, status: "DISCUSSING" })).toBe("CONTRACT");
+  });
+
   it("agreed terms advance the visible stage to contract", () => {
     const input = { status: "TERMS_AGREED" as const, lockedAt: "2026-08-06T00:00:00.000Z" };
     expect(getRequestFlowActiveStepId(input)).toBe("CONTRACT");

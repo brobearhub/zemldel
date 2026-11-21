@@ -23,6 +23,7 @@ type Props = {
   emptyLabel?: string;
   /** Крестик сброса рядом с выбранным городом. В шапке не используется. */
   clearable?: boolean;
+  typeToSearch?: boolean;
   buttonRef?: Ref<HTMLButtonElement>;
 };
 
@@ -41,14 +42,18 @@ export function LocationField({
   iconColor,
   tone = "default",
   clearable = true,
+  typeToSearch = false,
   buttonRef,
 }: Props) {
   const hintId = useId();
   const [open, setOpen] = useState(false);
+  const [initialSearch, setInitialSearch] = useState("");
   const hint = helperText?.trim() ? helperText : null;
 
-  function openDialog() {
-    if (!disabled) setOpen(true);
+  function openDialog(search = "") {
+    if (disabled) return;
+    setInitialSearch(search);
+    setOpen(true);
   }
 
   return (
@@ -67,7 +72,8 @@ export function LocationField({
       ) : null}
       <LocationButton
         label={value ? value.name : emptyLabel}
-        onClick={openDialog}
+        onClick={() => openDialog()}
+        onTypeSearch={typeToSearch ? openDialog : undefined}
         disabled={disabled}
         error={error}
         describedBy={hint ? hintId : undefined}
@@ -93,6 +99,7 @@ export function LocationField({
         <LocationDialog
           open
           title={label}
+          initialSearch={typeToSearch ? initialSearch : undefined}
           value={value}
           onClose={() => setOpen(false)}
           onSelect={(next) => {

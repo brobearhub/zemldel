@@ -101,7 +101,7 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
   }, [threadId]);
 
   const rows = items ?? [];
-  const own = rows.filter((row) => directId ? (row.kind === "DIRECT" || row.kind === "PARTNER") && row.conversationId === directId : row.serviceRequestId === requestId);
+  const own = rows.filter((row) => directId ? (row.kind === "DIRECT" || row.kind === "PARTNER" || row.kind === "LAND") && row.conversationId === directId : row.serviceRequestId === requestId);
   const active = requestedConversation
     ? own.find((row) => row.conversationId === requestedConversation)
     : own.length === 1
@@ -600,7 +600,7 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
                       fontWeight: 700,
                     }}
                   >
-                    {active?.peerName || "Переписка по заявке"}
+                    {active?.peerName || "Переписка"}
                   </Typography>
                   {active ? (
                     <Typography
@@ -609,7 +609,7 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
                         color: "text.secondary",
                       }}
                     >
-                      {active.kind === "PARTNER" ? "Партнёр" : peerLabel}
+                      {active.kind === "LAND" ? "Собеседник по объявлению" : active.kind === "PARTNER" ? "Партнёр" : peerLabel}
                     </Typography>
                   ) : null}
                 </Box>
@@ -662,6 +662,11 @@ function Workspace({ scope, role }: { scope: string; role: ChatInboxRole }) {
                     </Typography>
                   ) : null}
                 </Box>
+                {active?.landListingId ? <Button
+                  component={Link}
+                  href={`/lands/${active.landListingId}`}
+                  endIcon={<ChevronRightRoundedIcon />}
+                >К объявлению</Button> : null}
                 {!directId ? <Button
                   component={Link}
                   href={`${requestBasePath}/${encodeURIComponent(requestId ?? "")}`}
