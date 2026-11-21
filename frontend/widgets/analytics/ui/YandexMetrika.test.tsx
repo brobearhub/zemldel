@@ -91,8 +91,8 @@ it("does not send authentication tokens or arbitrary query data to the counter",
   expect(JSON.stringify(window.ym?.a)).not.toContain("private");
 });
 
-it("не отправляет токен приглашения в аналитику", () => {
-  route.pathname = `/team-invitations/${"a".repeat(43)}`;
+it.each(["team", "client"])("не отправляет токен приглашения %s в аналитику", (kind) => {
+  route.pathname = `/${kind}-invitations/${"a".repeat(43)}`;
   window.history.replaceState({}, "", route.pathname);
   const { rerender } = render(<YandexMetrika />);
   expect(window.ym).toBeUndefined();

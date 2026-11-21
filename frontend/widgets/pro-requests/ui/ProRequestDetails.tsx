@@ -27,6 +27,7 @@ import {
 import { RequestCityInactiveWarning } from "@/shared/ui/RequestCityInactiveWarning";
 import {
   canProviderManageDealDocuments,
+  isPrivateWorkPreparation,
   formatRequestCreatedAt,
   formatRequestNumber,
   mergeWorkStageStatusOptions,
@@ -47,6 +48,7 @@ import {
   getCustomerContactFields,
   RequestCounterpartyPanel,
 } from "@/features/request-counterparty";
+import { PrivateWorkPanel } from "@/widgets/pro-clients/ui/PrivateWorkPanel";
 import { RequestRemindersPanel } from "@/widgets/pro-requests/ui/RequestRemindersPanel";
 import Link from "@/shared/ui/Link";
 import { RequestDetailHeaderCard } from "@/shared/ui/RequestDetailHeaderCard";
@@ -176,6 +178,8 @@ export function ProRequestDetails({
 
   const isBusy = busy || uploadBusy || paymentsBusy || progressBusy;
   const showContractWorkflow = canProviderManageDealDocuments(req);
+  const waitingForClient = Boolean(req.providerWorkStatus && !req.customerUserId);
+  const privatePreparation = isPrivateWorkPreparation(req.status, req.providerWorkStatus);
   const hasPendingContractFiles = contractBundles.some(
     (b) => b.status === "PENDING_CUSTOMER",
   );
@@ -186,6 +190,7 @@ export function ProRequestDetails({
   const contractNextStepVisible =
     screenModel.showDealWorkflow &&
     showContractWorkflow &&
+    !waitingForClient &&
     !req.contractAcceptedAt &&
     !(req.subjectType === "SERVICE" && req.status === "NEW" && contractBundles.length === 0) &&
     ["NEW", "DISCUSSING", "TERMS_AGREED"].includes(req.status) &&
@@ -212,6 +217,7 @@ export function ProRequestDetails({
         return;
       }
       if (
+        !privatePreparation &&
         req.status !== "ACTIVE" &&
         req.status !== "ACCEPTANCE_PENDING" &&
         req.status !== "ACCEPTED" &&
@@ -232,7 +238,7 @@ export function ProRequestDetails({
       setWorkStages(stages);
       setWorkStageStatusOptions(mergeWorkStageStatusOptions(statuses.custom));
     },
-    [exclusiveRequestGuard, req.id, req.status, screenModel.showDealWorkflow],
+    [exclusiveRequestGuard, privatePreparation, req.id, req.status, screenModel.showDealWorkflow],
   );
 
   async function loadRemarks() {
@@ -305,6 +311,7 @@ export function ProRequestDetails({
       }
       const generation = exclusiveRequestGuard.capture();
       const executing = isOrderExecutionStatus(next.status);
+      const showPrivateStages = isPrivateWorkPreparation(next.status, next.providerWorkStatus);
       const documentsAvailable = canProviderManageDealDocuments(next);
       const [bundles, files, documents, stages, statuses, nextRemarks] =
         await Promise.allSettled([
@@ -317,12 +324,12 @@ export function ProRequestDetails({
           documentsAvailable
             ? fetchProRequestDocumentRequests(req.id)
             : Promise.resolve([]),
-          ["ACTIVE", "ACCEPTANCE_PENDING", "ACCEPTED", "COMPLETED"].includes(
+          showPrivateStages || ["ACTIVE", "ACCEPTANCE_PENDING", "ACCEPTED", "COMPLETED"].includes(
             next.status,
           )
             ? fetchProWorkStages(req.id)
             : Promise.resolve([]),
-          executing ? fetchWorkStageStatuses() : Promise.resolve(null),
+          executing || showPrivateStages ? fetchWorkStageStatuses() : Promise.resolve(null),
           executing ? fetchProRequestRemarks(req.id) : Promise.resolve([]),
         ]);
       if (signal.aborted || !exclusiveRequestGuard.isCurrent(generation))
@@ -808,6 +815,7 @@ export function ProRequestDetails({
           providerId={req.providerId}
           providerName={req.providerName}
           member={req.assignedMember}
+          showPartnerDelegation={!req.providerWorkStatus}
           delegationBlockedReason={
             req.contractAcceptedAt || req.payments?.length
               ? "Передать можно только заявку без подписанного договора и оплат."
@@ -935,7 +943,16 @@ export function ProRequestDetails({
         />
       </RequestDetailPanelLayer>
 
-      {req.providerId &&
+      {req.providerWorkStatus && (
+        <PrivateWorkPanel
+          key={`work-${req.id}`}
+          request={req}
+          status={req.providerWorkStatus}
+          onChange={(status) => setReq((current) => ({ ...current, providerWorkStatus: status }))}
+        />
+      )}
+
+      {!waitingForClient && req.providerId &&
       !["COMPLETED", "CANCELLED", "CLOSED"].includes(req.status) ? (
         <OrderPassportPanel orderId={req.id} />
       ) : null}
@@ -1013,6 +1030,7 @@ export function ProRequestDetails({
             mode="provider"
             requestId={req.id}
             requestStatus={req.status}
+            providerWorkStatus={req.providerWorkStatus}
             stages={workStages}
             statusOptions={workStageStatusOptions}
             busy={isBusy}

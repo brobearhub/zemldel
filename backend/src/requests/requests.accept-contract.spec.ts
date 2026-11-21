@@ -2,6 +2,12 @@ import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { RequestsService } from './requests.service';
 
+vi.mock('../provider-clients/provider-client-record', () => ({
+  clientForAcceptedContract: vi
+    .fn()
+    .mockResolvedValue({ clientId: 'client-1', changedRequestIds: [] }),
+}));
+
 function makeService(
   prisma: unknown,
   legalDocs?: { assertCurrentVersions: ReturnType<typeof vi.fn> },

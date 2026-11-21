@@ -5,7 +5,13 @@ const USER_ID = '22222222-2222-4222-8222-222222222222';
 
 describe('AuthService.signup', () => {
   it('регистрирует исполнителя без имени и города', async () => {
+    const verifiedAt = new Date();
     const tx = {
+      $executeRaw: vi.fn(),
+      emailVerification: {
+        findFirst: vi.fn().mockResolvedValue({ verifiedAt }),
+        delete: vi.fn(),
+      },
       user: {
         create: vi.fn().mockResolvedValue({
           id: USER_ID,
@@ -35,6 +41,7 @@ describe('AuthService.signup', () => {
     await service.signup({
       email: 'pro@example.com',
       password: 'secret1',
+      registrationToken: 'a'.repeat(43),
       accountKind: 'PROVIDER',
       acceptedLegal: {
         terms: '2026-08-04',
@@ -43,15 +50,14 @@ describe('AuthService.signup', () => {
       },
     });
 
-    expect(tx.user.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          email: 'pro@example.com',
-          accountKind: 'PROVIDER',
-          name: undefined,
-          customerCityId: undefined,
-        }),
-      }),
-    );
+    expect(tx.user.create.mock.calls[0]?.[0]).toMatchObject({
+      data: {
+        email: 'pro@example.com',
+        accountKind: 'PROVIDER',
+        emailVerified: verifiedAt,
+        name: undefined,
+        customerCityId: undefined,
+      },
+    });
   });
 });

@@ -27,6 +27,7 @@ import {
   ApiTooManyRequestsResponse,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
+import type { RequestWithChanges } from './request-realtime.interceptor';
 import type { Request } from 'express';
 import {
   parseRequestCategoryCreateDto,
@@ -391,7 +392,7 @@ export class RequestsController {
     description: 'Validation failed',
   })
   async customerAcceptContract(
-    @Req() request: Request,
+    @Req() request: RequestWithChanges,
     @Param('id') id: string,
     @Body() body: unknown,
   ) {
@@ -436,12 +437,15 @@ export class RequestsController {
         ],
       });
     }
-    return this.requests.acceptContractByCustomer(userId, id, {
-      termsVersion,
-      ...(expected !== undefined
-        ? { expectedTotalAmountRubles: expected }
-        : {}),
-    });
+    const { changedRequestIds, ...result } =
+      await this.requests.acceptContractByCustomer(userId, id, {
+        termsVersion,
+        ...(expected !== undefined
+          ? { expectedTotalAmountRubles: expected }
+          : {}),
+      });
+    request.changedRequestIds = changedRequestIds;
+    return result;
   }
 
   // --- Customer: order-phase actions ---

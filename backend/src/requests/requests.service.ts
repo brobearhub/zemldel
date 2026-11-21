@@ -1,3 +1,4 @@
+import { clientForAcceptedContract } from '../provider-clients/provider-client-record';
 import {
   freeRequestEligibilityWhere,
   providerRequestCategories,
@@ -76,6 +77,8 @@ import {
 const select = {
   id: true,
   number: true,
+  providerWorkStatus: true,
+  providerClientId: true,
   status: true,
   serviceId: true,
   categoryId: true,
@@ -978,7 +981,7 @@ export class RequestsService {
     // referenced by customer-visible documents. No document content is loaded.
     const rows = await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
       WITH customer_requests AS MATERIALIZED (
-        SELECT "id", "providerId", "lockedAt", "status"
+        SELECT "id", "providerId", "lockedAt", "status", "providerWorkStatus"
         FROM "Request"
         WHERE "customerUserId" = ${actorUserId}::uuid
         ORDER BY "createdAt" DESC
@@ -989,14 +992,14 @@ export class RequestsService {
         JOIN customer_requests request ON request."id" = stage."requestId"
         WHERE stage."providerId" = request."providerId"
           AND stage."lifecycle" = 'PUBLISHED'
-          AND request."status"::text IN (${Prisma.join([...READABLE_REQUEST_STATUSES])})
+          AND (request."providerWorkStatus" IS NOT NULL OR request."status"::text IN (${Prisma.join([...READABLE_REQUEST_STATUSES])}))
       )
       SELECT request."id"
       FROM "RequestContractFile" file
       JOIN customer_requests request ON request."id" = file."requestId"
       WHERE file."providerId" = request."providerId"
         AND request."lockedAt" IS NOT NULL
-        AND file."role" IN ('CONTRACT_DOCUMENT', 'PROVIDER_MISC')
+        AND (file."role" = 'CONTRACT_DOCUMENT' OR (file."role" = 'PROVIDER_MISC' AND file."visibleToCustomer"))
       UNION
       SELECT request."id"
       FROM "RequestDocumentRequest" document
@@ -2016,6 +2019,7 @@ export class RequestsService {
 
     if (status === 'DISCUSSING' && dialogScope === 'ARCHIVE') {
       const archiveWhere: Prisma.RequestWhereInput = {
+        providerWorkStatus: null,
         lockedAt: { not: null },
         AND: [
           { providerId: { not: null } },
@@ -2191,6 +2195,9 @@ export class RequestsService {
     const req = row as unknown as RequestDbRow;
     this.assertRequestShape(req);
 
+    if (req.providerWorkStatus && req.providerId !== actorProviderId) {
+      throw new NotFoundException('Request not found');
+    }
     const lockedToOtherProvider = isLockedToOtherProvider(req, actorProviderId);
 
     if (lockedToOtherProvider) {
@@ -2263,7 +2270,10 @@ export class RequestsService {
       where: scope?.providerId
         ? {
             providerId: scope.providerId,
-            status: { in: [...ORDER_STATUSES] },
+            OR: [
+              { status: { in: [...ORDER_STATUSES] } },
+              { providerWorkStatus: { not: null } },
+            ],
           }
         : { status: { in: [...ORDER_STATUSES] } },
       select,
@@ -2291,7 +2301,10 @@ export class RequestsService {
         ? {
             id,
             providerId: scope.providerId,
-            status: { in: [...ORDER_STATUSES] },
+            OR: [
+              { status: { in: [...ORDER_STATUSES] } },
+              { providerWorkStatus: { not: null } },
+            ],
           }
         : { id, status: { in: [...ORDER_STATUSES] } },
       select,
@@ -2509,6 +2522,11 @@ export class RequestsService {
 
       const req = current as unknown as RequestDbRow;
       this.assertRequestShape(req);
+      if (req.providerWorkStatus) {
+        throw new ConflictException(
+          'Нельзя снять исполнителя с приватной заявки',
+        );
+      }
       const isServiceRequest = req.serviceId != null;
 
       if (hasRequestLock(req) && isOrderExecutionStatus(req.status)) {
@@ -2940,6 +2958,7 @@ export class RequestsService {
       if (!current) throw new NotFoundException('Request not found');
       const req = current as unknown as RequestDbRow;
       if (
+        req.providerWorkStatus ||
         req.serviceId ||
         !req.providerId ||
         !req.lockedAt ||
@@ -3030,7 +3049,7 @@ export class RequestsService {
     actorUserId: string,
     requestId: string,
     input: { termsVersion: string; expectedTotalAmountRubles?: number | null },
-  ): Promise<RequestCustomerDto> {
+  ): Promise<RequestCustomerDto & { changedRequestIds: string[] }> {
     const termsVersions = await this.legalDocs.assertCurrentVersions({
       terms: input.termsVersion,
     });
@@ -3140,6 +3159,11 @@ export class RequestsService {
         throw new ConflictException('All requested documents must be uploaded');
       }
 
+      const { clientId, changedRequestIds } = await clientForAcceptedContract(
+        tx,
+        req.providerId,
+        actorUserId,
+      );
       const now = new Date();
       // После акцепта договора сразу переходим в работу — отдельный шаг «Начать работу» не нужен.
       const next = await tx.request.update({
@@ -3149,6 +3173,7 @@ export class RequestsService {
           termsVersion: termsVersions.terms,
           contractAcceptedAt: now,
           contractAcceptedByUserId: actorUserId,
+          providerClientId: clientId,
         },
         select,
       });
@@ -3177,10 +3202,13 @@ export class RequestsService {
         payload: { at: now.toISOString(), auto: true },
       });
 
-      return next;
+      return { next, changedRequestIds };
     });
 
-    return requestRowToCustomerDtoPlain(updated as unknown as RequestDbRow);
+    return {
+      ...requestRowToCustomerDtoPlain(updated.next as unknown as RequestDbRow),
+      changedRequestIds: updated.changedRequestIds,
+    };
   }
 
   startWorkByProvider(actorProviderId: string, id: string): RequestCustomerDto {

@@ -51,6 +51,7 @@ export function RequestAssignment({
   providerName,
   member,
   onChange,
+  showPartnerDelegation = true,
   delegationBlockedReason,
 }: {
   requestId: string;
@@ -58,6 +59,7 @@ export function RequestAssignment({
   providerName?: string | null;
   member?: RequestAssignedMemberDto | null;
   onChange: (member: RequestAssignedMemberDto | null) => void;
+  showPartnerDelegation?: boolean;
   delegationBlockedReason?: string;
 }) {
   const membership = useAppSelector((state) =>
@@ -126,10 +128,12 @@ export function RequestAssignment({
             >
               {member ? "Изменить сотрудника" : "Назначить сотрудника"}
             </Button>
-            <DelegatePartnerButton
-              requestId={requestId}
-              blockedReason={delegationBlockedReason}
-            />
+            {showPartnerDelegation && (
+              <DelegatePartnerButton
+                requestId={requestId}
+                blockedReason={delegationBlockedReason}
+              />
+            )}
           </Stack>
         ) : null}
         {canAssign && editing ? (

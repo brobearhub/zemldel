@@ -1,76 +1,14 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { Box, Stack, Typography } from "@mui/material";
-import type { RequestCustomerDto } from "@/entities/request";
-import {
-  BackendApiError,
-  fetchBackendJsonAsUser,
-} from "@/shared/api/backend/server";
-import { getServerAuthSession } from "@/core/auth";
-import { signInRedirect } from "@/core/auth/sign-in-redirect";
+import type { ProviderClient } from "@/entities/provider-client/model";
+import { loadClientWorkspace } from "./server";
 import { ProClientsBoard } from "@/widgets/pro-clients/ui/ProClientsBoard";
-
-function sortByCreatedAtDesc(orders: RequestCustomerDto[]) {
-  return [...orders].sort(
-    (left, right) =>
-      new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
-  );
-}
 
 export const metadata: Metadata = { title: "Клиенты — Земледел" };
 
 export default async function ProClientsPage() {
-  const session = await getServerAuthSession();
-
-  if (!session?.user?.id) {
-    signInRedirect("/pro/clients");
-  }
-
-  if ((session.user.memberships?.length ?? 0) === 0) {
-    notFound();
-  }
-
-  let orders: RequestCustomerDto[];
-
-  try {
-    orders = await fetchBackendJsonAsUser<RequestCustomerDto[]>(
-      "/pro/requests",
-      session.user.id,
-    );
-  } catch (error) {
-    if (
-      error instanceof BackendApiError &&
-      (error.status === 401 || error.status === 403)
-    ) {
-      notFound();
-    }
-
-    throw error;
-  }
-
-  return (
-    <Stack spacing={3}>
-      <Box>
-        <Typography
-          component="h1"
-          variant="h1"
-          gutterBottom
-          sx={{
-            fontWeight: 700,
-          }}
-        >
-          Клиенты
-        </Typography>
-        <Typography
-          sx={{
-            color: "text.secondary",
-          }}
-        >
-          Заказчики, которые уже обращались к вам.
-        </Typography>
-      </Box>
-
-      <ProClientsBoard initialOrders={sortByCreatedAtDesc(orders)} />
-    </Stack>
+  const clients = await loadClientWorkspace<ProviderClient[]>(
+    "/pro/clients",
+    "/pro/clients",
   );
+  return <ProClientsBoard clients={clients} />;
 }

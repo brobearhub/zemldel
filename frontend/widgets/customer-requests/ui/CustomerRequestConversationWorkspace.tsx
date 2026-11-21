@@ -44,6 +44,7 @@ import {
   formatRequestNumber,
   hasRequestLock,
   isOrderExecutionStatus,
+  PROVIDER_WORK_LABELS,
   mergeWorkStageStatusOptions,
   formatRubles,
   RequestPriceBlock,
@@ -135,6 +136,7 @@ import { useVisibleRefresh } from "@/shared/lib/use-visible-refresh";
 import { createLatestFinanceRequestRunner } from "../model/latest-finance-request";
 
 function pickTitle(req: RequestCustomerDto) {
+  if (req.providerWorkStatus) return `Заявка исполнителя · ${PROVIDER_WORK_LABELS[req.providerWorkStatus]}`;
   if (req.subjectType === "SERVICE")
     return req.serviceTitle ?? "Заявка по услуге";
   if (req.subjectType === "CATEGORY") return "Заявка по категории";
@@ -172,6 +174,7 @@ export function CustomerRequestConversationWorkspace({
   );
   const documentsRef = useRef<HTMLDivElement>(null);
   const [req, setReq] = useState<RequestCustomerDto>(initialRequest);
+  const directConversation = Boolean(req.providerWorkStatus) || req.subjectType === "SERVICE";
   const [replyNoticeOpen, setReplyNoticeOpen] = useState(justCreated);
   const showReplyNotice =
     replyNoticeOpen &&
@@ -310,8 +313,8 @@ export function CustomerRequestConversationWorkspace({
     return fetchCustomerRequestConversations(req.id);
   }, [req.id]);
 
-  const ensureServiceChat = useCallback(async () => {
-    if (req.subjectType !== "SERVICE") return;
+  const ensureDirectChat = useCallback(async () => {
+    if (!directConversation) return;
     if (!req.providerId) {
       setError("Не удалось открыть чат: у заявки нет исполнителя.");
       return;
@@ -339,7 +342,7 @@ export function CustomerRequestConversationWorkspace({
       setBusy(false);
       setPendingAction(null);
     }
-  }, [req.id, req.providerId, req.providerName, req.subjectType]);
+  }, [req.id, req.providerId, req.providerName, directConversation]);
 
   const refreshRequest = useCallback(async () => {
     const res = await fetch(`/api/requests/${req.id}`, { cache: "no-store" });
@@ -404,7 +407,7 @@ export function CustomerRequestConversationWorkspace({
           exclusive
             ? fetchCustomerRequestDocumentRequests(req.id)
             : Promise.resolve([]),
-          ["ACTIVE", "ACCEPTANCE_PENDING", "ACCEPTED", "COMPLETED"].includes(
+          next.providerWorkStatus || ["ACTIVE", "ACCEPTANCE_PENDING", "ACCEPTED", "COMPLETED"].includes(
             next.status,
           )
             ? fetchCustomerWorkStages(req.id)
@@ -456,6 +459,7 @@ export function CustomerRequestConversationWorkspace({
   const loadWorkStages = useCallback(
     async (isCurrent = () => true) => {
       if (
+        !req.providerWorkStatus &&
         req.status !== "ACTIVE" &&
         req.status !== "ACCEPTANCE_PENDING" &&
         req.status !== "ACCEPTED" &&
@@ -467,7 +471,7 @@ export function CustomerRequestConversationWorkspace({
       const stages = await fetchCustomerWorkStages(req.id);
       if (isCurrent()) setWorkStages(stages);
     },
-    [req.id, req.status],
+    [req.id, req.status, req.providerWorkStatus],
   );
 
   const conversationSelectionScope = `${req.id}:${req.providerId}:${req.lockedAt}`;
@@ -512,8 +516,7 @@ export function CustomerRequestConversationWorkspace({
 
   const isExecutionStatus = isOrderExecutionStatus(req.status);
   const isExclusiveStatus = hasRequestLock(req);
-  const isServiceRequest = req.subjectType === "SERVICE";
-  const conversationCopy = getConversationWorkspaceCopy(req.subjectType);
+  const conversationCopy = getConversationWorkspaceCopy(directConversation);
   const hasContractBundles = contractBundles.length > 0;
   const hasRevisionRequested = contractBundles.some(
     (b) => b.status === "REVISION_REQUESTED",
@@ -1020,7 +1023,7 @@ export function CustomerRequestConversationWorkspace({
   }
 
   const requestBody = req.message?.trim() || null;
-  const headerTitle = resolveRequestDetailTitle(
+  const headerTitle = req.providerWorkStatus && !req.serviceTitle ? "Заявка исполнителя" : resolveRequestDetailTitle(
     req.subjectType,
     req.serviceTitle,
   );
@@ -1113,7 +1116,7 @@ export function CustomerRequestConversationWorkspace({
     (p) => p.id === activePanelId && (p.visible ?? true),
   );
   const isPanelOpen = Boolean(activePanel);
-  const showProviderSelection = resolveProviderSelectionVisibility({
+  const showProviderSelection = !req.providerWorkStatus && resolveProviderSelectionVisibility({
     subjectType: req.subjectType,
     lockedAt: req.lockedAt,
   });
@@ -1354,6 +1357,7 @@ export function CustomerRequestConversationWorkspace({
 
           <RequestWorkProgress
             mode="customer"
+            providerWorkStatus={req.providerWorkStatus}
             requestId={req.id}
             requestStatus={req.status}
             stages={workStages}
@@ -1401,7 +1405,7 @@ export function CustomerRequestConversationWorkspace({
             />
           </div>
 
-          {req.subjectType !== "SERVICE" &&
+          {!directConversation &&
           req.providerId &&
           req.lockedAt &&
           !req.contractAcceptedAt &&
@@ -1434,7 +1438,7 @@ export function CustomerRequestConversationWorkspace({
                   color: "text.secondary",
                 }}
               >
-                {conversations.length === 0 && req.subjectType !== "SERVICE"
+                {conversations.length === 0 && !directConversation
                   ? "Отклики и чаты с исполнителями появятся здесь."
                   : conversationCopy.description}
               </Typography>
@@ -1442,7 +1446,7 @@ export function CustomerRequestConversationWorkspace({
             <Divider />
             {conversations.length === 0 ? (
               <Box sx={{ p: 2 }}>
-                {req.subjectType === "SERVICE" ? (
+                {directConversation ? (
                   <Stack spacing={1.25}>
                     <Typography sx={{ color: "text.secondary" }}>
                       Чат ещё не начат. Нажмите кнопку ниже, чтобы открыть
@@ -1453,7 +1457,7 @@ export function CustomerRequestConversationWorkspace({
                         variant="contained"
                         loading={pendingAction === "chat"}
                         disabled={busy}
-                        onClick={() => void ensureServiceChat()}
+                        onClick={() => void ensureDirectChat()}
                       >
                         Начать чат
                       </Button>
@@ -1819,7 +1823,7 @@ export function CustomerRequestConversationWorkspace({
                 ? "Загружаем переписку…"
                 : conversations.length > 0
                   ? conversationCopy.noSelectionHint
-                  : req.subjectType === "SERVICE"
+                  : directConversation
                     ? "Нажмите «Начать чат», чтобы задать вопрос исполнителю."
                     : "Здесь появится переписка, как только компания ответит на заявку."}
             </Typography>

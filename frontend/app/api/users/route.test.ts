@@ -63,16 +63,10 @@ describe("Users API /api/users", () => {
     expect(mockedFetchBackend).not.toHaveBeenCalled();
   });
 
-  it("creates user in POST", async () => {
-    const created = {
-      id: "u1",
-      email: "mail@test.com",
-      name: "User",
-      createdAt: new Date("2026-01-01T00:00:00.000Z"),
-      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-    };
+  it("starts email verification in POST", async () => {
+    const challenge = { status: "verification_required", accountKind: null, resendAt: "2026-11-21T12:01:00.000Z" };
     mockedFetchBackend.mockResolvedValue(
-      new Response(JSON.stringify(created), {
+      new Response(JSON.stringify(challenge), {
         status: 201,
         headers: { "Content-Type": "application/json" },
       })
@@ -88,11 +82,7 @@ describe("Users API /api/users", () => {
     const json = await response.json();
 
     expect(response.status).toBe(201);
-    expect(json).toEqual({
-      ...created,
-      createdAt: created.createdAt.toISOString(),
-      updatedAt: created.updatedAt.toISOString(),
-    });
+    expect(json).toEqual(challenge);
     expect(mockedFetchBackend).toHaveBeenCalledWith("/users", {
       method: "POST",
       headers: {

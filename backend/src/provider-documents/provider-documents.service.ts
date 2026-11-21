@@ -245,8 +245,13 @@ export class ProviderDocumentsService {
     const providerId = await this.providerId(actorUserId);
     const rows = await this.prisma.request.findMany({
       where: {
-        customerUserId: { not: null },
         AND: [
+          {
+            OR: [
+              { customerUserId: { not: null } },
+              { providerId, providerWorkStatus: { not: null } },
+            ],
+          },
           {
             OR: [
               { providerId, lockedAt: { not: null } },

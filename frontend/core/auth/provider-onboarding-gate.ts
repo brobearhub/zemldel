@@ -1,5 +1,5 @@
 const ALLOWED_PATH =
-  /^\/(?:providers\/new|team-invitations|partner-invitations|terms|privacy|offer|consent)(?:\/|$)/;
+  /^\/(?:providers\/new|client-invitations|team-invitations|partner-invitations|terms|privacy|offer|consent)(?:\/|$)/;
 
 /**
  * Исполнитель без профиля остаётся на шаге 2.

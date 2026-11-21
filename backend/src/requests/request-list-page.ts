@@ -23,7 +23,7 @@ export function requestFeedPageQuery(
       ? Prisma.sql`r."serviceId" = ${query.scope.serviceId}::uuid AND r."providerId" = ${providerId}::uuid`
       : Prisma.sql`r."serviceId" IS NULL AND (
         r."providerId" = ${providerId}::uuid OR (
-          ${regionCode !== null} AND city."regionCode" = ${regionCode}
+          r."providerWorkStatus" IS NULL AND ${regionCode !== null} AND city."regionCode" = ${regionCode}
           AND (r."categoryId" IS NULL OR r."categoryId" = ANY(${categoryIds}::uuid[]))
           AND ((r."providerId" IS NULL AND r.status IN ('NEW', 'DISCUSSING'))
             OR (r."providerId" IS NOT NULL AND r.status = 'ACTIVE'))

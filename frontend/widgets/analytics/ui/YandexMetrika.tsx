@@ -34,9 +34,11 @@ const CAMPAIGN_PARAMS = new Set([
 ]);
 const AUTH_PATHS = new Set(["/signin", "/signup", "/forgot-password", "/reset-password"]);
 
+const INVITATION_PATH = /^\/(?:client|team)-invitations\//;
+
 function trackingUrl(rawUrl: string): string {
   const url = new URL(rawUrl, window.location.origin);
-  if (url.pathname.startsWith("/team-invitations/")) url.pathname = "/team-invitations";
+  if (INVITATION_PATH.test(url.pathname)) url.pathname = url.pathname.split("/").slice(0, 2).join("/");
   const isExternal = url.origin !== window.location.origin;
   for (const key of [...url.searchParams.keys()]) {
     if (isExternal || AUTH_PATHS.has(url.pathname.replace(/\/$/, "")) || !CAMPAIGN_PARAMS.has(key.toLowerCase())) {
@@ -54,7 +56,7 @@ export function YandexMetrika() {
   const search = searchParams.toString();
 
   useEffect(() => {
-    if (!pathname || pathname.startsWith("/team-invitations/")) return;
+    if (!pathname || INVITATION_PATH.test(pathname)) return;
 
     const state = window.__zemledelMetrika ?? { initialized: false };
     window.__zemledelMetrika = state;
@@ -103,7 +105,7 @@ export function YandexMetrika() {
     state.lastUrl = currentUrl;
   }, [pathname, search]);
 
-  if (pathname?.startsWith("/team-invitations/")) return null;
+  if (pathname && INVITATION_PATH.test(pathname)) return null;
 
   return (
     <noscript>

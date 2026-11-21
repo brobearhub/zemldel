@@ -13,6 +13,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { ServicesModule } from './services/services.module';
 import { UsersModule } from './users/users.module';
+import { ProviderClientsModule } from './provider-clients/provider-clients.module';
 import { ProvidersModule } from './providers/providers.module';
 import { ChatModule } from './chat/chat.module';
 import { ServiceCategoriesModule } from './service-categories/service-categories.module';
@@ -46,6 +47,7 @@ import { StoriesModule } from './stories/stories.module';
     RequestsModule,
     UsersModule,
     ProvidersModule,
+    ProviderClientsModule,
     ChatModule,
     CitiesModule,
     GeocodingModule,

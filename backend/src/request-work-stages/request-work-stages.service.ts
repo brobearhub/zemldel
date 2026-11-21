@@ -228,10 +228,11 @@ export class RequestWorkStagesService {
         providerId: true,
         lockedAt: true,
         customerUserId: true,
+        providerWorkStatus: true,
       },
     });
     if (!request) throw new NotFoundException('Request not found');
-    if (!request.customerUserId) {
+    if (!request.customerUserId && !request.providerWorkStatus) {
       throw new BadRequestException('Customer is required');
     }
     if (!request.providerId) {
@@ -240,14 +241,23 @@ export class RequestWorkStagesService {
     if (!isExclusiveForActorProvider(request, input.providerId)) {
       throw new ForbiddenException('Forbidden');
     }
-    if (!READABLE_REQUEST_STATUSES.has(request.status)) {
+    if (
+      !request.providerWorkStatus &&
+      !READABLE_REQUEST_STATUSES.has(request.status)
+    ) {
       throw new BadRequestException('Work stages are not available');
     }
     return request;
   }
 
-  private assertMutable(status: string) {
-    if (status !== 'ACTIVE') {
+  private assertMutable(request: {
+    status: string;
+    providerWorkStatus: string | null;
+  }) {
+    const privatePreparation =
+      request.providerWorkStatus &&
+      ['DISCUSSING', 'TERMS_AGREED'].includes(request.status);
+    if (request.status !== 'ACTIVE' && !privatePreparation) {
       throw new BadRequestException('Request must be ACTIVE');
     }
   }
@@ -303,11 +313,21 @@ export class RequestWorkStagesService {
   async listForCustomer(input: { actorUserId: string; requestId: string }) {
     const request = await this.prisma.request.findFirst({
       where: { id: input.requestId, customerUserId: input.actorUserId },
-      select: { id: true, providerId: true, status: true, lockedAt: true },
+      select: {
+        id: true,
+        providerId: true,
+        status: true,
+        lockedAt: true,
+        providerWorkStatus: true,
+      },
     });
     if (!request) throw new NotFoundException('Request not found');
     if (!request.providerId) return [];
-    if (!READABLE_REQUEST_STATUSES.has(request.status)) return [];
+    if (
+      !request.providerWorkStatus &&
+      !READABLE_REQUEST_STATUSES.has(request.status)
+    )
+      return [];
 
     const rows = await this.prisma.requestWorkStage.findMany({
       where: {
@@ -334,7 +354,7 @@ export class RequestWorkStagesService {
       providerId,
       requestId: input.requestId,
     });
-    this.assertMutable(request.status);
+    this.assertMutable(request);
 
     const title = input.title.trim();
     if (!title) throw new BadRequestException('Title is required');
@@ -381,7 +401,7 @@ export class RequestWorkStagesService {
       providerId,
       requestId: input.requestId,
     });
-    this.assertMutable(request.status);
+    this.assertMutable(request);
 
     const stage = await this.prisma.requestWorkStage.findFirst({
       where: {
@@ -445,7 +465,7 @@ export class RequestWorkStagesService {
       providerId,
       requestId: input.requestId,
     });
-    this.assertMutable(request.status);
+    this.assertMutable(request);
 
     const stage = await this.prisma.requestWorkStage.findFirst({
       where: {
@@ -482,7 +502,7 @@ export class RequestWorkStagesService {
       providerId,
       requestId: input.requestId,
     });
-    this.assertMutable(request.status);
+    this.assertMutable(request);
 
     const stage = await this.prisma.requestWorkStage.findFirst({
       where: {
@@ -525,7 +545,7 @@ export class RequestWorkStagesService {
       providerId,
       requestId: input.requestId,
     });
-    this.assertMutable(request.status);
+    this.assertMutable(request);
 
     const stage = await this.prisma.requestWorkStage.findFirst({
       where: {
@@ -610,7 +630,15 @@ export class RequestWorkStagesService {
         where: {
           providerId,
           statusKey: item.key,
-          request: { status: { in: ACTIVE_STATUS_USAGE } },
+          request: {
+            OR: [
+              { status: { in: ACTIVE_STATUS_USAGE } },
+              {
+                providerWorkStatus: { not: null },
+                status: { in: ['DISCUSSING', 'TERMS_AGREED'] },
+              },
+            ],
+          },
         },
         select: { id: true },
       });
@@ -651,7 +679,7 @@ export class RequestWorkStagesService {
       providerId,
       requestId: input.requestId,
     });
-    this.assertMutable(request.status);
+    this.assertMutable(request);
 
     const stage = await this.prisma.requestWorkStage.findFirst({
       where: {
@@ -713,7 +741,7 @@ export class RequestWorkStagesService {
       providerId,
       requestId: input.requestId,
     });
-    this.assertMutable(request.status);
+    this.assertMutable(request);
 
     const file = await this.prisma.requestWorkStageFile.findFirst({
       where: {
@@ -806,12 +834,20 @@ export class RequestWorkStagesService {
   }) {
     const request = await this.prisma.request.findFirst({
       where: { id: input.requestId, customerUserId: input.actorUserId },
-      select: { id: true, providerId: true, status: true },
+      select: {
+        id: true,
+        providerId: true,
+        status: true,
+        providerWorkStatus: true,
+      },
     });
     if (!request) throw new NotFoundException('Request not found');
     if (!request.providerId)
       throw new BadRequestException('Provider is required');
-    if (!READABLE_REQUEST_STATUSES.has(request.status)) {
+    if (
+      !request.providerWorkStatus &&
+      !READABLE_REQUEST_STATUSES.has(request.status)
+    ) {
       throw new BadRequestException('Work stages are not available');
     }
 
@@ -846,7 +882,7 @@ export class RequestWorkStagesService {
       providerId,
       requestId: input.requestId,
     });
-    this.assertMutable(request.status);
+    this.assertMutable(request);
 
     const stage = await this.prisma.requestWorkStage.findFirst({
       where: {
@@ -882,7 +918,7 @@ export class RequestWorkStagesService {
       providerId,
       requestId: input.requestId,
     });
-    this.assertMutable(request.status);
+    this.assertMutable(request);
 
     const slot = await this.prisma.requestWorkStageDocSlot.findFirst({
       where: {
@@ -913,14 +949,17 @@ export class RequestWorkStagesService {
   }) {
     const request = await this.prisma.request.findFirst({
       where: { id: input.requestId, customerUserId: input.actorUserId },
-      select: { id: true, providerId: true, status: true },
+      select: {
+        id: true,
+        providerId: true,
+        status: true,
+        providerWorkStatus: true,
+      },
     });
     if (!request) throw new NotFoundException('Request not found');
     if (!request.providerId)
       throw new BadRequestException('Provider is required');
-    if (request.status !== 'ACTIVE') {
-      throw new BadRequestException('Request must be ACTIVE');
-    }
+    this.assertMutable(request);
 
     const slot = await this.prisma.requestWorkStageDocSlot.findFirst({
       where: {
@@ -1031,12 +1070,20 @@ export class RequestWorkStagesService {
   }) {
     const request = await this.prisma.request.findFirst({
       where: { id: input.requestId, customerUserId: input.actorUserId },
-      select: { id: true, providerId: true, status: true },
+      select: {
+        id: true,
+        providerId: true,
+        status: true,
+        providerWorkStatus: true,
+      },
     });
     if (!request) throw new NotFoundException('Request not found');
     if (!request.providerId)
       throw new BadRequestException('Provider is required');
-    if (!READABLE_REQUEST_STATUSES.has(request.status)) {
+    if (
+      !request.providerWorkStatus &&
+      !READABLE_REQUEST_STATUSES.has(request.status)
+    ) {
       throw new BadRequestException('Work stages are not available');
     }
 

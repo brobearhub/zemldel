@@ -245,6 +245,20 @@ describe("customer request sections follow live updates", () => {
     expect(screen.getByTestId("provider-files")).toHaveTextContent("План.pdf");
   });
 
+  it("shows the provider’s published stages before a contract and keeps a direct chat for a private freeform request", async () => {
+    const privateRequest = { ...request, status: "DISCUSSING", providerWorkStatus: "IN_PROGRESS", contractAcceptedAt: null } as RequestCustomerDto;
+    vi.mocked(fetch).mockImplementation(async (url) => new Response(JSON.stringify(
+      /contract-bundles$|provider-misc$/.test(String(url)) ? [] : privateRequest,
+    )));
+    vi.mocked(fetchCustomerWorkStages).mockResolvedValue([{ title: "Обмер участка" }] as never);
+    await act(async () => {
+      render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={privateRequest} /></ConfirmProvider>);
+    });
+    expect(screen.getByTestId("stages")).toHaveTextContent("Обмер участка");
+    expect(screen.getByRole("button", { name: "Начать чат" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Отменить выбор исполнителя" })).not.toBeInTheDocument();
+  });
+
   it("shows a newly published stage even while the request remains ACTIVE", async () => {
     await act(async () => { render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={request} /></ConfirmProvider>); });
     expect(screen.getByTestId("stages")).toHaveTextContent("");

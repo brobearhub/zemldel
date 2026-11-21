@@ -327,6 +327,7 @@ model CityImportEvent {
 }
 
 model User {
+  providerClients ProviderClient[]
   landListings LandListing[]
   landFavorites LandFavorite[]
   landReviews LandReview[]
@@ -397,6 +398,7 @@ model User {
   storyUnfollowedBy         StoryAuthorUnfollow[]    @relation("StoryUnfollowedUser")
   storyConversationReads    StoryConversationRead[]
   passwordResetTokens       PasswordResetToken[]
+  emailVerifications        EmailVerification[]
   decidedVerificationRequests   ProviderVerificationRequest[] @relation("VerificationDecidedBy")
   fnsManualVerificationRequests ProviderVerificationRequest[] @relation("VerificationFnsMarkedBy")
   customerRating            Float?
@@ -409,6 +411,21 @@ model User {
   @@index([systemRole])
   @@index([activeProviderId])
   @@index([customerCityId])
+}
+
+// userId is present only when verifying a previously registered account.
+model EmailVerification {
+  email        String       @id
+  userId       String?      @db.Uuid
+  user         User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountKind  AccountKind?
+  codeHash     String?
+  sentAt       DateTime?
+  attempts     Int          @default(0)
+  verifiedAt   DateTime?
+  tokenHash    String?
+
+  @@index([userId])
 }
 
 model LegalAcceptance {
@@ -479,6 +496,7 @@ model PasswordResetToken {
 }
 
 model Provider {
+  clients ProviderClient[]
   landListings LandListing[]
   requestedPartnerships ProviderPartnership[] @relation("PartnershipRequester")
   receivedPartnerships ProviderPartnership[] @relation("PartnershipRecipient")
@@ -833,7 +851,40 @@ model ServiceCategory {
   @@index([slug])
 }
 
+enum ProviderWorkStatus {
+  PLANNED
+  IN_PROGRESS
+  DONE
+}
+
+enum ProviderClientSource {
+  MANUAL
+  CONTRACT
+}
+
+model ProviderClient {
+  id                  String               @id @default(uuid()) @db.Uuid
+  providerId          String               @db.Uuid
+  email               String
+  name                String?
+  customerUserId      String?              @db.Uuid
+  source              ProviderClientSource @default(MANUAL)
+  invitationHash      String?              @unique
+  invitationExpiresAt DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  provider            Provider             @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  customer            User?                @relation(fields: [customerUserId], references: [id], onDelete: SetNull)
+  requests            Request[]
+
+  @@unique([providerId, email])
+  @@unique([providerId, customerUserId])
+}
+
 model Request {
+  providerClientId String? @db.Uuid
+  providerWorkStatus ProviderWorkStatus?
+  providerClient ProviderClient? @relation(fields: [providerClientId], references: [id], onDelete: SetNull)
   passportRequests PassportAccessRequest[]
   passportGrants PassportAccessGrant[]
   id     String        @id @default(uuid()) @db.Uuid
@@ -893,6 +944,7 @@ model Request {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([providerClientId])
   @@index([customerUserId, status])
   @@index([providerId, status])
   @@index([assignedMemberId, status])

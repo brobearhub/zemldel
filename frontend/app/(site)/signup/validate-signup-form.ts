@@ -1,3 +1,5 @@
+import { INVALID_CONTACT_EMAIL_MESSAGE, normalizeContactEmailInput } from "@/shared/lib/contact-email";
+
 export const SIGNUP_PASSWORD_MIN_LENGTH = 6;
 export const DUPLICATE_EMAIL_MESSAGE = "Этот email уже зарегистрирован";
 
@@ -19,10 +21,6 @@ const EMPTY_ERRORS: SignupFieldErrors = {
   legal: null,
 };
 
-function isEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
-
 export function validateSignupForm(input: {
   accountKind: "CUSTOMER" | "PROVIDER";
   name: string;
@@ -36,7 +34,7 @@ export function validateSignupForm(input: {
   const errors = { ...EMPTY_ERRORS };
   const isCustomer = input.accountKind === "CUSTOMER";
   if (isCustomer && !input.name.trim()) errors.name = "Укажите имя";
-  if (!isEmail(input.email.trim())) errors.email = "Укажите корректный email";
+  if (!normalizeContactEmailInput(input.email).email) errors.email = INVALID_CONTACT_EMAIL_MESSAGE;
   if (input.password.length < SIGNUP_PASSWORD_MIN_LENGTH) {
     errors.password = "Пароль должен быть не короче 6 символов";
   }

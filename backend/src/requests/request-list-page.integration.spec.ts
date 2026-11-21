@@ -35,7 +35,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       CREATE TEMP TABLE "City" (id uuid PRIMARY KEY, "regionCode" text);
       CREATE TEMP TABLE "User" (id uuid PRIMARY KEY, name text, "customerCityId" uuid);
       CREATE TEMP TABLE "Request" (id uuid PRIMARY KEY, number int, status text, "serviceId" uuid, "categoryId" uuid,
-        "providerId" uuid, "customerUserId" uuid, "requestCityId" uuid, "customerName" text, "lockedAt" timestamp, "createdAt" timestamp);
+        "providerId" uuid, "customerUserId" uuid, "requestCityId" uuid, "customerName" text, "lockedAt" timestamp, "createdAt" timestamp, "providerWorkStatus" text);
       CREATE TEMP TABLE "Conversation" (id uuid PRIMARY KEY, "requestId" uuid, "providerId" uuid, "customerUserId" uuid);
       CREATE TEMP TABLE "Message" ("conversationId" uuid, "senderUserId" uuid, body text, kind text, "createdAt" timestamp);
     `);
@@ -165,7 +165,11 @@ describe.skipIf(!process.env.DATABASE_URL)(
     });
 
     it('keeps region/category/ownership rules and does not search locked customer names', async () => {
-      const ids = await seed(7, true);
+      const ids = await seed(8, true);
+      await db.query(
+        'UPDATE pg_temp."Request" SET "providerId" = $2, status = $3, "providerWorkStatus" = $4, "lockedAt" = now() WHERE id = $1',
+        [ids[7], otherProvider, 'ACTIVE', 'IN_PROGRESS'],
+      );
       await db.query(
         'UPDATE pg_temp."Request" SET "requestCityId" = $2 WHERE id = $1',
         [ids[1], otherCity],

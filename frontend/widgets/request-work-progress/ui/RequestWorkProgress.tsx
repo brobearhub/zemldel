@@ -22,7 +22,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { formatRequestDate, type WorkStageDto } from "@/entities/request";
+import { formatRequestDate, isPrivateWorkPreparation, type WorkStageDto } from "@/entities/request";
 import {
   createProWorkStage,
   createProWorkStageDocSlot,
@@ -48,10 +48,10 @@ const ACCEPT =
   ".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp";
 
 export function RequestWorkProgress(props: RequestWorkProgressProps) {
-  const canMutate =
-    props.mode === "provider" && props.requestStatus === "ACTIVE";
+  const working = props.requestStatus === "ACTIVE" || isPrivateWorkPreparation(props.requestStatus, props.providerWorkStatus);
+  const canMutate = props.mode === "provider" && working;
   const visible =
-    props.requestStatus === "ACTIVE" ||
+    working ||
     props.requestStatus === "ACCEPTANCE_PENDING" ||
     props.requestStatus === "ACCEPTED" ||
     props.requestStatus === "COMPLETED";
@@ -277,7 +277,7 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
           >
             {canMutate
               ? "Этапов пока нет. Добавьте первый этап выполнения работ."
-              : props.requestStatus === "ACTIVE"
+              : working
                 ? "Исполнитель пока не опубликовал этапы."
                 : "В этой заявке нет опубликованных этапов. Итог работ — в истории сдачи результата."}
           </Typography>
@@ -292,7 +292,7 @@ export function RequestWorkProgress(props: RequestWorkProgressProps) {
               canMutate={canMutate}
               isBusy={isBusy}
               pendingKey={pendingKey}
-              requestStatus={props.requestStatus}
+              canUploadRequestedFile={working}
               statusOptions={props.statusOptions}
               requestId={props.requestId}
               slotTitle={slotTitles[stage.id] ?? ""}
@@ -331,7 +331,7 @@ function StageCard(props: {
   canMutate: boolean;
   isBusy: boolean;
   pendingKey: string | null;
-  requestStatus: string;
+  canUploadRequestedFile: boolean;
   statusOptions: RequestWorkProgressProps["statusOptions"];
   requestId: string;
   slotTitle: string;
@@ -837,7 +837,7 @@ function StageCard(props: {
                                     )}
                                     disabled={
                                       props.isBusy ||
-                                      props.requestStatus !== "ACTIVE"
+                                      !props.canUploadRequestedFile
                                     }
                                     onClick={() =>
                                       props.onPickSlotFile(slot.id)

@@ -54,7 +54,9 @@ export function ProRequestWorkspace({
         />
       }
       right={
-        request.status === "CLOSED" ? (
+        request.providerWorkStatus && !request.customerUserId ? (
+          <Typography color="text.secondary">Чат откроется, когда клиент примет приглашение.</Typography>
+        ) : request.status === "CLOSED" ? (
           <Typography color="text.secondary">
             Заявка закрыта клиентом. Чат недоступен.
           </Typography>

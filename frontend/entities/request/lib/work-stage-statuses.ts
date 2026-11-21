@@ -1,5 +1,11 @@
 import type { WorkStageStatusOptionDto } from "../dto/work-stage.dto";
 
+import type { RequestProviderWorkStatus } from "../dto/request.dto";
+
+export function isPrivateWorkPreparation(status: string, workStatus?: RequestProviderWorkStatus | null) {
+  return Boolean(workStatus) && (status === "DISCUSSING" || status === "TERMS_AGREED");
+}
+
 export const SYSTEM_WORK_STAGE_STATUSES: readonly WorkStageStatusOptionDto[] = [
   { key: "INITIAL_CONSULTATION", label: "Первичная консультация" },
   { key: "DOC_COLLECTION", label: "Сбор документов" },

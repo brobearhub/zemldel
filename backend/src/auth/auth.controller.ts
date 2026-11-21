@@ -1,10 +1,16 @@
-import { Body, Controller, Get, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Req } from '@nestjs/common';
 import {
   ApiOkResponse,
   ApiTags,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
+import { EmailVerificationService } from './email-verification.service';
+import {
+  StartRegistrationDto,
+  VerificationCodeDto,
+  VerificationEmailDto,
+} from './dto/email-verification.dto';
 import { AuthService } from './auth.service';
 import { InternalAuthService } from './internal-auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -24,8 +30,37 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly internalAuthService: InternalAuthService,
+    private readonly verification: EmailVerificationService,
     private readonly passwordReset: PasswordResetService,
   ) {}
+
+  @Post('signin/email')
+  @HttpCode(200)
+  @ApiOkResponse({
+    description: 'Следующий шаг входа: пароль или код подтверждения почты.',
+  })
+  signinEmail(@Body() body: VerificationEmailDto) {
+    return this.verification.request(body.email, 'signin');
+  }
+
+  @Post('signup/start')
+  @HttpCode(200)
+  @ApiOkResponse({
+    description: 'Подтверждение почты и время следующей отправки кода.',
+  })
+  startSignup(@Body() body: StartRegistrationDto) {
+    return this.verification.request(body.email, 'signup', body.accountKind);
+  }
+
+  @Post('signup/verify')
+  @HttpCode(200)
+  @ApiOkResponse({
+    description:
+      'После проверки кода существующий пользователь вводит пароль, новый получает токен регистрации.',
+  })
+  verifyEmail(@Body() body: VerificationCodeDto) {
+    return this.verification.verify(body.email, body.code);
+  }
 
   @Post('login')
   @ApiOkResponse({ type: AuthorizedUserDto })

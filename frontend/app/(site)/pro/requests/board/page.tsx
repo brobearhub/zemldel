@@ -42,7 +42,7 @@ export default async function ProRequestsPage() {
 
     return (
       <Stack spacing={3}>
-        <ProRequestsFeed initialItems={feed} initialOrders={orders ?? []} />
+        <ProRequestsFeed canCreateClientRequest={activeMembership.role !== "EMPLOYEE"} initialItems={feed} initialOrders={orders ?? []} />
       </Stack>
     );
   } catch (error) {

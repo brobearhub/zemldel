@@ -1,12 +1,14 @@
 import { Box, Button, Stack, Typography } from "@mui/material";
+import Link from "next/link";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 
 type Props = {
   onRefresh: () => void;
+  canCreateClientRequest?: boolean;
   refreshing?: boolean;
 };
 
-export function ProRequestsFeedHeader({ onRefresh, refreshing = false }: Props) {
+export function ProRequestsFeedHeader({ onRefresh, refreshing = false, canCreateClientRequest }: Props) {
   return (
     <Stack
       direction={{ xs: "column", md: "row" }}
@@ -38,10 +40,10 @@ export function ProRequestsFeedHeader({ onRefresh, refreshing = false }: Props) 
             color: "text.secondary",
           }}
         >
-          Здесь появляются заявки клиентов: по категориям ваших услуг и
-          свободные заявки с главной страницы.
+          Здесь собраны заявки по вашим услугам, свободные заявки и заявки, созданные вашей командой для клиентов.
         </Typography>
       </Box>
+      {canCreateClientRequest && <Button component={Link} href="/pro/requests/new" variant="contained">Создать заявку для клиента</Button>}
       <Button
         variant="outlined"
         size="small"

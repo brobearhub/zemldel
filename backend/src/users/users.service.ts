@@ -9,7 +9,6 @@ import { createHash } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { normalizeOptionalContactPhone } from '../common/contact-phone';
 import { assertActiveSelectableCity } from '../cities/city-validation';
-import { CreateUserDto } from './dto/create-user.dto';
 import { S3Service } from '../storage/s3.service';
 
 const ALLOWED_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -82,22 +81,6 @@ export class UsersService {
 
   getUsers() {
     return this.prisma.user.findMany({
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-  }
-
-  createUser(body: CreateUserDto) {
-    return this.prisma.user.create({
-      data: {
-        email: body.email.trim().toLowerCase(),
-        name: body.name?.trim() || undefined,
-      },
       select: {
         id: true,
         email: true,

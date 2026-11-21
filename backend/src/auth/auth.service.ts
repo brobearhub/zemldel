@@ -8,6 +8,7 @@ import {
 import { type Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { consumeRegistrationVerification } from './email-verification.service';
 import { assertActiveSelectableCity } from '../cities/city-validation';
 import { LegalDocsService } from '../legal-docs/legal-docs.service';
 import {
@@ -24,6 +25,7 @@ import {
 const userAuthSelect = {
   id: true,
   email: true,
+  emailVerified: true,
   name: true,
   lastName: true,
   firstName: true,
@@ -180,7 +182,7 @@ export class AuthService {
       select: userAuthSelect,
     });
 
-    if (!user?.passwordHash) {
+    if (!user?.passwordHash || !user.emailVerified) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -198,6 +200,7 @@ export class AuthService {
   }
 
   async signup(input: {
+    registrationToken: string;
     email: string;
     password: string;
     name?: string;
@@ -206,15 +209,18 @@ export class AuthService {
     acceptedLegal: { terms: string; privacy: string; consent: string };
   }) {
     const email = input.email.trim().toLowerCase();
-    const passwordHash = await bcrypt.hash(input.password, 10);
 
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
       throw new ConflictException('user already exists');
     }
 
-    const rawCustomerCityId = input.customerCityId?.trim();
-    const customerCityId = rawCustomerCityId ? rawCustomerCityId : undefined;
+    const name = input.name?.trim() || undefined;
+    const customerCityId = input.customerCityId?.trim() || undefined;
+    if (input.accountKind === 'CUSTOMER') {
+      if (!name) throw new BadRequestException('Укажите имя');
+      if (!customerCityId) throw new BadRequestException('Выберите город');
+    }
 
     if (customerCityId !== undefined) {
       if (!this.isUuid(customerCityId)) {
@@ -230,10 +236,17 @@ export class AuthService {
     });
 
     const created = await this.prisma.$transaction(async (tx) => {
+      const emailVerified = await consumeRegistrationVerification(
+        tx,
+        email,
+        input.registrationToken,
+      );
+      const passwordHash = await bcrypt.hash(input.password, 10);
       const user = await tx.user.create({
         data: {
           email,
-          name: input.name?.trim() || undefined,
+          emailVerified,
+          name,
           passwordHash,
           customerCityId,
           accountKind: input.accountKind,

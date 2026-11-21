@@ -34,7 +34,7 @@ it("сохраняет родительское имя исполнителя и
   ).toBeInTheDocument();
 });
 
-it("назначает участника команды, не меняя исполнителя заявки", async () => {
+it.each([true, false])("назначает участника команды при доступности партнёрской передачи %s", async (showPartnerDelegation) => {
   const member = {
     id: "m",
     name: "Иван Иванов",
@@ -68,9 +68,13 @@ it("назначает участника команды, не меняя исп
       providerId="p"
       providerName="Компания"
       member={null}
+      showPartnerDelegation={showPartnerDelegation}
       onChange={onChange}
     />,
   );
+  const delegate = screen.queryByRole("button", { name: "Делегировать партнёру" });
+  if (showPartnerDelegation) expect(delegate).toBeVisible();
+  else expect(delegate).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Назначить сотрудника" }));
   await screen.findByRole("combobox", { name: "Сотрудник" });
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Сотрудник" }));
