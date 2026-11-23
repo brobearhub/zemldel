@@ -21,7 +21,7 @@ import { ProRequestBoardColumn } from "@/widgets/pro-requests/ui/ProRequestBoard
 import { ProRequestsFeedFilters } from "@/widgets/pro-requests/ui/ProRequestsFeedFilters";
 import { ProRequestsFeedHeader } from "@/widgets/pro-requests/ui/ProRequestsFeedHeader";
 
-type Props = { initialItems: RequestProDto[]; initialOrders: RequestProDto[] };
+type Props = { canCreateClientRequest?: boolean; initialItems: RequestProDto[]; initialOrders: RequestProDto[] };
 
 const COLUMN_MIN_WIDTH = 340;
 
@@ -44,7 +44,7 @@ async function fetchProviderOrders(): Promise<RequestProDto[]> {
   return Array.isArray(payload) ? payload : [];
 }
 
-export function ProRequestsFeed({ initialItems, initialOrders }: Props) {
+export function ProRequestsFeed({ initialItems, initialOrders, canCreateClientRequest }: Props) {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
 
@@ -152,6 +152,7 @@ export function ProRequestsFeed({ initialItems, initialOrders }: Props) {
   return (
     <Stack spacing={2.5} sx={{ minWidth: 0 }}>
       <ProRequestsFeedHeader
+        canCreateClientRequest={canCreateClientRequest}
         onRefresh={() => void refreshAll()}
         refreshing={refreshing}
       />

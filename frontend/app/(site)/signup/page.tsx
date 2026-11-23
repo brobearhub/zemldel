@@ -29,6 +29,9 @@ import { resolvePostSignInPath } from "../signin/resolve-post-sign-in-path";
 import type { CitySuggestItemDto } from "@/entities/city";
 import { LocationField } from "@/features/select-city";
 import { Markdown } from "@/shared/ui/Markdown";
+import { useClientInvitation } from "@/features/client-invitation/use-client-invitation";
+import { RegistrationEmailForm } from "@/features/registration/RegistrationEmailForm";
+import { clearRegistrationProgress, readRegistrationProgress, type RegistrationProgress } from "@/features/registration/registration-progress";
 import { SITE_HEADER_HEIGHT_PX } from "@/shared/config/site-layout";
 import { themedAuthBackground } from "@/app/(site)/auth-background";
 import { LogoIcon } from "@/shared/ui/LogoIcon";
@@ -83,10 +86,12 @@ const signUpShellSx = {
 type SignupAccount = "customer" | "provider";
 
 function SignUpKindChoice({
-  showRequestHint,
+  verifiedEmail,
+  onChangeEmail,
   onChoose,
 }: {
-  readonly showRequestHint: boolean;
+  readonly verifiedEmail: string;
+  readonly onChangeEmail: () => void;
   readonly onChoose: (account: SignupAccount) => void;
 }) {
   return (
@@ -101,11 +106,12 @@ function SignUpKindChoice({
             <LogoIcon size={60} tone="dark" priority sx={{ transform: { xs: "translateY(-0.4rem)", md: "translateY(-0.5rem)" } }} />
           </Box>
           
-          {showRequestHint ? (
-            <Typography variant="body2">
-              Если зарегистрироваться как исполнитель, заявка не будет создана.
+          <Stack spacing={0.5} sx={{ alignItems: "flex-start" }}>
+            <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
+              Почта подтверждена · {verifiedEmail}
             </Typography>
-          ) : null}
+            <Button size="small" color="inherit" onClick={onChangeEmail}>Изменить email</Button>
+          </Stack>
           <Stack spacing={0.75}>
             <Button variant="contained" size="large" fullWidth onClick={() => onChoose("customer")}>
               Клиент
@@ -138,12 +144,17 @@ function SignUpPageContent() {
   const { data: session, status } = useSession();
   const submitted = useRef(false);
   const nameRef = useRef<HTMLInputElement>(null);
-  const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const confirmRef = useRef<HTMLInputElement>(null);
   const cityRef = useRef<HTMLButtonElement>(null);
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const invitation = useClientInvitation(searchParams.get("returnTo"));
+  const [savedRegistration, setRegistration] = useState<RegistrationProgress | null>(null);
+  const [registrationLoaded, setRegistrationLoaded] = useState(false);
+  const [verificationNotice, setVerificationNotice] = useState<string | null>(null);
+  const [retryEmail, setRetryEmail] = useState("");
+  const registration = invitation.path && savedRegistration?.email !== invitation.preview?.email ? null : savedRegistration;
+  const email = registration?.email ?? "";
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [confirmPasswordError, setConfirmPasswordError] = useState<string | null>(null);
@@ -179,8 +190,8 @@ function SignUpPageContent() {
     categoryId: searchParams.get("categoryId"),
   });
   const accountParam = searchParams.get("account");
-  const accountKind = isRequestIntent ? "CUSTOMER" : accountParam === "provider" ? "PROVIDER" : accountParam === "customer" ? "CUSTOMER" : null;
-  const invitationPath = /^\/(?:team|partner)-invitations\/[A-Za-z0-9_-]{43}$/.test(searchParams.get("returnTo") ?? "") ? searchParams.get("returnTo") : null;
+  const accountKind = (invitation.path || isRequestIntent) ? "CUSTOMER" : accountParam === "provider" ? "PROVIDER" : accountParam === "customer" ? "CUSTOMER" : null;
+  const invitationPath = /^\/(?:client|team|partner)-invitations\/[A-Za-z0-9_-]{43}$/.test(searchParams.get("returnTo") ?? "") ? searchParams.get("returnTo") : null;
   const signInHref = searchParams.toString() ? `/signin?${searchParams.toString()}` : "/signin";
 
   const chooseAccount = (account: SignupAccount) => {
@@ -189,6 +200,11 @@ function SignUpPageContent() {
     router.replace(`/signup?${params.toString()}`);
   };
 
+  useEffect(() => {
+    setRegistration(readRegistrationProgress());
+    setRegistrationLoaded(true);
+  }, []);
+
   const showConfirmPassword = password.length > 0;
   const passwordMismatch = showConfirmPassword && confirmPassword.length > 0 && confirmPassword !== password;
 
@@ -196,7 +212,6 @@ function SignUpPageContent() {
     if (!pending.draft) return;
     if (pending.draft.requestCity) setCustomerCity(pending.draft.requestCity);
     if (pending.draft.kind === "SERVICE") {
-      setEmail(pending.draft.customerEmail ?? "");
       setName(pending.draft.customerName ?? "");
     }
   }, [pending.draft]);
@@ -225,6 +240,7 @@ function SignUpPageContent() {
   }, [status, session, router, isRequestIntent, pending.loaded, pending.draft, signInHref, invitationPath]);
 
   useEffect(() => {
+    if (registration?.stage !== "verified" || !accountKind) return;
     let cancelled = false;
     async function loadVersions() {
       setVersionsError(null);
@@ -261,7 +277,7 @@ function SignUpPageContent() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [registration?.stage, accountKind]);
 
   async function openLegalDoc(doc: LegalDocId) {
     setLegalDocOpen(doc);
@@ -300,6 +316,29 @@ function SignUpPageContent() {
         },
       }));
     }
+  }
+
+  function changeVerifiedEmail() {
+    setRetryEmail(email);
+    clearRegistrationProgress();
+    setRegistration(null);
+    setVerificationNotice(null);
+    setFormError(null);
+    setDuplicateEmail(false);
+    setEmailError(null);
+    setName(pending.draft?.kind === "SERVICE" ? pending.draft.customerName ?? "" : "");
+    setCustomerCity(pending.draft?.requestCity ?? null);
+    setNameError(null);
+    setCityError(null);
+    setPassword("");
+    setConfirmPassword("");
+    setPasswordVisible(false);
+    setConfirmPasswordVisible(false);
+    setPasswordError(null);
+    setConfirmPasswordError(null);
+    setTermsPrivacyAccepted(false);
+    setConsentAccepted(false);
+    setLegalError(null);
   }
 
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -346,7 +385,6 @@ function SignUpPageContent() {
     if (hasSignupFieldErrors(fieldErrors) || (accountKind === "CUSTOMER" && !customerCity?.id)) {
       const focus =
         (fieldErrors.name ? nameRef.current : null) ??
-        (fieldErrors.email ? emailRef.current : null) ??
         (fieldErrors.password ? passwordRef.current : null) ??
         (fieldErrors.confirmPassword ? confirmRef.current : null) ??
         (fieldErrors.city ? cityRef.current : null);
@@ -371,6 +409,14 @@ function SignUpPageContent() {
           acceptedLegal: { terms, privacy, consent },
         }),
       });
+
+      if (res.status === 403) {
+        clearRegistrationProgress();
+        setRetryEmail(email);
+        setRegistration(null);
+        setVerificationNotice("Получите новый код и подтвердите почту ещё раз, чтобы завершить регистрацию.");
+        return;
+      }
 
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as
@@ -410,6 +456,7 @@ function SignUpPageContent() {
         return;
       }
 
+      clearRegistrationProgress();
       const signInRes = await signIn("credentials", {
         email,
         password,
@@ -450,17 +497,61 @@ function SignUpPageContent() {
           ? "Согласие на обработку персональных данных"
           : "";
 
+  if (invitation.error) return <Box sx={signUpShellSx}><Alert severity="warning">{invitation.error}</Alert></Box>;
+  if (invitation.loading || !registrationLoaded || (isRequestIntent && !pending.loaded)) return <SignUpPageFallback />;
+
+  if (registration?.stage !== "verified") {
+    const challenge = registration?.stage === "code" ? registration : null;
+    const title = challenge ? "Подтверждение почты" : accountKind === "PROVIDER"
+      ? "Регистрация исполнителя" : accountKind === "CUSTOMER" ? "Регистрация клиента" : "Регистрация";
+    return (
+      <Box sx={signUpShellSx}>
+        <RainGlassPaper sx={{ width: "100%", maxWidth: 440, p: { xs: 2.5, sm: 4 } }}>
+          <Stack spacing={2.5}>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+              <Typography component="h1" variant="h5" sx={{ flex: 1, fontWeight: 700 }}>
+                {title}
+              </Typography>
+              <LogoIcon size={48} tone="dark" priority />
+            </Stack>
+            {isRequestIntent ? <PendingRequestAuthSummary draft={pending.draft} loaded={pending.loaded} mode="signup" /> : null}
+            <RegistrationEmailForm
+              accountKind={accountKind}
+              fixedEmail={invitation.preview?.email}
+              initialEmail={retryEmail || (pending.draft?.kind === "SERVICE" ? pending.draft.customerEmail ?? "" : "")}
+              challenge={challenge}
+              notice={verificationNotice}
+              onChange={(progress) => {
+                setRegistration(progress);
+                setVerificationNotice(null);
+                if (progress?.stage === "verified" && !accountKind && progress.accountKind) {
+                  chooseAccount(progress.accountKind === "PROVIDER" ? "provider" : "customer");
+                }
+              }}
+              onPasswordRequired={() => router.replace(signInHref)}
+            />
+            <Typography variant="body2" sx={{ textAlign: "center" }}>
+              Уже есть аккаунт?{" "}
+              <Link href={signInHref} style={{ color: "inherit", fontWeight: 700 }}>Войти</Link>
+            </Typography>
+          </Stack>
+        </RainGlassPaper>
+      </Box>
+    );
+  }
+
   if (!accountKind) {
     return (
       <SignUpKindChoice
-        showRequestHint={intent === SERVICE_REQUEST_INTENT}
+        verifiedEmail={email}
+        onChangeEmail={changeVerifiedEmail}
         onChoose={chooseAccount}
       />
     );
   }
 
   const registrationTitle = accountKind === "PROVIDER" ? "Регистрация исполнителя" : "Регистрация клиента";
-  const emailHelper = emailError && emailError !== DUPLICATE_EMAIL_MESSAGE ? emailError : " ";
+  const emailHelper = emailError ?? "Почта подтверждена";
 
   return (
     <Box sx={signUpShellSx}>
@@ -532,8 +623,12 @@ function SignUpPageContent() {
                 })}>
                 <IconButton
                   type="button"
-                  aria-label={isRequestIntent ? "Вернуться к заявке" : "Изменить роль"}
+                  aria-label={invitation.path ? "Вернуться к приглашению" : isRequestIntent ? "Вернуться к заявке" : "Изменить роль"}
                   onClick={() => {
+                    if (invitation.path) {
+                      router.push(invitation.path);
+                      return;
+                    }
                     if (isRequestIntent) {
                       router.push(pending.draft ? getPendingRequestEditHref(pending.draft) : "/");
                       return;
@@ -650,23 +745,36 @@ function SignUpPageContent() {
                 ) : null}
                 <TextField
                   label="Email"
-                  inputRef={emailRef}
                   type="email"
                   fullWidth
                   autoComplete="email"
                   size="small"
                   margin="dense"
                   value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (emailError) setEmailError(null);
-                    if (duplicateEmail) setDuplicateEmail(false);
-                  }}
-                  disabled={loading}
                   error={Boolean(emailError)}
-                  helperText={emailHelper}
+                  helperText={
+                    <>
+                      {emailHelper}
+                      {!invitation.path && (
+                        <>
+                          {" · "}
+                          <Button
+                            type="button"
+                            size="small"
+                            color="inherit"
+                            disabled={loading}
+                            onClick={changeVerifiedEmail}
+                            aria-label="Изменить email"
+                            sx={{ p: 0, minWidth: 0, fontSize: "inherit", textDecoration: "underline" }}
+                          >
+                            Изменить
+                          </Button>
+                        </>
+                      )}
+                    </>
+                  }
                   slotProps={{
-                    htmlInput: { maxLength: 120 },
+                    input: { readOnly: true },
                     formHelperText: { sx: { mt: 0.5, minHeight: 18 } },
                   }}
                 />

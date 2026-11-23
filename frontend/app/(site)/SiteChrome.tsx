@@ -5,9 +5,7 @@ import { Suspense } from "react";
 import { Box } from "@mui/material";
 import { usePathname } from "next/navigation";
 import { CabinetDesktopSidebar } from "@/widgets/cabinet-chrome/ui/CabinetDesktopSidebar";
-import { MobileNavigation } from "@/widgets/mobile-navigation/ui/MobileNavigation";
-import { ReminderCountProvider } from "@/widgets/cabinet-chrome/model/ReminderCountProvider";
-import { PassportRequestsProvider } from "@/widgets/customer-documents/model/PassportRequestsProvider";
+import { SiteNavigation } from "@/widgets/mobile-navigation/ui/SiteNavigation";
 import { Header } from "@/widgets/header/ui";
 import { AuthFooter } from "@/widgets/footer/ui/AuthFooter";
 import { Footer } from "@/widgets/footer/ui/Footer";
@@ -55,15 +53,11 @@ function SkipLink() {
 
 export function SiteChrome({ children }: Props) {
   return (
-    <ReminderCountProvider>
-      <PassportRequestsProvider>
-        <MobileNavigation>
-          <CabinetSidebarProvider>
-            <SiteChromeContent>{children}</SiteChromeContent>
-          </CabinetSidebarProvider>
-        </MobileNavigation>
-      </PassportRequestsProvider>
-    </ReminderCountProvider>
+    <SiteNavigation>
+      <CabinetSidebarProvider>
+        <SiteChromeContent>{children}</SiteChromeContent>
+      </CabinetSidebarProvider>
+    </SiteNavigation>
   );
 }
 
@@ -150,17 +144,11 @@ function SiteChromeContent({ children }: Props) {
                 }
               : "100%",
             zIndex: 1200,
-            ...(isAbout && {
-              "& > .MuiAppBar-root": {
-                bgcolor: "background.default",
-              },
-            }),
             ...(publicSidebar && {
               "& > .MuiAppBar-root": {
                 position: "static",
                 left: "auto",
                 width: "100%",
-                bgcolor: "background.default",
               },
             }),
           }}

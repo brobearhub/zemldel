@@ -23,16 +23,22 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getServerAuthSession();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const response = await fetchBackendAsUser("/requests/mine", session.user.id);
+    const before = new URL(request.url).searchParams.get("before");
+    const path = before ? `/requests/mine?before=${encodeURIComponent(before)}` : "/requests/mine";
+    const response = await fetchBackendAsUser(path, session.user.id, { signal: request.signal });
     const payload = await response.json().catch(() => ({ error: "Failed to fetch requests" }));
-    return NextResponse.json(payload, { status: response.status });
+    const next = response.headers.get("x-next-cursor");
+    return NextResponse.json(payload, {
+      status: response.status,
+      headers: next ? { "X-Next-Cursor": next } : undefined,
+    });
   } catch (error) {
     console.error("Error fetching requests:", error);
     return NextResponse.json({ error: "Failed to fetch requests" }, { status: 500 });

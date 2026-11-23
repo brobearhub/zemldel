@@ -5,6 +5,7 @@ import { createServer, type Socket } from 'node:net';
 import { createTransport } from 'nodemailer';
 import { FallbackMailSender } from './fallback-mail-sender';
 import { PostboxMailSender } from './postbox-mail-sender';
+import { LogMailSender } from './log-mail-sender';
 import { createMailSender } from './create-mail-sender';
 import { SmtpMailSender } from './smtp-mail-sender';
 
@@ -12,6 +13,13 @@ const mail = { to: 'user@example.org', subject: 'Тест', text: 'Привет'
 
 describe('mail delivery', () => {
   afterEach(() => vi.unstubAllEnvs());
+
+  it('rejects delivery instead of logging verification codes on an unconfigured production server', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    await expect(new LogMailSender().send(mail)).rejects.toThrow(
+      'Почтовый сервис не настроен',
+    );
+  });
 
   it('falls back only on an SMTP connection failure', async () => {
     const primary = {

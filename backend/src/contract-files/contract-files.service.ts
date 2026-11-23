@@ -109,10 +109,11 @@ export class ContractFilesService {
         providerId: true,
         lockedAt: true,
         customerUserId: true,
+        providerWorkStatus: true,
       },
     });
     if (!request) throw new NotFoundException('Request not found');
-    if (!request.customerUserId) {
+    if (!request.customerUserId && !request.providerWorkStatus) {
       throw new BadRequestException('Customer is required');
     }
 

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthController } from './auth.controller';
+import { EmailVerificationService } from './email-verification.service';
 import { AuthService } from './auth.service';
 import { InternalAuthService } from './internal-auth.service';
 import { PasswordResetService } from './password-reset.service';
@@ -17,6 +18,7 @@ import { LegalDocsModule } from '../legal-docs/legal-docs.module';
   controllers: [AuthController],
   providers: [
     AuthService,
+    EmailVerificationService,
     InternalAuthService,
     {
       provide: MAIL_SENDER,
@@ -29,6 +31,11 @@ import { LegalDocsModule } from '../legal-docs/legal-docs.module';
       inject: [PrismaService, MAIL_SENDER],
     },
   ],
-  exports: [AuthService, InternalAuthService, MAIL_SENDER],
+  exports: [
+    AuthService,
+    EmailVerificationService,
+    InternalAuthService,
+    MAIL_SENDER,
+  ],
 })
 export class AuthModule {}

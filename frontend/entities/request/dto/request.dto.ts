@@ -92,7 +92,15 @@ export type RequestDeliverySubmissionDto = {
   remarks: import("./request-remark.dto").RequestRemarkDto[];
 };
 
+export type RequestProviderWorkStatus = "PLANNED" | "IN_PROGRESS" | "DONE";
+export const PROVIDER_WORK_LABELS: Record<RequestProviderWorkStatus, string> = {
+  PLANNED: "Запланирована",
+  IN_PROGRESS: "В работе у исполнителя",
+  DONE: "Выполнена исполнителем",
+};
+
 export type RequestCustomerDto = {
+  providerWorkStatus?: RequestProviderWorkStatus | null;
   assignedMember?: RequestAssignedMemberDto | null;
   id: string;
   number: number | null;
@@ -151,6 +159,9 @@ export type RequestCustomerDto = {
 };
 
 export type RequestProDto = {
+  providerWorkStatus?: RequestProviderWorkStatus | null;
+  providerClientId?: string | null;
+  customerUserId?: string | null;
   providerName?: string | null;
   assignedMember?: RequestAssignedMemberDto | null;
   id: string;

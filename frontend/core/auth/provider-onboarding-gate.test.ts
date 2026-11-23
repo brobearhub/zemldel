@@ -17,6 +17,7 @@ describe("providerWithoutProfileRedirect", () => {
   it("оставляет форму, юридические страницы и уже созданный профиль", () => {
     expect(providerWithoutProfileRedirect({ ...provider, pathname: "/providers/new" })).toBeNull();
     expect(providerWithoutProfileRedirect({ ...provider, pathname: "/terms" })).toBeNull();
+    expect(providerWithoutProfileRedirect({ ...provider, pathname: "/for-providers" })).toBeNull();
     expect(providerWithoutProfileRedirect({ ...provider, pathname: "/privacy" })).toBeNull();
     expect(providerWithoutProfileRedirect({ ...provider, pathname: "/offer" })).toBeNull();
     expect(providerWithoutProfileRedirect({ ...provider, pathname: "/consent" })).toBeNull();

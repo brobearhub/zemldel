@@ -16,10 +16,7 @@ vi.mock("next-auth/react", () => ({
   signOut: vi.fn(),
 }));
 
-function renderNav(
-  state: "unauth" | "customer" | "provider",
-  props: { showLandLink?: boolean } = {},
-) {
+function renderNav(state: "unauth" | "customer" | "provider") {
   const store = makeStore();
   if (state === "unauth") {
     store.dispatch(setUnauthenticated());
@@ -43,10 +40,7 @@ function renderNav(
   render(
     <Provider store={store}>
       <ThemeProvider theme={createAppTheme("light")}>
-        <HeaderNav
-          showLabels
-          {...props}
-        />
+        <HeaderNav showLabels />
       </ThemeProvider>
     </Provider>,
   );
@@ -56,7 +50,7 @@ describe("HeaderNav drawer", () => {
   it.each(["unauth", "customer", "provider"] as const)(
     "убирает дубликат каталога у профиля и сохраняет заявки для %s",
     (state) => {
-      renderNav(state, { showLandLink: false });
+      renderNav(state);
 
       expect(
         screen.queryByRole("link", { name: "Участки" }),

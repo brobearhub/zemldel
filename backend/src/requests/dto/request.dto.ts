@@ -1,3 +1,4 @@
+import type { ProviderWorkStatus } from '@prisma/client';
 import 'reflect-metadata';
 import { assignedMemberDto, assignedMemberSelect } from '../request-assignment';
 import type { Prisma } from '@prisma/client';
@@ -540,6 +541,10 @@ export class RequestAssignedMemberDto {
 }
 
 export class RequestCustomerDto {
+  @ApiProperty({ enum: ['PLANNED', 'IN_PROGRESS', 'DONE'], nullable: true })
+  @Expose()
+  providerWorkStatus!: ProviderWorkStatus | null;
+
   @ApiProperty({ type: RequestAssignedMemberDto, nullable: true })
   @Expose()
   @Type(() => RequestAssignedMemberDto)
@@ -859,6 +864,18 @@ export class RequestCustomerDto {
 }
 
 export class RequestProDto {
+  @ApiProperty({ enum: ['PLANNED', 'IN_PROGRESS', 'DONE'], nullable: true })
+  @Expose()
+  providerWorkStatus!: ProviderWorkStatus | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  @Expose()
+  providerClientId!: string | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  @Expose()
+  customerUserId!: string | null;
+
   @ApiProperty({ nullable: true })
   @Expose()
   providerName!: string | null;
@@ -1192,12 +1209,16 @@ export function canCustomerDeleteRequest(
     Partial<
       Pick<
         RequestDbRow,
-        'serviceId' | 'providerId' | 'contractAcceptedAt' | '_count'
+        | 'serviceId'
+        | 'providerId'
+        | 'contractAcceptedAt'
+        | '_count'
+        | 'providerWorkStatus'
       >
     >,
   hasProviderResponse: boolean,
 ): boolean {
-  if (row.status === 'CLOSED') return false;
+  if (row.providerWorkStatus || row.status === 'CLOSED') return false;
   if (row.contractAcceptedAt != null) return false;
   if (isOrderExecutionStatus(row.status)) return false;
   if (row.status !== 'NEW' && row.status !== 'DISCUSSING') return false;
@@ -1234,6 +1255,8 @@ export type RequestDbRow = {
   }> | null;
   id: string;
   number?: number | null;
+  providerWorkStatus?: ProviderWorkStatus | null;
+  providerClientId?: string | null;
   status: RequestStatus;
   serviceId: string | null;
   categoryId: string | null;
@@ -1477,6 +1500,7 @@ export function requestRowToCustomerDtoPlain(
     {
       id: row.id,
       number: row.number ?? null,
+      providerWorkStatus: row.providerWorkStatus ?? null,
       subjectType: toSubjectType(row),
       status: row.status,
       serviceId: row.serviceId,
@@ -1589,6 +1613,15 @@ export function requestRowToProDtoPlain(
     {
       id: row.id,
       number: row.number ?? null,
+      providerWorkStatus: !locked ? (row.providerWorkStatus ?? null) : null,
+      providerClientId:
+        !locked && row.providerId === actorProviderId
+          ? (row.providerClientId ?? null)
+          : null,
+      customerUserId:
+        !locked && row.providerId === actorProviderId && row.providerWorkStatus
+          ? row.customerUserId
+          : null,
       subjectType,
       status: row.status,
       serviceId: locked ? null : row.serviceId,

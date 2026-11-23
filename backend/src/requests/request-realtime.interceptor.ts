@@ -6,9 +6,13 @@ import {
   type NestInterceptor,
 } from '@nestjs/common';
 import type { Request } from 'express';
+import type { Prisma } from '@prisma/client';
 import { concatMap, type Observable } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChatGateway } from '../chat/chat.gateway';
+
+/** Controllers set these IDs from the committed write when it updates multiple requests. */
+export type RequestWithChanges = Request & { changedRequestIds?: string[] };
 
 /** Invalidate snapshots only after a successful controller write (and its transaction). */
 @Injectable()
@@ -24,12 +28,17 @@ export class RequestRealtimeInterceptor implements NestInterceptor {
     context: ExecutionContext,
     next: CallHandler,
   ): Promise<Observable<unknown>> {
-    const request = context.switchToHttp().getRequest<Request>();
-    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method))
-      return next.handle();
+    const request = context.switchToHttp().getRequest<RequestWithChanges>();
     const route = (
       (request.route as { path?: string } | undefined)?.path ?? ''
     ).replace(/^\//, '');
+    const reconcilesCustomerWork =
+      request.method === 'GET' && route === 'requests/mine';
+    if (
+      !reconcilesCustomerWork &&
+      !['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)
+    )
+      return next.handle();
     const params = request.params as Record<string, string>;
     let requestId: string | undefined;
     const match = route.match(
@@ -89,14 +98,23 @@ export class RequestRealtimeInterceptor implements NestInterceptor {
             | undefined;
           const id =
             requestId ??
-            (route === 'chat/ensure' ? body?.serviceRequestId : undefined);
-          if (id) {
+            (route === 'chat/ensure' ? body?.serviceRequestId : undefined) ??
+            (route === 'pro/clients/:clientId/requests'
+              ? (result as { id?: string })?.id
+              : undefined);
+          const changedIds = new Set(request.changedRequestIds);
+          if (id) changedIds.add(id);
+          for (const changedId of changedIds) {
             const recipients =
-              deletedRecipients ?? (await this.getRecipients(id));
+              deletedRecipients ??
+              (await this.getRecipients(
+                changedId,
+                route.endsWith('/provider-notes'),
+              ));
             for (const userId of recipients) {
               if (request.method === 'DELETE' && route === 'requests/mine/:id')
-                this.gateway.emitRequestChanged(userId, id, true);
-              else this.gateway.emitRequestChanged(userId, id);
+                this.gateway.emitRequestChanged(userId, changedId, true);
+              else this.gateway.emitRequestChanged(userId, changedId);
             }
           }
         } catch (error) {
@@ -108,43 +126,51 @@ export class RequestRealtimeInterceptor implements NestInterceptor {
     );
   }
 
-  private async getRecipients(requestId: string): Promise<string[]> {
+  private async getRecipients(
+    requestId: string,
+    internalNote = false,
+  ): Promise<string[]> {
     const request = await this.prisma.request.findUnique({
       where: { id: requestId },
       select: {
         customerUserId: true,
         providerId: true,
+        providerWorkStatus: true,
         providerOffers: { select: { providerId: true } },
         conversations: { select: { providerId: true } },
       },
     });
     if (!request) return [];
-    const providerIds = [
-      ...new Set(
-        [
-          request.providerId,
-          ...request.providerOffers.map((o) => o.providerId),
-          ...request.conversations.map((c) => c.providerId),
-        ].filter((id): id is string => Boolean(id)),
-      ),
+    const providerIds = new Set<string>();
+    if (request.providerId) providerIds.add(request.providerId);
+    if (!request.providerWorkStatus) {
+      for (const offer of request.providerOffers)
+        providerIds.add(offer.providerId);
+      for (const thread of request.conversations) {
+        if (thread.providerId) providerIds.add(thread.providerId);
+      }
+    }
+    const membershipScopes: Prisma.ProviderMemberWhereInput[] = [
+      { role: { in: ['OWNER', 'MANAGER'] } },
     ];
+    if (!internalNote) {
+      membershipScopes.push({
+        assignedRequests: {
+          some: { id: requestId, providerId: request.providerId },
+        },
+      });
+    }
     const members = await this.prisma.providerMember.findMany({
       where: {
-        providerId: { in: providerIds },
+        providerId: { in: [...providerIds] },
         status: 'ACTIVE',
-        OR: [
-          { role: { in: ['OWNER', 'MANAGER'] } },
-          {
-            assignedRequests: {
-              some: { id: requestId, providerId: request.providerId },
-            },
-          },
-        ],
+        OR: membershipScopes,
       },
       select: { userId: true },
     });
     const users = new Set(members.map((m) => m.userId));
-    if (request.customerUserId) users.add(request.customerUserId);
+    if (!internalNote && request.customerUserId)
+      users.add(request.customerUserId);
     // No deal data is sent to archived providers; their HTTP reads enforce current access.
     return [...users];
   }

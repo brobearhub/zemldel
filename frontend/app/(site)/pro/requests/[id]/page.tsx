@@ -51,6 +51,6 @@ export default async function ProRequestDetailPage({ params }: Props) {
   }
 
   return (
-    <ProRequestWorkspace initialRequest={req} subtitle={pickSubtitle(req)} />
+    <ProRequestWorkspace key={req.id} initialRequest={req} subtitle={pickSubtitle(req)} />
   );
 }

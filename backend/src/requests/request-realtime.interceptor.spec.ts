@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ExecutionContext } from '@nestjs/common';
 import { lastValueFrom, of, throwError, defer } from 'rxjs';
-import { RequestRealtimeInterceptor } from './request-realtime.interceptor';
+import {
+  RequestRealtimeInterceptor,
+  type RequestWithChanges,
+} from './request-realtime.interceptor';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { ChatGateway } from '../chat/chat.gateway';
 
@@ -17,6 +20,7 @@ function setup(method = 'POST', path = '/pro/requests/:id/complete') {
   const prisma = {
     request: {
       findUnique: vi.fn().mockResolvedValue({
+        providerWorkStatus: null as string | null,
         customerUserId: 'customer',
         providerId: 'selected',
         providerOffers: [{ providerId: 'archived' }],
@@ -88,6 +92,79 @@ describe('request realtime invalidation', () => {
       ['archived-user', 'r'],
       ['customer', 'r'],
     ]);
+  });
+
+  it.each([
+    ['/pro/requests/:id/provider-notes', true],
+    ['/pro/clients/:clientId/requests', false],
+  ] as const)(
+    'scopes private invalidations for %s',
+    async (route, internalNote) => {
+      const { interceptor, context, gateway, prisma } = setup('POST', route);
+      prisma.request.findUnique.mockResolvedValue({
+        providerWorkStatus: 'PLANNED',
+        customerUserId: 'customer',
+        providerId: 'selected',
+        conversations: [{ providerId: 'unrelated' }],
+        providerOffers: [{ providerId: 'unrelated' }],
+      });
+      prisma.providerMember.findMany.mockResolvedValue([{ userId: 'owner' }]);
+      await lastValueFrom(
+        await interceptor.intercept(context, { handle: () => of({ id: 'r' }) }),
+      );
+      expect(prisma.providerMember.findMany).toHaveBeenCalledWith({
+        where: {
+          providerId: { in: ['selected'] },
+          status: 'ACTIVE',
+          OR: [
+            { role: { in: ['OWNER', 'MANAGER'] } },
+            ...(internalNote
+              ? []
+              : [
+                  {
+                    assignedRequests: {
+                      some: { id: 'r', providerId: 'selected' },
+                    },
+                  },
+                ]),
+          ],
+        },
+        select: { userId: true },
+      });
+      expect(gateway.emitRequestChanged.mock.calls).toEqual(
+        internalNote
+          ? [['owner', 'r']]
+          : [
+              ['owner', 'r'],
+              ['customer', 'r'],
+            ],
+      );
+    },
+  );
+
+  it('invalidates both the signed contract and newly linked requests once per ID', async () => {
+    const { interceptor, context, prisma } = setup(
+      'POST',
+      '/requests/mine/:id/accept-contract',
+    );
+    await lastValueFrom(
+      await interceptor.intercept(context, {
+        handle: () =>
+          defer(() => {
+            const request = context
+              .switchToHttp()
+              .getRequest<RequestWithChanges>();
+            request.changedRequestIds = ['previous', 'r'];
+            return of({ id: 'r' });
+          }),
+      }),
+    );
+    expect(prisma.request.findUnique).toHaveBeenCalledTimes(2);
+    for (const id of ['previous', 'r']) {
+      expect(prisma.request.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id } }),
+      );
+    }
   });
 
   it('does not notify failed or unauthorized writes', async () => {

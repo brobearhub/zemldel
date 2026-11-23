@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsDefined,
   IsEmail,
   IsIn,
   IsOptional,
@@ -31,6 +32,12 @@ export class AcceptedLegalVersionsDto {
 }
 
 export class SignupDto {
+  @ApiProperty({
+    description: 'Одноразовое подтверждение email для завершения регистрации',
+  })
+  @Matches(/^[A-Za-z0-9_-]{43}$/)
+  registrationToken!: string;
+
   @ApiProperty({ example: 'user@example.com' })
   @IsEmail()
   email!: string;
@@ -55,6 +62,7 @@ export class SignupDto {
   customerCityId?: string;
 
   @ApiProperty({ type: AcceptedLegalVersionsDto })
+  @IsDefined()
   @ValidateNested()
   @Type(() => AcceptedLegalVersionsDto)
   acceptedLegal!: AcceptedLegalVersionsDto;

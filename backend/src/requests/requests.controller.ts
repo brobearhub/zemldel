@@ -11,6 +11,7 @@ import {
   Put,
   Query,
   Req,
+  Res,
   UnprocessableEntityException,
   UseGuards,
 } from '@nestjs/common';
@@ -27,7 +28,9 @@ import {
   ApiTooManyRequestsResponse,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
-import type { Request } from 'express';
+import type { RequestWithChanges } from './request-realtime.interceptor';
+import type { Request, Response } from 'express';
+import { isISO8601, isUUID } from 'class-validator';
 import {
   parseRequestCategoryCreateDto,
   parseRequestServiceCreateDto,
@@ -207,10 +210,39 @@ export class RequestsController {
   // --- Customer: read ---
 
   @Get('requests/mine')
+  @ApiQuery({ name: 'before', required: false, type: String })
   @ApiOkResponse({ type: [RequestCustomerDto] })
-  async listMine(@Req() request: Request) {
+  async listMine(
+    @Req() request: RequestWithChanges,
+    @Res({ passthrough: true }) response: Response,
+    @Query('before') cursor?: string,
+  ) {
     const userId = this.requests.getRequiredActorUserId(request);
-    return this.requests.listMine(userId);
+    let before: { createdAt: Date; id: string } | undefined;
+    if (cursor !== undefined) {
+      const [date, id, extra] =
+        typeof cursor === 'string' ? cursor.split(',') : [];
+      if (
+        !date ||
+        !id ||
+        extra !== undefined ||
+        !isISO8601(date, { strict: true }) ||
+        !isUUID(id)
+      ) {
+        throw new BadRequestException('Некорректная страница заявок');
+      }
+      before = { createdAt: new Date(date), id };
+    } else {
+      request.changedRequestIds = await this.requests.syncCustomerWork(userId);
+    }
+    const pageSize = 200;
+    const rows = await this.requests.listMine(userId, before, pageSize + 1);
+    if (rows.length > pageSize) {
+      rows.pop();
+      const last = rows[pageSize - 1];
+      response.setHeader('X-Next-Cursor', `${last.createdAt},${last.id}`);
+    }
+    return rows;
   }
 
   @Get('requests/mine/with-documents')
@@ -391,7 +423,7 @@ export class RequestsController {
     description: 'Validation failed',
   })
   async customerAcceptContract(
-    @Req() request: Request,
+    @Req() request: RequestWithChanges,
     @Param('id') id: string,
     @Body() body: unknown,
   ) {
@@ -436,12 +468,15 @@ export class RequestsController {
         ],
       });
     }
-    return this.requests.acceptContractByCustomer(userId, id, {
-      termsVersion,
-      ...(expected !== undefined
-        ? { expectedTotalAmountRubles: expected }
-        : {}),
-    });
+    const { changedRequestIds, ...result } =
+      await this.requests.acceptContractByCustomer(userId, id, {
+        termsVersion,
+        ...(expected !== undefined
+          ? { expectedTotalAmountRubles: expected }
+          : {}),
+      });
+    request.changedRequestIds = changedRequestIds;
+    return result;
   }
 
   // --- Customer: order-phase actions ---

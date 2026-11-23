@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { fetchBackend } from "@/shared/api/backend/server";
+import { SIGNUP_PROOF_COOKIE, signupProofCookieOptions } from "./proof-cookie";
 
 type AcceptedLegal = {
   terms?: unknown;
@@ -15,7 +16,11 @@ function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const registrationToken = request.cookies.get(SIGNUP_PROOF_COOKIE)?.value;
+  if (!registrationToken) {
+    return NextResponse.json({ error: "Подтвердите email ещё раз" }, { status: 403 });
+  }
   try {
     const body = (await request.json()) as {
       email?: unknown;
@@ -39,6 +44,7 @@ export async function POST(request: Request) {
       typeof body.acceptedLegal?.consent === "string" ? body.acceptedLegal.consent.trim() : "";
 
     const fieldErrors: FieldErrors = {};
+    if (accountKind === "CUSTOMER" && !name) fieldErrors.name = "Укажите имя";
     if (!email) fieldErrors.email = "Введите email";
     else if (!isValidEmail(email)) fieldErrors.email = "Введите корректный email";
     if (!password) fieldErrors.password = "Введите пароль";
@@ -58,6 +64,7 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         email,
+        registrationToken,
         password,
         ...(accountKind === "CUSTOMER" ? { name, customerCityId } : {}),
         accountKind,
@@ -67,7 +74,9 @@ export async function POST(request: Request) {
     const payload = (await response.json().catch(() => null)) as unknown;
 
     if (response.ok) {
-      return NextResponse.json(payload, { status: response.status });
+      const result = NextResponse.json(payload, { status: response.status });
+      result.cookies.set(SIGNUP_PROOF_COOKIE, "", { ...signupProofCookieOptions, maxAge: 0 });
+      return result;
     }
 
     // 409 обычно означает конфликт уникальности (чаще всего email уже занят).

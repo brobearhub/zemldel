@@ -1,11 +1,14 @@
 import { UnprocessableEntityException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { RequestsController } from './requests.controller';
+import type { RequestWithChanges } from './request-realtime.interceptor';
 
 function setup() {
   const requests = {
     getRequiredActorUserId: vi.fn().mockReturnValue('u1'),
-    acceptContractByCustomer: vi.fn().mockResolvedValue({ id: 'r1' }),
+    acceptContractByCustomer: vi
+      .fn()
+      .mockResolvedValue({ id: 'r1', changedRequestIds: ['previous'] }),
   };
   return { requests, controller: new RequestsController(requests as never) };
 }
@@ -27,7 +30,11 @@ describe('customer contract acceptance price snapshot', () => {
     { expected: undefined, input: { termsVersion: 'v1' } },
   ])('forwards valid snapshot $expected', async ({ expected, input }) => {
     const { requests, controller } = setup();
-    await controller.customerAcceptContract({} as never, 'r1', input);
+    const request = {} as RequestWithChanges;
+    expect(
+      await controller.customerAcceptContract(request, 'r1', input),
+    ).toEqual({ id: 'r1' });
+    expect(request.changedRequestIds).toEqual(['previous']);
     expect(requests.acceptContractByCustomer).toHaveBeenCalledWith('u1', 'r1', {
       termsVersion: 'v1',
       ...(expected !== undefined

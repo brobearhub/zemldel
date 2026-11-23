@@ -60,6 +60,11 @@ export class PartnerDelegationService {
         throw new NotFoundException(
           'Заявка больше не принадлежит этому исполнителю',
         );
+      if (request.providerWorkStatus) {
+        throw new BadRequestException(
+          'Приватная заявка принадлежит кабинету исполнителя',
+        );
+      }
       if (
         [
           'CLOSED',

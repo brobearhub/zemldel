@@ -214,7 +214,7 @@ function buildProviderState(
       id,
       build: ({ request }) => ({
         note: buildProviderPendingInfo(request),
-        actions: request.isLocked
+        actions: request.isLocked || request.providerWorkStatus
           ? []
           : !isOrderExecutionStatus(request.status) &&
               request.offerStatus === "SELECTED"

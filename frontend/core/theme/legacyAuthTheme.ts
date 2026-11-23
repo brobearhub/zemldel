@@ -6,6 +6,7 @@ import { alpha } from "@mui/material/styles";
 import { breakpointValues, media } from "./breakpoints";
 import { createAppTheme } from "./createAppTheme";
 import type { DarkPaletteId } from "./dark-palettes";
+import { readableTypography } from "./typography";
 
 export { breakpointValues, media };
 
@@ -66,16 +67,6 @@ export function createLegacyAuthTheme(
             return {
               html: {
                 backgroundColor: theme.palette.background.default,
-              },
-              ".MuiAppBar-root .nav-label": {
-                fontSize: "0.75rem",
-              },
-              ".MuiAppBar-root button[aria-haspopup='dialog'] .MuiTypography-root":
-                {
-                  fontSize: "0.875rem",
-                },
-              ".MuiAppBar-root .MuiAvatar-root": {
-                fontSize: "0.75rem",
               },
               body: {
                 // Improve font rendering on dark backgrounds.
@@ -148,6 +139,10 @@ export function createLegacyAuthTheme(
           },
           styleOverrides: {
             root: ({ theme }) => ({
+              ...readableTypography.body1,
+              "& .MuiTypography-body2": {
+                lineHeight: readableTypography.body2.lineHeight,
+              },
               backgroundImage: "none",
               backgroundColor: theme.custom.bgColors.header,
               color: theme.palette.text.primary,

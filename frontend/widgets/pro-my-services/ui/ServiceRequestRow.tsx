@@ -15,6 +15,7 @@ import {
 import Link from "@/shared/ui/Link";
 import {
   formatRequestNumber,
+  PROVIDER_WORK_LABELS,
   formatRubles,
   getRequestDisplayStatusLabel,
   orderReplyPreview,
@@ -304,6 +305,7 @@ export function ServiceRequestRow<
       }}
     >
       {getRequestDisplayStatusLabel(request)}
+      {request.providerWorkStatus && <Box component="span" sx={{ display: "block" }}>{PROVIDER_WORK_LABELS[request.providerWorkStatus]}</Box>}
     </Typography>
   );
 
@@ -628,7 +630,7 @@ export function ServiceRequestRow<
             >
               {request.subjectType === "SERVICE"
                 ? "Услуга"
-                : "Свободная заявка"}
+                : request.providerWorkStatus ? "Заявка исполнителя" : "Свободная заявка"}
             </Typography>
           )}
         </Box>

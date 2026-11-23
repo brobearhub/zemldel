@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Alert, Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
@@ -16,7 +16,8 @@ import {
   PendingRequestAuthRequiredError,
   resumePendingRequest,
 } from "@/entities/request/api/resume-pending-request";
-import { CustomerRequestDeleteConflictError, deleteCustomerRequest } from "@/entities/request/api/customer-requests";
+import { CustomerRequestDeleteConflictError, deleteCustomerRequest, fetchCustomerRequestPage } from "@/entities/request/api/customer-requests";
+import { useVisibleRefresh } from "@/shared/lib/use-visible-refresh";
 import { useConfirm } from "@/shared/ui/confirm";
 import { CustomerRequestReplyDialog } from "./CustomerRequestReplyDialog";
 import { CustomerRequestsFeed } from "./CustomerRequestsFeed";
@@ -37,6 +38,8 @@ export function CustomerRequestsSection({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const pageCount = useRef(1);
   const [resuming, setResuming] = useState(false);
   const [resumeError, setResumeError] = useState<string | null>(null);
   const [hasResumeDraft, setHasResumeDraft] = useState(false);
@@ -53,41 +56,31 @@ export function CustomerRequestsSection({
     ? items.filter((item) => item.status === selectedStatus)
     : items;
 
-  async function load(signal?: AbortSignal) {
+  async function load(signal: AbortSignal) {
     setError(null);
-    setLoading(true);
     try {
-      const res = await fetch("/api/requests", { cache: "no-store", signal });
-      const payload = (await res.json().catch(() => null)) as
-        | RequestCustomerDto[]
-        | { error?: string }
-        | null;
-      if (!res.ok) {
-        throw new Error(
-          payload &&
-            typeof payload === "object" &&
-            !Array.isArray(payload) &&
-            payload.error
-            ? payload.error
-            : "Не удалось загрузить заявки",
-        );
+      const rows: RequestCustomerDto[] = [];
+      let cursor: string | null = null;
+      for (let page = 0; page < pageCount.current; page++) {
+        const result = await fetchCustomerRequestPage(signal, cursor);
+        if (signal.aborted) return;
+        rows.push(...result.items);
+        cursor = result.next;
+        if (!cursor) break;
       }
-      setItems(payload as RequestCustomerDto[]);
+      setItems(rows);
+      setHasMore(Boolean(cursor));
     } catch (e) {
-      if (e instanceof DOMException && e.name === "AbortError") {
-        return;
-      }
-      setError(e instanceof Error ? e.message : "Не удалось загрузить заявки");
+      if (!signal.aborted) setError(e instanceof Error ? e.message : "Не удалось загрузить заявки");
     } finally {
-      setLoading(false);
+      if (!signal.aborted) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }
 
-  useEffect(() => {
-    const controller = new AbortController();
-    void load(controller.signal);
-    return () => controller.abort();
-  }, []);
+  const refreshList = useVisibleRefresh({ scope: "customer-requests", watchAllRequests: true, onRefresh: load });
 
   useEffect(() => {
     if (
@@ -140,13 +133,9 @@ export function CustomerRequestsSection({
     };
   }, [autoResumeEnabled, onAutoResumeFinished, router, resumeAttempt]);
 
-  async function refresh() {
+  function refresh() {
     setRefreshing(true);
-    try {
-      await load();
-    } finally {
-      setRefreshing(false);
-    }
+    refreshList();
   }
 
   async function deleteRequest(item: RequestCustomerDto) {
@@ -165,7 +154,7 @@ export function CustomerRequestsSection({
       await deleteCustomerRequest(item.id);
       setItems((current) => current.filter((row) => row.id !== item.id));
     } catch (e) {
-      if (e instanceof CustomerRequestDeleteConflictError) await load();
+      if (e instanceof CustomerRequestDeleteConflictError) refreshList();
       setError(e instanceof Error ? e.message : "Не удалось удалить заявку");
     } finally {
       setDeletingId(null);
@@ -297,6 +286,15 @@ export function CustomerRequestsSection({
           onDelete={(item) => void deleteRequest(item)}
           onReply={setReplyItem}
         />
+      )}
+      {hasMore && (
+        <Button
+          variant="outlined"
+          disabled={refreshing}
+          onClick={() => { pageCount.current += 1; refresh(); }}
+        >
+          Показать ещё заявки
+        </Button>
       )}
       <CustomerRequestReplyDialog
         item={replyItem}

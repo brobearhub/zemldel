@@ -16,12 +16,12 @@ import { memoryStorage } from 'multer';
 import {
   ApiBody,
   ApiConsumes,
-  ApiCreatedResponse,
   ApiOkResponse,
   ApiTags,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { InternalAuthService } from '../auth/internal-auth.service';
+import { EmailVerificationService } from '../auth/email-verification.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import {
   UserCustomerRatingDto,
@@ -40,6 +40,7 @@ export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly internalAuthService: InternalAuthService,
+    private readonly verification: EmailVerificationService,
   ) {}
 
   @Get()
@@ -49,9 +50,8 @@ export class UsersController {
   }
 
   @Post()
-  @ApiCreatedResponse({ type: UserListItemDto })
-  createUser(@Body() body: CreateUserDto) {
-    return this.usersService.createUser(body);
+  startRegistration(@Body() body: CreateUserDto) {
+    return this.verification.request(body.email, 'signup');
   }
 
   @Get('me')

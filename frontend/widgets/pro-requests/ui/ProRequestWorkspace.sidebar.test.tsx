@@ -68,12 +68,12 @@ vi.mock("@/widgets/chat/ui/ServiceRequestChatPanel", () => ({
 
 const request = { id: "first-request", status: "NEW" } as RequestProDto;
 
-function Workspace() {
+function Workspace({ initialRequest = request }: { initialRequest?: RequestProDto }) {
   return (
     <ThemeProvider theme={createAppTheme("light")}>
       <CabinetSidebarProvider>
         <CabinetDesktopSidebar />
-        <ProRequestWorkspace initialRequest={request} subtitle="Заявка" />
+        <ProRequestWorkspace initialRequest={initialRequest} subtitle="Заявка" />
       </CabinetSidebarProvider>
     </ThemeProvider>
   );
@@ -180,4 +180,13 @@ it("keeps chat visible on mobile even after expanding the desktop menu", async (
   expect(screen.getByRole("textbox").parentElement).toHaveStyle({
     display: "flex",
   });
+});
+
+it("keeps chat unavailable for an unconnected contact and opens it for a connected customer", () => {
+  const privateRequest = { ...request, providerWorkStatus: "IN_PROGRESS", customerUserId: null } as const;
+  const view = render(<Workspace key="pending" initialRequest={privateRequest} />);
+  expect(screen.queryByRole("textbox", { name: "Сообщение" })).not.toBeInTheDocument();
+  expect(screen.getByText(/Чат откроется/)).toBeInTheDocument();
+  view.rerender(<Workspace key="joined" initialRequest={{ ...privateRequest, customerUserId: "joined" }} />);
+  expect(screen.getByRole("textbox", { name: "Сообщение" })).toBeVisible();
 });

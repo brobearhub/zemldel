@@ -1,0 +1,377 @@
+.guide {
+  --soft-surface: var(--mui-palette-background-secondary);
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: clamp(20px, 4vw, 60px) clamp(16px, 4vw, 48px) clamp(48px, 7vw, 88px);
+  color: var(--mui-palette-text-primary);
+}
+
+.guide :is(h1, h2, h3, figure, p) {
+  margin: 0;
+}
+
+.guide h1 {
+  max-width: 15ch;
+  font-size: clamp(2.25rem, 4.6vw, 3.8rem);
+  font-weight: 800;
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.guide h2 {
+  font-size: clamp(1.65rem, 3vw, 2.45rem);
+  font-weight: 750;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.guide h3 {
+  font-size: 1.25rem;
+  line-height: 1.35;
+}
+
+.guide p,
+.guide li,
+.table {
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+
+.guide a {
+  color: inherit;
+  text-underline-offset: 0.2em;
+}
+
+.guide a:focus-visible,
+.screenshotButton:focus-visible {
+  outline: 3px solid currentColor !important;
+  outline-offset: 4px;
+}
+
+.hero,
+.choice {
+  display: grid;
+  grid-template-columns: minmax(0, 0.96fr) minmax(0, 1.04fr);
+  align-items: center;
+  gap: clamp(26px, 5vw, 70px);
+}
+
+.heroCopy > p {
+  max-width: 41ch;
+  margin: 22px 0 26px;
+  font-size: clamp(1.125rem, 1.6vw, 1.27rem);
+  line-height: 1.55;
+}
+
+.guide .primaryLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 9px 18px;
+  border-radius: var(--mui-shape-borderRadius, 8px);
+  background: var(--mui-palette-primary-main);
+  color: var(--mui-palette-primary-contrastText);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.guide .primaryLink:hover {
+  background: var(--mui-palette-primary-light);
+}
+
+.figure {
+  min-width: 0;
+}
+
+.screenshotButton {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: clamp(12px, 2vw, 26px);
+  border: 0;
+  border-radius: 14px;
+  background-color: var(--mui-palette-primary-light);
+  color: var(--mui-palette-text-primary);
+  cursor: zoom-in;
+}
+
+.screenshotButton img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 7px;
+}
+
+.zoom {
+  position: absolute;
+  right: 7px;
+  bottom: 7px;
+  display: grid;
+  place-items: center;
+  width: 29px;
+  height: 29px;
+  border: 1px solid var(--mui-palette-divider);
+  border-radius: 50%;
+  background: var(--mui-palette-background-paper);
+}
+
+.figure figcaption {
+  padding-top: 8px;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--mui-palette-text-secondary);
+}
+
+.viewerToolbar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 8px 8px 16px;
+}
+
+.viewerCanvas {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background-color: var(--mui-palette-background-default);
+}
+
+.viewerImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: calc(100dvh - 120px);
+  object-fit: contain;
+}
+
+.viewerImage[data-original] {
+  width: auto;
+  max-width: none;
+  max-height: none;
+  margin-inline: auto;
+}
+
+.contents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 clamp(16px, 3.5vw, 42px);
+  margin-top: clamp(28px, 5vw, 64px);
+  padding-block: 8px;
+  border-block: 1px solid var(--mui-palette-divider);
+}
+
+.contents a,
+.instructions > a,
+.nextSteps > div > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 1rem;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.heroCopy p a:hover,
+.contents a:hover,
+.instructions > a:hover,
+.table a:hover,
+.nextSteps a:hover {
+  text-decoration-thickness: 2px;
+}
+
+.section {
+  margin-top: clamp(36px, 6.5vw, 80px);
+}
+
+.section,
+.instructions > h3 {
+  scroll-margin-top: 100px;
+}
+
+.section .intro {
+  max-width: 75ch;
+  margin-top: 12px;
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(16px, 2.5vw, 30px);
+  margin: 26px 0 0;
+  padding: 0;
+  list-style-position: inside;
+}
+
+.steps li {
+  padding: 18px 0 0;
+  border-top: 2px solid var(--mui-palette-primary-main);
+}
+
+.steps li::marker {
+  font-weight: 800;
+  font-size: 1.25rem;
+}
+
+.steps h3 {
+  display: inline;
+}
+
+.steps p {
+  margin-top: 8px;
+}
+
+.section .followUp {
+  max-width: 82ch;
+  margin-top: 24px;
+}
+
+.choice {
+  padding-block: clamp(24px, 3vw, 40px);
+  border-bottom: 1px solid var(--mui-palette-divider);
+}
+
+.instructions > h3 {
+  margin-bottom: 10px;
+  font-size: clamp(1.35rem, 2.5vw, 1.7rem);
+}
+
+.instructions ol {
+  padding-left: 1.45em;
+  margin: 12px 0 4px;
+}
+
+.instructions li + li {
+  margin-top: 8px;
+}
+
+.instructions li::marker {
+  font-weight: 700;
+}
+
+.transferNote {
+  margin-top: 22px;
+  max-width: 88ch;
+  padding: 4px 0 4px clamp(14px, 2vw, 24px);
+  border-left: 3px solid var(--mui-palette-primary-main);
+}
+
+.transferNote p {
+  margin-top: 8px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  margin-top: 20px;
+}
+
+.table th,
+.table td {
+  padding: 14px 12px;
+  vertical-align: top;
+}
+
+.table thead {
+  background: var(--soft-surface);
+}
+
+.table thead th {
+  font-size: 1rem;
+}
+
+.table tbody tr {
+  border-bottom: 1px solid var(--mui-palette-divider);
+}
+
+.table tbody th {
+  width: 26%;
+  font-weight: 750;
+}
+
+.heroCopy p a,
+.table a {
+  text-decoration: underline;
+}
+
+.nextSteps {
+  margin-top: clamp(32px, 5vw, 58px);
+  padding: clamp(18px, 3vw, 30px);
+  border-radius: 14px;
+  background: var(--soft-surface);
+}
+
+.nextSteps > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 22px;
+  margin-top: 14px;
+}
+
+@media (max-width: 800px) {
+  .hero,
+  .choice {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .heroCopy > p {
+    max-width: 56ch;
+    margin: 14px 0 18px;
+  }
+
+  .figure {
+    width: 100%;
+    max-width: 590px;
+  }
+
+  .steps {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .contents {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px 12px;
+  }
+
+  .table,
+  .table tbody,
+  .table tr,
+  .table th,
+  .table td {
+    display: block;
+  }
+
+  .table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+    overflow: hidden;
+  }
+
+  .table tbody tr {
+    padding-block: 14px;
+  }
+
+  .table tbody th,
+  .table td {
+    width: auto;
+    padding: 0;
+  }
+
+  .table td {
+    margin-top: 4px;
+  }
+}

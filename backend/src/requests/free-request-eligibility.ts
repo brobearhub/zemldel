@@ -45,6 +45,7 @@ export function freeRequestEligibilityWhere(
   if (!regionCode) return { id: { in: [] } };
   return {
     serviceId: null,
+    providerWorkStatus: null,
     AND: [
       { OR: [{ categoryId: null }, { categoryId: { in: [...categoryIds] } }] },
       {

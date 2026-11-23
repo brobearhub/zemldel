@@ -53,6 +53,7 @@ export default async function ProDashboardPage() {
 
     return (
       <ProHomePage
+        canCreateClientRequest={activeMembership.role !== "EMPLOYEE"}
         services={serviceList}
         reminders={Array.isArray(reminders) ? reminders : []}
         firstSteps={buildFirstSteps({

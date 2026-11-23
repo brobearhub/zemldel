@@ -2,14 +2,14 @@ import { publicPageMetadata } from "@/shared/lib/seo";
 import { HowItWorks } from "@/widgets/how-it-works/ui/HowItWorks";
 import { Contacts } from "@/widgets/contacts/ui/Contacts";
 import { Hero } from "@/widgets/hero/ui/Hero";
-import { Box, Container, Stack } from "@mui/material";
+import { Alert, Box, Container, Stack } from "@mui/material";
 import { fetchBackendJson } from "@/shared/api/backend/server";
 import { ServiceCategoriesSection, type ServiceCategoryRow } from "@/widgets/service-categories/ui/ServiceCategoriesSection";
 
 export const dynamic = "force-dynamic";
 
 export default async function AboutPage() {
-  const categories = await fetchBackendJson<ServiceCategoryRow[]>("/service-categories");
+  const categories = await fetchBackendJson<ServiceCategoryRow[]>("/service-categories").catch(() => null);
 
   return (
     <>
@@ -23,7 +23,11 @@ export default async function AboutPage() {
       >
         <Container>
           <Stack spacing={{ xs: 3, md: 4 }}>
-            <ServiceCategoriesSection categories={categories} embedded />
+            {categories === null ? (
+              <Alert severity="info" role="status">Список категорий услуг временно недоступен.</Alert>
+            ) : (
+              <ServiceCategoriesSection categories={categories} embedded />
+            )}
           </Stack>
         </Container>
       </Box>

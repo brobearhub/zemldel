@@ -41,44 +41,43 @@ async function main() {
   const secret = mustEnv('INTERNAL_API_SECRET');
 
   const stamp = Date.now();
-  const customerEmail = `smoke.customer.${stamp}@example.com`;
-  const providerEmail = `smoke.provider.${stamp}@example.com`;
+  const customerEmail = `smoke.customer.${stamp}@example.test`;
+  const providerEmail = `smoke.provider.${stamp}@example.test`;
   const password = '123456';
 
-  // Signup + login
-  {
-    const a = await req<{ id: string }>({
-      method: 'POST',
-      path: '/auth/signup',
+  const acceptedLegal = Object.fromEntries(await Promise.all(
+    ['terms', 'privacy', 'consent'].map(async (docId) => {
+      const doc = await req<{ version: string }>({ method: 'GET', path: `/legal-docs/${docId}/current` });
+      assertOk(doc.status, doc.json, docId);
+      return [docId, doc.json.version];
+    }),
+  ));
+  const cities = await req<Array<{ id: string }>>({ method: 'GET', path: '/cities/suggest?q=Москва&limit=1' });
+  const customerCityId = cities.json[0]?.id;
+  if (!customerCityId) throw new Error('Seed the city directory before running this smoke test');
+
+  for (const [email, accountKind] of [[customerEmail, 'CUSTOMER'], [providerEmail, 'PROVIDER']]) {
+    const start = await req({ method: 'POST', path: '/auth/signup/start', body: { email, accountKind } });
+    assertOk(start.status, start.json, 'start signup');
+    const inbox = process.env.MAILCATCHER_URL ?? 'http://127.0.0.1:1081';
+    const messages = await (await fetch(`${inbox}/messages`)).json() as Array<{ id: number; recipients: string[] }>;
+    const message = messages.find((item) => item.recipients.some((address) => address.replace(/[<>]/g, '') === email));
+    if (!message) throw new Error(`No verification email for ${email} in local MailCatcher`);
+    const mail = await (await fetch(`${inbox}/messages/${message.id}.plain`)).text();
+    const code = mail.match(/\b\d{4}\b/)?.[0];
+    if (!code) throw new Error('No verification code in message');
+    const proof = await req<{ registrationToken: string }>({
+      method: 'POST', path: '/auth/signup/verify', body: { email, code },
+    });
+    assertOk(proof.status, proof.json, 'verify email');
+    const result = await req({
+      method: 'POST', path: '/auth/signup',
       body: {
-        email: customerEmail,
-        password,
-        name: 'Smoke Customer',
-        acceptedLegal: {
-          terms: '2026-08-04',
-          privacy: '2026-08-04',
-          consent: '2026-08-04',
-        },
+        email, accountKind, password, registrationToken: proof.json.registrationToken, acceptedLegal,
+        ...(accountKind === 'CUSTOMER' ? { name: 'Smoke Customer', customerCityId } : {}),
       },
     });
-    assertOk(a.status, a.json, 'customer signup');
-  }
-  {
-    const a = await req<{ id: string }>({
-      method: 'POST',
-      path: '/auth/signup',
-      body: {
-        email: providerEmail,
-        password,
-        name: 'Smoke Provider',
-        acceptedLegal: {
-          terms: '2026-08-04',
-          privacy: '2026-08-04',
-          consent: '2026-08-04',
-        },
-      },
-    });
-    assertOk(a.status, a.json, 'provider signup');
+    assertOk(result.status, result.json, 'complete signup');
   }
 
   const customerLogin = await req<Json>({

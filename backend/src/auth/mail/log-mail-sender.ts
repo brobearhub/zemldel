@@ -6,6 +6,9 @@ export class LogMailSender implements MailSender {
   private readonly logger = new Logger(LogMailSender.name);
 
   send(mail: OutboundMail): Promise<void> {
+    if (process.env.NODE_ENV === 'production') {
+      return Promise.reject(new Error('Почтовый сервис не настроен'));
+    }
     this.logger.log(
       `SMTP не задан. Письмо для ${mail.to}: ${mail.subject}\n${mail.text}`,
     );
