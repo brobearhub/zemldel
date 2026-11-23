@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { RequestCustomerDto } from "@/entities/request";
 import { CustomerRequestsSection } from "./CustomerRequestsSection";
@@ -39,6 +39,27 @@ afterEach(() => {
 });
 
 describe("CustomerRequestsSection status filters", () => {
+  it("показывает старые заявки и обновляет открытый список при создании новой", async () => {
+    const user = userEvent.setup();
+    const cursor = "2026-01-01T00:00:00.000Z,older";
+    const recent = [{ id: "recent-request", status: "DISCUSSING" }];
+    const earlier = [{ id: "earlier-request", status: "COMPLETED" }];
+    const fetchPage = vi.fn(async (path: string) =>
+      path === "/api/requests"
+        ? { ok: true, headers: new Headers({ "x-next-cursor": cursor }), json: async () => recent }
+        : { ok: true, headers: new Headers(), json: async () => earlier },
+    );
+    vi.stubGlobal("fetch", fetchPage);
+    render(<CustomerRequestsSection />);
+    await user.click(await screen.findByRole("button", { name: "Показать ещё заявки" }));
+    expect(await screen.findByText("earlier-request")).toBeInTheDocument();
+    expect(fetchPage).toHaveBeenCalledWith(`/api/requests?before=${encodeURIComponent(cursor)}`, expect.anything());
+    recent.unshift({ id: "new-request", status: "DISCUSSING" });
+    act(() => window.dispatchEvent(new CustomEvent("request:changed", { detail: { requestId: "new-request" } })));
+    expect(await screen.findByText("new-request")).toBeInTheDocument();
+    expect(screen.getByText("earlier-request")).toBeInTheDocument();
+  });
+
   it("показывает все заявки по умолчанию и переключает статусы чипами", async () => {
     const user = userEvent.setup();
     const items = [

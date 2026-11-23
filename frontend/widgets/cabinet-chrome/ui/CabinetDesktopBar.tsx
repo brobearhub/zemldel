@@ -17,6 +17,7 @@ import { CabinetHeaderStatus } from "./CabinetHeaderStatus";
 import { useCabinetSidebar } from "@/shared/ui/CabinetSidebarContext";
 import { resolveAccountKind } from "@/core/auth/authorization";
 import { useAppSelector } from "@/core/store/hooks";
+import { SITE_CATALOG_HEADER_COLUMNS } from "@/shared/config/site-layout";
 
 type Props = {
   items: readonly NavItem[];
@@ -136,7 +137,7 @@ export function CabinetDesktopBar({
 
   return (
     <AppBar
-      position="fixed"
+      position={alignWithWorkspace ? "fixed" : "sticky"}
       elevation={0}
       sx={{
         left: alignWithWorkspace ? "var(--cabinet-sidebar-width, 300px)" : 0,
@@ -156,7 +157,9 @@ export function CabinetDesktopBar({
           py: 0.5,
           height: { xs: 60, sm: 70 },
           display: "grid",
-          gridTemplateColumns: "auto minmax(0, 1fr) auto",
+          gridTemplateColumns: navigation
+            ? SITE_CATALOG_HEADER_COLUMNS
+            : "auto minmax(0, 1fr) auto",
           alignItems: "center",
           width: "100%",
           overflow: "hidden",

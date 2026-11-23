@@ -1,5 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 
 export async function lockProviderClient(
@@ -60,6 +60,60 @@ export async function attachClientRequests(
     data: { providerClientId: clientId },
   });
   return newlyLinked.map(({ id }) => id);
+}
+
+/** Match either a signed-in customer across providers, or one card on a provider write. */
+export async function connectVerifiedCustomerWork(
+  tx: Prisma.TransactionClient,
+  scope: { userId: string } | { clientId: string },
+) {
+  const filter =
+    'userId' in scope
+      ? Prisma.sql`customer.id = ${scope.userId}::uuid`
+      : Prisma.sql`card.id = ${scope.clientId}::uuid`;
+  const cards = await tx.$queryRaw<{ id: string; userId: string }[]>`
+    SELECT card.id, customer.id AS "userId"
+    FROM "ProviderClient" card
+    JOIN "User" customer ON customer.email = card.email
+    WHERE ${filter}
+      AND customer."accountKind" = 'CUSTOMER' AND customer."emailVerified" IS NOT NULL
+      AND card."customerUserId" IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM "ProviderClient" linked
+        WHERE linked."providerId" = card."providerId" AND linked."customerUserId" = customer.id
+      )
+    ORDER BY card."providerId"
+    FOR UPDATE OF card
+  `;
+  if (!cards.length) return [];
+
+  const customerUserId = cards[0].userId;
+  // Keep empty address-book entries private until there is work to share.
+  // This statement sees work committed by a writer while we waited for the card lock.
+  const connected = await tx.providerClient.updateManyAndReturn({
+    where: {
+      id: { in: cards.map((card) => card.id) },
+      requests: {
+        some: { customerUserId: null, providerWorkStatus: { not: null } },
+      },
+    },
+    data: { customerUserId },
+    select: { id: true, providerId: true },
+  });
+  if (!connected.length) return [];
+  const requests = await tx.request.updateManyAndReturn({
+    where: {
+      customerUserId: null,
+      providerWorkStatus: { not: null },
+      OR: connected.map((card) => ({
+        providerId: card.providerId,
+        providerClientId: card.id,
+      })),
+    },
+    data: { customerUserId },
+    select: { id: true },
+  });
+  return requests.map((request) => request.id);
 }
 
 export async function clientForAcceptedContract(

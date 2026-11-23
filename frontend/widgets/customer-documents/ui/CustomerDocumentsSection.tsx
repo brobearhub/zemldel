@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Box, Link, Paper, Stack, Typography } from "@mui/material";
 import type { RequestCustomerDto } from "@/entities/request";
+import { fetchCustomerRequestPage } from "@/entities/request/api/customer-requests";
 import { CustomerPassportSection } from "./CustomerPassportSection";
 import { PassportPhotoCard } from "./PassportPhotoCard";
 import { PassportAccessPanel } from "./PassportAccessPanel";
@@ -27,16 +28,15 @@ export function CustomerDocumentsSection() {
     setError(null);
     void (async () => {
       try {
-        const response = await fetch("/api/requests", {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        const payload: unknown = await response.json();
-        if (!response.ok || !Array.isArray(payload)) {
-          throw new Error("Не удалось загрузить заявки");
-        }
-        if (!controller.signal.aborted)
-          setRequests(payload as RequestCustomerDto[]);
+        const rows: RequestCustomerDto[] = [];
+        let cursor: string | null = null;
+        do {
+          const result = await fetchCustomerRequestPage(controller.signal, cursor);
+          if (controller.signal.aborted) return;
+          rows.push(...result.items);
+          cursor = result.next;
+        } while (cursor);
+        setRequests(rows);
       } catch {
         if (!controller.signal.aborted)
           setError("Не удалось загрузить заявки. Попробуйте ещё раз.");

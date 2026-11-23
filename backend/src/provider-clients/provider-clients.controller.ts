@@ -84,11 +84,17 @@ export class ProviderClientsController {
 
   @Patch(':id')
   async edit(
-    @Req() req: Request,
+    @Req() req: RequestWithChanges,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: EditClientDto,
   ) {
-    return this.clients.edit(await this.provider(req), id, dto);
+    const { changedRequestIds, ...client } = await this.clients.edit(
+      await this.provider(req),
+      id,
+      dto,
+    );
+    req.changedRequestIds = changedRequestIds;
+    return client;
   }
 
   @Post(':id/invitation')

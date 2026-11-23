@@ -19,6 +19,7 @@ describe("public sitemap", () => {
       ];
     });
     const urls = (await sitemap()).map((item) => new URL(item.url).pathname);
+    expect(urls).toContain("/for-providers");
     expect(urls).toContain("/service-categories/child-slug");
     expect(urls).toContain("/services/one");
     expect(urls).toContain("/lands/land-one");

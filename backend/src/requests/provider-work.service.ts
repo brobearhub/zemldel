@@ -9,7 +9,10 @@ import type { Prisma, ProviderWorkStatus } from '@prisma/client';
 import { AuthService } from '../auth/auth.service';
 import { withWriteOperation } from '../common/idempotency/write-operation';
 import { PrismaService } from '../prisma/prisma.service';
-import { lockProviderClient } from '../provider-clients/provider-client-record';
+import {
+  connectVerifiedCustomerWork,
+  lockProviderClient,
+} from '../provider-clients/provider-client-record';
 import { parseFixedServicePriceRubles } from './lib/service-price-rubles';
 
 type CreateInput = {
@@ -68,12 +71,17 @@ export class ProviderWorkService {
     return ctx.providerId;
   }
 
-  async create(actorId: string, clientId: string, input: CreateInput) {
+  async create(
+    actorId: string,
+    clientId: string,
+    input: CreateInput,
+    onConnected?: (requestIds: string[]) => void,
+  ) {
     const providerId = await this.providerId(actorId);
     const message = input.message?.trim() || null;
     if (!input.serviceId && !message)
       throw new BadRequestException('Опишите задачу клиента');
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const client = await lockProviderClient(tx, providerId, clientId);
       const op = await withWriteOperation(
         tx,
@@ -86,7 +94,11 @@ export class ProviderWorkService {
         async () => {
           const service = input.serviceId
             ? await tx.service.findFirst({
-                where: { id: input.serviceId, providerId, status: 'PUBLISHED' },
+                where: {
+                  id: input.serviceId,
+                  providerId,
+                  status: 'PUBLISHED',
+                },
                 select: { id: true, price: true },
               })
             : null;
@@ -137,8 +149,13 @@ export class ProviderWorkService {
           });
         },
       );
-      return op.value;
+      const changedRequestIds = client.customerUserId
+        ? []
+        : await connectVerifiedCustomerWork(tx, { clientId });
+      return { ...op.value, changedRequestIds };
     });
+    onConnected?.(result.changedRequestIds);
+    return { id: result.id };
   }
 
   private async requirePrivateRequest(

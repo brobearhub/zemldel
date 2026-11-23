@@ -879,6 +879,7 @@ model ProviderClient {
 
   @@unique([providerId, email])
   @@unique([providerId, customerUserId])
+  @@index([email])
 }
 
 model Request {

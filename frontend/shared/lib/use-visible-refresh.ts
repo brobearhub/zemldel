@@ -8,12 +8,14 @@ export function useVisibleRefresh({
   scope,
   paused = false,
   requestId,
+  watchAllRequests = false,
   refreshAt,
 }: {
   onRefresh: (signal: AbortSignal) => Promise<void>;
   scope: string;
   paused?: boolean;
   requestId?: string;
+  watchAllRequests?: boolean;
   refreshAt?: string | null;
 }) {
   const callback = useRef(onRefresh);
@@ -47,7 +49,7 @@ export function useVisibleRefresh({
       }
     };
     const onChanged = (event: Event) => {
-      if ((event as CustomEvent<{ requestId: string }>).detail?.requestId === requestId) refresh();
+      if (watchAllRequests || (event as CustomEvent<{ requestId: string }>).detail?.requestId === requestId) refresh();
     };
     trigger.current = refresh;
     window.addEventListener("focus", refresh);
@@ -71,7 +73,7 @@ export function useVisibleRefresh({
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [scope, paused, requestId, refreshAt]);
+  }, [scope, paused, requestId, watchAllRequests, refreshAt]);
 
   return useCallback(() => trigger.current(), []);
 }

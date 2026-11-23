@@ -4,6 +4,7 @@ describe("public provider sidebar routes", () => {
   it.each([
     "/",
     "/about",
+    "/for-providers",
     "/pricing",
     "/terms",
     "/privacy",

@@ -142,17 +142,21 @@ export function HowItWorks({ audience = "customer" }: Props) {
               </Box>
             ))}
           </Box>
-          <Button
-            href={`/signup?account=${audience}`}
-            variant="contained"
-            size="large"
-            sx={{
-              alignSelf: "flex-start",
-              fontWeight: 700,
-            }}
-          >
-            {guide.actionLabel}
-          </Button>
+          <Stack direction="row" spacing={1.5} useFlexGap sx={{ flexWrap: "wrap" }}>
+            <Button
+              href={`/signup?account=${audience}`}
+              variant="contained"
+              size="large"
+              sx={{ fontWeight: 700 }}
+            >
+              {guide.actionLabel}
+            </Button>
+            {audience === "provider" && (
+              <Button href="/for-providers" variant="outlined" color="inherit" size="large">
+                Возможности кабинета исполнителя
+              </Button>
+            )}
+          </Stack>
         </Stack>
       </Container>
     </Box>

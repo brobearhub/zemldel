@@ -12,6 +12,7 @@ import {
   VerificationEmailDto,
 } from './dto/email-verification.dto';
 import { AuthService } from './auth.service';
+import type { RequestWithChanges } from '../requests/request-realtime.interceptor';
 import { InternalAuthService } from './internal-auth.service';
 import { LoginDto } from './dto/login.dto';
 import { SignupDto } from './dto/signup.dto';
@@ -68,8 +69,11 @@ export class AuthController {
     type: ApiValidationErrorResponseDto,
     description: 'Validation failed',
   })
-  login(@Body() body: LoginDto) {
-    return this.authService.validateCredentials(body.email, body.password);
+  async login(@Body() body: LoginDto, @Req() request: RequestWithChanges) {
+    const { changedRequestIds, ...user } =
+      await this.authService.validateCredentials(body.email, body.password);
+    request.changedRequestIds = changedRequestIds;
+    return user;
   }
 
   @Post('signup')
@@ -78,8 +82,10 @@ export class AuthController {
     type: ApiValidationErrorResponseDto,
     description: 'Validation failed',
   })
-  signup(@Body() body: SignupDto) {
-    return this.authService.signup(body);
+  async signup(@Body() body: SignupDto, @Req() request: RequestWithChanges) {
+    const { changedRequestIds, ...user } = await this.authService.signup(body);
+    request.changedRequestIds = changedRequestIds;
+    return user;
   }
 
   @Post('password/forgot')

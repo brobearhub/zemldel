@@ -1,6 +1,7 @@
 const PUBLIC_SIDEBAR_PATHS = new Set([
   "/",
   "/about",
+  "/for-providers",
   "/pricing",
   "/terms",
   "/privacy",

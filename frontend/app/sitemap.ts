@@ -3,7 +3,7 @@ import type { ServiceDto } from "@/entities/service";
 import { fetchBackendJson } from "@/shared/api/backend/server";
 import { siteOrigin } from "@/shared/lib/site-origin";
 
-const PUBLIC_PAGES = ["/", "/about", "/lands", "/terms", "/privacy", "/consent", "/offer"] as const;
+const PUBLIC_PAGES = ["/", "/about", "/for-providers", "/lands", "/terms", "/privacy", "/consent", "/offer"] as const;
 
 // Read the current published catalog on every request; never cache a partial build-time snapshot.
 export const dynamic = "force-dynamic";

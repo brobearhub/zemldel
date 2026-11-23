@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import * as bcrypt from 'bcryptjs';
 import { Pool } from 'pg';
 import { PrismaClient, type ProviderMemberRole } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -188,6 +189,77 @@ describe.skipIf(!local)(
       await expect(clients.accept(recipient.id, expired)).rejects.toThrow(
         GoneException,
       );
+    });
+
+    it('on verified sign-in restores private work across providers and keeps existing invitation links usable', async () => {
+      const a = await provider();
+      const b = await provider();
+      const recipient = await customer(undefined, false);
+      const passwordHash = await bcrypt.hash('пароль клиента', 4);
+      await db.user.update({
+        where: { id: recipient.id },
+        data: { passwordHash },
+      });
+      const first = await clients.create(a.org.id, {
+        email: recipient.email.toUpperCase(),
+      });
+      const second = await clients.create(b.org.id, { email: recipient.email });
+      const empty = await provider();
+      const contactOnly = await clients.create(empty.org.id, {
+        email: recipient.email,
+      });
+      const wrong = await clients.create(a.org.id, { email: email() });
+      const token = await issue(a.org.id, first.id);
+      const old = await createPrivate(a.org.id, first.id);
+      const newer = await createPrivate(b.org.id, second.id);
+      const otherAddress = await createPrivate(a.org.id, wrong.id);
+      const ordinary = await db.request.create({
+        data: { providerId: a.org.id, customerEmail: recipient.email },
+      });
+      const auth = new AuthService(db as PrismaService, {} as never);
+
+      await expect(
+        auth.validateCredentials(recipient.email, 'пароль клиента'),
+      ).rejects.toThrow();
+      await db.user.update({
+        where: { id: recipient.id },
+        data: { emailVerified: new Date() },
+      });
+      await expect(
+        auth.validateCredentials(recipient.email, 'неверный пароль'),
+      ).rejects.toThrow();
+      expect(
+        await db.request.count({ where: { customerUserId: recipient.id } }),
+      ).toBe(0);
+
+      const logins = await Promise.all([
+        auth.validateCredentials(
+          recipient.email.toUpperCase(),
+          'пароль клиента',
+        ),
+        auth.validateCredentials(recipient.email, 'пароль клиента'),
+      ]);
+      expect(
+        logins.flatMap((result) => result.changedRequestIds).sort(),
+      ).toEqual([old.id, newer.id].sort());
+      expect(
+        await db.request.count({ where: { customerUserId: recipient.id } }),
+      ).toBe(2);
+      expect(
+        await db.request.count({
+          where: {
+            id: { in: [ordinary.id, otherAddress.id] },
+            customerUserId: null,
+          },
+        }),
+      ).toBe(2);
+      expect(await clients.preview(token)).toMatchObject({ accepted: true });
+      expect(await clients.accept(recipient.id, token)).toMatchObject({
+        changedRequestIds: [],
+      });
+      expect(await clients.detail(empty.org.id, contactOnly.id)).toMatchObject({
+        status: 'CONTACT',
+      });
     });
 
     it('binds only this card and its private requests to the verified customer, including concurrent/new work', async () => {

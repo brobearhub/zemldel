@@ -29,11 +29,16 @@ export class RequestRealtimeInterceptor implements NestInterceptor {
     next: CallHandler,
   ): Promise<Observable<unknown>> {
     const request = context.switchToHttp().getRequest<RequestWithChanges>();
-    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method))
-      return next.handle();
     const route = (
       (request.route as { path?: string } | undefined)?.path ?? ''
     ).replace(/^\//, '');
+    const reconcilesCustomerWork =
+      request.method === 'GET' && route === 'requests/mine';
+    if (
+      !reconcilesCustomerWork &&
+      !['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)
+    )
+      return next.handle();
     const params = request.params as Record<string, string>;
     let requestId: string | undefined;
     const match = route.match(

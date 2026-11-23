@@ -22,6 +22,9 @@ export const SITE_HEADER_HEIGHT_PX = {
   sm: 70,
 } as const;
 
+/** Равные боковые колонки удерживают каталог по центру при любой ширине города и профиля. */
+export const SITE_CATALOG_HEADER_COLUMNS = "minmax(0, 1fr) auto minmax(0, 1fr)";
+
 /** Зазор между низом хедера и верхом контента (px). */
 export const SITE_CONTENT_GAP_PX = {
   xs: 16,

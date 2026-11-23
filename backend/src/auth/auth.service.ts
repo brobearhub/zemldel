@@ -9,6 +9,7 @@ import { type Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { consumeRegistrationVerification } from './email-verification.service';
+import { connectVerifiedCustomerWork } from '../provider-clients/provider-client-record';
 import { assertActiveSelectableCity } from '../cities/city-validation';
 import { LegalDocsService } from '../legal-docs/legal-docs.service';
 import {
@@ -196,7 +197,13 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return authUser;
+    const changedRequestIds =
+      authUser.accountKind === 'CUSTOMER'
+        ? await this.prisma.$transaction((tx) =>
+            connectVerifiedCustomerWork(tx, { userId: authUser.id }),
+          )
+        : [];
+    return { ...authUser, changedRequestIds };
   }
 
   async signup(input: {
@@ -283,7 +290,11 @@ export class AuthService {
         ],
       });
 
-      return user;
+      const changedRequestIds =
+        input.accountKind === 'CUSTOMER'
+          ? await connectVerifiedCustomerWork(tx, { userId: user.id })
+          : [];
+      return { ...user, changedRequestIds };
     });
 
     return created;

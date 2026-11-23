@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Box, Button, Stack, Typography } from "@mui/material";
 import type { RequestReminderDto } from "@/entities/request";
 import type { ServiceDto } from "@/entities/service";
@@ -35,7 +34,11 @@ export function ProHomePage({ services, reminders, firstSteps, canCreateClientRe
       <Stack spacing={3}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}>
           <Typography component="h1" variant="h1" sx={{ fontWeight: 700 }}>Лента заявок</Typography>
-          {canCreateClientRequest && <Button component={Link} href="/pro/requests/new" variant="contained">Создать заявку для клиента</Button>}
+          {canCreateClientRequest && (
+            <Button href="/pro/requests/new" variant="contained">
+              Создать заявку для клиента
+            </Button>
+          )}
         </Stack>
         <CabinetNotices welcome="Аккаунт исполнителя создан. Добавьте первую услугу, чтобы заказчики нашли вас." />
         <HomeStoriesStrip scope="provider" />

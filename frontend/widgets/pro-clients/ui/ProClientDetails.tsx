@@ -81,6 +81,10 @@ export function ProClientDetails({
     try {
       const current = await teamApi<ProviderClientDetail>(detailPath);
       setClient(current);
+      if (current.status === "CONNECTED") {
+        setInvitation(null);
+        return;
+      }
       if (
         current.status !== "INVITED" ||
         current.invitationVersion !== invitation.version

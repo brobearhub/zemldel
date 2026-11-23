@@ -10,9 +10,10 @@ import type { RequestStatus } from '@prisma/client';
 import { createHash, randomBytes } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
-import { assertContactEmail } from '../common/contact-email';
+import { assertContactEmail, lockContactEmail } from '../common/contact-email';
 import {
   attachClientRequests,
+  connectVerifiedCustomerWork,
   ensureProviderClient,
   lockProviderClient,
 } from './provider-client-record';
@@ -148,15 +149,16 @@ export class ProviderClientsService {
     body: { email: string; name?: string | null },
   ) {
     const email = assertContactEmail(body.email).toLowerCase();
-    const id = await this.prisma.$transaction((tx) =>
-      ensureProviderClient(
+    const id = await this.prisma.$transaction(async (tx) => {
+      await lockContactEmail(tx, email);
+      return ensureProviderClient(
         tx,
         providerId,
         email,
         body.name?.trim() || null,
         'MANUAL',
-      ),
-    );
+      );
+    });
     return this.detail(providerId, id);
   }
 
@@ -171,8 +173,10 @@ export class ProviderClientsService {
         : assertContactEmail(body.email).toLowerCase();
     const name =
       body.name === undefined ? undefined : body.name?.trim() || null;
+    let changedRequestIds: string[] = [];
     try {
       await this.prisma.$transaction(async (tx) => {
+        if (email !== undefined) await lockContactEmail(tx, email);
         const client = await lockProviderClient(tx, providerId, id);
         const changeEmail = email !== undefined && email !== client.email;
         if (changeEmail && client.customerUserId)
@@ -191,7 +195,7 @@ export class ProviderClientsService {
           },
         });
         if (changeEmail || name !== undefined) {
-          await tx.request.updateMany({
+          const updated = await tx.request.updateMany({
             where: {
               providerId,
               providerClientId: id,
@@ -200,6 +204,11 @@ export class ProviderClientsService {
             },
             data: { customerEmail: email, customerName: name },
           });
+          if (changeEmail && updated.count) {
+            changedRequestIds = await connectVerifiedCustomerWork(tx, {
+              clientId: id,
+            });
+          }
         }
       });
     } catch (err) {
@@ -211,7 +220,7 @@ export class ProviderClientsService {
       }
       throw err;
     }
-    return this.detail(providerId, id);
+    return { ...(await this.detail(providerId, id)), changedRequestIds };
   }
 
   async issue(providerId: string, id: string) {

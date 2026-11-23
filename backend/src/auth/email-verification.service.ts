@@ -1,4 +1,5 @@
 import { attachLegacySignedClients } from '../provider-clients/provider-client-record';
+import { lockContactEmail } from '../common/contact-email';
 import {
   BadRequestException,
   ConflictException,
@@ -51,17 +52,12 @@ function codeHash(email: string, sentAt: Date, code: string) {
     .digest('hex');
 }
 
-// Serialize the first request too, when there is no verification row to lock yet.
-function lockEmail(tx: Prisma.TransactionClient, email: string) {
-  return tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${email}, 41482))`;
-}
-
 export async function consumeRegistrationVerification(
   tx: Prisma.TransactionClient,
   email: string,
   registrationToken: string,
 ): Promise<Date> {
-  await lockEmail(tx, email);
+  await lockContactEmail(tx, email);
   const proof = await tx.emailVerification.findFirst({
     where: {
       email,
@@ -94,7 +90,7 @@ export class EmailVerificationService {
   ) {
     const email = emailInput.trim().toLowerCase();
     const result = await this.prisma.$transaction(async (tx) => {
-      await lockEmail(tx, email);
+      await lockContactEmail(tx, email);
       const user = await tx.user.findUnique({
         where: { email },
         select: { id: true, emailVerified: true },
@@ -201,7 +197,7 @@ export class EmailVerificationService {
   async verify(emailInput: string, code: string) {
     const email = emailInput.trim().toLowerCase();
     const verified = await this.prisma.$transaction(async (tx) => {
-      await lockEmail(tx, email);
+      await lockContactEmail(tx, email);
       const row = await tx.emailVerification.findUnique({ where: { email } });
       const now = new Date();
       if (

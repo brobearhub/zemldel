@@ -14,7 +14,6 @@ import {
   Typography,
 } from "@mui/material";
 import {
-  clientStatusLabels,
   type ProviderClient,
 } from "@/entities/provider-client/model";
 import { writeClientData } from "@/entities/provider-client/api";
@@ -175,7 +174,7 @@ export function PrivateRequestForm({
             <Alert severity="info">
               {client.status === "CONNECTED"
                 ? "Заявка появится в кабинете этого клиента."
-                : `${clientStatusLabels[client.status]}. Вы можете вести работу уже сейчас. Клиент увидит заявку после подключения.`}
+                : `Вы можете вести работу уже сейчас. Заявка появится у клиента, когда он войдёт с подтверждённой почтой ${client.email}.`}
             </Alert>
           )}
           {error && <Alert severity="error">{error}</Alert>}

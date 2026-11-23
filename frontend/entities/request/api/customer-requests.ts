@@ -2,6 +2,16 @@ import type { RequestCustomerDto } from "@/entities/request/dto/request.dto";
 
 type Fetcher = typeof fetch;
 
+export async function fetchCustomerRequestPage(signal: AbortSignal, before?: string | null) {
+  const path = before ? `/api/requests?before=${encodeURIComponent(before)}` : "/api/requests";
+  const response = await fetch(path, { cache: "no-store", signal });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error(typeof payload?.error === "string" ? payload.error : "Не удалось загрузить заявки");
+  }
+  return { items: payload as RequestCustomerDto[], next: response.headers?.get("x-next-cursor") ?? null };
+}
+
 export class CustomerRequestDeleteConflictError extends Error {
   constructor() {
     super("Заявку уже нельзя удалить. Возможно, исполнитель уже ответил.");

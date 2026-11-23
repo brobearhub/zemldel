@@ -5,7 +5,10 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import type { Response } from 'express';
+import { RequestsController } from './requests.controller';
+import type { RequestWithChanges } from './request-realtime.interceptor';
 import { AuthService } from '../auth/auth.service';
 import { ContractFilesService } from '../contract-files/contract-files.service';
 import type { PrismaService } from '../prisma/prisma.service';
@@ -280,5 +283,100 @@ describe.skipIf(!local)('private client work on isolated PostgreSQL', () => {
       totalAmountRubles: 1200,
       priceProposals: [{ authorSide: 'PROVIDER', amountRubles: 1200 }],
     });
+  });
+
+  it('delivers new work to an existing verified customer, including after an address correction', async () => {
+    const company = await provider();
+    const email = randomUUID() + '@example.test';
+    const customer = await db.user.create({
+      data: { email, emailVerified: new Date(), accountKind: 'CUSTOMER' },
+    });
+    const card = await clients.create(company.id, {
+      email: randomUUID() + '@example.test',
+    });
+    const first = await work.create(company.owner, card.id, {
+      message: 'Первая заявка',
+    });
+    expect(
+      (await clients.edit(company.id, card.id, { email: email.toUpperCase() }))
+        .changedRequestIds,
+    ).toEqual([first.id]);
+    const second = await work.create(company.owner, card.id, {
+      message: 'Повторное обращение',
+    });
+    const other = await provider();
+    const otherCard = await clients.create(other.id, { email });
+    const third = await work.create(other.owner, otherCard.id, {
+      message: 'Выезд другого исполнителя',
+    });
+    expect(
+      (await requests.listMine(customer.id)).map((row) => row.id).sort(),
+    ).toEqual([first.id, second.id, third.id].sort());
+    const providerEmail = randomUUID() + '@example.test';
+    const pro = await db.user.create({
+      data: {
+        email: providerEmail,
+        emailVerified: new Date(),
+        accountKind: 'PROVIDER',
+      },
+    });
+    const proCard = await clients.create(company.id, { email: providerEmail });
+    await work.create(company.owner, proCard.id, { message: 'Тёзка' });
+    expect(await requests.syncCustomerWork(pro.id)).toEqual([]);
+    expect(await requests.listMine(pro.id)).toEqual([]);
+  });
+
+  it('opens the entire history from a pre-existing session, including more than 200 requests with the same timestamp', async () => {
+    const company = await provider();
+    const email = randomUUID() + '@example.test';
+    const card = await clients.create(company.id, { email });
+    const date = new Date('2026-01-01T12:00:00.000Z');
+    const ids = Array.from({ length: 205 }, () => randomUUID())
+      .sort()
+      .reverse();
+    await db.request.createMany({
+      data: ids.map((id) => ({
+        id,
+        createdAt: date,
+        providerId: company.id,
+        providerClientId: card.id,
+        customerEmail: email,
+        providerWorkStatus: 'DONE',
+      })),
+    });
+    const customer = await db.user.create({
+      data: { email, emailVerified: new Date(), accountKind: 'CUSTOMER' },
+    });
+    const getActor = vi
+      .spyOn(requests, 'getRequiredActorUserId')
+      .mockReturnValue(customer.id);
+    try {
+      const controller = new RequestsController(requests);
+      const req = {} as RequestWithChanges;
+      const setHeader = vi.fn();
+      const res = { setHeader } as unknown as Response;
+      const first = await controller.listMine(req, res);
+      expect(req.changedRequestIds).toHaveLength(205);
+      expect(first.map((row) => row.id)).toEqual(ids.slice(0, 200));
+      const cursor = setHeader.mock.calls[0][1] as string;
+      expect(setHeader).toHaveBeenCalledWith(
+        'X-Next-Cursor',
+        `${date.toISOString()},${ids[199]}`,
+      );
+      await db.request.delete({ where: { id: ids[199] } });
+      setHeader.mockClear();
+      const last = await controller.listMine(
+        {} as RequestWithChanges,
+        res,
+        cursor,
+      );
+      expect(last.map((row) => row.id)).toEqual(ids.slice(200));
+      expect(setHeader).not.toHaveBeenCalled();
+      await expect(controller.listMine(req, res, 'bad-cursor')).rejects.toThrow(
+        'Некорректная страница заявок',
+      );
+    } finally {
+      getActor.mockRestore();
+    }
   });
 });

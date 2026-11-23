@@ -78,7 +78,7 @@ export function ClientEditor({ client, onCancel, onSave }: Props) {
               helperText={
                 client?.status === "CONNECTED"
                   ? "Почта подтверждена клиентом"
-                  : undefined
+                  : "Клиент увидит созданные для него заявки, когда войдёт с этой почтой."
               }
             />
             <TextField

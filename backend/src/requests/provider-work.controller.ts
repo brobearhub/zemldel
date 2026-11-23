@@ -21,6 +21,7 @@ import {
 import type { Request } from 'express';
 import { InternalAuthService } from '../auth/internal-auth.service';
 import { ProviderWorkService } from './provider-work.service';
+import type { RequestWithChanges } from './request-realtime.interceptor';
 
 class CreateClientRequestDto {
   @IsOptional() @IsUUID() serviceId?: string;
@@ -47,8 +48,8 @@ export class ProviderWorkController {
   ) {}
 
   @Post('pro/clients/:clientId/requests')
-  create(
-    @Req() request: Request,
+  async create(
+    @Req() request: RequestWithChanges,
     @Param('clientId', ParseUUIDPipe) clientId: string,
     @Body() body: CreateClientRequestDto,
   ) {
@@ -56,6 +57,9 @@ export class ProviderWorkController {
       this.auth.getUserIdFromRequest(request),
       clientId,
       body,
+      (ids) => {
+        request.changedRequestIds = ids;
+      },
     );
   }
 

@@ -48,3 +48,12 @@ it("подключает карточку только по нажатию и о
   await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/profile?section=requests"));
   expect(api).toHaveBeenCalledWith(`/api${path}/accept`, expect.objectContaining({ method: "POST" }));
 });
+
+it("открывает автоматически подключённые заявки по уже отправленной ссылке", async () => {
+  auth.status = "authenticated";
+  auth.data = { user: { accountKind: "CUSTOMER", email } };
+  api.mockResolvedValueOnce(Response.json({ providerName: "Бюро", email, accepted: true }));
+  render(<ClientInvitation path={path} />);
+  expect(await screen.findByRole("link", { name: "Открыть мои заявки" })).toHaveAttribute("href", "/profile?section=requests");
+  expect(api).toHaveBeenCalledTimes(1);
+});

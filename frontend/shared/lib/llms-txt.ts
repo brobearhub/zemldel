@@ -61,6 +61,7 @@ export function buildLlmsTxt(origin: string, categories: readonly LlmsCategory[]
 
 ${pageLink(base, "/", "Главная", "категории, каталог услуг по городу и истории")}
 ${pageLink(base, "/about", "О компании", "описание сервиса и контакты")}
+${pageLink(base, "/for-providers", "Возможности кабинета исполнителя", "ведение клиентов, назначение сотрудников, передача заявок партнёрам и работа по сделке")}
 ${pageLink(base, "/signup", "Регистрация", "отдельный аккаунт заказчика или исполнителя")}
 ${pageLink(base, "/signin", "Вход", "вход в существующий аккаунт")}
 

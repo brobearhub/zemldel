@@ -44,7 +44,7 @@ export function ClientInvitation({ path }: { path: string }) {
           {error ? <Alert severity="warning">{error}</Alert> : null}
           {preview ? <>
             <Typography variant="h5">{preview.providerName}</Typography>
-            <Typography>После подключения в вашем кабинете появятся заявки этого исполнителя. Условия работ и договор вы сможете согласовать отдельно.</Typography>
+            <Typography>Войдите с почтой из приглашения или зарегистрируйтесь как клиент и подтвердите этот адрес. В разделе «Заявки» появятся работы, которые исполнители создали для вас. Условия работ и договор вы сможете согласовать отдельно.</Typography>
             <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>Почта для подключения — {preview.email}</Typography>
             {status === "unauthenticated" ? <>
               <Button component={Link} href={signin} variant="contained">Войти</Button>
@@ -56,9 +56,11 @@ export function ClientInvitation({ path }: { path: string }) {
             </> : null}
             {status === "authenticated" && recipient ? <>
               {failure ? <Alert severity="warning">{failure}</Alert> : null}
-              <Button variant="contained" loading={busy} onClick={() => void connect()}>
-                {preview.accepted ? "Открыть мои заявки" : "Подключиться к исполнителю"}
-              </Button>
+              {preview.accepted ? (
+                <Button component={Link} href={REQUESTS_PROFILE_URL} variant="contained">Открыть мои заявки</Button>
+              ) : (
+                <Button variant="contained" loading={busy} onClick={() => void connect()}>Подключиться к исполнителю</Button>
+              )}
               {failure ? <Button component={Link} href={`${signin}&reauth=1`}>Войти и подтвердить почту</Button> : null}
             </> : null}
           </> : null}

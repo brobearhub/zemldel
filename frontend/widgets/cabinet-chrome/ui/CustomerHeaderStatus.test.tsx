@@ -165,6 +165,55 @@ describe("customer header clock", () => {
     },
   );
 
+  it.each([
+    ["/pricing", "guest"],
+    ["/for-providers", "customer"],
+    ["/about", "provider"],
+    ["/pricing", "provider"],
+    ["/signup", "guest"],
+    ["/privacy", "customer"],
+    ["/providers/example", "provider"],
+    ["/admin", "provider"],
+  ])("shows both homepage catalog links on %s for %s", (pathname, role) => {
+    route.pathname = pathname;
+    auth.status = role === "guest" ? "unauthenticated" : "authenticated";
+    auth.user.accountKind = role === "provider" ? "PROVIDER" : "CUSTOMER";
+    renderWithTheme(<Header />);
+
+    const nav = screen.getByRole("navigation", { name: "Каталог услуг и участков" });
+    const catalog = within(nav);
+    expect(catalog.getByRole("link", { name: "Услуги" })).toHaveAttribute(
+      "href",
+      "/#home-services",
+    );
+    expect(catalog.getByRole("link", { name: "Участки" })).toHaveAttribute(
+      "href",
+      "/lands",
+    );
+    expect(nav.querySelector("[aria-current]")).toBeNull();
+    if (role === "provider") {
+      expect(
+        screen.getByRole("link", { name: "Открыть напоминания" }),
+      ).toBeInTheDocument();
+    }
+  });
+
+  it.each(["/services/example", "/service-categories/example"])(
+    "marks services as the current catalog on %s",
+    (pathname) => {
+      route.pathname = pathname;
+      renderWithTheme(<Header />);
+
+      expect(screen.getByRole("link", { name: "Услуги" })).toHaveAttribute(
+        "aria-current",
+        "location",
+      );
+      expect(screen.getByRole("link", { name: "Участки" })).not.toHaveAttribute(
+        "aria-current",
+      );
+    },
+  );
+
   it("shows public catalogs instead of provider service management on the provider homepage", () => {
     auth.user.accountKind = "PROVIDER";
     renderWithTheme(<Header />);

@@ -56,7 +56,8 @@
   border: 1px solid var(--mui-palette-divider);
   border-radius: 18px;
   overflow: hidden;
-  background: var(--mui-palette-background-paper);
+  background: var(--mui-palette-background-default);
+  background: color-mix(in srgb, var(--mui-palette-grey-500) 18%, var(--mui-palette-common-background));
 }
 .table {
   width: 100%;
@@ -73,6 +74,9 @@
 }
 .table thead th {
   padding-top: 26px;
+}
+.table thead th:not(:first-child, :last-child) .muted {
+  color: color-mix(in srgb, var(--mui-palette-text-secondary) 70%, var(--mui-palette-text-primary));
 }
 .table thead .smallButton {
   margin-top: 16px;

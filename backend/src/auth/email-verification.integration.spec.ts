@@ -18,6 +18,7 @@ import type { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from './auth.service';
 import { EmailVerificationService } from './email-verification.service';
 import type { OutboundMail } from './mail/mail-sender';
+import { ProviderWorkService } from '../requests/provider-work.service';
 
 const url = process.env.DATABASE_URL;
 const local = url && ['localhost', '127.0.0.1'].includes(new URL(url).hostname);
@@ -174,6 +175,30 @@ describe.skipIf(!local)(
         acceptedLegal: versions,
         registrationToken: proof.registrationToken,
       };
+      const owner = await db.user.create({
+        data: { email: newEmail(), accountKind: 'PROVIDER' },
+      });
+      const provider = await db.provider.create({
+        data: {
+          name: 'Бюро',
+          type: 'COMPANY',
+          slug: randomUUID(),
+          members: {
+            create: { userId: owner.id, role: 'OWNER', status: 'ACTIVE' },
+          },
+        },
+      });
+      const card = await db.providerClient.create({
+        data: { providerId: provider.id, email },
+      });
+      const earlierWork = await db.request.create({
+        data: {
+          providerId: provider.id,
+          providerClientId: card.id,
+          customerEmail: email,
+          providerWorkStatus: 'DONE',
+        },
+      });
       await expect(
         auth.signup({ ...signup, name: ' ', customerCityId: city.id }),
       ).rejects.toThrow('Укажите имя');
@@ -181,11 +206,27 @@ describe.skipIf(!local)(
         'Выберите город',
       );
       expect(await db.user.findUnique({ where: { email } })).toBeNull();
-      await auth.signup({
-        ...signup,
-        name: ' Ирина ',
-        customerCityId: city.id,
+      const work = new ProviderWorkService(db as PrismaService, auth);
+      const [account, concurrent] = await Promise.all([
+        auth.signup({ ...signup, name: ' Ирина ', customerCityId: city.id }),
+        work.create(owner.id, card.id, {
+          message: 'Заявка во время регистрации',
+        }),
+      ]);
+      expect(account.changedRequestIds).toContain(earlierWork.id);
+      expect(
+        await db.request.findUniqueOrThrow({ where: concurrent }),
+      ).toMatchObject({ customerUserId: account.id });
+      expect(
+        await db.request.findUniqueOrThrow({ where: { id: earlierWork.id } }),
+      ).toMatchObject({
+        customerUserId: account.id,
+        contractAcceptedAt: null,
+        acceptedAt: null,
       });
+      expect(
+        (await auth.validateCredentials(email, 'password')).changedRequestIds,
+      ).toEqual([]);
       expect(
         await db.user.findUniqueOrThrow({ where: { email } }),
       ).toMatchObject({

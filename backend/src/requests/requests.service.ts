@@ -1,4 +1,7 @@
-import { clientForAcceptedContract } from '../provider-clients/provider-client-record';
+import {
+  clientForAcceptedContract,
+  connectVerifiedCustomerWork,
+} from '../provider-clients/provider-client-record';
 import {
   freeRequestEligibilityWhere,
   providerRequestCategories,
@@ -977,15 +980,11 @@ export class RequestsService {
   // --- Customer: read ---
 
   async listMineWithDocuments(actorUserId: string): Promise<string[]> {
-    // Match the same 200 requests as listMine, then find only the request IDs
-    // referenced by customer-visible documents. No document content is loaded.
     const rows = await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
       WITH customer_requests AS MATERIALIZED (
         SELECT "id", "providerId", "lockedAt", "status", "providerWorkStatus"
         FROM "Request"
         WHERE "customerUserId" = ${actorUserId}::uuid
-        ORDER BY "createdAt" DESC
-        LIMIT 200
       ), visible_stages AS MATERIALIZED (
         SELECT stage."id", stage."requestId"
         FROM "RequestWorkStage" stage
@@ -1022,12 +1021,30 @@ export class RequestsService {
     return rows.map((row) => row.id);
   }
 
-  async listMine(actorUserId: string): Promise<RequestCustomerDto[]> {
+  syncCustomerWork(userId: string) {
+    return this.prisma.$transaction((tx) =>
+      connectVerifiedCustomerWork(tx, { userId }),
+    );
+  }
+
+  async listMine(
+    actorUserId: string,
+    before?: { createdAt: Date; id: string },
+    limit = 200,
+  ): Promise<RequestCustomerDto[]> {
     const rows = await this.prisma.request.findMany({
-      where: { customerUserId: actorUserId },
+      where: {
+        customerUserId: actorUserId,
+        ...(before && {
+          OR: [
+            { createdAt: { lt: before.createdAt } },
+            { createdAt: before.createdAt, id: { lt: before.id } },
+          ],
+        }),
+      },
       select,
-      orderBy: [{ createdAt: 'desc' }],
-      take: 200,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit,
     });
     const typedRows = rows as unknown as RequestDbRow[];
     const providerResponses = await this.getRequestIdsWithProviderResponse(
