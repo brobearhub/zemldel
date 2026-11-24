@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { fetchCustomerRequestConversations } from "@/entities/chat";
+import { ensureCustomerRequestConversation, fetchCustomerRequestConversations } from "@/entities/chat";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { formatRequestCreatedAt, type RequestCustomerDto } from "@/entities/request";
 import { ConfirmProvider } from "@/shared/ui/confirm";
@@ -52,7 +52,10 @@ describe("customer request sections follow live updates", () => {
     vi.stubGlobal("fetch", vi.fn(async (url) => new Response(JSON.stringify(/contract-bundles$|provider-misc$/.test(String(url)) ? [] : request))));
     vi.mocked(fetchCustomerWorkStages).mockResolvedValue([]);
     vi.mocked(fetchCustomerRequestDocumentRequests).mockResolvedValue([]);
-    vi.mocked(fetchCustomerRequestConversations).mockResolvedValue([]);
+    vi.mocked(fetchCustomerRequestConversations).mockResolvedValue([{
+      conversationId: "chat-a", providerId: "provider-a", providerName: "Бюро", lastSnippet: null, lastMessageAt: null,
+    }]);
+    vi.mocked(ensureCustomerRequestConversation).mockResolvedValue({ conversationId: "chat-a", messages: [] });
   });
   afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
@@ -247,6 +250,7 @@ describe("customer request sections follow live updates", () => {
 
   it("shows the provider’s published stages before a contract and keeps a direct chat for a private freeform request", async () => {
     const privateRequest = { ...request, status: "DISCUSSING", providerWorkStatus: "IN_PROGRESS", contractAcceptedAt: null } as RequestCustomerDto;
+    vi.mocked(fetchCustomerRequestConversations).mockResolvedValueOnce([]);
     vi.mocked(fetch).mockImplementation(async (url) => new Response(JSON.stringify(
       /contract-bundles$|provider-misc$/.test(String(url)) ? [] : privateRequest,
     )));
@@ -255,8 +259,23 @@ describe("customer request sections follow live updates", () => {
       render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={privateRequest} /></ConfirmProvider>);
     });
     expect(screen.getByTestId("stages")).toHaveTextContent("Обмер участка");
-    expect(screen.getByRole("button", { name: "Начать чат" })).toBeVisible();
+    expect(screen.getByTestId("active-chat")).toHaveTextContent("chat-a");
+    expect(screen.queryByRole("button", { name: "Начать чат" })).not.toBeInTheDocument();
+    await act(async () => { window.dispatchEvent(new Event("focus")); });
+    expect(ensureCustomerRequestConversation).toHaveBeenCalledExactlyOnceWith(privateRequest.id);
+    expect(screen.getByTestId("active-chat")).toHaveTextContent("chat-a");
     expect(screen.queryByRole("button", { name: "Отменить выбор исполнителя" })).not.toBeInTheDocument();
+  });
+
+  it("waits for a reply when an open request has no provider to chat with", async () => {
+    const openRequest = { ...request, providerId: null, lockedAt: null, status: "NEW", selectedProviderIds: [], contractAcceptedAt: null } as RequestCustomerDto;
+    vi.mocked(fetchCustomerRequestConversations).mockResolvedValue([]);
+    vi.mocked(fetch).mockResolvedValue(Response.json(openRequest));
+    await act(async () => {
+      render(<ConfirmProvider><CustomerRequestConversationWorkspace initialRequest={openRequest} /></ConfirmProvider>);
+    });
+    expect(screen.getByText(/Здесь появится переписка/)).toBeVisible();
+    expect(ensureCustomerRequestConversation).not.toHaveBeenCalled();
   });
 
   it("shows a newly published stage even while the request remains ACTIVE", async () => {

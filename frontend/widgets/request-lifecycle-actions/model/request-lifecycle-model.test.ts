@@ -123,6 +123,28 @@ function makeProvider(overrides: Partial<RequestProDto> = {}): RequestProDto {
 }
 
 describe("buildRequestLifecycleViewModel", () => {
+  it("shows the selected city and the manual address separately for a private request", () => {
+    const request = makeCustomer({
+      providerWorkStatus: "PLANNED",
+      requestCity: {
+        id: "city",
+        name: "Екатеринбург",
+        regionCode: "66",
+        regionName: "Свердловская область",
+      },
+      location: "ГСК Луч, бокс 7",
+    });
+    const vm = buildRequestLifecycleViewModel({
+      side: "customer",
+      request,
+      canAcceptContract: false,
+    });
+    expect(vm.infoRows).toEqual([
+      { label: "Город", value: "Екатеринбург, Свердловская область" },
+      { label: "Адрес места работ", value: "ГСК Луч, бокс 7" },
+    ]);
+  });
+
   it("allows contract acceptance for a new service request when documents are ready", () => {
     const request = makeCustomer({
       subjectType: "SERVICE",
