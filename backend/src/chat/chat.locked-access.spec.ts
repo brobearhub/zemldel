@@ -100,48 +100,56 @@ describe('ChatService locked FREEFORM access', () => {
       }, expectArchivedCode);
   });
 
-  it('после reload возвращает выбранный пустой тред customer', async () => {
-    const findMany = vi.fn(
-      (query: { readonly where: { readonly OR?: ReadonlyArray<unknown> } }) =>
-        Promise.resolve(
-          query.where.OR
-            ? [
-                {
-                  id: 'conversation-b',
-                  providerId: 'provider-b',
-                  lastMessageAt: null,
-                  createdAt: new Date('2026-11-01T10:00:00.000Z'),
-                  provider: { name: 'Provider B' },
-                  messages: [],
-                },
-              ]
-            : [],
-        ),
-    );
-    const prisma = {
-      request: {
-        findUnique: vi.fn().mockResolvedValue({
-          id: 'request-1',
-          customerUserId: 'customer-1',
-          status: 'DISCUSSING',
+  it.each([new Date('2026-11-01T10:00:00.000Z'), null])(
+    'возвращает пустой чат назначенного исполнителя при lockedAt=%s',
+    async (lockedAt) => {
+      const findMany = vi.fn().mockResolvedValue([
+        {
+          id: 'conversation-b',
           providerId: 'provider-b',
-          lockedAt: new Date('2026-11-01T10:00:00.000Z'),
-        }),
-      },
-      conversation: { findMany },
-    };
-    const service = new ChatService(prisma as never, {} as never, {} as never);
+          lastMessageAt: null,
+          provider: { name: 'Provider B' },
+          messages: [],
+        },
+      ]);
+      const prisma = {
+        request: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: 'request-1',
+            customerUserId: 'customer-1',
+            status: 'DISCUSSING',
+            providerId: 'provider-b',
+            lockedAt,
+          }),
+        },
+        conversation: { findMany },
+      };
+      const service = new ChatService(
+        prisma as never,
+        {} as never,
+        {} as never,
+      );
 
-    await expect(
-      service.listServiceRequestConversationsForCustomer(
-        'customer-1',
-        'request-1',
-      ),
-    ).resolves.toEqual([
-      expect.objectContaining({
-        conversationId: 'conversation-b',
-        providerId: 'provider-b',
-      }),
-    ]);
-  });
+      await expect(
+        service.listServiceRequestConversationsForCustomer(
+          'customer-1',
+          'request-1',
+        ),
+      ).resolves.toEqual([
+        expect.objectContaining({
+          conversationId: 'conversation-b',
+          providerId: 'provider-b',
+        }),
+      ]);
+      expect(findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            requestId: 'request-1',
+            customerUserId: 'customer-1',
+            OR: [{ messages: { some: {} } }, { providerId: 'provider-b' }],
+          },
+        }),
+      );
+    },
+  );
 });

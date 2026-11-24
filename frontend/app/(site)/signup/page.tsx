@@ -29,7 +29,7 @@ import { resolvePostSignInPath } from "../signin/resolve-post-sign-in-path";
 import type { CitySuggestItemDto } from "@/entities/city";
 import { LocationField } from "@/features/select-city";
 import { Markdown } from "@/shared/ui/Markdown";
-import { useClientInvitation } from "@/features/client-invitation/use-client-invitation";
+import { acceptClientInvitation, useClientInvitation } from "@/features/client-invitation/use-client-invitation";
 import { RegistrationEmailForm } from "@/features/registration/RegistrationEmailForm";
 import { clearRegistrationProgress, readRegistrationProgress, type RegistrationProgress } from "@/features/registration/registration-progress";
 import { SITE_HEADER_HEIGHT_PX } from "@/shared/config/site-layout";
@@ -457,28 +457,38 @@ function SignUpPageContent() {
       }
 
       clearRegistrationProgress();
+      submitted.current = true;
       const signInRes = await signIn("credentials", {
         email,
         password,
         redirect: false,
-      });
+      }).catch(() => null);
 
-      if (signInRes?.error) {
+      if (!signInRes?.ok || signInRes.error) {
         navigated = true;
-        router.push(signInHref);
+        router.replace(signInHref);
         return;
       }
 
-      const nextPath = invitationPath ?? (
+      let nextPath = invitationPath ?? (
         accountKind === "PROVIDER"
           ? "/providers/new?welcome=1"
           : isRequestIntent
             ? pending.draft ? REQUESTS_PROFILE_RESUME_URL : REQUESTS_PROFILE_URL
-            : "/profile?welcome=1");
+            : `${REQUESTS_PROFILE_URL}&welcome=1`);
 
-      submitted.current = true;
+      if (invitation.path) {
+        try {
+          await acceptClientInvitation(invitation.path);
+          nextPath = REQUESTS_PROFILE_URL;
+        } catch {
+          // The account exists. The invitation screen can show an expired link or retry the connection.
+          nextPath = invitation.path;
+        }
+      }
+
       navigated = true;
-      router.push(nextPath);
+      router.replace(nextPath);
       router.refresh();
     } catch {
       setFormError("Не удалось зарегистрироваться. Попробуйте ещё раз.");
@@ -550,7 +560,7 @@ function SignUpPageContent() {
     );
   }
 
-  const registrationTitle = accountKind === "PROVIDER" ? "Регистрация исполнителя" : "Регистрация клиента";
+  const registrationTitle = accountKind === "PROVIDER" ? "Регистрация исполнителя" : "Вы зарегистрированы!";
   const emailHelper = emailError ?? "Почта подтверждена";
 
   return (
@@ -665,6 +675,9 @@ function SignUpPageContent() {
                 </Typography>
                 <Box aria-hidden sx={{ flex: "0 0 44px" }} />
               </Box>
+              {accountKind === "CUSTOMER" ? (
+                <Typography sx={{ textAlign: "center" }}>Введите данные пользователя</Typography>
+              ) : null}
               {isRequestIntent ? (
                 <Typography variant="body2" sx={{ textAlign: "center", mt: 1 }}>
                   Уже есть аккаунт? <Link href={signInHref} style={{ color: "inherit", fontWeight: 700 }}>Войти и продолжить</Link>
@@ -979,7 +992,7 @@ function SignUpPageContent() {
                 loading={loading}
                 disabled={!versionsReady || (isRequestIntent && !pending.loaded)}
               >
-                {isRequestIntent && pending.draft ? "Создать аккаунт и отправить заявку" : "Создать аккаунт"}
+                {isRequestIntent && pending.draft ? "Завершить регистрацию и отправить заявку" : "Завершить регистрацию"}
               </Button>
               {!versionsReady && !versionsError ? (
                 <Typography variant="body2" sx={{ textAlign: "center" }}>

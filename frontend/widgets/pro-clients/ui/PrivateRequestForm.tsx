@@ -7,19 +7,29 @@ import {
   Alert,
   Autocomplete,
   Button,
+  createFilterOptions,
   MenuItem,
   Paper,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import {
-  type ProviderClient,
-} from "@/entities/provider-client/model";
+import type { CitySuggestItemDto } from "@/entities/city";
+import type { ProviderClient } from "@/entities/provider-client/model";
 import { writeClientData } from "@/entities/provider-client/api";
+import { CityAutocomplete } from "@/shared/ui/CityAutocomplete";
 import { ClientEditor } from "./ClientEditor";
 
 type ServiceOption = { id: string; title: string };
+
+const addClientOption = { id: "add-client", label: "+ Добавить клиента" };
+type ClientOption = ProviderClient | typeof addClientOption;
+const filterClients = createFilterOptions<ClientOption>();
+
+function getClientOptionLabel(option: ClientOption) {
+  if ("label" in option) return option.label;
+  return option.name ? `${option.name} · ${option.email}` : option.email;
+}
 
 export function PrivateRequestForm({
   clients: initialClients,
@@ -39,7 +49,8 @@ export function PrivateRequestForm({
   const [kind, setKind] = useState<"free" | "service">("free");
   const [service, setService] = useState<ServiceOption | null>(null);
   const [message, setMessage] = useState("");
-  const [location, setLocation] = useState("");
+  const [city, setCity] = useState<CitySuggestItemDto | null>(null);
+  const [address, setAddress] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -61,7 +72,8 @@ export function PrivateRequestForm({
         {
           ...(kind === "service" && service && { serviceId: service.id }),
           ...(message.trim() && { message: message.trim() }),
-          ...(location.trim() && { location: location.trim() }),
+          ...(city && { requestCityId: city.id }),
+          ...(address.trim() && { location: address.trim() }),
         },
         true,
       );
@@ -98,31 +110,29 @@ export function PrivateRequestForm({
         sx={{ p: { xs: 2, sm: 3 } }}
       >
         <Stack spacing={2.5}>
-          <Stack spacing={1}>
-            <Autocomplete
-              size="small"
-              options={clients}
-              value={client}
-              disabled={busy}
-              onChange={(_, value) => setClient(value)}
-              getOptionLabel={(option) =>
-                option.name ? `${option.name} · ${option.email}` : option.email
+          <Autocomplete<ClientOption>
+            size="small"
+            options={clients}
+            filterOptions={(options, state) => [
+              ...filterClients(options, state),
+              addClientOption,
+            ]}
+            value={client}
+            disabled={busy}
+            onChange={(_, value) => {
+              if (value && "label" in value) {
+                setAdding(true);
+              } else {
+                setClient(value);
               }
-              isOptionEqualToValue={(a, b) => a.id === b.id}
-              noOptionsText="Клиенты не найдены"
-              renderInput={(params) => (
-                <TextField {...params} label="Клиент" required />
-              )}
-            />
-            <Button
-              size="small"
-              sx={{ alignSelf: "flex-start" }}
-              disabled={busy}
-              onClick={() => setAdding(true)}
-            >
-              Добавить клиента
-            </Button>
-          </Stack>
+            }}
+            getOptionLabel={getClientOptionLabel}
+            getOptionKey={(option) => option.id}
+            isOptionEqualToValue={(a, b) => a.id === b.id}
+            renderInput={(params) => (
+              <TextField {...params} label="Клиент" required />
+            )}
+          />
           <TextField
             size="small"
             select
@@ -162,12 +172,20 @@ export function PrivateRequestForm({
             onChange={(event) => setMessage(event.target.value)}
             slotProps={{ htmlInput: { maxLength: 5000 } }}
           />
+          <CityAutocomplete
+            label="Город"
+            placeholder="Начните вводить название города"
+            value={city}
+            onChange={setCity}
+            disabled={busy}
+          />
           <TextField
             size="small"
-            label="Место работ"
-            value={location}
+            label="Адрес места работ"
+            placeholder="Улица, дом или ориентир"
+            value={address}
             disabled={busy}
-            onChange={(e) => setLocation(e.target.value)}
+            onChange={(event) => setAddress(event.target.value)}
             slotProps={{ htmlInput: { maxLength: 500 } }}
           />
           {client && (

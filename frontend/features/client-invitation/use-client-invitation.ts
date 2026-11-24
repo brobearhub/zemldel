@@ -12,6 +12,14 @@ export type ClientInvitationPreview = {
 
 type Result = { path: string; preview?: ClientInvitationPreview; error?: string };
 
+export function acceptClientInvitation(path: string) {
+  return teamApi(`/api${path}/accept`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+}
+
 // Bind the auth form to the recipient on the server. Email stays out of login URLs.
 export function useClientInvitation(returnTo: string | null) {
   const path = returnTo && /^\/client-invitations\/[\w-]{43}$/.test(returnTo) ? returnTo : null;

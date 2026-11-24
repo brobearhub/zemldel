@@ -26,6 +26,7 @@ import type { RequestWithChanges } from './request-realtime.interceptor';
 class CreateClientRequestDto {
   @IsOptional() @IsUUID() serviceId?: string;
   @IsOptional() @IsString() @MaxLength(5000) message?: string;
+  @IsOptional() @IsUUID() requestCityId?: string;
   @IsOptional() @IsString() @MaxLength(500) location?: string;
   @IsOptional() @IsUUID() operationId?: string;
 }

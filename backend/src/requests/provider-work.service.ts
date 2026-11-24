@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import type { Prisma, ProviderWorkStatus } from '@prisma/client';
 import { AuthService } from '../auth/auth.service';
+import { assertActiveSelectableCity } from '../cities/city-validation';
 import { withWriteOperation } from '../common/idempotency/write-operation';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -18,6 +19,7 @@ import { parseFixedServicePriceRubles } from './lib/service-price-rubles';
 type CreateInput = {
   serviceId?: string;
   message?: string;
+  requestCityId?: string;
   location?: string;
   operationId?: string;
 };
@@ -106,6 +108,9 @@ export class ProviderWorkService {
             throw new NotFoundException(
               'Услуга не найдена в профиле исполнителя',
             );
+          if (input.requestCityId) {
+            await assertActiveSelectableCity(tx, input.requestCityId);
+          }
           const price = parseFixedServicePriceRubles(service?.price);
           return tx.request.create({
             data: {
@@ -119,6 +124,7 @@ export class ProviderWorkService {
               customerEmail: client.email,
               customerName: client.name,
               message,
+              requestCityId: input.requestCityId,
               location: input.location?.trim() || null,
               servicePriceRubles: price,
               totalAmountRubles: price,

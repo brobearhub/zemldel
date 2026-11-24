@@ -10,6 +10,7 @@ import {
   isOrderExecutionStatus,
   isOpenRequestStatus,
 } from "@/entities/request";
+import { formatCityLabel } from "@/shared/lib/format-city-label";
 
 export type RequestLifecycleActionId =
   | "openOfferDialog"
@@ -310,8 +311,18 @@ export function buildRequestLifecycleViewModel(
   const stateId = resolveStateIdFromRequest(input.request);
 
   const infoRows: RequestLifecycleInfoRow[] = [];
-  if (input.request.location) {
-    infoRows.push({ label: "Локация", value: input.request.location });
+  const { providerWorkStatus, requestCity, location } = input.request;
+  if (providerWorkStatus && requestCity) {
+    infoRows.push({
+      label: "Город",
+      value: formatCityLabel(requestCity.name, requestCity.regionName),
+    });
+  }
+  if (location) {
+    infoRows.push({
+      label: providerWorkStatus ? "Адрес места работ" : "Локация",
+      value: location,
+    });
   }
   // Why: после выбора исполнителя число диалогов клиента уже ни о чём не говорит.
   if (

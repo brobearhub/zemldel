@@ -7,15 +7,23 @@ import SignUpPage from "./page";
 const state = vi.hoisted(() => ({
   params: new URLSearchParams(),
   replace: vi.fn(),
+  refresh: vi.fn(),
+  signIn: vi.fn(),
   fetch: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => state.params,
-  useRouter: () => ({ replace: state.replace }),
+  useRouter: () => ({ replace: state.replace, refresh: state.refresh }),
 }));
 vi.mock("next-auth/react", () => ({
   useSession: () => ({ data: null, status: "unauthenticated" }),
+  signIn: state.signIn,
+}));
+vi.mock("@/features/select-city", () => ({
+  LocationField: ({ onChange }: { onChange: (city: { id: string }) => void }) => (
+    <button type="button" onClick={() => onChange({ id: "city-id" })}>Выберите город</button>
+  ),
 }));
 vi.mock("@/features/continue-request", () => ({
   usePendingRequestContext: () => ({ draft: null, loaded: true }),
@@ -69,7 +77,7 @@ it("после обновления страницы восстанавлива�
   const terms = screen.getAllByRole("checkbox");
   await waitFor(() => expect(terms[0]).toBeEnabled());
   terms.forEach((checkbox) => fireEvent.click(checkbox));
-  fireEvent.click(screen.getByRole("button", { name: "Создать аккаунт" }));
+  fireEvent.click(screen.getByRole("button", { name: "Завершить регистрацию" }));
   expect(await screen.findByRole("button", { name: "Получить код" })).toBeEnabled();
   expect(screen.getByLabelText("Email")).toHaveValue(email);
   expect(screen.queryByLabelText("Пароль")).not.toBeInTheDocument();
@@ -92,4 +100,34 @@ it("по приглашению использует адрес из карто�
   expect(state.fetch).toHaveBeenCalledWith("/api/auth/signup/start", expect.objectContaining({
     body: JSON.stringify({ email, accountKind: "CUSTOMER" }),
   }));
+});
+
+it.each([true, false])("завершает регистрацию клиента и учитывает результат подключения по приглашению (%s)", async (connected) => {
+  const path = "/client-invitations/" + "x".repeat(43);
+  state.params.set("returnTo", path);
+  saveRegistrationProgress({ stage: "verified", email, accountKind: "CUSTOMER" });
+  state.signIn.mockResolvedValue({ ok: true });
+  state.fetch.mockImplementation(async (url: string) => {
+    if (url === `/api${path}`) return Response.json({ email, providerName: "Бюро", accepted: false });
+    if (url === "/api/auth/signup") return Response.json({ id: "customer" }, { status: 201 });
+    if (url === `/api${path}/accept`) {
+      expect(state.signIn).toHaveBeenCalled();
+      return Response.json({}, { status: connected ? 200 : 503 });
+    }
+    return Response.json({ version: "v1" });
+  });
+  renderPage();
+  expect(await screen.findByRole("heading", { name: "Вы зарегистрированы!" })).toBeVisible();
+  expect(screen.getByText("Введите данные пользователя")).toBeVisible();
+  fireEvent.change(screen.getByLabelText("Имя"), { target: { value: "Анна" } });
+  fireEvent.change(screen.getByLabelText("Пароль", { selector: "input" }), { target: { value: "secret1" } });
+  fireEvent.change(screen.getByLabelText("Подтвердите пароль", { selector: "input" }), { target: { value: "secret1" } });
+  fireEvent.click(screen.getByRole("button", { name: "Выберите город" }));
+  const submit = screen.getByRole("button", { name: "Завершить регистрацию" });
+  await waitFor(() => expect(submit).toBeEnabled());
+  screen.getAllByRole("checkbox").forEach((checkbox) => fireEvent.click(checkbox));
+  fireEvent.click(submit);
+  await waitFor(() => expect(state.replace).toHaveBeenCalledWith(connected ? "/profile?section=requests" : path));
+  expect(state.replace).toHaveBeenCalledTimes(1);
+  expect(state.fetch).toHaveBeenCalledWith(`/api${path}/accept`, expect.objectContaining({ method: "POST", body: "{}" }));
 });

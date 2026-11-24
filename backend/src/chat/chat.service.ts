@@ -1058,7 +1058,6 @@ export class ChatService {
         customerUserId: true,
         status: true,
         providerId: true,
-        lockedAt: true,
       },
     });
     if (!req) {
@@ -1072,12 +1071,11 @@ export class ChatService {
       throw new ForbiddenException('Request is closed');
     }
 
-    const conversationVisibility: Prisma.ConversationWhereInput =
-      req.lockedAt && req.providerId
-        ? {
-            OR: [{ messages: { some: {} } }, { providerId: req.providerId }],
-          }
-        : { messages: { some: {} } };
+    const conversationVisibility: Prisma.ConversationWhereInput = req.providerId
+      ? {
+          OR: [{ messages: { some: {} } }, { providerId: req.providerId }],
+        }
+      : { messages: { some: {} } };
 
     const rows = await this.prisma.conversation.findMany({
       where: {

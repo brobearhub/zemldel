@@ -34,7 +34,6 @@ import {
 } from "@mui/material";
 import { RequestCityInactiveWarning } from "@/shared/ui/RequestCityInactiveWarning";
 import {
-  ensureCustomerRequestConversation,
   fetchCustomerRequestConversations,
   type ChatServiceRequestConversationListItemDto,
 } from "@/entities/chat";
@@ -309,40 +308,18 @@ export function CustomerRequestConversationWorkspace({
     [],
   );
 
-  const loadConversations = useCallback(async () => {
-    return fetchCustomerRequestConversations(req.id);
-  }, [req.id]);
-
-  const ensureDirectChat = useCallback(async () => {
-    if (!directConversation) return;
-    if (!req.providerId) {
-      setError("Не удалось открыть чат: у заявки нет исполнителя.");
-      return;
+  async function loadConversations(next: RequestCustomerDto) {
+    if (next.status === "CLOSED") return { kind: "ready" as const, conversations: [] };
+    if (next.providerId) {
+      return retrySelectedProviderConversation({
+        requestId: next.id,
+        providerId: next.providerId,
+        providerName: next.providerName ?? "Исполнитель",
+        previousConversations: conversations,
+      });
     }
-
-    setBusy(true);
-    setPendingAction("chat");
-    setError(null);
-    try {
-      const ensured = await ensureCustomerRequestConversation(req.id);
-      const providerName = req.providerName ?? "Исполнитель";
-      const nextItem: ChatServiceRequestConversationListItemDto = {
-        conversationId: ensured.conversationId,
-        providerId: req.providerId,
-        providerName,
-        lastMessageAt: null,
-        lastSnippet: null,
-      };
-
-      setConversations([nextItem]);
-      setSelectedConversationId(ensured.conversationId);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось открыть чат");
-    } finally {
-      setBusy(false);
-      setPendingAction(null);
-    }
-  }, [req.id, req.providerId, req.providerName, directConversation]);
+    return { kind: "ready" as const, conversations: await fetchCustomerRequestConversations(next.id) };
+  }
 
   const refreshRequest = useCallback(async () => {
     const res = await fetch(`/api/requests/${req.id}`, { cache: "no-store" });
@@ -394,7 +371,7 @@ export function CustomerRequestConversationWorkspace({
       const executing = isOrderExecutionStatus(next.status);
       const [chats, bundles, documents, stages, nextRemarks, nextProviderFiles] =
         await Promise.allSettled([
-          loadConversations(),
+          loadConversations(next),
           exclusive
             ? fetch(`/api/requests/${req.id}/contract-bundles`, {
                 cache: "no-store",
@@ -422,7 +399,12 @@ export function CustomerRequestConversationWorkspace({
       if (next.status !== req.status) setNotice(null);
       setReq(next);
       if (chats.status === "fulfilled") {
-        setConversations(chats.value);
+        if (chats.value.kind === "ready") {
+          setConversations(chats.value.conversations);
+          setChatRecovery(null);
+        } else {
+          setChatRecovery(chats.value);
+        }
         setConversationsLoaded(true);
       }
       if (bundles.status === "fulfilled") setContractBundles(bundles.value);
@@ -1443,33 +1425,13 @@ export function CustomerRequestConversationWorkspace({
                   : conversationCopy.description}
               </Typography>
             </Box>
-            <Divider />
+            {conversations.length > 0 ? <Divider /> : null}
             {conversations.length === 0 ? (
-              <Box sx={{ p: 2 }}>
-                {directConversation ? (
-                  <Stack spacing={1.25}>
-                    <Typography sx={{ color: "text.secondary" }}>
-                      Чат ещё не начат. Нажмите кнопку ниже, чтобы открыть
-                      диалог с исполнителем.
-                    </Typography>
-                    <Box>
-                      <Button
-                        variant="contained"
-                        loading={pendingAction === "chat"}
-                        disabled={busy}
-                        onClick={() => void ensureDirectChat()}
-                      >
-                        Начать чат
-                      </Button>
-                    </Box>
-                  </Stack>
-                ) : (
-                  <Typography sx={{ color: "text.secondary" }}>
-                    Заявка опубликована и ждёт откликов. Ответы исполнителей
-                    появятся здесь.
-                  </Typography>
-                )}
-              </Box>
+              !directConversation && !req.providerId && req.status !== "CLOSED" ? (
+                <Typography sx={{ px: 2, pb: 2, color: "text.secondary" }}>
+                  Заявка опубликована и ждёт откликов. Ответы исполнителей появятся здесь.
+                </Typography>
+              ) : null
             ) : (
               <List dense disablePadding>
                 {conversations.map((c) => {
@@ -1567,7 +1529,7 @@ export function CustomerRequestConversationWorkspace({
                               ) : null}
                             </Stack>
                           }
-                          secondary={c.lastSnippet ?? "—"}
+                          secondary={c.lastSnippet ?? "Сообщений пока нет"}
                           slotProps={{
                             secondary: { noWrap: false },
                           }}
@@ -1819,12 +1781,12 @@ export function CustomerRequestConversationWorkspace({
                 color: "text.secondary",
               }}
             >
-              {!conversationsLoaded
-                ? "Загружаем переписку…"
-                : conversations.length > 0
-                  ? conversationCopy.noSelectionHint
-                  : directConversation
-                    ? "Нажмите «Начать чат», чтобы задать вопрос исполнителю."
+              {req.status === "CLOSED"
+                ? "Заявка закрыта."
+                : !conversationsLoaded || req.providerId
+                  ? "Загружаем переписку…"
+                  : conversations.length > 0
+                    ? conversationCopy.noSelectionHint
                     : "Здесь появится переписка, как только компания ответит на заявку."}
             </Typography>
           </Paper>

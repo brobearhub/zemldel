@@ -1,7 +1,11 @@
 import 'dotenv/config';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
@@ -236,6 +240,45 @@ describe.skipIf(!local)('private client work on isolated PostgreSQL', () => {
     expect(await db.request.findUniqueOrThrow({ where: next })).toMatchObject({
       customerUserId: customer.id,
     });
+  });
+
+  it('stores the selected work city separately from the address and rejects inactive cities', async () => {
+    const company = await provider();
+    const contact = await clients.create(company.id, {
+      email: randomUUID() + '@example.test',
+    });
+    const city = await db.city.create({
+      data: {
+        garObjectId: 1n,
+        objectGuid: randomUUID(),
+        name: 'Екатеринбург',
+        typeName: 'г',
+        level: 5,
+        regionCode: '66',
+        regionName: 'Свердловская область',
+      },
+    });
+    const input = {
+      message: 'Выезд на участок',
+      requestCityId: city.id,
+      location: '  СНТ Лес, участок 5  ',
+    };
+    const { id } = await work.create(company.owner, contact.id, input);
+    expect(await requests.getProById(company.id, id)).toMatchObject({
+      requestCityId: city.id,
+      requestCity: { id: city.id, name: city.name },
+      location: 'СНТ Лес, участок 5',
+    });
+    await db.city.update({
+      where: { id: city.id },
+      data: { status: 'INACTIVE' },
+    });
+    await expect(
+      work.create(company.owner, contact.id, input),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(
+      await db.request.count({ where: { providerClientId: contact.id } }),
+    ).toBe(1);
   });
 
   it('limits service selection to the provider’s published services and snapshots a fixed price', async () => {

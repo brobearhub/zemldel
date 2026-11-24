@@ -23,10 +23,19 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-it("сохраняет приглашение при входе и регистрации без передачи почты в URL", async () => {
+it("сначала предлагает регистрацию клиента, затем вход и после кнопок объясняет, где появятся заявки", async () => {
   render(<ClientInvitation path={path} />);
-  expect(await screen.findByRole("link", { name: "Войти" })).toHaveAttribute("href", `/signin?returnTo=${encodeURIComponent(path)}`);
-  expect(screen.getByRole("link", { name: "Зарегистрироваться как клиент" })).toHaveAttribute("href", `/signup?account=customer&returnTo=${encodeURIComponent(path)}`);
+  const signup = await screen.findByRole("link", { name: "Регистрация" });
+  const signin = screen.getByRole("link", { name: "Войти" });
+  const existingAccount = screen.getByText(/Уже есть аккаунт на Земледеле/);
+  expect(screen.getByText(/зарегистрируйтесь как клиент/)).toAppearBefore(signup);
+  expect(signup).toHaveAttribute("href", `/signup?account=customer&returnTo=${encodeURIComponent(path)}`);
+  expect(signup).toHaveClass("MuiButton-colorSecondary");
+  expect(signup).toAppearBefore(existingAccount);
+  expect(existingAccount).toAppearBefore(signin);
+  expect(signin).toHaveAttribute("href", `/signin?returnTo=${encodeURIComponent(path)}`);
+  expect(signin).toHaveClass("MuiButton-colorPrimary");
+  expect(signin).toAppearBefore(screen.getByText(/В разделе «Заявки»/));
 });
 
 it.each([["PROVIDER", email], ["CUSTOMER", "other@example.test"]])("предлагает сменить неподходящий аккаунт", async (accountKind, address) => {
@@ -54,6 +63,7 @@ it("открывает автоматически подключённые за�
   auth.data = { user: { accountKind: "CUSTOMER", email } };
   api.mockResolvedValueOnce(Response.json({ providerName: "Бюро", email, accepted: true }));
   render(<ClientInvitation path={path} />);
-  expect(await screen.findByRole("link", { name: "Открыть мои заявки" })).toHaveAttribute("href", "/profile?section=requests");
+  await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/profile?section=requests"));
+  expect(screen.queryByRole("link", { name: "Открыть мои заявки" })).not.toBeInTheDocument();
   expect(api).toHaveBeenCalledTimes(1);
 });
